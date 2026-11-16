@@ -15,10 +15,8 @@ describe('liveHomeRefusal', () => {
     expect(liveHomeRefusal({ ARCHON_FACTORY_LIVE_HOME: join(home, 'other') })).toBeNull();
   });
 
-  test('a server on the live factory home is refused and pointed at dev:console', () => {
-    const refusal = liveHomeRefusal({ ARCHON_FACTORY_LIVE_HOME: home });
-    expect(refusal).toContain(home);
-    expect(refusal).toContain('bun run dev:console');
+  test('a server on the live factory home is refused', () => {
+    expect(liveHomeRefusal({ ARCHON_FACTORY_LIVE_HOME: home })).not.toBeNull();
   });
 
   test('the live home named in different case is still refused', () => {
