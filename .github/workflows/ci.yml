@@ -1,0 +1,33 @@
+# CI for the factory-console proof of concept. Upstream Archon's full CI (release, docs, e2e,
+# Postgres) is not run here; this covers what the console work can break.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  BUN_VERSION: "1.4.2"
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Generated API types, type-check, lint, format
+        run: bun run validate --only generated-files,type-check,lint,format
+      - name: Web tests
+        run: bun run --cwd packages/web test
+      - name: Server tests
+        run: bun run --cwd packages/server test
+      - name: Web build
+        run: bun run build:web
