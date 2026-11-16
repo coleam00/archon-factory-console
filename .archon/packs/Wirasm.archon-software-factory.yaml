@@ -1,0 +1,8 @@
+# This repository's settings for Rasmus's factory pack (Wirasm/archon-software-factory), which
+# builds the factory console proof of concept. Paths are relative to the repository root.
+settings:
+  product_policy: docs/factory-console/DESIGN.md
+  build_policy: docs/factory-console/ENGINEERING.md
+  review_policy: docs/factory-console/ENGINEERING.md
+  test_policy: docs/factory-console/ENGINEERING.md
+  validate_command: "bun run validate --only generated-files,type-check,lint,format && bun run --cwd packages/web test && bun run --cwd packages/server test && bun run build:web"
