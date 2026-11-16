@@ -14,7 +14,7 @@ jobs:
   check:
     name: check
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,8 +23,23 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - name: Generated API types, type-check, lint, format
-        run: bun run validate --only generated-files,type-check,lint,format
+      - name: Generated API types, lint, format
+        run: bun run validate --only generated-files,lint,format
+      # A private repository's runner has 7 GB; `bun run type-check` checks every package at
+      # once and runs out of memory there, so the packages are checked one after another.
+      - name: Type-check, one package at a time
+        env:
+          NODE_OPTIONS: --max-old-space-size=5120
+        run: |
+          for p in packages/*/; do
+            if grep -q '"type-check"' "$p/package.json" 2>/dev/null; then
+              printf '== %s\n' "$p"
+              bun run --cwd "$p" type-check || exit 1
+            fi
+          done
+          bun x tsc --noEmit -p scripts/tsconfig.json
+          bun x tsc --noEmit -p .archon/scripts/tsconfig.json
+          bun x tsc --noEmit -p .archon/workflows/tsconfig.json
       - name: Web tests
         run: bun run --cwd packages/web test
       - name: Server tests
