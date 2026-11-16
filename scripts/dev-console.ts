@@ -33,6 +33,14 @@ if (live && !existsSync(db)) {
     const src = new Database(source, { readonly: true });
     src.run(`VACUUM INTO '${db.replaceAll("'", "''")}'`);
     src.close();
+    // The copy names the live factory's worktrees. A server sweeps active environments at
+    // startup (cleanup-service.ts) and could remove one a live run is using, so the copy holds
+    // none as active: this server only reads.
+    const copy = new Database(db);
+    copy.run(
+      "UPDATE remote_agent_isolation_environments SET status = 'destroyed' WHERE status = 'active'"
+    );
+    copy.close();
     console.log(`Seeded ${db} from a read-only copy of the live factory database.`);
   }
 }
