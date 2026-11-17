@@ -19,6 +19,18 @@ export const MIN_ZOOM = 0.3;
 export const MAX_ZOOM = 2;
 /** Fitting never enlarges the map past its drawn size: zoom in to read closer. */
 const MAX_FIT = 1;
+/**
+ * The smallest text the map draws, in world px (cards, chips and arrow labels are
+ * `text-console-15`; FactoryMap.test.tsx holds the classes to it), and the console's type
+ * floor, its smallest text token (`--text-console-9`).
+ */
+export const MAP_TEXT_PX = 15;
+export const TYPE_FLOOR_PX = 9;
+/**
+ * The least scale fitting opens at, so the map's text never draws under the type floor. A
+ * frame too narrow for the whole map at this scale shows its start and pans to the rest.
+ */
+export const READABLE_K = TYPE_FLOOR_PX / MAP_TEXT_PX;
 /** Space kept between the fitted map and the frame's edge. */
 export const FIT_PAD = 24;
 /** The frame is never shorter than this, so the details panel beside it has room. */
@@ -28,24 +40,36 @@ export function clampK(k: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k));
 }
 
-/** The scale that fits `bounds` in `frame`, inside the padding; 1 for an empty map. */
+/**
+ * The scale that fits `bounds` in `frame`, inside the padding, never under `READABLE_K` nor
+ * over the drawn size; 1 for an empty map.
+ */
 function fitScale(bounds: Box, frame: Frame, pad: number): number {
   const sx = bounds.w > 0 ? (frame.width - 2 * pad) / bounds.w : MAX_FIT;
   const sy = bounds.h > 0 ? (frame.height - 2 * pad) / bounds.h : MAX_FIT;
-  return clampK(Math.min(MAX_FIT, sx, sy));
+  return clampK(Math.max(READABLE_K, Math.min(MAX_FIT, sx, sy)));
 }
 
-/** The whole map in the frame, centred. Finite for any frame, a zero-sized one included. */
+/** Where a span of `size` starts in an `extent`: centred when it fits, else at the padding. */
+function place(size: number, extent: number, pad: number): number {
+  return size <= extent - 2 * pad ? (extent - size) / 2 : pad;
+}
+
+/**
+ * The map in the frame at its fitting scale: centred where it fits, else from its start
+ * (top-left), so a narrow frame shows the first stages and pans to the rest. Finite for any
+ * frame, a zero-sized one included.
+ */
 export function fitCamera(bounds: Box, frame: Frame, pad = FIT_PAD): Camera {
   const k = fitScale(bounds, frame, pad);
   return {
     k,
-    x: (frame.width - bounds.w * k) / 2 - bounds.x * k,
-    y: (frame.height - bounds.h * k) / 2 - bounds.y * k,
+    x: place(bounds.w * k, frame.width, pad) - bounds.x * k,
+    y: place(bounds.h * k, frame.height, pad) - bounds.y * k,
   };
 }
 
-/** The frame height for a frame `width` wide: the map fitted to the width, no empty bands. */
+/** The frame height for a frame `width` wide: the map at its fitting scale, no empty bands. */
 export function fittedHeight(bounds: Box, width: number, pad = FIT_PAD): number {
   const k = fitScale(bounds, { width, height: Number.POSITIVE_INFINITY }, pad);
   return Math.max(MIN_FRAME_HEIGHT, Math.ceil(bounds.h * k + 2 * pad));

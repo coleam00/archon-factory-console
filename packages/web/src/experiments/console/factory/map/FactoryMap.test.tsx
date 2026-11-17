@@ -9,6 +9,7 @@ import { K } from '../../store/keys';
 import { shippedView } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
+import { MAP_TEXT_PX } from '../lib/map-camera';
 import { FactoryMap } from './FactoryMap';
 
 // Selecting a card and opening its stage need clicks, which static markup cannot reach.
@@ -139,6 +140,21 @@ const clickOf = (target: Element, detail: number, at = { x: 0, y: 0 }): Promise<
   });
 const stagePage = (container: HTMLElement): string | null | undefined =>
   container.querySelector('[data-testid="stage-page"]')?.textContent;
+
+test('no text the camera scales is smaller than MAP_TEXT_PX, which the readable scale assumes', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const layer = container.querySelector('[style*="scale("]');
+    if (layer === null) throw new Error('The map layer was not rendered');
+    const sizes = [...layer.querySelectorAll('[class*="text-console-"]')].flatMap(el =>
+      [...el.getAttribute('class')!.matchAll(/text-console-(\d+)/g)].map(m => Number(m[1]))
+    );
+    expect(sizes.length).toBeGreaterThan(0);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(MAP_TEXT_PX);
+  } finally {
+    await unmount();
+  }
+});
 
 test('a double-click on a card opens its stage page', async () => {
   const { container, unmount } = await mount();
