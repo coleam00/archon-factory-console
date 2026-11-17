@@ -50,7 +50,8 @@ function displayOrder(wait: AttentionWait): WaitOption[] {
   return [recommended, ...wait.options.filter(option => option !== recommended)];
 }
 
-const optionName = (option: WaitOption): string => option.label ?? option.id;
+export const optionName = (option: Pick<WaitOption, 'id' | 'label'>): string =>
+  option.label ?? option.id;
 
 /**
  * Answer a paused attention wait in its declared form: free text for a message, one

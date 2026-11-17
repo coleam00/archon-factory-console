@@ -1,37 +1,15 @@
-import type { ReactElement, ReactNode } from 'react';
-import { Link } from 'react-router';
-import {
-  AttentionAnswerForm,
-  isLegacyAttention,
-  type SubmitAnswer,
-} from '../components/AttentionAnswerPanel';
-import { ApprovalPanel } from '../components/ApprovalPanel';
-import { relativeTime } from '../lib/format';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { errorDetail } from '../lib/http';
-import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
-import { invalidate, type EntityView } from '../store/cache';
-import { needsYou, type NeedsYouItem } from './lib/needs-you';
-import { factoryPath } from './lib/views';
+import type { EntityView } from '../store/cache';
+import { NEEDS_YOU_SHOWN, needsYou, visibleNeedsYou, type NeedsYouItem } from './lib/needs-you';
+import { NeedsYouLine } from './NeedsYouLine';
 
 /**
- * Answer a queue item by its ref, then refresh every `runs` key (the project's queue, which
- * the answered item leaves, and the runs feed the answer moved on) and every `factory-items`
- * key (an item page lists the answer among its answers). A refusal refreshes too: it usually
- * means the item closed, so the stale row should go.
+ * The Overview's Needs-you section: every open ask and paused wait, newest first, one line
+ * each until opened and answered in place. It shows the newest few and says how many more
+ * there are, with "show all", so the map's top stays in the first screen.
  */
-export function answerByRef(ref: string): SubmitAnswer {
-  return async (choose, text) => {
-    try {
-      await skill.answerAttentionItem(ref, { choose, ...(text === undefined ? {} : { text }) });
-    } finally {
-      invalidate('runs');
-      invalidate('factory-items');
-    }
-  };
-}
-
-/** The Overview's Needs-you section: every open ask and paused wait, newest first, answerable here. */
 export function NeedsYouList({
   projectId,
   attention,
@@ -81,125 +59,59 @@ function NeedsYouBody({
       {items.length === 0 ? (
         <p className="text-sm text-text-secondary">Nothing is waiting on a person.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {items.map(item => (
-            <NeedsYouRow key={item.ref} projectId={projectId} item={item} queue={data} />
-          ))}
-        </ul>
+        <NeedsYouLines projectId={projectId} items={items} queue={data} />
       )}
     </>
   );
 }
 
-/** One open ask or paused wait, answerable in place; the item page lists its own with this. */
-export function NeedsYouRow({
+/** The lines, capped; which are open and whether all show is held here, across refreshes. */
+function NeedsYouLines({
   projectId,
-  item,
+  items,
   queue,
 }: {
   projectId: string;
-  item: NeedsYouItem;
+  items: NeedsYouItem[];
   queue: AttentionQueue;
 }): ReactElement {
+  const [showAll, setShowAll] = useState(false);
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const { shown, hidden } = visibleNeedsYou(items, { showAll, opened });
+  const toggle = (ref: string): void => {
+    setOpened(current => {
+      const next = new Set(current);
+      if (!next.delete(ref)) next.add(ref);
+      return next;
+    });
+  };
+  const more = 'self-start text-console-12 text-accent-bright hover:underline';
   return (
-    <li className="flex flex-col gap-1.5 rounded-console-12 border border-warning/40 bg-surface px-4 py-3">
-      <div className="flex flex-wrap items-baseline gap-x-2 text-console-12 text-text-tertiary">
-        <RowSubject projectId={projectId} item={item} />
-        {item.pausedAt === null ? null : <span>{relativeTime(item.pausedAt)}</span>}
-      </div>
-      <RowContent projectId={projectId} item={item} queue={queue} />
-    </li>
-  );
-}
-
-const runPath = (projectId: string, runId: string): string => `/console/p/${projectId}/r/${runId}`;
-
-/** The item the row is about, linking to its page; else the run holding the wait. */
-function RowSubject({ projectId, item }: { projectId: string; item: NeedsYouItem }): ReactNode {
-  const link = 'font-mono text-console-12 text-accent-bright hover:underline';
-  if (item.item !== undefined)
-    return (
-      <Link
-        to={factoryPath(projectId, `/items/${encodeURIComponent(item.item.key)}`)}
-        className={link}
-      >
-        {item.item.key}
-      </Link>
-    );
-  if (item.run === undefined) return null;
-  return (
-    <Link to={runPath(projectId, item.run.id)} className={link}>
-      {item.run.workflow}
-    </Link>
-  );
-}
-
-function RowContent({
-  projectId,
-  item,
-  queue,
-}: {
-  projectId: string;
-  item: NeedsYouItem;
-  queue: AttentionQueue;
-}): ReactNode {
-  switch (item.kind) {
-    case 'attention':
-      return (
-        <>
-          <p className="text-sm text-text-primary">{item.message}</p>
-          {item.context === undefined ? null : (
-            <p className="whitespace-pre-wrap text-console-12 text-text-secondary">
-              {item.context}
-            </p>
-          )}
-          {item.run !== undefined && isLegacyAttention(item.run) ? (
-            <RunLink projectId={projectId} runId={item.run.id}>
-              Paused before answers existed; resume it from the run
-            </RunLink>
-          ) : (
-            <AttentionAnswerForm wait={item} submit={answerByRef(item.ref)} />
-          )}
-        </>
-      );
-    case 'awaiting_response': {
-      const run = queue.runs.find(candidate => candidate.id === item.run.id);
-      // ApprovalPanel prints the gate's message itself; the row adds it only for the link.
-      if (run !== undefined) return <ApprovalPanel run={run} />;
-      return (
-        <>
-          <p className="text-sm text-text-primary">{item.message}</p>
-          <RunLink projectId={projectId} runId={item.run.id}>
-            Answer it on the run
-          </RunLink>
-        </>
-      );
-    }
-    case 'unreadable':
-      return (
-        <>
-          <p className="text-sm text-text-primary">This paused run could not be read.</p>
-          <p className="text-console-12 text-text-secondary">{item.detail}</p>
-          <RunLink projectId={projectId} runId={item.run.id}>
-            Resume or abandon it on the run
-          </RunLink>
-        </>
-      );
-  }
-}
-
-function RunLink({
-  projectId,
-  runId,
-  children,
-}: {
-  projectId: string;
-  runId: string;
-  children: ReactNode;
-}): ReactElement {
-  return (
-    <Link to={runPath(projectId, runId)} className="text-console-12 text-accent-bright underline">
-      {children}
-    </Link>
+    <>
+      <ul className="flex flex-col gap-2">
+        {shown.map(item => (
+          <NeedsYouLine
+            key={item.ref}
+            projectId={projectId}
+            item={item}
+            queue={queue}
+            open={opened.has(item.ref)}
+            onToggle={() => {
+              toggle(item.ref);
+            }}
+          />
+        ))}
+      </ul>
+      {hidden > 0 ? (
+        <button type="button" className={more} onClick={() => setShowAll(true)}>
+          {`${hidden.toString()} more · show all ${items.length.toString()}`}
+        </button>
+      ) : null}
+      {showAll && items.length > NEEDS_YOU_SHOWN ? (
+        <button type="button" className={more} onClick={() => setShowAll(false)}>
+          Show fewer
+        </button>
+      ) : null}
+    </>
   );
 }

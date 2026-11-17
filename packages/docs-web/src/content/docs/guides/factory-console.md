@@ -22,8 +22,9 @@ A project gets a **Factory** tab after Runs, Chat and Metrics when a factory vie
 it. Inside it:
 
 - **Overview**: the view's title and summary, then a strip of numbers, then **Needs you**:
-  every open question an item is waiting on, with the recommended option first, answerable in
-  place. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
+  every open question an item is waiting on, one line each with its recommended option.
+  **Open** a line to answer it in place, the recommended option first. The newest four show;
+  **N more · show all** lists the rest. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
   on the `map` grid, coloured by group, with the declared hand-offs between them (returns
   dashed, below). Each card says how many items are in it now, pulsing while a run works one,
   and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows

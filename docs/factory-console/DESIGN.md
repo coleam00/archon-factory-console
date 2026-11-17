@@ -166,10 +166,13 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 1. Title and the declaration's summary paragraph.
 2. **Numbers strip:** items in flight, needs you, landed today, landed in total ("N of M done"
    where M excludes items closed by triage), median time from first run to landed.
-3. **Needs you:** each open ask on this project's items, newest first: item, question, the
-   recommended option first and highlighted, the other options with what each does and costs,
-   answered in place through `POST /api/attention/answer`. Paused runs' waits appear here too
-   (the attention list already reads both into one shape).
+3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
+   question, recommended option) until opened. Opened, it shows the recommended option first and
+   highlighted, the other options with what each does and costs, answered in place through
+   `POST /api/attention/answer`. The list shows the newest four and says how many more there
+   are, with "show all"; a line the operator opened stays shown. Paused runs' waits appear here
+   too (the attention list already reads both into one shape). The item page shows its own asks
+   opened.
 4. **The map.**
 
 ## The map

@@ -37,3 +37,25 @@ export function itemAsks(
   const refs = new Set(item.questions.map(question => question.ref));
   return needsYou(queue).filter(entry => refs.has(entry.ref) || entry.item?.id === item.item.id);
 }
+
+/**
+ * How many Needs-you lines the Overview shows before "show all". At 1440x900 this many
+ * one-line rows keep the map's first card row in the first screen (measured in #20).
+ */
+export const NEEDS_YOU_SHOWN = 4;
+
+/**
+ * The Needs-you rows the Overview shows, in the queue's order: the first `limit`, every row
+ * the operator opened (so a newer ask arriving cannot unmount a half-typed answer), or all
+ * when `showAll`. `hidden` is how many are left out, which the list must say.
+ */
+export function visibleNeedsYou(
+  items: readonly NeedsYouItem[],
+  { showAll, opened }: { showAll: boolean; opened: ReadonlySet<string> },
+  limit = NEEDS_YOU_SHOWN
+): { shown: NeedsYouItem[]; hidden: number } {
+  const shown = showAll
+    ? [...items]
+    : items.filter((item, index) => index < limit || opened.has(item.ref));
+  return { shown, hidden: items.length - shown.length };
+}

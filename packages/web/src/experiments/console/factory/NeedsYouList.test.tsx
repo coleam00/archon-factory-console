@@ -5,8 +5,11 @@ import type { AttentionQueue } from '../skills/runs';
 import { get, invalidate, set, type EntityView } from '../store/cache';
 import { toRun } from '../primitives/run';
 import { K } from '../store/keys';
-import { answerByRef, NeedsYouList } from './NeedsYouList';
-import { askItem, gateItem, usageLimitItem } from './needs-you.test-fixtures';
+import type { NeedsYouItem } from './lib/needs-you';
+import { NeedsYouLine } from './NeedsYouLine';
+import { NeedsYouList } from './NeedsYouList';
+import { answerByRef } from './NeedsYouRow';
+import { askItem, gateItem, unreadableItem, usageLimitItem } from './needs-you.test-fixtures';
 
 const ID = 'cb-1';
 const originalFetch = globalThis.fetch;
@@ -50,6 +53,15 @@ function render(attention: EntityView<AttentionQueue>): string {
   );
 }
 
+/** One line, opened: what the Overview shows after the operator clicks Open. */
+function renderOpened(item: NeedsYouItem, data: AttentionQueue): string {
+  return renderToStaticMarkup(
+    <MemoryRouter>
+      <NeedsYouLine projectId={ID} item={item} queue={data} open onToggle={() => {}} />
+    </MemoryRouter>
+  );
+}
+
 function captureFetch(status: number, body: unknown): { path: string; body: unknown }[] {
   const requests: { path: string; body: unknown }[] = [];
   // requestJson reads the page origin when it reports a failure.
@@ -82,12 +94,58 @@ describe('the Needs-you list', () => {
     expect(html).not.toContain('run-limit');
     expect(html).toContain(`href="/console/p/${ID}/factory/items/%237"`);
     expect(html).toContain('>#7</a>');
-    // A gate whose run row is missing leads to the run instead of answering blind.
-    expect(html).toContain('Answer it on the run');
+    // Each line says what answering takes; the forms wait until a line is opened.
+    expect(html).toContain('Recommended: Use dev');
+    expect(html).toContain('2 options');
+    expect(html).toContain('Approve or reject');
+    expect(html).not.toContain('Dev is the working base.');
+    expect(html.split('aria-expanded="false"')).toHaveLength(4);
   });
 
-  test('a row shows the context, then the recommendation with why, then the others with does and cost', () => {
-    const html = render(loaded({ ...queue, items: [newest] }));
+  test('a line names the rest of the kinds in plain words', () => {
+    const html = render(
+      loaded({
+        items: [
+          askItem({ ref: 'ask:words', form: 'message', options: [], recommendation: undefined }),
+          unreadableItem({ ref: 'run-unreadable:1' }),
+        ],
+        runs: [],
+        degraded: [],
+      })
+    );
+    expect(html).toContain('Answer in words');
+    expect(html).toContain('Could not be read');
+  });
+
+  test('past four asks it shows the newest four and says how many more, the heading the total', () => {
+    const six = Array.from({ length: 6 }, (_, i) =>
+      askItem({
+        ref: `ask:${i.toString()}`,
+        message: `Question ${i.toString()}?`,
+        pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
+      })
+    );
+    const html = render(loaded({ items: six, runs: [], degraded: [] }));
+    expect(html).toContain('Needs you · 6');
+    expect(html.split('aria-expanded="false"')).toHaveLength(5);
+    for (const shown of ['Question 5?', 'Question 4?', 'Question 3?', 'Question 2?'])
+      expect(html).toContain(shown);
+    expect(html).not.toContain('Question 1?');
+    expect(html).toContain('2 more · show all 6');
+
+    const four = render(loaded({ items: six.slice(0, 4), runs: [], degraded: [] }));
+    expect(four).not.toContain('show all');
+    expect(four).not.toContain('Show fewer');
+  });
+
+  test('a gate whose run row is missing, opened, leads to the run instead of answering blind', () => {
+    expect(renderOpened(gate, queue)).toContain('Answer it on the run');
+  });
+
+  test('an opened line shows the context, then the recommendation with why, then the others with does and cost', () => {
+    const html = renderOpened(newest, queue);
+    // The question once: the opened line drops its one-line summary.
+    expect(html.split('Which base should the change target?')).toHaveLength(2);
     const at = (text: string): number => {
       const index = html.indexOf(text);
       expect(index).toBeGreaterThanOrEqual(0);
@@ -103,7 +161,7 @@ describe('the Needs-you list', () => {
     expect(at('Rebases onto main.')).toBeLessThan(at('Cost: Drops dev fixes.'));
   });
 
-  test("a gate whose run row is present is answered with the run's approval controls, its question once", () => {
+  test("an opened gate whose run row is present is answered with the run's approval controls, its question once", () => {
     const run = toRun({
       id: 'run-gate',
       workflow_name: 'deliver',
@@ -114,7 +172,7 @@ describe('the Needs-you list', () => {
         approval: { nodeId: 'review-gate', pauseId: 'pause-1', message: 'Approve the plan?' },
       },
     });
-    const html = render(loaded({ items: [gate], runs: [run], degraded: [] }));
+    const html = renderOpened(gate, { items: [gate], runs: [run], degraded: [] });
     expect(html.split('Approve the plan?')).toHaveLength(2);
     expect(html).toContain('Continue');
     expect(html).not.toContain('Answer it on the run');
