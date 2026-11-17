@@ -155,8 +155,9 @@ pack declares. It reports, each with its path in the view file:
   step two of them cover (a loop group counts as a step);
 - every step a card, a loop, a stage's `nodes` or `steps` names that the workflow does not have,
   and every listed workflow the pack does not have;
-- every hand-off the pack starts between two stages that `map.arrows` does not declare, and
-  every declared arrow no hand-off backs, unless it is `person: true`, joins two different
+- every hand-off between two stages that the pack declares (each of its bindings, whether or
+  not a trigger file on this machine installs it) that `map.arrows` does not declare, and
+  every declared arrow no such hand-off backs, unless it is `person: true`, joins two different
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
   own stage is a rerun only a hand-off starts, so it is always checked.
 
