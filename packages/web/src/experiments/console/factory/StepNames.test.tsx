@@ -126,6 +126,10 @@ function rawIds(html: string): string[] {
   });
 }
 
+/** Every `title` on the page: where the engine id belongs, on hover. */
+const titles = (html: string): string[] =>
+  [...html.matchAll(/ title="([^"]*)"/g)].map(match => match[1] ?? '');
+
 describe('no raw step id where a person reads', () => {
   test('the scan finds the shapes it looks for', () => {
     expect(LOOPS).toContain('rounds');
@@ -139,6 +143,10 @@ describe('no raw step id where a person reads', () => {
     expect(html).toContain('Checks · Code review · round 2');
     expect(html).toContain('Build · Writes the change');
     expect(html).toContain('failed at Test check');
+    // The run line keeps the engine id on hover.
+    expect(titles(html)).toContain(
+      'Checks · Code review · round 2 (engine id: rounds.review__review)'
+    );
     expect(rawIds(html)).toEqual([]);
   });
 
@@ -146,6 +154,9 @@ describe('no raw step id where a person reads', () => {
     const html = render(`/console/p/${ID}/factory/board?view=table`);
     expect(html).toContain('CI and review · Reads CI and PR reviews');
     expect(html).toContain('Build · mystery · round 2');
+    expect(titles(html)).toContain(
+      'CI and review · Reads CI and PR reviews (engine id: hostrounds.host__host)'
+    );
     expect(rawIds(html)).toEqual([]);
   });
 
@@ -153,6 +164,10 @@ describe('no raw step id where a person reads', () => {
     const html = render(`/console/p/${ID}/factory/items/3`, runningDetail());
     expect(readable(html)).toContain('Code review, round 2');
     expect(readable(html)).toContain('Started by step Verdict');
+    // On hover: the step that started the run, and each step a round recorded.
+    const hover = titles(html);
+    expect(hover).toContain('rounds.verdict__verdict');
+    expect(hover.some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
     expect(rawIds(html)).toEqual([]);
   });
 
@@ -174,6 +189,7 @@ describe('no raw step id where a person reads', () => {
       </MemoryRouter>
     );
     expect(html).toContain('Checks · Code review · round 2');
+    expect(titles(html)).toContain('rounds.review__review');
     expect(rawIds(html)).toEqual([]);
   });
 
@@ -182,6 +198,10 @@ describe('no raw step id where a person reads', () => {
     expect(readable(html)).toContain('Code review');
     // A name the step box may cut reads in full on hover, with its engine id.
     expect(html).toContain('title="Code review (engine id: rounds.review__review)');
+    // The running list's step and the loop frame's name keep their engine ids on hover.
+    const hover = titles(html);
+    expect(hover).toContain('rounds.review__review');
+    expect(hover).toContain('rounds');
     expect(rawIds(html)).toEqual([]);
   });
 
