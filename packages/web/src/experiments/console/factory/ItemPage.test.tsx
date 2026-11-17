@@ -55,7 +55,7 @@ describe('the item page', () => {
     expect(words).toContain('PR #14');
     expect(words).toContain('merge state unknown');
     expect(words.match(/Build deliver/g)?.length).toBe(2);
-    expect(words).toContain('round 2 of 3 · ask');
+    expect(words).toContain('round 2 of 3 · needs a decision');
     expect(words).toContain('Ask answered');
     expect(words).toContain('1 answered, 0 withdrawn');
     expect(words).toContain('Nothing on this item is waiting on you.');

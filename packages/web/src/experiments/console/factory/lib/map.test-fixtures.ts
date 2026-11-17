@@ -50,7 +50,11 @@ export function itemWith(
   const running = runs[runningIndex];
   const progress: Progress = {
     ...(base.progress as Progress),
-    runs: runs.map((entry, index) => ({ runId: ids[index] ?? '', workflow: entry.workflow })),
+    runs: runs.map((entry, index) => ({
+      runId: ids[index] ?? '',
+      workflow: entry.workflow,
+      failedStep: null,
+    })),
     running:
       running === undefined
         ? null
@@ -60,7 +64,10 @@ export function itemWith(
             step: running.step ?? null,
             startedAt: '2026-11-17T05:00:00.000Z',
           },
-    change: merged === null ? null : { url: 'https://example.test/pull/1', merged, mergedAt: null },
+    change:
+      merged === null
+        ? null
+        : { url: 'https://example.test/pull/1', merged, mergedAt: null, number: 1 },
   };
   return {
     ...base,

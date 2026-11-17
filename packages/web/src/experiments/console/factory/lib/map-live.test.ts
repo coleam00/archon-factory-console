@@ -124,4 +124,15 @@ describe('the live chips on each card', () => {
     ]);
     expect(chips(live).ready).toEqual([['ready'], 0, []]);
   });
+
+  test('an item placement finds no column for is listed, not thrown', () => {
+    // A view that no longer lists `deliver`, read beside items cached under the old one.
+    const stages = view.stages.map(stage => ({
+      ...stage,
+      workflows: stage.workflows.filter(workflow => workflow !== 'deliver'),
+    }));
+    const item = itemWith('r', [run('deliver', 'running', null, 'build__build')]);
+    const live = stageLive({ ...view, stages }, [item], []);
+    expect(live.notOnMap).toEqual([{ item, why: { kind: 'no-column' } }]);
+  });
 });

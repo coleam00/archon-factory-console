@@ -23,6 +23,8 @@ export interface StageLive {
 export type NotOnMapWhy =
   /** The server could not derive the item's progress, so nothing places it. */
   | { kind: 'no-progress' }
+  /** Placement found no column: the view names no stage for it (as the item page's "Position unknown"). */
+  | { kind: 'no-column' }
   /** Placed on `stage`, which the map draws no card for. */
   | { kind: 'no-card'; stage: string };
 
@@ -38,6 +40,30 @@ export interface MapLive {
   notOnMap: NotOnMap[];
 }
 
+/** Where one item goes on the map: a stage's entry, with whether a run works it and it needs you; or why not. */
+type MapPlace =
+  | { live: StageLive; stage: string; working: boolean; asks: boolean }
+  | { ended: true }
+  | { why: NotOnMapWhy };
+
+function mapPlace(
+  view: FactoryViewListed['declaration'],
+  stages: ReadonlyMap<string, StageLive>,
+  item: FactoryItem,
+  attention: readonly AttentionQueueItem[]
+): MapPlace {
+  if (item.progress === null) return { why: { kind: 'no-progress' } };
+  const asks = itemAsks(item, attention).length > 0;
+  const input = placementInput(item, pageRunFacts(item.progress), asks);
+  const column = itemColumn(view, input);
+  // An item ended without a change (`endings`) is on no card, by design.
+  if (column !== null && 'ended' in column) return { ended: true };
+  const live = column === null ? undefined : stages.get(column.stage.id);
+  // Reachable when the cached view changed under cached items: say so, as the item page does.
+  if (column === null || live === undefined) return { why: { kind: 'no-column' } };
+  return { live, stage: column.stage.id, working: itemState(input) === 'running', asks };
+}
+
 export function stageLive(
   view: FactoryViewListed['declaration'],
   items: readonly FactoryItem[],
@@ -49,25 +75,14 @@ export function stageLive(
   );
   const notOnMap: NotOnMap[] = [];
   for (const item of items) {
-    if (item.progress === null) {
-      notOnMap.push({ item, why: { kind: 'no-progress' } });
-      continue;
-    }
-    const asks = itemAsks(item, attention).length > 0;
-    const input = placementInput(item, pageRunFacts(item.progress), asks);
-    const column = itemColumn(view, input);
-    // The schema requires a first stage and a declared landed stage, and placement names only
-    // declared stages, so a null column cannot come from a declaration the server accepted.
-    if (column === null) throw new Error(`Item ${item.item.key} has no column`);
-    // An item ended without a change (`endings`) is on no card, by design.
-    if ('ended' in column) continue;
-    const live = stages.get(column.stage.id);
-    if (live === undefined) throw new Error(`Placed on undeclared stage ${column.stage.id}`);
-    live.items.push(item);
-    if (itemState(input) === 'running') live.working += 1;
-    if (asks) live.needYou.push(item);
-    if (!carded.has(column.stage.id))
-      notOnMap.push({ item, why: { kind: 'no-card', stage: column.stage.id } });
+    const place = mapPlace(view, stages, item, attention);
+    if ('why' in place) notOnMap.push({ item, why: place.why });
+    if (!('live' in place)) continue;
+    place.live.items.push(item);
+    if (place.working) place.live.working += 1;
+    if (place.asks) place.live.needYou.push(item);
+    if (!carded.has(place.stage))
+      notOnMap.push({ item, why: { kind: 'no-card', stage: place.stage } });
   }
   return { stages, notOnMap };
 }

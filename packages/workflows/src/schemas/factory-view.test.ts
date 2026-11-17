@@ -79,6 +79,20 @@ describe('factoryViewSchema', () => {
     expect(issuePaths(view)).toEqual(['returns.0.workflow']);
   });
 
+  test('an approves entry is accepted beside returns, and one naming a workflow no stage lists is rejected', () => {
+    const point = { workflow: 'build', node: 'rounds.verdict', outcome: 'approve' };
+    expect(
+      factoryViewSchema.safeParse({
+        ...minimal(),
+        returns: [{ ...point, outcome: 'return' }],
+        approves: [point],
+      }).success
+    ).toBe(true);
+    expect(issuePaths({ ...minimal(), approves: [{ ...point, workflow: 'deliver' }] })).toEqual([
+      'approves.0.workflow',
+    ]);
+  });
+
   test('two cards in one cell, and a note near nothing, are rejected', () => {
     const view = minimal();
     view.map.cards[1] = { stage: 'build', col: 1, row: 1 };

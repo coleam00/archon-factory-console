@@ -109,10 +109,11 @@ describe('the facts of one run', () => {
       max: 3,
       rounds: [
         { iteration: 1, verdict: 'returned', outcome: 'return' },
-        { iteration: 2, verdict: 'ended', outcome: 'approve' },
+        { iteration: 2, verdict: 'approved', outcome: 'approve' },
       ],
     });
     expect(facts.returnCount).toBe(2);
+    expect(facts.failedStep).toBeNull();
     expect(facts.change?.url).toBe(PR10);
     expect(facts.change?.audits.length).toBeGreaterThan(0);
   });
@@ -122,7 +123,7 @@ describe('the facts of one run', () => {
     expect(facts.rounds?.rounds.map(round => [round.verdict, round.outcome])).toEqual([
       ['returned', 'return'],
       ['returned', 'return'],
-      ['ended', 'approve'],
+      ['approved', 'approve'],
     ]);
     expect(facts.returnCount).toBe(2);
     expect(facts.change?.url).toBe(PR11);
@@ -154,7 +155,7 @@ describe('the facts of one run', () => {
     });
   });
 
-  test('a round whose checks asked instead of approving ends with that outcome, not an approval', () => {
+  test('a round whose checks asked instead of approving needs a decision, with that outcome', () => {
     // The same run, its verdict step answering `ask` where it approved.
     const events = deliver1.events.map(row =>
       JSON.stringify(row.data).includes('"outcome":"approve"')
@@ -165,21 +166,69 @@ describe('the facts of one run', () => {
     );
     expect(decisions(factsOf({ ...deliver1, events }).rounds)?.rounds).toEqual([
       { iteration: 1, verdict: 'returned', outcome: 'return' },
-      { iteration: 2, verdict: 'ended', outcome: 'ask' },
+      { iteration: 2, verdict: 'undecided', outcome: 'ask' },
     ]);
   });
 
+  test('without a declared approval, a completed round needs a decision, never approved', () => {
+    const { approves: _approves, ...undeclared } = view;
+    expect(
+      decisions(factoryRunFacts(undeclared, PACK, deliver1.run, deliver1.events).rounds)?.rounds
+    ).toEqual([
+      { iteration: 1, verdict: 'returned', outcome: 'return' },
+      { iteration: 2, verdict: 'undecided', outcome: 'approve' },
+    ]);
+  });
+
+  test('an approval reads from the outcome the view declares, whatever the workflow calls it', () => {
+    // Declared as `pass`, the verdict step's `approve` approves nothing.
+    const renamed = {
+      ...view,
+      approves: (view.approves ?? []).map(point => ({ ...point, outcome: 'pass' })),
+    };
+    expect(
+      factoryRunFacts(renamed, PACK, deliver1.run, deliver1.events).rounds?.rounds.at(-1)?.verdict
+    ).toBe('undecided');
+  });
+
   test("rounds read only the declared loop's events, not another loop's", () => {
-    // deliver2 ran three review rounds and one host round.
+    // deliver2 ran three review rounds and one host round; the view declares no host approval.
     const hostView = { ...view, rounds: { workflow: 'deliver', loop: 'hostrounds' } };
     const host = factoryRunFacts(hostView, PACK, deliver2.run, deliver2.events).rounds;
-    expect(decisions(host)?.rounds).toEqual([{ iteration: 1, verdict: 'ended', outcome: 'clear' }]);
+    expect(decisions(host)?.rounds).toEqual([
+      { iteration: 1, verdict: 'undecided', outcome: 'clear' },
+    ]);
     expect(host?.rounds[0]?.steps.map(step => step.node)).toEqual(['hostrounds.host__host']);
+  });
+
+  test('a failed run names the step that failed', () => {
+    const started = [...deliver2Cut.events]
+      .reverse()
+      .find(row => row.event_type === 'node_started' && row.step_name === 'rounds.review__review');
+    if (started === undefined) throw new Error('the cut fixture starts the review step');
+    const failed: WorkflowEventRow = {
+      ...started,
+      id: 'failed-review',
+      event_type: 'node_failed',
+      data: { ...started.data, error: 'boom' },
+      event_order: (started.event_order ?? 0) + 1000,
+    };
+    const facts = factsOf({
+      run: { ...deliver2Cut.run, status: 'failed' },
+      events: [...deliver2Cut.events, failed],
+    });
+    expect(facts.failedStep).toBe('rounds.review__review');
   });
 
   test('triage and plan runs have no rounds, returns or change', () => {
     for (const run of [triage1, plan1])
-      expect(factsOf(run)).toEqual({ active: null, rounds: null, returnCount: 0, change: null });
+      expect(factsOf(run)).toEqual({
+        active: null,
+        rounds: null,
+        returnCount: 0,
+        failedStep: null,
+        change: null,
+      });
   });
 
   test('a run recorded under the bare name is not the installed pack’s workflow', () => {
@@ -213,7 +262,7 @@ describe("each round's steps", () => {
     expect(stepsOf(3)?.at(-1)).toEqual(['rounds.verdict__verdict', 'approve']);
   });
 
-  test("a round's summary is the summary of the return-point step that decided it", () => {
+  test("a round's summary is the summary of the return or approval step that decided it", () => {
     const verdictSummary = (iteration: number) =>
       rounds
         .find(round => round.iteration === iteration)
@@ -239,11 +288,12 @@ describe("each round's steps", () => {
   });
 });
 
-const notMerged: FactoryChangeState = async () => ({ merged: false, mergedAt: null });
+const notMerged: FactoryChangeState = async () => ({ merged: false, mergedAt: null, number: null });
 
 async function progressOf(
   runs: { run: WorkflowRun; events: WorkflowEventRow[] }[],
-  changeState: FactoryChangeState = notMerged
+  changeState: FactoryChangeState = notMerged,
+  branchOf: (run: WorkflowRun) => Promise<string | null> = async () => null
 ) {
   const facts = new Map(runs.map(entry => [entry.run.id, factsOf(entry)]));
   return factoryItemProgress(
@@ -251,36 +301,75 @@ async function progressOf(
     PACK,
     runs.map(entry => entry.run),
     facts,
-    changeState
+    changeState,
+    branchOf
   );
 }
 
 describe("an item's progress", () => {
+  test("the change lookup gets the declared runs' branches, newest first, once each", async () => {
+    // The newest declared run has its own branch; two older declared runs share one, so it
+    // is read once. A newer run of a workflow the view does not declare has no facts and
+    // its branch is never offered.
+    const later = {
+      ...deliver1,
+      run: { ...deliver1.run, id: 'later', started_at: new Date('2027-01-01') },
+    };
+    const undeclared = {
+      ...deliver1.run,
+      id: 'undeclared',
+      workflow_name: 'someone/else:deliver',
+      started_at: new Date('2027-02-01'),
+    };
+    const recorded: Record<string, string | null> = {
+      [triage1.run.id]: null,
+      [plan1.run.id]: 'shared',
+      [deliver1.run.id]: 'shared',
+      later: 'later-branch',
+      undeclared: 'other',
+    };
+    const declared = [triage1, plan1, deliver1, later];
+    const read: string[][] = [];
+    await factoryItemProgress(
+      view,
+      PACK,
+      [...declared.map(entry => entry.run), undeclared],
+      new Map(declared.map(entry => [entry.run.id, factsOf(entry)])),
+      async (_url, _audits, branches) => {
+        read.push([...(await branches())]);
+        return { merged: false, mergedAt: null, number: null };
+      },
+      async run => recorded[run.id] ?? null
+    );
+    expect(read).toEqual([['later-branch', 'shared']]);
+  });
+
   test('item 1 after its deliver run: title, round 2 of 3, returned twice, its change', async () => {
     const seen: [string, number][] = [];
     const progress = await progressOf([triage1, plan1, deliver1], async (url, audits) => {
       seen.push([url, audits.length]);
-      return { merged: true, mergedAt: '2026-11-17T01:00:00Z' };
+      return { merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 };
     });
     expect(progress).toEqual({
       title: 'The live-home guard and dev:console have tests',
       running: null,
-      runs: [
-        { runId: triage1.run.id, workflow: 'triage' },
-        { runId: plan1.run.id, workflow: 'plan' },
-        { runId: deliver1.run.id, workflow: 'deliver' },
-      ],
       round: {
         runId: deliver1.run.id,
         iteration: 2,
         max: 3,
         rounds: [
           { iteration: 1, verdict: 'returned', outcome: 'return' },
-          { iteration: 2, verdict: 'ended', outcome: 'approve' },
+          { iteration: 2, verdict: 'approved', outcome: 'approve' },
         ],
       },
       returned: 2,
-      change: { url: PR10, merged: true, mergedAt: '2026-11-17T01:00:00Z' },
+      change: { url: PR10, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 },
+      // As the view declares each workflow, not as the runs record `owner/name:workflow`.
+      runs: [
+        { runId: triage1.run.id, workflow: 'triage', failedStep: null },
+        { runId: plan1.run.id, workflow: 'plan', failedStep: null },
+        { runId: deliver1.run.id, workflow: 'deliver', failedStep: null },
+      ],
     });
     expect(seen).toEqual([[PR10, factsOf(deliver1).change?.audits.length ?? -1]]);
   });
@@ -304,16 +393,6 @@ describe("an item's progress", () => {
     });
     expect(progress.round?.iteration).toBe(2);
     expect(progress.change).toBeNull();
-  });
-
-  test('runs lists the declared runs in start order, whatever order they come in', async () => {
-    const progress = await progressOf([deliver2Cut, plan1, triage1]);
-    expect(progress.runs.map(run => [run.runId, run.workflow])).toEqual([
-      [triage1.run.id, 'triage'],
-      [plan1.run.id, 'plan'],
-      [deliver2Cut.run.id, 'deliver'],
-    ]);
-    expect((await progressOf([])).runs).toEqual([]);
   });
 
   test('an item with only triage and plan: nothing returned, no round, no change', async () => {
@@ -384,6 +463,8 @@ describe('the facts memo', () => {
     const edited = { ...view, returns: [] };
     expect(memo.get(edited, PACK, deliver1.run)).toBeUndefined();
     expect(factoryRunFacts(edited, PACK, deliver1.run, deliver1.events).returnCount).toBe(0);
+    // An approval declared or withdrawn changes the rounds' verdicts too.
+    expect(memo.get({ ...view, approves: [] }, PACK, deliver1.run)).toBeUndefined();
   });
 
   test('is bounded, oldest out', () => {

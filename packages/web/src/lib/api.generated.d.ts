@@ -3927,7 +3927,7 @@ export interface paths {
     };
     /**
      * A page of a project's items with each item's progress
-     * @description Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, each declared run's workflow as the view names it, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).
+     * @description Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).
      */
     get: {
       parameters: {
@@ -9723,6 +9723,11 @@ export interface components {
             node: string;
             outcome: string;
           }[];
+          approves?: {
+            workflow: string;
+            node: string;
+            outcome: string;
+          }[];
           change?: {
             workflow: string;
             pointer: string;
@@ -10209,10 +10214,6 @@ export interface components {
             /** Format: date-time */
             startedAt: string;
           } | null;
-          runs: {
-            runId: string;
-            workflow: string;
-          }[];
           round: {
             runId: string;
             iteration: number;
@@ -10220,7 +10221,7 @@ export interface components {
             rounds: {
               iteration: number;
               /** @enum {string} */
-              verdict: 'returned' | 'ended' | 'running' | 'stopped';
+              verdict: 'approved' | 'returned' | 'undecided' | 'running' | 'stopped';
               outcome: string | null;
             }[];
           } | null;
@@ -10229,7 +10230,13 @@ export interface components {
             url: string;
             merged: boolean | 'unknown';
             mergedAt: string | null;
+            number: number | null;
           } | null;
+          runs: {
+            runId: string;
+            workflow: string;
+            failedStep: string | null;
+          }[];
         } | null;
       };
       runs: {
@@ -10260,7 +10267,7 @@ export interface components {
           rounds: {
             iteration: number;
             /** @enum {string} */
-            verdict: 'returned' | 'ended' | 'running' | 'stopped';
+            verdict: 'approved' | 'returned' | 'undecided' | 'running' | 'stopped';
             outcome: string | null;
             summary: string | null;
             steps: {
@@ -10724,10 +10731,6 @@ export interface components {
             /** Format: date-time */
             startedAt: string;
           } | null;
-          runs: {
-            runId: string;
-            workflow: string;
-          }[];
           round: {
             runId: string;
             iteration: number;
@@ -10735,7 +10738,7 @@ export interface components {
             rounds: {
               iteration: number;
               /** @enum {string} */
-              verdict: 'returned' | 'ended' | 'running' | 'stopped';
+              verdict: 'approved' | 'returned' | 'undecided' | 'running' | 'stopped';
               outcome: string | null;
             }[];
           } | null;
@@ -10744,7 +10747,13 @@ export interface components {
             url: string;
             merged: boolean | 'unknown';
             mergedAt: string | null;
+            number: number | null;
           } | null;
+          runs: {
+            runId: string;
+            workflow: string;
+            failedStep: string | null;
+          }[];
         } | null;
       }[];
       next: string | null;

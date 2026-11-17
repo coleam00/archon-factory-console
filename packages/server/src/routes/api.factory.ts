@@ -5,6 +5,7 @@
  * change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { type ChangeMergeState, prRefFromAudits } from '@archon/adapters/forge-host';
 import {
   FACTORY_ITEMS_MAX_LIMIT,
   FactoryItemsQueryError,
@@ -92,7 +93,7 @@ const getFactoryItemsRoute = createRoute({
   tags: ['Workflows'],
   summary: "A page of a project's items with each item's progress",
   description:
-    "Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, each declared run's workflow as the view names it, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).",
+    "Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).",
   request: { query: factoryItemsQuerySchema },
   responses: {
     200: {
@@ -158,11 +159,12 @@ const getFactoryItemRoute = createRoute({
   },
 });
 
-/** The merge state of one change, as the forge seam answered it. */
+/** The merge state of one change, as the forge seam answered it (`changeMergeState`). */
 export type ChangeMergeLookup = (
   url: string,
-  audits: readonly unknown[]
-) => Promise<{ merged: boolean | 'unknown'; mergedAt: string | null; reason?: string }>;
+  audits: readonly unknown[],
+  branches: () => Promise<readonly string[]>
+) => Promise<ChangeMergeState>;
 
 export interface FactoryRouteDeps {
   /** A registered codebase's checkout and the engine's project key for it; null when unknown. */
@@ -194,7 +196,8 @@ type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
  * The change host's answer for each change URL, shared by every request: one lookup in
  * flight per URL, a merged answer kept, any other for `CHANGE_STATE_TTL_MS`. A stale
  * answer is served while its refresh runs. A cold lookup slower than the wait answers
- * `unknown` for that request only.
+ * `unknown` for that request only. The pull request number is the forge's, else the one
+ * the run's own audit rows name, so a cold `unknown` still carries it when they do.
  */
 export function changeStateCache(
   deps: Pick<FactoryRouteDeps, 'changeMergeState' | 'changeStateWaitMs' | 'now'>
@@ -203,15 +206,20 @@ export function changeStateCache(
   const waitMs = deps.changeStateWaitMs ?? CHANGE_STATE_WAIT_MS;
   const answers = new Map<string, { answer: ChangeAnswer; at: number }>();
   const pending = new Map<string, Promise<ChangeAnswer>>();
-  const lookup = (url: string, audits: readonly unknown[]): Promise<ChangeAnswer> => {
+  const lookup = (
+    url: string,
+    audits: readonly unknown[],
+    branches: () => Promise<readonly string[]>
+  ): Promise<ChangeAnswer> => {
     const running = pending.get(url);
     if (running !== undefined) return running;
     const started = deps
-      .changeMergeState(url, audits)
+      .changeMergeState(url, audits, branches)
       .catch(
         (error: unknown): ChangeAnswer => ({
           merged: 'unknown',
           mergedAt: null,
+          number: null,
           reason: (error as Error).message,
         })
       )
@@ -225,22 +233,27 @@ export function changeStateCache(
     pending.set(url, started);
     return started;
   };
-  return async (url, audits) => {
+  const shown = (answer: ChangeAnswer, url: string, audits: readonly unknown[]) => ({
+    merged: answer.merged,
+    mergedAt: answer.mergedAt,
+    number: answer.number ?? prRefFromAudits(url, audits)?.number ?? null,
+  });
+  return async (url, audits, branches) => {
     const known = answers.get(url);
     if (known !== undefined) {
       if (known.answer.merged !== true && now() - known.at >= CHANGE_STATE_TTL_MS)
-        void lookup(url, audits);
-      return { merged: known.answer.merged, mergedAt: known.answer.mergedAt };
+        void lookup(url, audits, branches);
+      return shown(known.answer, url, audits);
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     const waited = new Promise<ChangeAnswer>(resolve => {
       timer = setTimeout(() => {
-        resolve({ merged: 'unknown', mergedAt: null });
+        resolve({ merged: 'unknown', mergedAt: null, number: null });
       }, waitMs);
     });
-    const answer = await Promise.race([lookup(url, audits), waited]);
+    const answer = await Promise.race([lookup(url, audits, branches), waited]);
     clearTimeout(timer);
-    return { merged: answer.merged, mergedAt: answer.mergedAt };
+    return shown(answer, url, audits);
   };
 }
 

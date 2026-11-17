@@ -60,5 +60,7 @@ function Why({
       </>
     );
   }
+  if (why.kind === 'no-column')
+    return <>has no stage in the factory view as it reads now; its item page says the same.</>;
   return <>has no progress: the server could not derive where it stands.</>;
 }

@@ -1,5 +1,6 @@
 import type { FactoryItemDetail } from '../../skills/factory';
 import { stageOfWorkflow } from './placement';
+import { VERDICT_LABEL } from './board';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -29,7 +30,10 @@ export interface TimelineGroup {
 export interface TimelineRound {
   iteration: number;
   max: number | null;
-  /** The round's verdict in words: `returned`, the recorded decision, `in progress`, `stopped`. */
+  /**
+   * The round's verdict in words: `returned`, `approved`, `needs a decision`, `in progress`,
+   * `stopped`.
+   */
   verdict: string;
   returned: boolean;
   /** What the deciding step said, on a round that sent the item back; null otherwise. */
@@ -80,8 +84,10 @@ function verdictWord(round: Round): string {
   switch (round.verdict) {
     case 'returned':
       return 'returned';
-    case 'ended':
-      return round.outcome ?? 'ended';
+    case 'approved':
+    case 'undecided':
+      // The board's words, so a round reads the same on the card and on the timeline.
+      return VERDICT_LABEL[round.verdict];
     case 'running':
       return 'in progress';
     case 'stopped':

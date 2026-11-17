@@ -2,7 +2,8 @@ import type { FactoryItemsPage } from '../../../skills/factory';
 
 /**
  * `GET /api/factory/items` from `dev:console --fresh` on 2026-11-17: three deliver runs on
- * `build__build` and one idle item, each trimmed to its latest run.
+ * `build__build` and one idle item, each trimmed to its latest run. #4's `progress.runs`,
+ * `change.number` and the `undecided` verdict were added by hand to the same runs.
  */
 export const capturedItemsPage: FactoryItemsPage = {
   pack: 'Wirasm/archon-software-factory',
@@ -40,10 +41,12 @@ export const capturedItemsPage: FactoryItemsPage = {
           step: 'build__build',
           startedAt: '2026-11-17T06:41:56.000Z',
         },
-        runs: [{ runId: 'c9773ff3-36bf-413e-a3b3-45ce93a77087', workflow: 'deliver' }],
         round: null,
         returned: 0,
         change: null,
+        runs: [
+          { runId: 'c9773ff3-36bf-413e-a3b3-45ce93a77087', workflow: 'deliver', failedStep: null },
+        ],
       },
     },
     {
@@ -81,7 +84,6 @@ export const capturedItemsPage: FactoryItemsPage = {
           step: 'build__build',
           startedAt: '2026-11-17T06:44:47.000Z',
         },
-        runs: [{ runId: '624c763f-4f33-46ea-aa65-bb1ba78c1eec', workflow: 'deliver' }],
         round: {
           runId: 'fdef09db-c751-43a0-9eb5-c6386b8f8b60',
           iteration: 2,
@@ -94,7 +96,7 @@ export const capturedItemsPage: FactoryItemsPage = {
             },
             {
               iteration: 2,
-              verdict: 'ended',
+              verdict: 'undecided',
               outcome: 'ask',
             },
           ],
@@ -104,7 +106,11 @@ export const capturedItemsPage: FactoryItemsPage = {
           url: 'https://github.com/coleam00/archon-factory-console/pull/16',
           merged: 'unknown',
           mergedAt: null,
+          number: null,
         },
+        runs: [
+          { runId: '624c763f-4f33-46ea-aa65-bb1ba78c1eec', workflow: 'deliver', failedStep: null },
+        ],
       },
     },
     {
@@ -140,10 +146,12 @@ export const capturedItemsPage: FactoryItemsPage = {
           step: 'build__build',
           startedAt: '2026-11-17T05:51:11.000Z',
         },
-        runs: [{ runId: '585ed621-5f63-4148-bb95-92cfb4c7f52a', workflow: 'deliver' }],
         round: null,
         returned: 0,
         change: null,
+        runs: [
+          { runId: '585ed621-5f63-4148-bb95-92cfb4c7f52a', workflow: 'deliver', failedStep: null },
+        ],
       },
     },
     {
@@ -174,7 +182,6 @@ export const capturedItemsPage: FactoryItemsPage = {
       progress: {
         title: 'The factory map on the Overview: stages and hand-offs, live, with details on click',
         running: null,
-        runs: [{ runId: 'f4e603d9-bdeb-4614-a411-77e76eb77777', workflow: 'deliver' }],
         round: {
           runId: 'f4e603d9-bdeb-4614-a411-77e76eb77777',
           iteration: 2,
@@ -187,7 +194,7 @@ export const capturedItemsPage: FactoryItemsPage = {
             },
             {
               iteration: 2,
-              verdict: 'ended',
+              verdict: 'undecided',
               outcome: 'ask',
             },
           ],
@@ -197,7 +204,11 @@ export const capturedItemsPage: FactoryItemsPage = {
           url: 'https://github.com/coleam00/archon-factory-console/pull/17',
           merged: 'unknown',
           mergedAt: null,
+          number: null,
         },
+        runs: [
+          { runId: 'f4e603d9-bdeb-4614-a411-77e76eb77777', workflow: 'deliver', failedStep: null },
+        ],
       },
     },
   ],

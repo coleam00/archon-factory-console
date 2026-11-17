@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 3, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed.",
+  "note": "GET /api/factory/item for item 3, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided. progress.runs added after capture, from this response's runs[].workflow (none of these runs failed, so failedStep is null).",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {
@@ -141,19 +141,23 @@
         "runs": [
           {
             "runId": "d6a33d87-0ac6-431e-a2f8-4fa33e91a1b2",
-            "workflow": "triage"
+            "workflow": "triage",
+            "failedStep": null
           },
           {
             "runId": "7e1a2eb1-d114-497f-ac42-71b2d598fa2d",
-            "workflow": "plan"
+            "workflow": "plan",
+            "failedStep": null
           },
           {
             "runId": "ab288319-6192-4645-8306-65622f0a966b",
-            "workflow": "deliver"
+            "workflow": "deliver",
+            "failedStep": null
           },
           {
             "runId": "80cc1489-d934-4cba-8979-de51c375bcf1",
-            "workflow": "deliver"
+            "workflow": "deliver",
+            "failedStep": null
           }
         ],
         "round": {
@@ -168,7 +172,7 @@
             },
             {
               "iteration": 2,
-              "verdict": "ended",
+              "verdict": "undecided",
               "outcome": "ask"
             }
           ]
@@ -247,7 +251,7 @@
             },
             {
               "iteration": 2,
-              "verdict": "ended",
+              "verdict": "undecided",
               "outcome": "ask",
               "summary": "Outcome is ask, not approve. The item names Postgres as a required adapter, and the Postgres path of listProjectItemsByActivity has never run: no reviewer ran it, and the builder refused to run it wit…",
               "steps": [
@@ -324,7 +328,7 @@
             },
             {
               "iteration": 2,
-              "verdict": "ended",
+              "verdict": "undecided",
               "outcome": "ask",
               "summary": "Outcome is ask, not approve. No report returns or replans. The review, test check and product review all find the code right against the item, and no check found a change that must be made. The report…",
               "steps": [

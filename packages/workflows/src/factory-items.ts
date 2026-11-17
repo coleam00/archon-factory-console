@@ -31,14 +31,22 @@ import {
   type WorkflowEventType,
 } from './store/event-types';
 import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
+import { decidedIn, roundFacts, type DecisionPoint } from './factory-rounds';
 
 /**
  * How one round of the declared rounds loop ended, from declared data only: `returned` when
- * a declared return point in the loop sent the item back that round, `ended` when the round
- * completed without one (an approval, but also an ask or a replan: the round's `outcome`
- * says which), `running` while it goes on, `stopped` when the run ended inside it.
+ * a declared return point in the loop sent the item back that round, `approved` when a
+ * declared approval point approved it, `undecided` when the round completed with neither
+ * (an ask, a replan, or a view that declares no approval: the round's `outcome` says
+ * which), `running` while it goes on, `stopped` when the run ended inside it.
  */
-export const factoryRoundVerdictSchema = z.enum(['returned', 'ended', 'running', 'stopped']);
+export const factoryRoundVerdictSchema = z.enum([
+  'approved',
+  'returned',
+  'undecided',
+  'running',
+  'stopped',
+]);
 export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
 
 /** Whether the change merged, as the change host reported it; `unknown` when it could not say. */
@@ -59,17 +67,6 @@ export const factoryItemProgressSchema = z.object({
       startedAt: z.string().datetime(),
     })
     .nullable(),
-  /**
-   * The item's runs of declared workflows, in start order, each with the workflow as the
-   * view declares it (a run records `owner/name:workflow`). Status and outcome are on the
-   * item read's `runs`, joined by id: the console's placement reads them together.
-   */
-  runs: z.array(
-    z.object({
-      runId: z.string(),
-      workflow: z.string(),
-    })
-  ),
   /** The declared rounds loop on the latest run of its workflow that entered it. */
   round: z
     .object({
@@ -82,8 +79,8 @@ export const factoryItemProgressSchema = z.object({
           iteration: z.number().int().positive(),
           verdict: factoryRoundVerdictSchema,
           /**
-           * The outcome the loop's declared return-point step recorded that round, as the
-           * workflow names it (`return`, `approve`, `ask`...); null when it recorded none.
+           * The outcome the loop's declared return or approval step recorded that round, as
+           * the workflow names it (`return`, `approve`, `ask`...); null when it recorded none.
            */
           outcome: z.string().nullable(),
         })
@@ -98,14 +95,29 @@ export const factoryItemProgressSchema = z.object({
       url: z.string(),
       merged: factoryChangeMergedSchema,
       mergedAt: z.string().nullable(),
+      /** The pull request's number, as the run's forge audit rows name it; null when none does. */
+      number: z.number().int().positive().nullable(),
     })
     .nullable(),
+  /**
+   * The item's runs of declared workflows, in start order, each with the workflow as the
+   * view declares it (a run records `owner/name:workflow`). Status, outcome and times are
+   * on the item read's `runs`, joined by id.
+   */
+  runs: z.array(
+    z.object({
+      runId: z.string(),
+      workflow: z.string(),
+      /** The first step that failed, as the run's terminal record names it; null when none. */
+      failedStep: z.string().nullable(),
+    })
+  ),
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
 /**
  * One round of the declared rounds loop on one run, with what its steps recorded. `outcome`
- * and `summary` are the declared return-point step's that decided the round; `steps` are the
+ * and `summary` are the declared return or approval step's that decided the round; `steps` are the
  * loop's steps that completed that round with a structured `outcome`, in recording order.
  * `outcome` and `summary` are read by name from a step's structured output, as the workflow
  * names them; a `summary` that is not a string is null.
@@ -150,6 +162,8 @@ export interface FactoryRunFacts {
     rounds: FactoryRound[];
   } | null;
   returnCount: number;
+  /** The first step that failed, as the run's terminal record names it; null when none did. */
+  failedStep: string | null;
   /** The change at the declared pointer, with the run's forge audit rows; null when none. */
   change: { url: string; audits: unknown[] } | null;
 }
@@ -197,138 +211,6 @@ function deepestActiveStep(events: readonly WorkflowEventRow[]): string | null {
   return deepest ?? null;
 }
 
-const loopRowSchema = z.object({
-  iteration: z.number().int().positive(),
-  maxIterations: z.number().int().positive().optional(),
-});
-
-/** The structured output's `outcome`, when the output is an object that has one. */
-function outputOutcome(output: unknown): unknown {
-  return typeof output === 'object' && output !== null && 'outcome' in output
-    ? output.outcome
-    : undefined;
-}
-
-/** The structured output's `summary` when it is a string; null otherwise. */
-function outputSummary(output: unknown): string | null {
-  const summary =
-    typeof output === 'object' && output !== null && 'summary' in output
-      ? output.summary
-      : undefined;
-  return typeof summary === 'string' ? summary : null;
-}
-
-type Outcomes = ReturnType<typeof buildNodeOutcomes>['nodes'];
-type ReturnPoint = NonNullable<FactoryView['returns']>[number];
-
-function returnsIn(outcomes: Outcomes, point: ReturnPoint): Outcomes {
-  return outcomes.filter(
-    entry => entry.node_id === point.node && outputOutcome(entry.output) === point.outcome
-  );
-}
-
-/** The loop's rounds as its own events record them: each started round's bound, and those that completed. */
-function loopRows(
-  loop: string,
-  events: readonly WorkflowEventRow[]
-): { started: Map<number, number | undefined>; completed: Set<number> } {
-  const started = new Map<number, number | undefined>();
-  const completed = new Set<number>();
-  for (const row of events) {
-    if (row.step_name !== loop) continue;
-    const parsed = loopRowSchema.safeParse(row.data);
-    if (!parsed.success) continue;
-    if (row.event_type === 'loop_iteration_started')
-      started.set(parsed.data.iteration, parsed.data.maxIterations);
-    else if (row.event_type === 'loop_iteration_completed') completed.add(parsed.data.iteration);
-  }
-  return { started, completed };
-}
-
-/** The rounds of `loop` an entry ran in. */
-function iterationsIn(entry: Outcomes[number], loop: string): number[] {
-  return entry.loop_group_path?.filter(frame => frame.groupId === loop).map(f => f.iteration) ?? [];
-}
-
-/**
- * What the loop's declared return-point steps decided in each round, with that step's
- * summary. Outcomes are in recording order, so the last one recorded in a round is that
- * round's decision.
- */
-function roundDecisions(
-  loop: string,
-  points: readonly ReturnPoint[],
-  outcomes: Outcomes
-): Map<number, { outcome: string; summary: string | null }> {
-  const nodes = new Set(points.map(point => point.node));
-  const decided = new Map<number, { outcome: string; summary: string | null }>();
-  for (const entry of outcomes) {
-    const outcome = outputOutcome(entry.output);
-    if (!nodes.has(entry.node_id) || typeof outcome !== 'string') continue;
-    for (const iteration of iterationsIn(entry, loop))
-      decided.set(iteration, { outcome, summary: outputSummary(entry.output) });
-  }
-  return decided;
-}
-
-/**
- * The loop's steps that recorded a structured `outcome` in each round, in recording order,
- * the last entry per step and round kept. The loop's own node is not one of its steps.
- */
-function roundSteps(
-  loop: string,
-  outcomes: Outcomes
-): Map<number, Map<string, FactoryRound['steps'][number]>> {
-  const steps = new Map<number, Map<string, FactoryRound['steps'][number]>>();
-  for (const entry of outcomes) {
-    const outcome = outputOutcome(entry.output);
-    if (!entry.node_id.startsWith(`${loop}.`) || typeof outcome !== 'string') continue;
-    for (const iteration of iterationsIn(entry, loop)) {
-      const round = steps.get(iteration) ?? new Map<string, FactoryRound['steps'][number]>();
-      round.set(entry.node_id, {
-        node: entry.node_id,
-        outcome,
-        summary: outputSummary(entry.output),
-      });
-      steps.set(iteration, round);
-    }
-  }
-  return steps;
-}
-
-function roundFacts(
-  loop: string,
-  points: readonly ReturnPoint[],
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[],
-  outcomes: Outcomes
-): NonNullable<FactoryRunFacts['rounds']> {
-  const { started, completed } = loopRows(loop, events);
-  const bodyPoints = points.filter(point => point.node.startsWith(`${loop}.`));
-  const decided = roundDecisions(loop, bodyPoints, outcomes);
-  const steps = roundSteps(loop, outcomes);
-  const returnedIn = new Set(
-    bodyPoints.flatMap(point => returnsIn(outcomes, point).flatMap(e => iterationsIn(e, loop)))
-  );
-  const unfinished = isTerminalRunStatus(run.status) ? ('stopped' as const) : ('running' as const);
-  const iterations = [...started.keys()].sort((a, b) => a - b);
-  const rounds = iterations.map(
-    (iteration): FactoryRound => ({
-      iteration,
-      verdict: returnedIn.has(iteration)
-        ? 'returned'
-        : completed.has(iteration)
-          ? 'ended'
-          : unfinished,
-      outcome: decided.get(iteration)?.outcome ?? null,
-      summary: decided.get(iteration)?.summary ?? null,
-      steps: [...(steps.get(iteration)?.values() ?? [])],
-    })
-  );
-  const last = iterations.at(-1);
-  return { max: (last === undefined ? undefined : started.get(last)) ?? null, rounds };
-}
-
 function changeFacts(
   pointer: string,
   run: WorkflowRun,
@@ -355,15 +237,19 @@ export function factoryRunFacts(
   events: readonly WorkflowEventRow[]
 ): FactoryRunFacts {
   const workflow = declaredWorkflow(view, pack, run.workflow_name);
-  const points = (view.returns ?? []).filter(point => point.workflow === workflow);
-  const outcomes = buildNodeOutcomes(run, events).nodes;
+  const ofWorkflow = (list: readonly DecisionPoint[] | undefined): DecisionPoint[] =>
+    (list ?? []).filter(point => point.workflow === workflow);
+  const points = { returns: ofWorkflow(view.returns), approves: ofWorkflow(view.approves) };
+  const listing = buildNodeOutcomes(run, events);
+  const outcomes = listing.nodes;
   return {
     active: deepestActiveStep(events),
     rounds:
       view.rounds !== undefined && view.rounds.workflow === workflow
         ? roundFacts(view.rounds.loop, points, run, events, outcomes)
         : null,
-    returnCount: points.reduce((sum, point) => sum + returnsIn(outcomes, point).length, 0),
+    returnCount: points.returns.reduce((sum, point) => sum + decidedIn(outcomes, point).length, 0),
+    failedStep: listing.first_failed_node,
     change:
       view.change !== undefined && view.change.workflow === workflow
         ? changeFacts(view.change.pointer, run, events)
@@ -383,11 +269,16 @@ function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | nu
   return null;
 }
 
-/** The merge state of a change URL, given the forge audit rows of the run that recorded it. */
+/**
+ * The merge state and pull request number of a change URL, given the forge audit rows of
+ * the run that recorded it and, read only when those name no pull request, the branches
+ * the item's declared runs recorded, newest first.
+ */
 export type FactoryChangeState = (
   url: string,
-  audits: readonly unknown[]
-) => Promise<{ merged: FactoryChangeMerged; mergedAt: string | null }>;
+  audits: readonly unknown[],
+  branches: () => Promise<readonly string[]>
+) => Promise<{ merged: FactoryChangeMerged; mergedAt: string | null; number: number | null }>;
 
 /**
  * An item's progress from its runs (start order) and the facts of each declared run.
@@ -398,7 +289,9 @@ export async function factoryItemProgress(
   pack: string,
   runs: readonly WorkflowRun[],
   facts: ReadonlyMap<string, FactoryRunFacts>,
-  changeState: FactoryChangeState
+  changeState: FactoryChangeState,
+  /** The branch a run recorded; null when it recorded none. */
+  branchOf: (run: WorkflowRun) => Promise<string | null>
 ): Promise<FactoryItemProgress> {
   const declared = [...runs]
     .filter(run => facts.has(run.id))
@@ -441,15 +334,30 @@ export async function factoryItemProgress(
   return {
     title: itemTitle(view, runs),
     running,
-    runs: declared.flatMap(run => {
-      const workflow = declaredWorkflow(view, pack, run.workflow_name);
-      return workflow === null ? [] : [{ runId: run.id, workflow }];
-    }),
     round,
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change:
-      found === null ? null : { url: found.url, ...(await changeState(found.url, found.audits)) },
+      found === null
+        ? null
+        : {
+            url: found.url,
+            ...(await changeState(found.url, found.audits, () => runBranches(declared, branchOf))),
+          },
+    runs: declared.map(run => ({
+      runId: run.id,
+      workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
+      failedStep: facts.get(run.id)?.failedStep ?? null,
+    })),
   };
+}
+
+/** The distinct branches `runs` recorded, newest-started first. */
+async function runBranches(
+  runs: readonly WorkflowRun[],
+  branchOf: (run: WorkflowRun) => Promise<string | null>
+): Promise<string[]> {
+  const branches = await Promise.all([...runs].reverse().map(run => branchOf(run)));
+  return [...new Set(branches.filter((branch): branch is string => branch !== null))];
 }
 
 /** One of a project's items with its latest activity, as the project listing returns it. */
@@ -560,6 +468,7 @@ export class FactoryRunFactsMemo {
       workflows: view.stages.map(stage => stage.workflows),
       rounds: view.rounds,
       returns: view.returns,
+      approves: view.approves,
       change: view.change,
     };
     return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;
@@ -650,7 +559,7 @@ async function readFoundItems(
   const items = await Promise.all(
     found.map(async (item): Promise<FactoryItem> => {
       const read = await assembleItemRead(source, item, queue);
-      return { ...read, progress: await itemProgress(input, item, facts) };
+      return { ...read, progress: await itemProgress(source, input, item, facts) };
     })
   );
   return { items, facts };
@@ -745,6 +654,7 @@ export async function readFactoryItem(
 }
 
 async function itemProgress(
+  source: ItemReadSource,
   input: ReadFactoryItemsInput,
   item: FoundItem,
   facts: ReadonlyMap<string, FactoryRunFacts>
@@ -755,7 +665,14 @@ async function itemProgress(
   // A declared run whose facts failed leaves the item's progress unknown, not partial.
   if (declared.some(run => !facts.has(run.id))) return null;
   try {
-    return await factoryItemProgress(input.view, input.pack, item.runs, facts, input.changeState);
+    return await factoryItemProgress(
+      input.view,
+      input.pack,
+      item.runs,
+      facts,
+      input.changeState,
+      run => source.branchOf(run)
+    );
   } catch (error) {
     input.onProgressError(item.item.id, error);
     return null;

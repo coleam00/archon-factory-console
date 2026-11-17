@@ -17,10 +17,7 @@ export type FactorySection = 'overview' | 'board' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
-  /**
-   * Whether the page body takes the content column's whole width (the Overview's map). The
-   * heading always keeps the reading measure.
-   */
+  /** Let the page use the full width, as the board's columns need; others keep a reading width. */
   wide?: boolean;
   /**
    * The page body, drawn under the view's header once a view applies, with the project's

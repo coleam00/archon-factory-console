@@ -627,22 +627,27 @@ first view that applies (`pack` names it):
 
 - `running`: the latest-started running run of a workflow the view names, with the workflow as
   the view names it and its deepest running step; null when none runs.
-- `runs`: the item's runs of workflows the view names, in start order, each with its `runId`
-  and the workflow as the view names it; status and outcome are on the item read's `runs`,
-  joined by id.
 - `round`: the view's `rounds` loop on the latest run that entered it: the latest iteration,
   the loop's bound, and each round's `verdict` and `outcome`. `verdict` is `returned` (a
-  `returns` point in the loop sent the item back that round), `ended` (the round completed
-  without one: an approval, but also an ask or a replan), `running`, or `stopped` (the run
-  ended inside the round). `outcome` is what the loop's `returns` step recorded that round, as
-  the workflow names it (`return`, `approve`, `ask`...), or null when it recorded none; it is
-  what tells an approval from an ask.
+  `returns` point in the loop sent the item back that round), `approved` (an `approves` point
+  in the loop approved it), `undecided` (the round completed with neither: an ask, a replan,
+  or a view that declares no `approves`), `running`, or `stopped` (the run ended inside the
+  round). A round is never read as approved unless the view declares the outcome that
+  approves. `outcome` is what the loop's `returns` or `approves` step recorded that round, as
+  the workflow names it (`return`, `approve`, `ask`...), or null when it recorded none.
 - `returned`: how many times a `returns` point sent the item back, across its runs.
 - `change`: the URL at the view's `change` pointer in the latest run that has one, and
   `merged` (`true`, `false` or `unknown`) with `mergedAt`, read from the change host with the
-  forge's `pr.view`, for the pull request that run's forge operations recorded. The server
-  caches each answer: a merge for good, anything else for 60 seconds. A first lookup that
-  takes longer than 4 seconds answers `unknown` and finishes into the cache.
+  forge's `pr.view`: by number for the pull request that run's forge operations recorded, or,
+  when they name none (an earlier run opened it), by head in any state on each branch the
+  item's runs recorded, newest first, taking the pull request whose URL is the change. The
+  server caches each answer: a merge for good, anything else for 60 seconds. A first lookup
+  that takes longer than 4 seconds answers `unknown` and finishes into the cache. `number` is
+  the pull request's number as the forge named it, else as the run's forge operations
+  recorded it, or null.
+- `runs`: the item's runs of workflows the view names, in start order, each with the workflow
+  as the view names it (a run records `owner/name:workflow`) and `failedStep`, the first step
+  that failed, or null. Status, outcome and times are on the item read's `runs`, by id.
 - `title`: the first line of the view's `itemTitle` run input, without a leading `#<n> `.
 
 `progress` is null for an item whose runs could not be read into it; the rest of the page
