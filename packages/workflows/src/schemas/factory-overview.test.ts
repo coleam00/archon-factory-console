@@ -120,6 +120,15 @@ describe('factoryOverviewSchema', () => {
     expect(issues(overview)).toEqual(['views.make: no card reachable from the root opens it']);
   });
 
+  test('rejects a caption on the root view, whose line is the top-level caption', () => {
+    const overview = edited(o => {
+      top(o).caption = 'Never shown.';
+    });
+    expect(issues(overview)).toEqual([
+      "views.top.caption: the root view's line is the overview's top-level caption; move it there",
+    ]);
+  });
+
   test('rejects a root without a loops-back edge, and two in one view', () => {
     expect(issues(edited(o => void top(o).edges.pop()))).toEqual([
       'views.top.edges: the root view needs its one loops-back edge',

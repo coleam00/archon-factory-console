@@ -89,7 +89,7 @@ const edgeSchema = z.strictObject({
 });
 
 const viewSchema = z.strictObject({
-  /** A drill-down's own line, under its map; the root's is the overview's caption. */
+  /** A drill-down's own line, under its map. The root view takes none: its line is the overview's `caption`. */
   caption: z.string().min(1).max(400).optional(),
   groups: z.array(groupSchema).optional(),
   cards: z.array(cardSchema).min(1),
@@ -178,6 +178,17 @@ function reachable(overview: FactoryOverviewShape): Set<string> {
   return reached;
 }
 
+/** The root view's line is the overview's `caption`; a caption on the root view would never show. */
+function rootCaptionIssues(overview: FactoryOverviewShape): Issue[] {
+  if (overview.views[overview.root]?.caption === undefined) return [];
+  return [
+    {
+      path: ['views', overview.root, 'caption'],
+      message: "the root view's line is the overview's top-level caption; move it there",
+    },
+  ];
+}
+
 /** One loops-back line per view at most, and exactly one in the root: the lane under the line. */
 function loopIssues(overview: FactoryOverviewShape): Issue[] {
   const issues: Issue[] = [];
@@ -202,6 +213,7 @@ export const factoryOverviewSchema = factoryOverviewShape.superRefine((overview,
     ...idIssues(overview),
     ...openIssues(overview),
     ...loopIssues(overview),
+    ...rootCaptionIssues(overview),
     ...Object.entries(overview.views).flatMap(([viewId, view]) =>
       geometryIssues(view).map(issue => ({ ...issue, path: ['views', viewId, ...issue.path] }))
     ),
