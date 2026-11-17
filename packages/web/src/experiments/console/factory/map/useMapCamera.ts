@@ -172,7 +172,7 @@ export function useMapCamera(bounds: Box, focus: Box | null): MapCamera {
     const was = drag.current;
     drag.current = null;
     if (was?.moved !== true) return;
-    // The click a browser sends after a drag must not select the card the drag ended on. It
+    // The click a browser sends after a drag must not open the card the drag ended on. It
     // comes straight after this event or not at all, so the guard lasts one task.
     suppressClick.current = true;
     setTimeout(() => {

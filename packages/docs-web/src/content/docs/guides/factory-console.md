@@ -30,8 +30,11 @@ it. Inside it:
   and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
   the whole map when it fits at a readable size; with a card's details open, or on a narrow
   screen, it stops at the smallest readable size, so drag, zoom out or close the details to
-  see the rest. Click a card for its items and workflows; double-click it, or its open icon, for
-  the stage page.
+  see the rest. Click a card for its stage page; its details button (ⓘ) shows its items and
+  workflows beside the map.
+- **Needs you**: its own page, reached from the sub-navigation, which shows how many wait.
+  Every open question and paused wait on this project's items, all of them, each answerable
+  in place as on the Overview.
 - **Board**: one column per declared stage, each item one card in the column of the stage it
   is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
   round it is on, the step running now, how often checks sent it back, and its pull request.

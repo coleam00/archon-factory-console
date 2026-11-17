@@ -14,7 +14,10 @@ interface MapDetailsProps {
 
 const HEADING = 'text-console-11 font-medium uppercase tracking-wider text-text-tertiary';
 
-/** A selected card's details beside the map: what the stage does, what is in it, what runs it. */
+/**
+ * A card's details beside the map, opened by its details button: what the stage does, what is
+ * in it, what runs it.
+ */
 export function MapDetails({ projectId, stage, live, onClose }: MapDetailsProps): ReactElement {
   const stagePath = factoryPath(projectId, `/stages/${encodeURIComponent(stage.id)}`);
   const waiting = new Set(live.needYou.map(item => item.item.id));

@@ -6,24 +6,27 @@ import { NEEDS_YOU_SHOWN, needsYou, visibleNeedsYou, type NeedsYouItem } from '.
 import { NeedsYouLine } from './NeedsYouLine';
 
 /**
- * The Overview's Needs-you section: every open ask and paused wait, newest first, one line
- * each until opened and answered in place. It shows the newest few and says how many more
- * there are, with "show all", so the map's top stays in the first screen.
+ * Every open ask and paused wait, newest first, one line each until opened and answered in
+ * place. On the Overview it shows the newest few and says how many more there are, with
+ * "show all", so the map's top stays in the first screen; the Needs-you page shows them all.
  */
 export function NeedsYouList({
   projectId,
   attention,
+  all = false,
 }: {
   projectId: string;
   attention: EntityView<AttentionQueue>;
+  /** Show every line, as the Needs-you page does; the Overview caps them. */
+  all?: boolean;
 }): ReactElement {
   const items = attention.data === undefined ? [] : needsYou(attention.data.items);
   return (
-    <section id="needs-you" className="flex max-w-5xl flex-col gap-2.5">
+    <section aria-label="Needs you" className="flex max-w-5xl flex-col gap-2.5">
       <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
         Needs you{attention.data === undefined ? '' : ` · ${items.length.toString()}`}
       </h3>
-      <NeedsYouBody projectId={projectId} attention={attention} items={items} />
+      <NeedsYouBody projectId={projectId} attention={attention} items={items} all={all} />
     </section>
   );
 }
@@ -32,10 +35,12 @@ function NeedsYouBody({
   projectId,
   attention,
   items,
+  all,
 }: {
   projectId: string;
   attention: EntityView<AttentionQueue>;
   items: NeedsYouItem[];
+  all: boolean;
 }): ReactNode {
   const { data, error } = attention;
   if (data === undefined) {
@@ -59,7 +64,7 @@ function NeedsYouBody({
       {items.length === 0 ? (
         <p className="text-sm text-text-secondary">Nothing is waiting on a person.</p>
       ) : (
-        <NeedsYouLines projectId={projectId} items={items} queue={data} />
+        <NeedsYouLines projectId={projectId} items={items} queue={data} all={all} />
       )}
     </>
   );
@@ -70,14 +75,20 @@ function NeedsYouLines({
   projectId,
   items,
   queue,
+  all,
 }: {
   projectId: string;
   items: NeedsYouItem[];
   queue: AttentionQueue;
+  all: boolean;
 }): ReactElement {
   const [showAll, setShowAll] = useState(false);
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
-  const { shown, hidden } = visibleNeedsYou(items, { showAll, opened });
+  const { shown, hidden } = visibleNeedsYou(
+    items,
+    { showAll, opened },
+    all ? Number.POSITIVE_INFINITY : NEEDS_YOU_SHOWN
+  );
   const toggle = (ref: string): void => {
     setOpened(current => {
       const next = new Set(current);
