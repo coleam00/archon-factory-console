@@ -7,13 +7,17 @@ import {
   factoryRunFacts,
   FactoryItemsQueryError,
   FactoryRunFactsMemo,
+  factoryItemDetailSchema,
   pageFactoryItems,
+  readFactoryItem,
   readFactoryItemsPage,
   type FactoryChangeState,
+  type FactoryRound,
   type FactoryListedItem,
 } from './factory-items';
 import type { ItemReadSource } from './item-read';
 import { factoryViewSchema } from './schemas/factory-view';
+import { RUN_ENDED_SOURCE_ACTOR } from './schemas/resource-start';
 import type { WorkflowEventRow } from './schemas/workflow-event';
 import { workflowRunSchema, type WorkflowItem, type WorkflowRun } from './schemas/workflow-run';
 
@@ -81,6 +85,19 @@ const deliver2Cut = fixture('item-2-deliver-934682d0-cut');
 const factsOf = ({ run, events }: { run: WorkflowRun; events: WorkflowEventRow[] }) =>
   factoryRunFacts(view, PACK, run, events);
 
+/** Each round's verdict and decision: what the board reads of a run's rounds. */
+const decisions = (rounds: { max: number | null; rounds: FactoryRound[] } | null | undefined) =>
+  rounds === null || rounds === undefined
+    ? rounds
+    : {
+        max: rounds.max,
+        rounds: rounds.rounds.map(({ iteration, verdict, outcome }) => ({
+          iteration,
+          verdict,
+          outcome,
+        })),
+      };
+
 const PR10 = 'https://github.com/coleam00/archon-factory-console/pull/10';
 const PR11 = 'https://github.com/coleam00/archon-factory-console/pull/11';
 
@@ -88,7 +105,7 @@ describe('the facts of one run', () => {
   test('a deliver run with two rounds: returned, then approved; one verdict and one host return', () => {
     const facts = factsOf(deliver1);
     expect(facts.active).toBeNull();
-    expect(facts.rounds).toEqual({
+    expect(decisions(facts.rounds)).toEqual({
       max: 3,
       rounds: [
         { iteration: 1, verdict: 'returned', outcome: 'return' },
@@ -115,7 +132,7 @@ describe('the facts of one run', () => {
     const facts = factsOf(deliver2Cut);
     // `rounds` and the three checks run at once; the checks are deeper, review started last.
     expect(facts.active).toBe('rounds.review__review');
-    expect(facts.rounds).toEqual({
+    expect(decisions(facts.rounds)).toEqual({
       max: 3,
       rounds: [
         { iteration: 1, verdict: 'returned', outcome: 'return' },
@@ -129,10 +146,11 @@ describe('the facts of one run', () => {
 
   test('a round that never completed on a run that ended is stopped', () => {
     const facts = factsOf({ ...deliver2Cut, run: { ...deliver2Cut.run, status: 'failed' } });
-    expect(facts.rounds?.rounds.at(-1)).toEqual({
+    expect(facts.rounds?.rounds.at(-1)).toMatchObject({
       iteration: 2,
       verdict: 'stopped',
       outcome: null,
+      summary: null,
     });
   });
 
@@ -145,7 +163,7 @@ describe('the facts of one run', () => {
           ) as WorkflowEventRow)
         : row
     );
-    expect(factsOf({ ...deliver1, events }).rounds?.rounds).toEqual([
+    expect(decisions(factsOf({ ...deliver1, events }).rounds)?.rounds).toEqual([
       { iteration: 1, verdict: 'returned', outcome: 'return' },
       { iteration: 2, verdict: 'ended', outcome: 'ask' },
     ]);
@@ -154,9 +172,9 @@ describe('the facts of one run', () => {
   test("rounds read only the declared loop's events, not another loop's", () => {
     // deliver2 ran three review rounds and one host round.
     const hostView = { ...view, rounds: { workflow: 'deliver', loop: 'hostrounds' } };
-    expect(factoryRunFacts(hostView, PACK, deliver2.run, deliver2.events).rounds?.rounds).toEqual([
-      { iteration: 1, verdict: 'ended', outcome: 'clear' },
-    ]);
+    const host = factoryRunFacts(hostView, PACK, deliver2.run, deliver2.events).rounds;
+    expect(decisions(host)?.rounds).toEqual([{ iteration: 1, verdict: 'ended', outcome: 'clear' }]);
+    expect(host?.rounds[0]?.steps.map(step => step.node)).toEqual(['hostrounds.host__host']);
   });
 
   test('triage and plan runs have no rounds, returns or change', () => {
@@ -167,6 +185,57 @@ describe('the facts of one run', () => {
   test('a run recorded under the bare name is not the installed pack’s workflow', () => {
     const bare = { ...deliver1, run: { ...deliver1.run, workflow_name: 'deliver' } };
     expect(factsOf(bare)).toMatchObject({ rounds: null, returnCount: 0, change: null });
+  });
+});
+
+describe("each round's steps", () => {
+  const rounds = factsOf(deliver2).rounds?.rounds ?? [];
+  const stepsOf = (iteration: number) =>
+    rounds
+      .find(round => round.iteration === iteration)
+      ?.steps.map(step => [step.node, step.outcome]);
+
+  test('a round lists the loop steps that recorded an outcome, in recording order', () => {
+    expect(stepsOf(1)).toEqual([
+      ['rounds.tests__tests', 'return'],
+      ['rounds.product__product', 'approve'],
+      ['rounds.review__review', 'approve'],
+      ['rounds.verdict__verdict', 'return'],
+    ]);
+    // Round 1's fix was skipped and the base step records no outcome; neither is a step.
+    expect(stepsOf(2)).toEqual([
+      ['rounds.fix', 'fixed'],
+      ['rounds.tests__tests', 'return'],
+      ['rounds.product__product', 'approve'],
+      ['rounds.review__review', 'approve'],
+      ['rounds.verdict__verdict', 'return'],
+    ]);
+    expect(stepsOf(3)?.at(-1)).toEqual(['rounds.verdict__verdict', 'approve']);
+  });
+
+  test("a round's summary is the summary of the return-point step that decided it", () => {
+    const verdictSummary = (iteration: number) =>
+      rounds
+        .find(round => round.iteration === iteration)
+        ?.steps.find(step => step.node === 'rounds.verdict__verdict')?.summary;
+    for (const round of rounds) {
+      expect(round.summary).toBeString();
+      expect(round.summary).toBe(verdictSummary(round.iteration) ?? null);
+    }
+    expect(rounds[0]?.summary).toStartWith('Return.');
+    expect(rounds[2]?.summary).toStartWith('Approve');
+  });
+
+  test('a summary that is not a string reads as null, the step still listed', () => {
+    const events = deliver2.events.map(row =>
+      row.step_name === 'rounds.fix' && JSON.stringify(row.data).includes('"summary"')
+        ? (JSON.parse(
+            JSON.stringify(row).replace(/"summary":"[^"]*"/, '"summary":7')
+          ) as WorkflowEventRow)
+        : row
+    );
+    const fix = factsOf({ ...deliver2, events }).rounds?.rounds[1]?.steps[0];
+    expect(fix).toEqual({ node: 'rounds.fix', outcome: 'fixed', summary: null });
   });
 });
 
@@ -349,7 +418,10 @@ describe('reading a page', () => {
   const own = (item: WorkflowItem, ...runs: { run: WorkflowRun }[]): WorkflowRun[] =>
     runs.map(entry => ({ ...entry.run, item_id: item.id }));
   const runsOf: Record<string, WorkflowRun[]> = {
-    '1': own(item1, triage1, plan1, deliver1),
+    // The fixtures' metadata is trimmed; real runs record their cost under this key.
+    '1': own(item1, triage1, plan1, {
+      run: { ...deliver1.run, metadata: { ...deliver1.run.metadata, total_cost_usd: 13.5 } },
+    }),
     '2': own(item2, deliver2Cut),
   };
   const all = [triage1, plan1, deliver1, deliver2Cut];
@@ -451,5 +523,120 @@ describe('reading a page', () => {
       ['1', false],
     ]);
     expect(failed).toEqual([item2.id]);
+  });
+  const itemInput = (onProgressError: (id: string, error: unknown) => void) => ({
+    view,
+    pack: PACK,
+    projectKey: 'acme/web',
+    changeState: notMerged,
+    memo: new FactoryRunFactsMemo(),
+    onProgressError,
+  });
+  const unexpected = (id: string, error: unknown) => {
+    throw new Error(`unexpected failure for ${id}: ${String(error)}`);
+  };
+
+  test("one item: its read and progress, as a page has them, plus each run's timeline facts", async () => {
+    const counts = { queue: 0, loaded: [] as string[][] };
+    const detail = factoryItemDetailSchema.parse(
+      await readFactoryItem(pageSource(counts), itemInput(unexpected), '1')
+    );
+    expect(detail.pack).toBe(PACK);
+    expect(detail.item.runs.map(run => run.id)).toEqual(detail.runs.map(run => run.runId));
+    expect(detail.runs.map(run => [run.workflow, run.costUsd, run.step])).toEqual([
+      ['triage', null, null],
+      ['plan', null, null],
+      ['deliver', 13.5, null],
+    ]);
+    expect(detail.runs.map(run => run.rounds?.rounds.length ?? null)).toEqual([null, null, 2]);
+    expect(detail.item.progress?.change?.url).toBe(PR10);
+    expect(counts.queue).toBe(1);
+  });
+
+  test("the latest deliver run's rounds are the board's rounds, steps aside", async () => {
+    const detail = await readFactoryItem(
+      pageSource({ queue: 0, loaded: [] }),
+      itemInput(unexpected),
+      '1'
+    );
+    const deliver = detail?.runs.find(run => run.runId === detail.item.progress?.round?.runId);
+    expect(decisions(deliver?.rounds)?.rounds).toEqual(detail?.item.progress?.round?.rounds);
+    // The board's contract carries no steps or summaries.
+    expect(Object.keys(detail?.item.progress?.round?.rounds[0] ?? {}).sort()).toEqual([
+      'iteration',
+      'outcome',
+      'verdict',
+    ]);
+  });
+
+  test('a running run shows its running step; one with no recorded cost reads null', async () => {
+    const detail = await readFactoryItem(
+      pageSource({ queue: 0, loaded: [] }),
+      itemInput(unexpected),
+      '2'
+    );
+    expect(detail?.runs).toEqual([
+      {
+        runId: deliver2Cut.run.id,
+        workflow: 'deliver',
+        costUsd: null,
+        step: 'rounds.review__review',
+        rounds: factsOf(deliver2Cut).rounds,
+      },
+    ]);
+  });
+
+  test('a run whose facts fail keeps its row without rounds; the item has no progress', async () => {
+    const failed: string[] = [];
+    const detail = await readFactoryItem(
+      pageSource({ queue: 0, loaded: [] }, deliver2Cut.run.id),
+      itemInput(id => failed.push(id)),
+      '2'
+    );
+    expect(detail?.runs.map(run => [run.runId, run.step, run.rounds])).toEqual([
+      [deliver2Cut.run.id, null, null],
+    ]);
+    expect(detail?.item.progress).toBeNull();
+    expect(failed).toEqual([item2.id]);
+  });
+
+  test("each run carries the item read's cause, typed; a start by hand has none", async () => {
+    const receiptId = '3b184b44-b90a-4d4c-b205-15755501533d';
+    const source = pageSource({ queue: 0, loaded: [] });
+    const [triage, plan, deliver] = runsOf['1'] ?? [];
+    if (triage === undefined || plan === undefined || deliver === undefined)
+      throw new Error('item 1 has three runs');
+    const planAfterTriage = {
+      ...plan,
+      metadata: { ...plan.metadata, resource_start: { receiptId, bindingId: 'b' } },
+    };
+    source.store.getItemRuns = async () => ({
+      item: item1,
+      runs: [triage, planAfterTriage, deliver],
+      descendantIds: [],
+    });
+    source.store.getStartReceipt = async id =>
+      id === receiptId
+        ? ({
+            id,
+            sourceInstanceId: 'fc-start-plan',
+            sourceActor: { source: RUN_ENDED_SOURCE_ACTOR, id: triage.id },
+          } as Awaited<ReturnType<ItemReadSource['store']['getStartReceipt']>>)
+        : null;
+    const detail = await readFactoryItem(source, itemInput(unexpected), '1');
+    expect(detail?.runs.map(run => run.cause ?? null)).toEqual([
+      null,
+      { kind: 'run_ended', runId: triage.id },
+      null,
+    ]);
+    expect(detail?.runs.map(run => run.cause ?? null)).toEqual(
+      detail?.item.runs.map(run => run.cause)
+    );
+    expect(Object.hasOwn(detail?.runs[0] ?? {}, 'cause')).toBe(false);
+  });
+
+  test('an unknown key reads null', async () => {
+    const source = pageSource({ queue: 0, loaded: [] });
+    expect(await readFactoryItem(source, itemInput(unexpected), '404')).toBeNull();
   });
 });
