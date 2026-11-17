@@ -99,8 +99,8 @@ class Outline {
   private readonly known = new Set<string>();
   // An include group is named for the workflow its direct members came from.
   private readonly origins = new Map<string, string>();
-  // Step keys and loop ids to the ids their authors wrote, for naming a `when:`'s steps.
-  private readonly labels = new Map<string, string>();
+  // Every step key and loop id, for keying the steps a `when:` reads.
+  private readonly stepKeys = new Set<string>();
   // The key prefix (`rounds.`) a step or loop's `when:` names its sibling steps under.
   private readonly scopes = new Map<string, string>();
 
@@ -116,7 +116,7 @@ class Outline {
         this.origins.set(group, localWorkflowName(meta.origin));
       const key = prefix + node.id;
       const dependsOn = (node.depends_on ?? []).map(dependency => prefix + dependency);
-      this.labels.set(key, id);
+      this.stepKeys.add(key);
       this.scopes.set(key, prefix);
       if (isLoopGroupNode(node)) {
         this.known.add(key);
@@ -162,7 +162,7 @@ class Outline {
     if (when === null) return null;
     const prefix = this.scopes.get(key) ?? '';
     return conditionClauses(when, nodeId =>
-      this.labels.has(prefix + nodeId) ? prefix + nodeId : nodeId
+      this.stepKeys.has(prefix + nodeId) ? prefix + nodeId : nodeId
     );
   }
 
