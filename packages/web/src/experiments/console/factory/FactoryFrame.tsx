@@ -152,9 +152,13 @@ function FactoryHeading({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
-        <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">
-          {view.declaration.summary}
-        </p>
+        {/* The summary introduces the factory once, on the Overview; the other pages need
+            their first screen for the board, the item or the graph. */}
+        {section === 'overview' ? (
+          <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">
+            {view.declaration.summary}
+          </p>
+        ) : null}
       </div>
       <nav aria-label="Factory" className="flex items-center gap-1">
         {SECTIONS.map(({ key, label, rest }) => (
