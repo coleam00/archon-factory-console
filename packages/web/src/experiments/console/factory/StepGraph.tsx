@@ -93,7 +93,9 @@ function GroupFrame({ group }: { group: LaidOutGroup }): ReactElement {
       style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
     >
       <div
-        className="ml-1.5 mt-1 inline-flex max-w-full items-baseline gap-1.5 rounded bg-surface px-1 text-console-11"
+        // A label wider than a narrow frame runs past its edge on its backing rather than cut
+        // off the condition, which must read without hovering.
+        className="relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-11"
         title={group.group.when === null ? undefined : `Runs when ${group.group.when}`}
       >
         {loop ? (
@@ -103,9 +105,7 @@ function GroupFrame({ group }: { group: LaidOutGroup }): ReactElement {
             </span>
             <span className="shrink-0 font-mono text-text-tertiary">{group.group.label}</span>
             {group.group.condition === null ? null : (
-              <span className="min-w-0 truncate font-mono text-text-secondary">
-                {group.group.condition}
-              </span>
+              <span className="font-medium text-text-primary">{group.group.condition}</span>
             )}
           </>
         ) : (
@@ -161,9 +161,7 @@ function StepButton({ step, onOpen }: { step: LaidOutStep; onOpen: () => void })
           {node.label}
         </span>
         {node.condition === null ? null : (
-          <span className="truncate font-mono text-console-11 text-text-secondary">
-            {node.condition}
-          </span>
+          <span className="truncate text-console-11 text-text-secondary">{node.condition}</span>
         )}
       </span>
     </button>
