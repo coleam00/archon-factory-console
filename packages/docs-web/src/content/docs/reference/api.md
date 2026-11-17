@@ -665,8 +665,10 @@ unknown `codebaseId`, or a project no view applies to, returns **404**.
 view names (`workflow` as the view names it, such as `deliver`), from the definition runs
 execute. `steps[]` holds every step keyed as run events name it (a loop group's body step is
 `<loop>.<node>`, an included workflow's step `<include>__<node>`), with its kind, declared
-model, `when:` (and `whenLabel`, its short form such as `if verdict = return`, built with
-the engine's `when:` parser), the prompt it runs (inline, or its command file's text) and the YAML block
+model, `when:` (and `whenClauses`, its comparisons through the engine's `when:` parser:
+any one clause holds when all its comparisons do, and each comparison names the step it
+reads by key, such as `rounds.verdict__verdict`, or the input, with the operator and value),
+the prompt it runs (inline, or its command file's text) and the YAML block
 its author wrote, read from the pack's file. `groups[]` holds the loop groups (with their
 most rounds) and included workflows that frame the steps, outer before inner. A missing
 prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An unknown

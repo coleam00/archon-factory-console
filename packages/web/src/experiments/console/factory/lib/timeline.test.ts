@@ -146,16 +146,28 @@ describe('a running run', () => {
     const later: FactoryItemDetail = {
       ...detail,
       runs: detail.runs.map(run =>
-        run.workflow === 'deliver' ? { ...run, step: 'rounds.review__review' } : run
+        run.workflow === 'deliver'
+          ? {
+              ...run,
+              step: 'rounds.review__review',
+              rounds: {
+                max: 3,
+                rounds: [1, 2].map(iteration => ({
+                  iteration,
+                  verdict: iteration === 1 ? ('returned' as const) : ('running' as const),
+                  outcome: null,
+                  summary: null,
+                  steps: [],
+                })),
+              },
+            }
+          : run
       ),
     };
     const row = timeline(later).at(-1);
     expect(row?.stage).toBe('Checks');
     // The live step of the rounds loop reads with the run's latest round.
-    const round = later.runs.find(run => run.workflow === 'deliver')?.rounds?.rounds.at(-1);
-    expect(row?.liveStepName).toBe(
-      round === undefined ? 'Code review' : `Code review, round ${round.iteration.toString()}`
-    );
+    expect(row?.liveStepName).toBe('Code review, round 2');
   });
 });
 

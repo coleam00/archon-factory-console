@@ -11,7 +11,7 @@
       "includedFrom": "build",
       "model": ["@builder", "large"],
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": "# Build one item",
       "promptError": null,
       "command": "build",
@@ -27,7 +27,18 @@
       "includedFrom": null,
       "model": ["@builder", "large"],
       "when": "$LOOP_PREV.verdict__verdict.output.outcome == 'return'",
-      "whenLabel": "if verdict = return",
+      "whenClauses": [
+        [
+          {
+            "reads": {
+              "kind": "step",
+              "key": "rounds.verdict__verdict"
+            },
+            "operator": "==",
+            "value": "return"
+          }
+        ]
+      ],
       "prompt": "# Fix what the checks returned",
       "promptError": null,
       "command": "fix",
@@ -43,7 +54,7 @@
       "includedFrom": null,
       "model": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": null,
       "promptError": null,
       "command": null,
@@ -59,7 +70,7 @@
       "includedFrom": "review",
       "model": ["@reviewer", "large"],
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": "# Review one change",
       "promptError": null,
       "command": "review",
@@ -75,7 +86,7 @@
       "includedFrom": "tests",
       "model": ["@test-checker", "large"],
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": "# Check the tests of one change",
       "promptError": null,
       "command": "tests",
@@ -91,7 +102,7 @@
       "includedFrom": "product",
       "model": ["@product-reviewer", "large"],
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": "# Review the change for the product's users",
       "promptError": null,
       "command": "product",
@@ -107,7 +118,7 @@
       "includedFrom": "verdict",
       "model": ["@verdict", "small"],
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": "# Put the reports on one change together",
       "promptError": null,
       "command": "verdict",
@@ -123,7 +134,18 @@
       "includedFrom": null,
       "model": ["@judge", "medium"],
       "when": "$rounds.output.outcome == 'return'",
-      "whenLabel": "if rounds = return",
+      "whenClauses": [
+        [
+          {
+            "reads": {
+              "kind": "step",
+              "key": "rounds"
+            },
+            "operator": "==",
+            "value": "return"
+          }
+        ]
+      ],
       "prompt": "# The rounds ran out: what should happen to this change?",
       "promptError": null,
       "command": "exhausted",
@@ -139,7 +161,18 @@
       "includedFrom": null,
       "model": ["@builder", "large"],
       "when": "$LOOP_PREV.host__host.output.outcome == 'return'",
-      "whenLabel": "if host = return",
+      "whenClauses": [
+        [
+          {
+            "reads": {
+              "kind": "step",
+              "key": "hostrounds.host__host"
+            },
+            "operator": "==",
+            "value": "return"
+          }
+        ]
+      ],
       "prompt": "# Fix what the host returned",
       "promptError": null,
       "command": "fix-host",
@@ -155,7 +188,7 @@
       "includedFrom": "host",
       "model": ["@host", "medium"],
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": "# Read what the host says about one change",
       "promptError": null,
       "command": "host",
@@ -171,7 +204,7 @@
       "includedFrom": null,
       "model": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "prompt": null,
       "promptError": null,
       "command": null,
@@ -187,7 +220,7 @@
       "label": "build",
       "maxRounds": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": []
     },
     {
@@ -197,7 +230,7 @@
       "label": "rounds",
       "maxRounds": 3,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": ["build__build"]
     },
     {
@@ -207,7 +240,7 @@
       "label": "review",
       "maxRounds": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": []
     },
     {
@@ -217,7 +250,7 @@
       "label": "tests",
       "maxRounds": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": []
     },
     {
@@ -227,7 +260,7 @@
       "label": "product",
       "maxRounds": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": []
     },
     {
@@ -237,7 +270,7 @@
       "label": "verdict",
       "maxRounds": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": []
     },
     {
@@ -247,7 +280,18 @@
       "label": "hostrounds",
       "maxRounds": 3,
       "when": "$rounds.output.outcome == 'approve'",
-      "whenLabel": "if rounds = approve",
+      "whenClauses": [
+        [
+          {
+            "reads": {
+              "kind": "step",
+              "key": "rounds"
+            },
+            "operator": "==",
+            "value": "approve"
+          }
+        ]
+      ],
       "dependsOn": ["rounds"]
     },
     {
@@ -257,7 +301,7 @@
       "label": "host",
       "maxRounds": null,
       "when": null,
-      "whenLabel": null,
+      "whenClauses": null,
       "dependsOn": []
     }
   ]

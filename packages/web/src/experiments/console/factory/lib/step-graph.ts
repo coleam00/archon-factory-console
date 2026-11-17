@@ -12,7 +12,10 @@ export interface StepGraphNode {
   group: string | null;
   /** The full `when:`, for the tooltip. */
   when: string | null;
-  /** What the graph prints for `when`: its short form, else the full expression. */
+  /**
+   * What the graph prints for `when`: each comparison as the step it reads, by the name the
+   * graph prints that step by. Null when the parser gave no comparisons; the title says it.
+   */
   condition: string | null;
   /** False for a step of the workflow that another stage works. */
   inStage: boolean;
@@ -54,32 +57,50 @@ export function stepGraph(
       kind: step.kind,
       group: step.group,
       when: step.when,
-      condition: conditionText(step),
+      condition: conditionText(step.whenClauses, stepName),
       inStage: inStage(step.key),
     })),
-    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when, whenLabel }) => ({
+    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when, whenClauses }) => ({
       id,
       kind,
       parent,
       label: kind === 'loop' ? stepName(id) : label,
       maxRounds,
       when,
-      condition: conditionText({ when, whenLabel }),
+      condition: conditionText(whenClauses, stepName),
     })),
     edges: stepEdges(workflow),
   };
 }
 
+type WhenAtom = NonNullable<WorkflowStep['whenClauses']>[number][number];
+
+/** An operator as a person reads it; a new engine operator fails the type-check here. */
+const OPERATOR_WORDS: Record<WhenAtom['operator'], string> = {
+  '==': '=',
+  '!=': '≠',
+  '<=': '≤',
+  '>=': '≥',
+  '<': '<',
+  '>': '>',
+};
+
 /**
- * The server's short form (`if verdict = return`), readable on a projected screen without
- * hovering; the full expression when the engine's parser gave none.
+ * A `when:` read at a glance on a projected screen, such as `if Verdict = return`: each
+ * comparison as the step it reads (`stepName`) or the input, the operator and the value,
+ * joined with `and` and `or` as written. Null without comparisons: the engine's parser did
+ * not take the expression, and the full expression stays in the hover title only.
  */
-function conditionText({
-  when,
-  whenLabel,
-}: Pick<WorkflowStep, 'when' | 'whenLabel'>): string | null {
-  if (when === null) return null;
-  return whenLabel ?? `when ${when}`;
+function conditionText(
+  clauses: WorkflowStep['whenClauses'],
+  stepName: (stepKey: string) => string
+): string | null {
+  if (clauses === null || clauses.length === 0) return null;
+  const atom = ({ reads, operator, value }: WhenAtom): string =>
+    `${reads.kind === 'step' ? stepName(reads.key) : reads.name} ${OPERATOR_WORDS[operator]} ${
+      value === '' ? 'empty' : value
+    }`;
+  return `if ${clauses.map(atoms => atoms.map(atom).join(' and ')).join(' or ')}`;
 }
 
 /** Each step's and each loop's waits, drawn between steps and without repeats. */

@@ -24,6 +24,8 @@ import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from './lib/board';
 import { delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
+import { stepGraph } from './lib/step-graph';
+import { stepLabel } from './lib/step-label';
 
 const ID = 'cb-1';
 const DELIVER = deliverJson as FactoryWorkflow;
@@ -181,9 +183,30 @@ describe('no raw step id where a person reads', () => {
     expect(rawIds(html)).toEqual([]);
   });
 
+  test("the stage page's conditions name each step by the name the graph prints it by", () => {
+    const words = readable(render(`/console/p/${ID}/factory/stages/checks`));
+    // A condition reads a step by its bare id ("if rounds = approve"), which neither id
+    // shape catches, so every condition's subject is checked against the drawn names.
+    const graph = stepGraph(
+      DELIVER,
+      () => true,
+      key => stepLabel(VIEW, 'deliver', key)
+    );
+    const names = new Set([...graph.nodes, ...graph.groups].map(drawn => drawn.label));
+    const subjects = [...words.matchAll(/\bif (.+?) [=≠≤≥<>] /g)].map(match => match[1]);
+    expect(subjects.sort()).toEqual([
+      'Check rounds',
+      'Check rounds',
+      'Reads CI and PR reviews',
+      'Verdict',
+    ]);
+    expect(subjects.every(subject => names.has(subject ?? ''))).toBe(true);
+  });
+
   test('the step page names the step and shows its engine id, labelled', () => {
-    const words = readable(render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`));
-    expect(words).toContain('Code review');
-    expect(words).toMatch(/Engine id\s+deliver · rounds\.review__review/);
+    const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`);
+    // The heading itself: "Code review" also reads in the page's running list.
+    expect(/<h3[^>]*>([^<]*)<\/h3>/.exec(html)?.[1]).toBe('Code review');
+    expect(readable(html)).toMatch(/Engine id\s+deliver · rounds\.review__review/);
   });
 });

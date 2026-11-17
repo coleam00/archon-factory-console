@@ -80,21 +80,44 @@ describe('stepGraph on deliver', () => {
       expect([keys.has(edge.from), keys.has(edge.to)]).toEqual([true, true]);
   });
 
-  test("a step and a loop print their when: in short, from the server's short form", () => {
+  test('a step and a loop print their when: in short, each step it reads by its name', () => {
     const condition = (key: string) => graph.nodes.find(node => node.key === key)?.condition;
-    expect(condition('rounds.fix')).toBe('if verdict = return');
-    expect(condition('exhausted')).toBe('if rounds = return');
+    expect(condition('rounds.fix')).toBe('if Verdict = return');
+    expect(condition('exhausted')).toBe('if Check rounds = return');
+    expect(condition('hostrounds.hostfix')).toBe('if Reads CI and PR reviews = return');
     expect(condition('rounds.base')).toBeNull();
     expect(graph.groups.find(group => group.id === 'hostrounds')?.condition).toBe(
-      'if rounds = approve'
+      'if Check rounds = approve'
     );
   });
 
-  test('a when: with no short form prints in full', () => {
+  test('keeps and, or, inputs, other operators and an empty value', () => {
     const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
     if (fix === undefined) throw new Error('fixture has no rounds.fix');
-    const bare = stepGraph({ steps: [{ ...fix, whenLabel: null }], groups: [] }, () => true, name);
-    expect(bare.nodes[0]?.condition).toBe(`when ${fix.when ?? ''}`);
+    const step = (key: string) => ({ kind: 'step' as const, key });
+    const whenClauses = [
+      [
+        { reads: step('build__build'), operator: '!=' as const, value: '' },
+        { reads: { kind: 'input' as const, name: 'mode' }, operator: '==' as const, value: 'fast' },
+      ],
+      [{ reads: step('rounds.tests__tests'), operator: '>=' as const, value: '80' }],
+    ];
+    const drawn = stepGraph({ steps: [{ ...fix, whenClauses }], groups: [] }, () => true, name);
+    expect(drawn.nodes[0]?.condition).toBe(
+      'if Writes the change ≠ empty and mode = fast or Test check ≥ 80'
+    );
+  });
+
+  test('a when: the parser gave no comparisons for prints nothing; its title has it', () => {
+    const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
+    if (fix === undefined) throw new Error('fixture has no rounds.fix');
+    const bare = stepGraph(
+      { steps: [{ ...fix, whenClauses: null }], groups: [] },
+      () => true,
+      name
+    );
+    expect(bare.nodes[0]?.condition).toBeNull();
+    expect(bare.nodes[0]?.when).toBe(fix.when);
   });
 
   test('a step and a loop carry their when: condition', () => {
