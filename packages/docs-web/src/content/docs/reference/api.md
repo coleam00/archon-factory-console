@@ -603,6 +603,7 @@ See the [metrics guide](/guides/metrics/).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
+| GET | `/api/factory/items` | A page of a project's items with each item's progress, as `FactoryItemsPage` |
 
 A factory view is a JSON declaration that presents a workflow pack as a software factory in
 the console: its stages, where a finished run leaves an item, and a map. A pack ships one as
@@ -616,6 +617,30 @@ project has a run of a workflow the view names. `views[]` holds each with its pa
 (`project-file` or the pack's scope) and file `path`; `errors[]` holds every declaration that
 could not be read or did not validate, with its `path`. An unknown `codebaseId` returns
 **404**.
+
+`GET /api/factory/items?codebaseId=&since=&limit=&after=` pages the project's items, newest
+activity first (an item's latest run end, activity or start, else when it was created). Each
+entry is the item's read as `GET /api/items` returns it, plus `progress`, derived through the
+first view that applies (`pack` names it):
+
+- `running`: the latest-started running run of a workflow the view names, with the workflow as
+  the view names it and its deepest running step; null when none runs.
+- `round`: the view's `rounds` loop on the latest run that entered it: the latest iteration,
+  the loop's bound, and each round as `returned` (a `returns` point in the loop sent it back),
+  `passed`, `running`, or `stopped` (the run ended inside it).
+- `returned`: how many times a `returns` point sent the item back, across its runs.
+- `change`: the URL at the view's `change` pointer in the latest run that has one, and
+  `merged` (`true`, `false` or `unknown`) with `mergedAt`, read from the change host with the
+  forge's `pr.view`, for the pull request that run's forge operations recorded. The server
+  caches each answer: a merge for good, anything else for 60 seconds. A first lookup that
+  takes longer than 4 seconds answers `unknown` and finishes into the cache.
+- `title`: the first line of the view's `itemTitle` run input, without a leading `#<n> `.
+
+`progress` is null for an item whose runs could not be read into it; the rest of the page
+stands. `since` takes a duration back from now (`7d`) or an ISO date or time; `limit` is 1 to
+100, 50 by default; `next` is the cursor for `after`, which carries its own `since`. A
+malformed cursor, one from another project, one passed with `since`, or an unreadable `since`
+returns **400**. An unknown `codebaseId`, or a project no view applies to, returns **404**.
 
 ---
 
