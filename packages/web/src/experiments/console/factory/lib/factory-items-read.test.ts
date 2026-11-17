@@ -1,11 +1,17 @@
-import { expect, jest, mock, test } from 'bun:test';
+import { afterEach, expect, jest, mock, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemWindow } from '../../skills/items';
-import { FACTORY_READ_DEADLINE_MS, SlowReadError } from './deadline';
+import { deadlineOf, FACTORY_READ_DEADLINE_MS, SlowReadError } from './deadline';
 import { readEveryFactoryItem, type FactoryItemsReads } from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
+const within = deadlineOf(FACTORY_READ_DEADLINE_MS);
+
+// A failing fake-timer test must not leave its clock to the tests after it.
+afterEach(() => {
+  jest.useRealTimers();
+});
 const read = ({ progress: _progress, ...rest }: FactoryItem): ItemWindow['items'][number] => rest;
 const page = (items: FactoryItem[], next: string | null): ItemWindow => ({
   window: { since: '1970-01-01T00:00:00.000Z', until: '2026-11-17T12:00:00.000Z' },
@@ -46,7 +52,7 @@ function reads(pages: ItemWindow[], failProgress = false) {
 test('walks the window from far back, then by its cursor alone, joining each page with its progress', async () => {
   const [first, second] = captured;
   const { deps, windowCalls, progressCalls } = reads([page([first!], 'c1'), page([second!], null)]);
-  const items = await readEveryFactoryItem('cb-1', deps);
+  const items = await readEveryFactoryItem('cb-1', deps, within);
   expect(windowCalls).toEqual([
     { project: 'cb-1', since: '1970-01-01T00:00:00Z', limit: 100 },
     { project: 'cb-1', after: 'c1', limit: 100 },
@@ -63,7 +69,7 @@ test('walks the window from far back, then by its cursor alone, joining each pag
 test('a key the progress read left out reads as progress null', async () => {
   const stranger = at(captured[0]!, 'stranger', '2026-11-17T00:00:00.000Z');
   const { deps } = reads([page([stranger], null)]);
-  const [item] = await readEveryFactoryItem('cb-1', deps);
+  const [item] = await readEveryFactoryItem('cb-1', deps, within);
   expect(item?.progress).toBeNull();
 });
 
@@ -79,13 +85,13 @@ test('newest activity first, ties by item id, whatever order the window pages in
       null
     ),
   ]);
-  const items = await readEveryFactoryItem('cb-1', deps);
+  const items = await readEveryFactoryItem('cb-1', deps, within);
   expect(items.map(item => item.item.key)).toEqual(['new', 'a', 'b', 'old']);
 });
 
 test('an empty project asks for no progress', async () => {
   const { deps, progressCalls } = reads([page([], null)]);
-  expect(await readEveryFactoryItem('cb-1', deps)).toEqual([]);
+  expect(await readEveryFactoryItem('cb-1', deps, within)).toEqual([]);
   expect(progressCalls).toEqual([]);
 });
 
@@ -98,30 +104,30 @@ test('fails the whole read when a later page, or a progress read, fails', async 
       return page([first!], 'c1');
     }),
   };
-  await expect(readEveryFactoryItem('cb-1', failing)).rejects.toThrow('page two failed');
+  await expect(readEveryFactoryItem('cb-1', failing, within)).rejects.toThrow('page two failed');
   const { deps } = reads([page([first!], null)], true);
-  await expect(readEveryFactoryItem('cb-1', deps)).rejects.toThrow('progress failed');
+  await expect(readEveryFactoryItem('cb-1', deps, within)).rejects.toThrow('progress failed');
 });
 
 test('a progress read that never answers fails the walk at its deadline, and is cancelled', async () => {
   jest.useFakeTimers();
-  try {
-    let progressSignal: AbortSignal | undefined;
-    const stuck: FactoryItemsReads = {
-      listWindow: async () => page(captured.slice(0, 1), null),
-      getProgress: (_opts, init) => {
-        progressSignal = init?.signal;
-        return new Promise(() => undefined);
-      },
-    };
-    const walk = readEveryFactoryItem('cb-1', stuck).catch((e: unknown) => e);
-    // Let the window page land, so the progress read is the one waiting.
-    await Promise.resolve();
-    await Promise.resolve();
-    jest.advanceTimersByTime(FACTORY_READ_DEADLINE_MS);
-    expect(await walk).toBeInstanceOf(SlowReadError);
-    expect(progressSignal?.aborted).toBe(true);
-  } finally {
-    jest.useRealTimers();
-  }
+  let progressSignal: AbortSignal | undefined;
+  let progressAsked: () => void = () => undefined;
+  const asked = new Promise<void>(resolve => {
+    progressAsked = resolve;
+  });
+  const stuck: FactoryItemsReads = {
+    listWindow: async () => page(captured.slice(0, 1), null),
+    getProgress: (_opts, init) => {
+      progressSignal = init?.signal;
+      progressAsked();
+      return new Promise(() => undefined);
+    },
+  };
+  const walk = readEveryFactoryItem('cb-1', stuck, within).catch((e: unknown) => e);
+  // The window page has landed and the progress read is the one waiting.
+  await asked;
+  jest.advanceTimersByTime(FACTORY_READ_DEADLINE_MS);
+  expect(await walk).toBeInstanceOf(SlowReadError);
+  expect(progressSignal?.aborted).toBe(true);
 });

@@ -1,6 +1,6 @@
 import { getFactoryProgress, type FactoryItem } from '../../skills/factory';
 import { listItemWindow, type ItemRead, type ItemWindow } from '../../skills/items';
-import { deadlineOf, FACTORY_READ_DEADLINE_MS, type WithinDeadline } from './deadline';
+import type { WithinDeadline } from './deadline';
 
 /**
  * A window start before any run, so every item with a run shows. The window lists an item
@@ -16,7 +16,11 @@ export interface FactoryItemsReads {
   getProgress: typeof getFactoryProgress;
 }
 
-const SKILLS: FactoryItemsReads = { listWindow: listItemWindow, getProgress: getFactoryProgress };
+/** The skills the walk reads through in the console. */
+export const FACTORY_ITEMS_READS: FactoryItemsReads = {
+  listWindow: listItemWindow,
+  getProgress: getFactoryProgress,
+};
 
 /** An item's latest activity: the latest of its runs' end, or start while one runs. */
 function activityOf(item: ItemRead): number {
@@ -35,8 +39,8 @@ function activityOf(item: ItemRead): number {
  */
 export async function readEveryFactoryItem(
   codebaseId: string,
-  reads: FactoryItemsReads = SKILLS,
-  within: WithinDeadline = deadlineOf(FACTORY_READ_DEADLINE_MS)
+  reads: FactoryItemsReads,
+  within: WithinDeadline
 ): Promise<FactoryItem[]> {
   const items: FactoryItem[] = [];
   let after: string | null = null;

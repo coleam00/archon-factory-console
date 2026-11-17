@@ -10,6 +10,7 @@ import type { AttentionQueue } from '../skills/runs';
 import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { useFactoryRead } from './useFactoryRead';
+import { useFactoryViews } from './useFactoryViews';
 import { readFailed } from './lib/deadline';
 import { needsYou } from './lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
@@ -42,9 +43,7 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
   const { data: project } = useEntity<Project>(K.project(projectId), () =>
     skill.getProject(projectId)
   );
-  const listing = useFactoryRead<FactoryViews>(K.factoryViews(projectId), within =>
-    within(signal => skill.getFactoryViews({ codebaseId: projectId }, { signal }))
-  );
+  const listing = useFactoryViews(projectId);
   const view = currentView(listing.data);
   return (
     <section className="flex h-full flex-col">

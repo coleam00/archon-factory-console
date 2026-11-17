@@ -1,6 +1,6 @@
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { readEveryFactoryItem } from './lib/factory-items-read';
+import { FACTORY_ITEMS_READS, readEveryFactoryItem } from './lib/factory-items-read';
 import { useFactoryRead } from './useFactoryRead';
 import type { FactoryItem } from '../skills/factory';
 
@@ -11,6 +11,6 @@ import type { FactoryItem } from '../skills/factory';
  */
 export function useFactoryItems(projectId: string): EntityView<FactoryItem[]> {
   return useFactoryRead(K.factoryItems(projectId), within =>
-    readEveryFactoryItem(projectId, undefined, within)
+    readEveryFactoryItem(projectId, FACTORY_ITEMS_READS, within)
   );
 }
