@@ -18,6 +18,11 @@ export type FactorySection = 'overview' | 'board' | null;
 interface FactoryFrameProps {
   section: FactorySection;
   /**
+   * Whether the page body takes the content column's whole width (the Overview's map). The
+   * heading always keeps the reading measure.
+   */
+  wide?: boolean;
+  /**
    * The page body, drawn under the view's header once a view applies, with the project's
    * attention queue: read once here, so the count and a page's list share one fetch and stream.
    */
@@ -29,7 +34,7 @@ interface FactoryFrameProps {
  * summary and sub-navigation, any declaration that failed, and the page. A project no view
  * applies to gets an empty state instead.
  */
-export function FactoryFrame({ section, children }: FactoryFrameProps): ReactElement {
+export function FactoryFrame({ section, wide = false, children }: FactoryFrameProps): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const { data: project } = useEntity<Project>(K.project(projectId), () =>
     skill.getProject(projectId)
@@ -50,7 +55,7 @@ export function FactoryFrame({ section, children }: FactoryFrameProps): ReactEle
         <ProjectViewTabs projectId={projectId} active="factory" />
       </header>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
-        <div className="flex max-w-5xl flex-col gap-5">
+        <div className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'}`}>
           {view === undefined ? (
             <>
               <FactoryErrors errors={listing.data?.errors ?? []} />
@@ -147,7 +152,7 @@ function FactoryHeading({
   waiting: number | undefined;
 }): ReactElement {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex max-w-5xl flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
         <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">
@@ -225,7 +230,7 @@ function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): ReactNod
   return (
     <div
       role="alert"
-      className="flex flex-col gap-2 rounded-console-12 border border-error/30 bg-error/10 px-4 py-3"
+      className="flex max-w-5xl flex-col gap-2 rounded-console-12 border border-error/30 bg-error/10 px-4 py-3"
     >
       <p className="text-console-12 font-medium text-error">
         {errors.length === 1

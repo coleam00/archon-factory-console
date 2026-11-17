@@ -1,0 +1,118 @@
+import type { MouseEvent, ReactElement } from 'react';
+import { Link } from 'react-router';
+import type { FactoryStage } from '../lib/board';
+import type { Box } from '../lib/map-layout';
+import type { StageLive } from '../lib/map-live';
+import { GROUPS } from './MapLegend';
+
+interface MapCardProps {
+  stage: FactoryStage;
+  box: Box;
+  live: StageLive;
+  /** Stage notes the declaration places by this card. */
+  notes: readonly string[];
+  selected: boolean;
+  /** The stage page's path. */
+  openTo: string;
+  /** A click (`detail` counts the clicks of a double-click; 0 from the keyboard). */
+  onSelect: (stage: string, detail: number) => void;
+  onOpen: (stage: string) => void;
+}
+
+/** One stage on the map: its colour, label, blurb and live chips, selectable and openable. */
+export function MapCard({
+  stage,
+  box,
+  live,
+  notes,
+  selected,
+  openTo,
+  onSelect,
+  onOpen,
+}: MapCardProps): ReactElement {
+  const color = GROUPS[stage.group].color;
+  return (
+    <div
+      data-stage={stage.id}
+      className="absolute"
+      style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+    >
+      <button
+        type="button"
+        aria-pressed={selected}
+        aria-label={`${stage.label}: ${chipWords(live)}`}
+        onClick={(event: MouseEvent) => onSelect(stage.id, event.detail)}
+        onDoubleClick={() => onOpen(stage.id)}
+        className={`relative flex size-full flex-col gap-1 overflow-hidden rounded-console-12 border bg-surface py-2.5 pl-4 pr-7 text-left transition-colors hover:bg-surface-elevated ${
+          selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border'
+        }`}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-2.5 left-1.5 w-1 rounded-full"
+          style={{ background: color }}
+        />
+        <span className="truncate text-console-17 font-medium text-text-primary">
+          {stage.label}
+        </span>
+        <span className="line-clamp-3 text-console-13 leading-snug text-text-secondary">
+          {stage.blurb}
+        </span>
+        {notes.map(note => (
+          <span key={note} className="truncate text-console-12 italic text-text-tertiary">
+            {note}
+          </span>
+        ))}
+        <span className="mt-auto flex flex-wrap gap-1">
+          <Chips live={live} />
+        </span>
+      </button>
+      <Link
+        to={openTo}
+        aria-label={`Open ${stage.label}`}
+        title={`Open ${stage.label}`}
+        // A press on the link must not start a pan of the map under it.
+        onPointerDown={event => event.stopPropagation()}
+        className="absolute right-1.5 top-1.5 rounded px-1 text-console-15 text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
+      >
+        ↗
+      </Link>
+    </div>
+  );
+}
+
+function chipWords(live: StageLive): string {
+  const parts = [`${live.items.length.toString()} here`];
+  if (live.working > 0) parts.push(`${live.working.toString()} being worked`);
+  if (live.needYou.length > 0) parts.push(needYouWords(live.needYou.length));
+  return parts.join(', ');
+}
+
+const needYouWords = (n: number): string => `${n.toString()} ${n === 1 ? 'needs' : 'need'} you`;
+
+/** "N here", in the running colour and pulsing while a run works one, and "N need you" in the page's one loud colour. */
+function Chips({ live }: { live: StageLive }): ReactElement | null {
+  const here = live.items.length;
+  const waiting = live.needYou.length;
+  if (here === 0 && waiting === 0) return null;
+  return (
+    <>
+      {here > 0 ? (
+        <span
+          className={`rounded-full px-2 text-console-13 font-medium ${
+            live.working > 0
+              ? 'bg-[color:var(--running-soft)] text-[color:var(--running)] motion-safe:animate-pulse'
+              : 'bg-surface-elevated text-text-secondary'
+          }`}
+        >
+          {here} here
+        </span>
+      ) : null}
+      {waiting > 0 ? (
+        <span className="rounded-full bg-warning/20 px-2 text-console-13 font-semibold text-warning">
+          {needYouWords(waiting)}
+        </span>
+      ) : null}
+    </>
+  );
+}

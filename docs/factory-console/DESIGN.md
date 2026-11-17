@@ -134,9 +134,10 @@ those land, this section adds **one read-only route file**, `packages/server/src
 - `GET /api/factory/items?codebaseId=&since=&limit=&after=` a page of the project's items, newest
   activity first. Each entry is the engine's own `ItemRead` (as `GET /api/items` returns it,
   same schema, imported, not restated) plus a `progress` object the board needs and `ItemRead`
-  does not carry: the running run's id, workflow and deepest running step, the current loop
-  iteration of the declared `rounds` loop, the returned count, the change URL from the declared
-  pointer, and the title. Shape the page like #5815 (`{ items, next }`) so swapping to it later
+  does not carry: the running run's id, workflow and deepest running step, the last run that
+  ended with its declared workflow, status and outcome (what placement rules 3 to 5 read), the
+  current loop iteration of the declared `rounds` loop, the returned count, the change URL from
+  the declared pointer, and the title. Shape the page like #5815 (`{ items, next }`) so swapping to it later
   is a change of one skill.
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
@@ -145,7 +146,7 @@ those land, this section adds **one read-only route file**, `packages/server/src
 All derivation (column, card fields) is pure TypeScript in the web package, with unit tests,
 fed by these reads. Logic worth porting from Mission Control (`C:\Users\colem\OpenSource\factory-mission-control`,
 read-only reference): `app/lib/board.ts` (placement and card fields), `app/map/live.ts`
-(which card a running step belongs to), `app/map/FactoryMap.tsx` (pan, zoom, fit, details
+(which card a running step belongs to), `app/components/FactoryMap.tsx` (pan, zoom, fit, details
 panel). Port the logic and ideas, not the styling: Mission Control used its own tokens.
 
 ## Overview page

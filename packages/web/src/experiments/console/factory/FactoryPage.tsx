@@ -1,15 +1,22 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
 import { FactoryFrame } from './FactoryFrame';
+import { FactoryMap } from './map/FactoryMap';
 import { NeedsYouList } from './NeedsYouList';
 
-/** `/console/p/:projectId/factory`: what this factory does, then what needs a person. */
+/** `/console/p/:projectId/factory`: what this factory does, what needs a person, then the map. */
 export function FactoryPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   return (
-    <FactoryFrame section="overview">
-      {/* The numbers strip and the map go around this list in their own slices. */}
-      {(_view, attention) => <NeedsYouList projectId={projectId} attention={attention} />}
+    // Wide: the map takes the page's whole width; the text above it keeps its own measure.
+    <FactoryFrame section="overview" wide>
+      {/* The numbers strip goes above the list in its own slice. */}
+      {(view, attention) => (
+        <>
+          <NeedsYouList projectId={projectId} attention={attention} />
+          <FactoryMap projectId={projectId} view={view.declaration} attention={attention} />
+        </>
+      )}
     </FactoryFrame>
   );
 }
