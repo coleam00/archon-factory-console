@@ -60,7 +60,7 @@ documents through Neon live queries.
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, the workflows behind it, each workflow's step graph |
-  | `factory/steps/:workflow/:node` | One step: its prompt (command file), its YAML, the model it runs on |
+  | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
 
 - Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
   count). Item, stage and step pages have a back link to where you came from.
@@ -174,7 +174,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 - **Double-click** (or the open icon) a card: the stage page, which draws each workflow's steps
   as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
-  now for any item glows. Clicking a step opens the step page.
+  now for any item glows, and above the graph each item running the workflow is named, linking
+  to its item page. Clicking a step opens the step page.
 - A legend under the map names the colour groups in plain words.
 
 ## The board

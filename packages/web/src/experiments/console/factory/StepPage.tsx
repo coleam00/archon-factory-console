@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react';
+import { useMemo, type ReactElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
@@ -10,6 +10,9 @@ import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
+import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
+import { useFactoryItems } from './useFactoryItems';
+import { itemsOnStep } from './lib/items-on-step';
 import {
   stagesOfWorkflow,
   stepInStage,
@@ -108,6 +111,9 @@ function StepBody({
     );
   return (
     <>
+      <Section title="On this step now">
+        <OnThisStep projectId={projectId} workflow={workflow} stepKey={stepKey} />
+      </Section>
       <StepFacts step={step} />
       <StepPrompt step={step} />
       <Section title="YAML">
@@ -123,6 +129,30 @@ function StepBody({
       </Section>
     </>
   );
+}
+
+/** The items a run has on this step now: the step's key, or the loop's id between bodies. */
+function OnThisStep({
+  projectId,
+  workflow,
+  stepKey,
+}: {
+  projectId: string;
+  workflow: string;
+  stepKey: string;
+}): ReactElement {
+  const items = useFactoryItems(projectId);
+  const onStep = useMemo(
+    () => (items.data === undefined ? undefined : itemsOnStep(items.data, workflow).get(stepKey)),
+    [items.data, workflow, stepKey]
+  );
+  // A failed refresh keeps the last list in the cache; it is no longer evidence of what runs.
+  if (items.error !== undefined) return <RunningItemsFailure error={items.error} />;
+  if (items.data === undefined)
+    return <p className="text-console-12 text-text-tertiary">Loading…</p>;
+  if (onStep === undefined)
+    return <p className="text-console-12 text-text-secondary">No item is on this step now.</p>;
+  return <RunningItemLinks projectId={projectId} items={onStep} />;
 }
 
 const KIND_WORDS: Record<FactoryStep['kind'], string> = {
