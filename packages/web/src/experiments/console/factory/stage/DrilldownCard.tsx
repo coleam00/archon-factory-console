@@ -34,11 +34,13 @@ export function DrilldownCard({
   return (
     <article
       data-live={live ? 'true' : undefined}
-      className={`relative flex flex-col overflow-hidden rounded-console-16 border-2 bg-surface ${
-        selected ? 'border-accent-bright' : 'border-border'
-      }`}
+      className="relative flex flex-col overflow-hidden rounded-console-16 border-2 bg-surface"
+      // Border colours go inline: the console root's `* { border-color }` outranks a utility.
       // A selected card keeps its accent border; the glow still tints and rings it.
-      style={live ? { ...RUNNING_GLOW, ...(selected ? { borderColor: undefined } : {}) } : {}}
+      style={{
+        ...(live ? RUNNING_GLOW : {}),
+        ...(selected ? { borderColor: 'var(--accent-bright)' } : {}),
+      }}
     >
       <span
         aria-hidden="true"

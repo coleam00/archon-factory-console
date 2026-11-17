@@ -140,7 +140,10 @@ function Phase({
       style={style}
     >
       <h4 className="flex items-center gap-2.5">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border-bright bg-surface-elevated text-console-13 font-semibold text-text-primary">
+        <span
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-surface-elevated text-console-13 font-semibold text-text-primary"
+          style={{ borderColor: 'var(--border-bright)' }}
+        >
           {index + 1}
         </span>
         <span className="text-console-15 font-semibold text-text-primary">{phase.label}</span>

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { DrilldownCard } from '../lib/drilldown-live';
 import type { FactoryStage, StepPageState } from '../lib/stage-steps';
@@ -24,10 +24,18 @@ export function DrilldownSteps({
   onClose: () => void;
 }): ReactElement {
   const named = stage.workflows.length > 1;
+  // The panel opens under the phases, below the fold of a projected screen; bring it into view.
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    panel.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [card]);
   return (
     <section
+      ref={panel}
       aria-label={`The real steps of ${card.title}`}
-      className="flex flex-col gap-3 rounded-console-16 border border-border-bright bg-surface p-4"
+      className="flex flex-col gap-3 rounded-console-16 border bg-surface p-4"
+      // Inline: the console root's `* { border-color }` outranks a border colour utility.
+      style={{ borderColor: 'var(--border-bright)' }}
     >
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
