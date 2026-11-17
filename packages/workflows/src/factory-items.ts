@@ -422,25 +422,33 @@ export function pageFactoryItems(
 
 /**
  * Facts of runs that ended, kept across page reads so a refetch loads events only for
- * runs still going. Keyed by status and end time too: a failed run can be resumed and end
- * again. Bounded; the oldest entry goes first.
+ * runs still going. Keyed by status and end time too, since a failed run can be resumed
+ * and end again, and by the declaration parts the facts read, since a view is re-read on
+ * every request and may have changed. Bounded; the oldest entry goes first.
  */
 export class FactoryRunFactsMemo {
   private readonly entries = new Map<string, FactoryRunFacts>();
   constructor(private readonly limit = 1000) {}
 
-  private static key(run: WorkflowRun): string | null {
+  private static key(view: FactoryView, pack: string, run: WorkflowRun): string | null {
     if (!isTerminalRunStatus(run.status)) return null;
-    return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}`;
+    const read = {
+      pack,
+      workflows: view.stages.map(stage => stage.workflows),
+      rounds: view.rounds,
+      returns: view.returns,
+      change: view.change,
+    };
+    return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;
   }
 
-  get(run: WorkflowRun): FactoryRunFacts | undefined {
-    const key = FactoryRunFactsMemo.key(run);
+  get(view: FactoryView, pack: string, run: WorkflowRun): FactoryRunFacts | undefined {
+    const key = FactoryRunFactsMemo.key(view, pack, run);
     return key === null ? undefined : this.entries.get(key);
   }
 
-  set(run: WorkflowRun, facts: FactoryRunFacts): void {
-    const key = FactoryRunFactsMemo.key(run);
+  set(view: FactoryView, pack: string, run: WorkflowRun, facts: FactoryRunFacts): void {
+    const key = FactoryRunFactsMemo.key(view, pack, run);
     if (key === null) return;
     this.entries.set(key, facts);
     for (const oldest of this.entries.keys()) {
@@ -478,7 +486,7 @@ async function runFactsFor(
   const load: WorkflowRun[] = [];
   for (const run of found.flatMap(item => item.runs)) {
     if (declaredWorkflow(view, pack, run.workflow_name) === null) continue;
-    const memoised = memo.get(run);
+    const memoised = memo.get(view, pack, run);
     if (memoised === undefined) load.push(run);
     else facts.set(run.id, memoised);
   }
@@ -491,7 +499,7 @@ async function runFactsFor(
     try {
       const fact = factoryRunFacts(view, pack, run, events.get(run.id) ?? []);
       facts.set(run.id, fact);
-      memo.set(run, fact);
+      memo.set(view, pack, run, fact);
     } catch (error) {
       // Left out of `facts`; the item reports it through `onProgressError`.
       input.onProgressError(run.item_id ?? run.id, error);

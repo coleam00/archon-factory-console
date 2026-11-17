@@ -250,20 +250,28 @@ describe('the facts memo', () => {
   test('keeps an ended run, never a running one, and forgets a run that ended again', () => {
     const memo = new FactoryRunFactsMemo();
     const facts = factsOf(deliver1);
-    memo.set(deliver1.run, facts);
-    expect(memo.get(deliver1.run)).toBe(facts);
-    memo.set(deliver2Cut.run, factsOf(deliver2Cut));
-    expect(memo.get(deliver2Cut.run)).toBeUndefined();
+    memo.set(view, PACK, deliver1.run, facts);
+    expect(memo.get(view, PACK, deliver1.run)).toBe(facts);
+    memo.set(view, PACK, deliver2Cut.run, factsOf(deliver2Cut));
+    expect(memo.get(view, PACK, deliver2Cut.run)).toBeUndefined();
     const resumed = { ...deliver1.run, completed_at: new Date('2026-11-18T00:00:00Z') };
-    expect(memo.get(resumed)).toBeUndefined();
+    expect(memo.get(view, PACK, resumed)).toBeUndefined();
+  });
+
+  test('forgets facts read under a declaration that has since changed', () => {
+    const memo = new FactoryRunFactsMemo();
+    memo.set(view, PACK, deliver1.run, factsOf(deliver1));
+    const edited = { ...view, returns: [] };
+    expect(memo.get(edited, PACK, deliver1.run)).toBeUndefined();
+    expect(factoryRunFacts(edited, PACK, deliver1.run, deliver1.events).returnCount).toBe(0);
   });
 
   test('is bounded, oldest out', () => {
     const memo = new FactoryRunFactsMemo(1);
-    memo.set(deliver1.run, factsOf(deliver1));
-    memo.set(deliver2.run, factsOf(deliver2));
-    expect(memo.get(deliver1.run)).toBeUndefined();
-    expect(memo.get(deliver2.run)).toBeDefined();
+    memo.set(view, PACK, deliver1.run, factsOf(deliver1));
+    memo.set(view, PACK, deliver2.run, factsOf(deliver2));
+    expect(memo.get(view, PACK, deliver1.run)).toBeUndefined();
+    expect(memo.get(view, PACK, deliver2.run)).toBeDefined();
   });
 });
 
