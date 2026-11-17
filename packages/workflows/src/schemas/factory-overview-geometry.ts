@@ -12,7 +12,9 @@
  *
  * A view validates only when no line runs through a card other than its two ends, through a
  * group that holds neither end, or into another line. A console that routes by these rules
- * (the web's `overview-layout.ts`, whose test reads the shipped file) draws nothing crossing.
+ * (the web's `overview-layout.ts`) draws nothing crossing. The web cannot import this module,
+ * so it keeps a copy of these rules; `scripts/overview-geometry-parity.test.ts` checks on seeded
+ * views that the two give the same verdict. Change both together.
  */
 
 export type Issue = { path: (string | number)[]; message: string };

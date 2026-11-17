@@ -5,8 +5,9 @@
  * column) its two ends share, from side to facing side; the one `loops-back` edge drops from
  * the bottom of its source into a lane under every box, runs along it, and rises into the
  * bottom of its target. A file the server lists has passed those rules, so nothing drawn here
- * crosses; `overview-layout.test.ts` checks this drawing of the shipped file to keep the two
- * in step.
+ * crosses. The two copies of the rules cannot share a module (the web does not import
+ * `@archon/workflows`); `scripts/overview-geometry-parity.test.ts` holds them in step on seeded
+ * views, and `overview-layout.test.ts` checks this drawing of the shipped file.
  */
 import type { Box, Point } from './map-layout';
 import type { OverviewView } from './overview-nav';
@@ -91,8 +92,14 @@ interface End {
   box: Box;
 }
 
+/** Whether two ends share a cell: their boxes overlap. */
+const spansOverlap = (a: Span, b: Span): boolean =>
+  a.c0 <= b.c1 && b.c0 <= a.c1 && a.r0 <= b.r1 && b.r0 <= a.r1;
+
 /** A straight edge's two points, or undefined for ends the schema would have refused. */
 function straight(a: End, b: End): [Point, Point] | undefined {
+  // Ends that overlap (a group and a card in it) have no line between them; the schema refuses them.
+  if (spansOverlap(a.span, b.span)) return undefined;
   const rowLo = Math.max(a.span.r0, b.span.r0);
   const rowHi = Math.min(a.span.r1, b.span.r1);
   if (rowLo <= rowHi) {

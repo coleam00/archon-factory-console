@@ -9,7 +9,6 @@ import {
   TYPE_FLOOR_PX,
   type Frame,
 } from './map-camera';
-import type { Box, Point } from './map-layout';
 import {
   layoutOverview,
   OVERVIEW_PAGE_MAX_H,
@@ -17,6 +16,7 @@ import {
   OVERVIEW_TITLE_PX,
   type OverviewEdgePath,
 } from './overview-layout';
+import { drawingFaults } from './overview-layout.test-fixtures';
 import type { OverviewDeclaration, OverviewView } from './overview-nav';
 
 /** The overview this repository ships, as the server lists it. */
@@ -40,52 +40,13 @@ const PAGE_WIDTH = 890;
 const FULL: Frame = { width: 1198, height: 744 };
 const TITLE_FLOOR_PX = 14;
 
-/** A segment as a box with no width or no height. */
-function segments(edge: OverviewEdgePath): Box[] {
-  return edge.points.slice(1).map((end, i) => {
-    const start = edge.points[i] as Point;
-    return {
-      x: Math.min(start.x, end.x),
-      y: Math.min(start.y, end.y),
-      w: Math.abs(end.x - start.x),
-      h: Math.abs(end.y - start.y),
-    };
-  });
-}
-
-/** Whether two boxes share any point, edges included. */
-const meets = (a: Box, b: Box): boolean =>
-  a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;
-
-/** The boxes a line must not touch: every card but its ends, every group holding neither. */
-function obstacles(
-  view: OverviewView,
-  edge: OverviewEdgePath,
-  layout = layoutOverview(view)
-): [string, Box][] {
-  const groupOf = (id: string): string | undefined => view.cards.find(c => c.id === id)?.group;
-  const ends = new Set([edge.from, edge.to, groupOf(edge.from), groupOf(edge.to)]);
-  return [...layout.cards, ...layout.groups].filter(([id]) => !ends.has(id));
-}
-
 const views = Object.entries(shipped.views);
 
 describe('the shipped overview, drawn', () => {
   test.each(views)(
     'view %s: no line runs through a card, a foreign group, or another line',
     (_, view) => {
-      const layout = layoutOverview(view);
-      expect(layout.edges.length).toBe(view.edges.length);
-      const hits: string[] = [];
-      layout.edges.forEach((edge, i) => {
-        for (const [id, box] of obstacles(view, edge, layout))
-          if (segments(edge).some(run => meets(run, box)))
-            hits.push(`${edge.from}->${edge.to} hits ${id}`);
-        for (const other of layout.edges.slice(i + 1))
-          if (segments(edge).some(run => segments(other).some(run2 => meets(run, run2))))
-            hits.push(`${edge.from}->${edge.to} meets ${other.from}->${other.to}`);
-      });
-      expect(hits).toEqual([]);
+      expect(drawingFaults(view)).toEqual([]);
     }
   );
 
