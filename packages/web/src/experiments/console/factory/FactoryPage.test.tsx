@@ -220,7 +220,9 @@ describe('the step page', () => {
     expect(html).toContain('$LOOP_PREV.verdict__verdict.output.outcome');
     expect(html).toContain('Prompt, from command fix');
     expect(html).toContain('Fix what the checks returned');
-    expect(html).toContain('YAML');
+    // The highlighted YAML block itself, not only its heading.
+    expect(html).toContain('language-yaml');
+    expect(html.replace(/<[^>]*>/g, '')).toContain('id: fix');
     expect(html).toContain(`href="/console/p/${ID}/factory/stages/build"`);
   });
 

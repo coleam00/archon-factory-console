@@ -16,6 +16,7 @@ import {
   stepPageFromStage,
   type FactoryStage,
 } from './lib/stage-steps';
+import { readFailure } from './lib/read-failure';
 import { factoryPath } from './lib/views';
 
 type FactoryStep = FactoryWorkflow['steps'][number];
@@ -94,7 +95,7 @@ function StepBody({
       <p className="text-console-12 text-text-tertiary">Loading the step…</p>
     ) : (
       <p className="font-mono text-console-12 text-error">
-        Could not load the step: {read.error.message}
+        Could not load the step: {readFailure(read.error)}
       </p>
     );
   const step = read.data.steps.find(candidate => candidate.key === stepKey);
@@ -113,7 +114,9 @@ function StepBody({
         {step.yaml === null ? (
           <p className="text-console-12 text-text-secondary">{step.yamlError}</p>
         ) : (
-          <div className="max-h-120 overflow-hidden rounded-console-12 border border-border">
+          // The whole block, at its own height: the page scrolls down it, and the pane
+          // scrolls sideways along a long line.
+          <div className="overflow-hidden rounded-console-12 border border-border">
             <YamlPreview yamlText={step.yaml} />
           </div>
         )}

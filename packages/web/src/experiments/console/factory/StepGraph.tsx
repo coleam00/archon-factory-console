@@ -35,14 +35,16 @@ export function StepGraph({ projectId, workflow, stageId, graph }: StepGraphProp
   };
   return (
     <div
-      className="flex w-full justify-center overflow-auto rounded-console-12 border border-border p-4"
+      // Not justify-center: a graph wider than the box would overflow to the left, out of
+      // reach of the scrollbar. mx-auto centres it when it fits.
+      className="w-full overflow-auto rounded-console-12 border border-border p-4"
       // Dotted canvas, as RunGraphPanel draws it.
       style={{
         background:
           'radial-gradient(circle at 1px 1px, color-mix(in oklch, white, transparent 95%) 1px, transparent 0) 0 0 / 26px 26px',
       }}
     >
-      <div className="relative shrink-0" style={size}>
+      <div className="relative mx-auto" style={size}>
         {/* Under the frames, so a frame's label stays readable where an edge crosses it. */}
         <svg
           className="absolute inset-0 overflow-visible"

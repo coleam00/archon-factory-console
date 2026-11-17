@@ -9,6 +9,7 @@ import { FactoryFrame } from './FactoryFrame';
 import { StepGraph } from './StepGraph';
 import { stepInStage, type FactoryStage } from './lib/stage-steps';
 import { stepGraph } from './lib/step-graph';
+import { readFailure } from './lib/read-failure';
 import { factoryPath } from './lib/views';
 
 /** `/console/p/:projectId/factory/stages/:stage`: what a stage does, and each workflow's steps. */
@@ -87,7 +88,7 @@ function StageWorkflow({
         <StepGraph projectId={projectId} workflow={workflow} stageId={stage.id} graph={graph} />
       ) : read.error !== undefined ? (
         <p className="font-mono text-console-12 text-error">
-          Could not load the steps: {read.error.message}
+          Could not load the steps: {readFailure(read.error)}
         </p>
       ) : (
         <p className="text-console-12 text-text-tertiary">Loading the steps…</p>

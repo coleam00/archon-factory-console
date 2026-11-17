@@ -6,6 +6,7 @@
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import {
   discoverFactoryViews,
+  factoryPackIsInstalled,
   factoryRunWorkflowName,
   factoryViewWorkflowNames,
   factoryViewsForProject,
@@ -136,13 +137,20 @@ export function registerFactoryWorkflowRoute(
         candidate.declaration.stages.some(stage => stage.workflows.includes(workflow))
       );
       if (view === undefined)
-        return apiError(c, 404, `No factory view here names the workflow ${workflow}`);
+        return apiError(c, 404, `This factory has no stage that runs the workflow ${workflow}.`);
       const runName = factoryRunWorkflowName(view.pack, workflow);
       const entry = (await deps.discoverWorkflows(project)).workflows.find(
         candidate => candidate.workflow.name === runName
       );
+      // Said for the person reading the stage page, who can act on it.
       if (entry === undefined)
-        return apiError(c, 404, `The workflow ${runName} is not installed for this project`);
+        return apiError(
+          c,
+          404,
+          factoryPackIsInstalled(view.pack)
+            ? `The pack ${view.pack} is not installed here, so its workflow ${workflow} cannot be drawn. Install it with the command archon plugin add, then reload this page.`
+            : `The pack ${view.pack} has no workflow ${workflow} in this project, so it cannot be drawn.`
+        );
       return c.json(
         await factoryWorkflowSteps(workflow, entry.workflow, {
           cwd: project,

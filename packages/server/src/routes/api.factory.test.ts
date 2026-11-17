@@ -109,7 +109,7 @@ describe('GET /api/factory/views', () => {
 describe('GET /api/factory/workflow', () => {
   const track = trackTempRoots();
 
-  async function workflowApp(): Promise<OpenAPIHono> {
+  async function workflowApp(withWorkflow = true): Promise<OpenAPIHono> {
     const project = track(await mkdtemp(join(tmpdir(), 'archon-factory-workflow-')));
     const files: Record<string, string> = {
       '.archon/packs/kit.factory-view.json': JSON.stringify(declaration('kit', 'Kit factory')),
@@ -127,6 +127,7 @@ describe('GET /api/factory/workflow', () => {
         '',
       ].join('\n'),
     };
+    if (!withWorkflow) delete files['.archon/workflows/kit/deliver/deliver.yaml'];
     for (const [path, content] of Object.entries(files)) {
       const file = join(project, ...path.split('/'));
       await mkdir(join(file, '..'), { recursive: true });
@@ -165,6 +166,17 @@ describe('GET /api/factory/workflow', () => {
       '/api/factory/workflow?codebaseId=cb-1&workflow=other'
     );
     expect(response.status).toBe(404);
+  });
+
+  test('a workflow the view names but the project lacks returns 404 naming the pack', async () => {
+    const response = await (await workflowApp(false)).request(
+      '/api/factory/workflow?codebaseId=cb-1&workflow=deliver'
+    );
+    expect(response.status).toBe(404);
+    const { error } = (await response.json()) as { error: string };
+    // Read by a person on the stage page: it names the pack and the workflow.
+    expect(error).toContain('kit');
+    expect(error).toContain('deliver');
   });
 
   test('an unknown codebase returns 404', async () => {

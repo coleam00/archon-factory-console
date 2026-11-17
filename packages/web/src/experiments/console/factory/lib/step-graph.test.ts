@@ -63,6 +63,8 @@ describe('stepGraph on deliver', () => {
     expect(edges).toContain('rounds.verdict__verdict→hostrounds.hostfix');
     expect(edges).toContain('hostrounds.host__host→result');
     expect(edges).not.toContain('rounds.base→exhausted');
+    // build enters the loop at fix only, not at every step of it.
+    expect(edges).not.toContain('build__build→rounds.base');
     expect(new Set(edges).size).toBe(edges.length);
     const keys = new Set(graph.nodes.map(node => node.key));
     for (const edge of graph.edges)
