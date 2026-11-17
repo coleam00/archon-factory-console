@@ -464,10 +464,11 @@ describe("an item text's title", () => {
     ).toBe('Stage and step pages show which items are on a step now');
   });
 
-  test('no title line: unterminated front matter, empty or blank text', () => {
+  test('no title line: unterminated front matter, empty or blank text, a bare heading marker', () => {
     expect(titleOfItemText('---\nid: 1\n')).toBeNull();
     expect(titleOfItemText('')).toBeNull();
     expect(titleOfItemText(' \n\t\n')).toBeNull();
+    expect(titleOfItemText('# \nbody')).toBeNull();
     expect(titleOfItemText('---\nid: 1\n---\n\n')).toBeNull();
   });
 });

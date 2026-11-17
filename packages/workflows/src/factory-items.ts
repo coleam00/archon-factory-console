@@ -280,7 +280,7 @@ export function titleOfItemText(text: string): string | null {
   const title = line
     .trim()
     .replace(/^#\d+ /, '')
-    .replace(/^#{1,6}\s+/, '')
+    .replace(/^#{1,6}(\s+|$)/, '')
     .trim();
   return title === '' ? null : title;
 }
