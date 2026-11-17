@@ -247,7 +247,8 @@ first rule that matches. The board, the map and the item page all place through 
    between named steps has no last read, so for that moment it can show the workflow's first
    stage where a view open longer still holds the item.
 2. Its change **merged**: the landed column.
-3. Its last completed run's `workflow:outcome` is in `placement`: that stage.
+3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
+   also places a run that returns no outcome, such as the pack's `landgate`): that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
    "N closed by triage" under the board, each linking to its item.
 5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
