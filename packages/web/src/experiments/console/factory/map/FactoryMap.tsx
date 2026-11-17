@@ -13,7 +13,7 @@ import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { useFactoryItems } from '../useFactoryItems';
-import { arrowPaths, cardBoxes, mapBounds } from '../lib/map-layout';
+import { layoutMap } from '../lib/map-layout';
 import { stageLive, type MapLive } from '../lib/map-live';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
@@ -97,11 +97,7 @@ function MapCanvas({
   live: MapLive;
 }): ReactElement {
   const navigate = useNavigate();
-  const { boxes, arrows, bounds } = useMemo(() => {
-    const placed = cardBoxes(view.map);
-    const drawn = arrowPaths(view.map, placed);
-    return { boxes: placed, arrows: drawn, bounds: mapBounds(placed, drawn) };
-  }, [view.map]);
+  const { boxes, arrows, bounds } = useMemo(() => layoutMap(view.map), [view.map]);
   const [selected, setSelected] = useState<string | null>(null);
   const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
   /** Where the last single click on a card was, and which card: a double-click opens it. */
