@@ -665,6 +665,8 @@ is a `FactoryItem`, through the same view, with the same merge cache), plus `run
 per run in `item.runs`, in the same order, with what the item page's timeline needs:
 
 - `workflow`: the workflow as the view names it; null for a run of a workflow it does not.
+- `cause`: what started the run, the same value as `item.runs[].cause`; absent for a start
+  by hand.
 - `costUsd`: the run's total cost as it recorded it; null until it records one (a running
   run records it at the end).
 - `step`: the deepest running step while the run runs; null between steps and once it ended.
