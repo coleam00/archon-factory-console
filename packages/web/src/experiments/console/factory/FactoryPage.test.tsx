@@ -294,7 +294,9 @@ describe('the stage page', () => {
     expect(html).toContain('>included<');
     // Only the stage's own step stands out; the rest of deliver is dimmed.
     expect([...html.matchAll(/<button[^>]*data-in-stage=""[^>]*>/g)]).toHaveLength(1);
-    expect(html).toMatch(/<button[^>]*title="rounds\.review__review"[^>]*data-in-stage=""/);
+    expect(html).toMatch(
+      /<button[^>]*title="review \(engine id: rounds\.review__review\)"[^>]*data-in-stage=""/
+    );
     // And it looks different: the stage's step and another stage's idle step do not share
     // their classes, whatever the classes are.
     const buttons = [...html.matchAll(/<button[^>]*>/g)].map(([tag]) => tag);

@@ -29,7 +29,7 @@ describe('cards of placed items', () => {
   test('a failed deliver after a completed plan is marked failed, with the step it failed at', () => {
     expect(card(endLastRun(realItem('5'), 'failed', null, 'build__build'))).toMatchObject({
       pill: 'failed',
-      stopLine: 'deliver failed at build__build',
+      stopLine: 'deliver failed at Writes the change',
     });
   });
 
@@ -101,16 +101,33 @@ describe('card fields, in order', () => {
     expect(card(realItem('6')).round).toBeNull();
   });
 
-  test('4: the running workflow and step, linking to the run', () => {
+  test('4: the running stage, step name and round, linking to the run', () => {
     const item = realItem('8');
     expect(card(item).run).toEqual({
-      text: 'deliver · rounds.product__product',
-      workflow: 'deliver',
+      parts: ['Checks', 'Product check', 'round 1'],
+      text: 'Checks · Product check · round 1',
       step: 'rounds.product__product',
       href: `/console/p/${PROJECT}/r/${progressOf(item).running!.runId}`,
     });
-    expect(card(delivering(null)).run?.text).toBe('deliver');
+    expect(card(delivering('build__build')).run?.text).toBe('Build · Writes the change');
+    expect(card(delivering(null)).run?.text).toBe('Build · between steps');
     expect(card(realItem('6')).run).toBeNull();
+  });
+
+  test('4: on a step no stage names, the run line names the column the card holds', () => {
+    const item = delivering('rounds.shown');
+    const model = boardModel(VIEW, PROJECT, [item], new Map([[item.item.key, 'checks']]));
+    const checks = model.columns.find(column => column.stage === 'checks');
+    expect(checks?.cards.map(placed => placed.card.run?.text)).toEqual([
+      'Checks · Posts the review · round 2',
+    ]);
+  });
+
+  test("4: a round from another run is not this run's round", () => {
+    const item = delivering('rounds.fix');
+    const progress = progressOf(item);
+    item.progress = { ...progress, round: { ...progress.round!, runId: 'an-earlier-run' } };
+    expect(card(item).run?.text).toBe('Build · Fixes what came back');
   });
 
   test('5: returned ×N, linking to the item page', () => {

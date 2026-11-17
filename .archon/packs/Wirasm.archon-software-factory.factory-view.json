@@ -102,6 +102,35 @@
   "approves": [{ "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" }],
   "change": { "workflow": "deliver", "pointer": "/change" },
   "itemTitle": { "input": "item" },
+  "steps": {
+    "triage": {
+      "judge__judge": "Decides whether to build",
+      "link__link": "Links related items",
+      "admit": "Would it start on its own (measured only)",
+      "split": "Would it be split (measured only)",
+      "admitted": "Records the admit measurement"
+    },
+    "plan": {
+      "plan": "Writes the plan"
+    },
+    "deliver": {
+      "build__build": "Writes the change",
+      "rounds": "Check rounds",
+      "rounds.fix": "Fixes what came back",
+      "rounds.base": "Reads the base commit",
+      "rounds.review__review": "Code review",
+      "rounds.tests__tests": "Test check",
+      "rounds.product__product": "Product check",
+      "rounds.verdict__verdict": "Verdict",
+      "rounds.shown": "Posts the review",
+      "exhausted": "Rounds ran out",
+      "hostrounds": "CI and review rounds",
+      "hostrounds.hostfix": "Fixes what CI and reviews raised",
+      "hostrounds.host__host": "Reads CI and PR reviews",
+      "result": "Decides how delivery ends",
+      "reported": "Reports the ending"
+    }
+  },
   "map": {
     "cards": [
       { "stage": "order", "col": 1, "row": 1 },

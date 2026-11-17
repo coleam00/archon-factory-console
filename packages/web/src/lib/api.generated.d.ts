@@ -10880,6 +10880,11 @@ export interface components {
           itemTitle?: {
             input: string;
           };
+          steps?: {
+            [key: string]: {
+              [key: string]: string;
+            };
+          };
           map: {
             cards: {
               stage: string;

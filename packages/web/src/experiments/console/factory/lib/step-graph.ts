@@ -5,6 +5,7 @@ type WorkflowGroup = FactoryWorkflow['groups'][number];
 
 export interface StepGraphNode {
   key: string;
+  /** The step's name as a person reads it (`stepLabel`), not the server's raw label. */
   label: string;
   kind: WorkflowStep['kind'];
   /** The innermost group it is drawn in. */
@@ -37,16 +38,19 @@ export interface StepGraph {
 /**
  * The step graph a stage page draws for one workflow. A dependency on a loop group comes
  * from the loop's last steps (those no other step of the loop waits on); the loop's own
- * dependencies go into its first steps (those that wait on nothing inside it).
+ * dependencies go into its first steps (those that wait on nothing inside it). `stepName`
+ * names each step and each loop (a loop's id is a step key); an include frame keeps the
+ * server's label, which names the included workflow.
  */
 export function stepGraph(
   workflow: Pick<FactoryWorkflow, 'steps' | 'groups'>,
-  inStage: (stepKey: string) => boolean
+  inStage: (stepKey: string) => boolean,
+  stepName: (stepKey: string) => string
 ): StepGraph {
   return {
     nodes: workflow.steps.map(step => ({
       key: step.key,
-      label: step.label,
+      label: stepName(step.key),
       kind: step.kind,
       group: step.group,
       when: step.when,
@@ -57,7 +61,7 @@ export function stepGraph(
       id,
       kind,
       parent,
-      label,
+      label: kind === 'loop' ? stepName(id) : label,
       maxRounds,
       when,
       condition: conditionText({ when, whenLabel }),

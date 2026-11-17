@@ -3,10 +3,14 @@ import { Link } from 'react-router';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { StageLive } from '../lib/map-live';
-import { factoryPath } from '../lib/views';
+import { runLine } from '../lib/step-label';
+import { factoryPath, type FactoryViewListed } from '../lib/views';
+
+type Declaration = FactoryViewListed['declaration'];
 
 interface MapDetailsProps {
   projectId: string;
+  view: Declaration;
   stage: FactoryStage;
   live: StageLive;
   onClose: () => void;
@@ -18,7 +22,13 @@ const HEADING = 'text-console-11 font-medium uppercase tracking-wider text-text-
  * A card's details beside the map, opened by its details button: what the stage does, what is
  * in it, what runs it.
  */
-export function MapDetails({ projectId, stage, live, onClose }: MapDetailsProps): ReactElement {
+export function MapDetails({
+  projectId,
+  view,
+  stage,
+  live,
+  onClose,
+}: MapDetailsProps): ReactElement {
   const stagePath = factoryPath(projectId, `/stages/${encodeURIComponent(stage.id)}`);
   const waiting = new Set(live.needYou.map(item => item.item.id));
   return (
@@ -53,6 +63,8 @@ export function MapDetails({ projectId, stage, live, onClose }: MapDetailsProps)
                 <ItemRow
                   key={item.item.id}
                   projectId={projectId}
+                  view={view}
+                  stage={stage}
                   item={item}
                   needsYou={waiting.has(item.item.id)}
                 />
@@ -86,10 +98,15 @@ export function MapDetails({ projectId, stage, live, onClose }: MapDetailsProps)
 
 function ItemRow({
   projectId,
+  view,
+  stage,
   item,
   needsYou,
 }: {
   projectId: string;
+  view: Declaration;
+  /** The stage the item is placed in, which its run line names on a step no stage names. */
+  stage: FactoryStage;
   item: FactoryItem;
   needsYou: boolean;
 }): ReactElement {
@@ -114,8 +131,11 @@ function ItemRow({
           ) : null}
         </span>
         {running === null ? null : (
-          <span className="truncate font-mono text-console-11 text-[color:var(--running)]">
-            {running.workflow} · {running.step ?? 'between steps'}
+          <span
+            className="truncate text-console-11 text-[color:var(--running)]"
+            title={running.step ?? undefined}
+          >
+            {runLine(view, running, item.progress?.round, stage).text}
           </span>
         )}
       </Link>

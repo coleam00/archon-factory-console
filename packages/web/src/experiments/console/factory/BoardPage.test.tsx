@@ -91,7 +91,9 @@ describe('the Pipeline view', () => {
         'Landed3',
       ]);
       const checks = container.querySelector('section[aria-label="Checks"]');
-      expect(checks?.querySelector('a[title="deliver · rounds.product__product"]')).not.toBeNull();
+      expect(
+        checks?.querySelector('a[aria-label="Checks · Product check · round 1"]')
+      ).not.toBeNull();
       // The card opens its item page.
       expect(checks?.querySelector(`a[href="/console/p/${ID}/factory/items/8"]`)).not.toBeNull();
       expect(checks?.querySelector('a[href^="/console/p/cb-1/r/"]')).not.toBeNull();

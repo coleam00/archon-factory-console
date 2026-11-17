@@ -20,8 +20,10 @@ import {
   type FactoryStage,
 } from './lib/stage-steps';
 import { readFailure } from './lib/read-failure';
-import { factoryPath } from './lib/views';
+import { stepLabel } from './lib/step-label';
+import { factoryPath, type FactoryViewListed } from './lib/views';
 
+type Declaration = FactoryViewListed['declaration'];
 type FactoryStep = FactoryWorkflow['steps'][number];
 
 const REMARK_PLUGINS = [remarkGfm];
@@ -43,10 +45,23 @@ export function StepPage(): ReactElement {
             stages={stagesOfWorkflow(view.declaration.stages, workflow)}
             stepKey={node}
           />
-          <h3 className="break-all font-mono text-console-15 font-semibold text-text-primary">
-            {workflow} · {node}
-          </h3>
-          <StepBody projectId={projectId} workflow={workflow} stepKey={node} />
+          <div className="flex flex-col gap-1">
+            <h3 className="text-console-15 font-semibold text-text-primary">
+              {stepLabel(view.declaration, workflow, node)}
+            </h3>
+            <p className="text-console-12 text-text-tertiary">
+              Engine id{' '}
+              <code className="break-all font-mono text-text-secondary">
+                {workflow} · {node}
+              </code>
+            </p>
+          </div>
+          <StepBody
+            projectId={projectId}
+            view={view.declaration}
+            workflow={workflow}
+            stepKey={node}
+          />
         </div>
       )}
     </FactoryFrame>
@@ -83,10 +98,12 @@ function StepBackLink({
 
 function StepBody({
   projectId,
+  view,
   workflow,
   stepKey,
 }: {
   projectId: string;
+  view: Declaration;
   workflow: string;
   stepKey: string;
 }): ReactElement {
@@ -112,7 +129,7 @@ function StepBody({
   return (
     <>
       <Section title="On this step now">
-        <OnThisStep projectId={projectId} workflow={workflow} stepKey={stepKey} />
+        <OnThisStep projectId={projectId} view={view} workflow={workflow} stepKey={stepKey} />
       </Section>
       <StepFacts step={step} />
       <StepPrompt step={step} />
@@ -134,10 +151,12 @@ function StepBody({
 /** The items a run has on this step now: the step's key, or the loop's id between bodies. */
 function OnThisStep({
   projectId,
+  view,
   workflow,
   stepKey,
 }: {
   projectId: string;
+  view: Declaration;
   workflow: string;
   stepKey: string;
 }): ReactElement {
@@ -152,7 +171,7 @@ function OnThisStep({
     return <p className="text-console-12 text-text-tertiary">Loading…</p>;
   if (onStep === undefined)
     return <p className="text-console-12 text-text-secondary">No item is on this step now.</p>;
-  return <RunningItemLinks projectId={projectId} items={onStep} />;
+  return <RunningItemLinks view={view} projectId={projectId} items={onStep} />;
 }
 
 const KIND_WORDS: Record<FactoryStep['kind'], string> = {

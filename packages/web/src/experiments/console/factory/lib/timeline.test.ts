@@ -28,13 +28,19 @@ describe('the timeline of an item that landed', () => {
   test('how each run started: a trigger, then after the run before it with its outcome', () => {
     const [triage, plan] = detail.item.runs;
     expect(rows.map(row => row.started)).toEqual([
-      { text: 'Started by a trigger', mono: 'fc-start-triage', runHref: null },
+      { text: 'Started by a trigger', mono: 'fc-start-triage', step: null, runHref: null },
       {
         text: 'After Triage: sent to Plan',
         mono: null,
+        step: null,
         runHref: runHref(PROJECT, triage?.id ?? ''),
       },
-      { text: 'After Plan: sent to Build', mono: null, runHref: runHref(PROJECT, plan?.id ?? '') },
+      {
+        text: 'After Plan: sent to Build',
+        mono: null,
+        step: null,
+        runHref: runHref(PROJECT, plan?.id ?? ''),
+      },
     ]);
   });
 
@@ -114,6 +120,7 @@ describe('the timeline of an item asked twice', () => {
     expect(delivers[1]?.started).toEqual({
       text: 'Started by a trigger',
       mono: 'fc-start-deliver',
+      step: null,
       runHref: null,
     });
   });
@@ -128,6 +135,7 @@ describe('a running run', () => {
     expect(running?.status).toBe('running');
     expect(running?.outcome).toEqual(said('running'));
     expect(running?.liveStep).toBe('build__build');
+    expect(running?.liveStepName).toBe('Writes the change');
     expect(running?.stage).toBe('Build');
     expect(running?.costUsd).toBeNull();
     const started = Date.parse(detail.item.runs.at(-1)?.startedAt ?? '');
@@ -141,7 +149,13 @@ describe('a running run', () => {
         run.workflow === 'deliver' ? { ...run, step: 'rounds.review__review' } : run
       ),
     };
-    expect(timeline(later).at(-1)?.stage).toBe('Checks');
+    const row = timeline(later).at(-1);
+    expect(row?.stage).toBe('Checks');
+    // The live step of the rounds loop reads with the run's latest round.
+    const round = later.runs.find(run => run.workflow === 'deliver')?.rounds?.rounds.at(-1);
+    expect(row?.liveStepName).toBe(
+      round === undefined ? 'Code review' : `Code review, round ${round.iteration.toString()}`
+    );
   });
 });
 
@@ -165,6 +179,7 @@ describe('how a run started', () => {
     expect(withCause(undefined)?.started).toEqual({
       text: 'Started by hand',
       mono: null,
+      step: null,
       runHref: null,
     });
   });
@@ -176,19 +191,32 @@ describe('how a run started', () => {
     ).toEqual({
       text: 'After another run',
       mono: null,
+      step: null,
       runHref: runHref(PROJECT, 'elsewhere'),
     });
   });
 
-  test('by a step of another run, or by another run that named no step', () => {
-    expect(withCause({ kind: 'run_fired', runId: 'r', node: 'start-it' })?.started).toEqual({
+  test('by a step of another run, by name, or by another run that named no step', () => {
+    const firing = base.runs.find(run => run.workflow === 'deliver')?.runId ?? '';
+    const node = 'rounds.verdict__verdict';
+    expect(withCause({ kind: 'run_fired', runId: firing, node })?.started).toEqual({
       text: 'Started by step',
-      mono: 'start-it',
-      runHref: runHref(PROJECT, 'r'),
+      mono: null,
+      step: { name: 'Verdict', node },
+      runHref: runHref(PROJECT, firing),
     });
     expect(withCause({ kind: 'run_fired', runId: 'r', node: null })?.started.text).toBe(
       'Started by another run'
     );
+  });
+
+  test('by a step of a run not on this item: its workflow is unknown, so the step is unnamed', () => {
+    expect(withCause({ kind: 'run_fired', runId: 'r', node: 'start-it' })?.started).toEqual({
+      text: 'Started by another run',
+      mono: null,
+      step: null,
+      runHref: runHref(PROJECT, 'r'),
+    });
   });
 
   test('a run not yet executing is waiting to start, with no duration', () => {
@@ -208,6 +236,7 @@ describe('how a run started', () => {
     expect(rows[1]?.started).toEqual({
       text: 'After Triage:',
       mono: 'skip',
+      step: null,
       runHref: runHref(PROJECT, triage.id),
     });
   });

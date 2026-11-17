@@ -4,6 +4,8 @@ import deliverJson from './fixtures/deliver-workflow.json';
 import { stepGraph } from './step-graph';
 import { layoutStepGraph, type Box, type Point } from './step-graph-layout';
 import { stepInStage } from './stage-steps';
+import { VIEW } from './board.test-fixtures';
+import { stepLabel } from './step-label';
 
 /**
  * `GET /api/factory/workflow` for the software factory pack's `deliver`, as the server
@@ -23,7 +25,8 @@ const checks = {
   ],
 };
 
-const graph = stepGraph(deliver, key => stepInStage(checks, key));
+const name = (key: string): string => stepLabel(VIEW, 'deliver', key);
+const graph = stepGraph(deliver, key => stepInStage(checks, key), name);
 const groupOf = (key: string): string | null =>
   graph.nodes.find(node => node.key === key)?.group ?? null;
 
@@ -33,7 +36,7 @@ describe('stepGraph on deliver', () => {
       id: 'rounds',
       kind: 'loop',
       parent: null,
-      label: 'rounds',
+      label: 'Check rounds',
       maxRounds: 3,
       when: null,
       condition: null,
@@ -54,6 +57,12 @@ describe('stepGraph on deliver', () => {
         label: check,
       });
     expect(include('build')).toMatchObject({ kind: 'include', parent: null, label: 'build' });
+  });
+
+  test('a step reads by its name, never its engine id', () => {
+    const label = (key: string) => graph.nodes.find(node => node.key === key)?.label;
+    expect(label('build__build')).toBe('Writes the change');
+    expect(label('rounds.review__review')).toBe('Code review');
   });
 
   test('a wait on a loop runs from its last step, and the loop starts at its first', () => {
@@ -84,7 +93,7 @@ describe('stepGraph on deliver', () => {
   test('a when: with no short form prints in full', () => {
     const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
     if (fix === undefined) throw new Error('fixture has no rounds.fix');
-    const bare = stepGraph({ steps: [{ ...fix, whenLabel: null }], groups: [] }, () => true);
+    const bare = stepGraph({ steps: [{ ...fix, whenLabel: null }], groups: [] }, () => true, name);
     expect(bare.nodes[0]?.condition).toBe(`when ${fix.when ?? ''}`);
   });
 
@@ -134,7 +143,7 @@ describe('layoutStepGraph on deliver', () => {
 
 describe('edges of the deliver graph keep out of frames they do not belong to', () => {
   // Every step of every stage, as the stage pages draw them.
-  const laid = layoutStepGraph(stepGraph(deliver, () => true));
+  const laid = layoutStepGraph(stepGraph(deliver, () => true, name));
   const groups = new Map(laid.groups.map(group => [group.group.id, group]));
   const stepGroup = new Map(laid.steps.map(step => [step.node.key, step.node.group]));
   /** The groups a step is drawn in, innermost first. */
