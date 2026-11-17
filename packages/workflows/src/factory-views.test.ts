@@ -83,11 +83,12 @@ describe('discoverFactoryViews', () => {
     const broken = view('factory', 'Broken');
     broken.placement = { 'deliver:ready': 'nowhere' };
     await write(projectFile('factory'), broken);
+    await write(packFile('factory'), view('factory', 'From the pack'));
     await write(packFile('bad-json'), '{ "version": ');
     await write(packFile('good'), view('good', 'Good'));
 
     const listing = await discoverFactoryViews(roots);
-    // A broken project file does not let the pack's own view stand in for it unseen.
+    // A broken project file still replaces the pack's own view; its error shows instead.
     expect(listing.views.map(v => v.pack)).toEqual(['good']);
     expect(listing.errors.map(({ pack, source, path }) => [pack, source, path])).toEqual([
       ['factory', 'project-file', projectFile('factory')],

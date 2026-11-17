@@ -17,16 +17,24 @@ import {
   type FactoryViewSource,
   type FactoryViewsListing,
 } from './schemas/factory-view';
-import { installedWorkflowName } from './workflow-source';
+import { installedPackKey, installedWorkflowName } from './workflow-source/installed-packs';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 type Listed = FactoryViewsListing['views'][number] | FactoryViewsListing['errors'][number];
 
 const DECLARATION_PATH = `${PACK_SHARED_DIRECTORY}/${FACTORY_VIEW_FILE}`;
 
-/** The key a pack's project files are named by: `owner.name`, as pack settings use. */
+/** An installed pack's owner and name from its `owner/name`; a folder pack has none. */
+function installedIdentity(pack: string): { owner: string; name: string } | undefined {
+  const slash = pack.indexOf('/');
+  if (slash === -1) return undefined;
+  return { owner: pack.slice(0, slash), name: pack.slice(slash + 1) };
+}
+
+/** The key a pack's project files are named by, as pack settings use: `owner.name` when installed. */
 export function factoryPackKey(pack: string): string {
-  return pack.replace('/', '.');
+  const installed = installedIdentity(pack);
+  return installed === undefined ? pack : installedPackKey(installed.owner, installed.name);
 }
 
 /**
@@ -34,33 +42,37 @@ export function factoryPackKey(pack: string): string {
  * pack, the bare workflow name for a folder pack.
  */
 export function factoryRunWorkflowName(pack: string, workflow: string): string {
-  const slash = pack.indexOf('/');
-  if (slash === -1) return workflow;
-  return installedWorkflowName(
-    { owner: pack.slice(0, slash), name: pack.slice(slash + 1) },
-    workflow
-  );
+  const installed = installedIdentity(pack);
+  if (installed === undefined) return workflow;
+  return installedWorkflowName(installed, workflow);
 }
 
-/** Every view and error under `roots`; a project file replaces its pack's own view. */
+/**
+ * Every view and error under `roots`. A project file replaces its pack's own view even when
+ * the file is broken, as a higher scope's declaration does for metric views: the project
+ * chose how to present the pack, and its error is listed instead of a view it replaced.
+ */
 export async function discoverFactoryViews(
   roots: LiveWorkflowSourceRoots
 ): Promise<FactoryViewsListing> {
   const listing: FactoryViewsListing = { views: [], errors: [] };
   const project = roots.project === null ? [] : await projectFiles(roots.project);
+  // Pack keys with a project file; a broken file is listed under the key its name gives.
   const presented = new Set<string>();
   for (const listed of project) {
-    if ('error' in listed) listing.errors.push(listed);
-    else {
-      listing.views.push(listed);
+    if ('error' in listed) {
+      listing.errors.push(listed);
       presented.add(listed.pack);
+    } else {
+      listing.views.push(listed);
+      presented.add(factoryPackKey(listed.pack));
     }
   }
   for (const read of await readPackDeclarations(roots, DECLARATION_PATH)) {
     const listed =
       'error' in read ? read : parseDeclaration(read.pack, read.source, read.path, read.content);
     if ('error' in listed) listing.errors.push(listed);
-    else if (!presented.has(listed.pack)) listing.views.push(listed);
+    else if (!presented.has(factoryPackKey(listed.pack))) listing.views.push(listed);
   }
   return listing;
 }
