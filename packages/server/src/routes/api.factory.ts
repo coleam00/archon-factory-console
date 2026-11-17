@@ -293,7 +293,8 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     if (project === null) return apiError(c, 404, 'Codebase not found');
     try {
       // The view the page route reads, so an item reads here as it does on the board.
-      const [view] = (await applyingViews(deps, codebaseId, project.cwd)).views;
+      const roots = await projectRoots(deps, project.cwd);
+      const [view] = (await applyingViews(deps, codebaseId, roots)).views;
       if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
       const detail = await readFactoryItem(
         deps.itemsSource,
