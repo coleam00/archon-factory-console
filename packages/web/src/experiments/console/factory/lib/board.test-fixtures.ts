@@ -115,3 +115,19 @@ export function landRunning(): FactoryItem {
   };
   return item;
 }
+
+/**
+ * Real item 1 (ended ready, its change merged in the copy) keyed `key`, its change's merge
+ * state set to `merged`: `pending` is what a cold server answers while it asks the host.
+ */
+export function readyWithMerge(
+  key: string,
+  merged: NonNullable<NonNullable<FactoryItem['progress']>['change']>['merged']
+): FactoryItem {
+  const item = realItem('1');
+  const progress = progressOf(item);
+  if (progress.change === null) throw new Error('item 1 has a change');
+  item.item = { ...item.item, key };
+  item.progress = { ...progress, change: { ...progress.change, merged, mergedAt: null } };
+  return item;
+}

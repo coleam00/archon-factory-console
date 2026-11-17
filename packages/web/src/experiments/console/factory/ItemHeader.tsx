@@ -47,8 +47,22 @@ function ColumnWords({
 
 type Change = NonNullable<NonNullable<FactoryItem['progress']>['change']>;
 
-const mergeWords = (merged: Change['merged']): string =>
-  merged === true ? 'merged' : merged === false ? 'open' : 'merge state unknown';
+function mergeWords(merged: Change['merged']): string {
+  switch (merged) {
+    case true:
+      return 'merged';
+    case false:
+      return 'open';
+    case 'pending':
+      return 'checking whether it merged';
+    case 'unknown':
+      return 'merge state unknown';
+    default: {
+      const unhandled: never = merged;
+      return unhandled;
+    }
+  }
+}
 
 /** "PR #n" when the URL ends in a number, else the URL; then whether it merged. */
 function ChangeLink({ change }: { change: Change | null }): ReactNode {

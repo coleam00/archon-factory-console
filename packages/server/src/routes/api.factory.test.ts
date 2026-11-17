@@ -522,7 +522,7 @@ describe('the merge-state cache', () => {
     expect(lookups).toBe(1);
   });
 
-  test('a slow first lookup answers unknown within the wait, then fills the cache', async () => {
+  test('a slow first lookup answers pending within the wait, uncached, then fills the cache', async () => {
     let finish: (value: ChangeMergeState) => void = () => {};
     const state = changeStateCache({
       changeStateWaitMs: 10,
@@ -532,10 +532,12 @@ describe('the merge-state cache', () => {
         }),
     });
     expect(await state(CHANGE, [], noBranches)).toEqual({
-      merged: 'unknown',
+      merged: 'pending',
       mergedAt: null,
       number: null,
     });
+    // Still running: the next read waits on the same lookup and answers pending again.
+    expect((await state(CHANGE, [], noBranches)).merged).toBe('pending');
     finish({ merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
     await settle();
     expect(await state(CHANGE, [], noBranches)).toEqual({
@@ -568,9 +570,11 @@ describe('the merge-state cache', () => {
     expect(lookups).toBe(2);
   });
 
-  test('a lookup that throws answers unknown and never rejects', async () => {
+  test('a lookup that throws answers unknown, never rejects, and is cached', async () => {
+    let lookups = 0;
     const state = changeStateCache({
       changeMergeState: async () => {
+        lookups++;
         throw new Error('offline');
       },
     });
@@ -579,6 +583,8 @@ describe('the merge-state cache', () => {
       mergedAt: null,
       number: null,
     });
+    expect((await state(CHANGE, [], noBranches)).merged).toBe('unknown');
+    expect(lookups).toBe(1);
   });
 });
 

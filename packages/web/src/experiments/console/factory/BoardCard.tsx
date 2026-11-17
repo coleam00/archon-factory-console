@@ -149,14 +149,31 @@ function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactEl
   );
 }
 
-/** Said where a change's merge state could not be read, so it never reads as unmerged. */
-export function MergeUnknown(): ReactElement {
+const MERGE_STATE_WORDS = {
+  unknown: {
+    text: 'merge state unknown',
+    title: 'The change host could not say whether this change merged',
+  },
+  pending: {
+    text: 'checking merge state',
+    title: 'The server is still asking the change host whether this change merged',
+  },
+} as const;
+
+/**
+ * Said where a change's merge state could not be read or is still being asked, so it never
+ * reads as unmerged.
+ */
+export function MergeState({
+  state,
+}: {
+  state: keyof typeof MERGE_STATE_WORDS | null;
+}): ReactElement | null {
+  if (state === null) return null;
+  const words = MERGE_STATE_WORDS[state];
   return (
-    <span
-      className="text-text-tertiary"
-      title="The change host could not say whether this change merged"
-    >
-      merge state unknown
+    <span className="text-text-tertiary" title={words.title}>
+      {words.text}
     </span>
   );
 }
@@ -180,7 +197,7 @@ function CardLinks({ card }: { card: BoardCardFields }): ReactNode {
           {card.change.label}
         </a>
       )}
-      {card.change?.mergeUnknown === true ? <MergeUnknown /> : null}
+      <MergeState state={card.change?.mergeState ?? null} />
     </span>
   );
 }

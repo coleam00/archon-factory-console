@@ -10,6 +10,7 @@ import {
   FactoryRunFactsMemo,
   readFactoryItem,
   readFactoryProgress,
+  type FactoryChangeMerged,
   type FactoryChangeState,
 } from '@archon/workflows/factory-items';
 import { ITEM_WINDOW_MAX_LIMIT } from '@archon/workflows/item-window';
@@ -111,7 +112,7 @@ const getFactoryProgressRoute = createRoute({
   tags: ['Workflows'],
   summary: "The board progress of a project's items, by key",
   description:
-    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, its title, and its change, with whether that merged as the change host reports it (cached on the server). A key the project has no item under is left out; an item whose progress could not be derived reads null.',
+    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, its title, and its change, with whether that merged as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). A key the project has no item under is left out; an item whose progress could not be derived reads null.',
   request: { query: factoryProgressQuerySchema },
   responses: {
     200: {
@@ -208,13 +209,21 @@ const CHANGE_STATE_TTL_MS = 60_000;
 const CHANGE_STATE_WAIT_MS = 4_000;
 
 type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
+/** What a read answers: the host's answer, or `pending` while its lookup still runs. */
+interface ShownAnswer {
+  merged: FactoryChangeMerged;
+  mergedAt: string | null;
+  number: number | null;
+}
 
 /**
  * The change host's answer for each change URL, shared by every request: one lookup in
  * flight per URL, a merged answer kept, any other for `CHANGE_STATE_TTL_MS`. A stale
  * answer is served while its refresh runs. A cold lookup slower than the wait answers
- * `unknown` for that request only. The pull request number is the forge's, else the one
- * the run's own audit rows name, so a cold `unknown` still carries it when they do.
+ * `pending` for that request only and is never cached, so the next read gets the host's
+ * answer once it settles; a lookup that failed answers `unknown` and is cached like any
+ * other. The pull request number is the forge's, else the one the run's own audit rows
+ * name, so a `pending` answer still carries it when they do.
  */
 export function changeStateCache(
   deps: Pick<FactoryRouteDeps, 'changeMergeState' | 'changeStateWaitMs' | 'now'>
@@ -250,7 +259,7 @@ export function changeStateCache(
     pending.set(url, started);
     return started;
   };
-  const shown = (answer: ChangeAnswer, url: string, audits: readonly unknown[]) => ({
+  const shown = (answer: ShownAnswer, url: string, audits: readonly unknown[]): ShownAnswer => ({
     merged: answer.merged,
     mergedAt: answer.mergedAt,
     number: answer.number ?? prRefFromAudits(url, audits)?.number ?? null,
@@ -263,12 +272,13 @@ export function changeStateCache(
       return shown(known.answer, url, audits);
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const waited = new Promise<ChangeAnswer>(resolve => {
+    // Only `lookup` writes `answers`, so this answer never outlives the request.
+    const waited = new Promise<ShownAnswer>(resolve => {
       timer = setTimeout(() => {
-        resolve({ merged: 'unknown', mergedAt: null, number: null });
+        resolve({ merged: 'pending', mergedAt: null, number: null });
       }, waitMs);
     });
-    const answer = await Promise.race([lookup(url, audits, branches), waited]);
+    const answer: ShownAnswer = await Promise.race([lookup(url, audits, branches), waited]);
     clearTimeout(timer);
     return shown(answer, url, audits);
   };

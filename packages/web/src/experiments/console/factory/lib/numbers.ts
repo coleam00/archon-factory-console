@@ -16,6 +16,11 @@ export interface FactoryNumbers {
   total: number;
   /** Median from an item's first declared run to its change merging; null when none landed. */
   medianToLandMs: number | null;
+  /**
+   * Whether the counts placement's merge rule decides wait on a merge answer: some column
+   * of the board shows loading. Every number but "needs you" is then not shown.
+   */
+  pending: boolean;
 }
 
 const cardCount = (model: BoardModel): number =>
@@ -58,5 +63,6 @@ export function factoryNumbers(model: BoardModel, now: Date): FactoryNumbers {
     landed: cardCount(landed),
     total: cardCount(model),
     medianToLandMs: median(times),
+    pending: model.columns.some(column => column.pending),
   };
 }

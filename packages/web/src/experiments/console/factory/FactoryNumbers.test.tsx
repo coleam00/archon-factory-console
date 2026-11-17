@@ -1,10 +1,13 @@
-import { afterAll, expect, test } from 'bun:test';
+import { afterAll, afterEach, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
-import { invalidate } from '../store/cache';
+import type { FactoryItem } from '../skills/factory';
+import { invalidate, set } from '../store/cache';
+import { K } from '../store/keys';
 import { FactoryNumbers } from './FactoryNumbers';
-import { VIEW } from './lib/board.test-fixtures';
+import { PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
+import { cancelRereads } from './merge-reread';
 
 // A failed read lands after the first render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -23,6 +26,12 @@ globalThis.fetch = Object.assign(
   },
   { preconnect: originalFetch.preconnect }
 );
+
+afterEach(() => {
+  // A pending read schedules a re-read; it must not fire into the next test.
+  cancelRereads();
+  invalidate('factory-items');
+});
 
 afterAll(async () => {
   globalThis.fetch = originalFetch;
@@ -56,5 +65,82 @@ test('a failed read says so, and never shows zeros', async () => {
   } finally {
     await act(async () => root.unmount());
     container.remove();
+  }
+});
+
+const turns = async (n = 5): Promise<void> => {
+  for (let turn = 0; turn < n; turn++)
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+};
+
+/** The strip over `items`, read warm from the cache as the Overview reads it after the board. */
+async function mount(projectId: string, items: FactoryItem[]) {
+  set(K.factoryItems(projectId), items);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <MemoryRouter>
+        <FactoryNumbers projectId={projectId} view={VIEW} />
+      </MemoryRouter>
+    )
+  );
+  const tile = (label: string): string | null | undefined =>
+    [...container.querySelectorAll('li')].find(li => li.textContent?.endsWith(label))?.textContent;
+  return {
+    container,
+    tile,
+    unmount: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+test('while a merge state is pending, the counts it decides say loading, never zeros', async () => {
+  // The cold-load wire value: the server still asking the host whether item 1's change merged.
+  const items = [...PAGE.items, readyWithMerge('p', 'pending')];
+  const { container, tile, unmount } = await mount('cb-pending', items);
+  try {
+    for (const label of ['in flight', 'landed today', 'done', 'median from first run to landed'])
+      expect(tile(label)).toBe(`…Loading${label}`);
+    expect(container.textContent).not.toMatch(/\d+ of \d+/);
+    // Whether an item needs you does not wait on a merge answer.
+    expect(tile('items need you')).toBe('0items need you');
+    // The answer arrives: real numbers replace the loading ones.
+    await act(async () => set(K.factoryItems('cb-pending'), PAGE.items));
+    expect(tile('done')).toBe('3 of 8done');
+    expect(container.textContent).not.toContain('Loading');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a settled unknown is counted as the board places it, not loading', async () => {
+  const { container, tile, unmount } = await mount('cb-unknown', [
+    ...PAGE.items,
+    readyWithMerge('u', 'unknown'),
+  ]);
+  try {
+    expect(tile('done')).toBe('3 of 9done');
+    expect(container.textContent).not.toContain('Loading');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a failed refresh says so and keeps the last numbers', async () => {
+  const { container, tile, unmount } = await mount('cb-stale', PAGE.items);
+  try {
+    // The refresh reads through the fetch above, which fails.
+    await act(async () => invalidate(K.factoryItems('cb-stale')));
+    await turns();
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'Could not refresh: the server is down. Showing the last values read.'
+    );
+    expect(tile('done')).toBe('3 of 8done');
+  } finally {
+    await unmount();
   }
 });
