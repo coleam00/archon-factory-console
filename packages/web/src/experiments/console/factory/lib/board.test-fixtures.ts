@@ -1,19 +1,20 @@
 /**
- * The board's fixtures: the item page `dev:console` served from a copy of the live factory
- * database (`__fixtures__/items-page.json`), and the declaration this repository ships. Edge
+ * The board's fixtures: the items `dev:console` served from a copy of the live factory
+ * database, each read joined with its progress (`__fixtures__/items-page.json`), and the
+ * declaration this repository ships. Edge
  * cases the copy does not hold (a failed run, an open ask, a triage ending) are made by
  * editing a real item, never from nothing.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { FactoryItemsPage } from '../../skills/factory';
-import type { FactoryDeclaration, FactoryItem } from './board';
+import type { FactoryItem } from '../../skills/factory';
+import type { FactoryDeclaration } from './board';
 
 const read = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
-export const PAGE = read(
-  join(import.meta.dir, '__fixtures__', 'items-page.json')
-) as FactoryItemsPage;
+export const PAGE = read(join(import.meta.dir, '__fixtures__', 'items-page.json')) as {
+  items: FactoryItem[];
+};
 
 export const VIEW = read(
   join(

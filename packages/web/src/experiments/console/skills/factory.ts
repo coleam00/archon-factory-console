@@ -3,10 +3,16 @@ import { requestJson } from '../lib/http';
 import type { components } from '@/lib/api.generated';
 
 export type FactoryViews = components['schemas']['FactoryViews'];
-export type FactoryItemsPage = components['schemas']['FactoryItemsPage'];
+export type FactoryProgress = components['schemas']['FactoryProgress'];
 export type FactoryItemDetail = components['schemas']['FactoryItemDetail'];
-/** One item's engine read plus its progress, as a page entry and the item read carry it. */
+/**
+ * One item's engine read (`GET /api/items/window`) joined with its progress
+ * (`GET /api/factory/progress`), null when the server could not derive it: the shape the
+ * item detail's `item` has, which is the item read's schema extended with `progress`.
+ */
 export type FactoryItem = FactoryItemDetail['item'];
+/** What the board needs of one item beyond its read. */
+export type FactoryItemProgress = NonNullable<FactoryItem['progress']>;
 
 /** The factory views that apply to one project, and declarations that failed, with their files. */
 export async function getFactoryViews(
@@ -24,14 +30,14 @@ export async function getFactoryWorkflow(
   return requestJson('/api/factory/workflow', 'get', { query: opts });
 }
 
-/** A page of one project's items, newest activity first, each with its progress on the board. */
-export async function listFactoryItems(
-  opts: QueryParams<'/api/factory/items', 'get'>
-): Promise<FactoryItemsPage> {
-  return requestJson('/api/factory/items', 'get', { query: opts });
+/** The board progress of the items `keys` names, by key; a key with no item is left out. */
+export async function getFactoryProgress(
+  opts: QueryParams<'/api/factory/progress', 'get'>
+): Promise<FactoryProgress> {
+  return requestJson('/api/factory/progress', 'get', { query: opts });
 }
 
-/** One item, read as a page entry is, with each of its runs' timeline facts. */
+/** One item, its read and progress, with each of its runs' timeline facts. */
 export async function getFactoryItem(
   opts: QueryParams<'/api/factory/item', 'get'>
 ): Promise<FactoryItemDetail> {

@@ -1,22 +1,57 @@
-import { listFactoryItems } from '../../skills/factory';
-import type { FactoryItem } from './items-on-step';
+import { getFactoryProgress, type FactoryItem } from '../../skills/factory';
+import { listItemWindow, type ItemRead } from '../../skills/items';
 
 /**
- * Every item of one project, walking the items read page by page until `next` is null; the
- * value `K.factoryItems(projectId)` holds, for every page that reads it. Paged by the server's
- * default size, so the web keeps no copy of its limit. A failed page fails the whole read:
- * a partial list would drop a running item without a sign.
+ * The board shows every item, and the window needs a start: one before any run. The window
+ * lists an item once one of its own runs started in it, so an item whose only start is
+ * still queued shows from its first run on.
+ */
+const EVERY_ITEM_SINCE = '1970-01-01T00:00:00Z';
+/** The most items one window page holds (`ITEM_WINDOW_MAX_LIMIT` on the server). */
+const PAGE_LIMIT = 100;
+
+export interface FactoryItemsReads {
+  listWindow: typeof listItemWindow;
+  getProgress: typeof getFactoryProgress;
+}
+
+const SKILLS: FactoryItemsReads = { listWindow: listItemWindow, getProgress: getFactoryProgress };
+
+/** An item's latest activity: the latest of its runs' end, or start while one runs. */
+function activityOf(item: ItemRead): number {
+  return Math.max(0, ...item.runs.map(run => Date.parse(run.completedAt ?? run.startedAt)));
+}
+
+/**
+ * Every item of one project, newest activity first, ties by item id: the value
+ * `K.factoryItems(projectId)` holds for every Factory page. It walks the engine's items
+ * window page by page (the cursor carries the window), and joins each page with the
+ * progress the board needs from `GET /api/factory/progress`. The window pages by item id,
+ * and the board keeps input order within a column, so the order is set here. A failed page
+ * or progress read fails the whole read: a partial list would drop a running item without
+ * a sign.
  */
 export async function readEveryFactoryItem(
   codebaseId: string,
-  list: typeof listFactoryItems = listFactoryItems
+  reads: FactoryItemsReads = SKILLS
 ): Promise<FactoryItem[]> {
   const items: FactoryItem[] = [];
   let after: string | null = null;
   do {
-    const page = await list({ codebaseId, ...(after === null ? {} : { after }) });
-    items.push(...page.items);
+    const page = await reads.listWindow(
+      after === null
+        ? { project: codebaseId, since: EVERY_ITEM_SINCE, limit: PAGE_LIMIT }
+        : { project: codebaseId, after, limit: PAGE_LIMIT }
+    );
+    if (page.items.length > 0) {
+      const { progress } = await reads.getProgress({
+        codebaseId,
+        keys: page.items.map(read => read.item.key),
+      });
+      for (const read of page.items)
+        items.push({ ...read, progress: progress[read.item.key] ?? null });
+    }
     after = page.next;
   } while (after !== null);
-  return items;
+  return items.sort((a, b) => activityOf(b) - activityOf(a) || a.item.id.localeCompare(b.item.id));
 }

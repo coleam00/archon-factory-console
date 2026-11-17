@@ -203,6 +203,13 @@ export const factoryViewsListingSchema = z.object({
     z.object({
       /** The declaration's pack: `owner/name` when installed, else its folder name. */
       pack: z.string(),
+      /** The pack's folder key (`owner.name` when installed): the `{pack}` of `GET /api/packs/{pack}/graph`. */
+      packKey: z.string(),
+      /**
+       * Each workflow a stage lists, as the view names it, to the name its runs record and
+       * the pack graph's stages carry (`owner/name:workflow` when installed).
+       */
+      runNames: z.record(z.string(), z.string()),
       source: factoryViewSourceSchema,
       /** The file the view was read from. */
       path: z.string(),

@@ -139,7 +139,12 @@ function parseDeclaration(
         ? `${path} declares pack "${pack}", whose project file is ${factoryPackKey(pack)}${FACTORY_VIEW_PROJECT_SUFFIX}`
         : `${path} declares pack "${pack}" but belongs to pack "${found}"`
     );
-  return { pack, source, path, declaration: parsed.data };
+  const runNames = Object.fromEntries(
+    parsed.data.stages.flatMap(stage =>
+      stage.workflows.map(workflow => [workflow, factoryRunWorkflowName(pack, workflow)])
+    )
+  );
+  return { pack, packKey: factoryPackKey(pack), runNames, source, path, declaration: parsed.data };
 }
 
 /** The run names, as runs record them, of every workflow a listed view's stages name. */

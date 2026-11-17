@@ -1,12 +1,12 @@
-import type { FactoryItemsPage } from '../../../skills/factory';
+import type { FactoryItem } from '../../../skills/factory';
 
 /**
- * `GET /api/factory/items` from `dev:console --fresh` on 2026-11-17: three deliver runs on
- * `build__build` and one idle item, each trimmed to its latest run. #4's `progress.runs`,
- * `change.number` and the `undecided` verdict were added by hand to the same runs.
+ * Items as the console reads them (each read joined with its progress), captured from
+ * `dev:console --fresh` on 2026-11-17: three deliver runs on `build__build` and one idle
+ * item, each trimmed to its latest run. #4's `progress.runs`, `change.number` and the
+ * `undecided` verdict were added by hand to the same runs.
  */
-export const capturedItemsPage: FactoryItemsPage = {
-  pack: 'Wirasm/archon-software-factory',
+export const capturedItemsPage: { items: FactoryItem[] } = {
   items: [
     {
       item: {
@@ -236,11 +236,9 @@ export const capturedItemsPage: FactoryItemsPage = {
       },
     },
   ],
-  next: null,
 };
 
-type CapturedItem = FactoryItemsPage['items'][number];
-type Progress = NonNullable<CapturedItem['progress']>;
+type Progress = NonNullable<FactoryItem['progress']>;
 
 /**
  * A captured item renamed `key` with its progress replaced, for the states the capture does
@@ -249,11 +247,33 @@ type Progress = NonNullable<CapturedItem['progress']>;
 export function capturedItemAs(
   key: string,
   progress: { running: Progress['running'] } | null,
-  base: CapturedItem = capturedItemsPage.items[0] as CapturedItem
-): CapturedItem {
+  base: FactoryItem = capturedItemsPage.items[0] as FactoryItem
+): FactoryItem {
   return {
     ...base,
     item: { ...base.item, id: `${base.item.id}-${key}`, key },
     progress: progress === null ? null : { ...(base.progress as Progress), ...progress },
   };
 }
+
+/**
+ * What a stubbed server answers to the items read for `items`: a window page of their reads
+ * at `/api/items/window`, and their progress at `/api/factory/progress`.
+ */
+export function itemsReadAnswer(items: readonly FactoryItem[]): (url: string) => Response {
+  return url =>
+    url.includes('/api/factory/progress')
+      ? Response.json({
+          pack: 'Wirasm/archon-software-factory',
+          progress: Object.fromEntries(items.map(item => [item.item.key, item.progress])),
+        })
+      : Response.json({
+          window: { since: '1970-01-01T00:00:00.000Z', until: '2026-11-17T12:00:00.000Z' },
+          items: items.map(({ progress: _progress, ...read }) => read),
+          next: null,
+        });
+}
+
+/** Whether a stubbed server's `url` is one of the items read's two requests. */
+export const isItemsRead = (url: string): boolean =>
+  url.includes('/api/items/window') || url.includes('/api/factory/progress');

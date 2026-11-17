@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router';
 import { errorDetail } from '../lib/http';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
-import { useFactoryBoardItems } from './board-items';
+import { useFactoryItems } from './useFactoryItems';
 import { FactoryFrame } from './FactoryFrame';
 import {
   boardModel,
@@ -70,7 +70,7 @@ export function Board({
   projectId: string;
   view: FactoryDeclaration;
 }): ReactElement {
-  const items = useFactoryBoardItems(projectId);
+  const items = useFactoryItems(projectId);
   const [params, setParams] = useSearchParams();
   const table = params.get(VIEW_PARAM) === TABLE_VIEW;
   const showParam = params.get(SHOW_PARAM);
@@ -143,7 +143,7 @@ function BoardBody({
   moved,
 }: {
   projectId: string;
-  items: ReturnType<typeof useFactoryBoardItems>;
+  items: ReturnType<typeof useFactoryItems>;
   model: BoardModel | undefined;
   table: boolean;
   moved: ReadonlySet<string>;

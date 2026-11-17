@@ -6,7 +6,7 @@ import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import type { FactoryItem } from '../lib/board';
+import type { FactoryItem } from '../../skills/factory';
 import { shippedView } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';

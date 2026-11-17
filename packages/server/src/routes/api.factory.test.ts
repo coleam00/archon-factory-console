@@ -13,7 +13,7 @@ import { discoverWorkflows } from '@archon/workflows/workflow-discovery';
 import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from './api.factory';
 import {
   factoryItemDetailResponseSchema,
-  factoryItemsPageResponseSchema,
+  factoryProgressResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
 } from './schemas/factory.schemas';
@@ -56,7 +56,6 @@ const noItems: FactoryRouteDeps = {
   }),
   ranWorkflows: async () => new Set(),
   itemsSource: {} as ItemReadSource,
-  listProjectItems: async () => [],
   changeMergeState: async () => {
     throw new Error('no change is looked up here');
   },
@@ -131,6 +130,14 @@ describe('GET /api/factory/views', () => {
     ]);
   });
 
+  test('each view names its pack key and the run names of its workflows', async () => {
+    const { app } = await factoryApp({
+      '.archon/packs/acme.kit.factory-view.json': declaration('acme/kit', 'Kit factory'),
+    });
+    const [view] = (await views(app)).views;
+    expect([view?.packKey, view?.runNames]).toEqual(['acme.kit', { deliver: 'acme/kit:deliver' }]);
+  });
+
   test('an unknown codebase returns 404', async () => {
     const { app } = await factoryApp({});
     const response = await app.request('/api/factory/views?codebaseId=missing');
@@ -138,7 +145,7 @@ describe('GET /api/factory/views', () => {
   });
 });
 
-describe('GET /api/factory/items', () => {
+describe('GET /api/factory/progress and /api/factory/item', () => {
   const track = trackTempRoots();
   const items: [WorkflowItem, WorkflowItem] = [
     { id: 'item-a', projectKey: 'acme/web', key: '1' },
@@ -293,14 +300,6 @@ describe('GET /api/factory/items', () => {
       ...noItems,
       codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
       itemsSource: source,
-      // Only the codebase's own project has these items.
-      listProjectItems: async projectKey =>
-        projectKey === 'acme/web'
-          ? [
-              { id: 'item-a', key: '1', activityAt: '2026-11-16T10:30:00.000Z' },
-              { id: 'item-b', key: '2', activityAt: '2026-11-16T11:00:00.000Z' },
-            ]
-          : [],
       changeMergeState: async (url, _audits, branches) => {
         lookups.push(url);
         branchesSeen.push([...(await branches())]);
@@ -318,32 +317,30 @@ describe('GET /api/factory/items', () => {
     },
   };
 
-  test("a page of the project's items, newest activity first, each with its progress", async () => {
+  test('the progress of each key asked, repeated or one; a key with no item is left out', async () => {
     const app = await itemsApp(withView);
-    const response = await app.request('/api/factory/items?codebaseId=cb-1&limit=1');
+    const response = await app.request('/api/factory/progress?codebaseId=cb-1&keys=2&keys=9');
     expect(response.status).toBe(200);
-    const first = factoryItemsPageResponseSchema.parse(await response.json());
-    expect(first.pack).toBe('acme/kit');
-    expect(first.items.map(entry => [entry.item.key, entry.runs.length])).toEqual([['2', 1]]);
-    expect(first.items[0]?.progress).toEqual({
-      title: 'Item 2',
-      running: {
-        runId: 'run-b',
-        workflow: 'deliver',
-        step: 'build',
-        startedAt: '2026-11-16T10:00:00.000Z',
+    const read = factoryProgressResponseSchema.parse(await response.json());
+    expect(read.pack).toBe('acme/kit');
+    expect(read.progress).toEqual({
+      '2': {
+        title: 'Item 2',
+        running: {
+          runId: 'run-b',
+          workflow: 'deliver',
+          step: 'build',
+          startedAt: '2026-11-16T10:00:00.000Z',
+        },
+        round: null,
+        returned: 0,
+        change: null,
+        runs: [{ runId: 'run-b', workflow: 'deliver', failedStep: null }],
       },
-      round: null,
-      returned: 0,
-      change: null,
-      runs: [{ runId: 'run-b', workflow: 'deliver', failedStep: null }],
     });
-    const next = await app.request(
-      `/api/factory/items?codebaseId=cb-1&after=${encodeURIComponent(first.next ?? '')}`
-    );
-    const second = factoryItemsPageResponseSchema.parse(await next.json());
-    expect(second.items.map(entry => entry.item.key)).toEqual(['1']);
-    expect(second.next).toBeNull();
+    const one = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
+    const single = factoryProgressResponseSchema.parse(await one.json());
+    expect(Object.keys(single.progress)).toEqual(['1']);
   });
 
   test('a change is looked up once across requests, through the cache the route shares', async () => {
@@ -351,9 +348,9 @@ describe('GET /api/factory/items', () => {
     const branchesSeen: string[][] = [];
     const app = await itemsApp(withView, lookups, branchesSeen);
     for (let request = 0; request < 2; request++) {
-      const response = await app.request('/api/factory/items?codebaseId=cb-1');
-      const page = factoryItemsPageResponseSchema.parse(await response.json());
-      expect(page.items.find(entry => entry.item.key === '1')?.progress?.change).toEqual({
+      const response = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1&keys=2');
+      const read = factoryProgressResponseSchema.parse(await response.json());
+      expect(read.progress['1']?.change).toEqual({
         url: CHANGE,
         merged: true,
         mergedAt: '2026-11-17T01:00:00Z',
@@ -366,17 +363,18 @@ describe('GET /api/factory/items', () => {
     expect(branchesSeen).toEqual([['branch-run-a']]);
   });
 
-  test('a cursor that is not one is a 400; a limit out of range is refused', async () => {
+  test('no keys, or more keys than a window page holds, is a 400', async () => {
     const app = await itemsApp(withView);
-    expect((await app.request('/api/factory/items?codebaseId=cb-1&after=nope')).status).toBe(400);
-    expect((await app.request('/api/factory/items?codebaseId=cb-1&limit=101')).status).toBe(400);
+    expect((await app.request('/api/factory/progress?codebaseId=cb-1')).status).toBe(400);
+    const many = Array.from({ length: 101 }, (_, i) => `keys=${String(i)}`).join('&');
+    expect((await app.request(`/api/factory/progress?codebaseId=cb-1&${many}`)).status).toBe(400);
   });
 
   test('no applying view, or an unknown codebase, is a 404', async () => {
     const app = await itemsApp({});
-    const none = await app.request('/api/factory/items?codebaseId=cb-1');
+    const none = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
     expect(none.status).toBe(404);
-    expect((await app.request('/api/factory/items?codebaseId=missing')).status).toBe(404);
+    expect((await app.request('/api/factory/progress?codebaseId=missing&keys=1')).status).toBe(404);
   });
   test("one item: its read and progress, with each run's timeline facts", async () => {
     const app = await itemsApp(withView);
@@ -391,10 +389,10 @@ describe('GET /api/factory/items', () => {
     ]);
   });
 
-  test('the item route shares the merge cache with the page route', async () => {
+  test('the item route shares the merge cache with the progress route', async () => {
     const lookups: string[] = [];
     const app = await itemsApp(withView, lookups);
-    await app.request('/api/factory/items?codebaseId=cb-1');
+    await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
     const response = await app.request('/api/factory/item?codebaseId=cb-1&key=1');
     const detail = factoryItemDetailResponseSchema.parse(await response.json());
     expect(detail.item.progress?.change?.merged).toBe(true);

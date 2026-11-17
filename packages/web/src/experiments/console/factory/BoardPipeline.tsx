@@ -75,7 +75,7 @@ export function BoardPipeline({
           <section
             key={column.stage}
             aria-label={column.label}
-            className="flex flex-col gap-2 md:w-0 md:min-w-36 md:flex-1"
+            className="flex flex-col gap-2 md:w-0 md:min-w-32 md:flex-1"
           >
             <h3
               data-stage={column.stage}

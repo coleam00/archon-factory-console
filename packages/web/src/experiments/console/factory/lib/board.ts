@@ -7,13 +7,12 @@
  * declaration or the engine's records.
  */
 import { formatDateTime } from '../../lib/format';
-import type { FactoryItemsPage } from '../../skills/factory';
+import type { FactoryItem } from '../../skills/factory';
 import { needsYou, ownerLostMessage } from './needs-you';
 import { showsCard, type BoardShow } from './board-show';
 import { pageItemColumn, type ItemColumn } from './placement';
 import { factoryPath, type FactoryViewListed } from './views';
 
-export type FactoryItem = FactoryItemsPage['items'][number];
 export type FactoryDeclaration = FactoryViewListed['declaration'];
 type Progress = NonNullable<FactoryItem['progress']>;
 export type RoundVerdict = NonNullable<Progress['round']>['rounds'][number]['verdict'];
