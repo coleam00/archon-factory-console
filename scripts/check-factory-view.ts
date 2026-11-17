@@ -7,15 +7,21 @@
  * The pack's graph comes from two places, so neither can drift unseen:
  * - The committed snapshot beside the view (`<pack key>.pack-graph.json`): what CI, which has
  *   no install, checks against. A missing snapshot is a finding.
- * - The installed pack, when this machine has one: the `plugins/` of ARCHON_FACTORY_LIVE_HOME,
- *   else of ARCHON_HOME. The view is then checked against the installed pack's graph, and a
+ * - The installed pack, when a home is named: ARCHON_FACTORY_LIVE_HOME, else ARCHON_HOME. The
+ *   view is then checked against the pack the CLI reads from that home's `plugins/`, and a
  *   snapshot that differs from it is a finding, so a reinstall that changes the pack fails the
- *   check here (the factory's own validate command runs it) before it can mislead CI.
+ *   check here (the factory's own validate command runs it) before it can mislead CI. When the
+ *   CLI cannot read the pack there (no `plugins/`, or no such pack in it), the check fails with
+ *   the CLI's reason rather than falling back to the snapshot: the CLI alone decides whether
+ *   the pack is installed.
  *
  * The installed graph is `archon pack graph <pack key> --json` run on a throwaway home holding a
  * copy of that `plugins/` and nothing else: the install is only read, and with no trigger files
  * every arrow is one the pack declares and no machine path reaches the snapshot.
  * `--write <pack key>` rewrites the snapshot from it after a reinstall.
+ *
+ * Only the workflows a view's stages list are compared, steps and hand-offs alike; the check
+ * names the pack's other workflows on an informational line that is not a finding.
  */
 import {
   cpSync,
@@ -29,7 +35,10 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { getPluginsPath } from '@archon/paths';
-import { factoryViewCoverage } from '../packages/workflows/src/factory-view-coverage';
+import {
+  factoryViewCoverage,
+  unlistedWorkflows,
+} from '../packages/workflows/src/factory-view-coverage';
 import { type PackGraph, packGraphSchema } from '../packages/workflows/src/pack-graph';
 import {
   FACTORY_VIEW_PROJECT_SUFFIX,
@@ -40,16 +49,17 @@ const root = resolve(import.meta.dir, '..');
 const packs = join(root, '.archon', 'packs');
 const SNAPSHOT_SUFFIX = '.pack-graph.json';
 
-/** The installed packs this machine has, or undefined when no home is named or it has none. */
-function installedPlugins(): string | undefined {
-  const home = process.env.ARCHON_FACTORY_LIVE_HOME || process.env.ARCHON_HOME;
-  if (!home) return undefined;
-  const plugins = getPluginsPath(home);
-  return existsSync(plugins) ? plugins : undefined;
+/** The `plugins/` of the home `env` names, whether or not it exists; undefined when none is. */
+export function namedPlugins(env: Record<string, string | undefined>): string | undefined {
+  const home = env.ARCHON_FACTORY_LIVE_HOME || env.ARCHON_HOME;
+  return home ? getPluginsPath(home) : undefined;
 }
 
 /** What reading the installed pack gave: its graph, or why it could not be read. */
-type InstalledRead = { graph: PackGraph } | { error: string };
+export type InstalledRead = { graph: PackGraph } | { error: string };
+
+/** Reads one pack from a `plugins/` directory: `installedGraph`, or a test's stand-in. */
+export type ReadInstalled = (plugins: string, packKey: string) => InstalledRead;
 
 /**
  * Why `archon pack graph --json` failed, in the CLI's own words: it prints `{ ok: false, error }`
@@ -66,14 +76,22 @@ function cliError(stdout: string, exitCode: number): string {
   return stdout.trim() || `exited ${String(exitCode)} with no output`;
 }
 
-/** The installed pack's graph, read on a throwaway copy of `plugins`, or why it could not be. */
-function installedGraph(plugins: string, packKey: string): InstalledRead {
+/**
+ * The installed pack's graph, read on a throwaway copy of `plugins`, or why it could not be.
+ * A `plugins` that does not exist is not copied, so the CLI gives its own reason.
+ */
+export function installedGraph(plugins: string, packKey: string): InstalledRead {
   const scratch = mkdtempSync(join(tmpdir(), 'factory-view-home-'));
   try {
-    cpSync(plugins, getPluginsPath(scratch), { recursive: true });
+    if (existsSync(plugins)) cpSync(plugins, getPluginsPath(scratch), { recursive: true });
     const read = Bun.spawnSync(
       ['bun', 'run', 'cli', 'pack', 'graph', packKey, '--cwd', root, '--json'],
-      { cwd: root, stderr: 'inherit', env: { ...process.env, ARCHON_HOME: scratch } }
+      {
+        cwd: root,
+        stderr: 'inherit',
+        // The child reads the scratch home only; '' keeps `.env` loading from restoring a live one.
+        env: { ...process.env, ARCHON_HOME: scratch, ARCHON_FACTORY_LIVE_HOME: '' },
+      }
     );
     const stdout = read.stdout.toString();
     if (read.exitCode !== 0) return { error: cliError(stdout, read.exitCode) };
@@ -90,64 +108,106 @@ const notInstalled = (packKey: string, plugins: string, error: string): string =
   `${plugins}: [install] \`archon pack graph ${packKey}\` could not read the pack there: ${error} ` +
   'Install the pack in that home, or unset ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME to check against the committed snapshot.';
 
-/** Every finding of one declaration as `path: message` lines; empty when it is clean. */
-function checkOne(file: string, plugins: string | undefined): string[] {
+/** One declaration's checks: its findings as `path: message` lines, and what it leaves out. */
+interface FileResult {
+  /** Empty when the declaration is clean. */
+  findings: string[];
+  /** The pack's workflows no stage lists, so never compared; empty when no graph was read. */
+  unlisted: string[];
+}
+
+function checkOne(
+  packsDir: string,
+  file: string,
+  plugins: string | undefined,
+  readInstalled: ReadInstalled
+): FileResult {
   const packKey = file.slice(0, -FACTORY_VIEW_PROJECT_SUFFIX.length);
-  const parsed = factoryViewSchema.safeParse(readJson(join(packs, file)));
-  if (!parsed.success)
-    return parsed.error.issues.map(i => `${i.path.join('.') || '(view)'}: [schema] ${i.message}`);
-  const snapshotPath = join(packs, `${packKey}${SNAPSHOT_SUFFIX}`);
+  const parsed = factoryViewSchema.safeParse(readJson(join(packsDir, file)));
+  if (!parsed.success) {
+    const findings = parsed.error.issues.map(
+      i => `${i.path.join('.') || '(view)'}: [schema] ${i.message}`
+    );
+    return { findings, unlisted: [] };
+  }
+  const snapshotPath = join(packsDir, `${packKey}${SNAPSHOT_SUFFIX}`);
   const snapshot = existsSync(snapshotPath)
     ? packGraphSchema.parse(readJson(snapshotPath))
     : undefined;
-  const read = plugins === undefined ? undefined : installedGraph(plugins, packKey);
-  // A named home that lacks the pack fails rather than falling back to the snapshot: naming the
-  // home says the pack is installed there, and a quiet fallback would hide that it is not.
+  const read = plugins === undefined ? undefined : readInstalled(plugins, packKey);
+  // Naming a home says the pack is installed there, and the CLI decides whether it is: a quiet
+  // fallback to the snapshot would hide that it is not.
   if (plugins !== undefined && read !== undefined && 'error' in read)
-    return [notInstalled(packKey, plugins, read.error)];
+    return { findings: [notInstalled(packKey, plugins, read.error)], unlisted: [] };
   const installed = read !== undefined && 'graph' in read ? read.graph : undefined;
-  const lines: string[] = [];
+  const findings: string[] = [];
   const refresh = `run \`bun run check:factory-view --write ${packKey}\``;
-  if (snapshot === undefined) lines.push(`${snapshotPath}: [snapshot] missing; ${refresh}`);
+  if (snapshot === undefined) findings.push(`${snapshotPath}: [snapshot] missing; ${refresh}`);
   else if (installed !== undefined && !Bun.deepEquals(snapshot, installed))
-    lines.push(
+    findings.push(
       `${snapshotPath}: [snapshot] differs from the pack installed in ${plugins}; ${refresh} and commit it`
     );
   const graph = installed ?? snapshot;
-  if (graph !== undefined)
-    for (const finding of factoryViewCoverage(parsed.data, graph))
-      lines.push(`${finding.path.join('.') || '(view)'}: [${finding.kind}] ${finding.message}`);
-  return lines;
+  if (graph === undefined) return { findings, unlisted: [] };
+  for (const finding of factoryViewCoverage(parsed.data, graph))
+    findings.push(`${finding.path.join('.') || '(view)'}: [${finding.kind}] ${finding.message}`);
+  return { findings, unlisted: unlistedWorkflows(parsed.data, graph) };
 }
 
-function check(): number {
-  const plugins = installedPlugins();
-  console.log(
+export interface CheckInput {
+  /** The directory holding the view files and their snapshots. */
+  packsDir: string;
+  /** The named home's `plugins/`, or undefined to check against the snapshots only. */
+  plugins: string | undefined;
+  readInstalled: ReadInstalled;
+}
+
+/** What the check prints, `out` on stdout and `err` on stderr, and its exit code. */
+export interface CheckReport {
+  code: 0 | 1;
+  out: string[];
+  err: string[];
+}
+
+/** Checks every view file in `packsDir`, reading the installed pack only through `readInstalled`. */
+export function runCheck({ packsDir, plugins, readInstalled }: CheckInput): CheckReport {
+  const out = [
     plugins === undefined
-      ? 'No installed packs (ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME name no plugins/): checking against the committed snapshots only.'
-      : `Checking against the packs installed in ${plugins}, and each snapshot against them.`
-  );
-  const files = readdirSync(packs).filter(name => name.endsWith(FACTORY_VIEW_PROJECT_SUFFIX));
-  let failed = 0;
+      ? 'No home named (ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME are unset or empty): checking against the committed snapshots only.'
+      : `Reading each pack from ${plugins}, and checking each snapshot against it.`,
+  ];
+  const err: string[] = [];
+  const files = readdirSync(packsDir).filter(name => name.endsWith(FACTORY_VIEW_PROJECT_SUFFIX));
   for (const file of files) {
-    const lines = checkOne(file, plugins);
-    if (lines.length === 0) {
-      console.log(`${file}: covers every step and hand-off of its pack`);
-      continue;
-    }
-    failed += 1;
-    console.error(`${file}:`);
-    for (const line of lines) console.error(`  ${line}`);
+    const { findings, unlisted } = checkOne(packsDir, file, plugins, readInstalled);
+    if (findings.length === 0)
+      out.push(`${file}: covers every step and hand-off of the workflows its stages list`);
+    else err.push(`${file}:`, ...findings.map(line => `  ${line}`));
+    // Information, not a finding: no step or hand-off of these workflows is compared.
+    if (unlisted.length > 0)
+      out.push(`${file}: not compared, since no stage lists them: ${unlisted.join(', ')}`);
   }
-  return failed === 0 ? 0 : 1;
+  return { code: err.length === 0 ? 0 : 1, out, err };
+}
+
+/** Prints the check over this checkout's `.archon/packs/` and returns its exit code. */
+function check(): number {
+  const report = runCheck({
+    packsDir: packs,
+    plugins: namedPlugins(process.env),
+    readInstalled: installedGraph,
+  });
+  for (const line of report.out) console.log(line);
+  for (const line of report.err) console.error(line);
+  return report.code;
 }
 
 /** Rewrites the pack's snapshot from the installed pack. */
 function write(packKey: string): number {
-  const plugins = installedPlugins();
+  const plugins = namedPlugins(process.env);
   if (plugins === undefined) {
     console.error(
-      'No installed packs: set ARCHON_FACTORY_LIVE_HOME or ARCHON_HOME to the home the pack is installed in.'
+      'No home named: set ARCHON_FACTORY_LIVE_HOME or ARCHON_HOME to the home the pack is installed in.'
     );
     return 1;
   }
@@ -162,12 +222,14 @@ function write(packKey: string): number {
   return 0;
 }
 
-const args = process.argv.slice(2);
-const at = args.indexOf('--write');
-if (at === -1) process.exit(check());
-const packKey = args[at + 1];
-if (packKey === undefined) {
-  console.error('Usage: bun run check:factory-view [--write <pack key>]');
-  process.exit(2);
+if (import.meta.main) {
+  const args = process.argv.slice(2);
+  const at = args.indexOf('--write');
+  if (at === -1) process.exit(check());
+  const packKey = args[at + 1];
+  if (packKey === undefined) {
+    console.error('Usage: bun run check:factory-view [--write <pack key>]');
+    process.exit(2);
+  }
+  process.exit(write(packKey));
 }
-process.exit(write(packKey));

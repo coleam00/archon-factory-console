@@ -166,7 +166,7 @@ declaration names no stage for it: runs of a workflow no stage lists do not plac
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
 two true to each other in this repository (#28). It reads the pack graph from the installed pack
-where this machine has one (failing when the snapshot of `archon pack graph` committed beside
+where a home is named (failing when the snapshot of `archon pack graph` committed beside
 the view file differs from it), and from that snapshot in CI. It fails on a hand-off between two
 stages that the pack declares (every binding, installed by a trigger file on this machine or
 not; owner ruling of 2026-11-17) that the view does not declare, and on a declared arrow no

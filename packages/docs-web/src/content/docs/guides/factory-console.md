@@ -144,13 +144,14 @@ graph (what `archon pack graph <pack key> --json` prints) from two places:
 
 - the snapshot `<pack key>.pack-graph.json` committed beside the view file, which CI checks
   against since it has no installed pack; a missing snapshot fails the check;
-- the installed pack, when the machine has one: the `plugins/` directory of the home
+- the installed pack, when a home is named: the `plugins/` directory of the home
   `ARCHON_FACTORY_LIVE_HOME` names, else of `ARCHON_HOME`. The view is then checked against the
   installed pack, and a snapshot that differs from it fails the check, so a reinstall that
   changes the pack is caught where it is installed. With neither variable set, the check says
-  it used the snapshots only. When the named home's `plugins/` does not hold the pack, the check
-  fails with the reason `archon pack graph` gives, rather than falling back to the snapshot:
-  install the pack there, or unset both variables to check against the snapshot.
+  it used the snapshots only. When `archon pack graph` cannot find the pack in the named home
+  (including when it has no `plugins/`), the check fails with that reason rather than falling
+  back to the snapshot: install the pack there, or unset both variables to check against the
+  snapshot.
 
 It reads the installed pack on a throwaway home holding a copy of that `plugins/` directory and
 nothing else, so the install is only read, and with no trigger files every arrow is one the
@@ -165,6 +166,9 @@ pack declares. It reports, each with its path in the view file:
   every declared arrow no such hand-off backs, unless it is `person: true`, joins two different
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
   own stage is a rerun only a hand-off starts, so it is always checked.
+
+It compares only the workflows the view's stages list, steps and hand-offs alike, and names
+the pack's other workflows on one informational line that is not a failure.
 
 After reinstalling the pack, refresh the snapshot from the installed pack with
 `bun run check:factory-view --write <pack key>`, then fix what the check reports in the view

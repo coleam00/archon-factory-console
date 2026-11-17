@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { factoryViewCoverage, stageOfWorkflowStep } from './factory-view-coverage';
+import {
+  factoryViewCoverage,
+  stageOfWorkflowStep,
+  unlistedWorkflows,
+} from './factory-view-coverage';
 import { packGraphSchema, type PackGraph } from './pack-graph';
 import { factoryViewSchema, type FactoryView } from './schemas/factory-view';
 
@@ -273,8 +277,26 @@ describe('stageOfWorkflowStep', () => {
   });
 });
 
+describe('unlistedWorkflows', () => {
+  test('names the workflows no stage lists, by their names in the graph', () => {
+    expect(unlistedWorkflows(clean(), graph())).toEqual(['o/p:discoveries']);
+  });
+
+  test('is empty when the stages list every workflow', () => {
+    const view = clean();
+    view.stages[0]?.workflows.push('discoveries');
+    expect(unlistedWorkflows(view, graph())).toEqual([]);
+  });
+
+  test('a workflow the view names but the pack lacks changes nothing', () => {
+    const view = clean();
+    view.stages[0]?.workflows.push('missing');
+    expect(unlistedWorkflows(view, graph())).toEqual(['o/p:discoveries']);
+  });
+});
+
 describe("this repository's declaration", () => {
-  test('covers every step and hand-off of the committed pack graph snapshot', () => {
+  test('covers every step and hand-off of the workflows its stages list, against the committed snapshot', () => {
     const packs = join(import.meta.dir, '..', '..', '..', '.archon', 'packs');
     const read = (file: string): unknown =>
       JSON.parse(readFileSync(join(packs, `Wirasm.archon-software-factory${file}`), 'utf8'));
