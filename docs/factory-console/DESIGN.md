@@ -87,7 +87,7 @@ documents through Neon live queries.
   | `factory/needs-you` | Needs you: every open ask and paused wait on this project's items, answerable in place (the Overview shows the newest few) |
   | `factory/overview` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down), when it has one |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
-  | `factory/stages/:stage` | One stage opened: what it does, the workflows behind it, each workflow's step graph |
+  | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind "Show the real steps"; a stage with no drill-down shows the graphs |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
 
 - Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
@@ -273,7 +273,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   below the forward hand-offs between the rows; those hand-offs cross it, and the upper row's
   send-back legs cross them, at right angles.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
-- **Click** a card: the stage page, which draws each workflow's steps
+- **Click** a card: the stage page. It opens on the stage's drill-down: numbered phase columns
+  of plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
+  and naming the items on a step it covers now, and a click on a card listing the real steps
+  it stands for, each linking to its step page. Its "Show the real steps" toggle (or, for a
+  stage with no drill-down, the page itself) draws each workflow's steps
   as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
   now for any item glows, and above the graph each item running the workflow is named, linking

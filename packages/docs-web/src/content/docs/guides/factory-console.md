@@ -49,9 +49,12 @@ it. Inside it:
   declaration: a run outcome in `placement` reads as where it sent the item ("sent to Plan"),
   one in `endings` as its label, and a step outcome in `returns` or `approves` as "returned" or
   "approved". An outcome the declaration does not map shows as the pack's own name for it.
-- **Stage page**: what a stage does and the step graph of each workflow behind it. The
-  stage's own steps stand out, steps another stage works are dimmed, and a step running for
-  an item now glows.
+- **Stage page**: what a stage does, told as its drill-down when the view gives one: numbered
+  phases of plain cards, a card glowing and naming the items on its steps now, and a click on a
+  card listing the real steps it stands for, each linking to its step page. "Show the real
+  steps" (or, for a stage without a drill-down, the page itself) draws the step graph of each
+  workflow behind it: the stage's own steps stand out, steps another stage works are dimmed,
+  and a step running for an item now glows.
 - **Step page**: the step by its name, with its engine id under it, the items on it now, when
   it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
   prompt, its YAML and the model it runs on.
@@ -115,7 +118,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `pack` | yes | The pack the view draws: `owner/name` when installed, else its folder name. |
 | `title` | yes | The factory's name, at the top of every Factory page. |
 | `summary` | yes | One paragraph in plain words: what goes in, what comes out, where people step in. Shown on the Overview. |
-| `stages` | yes | The board's columns, left to right. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Landed), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. A stage may carry a `drilldown`: what it does step by step, as numbered `phases` (each a `label` and one to six `cards`), and an optional `loop` (`label`, `from` and `to` phase numbers, and the loop group's `workflow` and `step`) around the phases a loop group repeats. A card has a `title`, one line of `text`, a Lucide `icon` name, a `kind` (`agent`, `check`, `script` or `you`), and `covers`: the real steps it stands for, as `{ "workflow", "steps" }` for a workflow its stage lists. Nothing draws a drill-down yet. |
+| `stages` | yes | The board's columns, left to right. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Landed), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. A stage may carry a `drilldown`: what it does step by step, as numbered `phases` (each a `label` and one to six `cards`), and an optional `loop` (`label`, `from` and `to` phase numbers, and the loop group's `workflow` and `step`) around the phases a loop group repeats. A card has a `title`, one line of `text`, an `icon` (one of `inbox`, `scale`, `link`, `ruler`, `scissors`, `database`, `clipboard-list`, `pencil`, `wrench`, `git-branch`, `search-code`, `flask-conical`, `monitor-check`, `gavel`, `message-square`, `circle-alert`, `git-pull-request`, `flag`, `send`, `shield-check` or `git-merge`), a `kind` (`agent`, `check`, `script` or `you`), and `covers`: the real steps it stands for, as `{ "workflow", "steps" }` for a workflow its stage lists. The stage page draws it: the phases as numbered columns of cards, the loop as one labelled frame around its phases, and a card glows while an item is on a step it covers. Clicking a card lists its real steps; "Show the real steps" draws each workflow's step graph below. A stage without a drill-down shows the graphs. |
 | `placement` | yes | Where an item waits after a run ends: `workflow:outcome` to a stage id, or `workflow:*` for every completed run of the workflow no exact key takes, a run that returns no outcome (a gate that only records) included. |
 | `endings` | yes | Outcomes that end an item without a change: `workflow:outcome`, or `workflow:*` for every outcome `placement` does not take, to the label of the folded row. Use `{}` for none. |
 | `landed` | yes | `{ "stage": <id> }`: the stage an item whose change merged sits in. |

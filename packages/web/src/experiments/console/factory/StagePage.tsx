@@ -1,4 +1,4 @@
-import { useMemo, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import { useParams } from 'react-router';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
@@ -9,6 +9,7 @@ import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
+import { StageDrilldown } from './stage/StageDrilldown';
 import { StepGraph } from './StepGraph';
 import { useFactoryItems } from './useFactoryItems';
 import type { FactoryItem } from '../skills/factory';
@@ -22,7 +23,10 @@ import { FactoryLoading } from './FactoryLoading';
 
 type Declaration = FactoryViewListed['declaration'];
 
-/** `/console/p/:projectId/factory/stages/:stage`: what a stage does, and each workflow's steps. */
+/**
+ * `/console/p/:projectId/factory/stages/:stage`: what a stage does, told as its drill-down when
+ * the view gives one, and each workflow's steps.
+ */
 export function StagePage(): ReactElement {
   const { projectId = '', stage: stageId = '' } = useParams<{
     projectId: string;
@@ -40,7 +44,13 @@ export function StagePage(): ReactElement {
                 This factory has no stage <span className="font-mono">{stageId}</span>.
               </p>
             ) : (
-              <StageBody projectId={projectId} view={view.declaration} stage={stage} />
+              // Keyed by stage, so a card picked or graph shown on one stage is not on the next.
+              <StageBody
+                key={stage.id}
+                projectId={projectId}
+                view={view.declaration}
+                stage={stage}
+              />
             )}
           </div>
         );
@@ -59,27 +69,48 @@ function StageBody({
   stage: FactoryStage;
 }): ReactElement {
   const items = useFactoryItems(projectId);
+  const [real, setReal] = useState(false);
+  const graphs = stage.workflows.map(workflow => (
+    <StageWorkflow
+      key={workflow}
+      projectId={projectId}
+      view={view}
+      stage={stage}
+      workflow={workflow}
+      items={items}
+    />
+  ));
   return (
     <>
       <div className="flex flex-col gap-1.5">
         <h3 className="text-base font-medium text-text-primary">{stage.label}</h3>
         <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">{stage.blurb}</p>
       </div>
-      {stage.workflows.length === 0 ? (
+      {stage.drilldown !== undefined ? (
+        <>
+          <StageDrilldown
+            projectId={projectId}
+            view={view}
+            stage={stage}
+            drilldown={stage.drilldown}
+            items={items}
+          />
+          <button
+            type="button"
+            aria-pressed={real}
+            onClick={() => setReal(shown => !shown)}
+            className="self-start rounded-console-12 border border-border px-3 py-1.5 text-console-13 text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+          >
+            {real ? 'Hide the real steps' : 'Show the real steps'}
+          </button>
+          {real ? graphs : null}
+        </>
+      ) : stage.workflows.length === 0 ? (
         <p className="text-sm text-text-secondary">
           No workflow runs in this stage. An item arrives here when its change merges.
         </p>
       ) : (
-        stage.workflows.map(workflow => (
-          <StageWorkflow
-            key={workflow}
-            projectId={projectId}
-            view={view}
-            stage={stage}
-            workflow={workflow}
-            items={items}
-          />
-        ))
+        graphs
       )}
     </>
   );

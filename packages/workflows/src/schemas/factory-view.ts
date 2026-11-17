@@ -39,13 +39,38 @@ const coverSchema = z.strictObject({
   steps: z.array(stepIdSchema).min(1),
 });
 
+/** The icons a drill-down card may show; a console maps each one, so the set is closed. */
+export const factoryDrilldownIconSchema = z.enum([
+  'inbox',
+  'scale',
+  'link',
+  'ruler',
+  'scissors',
+  'database',
+  'clipboard-list',
+  'pencil',
+  'wrench',
+  'git-branch',
+  'search-code',
+  'flask-conical',
+  'monitor-check',
+  'gavel',
+  'message-square',
+  'circle-alert',
+  'git-pull-request',
+  'flag',
+  'send',
+  'shield-check',
+  'git-merge',
+]);
+export type FactoryDrilldownIcon = z.infer<typeof factoryDrilldownIconSchema>;
+
 /** One card of a drill-down: a plain-words box standing for some of a workflow's real steps. */
 const drilldownCardSchema = z.strictObject({
   title: labelSchema,
   /** One line, plain words: what the card does. */
   text: z.string().min(1).max(160),
-  /** A Lucide icon name, as the console draws icons. */
-  icon: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a Lucide icon name such as "git-pull-request"'),
+  icon: factoryDrilldownIconSchema,
   /** Who does it: an agent, a check that approves or returns, a script, or you. */
   kind: z.enum(['agent', 'check', 'script', 'you']),
   /**
