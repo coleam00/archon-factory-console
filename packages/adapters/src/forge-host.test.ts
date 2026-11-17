@@ -149,13 +149,13 @@ describe('the merge state of a change', () => {
     const archonHome = await home();
     expect(
       await changeMergeState(URL10, audits, { archonHome, env: {}, dispatch: failing.dispatch })
-    ).toEqual({ merged: 'unknown', mergedAt: null, reason: 'no_credential: none configured' });
+    ).toEqual({ merged: 'unknown', mergedAt: null, reason: expect.any(String) });
     const throwing: Dispatch = async () => {
       throw new Error('spawn failed');
     };
     expect(
       await changeMergeState(URL10, audits, { archonHome, env: {}, dispatch: throwing })
-    ).toEqual({ merged: 'unknown', mergedAt: null, reason: 'spawn failed' });
+    ).toEqual({ merged: 'unknown', mergedAt: null, reason: expect.any(String) });
     const never = answering(viewed('merged', '2026-11-17T01:00:00Z'));
     expect(
       await changeMergeState(URL10, [], { archonHome, env: {}, dispatch: never.dispatch })

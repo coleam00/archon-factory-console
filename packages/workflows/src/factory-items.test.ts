@@ -211,10 +211,13 @@ describe("an item's progress", () => {
     expect(seen).toEqual([[PR10, factsOf(deliver1).change?.audits.length ?? -1]]);
   });
 
-  test('returned counts every run that sent the item back, not only the latest', async () => {
+  test('returned counts every run that sent the item back; round and change are the latest run', async () => {
     const later = { ...deliver2.run, started_at: new Date('2027-01-01T00:00:00Z') };
+    const progress = await progressOf([deliver1, { ...deliver2, run: later }]);
     // Two returns on each deliver run.
-    expect((await progressOf([deliver1, { ...deliver2, run: later }])).returned).toBe(4);
+    expect(progress.returned).toBe(4);
+    expect(progress.round?.runId).toBe(deliver2.run.id);
+    expect(progress.change?.url).toBe(PR11);
   });
 
   test('a running deliver run: its declared workflow name and running step', async () => {

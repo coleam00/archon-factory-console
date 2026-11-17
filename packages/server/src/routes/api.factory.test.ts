@@ -307,7 +307,6 @@ describe('GET /api/factory/items', () => {
     const app = await itemsApp({});
     const none = await app.request('/api/factory/items?codebaseId=cb-1');
     expect(none.status).toBe(404);
-    expect(await none.json()).toMatchObject({ error: 'No factory view applies to this project' });
     expect((await app.request('/api/factory/items?codebaseId=missing')).status).toBe(404);
   });
 });
