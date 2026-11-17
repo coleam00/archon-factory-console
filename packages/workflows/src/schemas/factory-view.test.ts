@@ -127,6 +127,14 @@ describe('factoryViewSchema', () => {
     ]);
   });
 
+  test('step names are accepted for a listed workflow and rejected for one no stage lists', () => {
+    const steps = { build: { build__build: 'Writes the change' } };
+    expect(factoryViewSchema.safeParse({ ...minimal(), steps }).success).toBe(true);
+    expect(issuePaths({ ...minimal(), steps: { deliver: { build__build: 'x' } } })).toEqual([
+      'steps.deliver',
+    ]);
+  });
+
   test('two cards in one cell, and a note near nothing, are rejected', () => {
     const view = minimal();
     view.map.cards[1] = { stage: 'build', col: 1, row: 1 };

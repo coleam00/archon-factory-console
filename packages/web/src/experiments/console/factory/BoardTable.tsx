@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { MergeUnknown, PillBadge, RoundDots } from './BoardCard';
 import type { BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
+import { engineIdTitle } from './lib/step-label';
 import {
   sortRows,
   TABLE_COLUMNS,
@@ -102,7 +103,11 @@ function BoardRow({
       {cell(card.round === null ? null : <RoundDots round={card.round} />, 'whitespace-nowrap')}
       {cell(
         card.run === null ? null : (
-          <Link to={card.run.href} className="font-mono text-console-11 hover:underline">
+          <Link
+            to={card.run.href}
+            title={engineIdTitle(card.run.text, card.run.step)}
+            className="text-console-11 hover:underline"
+          >
             {card.run.text}
           </Link>
         )

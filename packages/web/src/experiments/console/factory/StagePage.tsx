@@ -13,8 +13,11 @@ import type { FactoryItem } from '../skills/factory';
 import { itemsOnStep, runningItems } from './lib/items-on-step';
 import { stepInStage, type FactoryStage } from './lib/stage-steps';
 import { stepGraph } from './lib/step-graph';
+import { stepLabel } from './lib/step-label';
 import { readFailure } from './lib/read-failure';
-import { factoryPath } from './lib/views';
+import { factoryPath, type FactoryViewListed } from './lib/views';
+
+type Declaration = FactoryViewListed['declaration'];
 
 /** `/console/p/:projectId/factory/stages/:stage`: what a stage does, and each workflow's steps. */
 export function StagePage(): ReactElement {
@@ -34,7 +37,7 @@ export function StagePage(): ReactElement {
                 This factory has no stage <span className="font-mono">{stageId}</span>.
               </p>
             ) : (
-              <StageBody projectId={projectId} stage={stage} />
+              <StageBody projectId={projectId} view={view.declaration} stage={stage} />
             )}
           </div>
         );
@@ -43,7 +46,15 @@ export function StagePage(): ReactElement {
   );
 }
 
-function StageBody({ projectId, stage }: { projectId: string; stage: FactoryStage }): ReactElement {
+function StageBody({
+  projectId,
+  view,
+  stage,
+}: {
+  projectId: string;
+  view: Declaration;
+  stage: FactoryStage;
+}): ReactElement {
   const items = useFactoryItems(projectId);
   return (
     <>
@@ -60,6 +71,7 @@ function StageBody({ projectId, stage }: { projectId: string; stage: FactoryStag
           <StageWorkflow
             key={workflow}
             projectId={projectId}
+            view={view}
             stage={stage}
             workflow={workflow}
             items={items}
@@ -72,11 +84,13 @@ function StageBody({ projectId, stage }: { projectId: string; stage: FactoryStag
 
 function StageWorkflow({
   projectId,
+  view,
   stage,
   workflow,
   items,
 }: {
   projectId: string;
+  view: Declaration;
   stage: FactoryStage;
   workflow: string;
   items: EntityView<FactoryItem[]>;
@@ -86,8 +100,14 @@ function StageWorkflow({
   );
   const graph = useMemo(
     () =>
-      read.data === undefined ? undefined : stepGraph(read.data, key => stepInStage(stage, key)),
-    [read.data, stage]
+      read.data === undefined
+        ? undefined
+        : stepGraph(
+            read.data,
+            key => stepInStage(stage, key),
+            key => stepLabel(view, workflow, key)
+          ),
+    [read.data, stage, view, workflow]
   );
   // A failed refresh keeps the last list in the cache; it is no longer evidence of what runs.
   const running = useMemo(
@@ -102,7 +122,7 @@ function StageWorkflow({
           Other stages work the dimmed steps of this workflow.
         </p>
       )}
-      <RunningNow projectId={projectId} workflow={workflow} items={items} />
+      <RunningNow projectId={projectId} view={view} workflow={workflow} items={items} />
       {graph !== undefined ? (
         <StepGraph
           projectId={projectId}
@@ -125,10 +145,12 @@ function StageWorkflow({
 /** The items a run of this workflow works now, named and linked: a graph node is a button. */
 function RunningNow({
   projectId,
+  view,
   workflow,
   items,
 }: {
   projectId: string;
+  view: Declaration;
   workflow: string;
   items: EntityView<FactoryItem[]>;
 }): ReactElement | null {
@@ -143,7 +165,7 @@ function RunningNow({
       <h5 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
         Running now
       </h5>
-      <RunningItemLinks projectId={projectId} items={onWorkflow} />
+      <RunningItemLinks view={view} projectId={projectId} items={onWorkflow} />
     </div>
   );
 }

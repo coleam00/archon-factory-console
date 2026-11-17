@@ -128,6 +128,12 @@ const factoryViewShape = z.strictObject({
     .optional(),
   /** The run input whose title line (after any front matter) is the item's title. */
   itemTitle: z.strictObject({ input: z.string().min(1) }).optional(),
+  /**
+   * Display names for a workflow's steps, keyed by the step id as the engine records it
+   * (`build__build`, `rounds.fix`, the bare loop id `rounds`). A step with no name here
+   * reads as its cleaned id. Nothing checks a key names a real step.
+   */
+  steps: z.record(workflowNameSchema, z.record(stepIdSchema, labelSchema)).optional(),
   map: mapSchema,
 });
 
@@ -213,6 +219,7 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
     refer(['approves', index, 'workflow'], entry.workflow);
   });
   if (view.change !== undefined) refer(['change', 'workflow'], view.change.workflow);
+  for (const workflow of Object.keys(view.steps ?? {})) refer(['steps', workflow], workflow);
   return issues;
 }
 

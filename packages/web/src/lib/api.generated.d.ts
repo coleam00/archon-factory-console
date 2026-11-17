@@ -10880,6 +10880,11 @@ export interface components {
           itemTitle?: {
             input: string;
           };
+          steps?: {
+            [key: string]: {
+              [key: string]: string;
+            };
+          };
           map: {
             cards: {
               stage: string;
@@ -11596,7 +11601,24 @@ export interface components {
         includedFrom: string | null;
         model: string[] | null;
         when: string | null;
-        whenLabel: string | null;
+        whenClauses:
+          | {
+              reads:
+                | {
+                    /** @enum {string} */
+                    kind: 'step';
+                    key: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'input';
+                    name: string;
+                  };
+              /** @enum {string} */
+              operator: '==' | '!=' | '<=' | '>=' | '<' | '>';
+              value: string;
+            }[][]
+          | null;
         command: string | null;
         prompt: string | null;
         promptError: string | null;
@@ -11611,7 +11633,24 @@ export interface components {
         label: string;
         maxRounds: number | null;
         when: string | null;
-        whenLabel: string | null;
+        whenClauses:
+          | {
+              reads:
+                | {
+                    /** @enum {string} */
+                    kind: 'step';
+                    key: string;
+                  }
+                | {
+                    /** @enum {string} */
+                    kind: 'input';
+                    name: string;
+                  };
+              /** @enum {string} */
+              operator: '==' | '!=' | '<=' | '>=' | '<' | '>';
+              value: string;
+            }[][]
+          | null;
         dependsOn: string[];
       }[];
     };

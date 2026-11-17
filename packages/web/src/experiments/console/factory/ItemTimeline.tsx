@@ -47,9 +47,12 @@ function TimelineEntry({ row }: { row: TimelineRow }): ReactElement {
           className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm text-text-primary hover:underline"
         >
           <span className="font-medium">{row.stage ?? 'Outside the factory'}</span>
-          <span className="break-all font-mono text-console-12 text-text-secondary">
-            {row.liveStep === null ? row.workflow : `${row.workflow} · ${row.liveStep}`}
-          </span>
+          <span className="font-mono text-console-12 text-text-secondary">{row.workflow}</span>
+          {row.liveStepName === null ? null : (
+            <span className="text-console-12 text-text-secondary" title={row.liveStep ?? undefined}>
+              · {row.liveStepName}
+            </span>
+          )}
         </Link>
         <Outcome
           outcome={row.outcome}
@@ -92,6 +95,11 @@ function Started({ started }: { started: StartedText }): ReactElement {
       {started.mono === null ? null : (
         <span className="ml-1 font-mono text-console-11">{started.mono}</span>
       )}
+      {started.step === null ? null : (
+        <span className="ml-1 text-text-secondary" title={started.step.node}>
+          {started.step.name}
+        </span>
+      )}
     </>
   );
   if (started.runHref === null) return <span>{words}</span>;
@@ -118,13 +126,18 @@ function RoundEntry({ round }: { round: TimelineRound }): ReactElement {
           {group.steps.map(step => (
             <span
               key={step.node}
-              className="break-all font-mono text-text-secondary"
-              title={step.summary ?? undefined}
+              className="text-text-secondary"
+              title={
+                step.summary === null
+                  ? step.node
+                  : `${step.node}
+${step.summary}`
+              }
             >
-              {step.node} →{' '}
+              {step.name} →{' '}
               <Outcome
                 outcome={step.outcome}
-                className={step.outcome.mono ? '' : 'font-sans font-medium text-text-primary'}
+                className={step.outcome.mono ? '' : 'font-medium text-text-primary'}
               />
             </span>
           ))}

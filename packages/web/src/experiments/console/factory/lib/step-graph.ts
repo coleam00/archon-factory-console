@@ -5,13 +5,17 @@ type WorkflowGroup = FactoryWorkflow['groups'][number];
 
 export interface StepGraphNode {
   key: string;
+  /** The step's name as a person reads it (`stepLabel`), not the server's raw label. */
   label: string;
   kind: WorkflowStep['kind'];
   /** The innermost group it is drawn in. */
   group: string | null;
   /** The full `when:`, for the tooltip. */
   when: string | null;
-  /** What the graph prints for `when`: its short form, else the full expression. */
+  /**
+   * What the graph prints for `when`: each comparison as the step it reads, by the name the
+   * graph prints that step by. Null when the parser gave no comparisons; the title says it.
+   */
   condition: string | null;
   /** False for a step of the workflow that another stage works. */
   inStage: boolean;
@@ -37,45 +41,67 @@ export interface StepGraph {
 /**
  * The step graph a stage page draws for one workflow. A dependency on a loop group comes
  * from the loop's last steps (those no other step of the loop waits on); the loop's own
- * dependencies go into its first steps (those that wait on nothing inside it).
+ * dependencies go into its first steps (those that wait on nothing inside it). `stepName`
+ * names each step and each loop (a loop's id is a step key); an include frame keeps the
+ * server's label, which names the included workflow.
  */
 export function stepGraph(
   workflow: Pick<FactoryWorkflow, 'steps' | 'groups'>,
-  inStage: (stepKey: string) => boolean
+  inStage: (stepKey: string) => boolean,
+  stepName: (stepKey: string) => string
 ): StepGraph {
   return {
     nodes: workflow.steps.map(step => ({
       key: step.key,
-      label: step.label,
+      label: stepName(step.key),
       kind: step.kind,
       group: step.group,
       when: step.when,
-      condition: conditionText(step),
+      condition: conditionText(step.whenClauses, stepName),
       inStage: inStage(step.key),
     })),
-    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when, whenLabel }) => ({
+    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when, whenClauses }) => ({
       id,
       kind,
       parent,
-      label,
+      label: kind === 'loop' ? stepName(id) : label,
       maxRounds,
       when,
-      condition: conditionText({ when, whenLabel }),
+      condition: conditionText(whenClauses, stepName),
     })),
     edges: stepEdges(workflow),
   };
 }
 
+type WhenAtom = NonNullable<WorkflowStep['whenClauses']>[number][number];
+
+/** An operator as a person reads it; a new engine operator fails the type-check here. */
+const OPERATOR_WORDS: Record<WhenAtom['operator'], string> = {
+  '==': '=',
+  '!=': '≠',
+  '<=': '≤',
+  '>=': '≥',
+  '<': '<',
+  '>': '>',
+};
+
 /**
- * The server's short form (`if verdict = return`), readable on a projected screen without
- * hovering; the full expression when the engine's parser gave none.
+ * A `when:` read at a glance on a projected screen, such as `if Verdict = return`: each
+ * comparison as the step it reads (`stepName`) or the input, the operator and the value,
+ * joined with `and` and `or` as written. Null without comparisons: the engine's parser did
+ * not take the expression. The stage graph and the step page both print it from here, with
+ * the full expression on hover.
  */
-function conditionText({
-  when,
-  whenLabel,
-}: Pick<WorkflowStep, 'when' | 'whenLabel'>): string | null {
-  if (when === null) return null;
-  return whenLabel ?? `when ${when}`;
+export function conditionText(
+  clauses: WorkflowStep['whenClauses'],
+  stepName: (stepKey: string) => string
+): string | null {
+  if (clauses === null || clauses.length === 0) return null;
+  const atom = ({ reads, operator, value }: WhenAtom): string =>
+    `${reads.kind === 'step' ? stepName(reads.key) : reads.name} ${OPERATOR_WORDS[operator]} ${
+      value === '' ? 'empty' : value
+    }`;
+  return `if ${clauses.map(atoms => atoms.map(atom).join(' and ')).join(' or ')}`;
 }
 
 /** Each step's and each loop's waits, drawn between steps and without repeats. */

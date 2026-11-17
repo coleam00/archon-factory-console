@@ -5,6 +5,7 @@
  * composed definition. Objects are not strict, so a reader keeps working when a field is added.
  */
 import { z } from 'zod';
+import { WHEN_OPERATORS } from '../when-atom';
 
 /** What a step does, in the words the console shows: an agent, a shell command, a script... */
 export const factoryStepKindSchema = z.enum([
@@ -18,6 +19,30 @@ export const factoryStepKindSchema = z.enum([
 ]);
 export type FactoryStepKind = z.infer<typeof factoryStepKindSchema>;
 
+/**
+ * One comparison of a `when:`, through the engine's own parser: the step or workflow input
+ * it reads, the operator and the value. A step is named by its key as run events name it
+ * (`rounds.verdict__verdict`, the loop id `rounds`), so a console can print it by the name
+ * it prints the step by; a reference the workflow has no step for keeps the id written.
+ */
+export const factoryWhenAtomSchema = z.object({
+  reads: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('step'), key: z.string() }),
+    z.object({ kind: z.literal('input'), name: z.string() }),
+  ]),
+  operator: z.enum(WHEN_OPERATORS),
+  /** The right-hand value, unquoted. */
+  value: z.string(),
+});
+
+/**
+ * A `when:` as its comparisons: any one clause holds when all of its comparisons do. Null
+ * without a `when:`, or when the engine's parser does not take it (`when` still says it).
+ */
+const whenClausesSchema = z.array(z.array(factoryWhenAtomSchema)).nullable();
+export type FactoryWhenAtom = z.infer<typeof factoryWhenAtomSchema>;
+export type FactoryWhenClauses = z.infer<typeof whenClausesSchema>;
+
 export const factoryStepGroupSchema = z.object({
   /** A step-key prefix: `rounds` for a loop group, `rounds.review` for an include in it. */
   id: z.string(),
@@ -30,8 +55,8 @@ export const factoryStepGroupSchema = z.object({
   maxRounds: z.number().int().nullable(),
   /** A loop's own `when:`, verbatim. */
   when: z.string().nullable(),
-  /** `when` in short, for a label read at a glance: `if rounds = approve`. */
-  whenLabel: z.string().nullable(),
+  /** `when` as its comparisons, for a label read at a glance. */
+  whenClauses: whenClausesSchema,
   /** A loop: the step keys or group ids it waits on. Empty for an include. */
   dependsOn: z.array(z.string()),
 });
@@ -53,12 +78,8 @@ export const factoryStepSchema = z.object({
   model: z.array(z.string()).nullable(),
   /** Its `when:` condition as the engine runs it. */
   when: z.string().nullable(),
-  /**
-   * `when` in short, for a label read at a glance: each comparison as the step it reads,
-   * the operator and the value, such as `if verdict = return`. Null without a `when:`, or
-   * when the engine's parser does not take it (the full `when` still says it).
-   */
-  whenLabel: z.string().nullable(),
+  /** `when` as its comparisons, for a label read at a glance. */
+  whenClauses: whenClausesSchema,
   /** The command file it runs, by name. */
   command: z.string().nullable(),
   /** The prompt it runs, as markdown. Null for a step that runs none. */

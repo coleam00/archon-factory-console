@@ -1,0 +1,241 @@
+/**
+ * No raw engine step id where a person reads (DESIGN.md, "Step names, everywhere a person
+ * reads"). Each page renders over fixtures that put a loop body, another loop's body, an
+ * include, a failed step, a step-started run and an undeclared step in front of it, and its
+ * visible words and accessible names are scanned for an id's shape. `title` and `href` may
+ * hold the raw id: that is where it belongs.
+ */
+import { afterEach, describe, expect, test } from 'bun:test';
+import type { ReactElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import type {
+  FactoryItem,
+  FactoryItemDetail,
+  FactoryViews,
+  FactoryWorkflow,
+} from '../skills/factory';
+import type { AttentionQueue } from '../skills/runs';
+import { invalidate, set } from '../store/cache';
+import { K } from '../store/keys';
+import { BoardPage } from './BoardPage';
+import { FactoryPage } from './FactoryPage';
+import { ItemPage } from './ItemPage';
+import { StagePage } from './StagePage';
+import { StepPage } from './StepPage';
+import { MapDetails } from './map/MapDetails';
+import { itemDetail, shippedListed } from './item-detail.test-fixtures';
+import deliverJson from './lib/fixtures/deliver-workflow.json';
+import { delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
+import { stageLive } from './lib/map-live';
+
+const ID = 'cb-1';
+const DELIVER = deliverJson as FactoryWorkflow;
+const listing: FactoryViews = {
+  views: [{ ...shippedListed, declaration: VIEW }],
+  errors: [],
+};
+const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
+
+afterEach(() => {
+  for (const kind of ['factory-views', 'factory-workflow', 'factory-items', 'project', 'runs'])
+    invalidate(kind);
+});
+
+/** Item 8 delivering `step`, under its own key so several can sit on one board. */
+function on(step: string, key: string): FactoryItem {
+  const item = delivering(step);
+  return { ...item, item: { ...item.item, id: `id-${key}`, key } };
+}
+
+const ITEMS: FactoryItem[] = [
+  on('rounds.review__review', '8'),
+  on('hostrounds.host__host', '81'),
+  on('rounds.mystery__mystery', '82'),
+  on('build__build', '83'),
+  endLastRun(realItem('3'), 'failed', null, 'rounds.tests__tests'),
+];
+
+/** Item 3's detail with its last deliver run running a loop body, started by a step of the first. */
+function runningDetail(): FactoryItemDetail {
+  const detail = structuredClone(itemDetail('3'));
+  const [first, last] = [detail.runs.at(-2), detail.runs.at(-1)];
+  const read = detail.item.runs.at(-1);
+  if (first === undefined || last === undefined || read === undefined)
+    throw new Error('item 3 has two deliver runs');
+  Object.assign(read, { status: 'running', outcome: null, completedAt: null });
+  last.step = 'rounds.review__review';
+  last.cause = { kind: 'run_fired', runId: first.runId, node: 'rounds.verdict__verdict' };
+  first.rounds?.rounds[0]?.steps.push({
+    node: 'rounds.mystery__mystery',
+    outcome: 'x',
+    summary: null,
+  });
+  if (detail.item.progress !== null)
+    detail.item.progress.running = {
+      runId: last.runId,
+      workflow: 'deliver',
+      step: last.step,
+      startedAt: read.startedAt,
+    };
+  return detail;
+}
+
+function render(path: string, detail?: FactoryItemDetail): string {
+  set(K.factoryViews(ID), listing);
+  set(K.factoryAttention(ID), quiet);
+  set(K.factoryWorkflow(ID, 'deliver'), DELIVER);
+  set(K.factoryItems(ID), ITEMS);
+  if (detail !== undefined) set(K.factoryItem(ID, detail.item.item.key), detail);
+  return markup(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/console/p/:projectId/factory" element={<FactoryPage />} />
+        <Route path="/console/p/:projectId/factory/board" element={<BoardPage />} />
+        <Route path="/console/p/:projectId/factory/items/:key" element={<ItemPage />} />
+        <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
+        <Route path="/console/p/:projectId/factory/steps/:workflow/:node" element={<StepPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
+const markup = (element: ReactElement): string => renderToStaticMarkup(element);
+
+/** What a person reads: the text between tags, and every accessible name. */
+function readable(html: string): string {
+  const names = [...html.matchAll(/aria-label="([^"]*)"/g)].map(match => match[1] ?? '');
+  const words = html.replace(/<[^>]*>/g, ' ');
+  return [words, ...names]
+    .join(' ')
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"');
+}
+
+/** The loops of the pack's deliver workflow, from its own read, not from a list here. */
+const LOOPS = DELIVER.groups.filter(group => group.kind === 'loop').map(group => group.id);
+const ID_SHAPES = [/[A-Za-z0-9]__[A-Za-z0-9]/, new RegExp(`\\b(${LOOPS.join('|')})\\.[a-z]`)];
+
+function rawIds(html: string): string[] {
+  const text = readable(html);
+  return ID_SHAPES.flatMap(shape => {
+    const global = new RegExp(shape.source, 'g');
+    return [...text.matchAll(global)].map(match =>
+      text.slice(Math.max(0, match.index - 30), match.index + 30)
+    );
+  });
+}
+
+/** Every `title` on the page: where the engine id belongs, on hover. */
+const titles = (html: string): string[] =>
+  [...html.matchAll(/ title="([^"]*)"/g)].map(match => match[1] ?? '');
+
+describe('no raw step id where a person reads', () => {
+  test('the scan finds the shapes it looks for', () => {
+    expect(LOOPS).toContain('rounds');
+    expect(rawIds('<p>deliver · rounds.review__review</p>')).toHaveLength(2);
+    expect(rawIds('<a title="rounds.fix" href="/x/build__build">Fixes</a>')).toEqual([]);
+    expect(rawIds('<span aria-label="hostrounds.hostfix"></span>')).toHaveLength(1);
+  });
+
+  test('the board', () => {
+    const html = render(`/console/p/${ID}/factory/board`);
+    expect(html).toContain('Checks · Code review · round 2');
+    expect(html).toContain('Build · Writes the change');
+    expect(html).toContain('failed at Test check');
+    // The run line keeps the engine id on hover.
+    expect(titles(html)).toContain(
+      'Checks · Code review · round 2 (engine id: rounds.review__review)'
+    );
+    expect(rawIds(html)).toEqual([]);
+  });
+
+  test('the Table view', () => {
+    const html = render(`/console/p/${ID}/factory/board?view=table`);
+    expect(html).toContain('CI and review · Reads CI and PR reviews');
+    expect(html).toContain('Build · mystery · round 2');
+    expect(titles(html)).toContain(
+      'CI and review · Reads CI and PR reviews (engine id: hostrounds.host__host)'
+    );
+    expect(rawIds(html)).toEqual([]);
+  });
+
+  test('the item page', () => {
+    const html = render(`/console/p/${ID}/factory/items/3`, runningDetail());
+    expect(readable(html)).toContain('Code review, round 2');
+    expect(readable(html)).toContain('Started by step Verdict');
+    // On hover: the step that started the run, and each step a round recorded.
+    const hover = titles(html);
+    expect(hover).toContain('rounds.verdict__verdict');
+    expect(hover.some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
+    expect(rawIds(html)).toEqual([]);
+  });
+
+  test('the Overview, and the map details of a stage a run works', () => {
+    expect(rawIds(render(`/console/p/${ID}/factory`))).toEqual([]);
+    const checks = VIEW.stages.find(stage => stage.id === 'checks');
+    if (checks === undefined) throw new Error('the view declares checks');
+    const live = stageLive(VIEW, ITEMS, []).stages.get('checks');
+    if (live === undefined) throw new Error('the map has a checks card');
+    const html = markup(
+      <MemoryRouter>
+        <MapDetails
+          projectId={ID}
+          view={VIEW}
+          stage={checks}
+          live={live}
+          onClose={() => undefined}
+        />
+      </MemoryRouter>
+    );
+    expect(html).toContain('Checks · Code review · round 2');
+    expect(titles(html)).toContain('rounds.review__review');
+    expect(rawIds(html)).toEqual([]);
+  });
+
+  test('the stage page', () => {
+    const html = render(`/console/p/${ID}/factory/stages/checks`);
+    expect(readable(html)).toContain('Code review');
+    // A name the step box may cut reads in full on hover, with its engine id.
+    expect(html).toContain('title="Code review (engine id: rounds.review__review)');
+    // The running list's step and the loop frame's name keep their engine ids on hover.
+    const hover = titles(html);
+    expect(hover).toContain('rounds.review__review');
+    expect(hover).toContain('rounds');
+    expect(rawIds(html)).toEqual([]);
+  });
+
+  test("the stage page's conditions name each step by the name the graph prints it by", () => {
+    const html = render(`/console/p/${ID}/factory/stages/checks`);
+    const words = readable(html);
+    // A condition reads a step by its bare id ("if rounds = approve"), which neither id
+    // shape catches, so every condition's subject is checked against the declared names.
+    const subjects = [...words.matchAll(/\bif (.+?) [=≠≤≥<>] /g)].map(match => match[1]);
+    expect(subjects.sort()).toEqual([
+      'Check rounds',
+      'Check rounds',
+      'Reads CI and PR reviews',
+      'Verdict',
+    ]);
+    // A condition the step box cuts reads in full on hover.
+    expect(html).toContain('if Reads CI and PR reviews = return\nRuns when');
+  });
+
+  test('the step page names the step and shows its engine id, labelled', () => {
+    const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`);
+    // The heading itself: "Code review" also reads in the page's running list.
+    expect(/<h3[^>]*>([^<]*)<\/h3>/.exec(html)?.[1]).toBe('Code review');
+    expect(readable(html)).toMatch(/Engine id\s+deliver · rounds\.review__review/);
+  });
+
+  test("the step page's Runs when line names the step it reads, the expression on hover", () => {
+    const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`);
+    expect(readable(html)).toMatch(/Runs when\s+if Verdict = return/);
+    expect(html).toContain(
+      `title="$LOOP_PREV.verdict__verdict.output.outcome == &#x27;return&#x27;"`
+    );
+    // Outside the YAML block and the labelled engine id, no raw id shows.
+    const facts = /<dl[\s\S]*?<\/dl>/.exec(html)?.[0] ?? '';
+    expect(rawIds(facts)).toEqual([]);
+  });
+});

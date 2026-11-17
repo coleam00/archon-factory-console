@@ -4,6 +4,8 @@ import deliverJson from './fixtures/deliver-workflow.json';
 import { stepGraph } from './step-graph';
 import { layoutStepGraph, type Box, type Point } from './step-graph-layout';
 import { stepInStage } from './stage-steps';
+import { VIEW } from './board.test-fixtures';
+import { stepLabel } from './step-label';
 
 /**
  * `GET /api/factory/workflow` for the software factory pack's `deliver`, as the server
@@ -23,7 +25,8 @@ const checks = {
   ],
 };
 
-const graph = stepGraph(deliver, key => stepInStage(checks, key));
+const name = (key: string): string => stepLabel(VIEW, 'deliver', key);
+const graph = stepGraph(deliver, key => stepInStage(checks, key), name);
 const groupOf = (key: string): string | null =>
   graph.nodes.find(node => node.key === key)?.group ?? null;
 
@@ -33,7 +36,7 @@ describe('stepGraph on deliver', () => {
       id: 'rounds',
       kind: 'loop',
       parent: null,
-      label: 'rounds',
+      label: 'Check rounds',
       maxRounds: 3,
       when: null,
       condition: null,
@@ -56,6 +59,12 @@ describe('stepGraph on deliver', () => {
     expect(include('build')).toMatchObject({ kind: 'include', parent: null, label: 'build' });
   });
 
+  test('a step reads by its name, never its engine id', () => {
+    const label = (key: string) => graph.nodes.find(node => node.key === key)?.label;
+    expect(label('build__build')).toBe('Writes the change');
+    expect(label('rounds.review__review')).toBe('Code review');
+  });
+
   test('a wait on a loop runs from its last step, and the loop starts at its first', () => {
     const edges = graph.edges.map(edge => `${edge.from}→${edge.to}`);
     expect(edges).toContain('rounds.verdict__verdict→exhausted');
@@ -71,21 +80,44 @@ describe('stepGraph on deliver', () => {
       expect([keys.has(edge.from), keys.has(edge.to)]).toEqual([true, true]);
   });
 
-  test("a step and a loop print their when: in short, from the server's short form", () => {
+  test('a step and a loop print their when: in short, each step it reads by its name', () => {
     const condition = (key: string) => graph.nodes.find(node => node.key === key)?.condition;
-    expect(condition('rounds.fix')).toBe('if verdict = return');
-    expect(condition('exhausted')).toBe('if rounds = return');
+    expect(condition('rounds.fix')).toBe('if Verdict = return');
+    expect(condition('exhausted')).toBe('if Check rounds = return');
+    expect(condition('hostrounds.hostfix')).toBe('if Reads CI and PR reviews = return');
     expect(condition('rounds.base')).toBeNull();
     expect(graph.groups.find(group => group.id === 'hostrounds')?.condition).toBe(
-      'if rounds = approve'
+      'if Check rounds = approve'
     );
   });
 
-  test('a when: with no short form prints in full', () => {
+  test('keeps and, or, inputs, other operators and an empty value', () => {
     const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
     if (fix === undefined) throw new Error('fixture has no rounds.fix');
-    const bare = stepGraph({ steps: [{ ...fix, whenLabel: null }], groups: [] }, () => true);
-    expect(bare.nodes[0]?.condition).toBe(`when ${fix.when ?? ''}`);
+    const step = (key: string) => ({ kind: 'step' as const, key });
+    const whenClauses = [
+      [
+        { reads: step('build__build'), operator: '!=' as const, value: '' },
+        { reads: { kind: 'input' as const, name: 'mode' }, operator: '==' as const, value: 'fast' },
+      ],
+      [{ reads: step('rounds.tests__tests'), operator: '>=' as const, value: '80' }],
+    ];
+    const drawn = stepGraph({ steps: [{ ...fix, whenClauses }], groups: [] }, () => true, name);
+    expect(drawn.nodes[0]?.condition).toBe(
+      'if Writes the change ≠ empty and mode = fast or Test check ≥ 80'
+    );
+  });
+
+  test('a when: the parser gave no comparisons for prints nothing; its title has it', () => {
+    const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
+    if (fix === undefined) throw new Error('fixture has no rounds.fix');
+    const bare = stepGraph(
+      { steps: [{ ...fix, whenClauses: null }], groups: [] },
+      () => true,
+      name
+    );
+    expect(bare.nodes[0]?.condition).toBeNull();
+    expect(bare.nodes[0]?.when).toBe(fix.when);
   });
 
   test('a step and a loop carry their when: condition', () => {
@@ -134,7 +166,7 @@ describe('layoutStepGraph on deliver', () => {
 
 describe('edges of the deliver graph keep out of frames they do not belong to', () => {
   // Every step of every stage, as the stage pages draw them.
-  const laid = layoutStepGraph(stepGraph(deliver, () => true));
+  const laid = layoutStepGraph(stepGraph(deliver, () => true, name));
   const groups = new Map(laid.groups.map(group => [group.group.id, group]));
   const stepGroup = new Map(laid.steps.map(step => [step.node.key, step.node.group]));
   /** The groups a step is drawn in, innermost first. */

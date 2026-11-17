@@ -8,6 +8,7 @@ import {
   type Pill,
   type RoundVerdict,
 } from './lib/board';
+import { engineIdTitle } from './lib/step-label';
 
 /**
  * State colours: the console's status colours, with Needs you the one loud one. The board's
@@ -107,24 +108,7 @@ export function BoardCard({
         {card.title}
       </Link>
       {card.round === null ? null : <RoundDots round={card.round} />}
-      {card.run === null ? null : (
-        // Breaks between the workflow and the step, never inside a name; a step too long for
-        // the card is cut with its full name in the title.
-        <Link
-          to={card.run.href}
-          title={card.run.text}
-          aria-label={card.run.text}
-          className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 font-mono text-console-11 ${statusTextClass.running}`}
-        >
-          <span className="whitespace-nowrap">
-            {card.run.workflow}
-            {card.run.step === null ? '' : ' ·'}
-          </span>
-          {card.run.step === null ? null : (
-            <span className="min-w-0 max-w-full truncate">{card.run.step}</span>
-          )}
-        </Link>
-      )}
+      {card.run === null ? null : <RunLink run={card.run} />}
       <CardLinks card={card} />
       {card.landedAt === null ? null : (
         <span className="text-console-11 text-text-tertiary">Landed {card.landedAt}</span>
@@ -137,6 +121,31 @@ export function BoardCard({
         </p>
       )}
     </article>
+  );
+}
+
+/**
+ * The running run's line: stage, step name, round. Breaks between its parts, never inside
+ * a name; a name too long for the card is cut with the whole line in the title.
+ */
+function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactElement {
+  return (
+    <Link
+      to={run.href}
+      title={engineIdTitle(run.text, run.step)}
+      aria-label={run.text}
+      className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 text-console-11 ${statusTextClass.running}`}
+    >
+      {run.parts.map((part, index) => (
+        <span
+          key={index}
+          className={index === 1 ? 'min-w-0 max-w-full truncate' : 'whitespace-nowrap'}
+        >
+          {part}
+          {index < run.parts.length - 1 ? ' ·' : ''}
+        </span>
+      ))}
+    </Link>
   );
 }
 
