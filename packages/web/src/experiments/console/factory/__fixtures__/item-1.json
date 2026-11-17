@@ -86,6 +86,11 @@
       {
         "runId": "88640c6d-975d-4232-8371-c55226236e2a",
         "workflow": "triage",
+        "cause": {
+          "kind": "receipt",
+          "receiptId": "290212a7-c7cb-44b5-93c1-a801b0eb573a",
+          "sourceInstanceId": "fc-start-triage"
+        },
         "costUsd": 0.7374944999999999,
         "step": null,
         "rounds": null
@@ -93,6 +98,10 @@
       {
         "runId": "147ff872-555d-43fe-ae98-3ee9e3b884ab",
         "workflow": "plan",
+        "cause": {
+          "kind": "run_ended",
+          "runId": "88640c6d-975d-4232-8371-c55226236e2a"
+        },
         "costUsd": 0.6756357999999999,
         "step": null,
         "rounds": null
@@ -100,6 +109,10 @@
       {
         "runId": "c90ebf41-6ea3-4261-b63b-b460ad78045e",
         "workflow": "deliver",
+        "cause": {
+          "kind": "run_ended",
+          "runId": "147ff872-555d-43fe-ae98-3ee9e3b884ab"
+        },
         "costUsd": 5.58625366,
         "step": null,
         "rounds": {

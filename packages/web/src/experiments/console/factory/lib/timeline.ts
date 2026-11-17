@@ -7,43 +7,8 @@ type ItemRun = FactoryItemDetail['item']['runs'][number];
 type RunFacts = FactoryItemDetail['runs'][number];
 type Round = NonNullable<RunFacts['rounds']>['rounds'][number];
 export type RoundStep = Round['steps'][number];
-
-/**
- * What started a run, as the item read records it (`startCauseSchema` in
- * `@archon/workflows/schemas/resource-start`). The generated API types read the field as
- * `unknown`, because the generator collapses a nullable union, so `readCause` narrows it.
- */
-export type StartCause =
-  | { kind: 'run_ended'; runId: string }
-  | { kind: 'run_fired'; runId: string; node: string | null }
-  | { kind: 'receipt'; receiptId: string; sourceInstanceId: string };
-
-/** A recorded cause as its kind, or `unreadable` for a value this console does not know. */
-export function readCause(value: unknown): StartCause | null | 'unreadable' {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== 'object' || !('kind' in value)) return 'unreadable';
-  const field = (name: string): unknown => (value as Record<string, unknown>)[name];
-  const text = (name: string): string | null => {
-    const read = field(name);
-    return typeof read === 'string' ? read : null;
-  };
-  const runId = text('runId');
-  switch (value.kind) {
-    case 'run_ended':
-      return runId === null ? 'unreadable' : { kind: 'run_ended', runId };
-    case 'run_fired':
-      return runId === null ? 'unreadable' : { kind: 'run_fired', runId, node: text('node') };
-    case 'receipt': {
-      const receiptId = text('receiptId');
-      const sourceInstanceId = text('sourceInstanceId');
-      return receiptId === null || sourceInstanceId === null
-        ? 'unreadable'
-        : { kind: 'receipt', receiptId, sourceInstanceId };
-    }
-    default:
-      return 'unreadable';
-  }
-}
+/** What started a run; absent for a start by hand. */
+type StartCause = RunFacts['cause'];
 
 /**
  * How a run started, in words. `mono` follows the words in mono: the step that started it,
@@ -158,13 +123,11 @@ function durationOf(run: ItemRun, now: number): number | null {
   return Math.max(0, end - Date.parse(run.startedAt));
 }
 
-type Row = Omit<TimelineRow, 'started'> & { cause: unknown };
+type Row = Omit<TimelineRow, 'started'> & { cause: StartCause };
 
 function startedText(projectId: string, row: Row, rows: readonly Row[]): StartedText {
-  const cause = readCause(row.cause);
-  if (cause === null) return { text: 'Started by hand', mono: null, runHref: null };
-  if (cause === 'unreadable')
-    return { text: 'Started by a cause this console cannot read', mono: null, runHref: null };
+  const { cause } = row;
+  if (cause === undefined) return { text: 'Started by hand', mono: null, runHref: null };
   switch (cause.kind) {
     case 'run_ended': {
       const before = rows.find(other => other.runId === cause.runId);
@@ -215,7 +178,7 @@ export function buildTimeline(
       costUsd: fact?.costUsd ?? null,
       liveStep,
       rounds: workflow === null ? [] : timelineRounds(view, workflow, fact?.rounds ?? null),
-      cause: run.cause,
+      cause: fact?.cause,
     };
   });
   return rows.map(row => {

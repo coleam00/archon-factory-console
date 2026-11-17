@@ -17,6 +17,7 @@ import {
 } from './factory-items';
 import type { ItemReadSource } from './item-read';
 import { factoryViewSchema } from './schemas/factory-view';
+import { RUN_ENDED_SOURCE_ACTOR } from './schemas/resource-start';
 import type { WorkflowEventRow } from './schemas/workflow-event';
 import { workflowRunSchema, type WorkflowItem, type WorkflowRun } from './schemas/workflow-run';
 
@@ -565,6 +566,41 @@ describe('reading a page', () => {
     ]);
     expect(detail?.item.progress).toBeNull();
     expect(failed).toEqual([item2.id]);
+  });
+
+  test("each run carries the item read's cause, typed; a start by hand has none", async () => {
+    const receiptId = '3b184b44-b90a-4d4c-b205-15755501533d';
+    const source = pageSource({ queue: 0, loaded: [] });
+    const [triage, plan, deliver] = runsOf['1'] ?? [];
+    if (triage === undefined || plan === undefined || deliver === undefined)
+      throw new Error('item 1 has three runs');
+    const planAfterTriage = {
+      ...plan,
+      metadata: { ...plan.metadata, resource_start: { receiptId, bindingId: 'b' } },
+    };
+    source.store.getItemRuns = async () => ({
+      item: item1,
+      runs: [triage, planAfterTriage, deliver],
+      descendantIds: [],
+    });
+    source.store.getStartReceipt = async id =>
+      id === receiptId
+        ? ({
+            id,
+            sourceInstanceId: 'fc-start-plan',
+            sourceActor: { source: RUN_ENDED_SOURCE_ACTOR, id: triage.id },
+          } as Awaited<ReturnType<ItemReadSource['store']['getStartReceipt']>>)
+        : null;
+    const detail = await readFactoryItem(source, itemInput(unexpected), '1');
+    expect(detail?.runs.map(run => run.cause ?? null)).toEqual([
+      null,
+      { kind: 'run_ended', runId: triage.id },
+      null,
+    ]);
+    expect(detail?.runs.map(run => run.cause ?? null)).toEqual(
+      detail?.item.runs.map(run => run.cause)
+    );
+    expect(Object.hasOwn(detail?.runs[0] ?? {}, 'cause')).toBe(false);
   });
 
   test('an unknown key reads null', async () => {

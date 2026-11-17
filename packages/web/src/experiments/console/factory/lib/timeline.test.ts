@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
-import { buildTimeline, readCause, runHref, type TimelineRow } from './timeline';
+import { buildTimeline, runHref, type TimelineRow } from './timeline';
 
 const NOW = Date.parse('2026-11-17T08:00:00Z');
 const timeline = (detail: FactoryItemDetail, now = NOW): TimelineRow[] =>
@@ -132,15 +132,22 @@ describe('a running run', () => {
 
 describe('how a run started', () => {
   const base = itemDetail('1');
-  const withCause = (cause: unknown, status?: 'pending'): TimelineRow | undefined => {
+  type Cause = FactoryItemDetail['runs'][number]['cause'];
+  const withCause = (cause: Cause, status?: 'pending'): TimelineRow | undefined => {
     const [first, ...rest] = base.item.runs;
-    if (first === undefined) return undefined;
-    const run = { ...first, cause, ...(status === undefined ? {} : { status }) };
-    return timeline({ ...base, item: { ...base.item, runs: [run, ...rest] } })[0];
+    const [facts, ...others] = base.runs;
+    if (first === undefined || facts === undefined) return undefined;
+    const { cause: _recorded, ...uncaused } = facts;
+    const run = status === undefined ? first : { ...first, status };
+    return timeline({
+      ...base,
+      item: { ...base.item, runs: [run, ...rest] },
+      runs: [cause === undefined ? uncaused : { ...uncaused, cause }, ...others],
+    })[0];
   };
 
   test('by hand, with no recorded cause', () => {
-    expect(withCause(null)?.started).toEqual({
+    expect(withCause(undefined)?.started).toEqual({
       text: 'Started by hand',
       mono: null,
       runHref: null,
@@ -166,16 +173,8 @@ describe('how a run started', () => {
     );
   });
 
-  test('a cause this console does not know says so instead of guessing', () => {
-    expect(readCause({ kind: 'webhook' })).toBe('unreadable');
-    expect(readCause({ kind: 'run_ended' })).toBe('unreadable');
-    expect(withCause({ kind: 'webhook' })?.started.text).toBe(
-      'Started by a cause this console cannot read'
-    );
-  });
-
   test('a run not yet executing is waiting to start, with no duration', () => {
-    const row = withCause(null, 'pending');
+    const row = withCause(undefined, 'pending');
     expect([row?.outcome, row?.durationMs]).toEqual(['waiting to start', null]);
   });
 });

@@ -19,6 +19,7 @@ import type { JsonValue } from './output-ref';
 import { splitAttentionRead } from './schemas/attention-degraded';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
+import { startCauseSchema } from './schemas/resource-start';
 import { parseRunUsage } from './schemas/run-usage';
 import { isTerminalRunStatus } from './schemas/run-status';
 import type { WorkflowEventRow } from './schemas/workflow-event';
@@ -672,6 +673,12 @@ export const factoryItemRunSchema = z.object({
   runId: z.string(),
   /** The workflow as the view declares it; null for a run of a workflow the view does not name. */
   workflow: z.string().nullable(),
+  /**
+   * What started the run, as `item.runs[].cause` reads it; absent for a start by hand. The
+   * same value, repeated here because the API's generated types read a nullable union as
+   * `unknown`, and an optional one keeps its variants for the console.
+   */
+  cause: startCauseSchema.optional(),
   /** The run's total cost as it recorded it; null until it records one. */
   costUsd: z.number().nullable(),
   /** The deepest running step while the run runs; null between steps and once it ended. */
@@ -706,11 +713,14 @@ export async function readFactoryItem(
   const { items, facts } = await readFoundItems(source, input, [found]);
   const [item] = items;
   if (item === undefined) return null;
+  const causes = new Map(item.runs.map(run => [run.id, run.cause]));
   const runs = found.runs.map((run): FactoryItemRun => {
     const fact = facts.get(run.id);
+    const cause = causes.get(run.id) ?? null;
     return {
       runId: run.id,
       workflow: declaredWorkflow(input.view, input.pack, run.workflow_name),
+      ...(cause === null ? {} : { cause }),
       costUsd: parseRunUsage(run.metadata).costUsd ?? null,
       step: run.status === 'running' ? (fact?.active ?? null) : null,
       rounds: fact?.rounds ?? null,

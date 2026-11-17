@@ -1,6 +1,15 @@
+import type { components } from '@/lib/api.generated';
 import type { FactoryItem } from '../../skills/factory';
 
 type ItemAnswer = FactoryItem['answers'][number];
+/**
+ * The answer and answerer shapes (`attentionAnswerSchema`, `attentionAnswererSchema`), from
+ * the one generated place that carries them without `null`: the generator reads a nullable
+ * union, as the item read's `answer` and `by` are, as `unknown`.
+ */
+type AttentionWait = Extract<components['schemas']['WorkflowWaitContext'], { kind: 'attention' }>;
+type AttentionAnswer = NonNullable<AttentionWait['answer']>;
+type AttentionAnswerer = NonNullable<AttentionWait['answeredBy']>;
 type ItemLink = FactoryItem['links'][number];
 
 /** One recorded answer or ruling, in words. */
@@ -16,21 +25,24 @@ export interface AnswerLine {
 }
 
 /**
- * The free text of an answer (`attentionAnswerSchema`: every form carries `text`). The
- * generated API types read the field as `unknown`, because the generator collapses a nullable
- * union, so it is narrowed here; anything else reads as none.
+ * An item read's `answer` or `by`, typed. The item read parses each with the schema these
+ * types are generated from (a value that does not parse reads as null), so only the
+ * generated type lost the shape.
  */
+const answerOf = (value: unknown): AttentionAnswer | null => value as AttentionAnswer | null;
+const answererOf = (value: unknown): AttentionAnswerer | null => value as AttentionAnswerer | null;
+
+/** The free text an answer carries (every form has one); null when it is blank. */
 function answerText(value: unknown): string | null {
-  if (typeof value !== 'object' || value === null || !('text' in value)) return null;
-  return typeof value.text === 'string' && value.text.trim() !== '' ? value.text : null;
+  const text = answerOf(value)?.text ?? '';
+  return text.trim() === '' ? null : text;
 }
 
-/** Who answered (`attentionAnswererSchema`), as the read records them; null when unsaid. */
+/** Who answered, as the read records them; null when unsaid. */
 function answererName(value: unknown): string | null {
-  if (typeof value !== 'object' || value === null) return null;
-  if ('declared' in value && typeof value.declared === 'string') return value.declared;
-  if ('userId' in value && typeof value.userId === 'string') return 'a signed-in user';
-  return null;
+  const answerer = answererOf(value);
+  if (answerer === null) return null;
+  return 'declared' in answerer ? answerer.declared : 'a signed-in user';
 }
 
 const by = (value: unknown): string[] => {
