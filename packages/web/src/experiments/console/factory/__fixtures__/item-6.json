@@ -1,0 +1,97 @@
+{
+  "note": "GET /api/factory/item for item 6, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed.",
+  "response": {
+    "pack": "Wirasm/archon-software-factory",
+    "item": {
+      "item": {
+        "id": "48b61271ea44036999b4eaf375ac3a92",
+        "projectKey": "coleam00/archon-factory-console",
+        "key": "6"
+      },
+      "runs": [
+        {
+          "id": "a42ee66e-5206-412a-980e-ad0279a4e20f",
+          "workflow": "Wirasm/archon-software-factory:triage",
+          "status": "completed",
+          "outcome": "build",
+          "startedAt": "2026-11-17T05:16:32.000Z",
+          "completedAt": "2026-11-17T05:17:50.000Z",
+          "cause": {
+            "kind": "receipt",
+            "receiptId": "c29cfbf0-23b5-4aa8-a7cd-ad7e6a549c35",
+            "sourceInstanceId": "fc-start-triage"
+          },
+          "awaitingExecution": null
+        },
+        {
+          "id": "2e291009-82e8-4582-8b36-8dd45ec8ee7e",
+          "workflow": "Wirasm/archon-software-factory:plan",
+          "status": "completed",
+          "outcome": "planned",
+          "startedAt": "2026-11-17T05:17:56.000Z",
+          "completedAt": "2026-11-17T05:26:16.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "a42ee66e-5206-412a-980e-ad0279a4e20f"
+          },
+          "awaitingExecution": null
+        },
+        {
+          "id": "585ed621-5f63-4148-bb95-92cfb4c7f52a",
+          "workflow": "Wirasm/archon-software-factory:deliver",
+          "status": "running",
+          "outcome": null,
+          "startedAt": "2026-11-17T05:51:11.000Z",
+          "completedAt": null,
+          "cause": {
+            "kind": "run_ended",
+            "runId": "2e291009-82e8-4582-8b36-8dd45ec8ee7e"
+          },
+          "awaitingExecution": null
+        }
+      ],
+      "questions": [],
+      "answers": [],
+      "links": [],
+      "degraded": [],
+      "progress": {
+        "title": "The item page: an item's timeline of runs and rounds, its asks, links and change",
+        "running": {
+          "runId": "585ed621-5f63-4148-bb95-92cfb4c7f52a",
+          "workflow": "deliver",
+          "step": "build__build",
+          "startedAt": "2026-11-17T05:51:11.000Z"
+        },
+        "round": null,
+        "returned": 0,
+        "change": null
+      }
+    },
+    "runs": [
+      {
+        "runId": "a42ee66e-5206-412a-980e-ad0279a4e20f",
+        "workflow": "triage",
+        "costUsd": 0.3163675,
+        "step": null,
+        "rounds": null
+      },
+      {
+        "runId": "2e291009-82e8-4582-8b36-8dd45ec8ee7e",
+        "workflow": "plan",
+        "costUsd": 3.1545956,
+        "step": null,
+        "rounds": null
+      },
+      {
+        "runId": "585ed621-5f63-4148-bb95-92cfb4c7f52a",
+        "workflow": "deliver",
+        "costUsd": null,
+        "step": "build__build",
+        "rounds": {
+          "max": null,
+          "rounds": []
+        }
+      }
+    ]
+  }
+}

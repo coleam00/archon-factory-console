@@ -1,0 +1,168 @@
+import type { ReactElement, ReactNode } from 'react';
+import { useParams } from 'react-router';
+import { EmptyState } from '../components/EmptyState';
+import { errorDetail } from '../lib/http';
+import * as skill from '../skills';
+import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
+import type { AttentionQueue } from '../skills/runs';
+import { useEntity, type EntityView } from '../store/cache';
+import { K } from '../store/keys';
+import { BackLink } from './BackLink';
+import { FactoryFrame } from './FactoryFrame';
+import { ItemHeader } from './ItemHeader';
+import { ItemAnswers, ItemLinks } from './ItemRecords';
+import { ItemTimeline, SectionTitle } from './ItemTimeline';
+import { needsYou, type NeedsYouItem } from './lib/needs-you';
+import { itemColumn, itemState } from './lib/placement';
+import { buildTimeline } from './lib/timeline';
+import { factoryPath, type FactoryViewListed } from './lib/views';
+import { NeedsYouRow } from './NeedsYouList';
+
+/** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
+export function ItemPage(): ReactElement {
+  return (
+    <FactoryFrame section={null}>
+      {(view, attention) => <ItemBody view={view} attention={attention} />}
+    </FactoryFrame>
+  );
+}
+
+function ItemBody({
+  view,
+  attention,
+}: {
+  view: FactoryViewListed;
+  attention: EntityView<AttentionQueue>;
+}): ReactElement {
+  const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
+  // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
+  const read = useEntity<FactoryItemDetail>(K.factoryItem(projectId, key), () =>
+    skill.getFactoryItem({ codebaseId: projectId, key })
+  );
+  return (
+    <div className="flex flex-col gap-5">
+      <BackLink to={factoryPath(projectId)} label="Back to the overview" />
+      <ItemRead view={view} projectId={projectId} itemKey={key} read={read} attention={attention} />
+    </div>
+  );
+}
+
+function ItemRead({
+  view,
+  projectId,
+  itemKey,
+  read,
+  attention,
+}: {
+  view: FactoryViewListed;
+  projectId: string;
+  itemKey: string;
+  read: EntityView<FactoryItemDetail>;
+  attention: EntityView<AttentionQueue>;
+}): ReactNode {
+  const { data, error } = read;
+  if (data === undefined) {
+    if (error !== undefined)
+      return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(error)} />;
+    return <p className="text-xs text-text-tertiary">Loading…</p>;
+  }
+  const asks = itemAsks(data.item, attention.data);
+  const declaration = view.declaration;
+  const placement = {
+    runs: data.item.runs.map(run => {
+      const fact = data.runs.find(entry => entry.runId === run.id);
+      return {
+        workflow: fact?.workflow ?? null,
+        status: run.status,
+        outcome: run.outcome,
+        step: fact?.step ?? null,
+      };
+    }),
+    merged: data.item.progress?.change?.merged ?? null,
+    needsYou: asks.length > 0,
+  };
+  return (
+    <>
+      <ItemHeader
+        item={data.item}
+        state={itemState(placement)}
+        column={itemColumn(declaration, placement)}
+      />
+      <ItemAsks projectId={projectId} asks={asks} attention={attention} />
+      <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
+      <ItemLinks projectId={projectId} links={data.item.links} />
+      <ItemAnswers projectId={projectId} answers={data.item.answers} />
+      <Degraded degraded={data.item.degraded} />
+    </>
+  );
+}
+
+/**
+ * What on the live queue waits on this item: an entry the item read lists among its
+ * questions (it reads the item's whole run tree, so a wait inside a child run is one), or
+ * one the queue itself names this item on. The header's pill reads the same list.
+ */
+function itemAsks(item: FactoryItem, queue: AttentionQueue | undefined): NeedsYouItem[] {
+  if (queue === undefined) return [];
+  const refs = new Set(item.questions.map(question => question.ref));
+  return needsYou(queue.items).filter(
+    entry => refs.has(entry.ref) || entry.item?.id === item.item.id
+  );
+}
+
+function ItemAsks({
+  projectId,
+  asks,
+  attention,
+}: {
+  projectId: string;
+  asks: NeedsYouItem[];
+  attention: EntityView<AttentionQueue>;
+}): ReactElement {
+  const queue = attention.data;
+  return (
+    <section className="flex flex-col gap-2.5">
+      <SectionTitle>Asks</SectionTitle>
+      {queue === undefined ? (
+        <p className="text-xs text-text-tertiary">
+          {attention.error === undefined
+            ? 'Loading…'
+            : `What waits on you could not be loaded: ${errorDetail(attention.error)}`}
+        </p>
+      ) : asks.length === 0 ? (
+        <p className="text-sm text-text-secondary">Nothing on this item is waiting on you.</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {asks.map(ask => (
+            <NeedsYouRow key={ask.ref} projectId={projectId} item={ask} queue={queue} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Each part of the item that could not be read, one muted line each. */
+function Degraded({ degraded }: { degraded: FactoryItem['degraded'] }): ReactNode {
+  if (degraded.length === 0) return null;
+  return (
+    <ul className="flex flex-col gap-1 text-console-12 text-text-tertiary">
+      {degraded.map(report => (
+        <li key={JSON.stringify(report)}>{degradedWords(report)}</li>
+      ))}
+    </ul>
+  );
+}
+
+function degradedWords(report: FactoryItem['degraded'][number]): string {
+  switch (report.reason) {
+    case 'ruling_unreadable':
+      return `A ruling (${report.rulingId}) could not be read.`;
+    case 'link_unreadable':
+      return `A link (${report.linkId}) could not be read.`;
+    default:
+      return report.runId === undefined
+        ? 'Part of this item could not be read.'
+        : `Run ${report.runId} could not be read.`;
+  }
+}
