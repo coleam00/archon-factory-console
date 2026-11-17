@@ -10,3 +10,12 @@ export async function getFactoryViews(
 ): Promise<FactoryViews> {
   return requestJson('/api/factory/views', 'get', { query: opts });
 }
+
+export type FactoryWorkflow = components['schemas']['FactoryWorkflow'];
+
+/** One workflow a project's factory view names: its steps, loop groups and includes. */
+export async function getFactoryWorkflow(
+  opts: QueryParams<'/api/factory/workflow', 'get'>
+): Promise<FactoryWorkflow> {
+  return requestJson('/api/factory/workflow', 'get', { query: opts });
+}

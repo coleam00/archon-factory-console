@@ -1,10 +1,11 @@
 import type { ReactElement, ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
+import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { factoryPath } from './lib/views';
 
 /** The Factory pages not built yet, by route. */
-export type FactoryPlaceholderPage = 'board' | 'item' | 'stage' | 'step';
+export type FactoryPlaceholderPage = 'board' | 'item';
 
 /** A Factory route whose page comes in a later slice: says which page, and leads back. */
 export function FactoryPlaceholder({ page }: { page: FactoryPlaceholderPage }): ReactElement {
@@ -16,12 +17,7 @@ export function FactoryPlaceholder({ page }: { page: FactoryPlaceholderPage }): 
           <p className="text-sm text-text-primary">
             <PageName page={page} /> is coming next.
           </p>
-          <Link
-            to={factoryPath(projectId)}
-            className="text-console-12 text-accent-bright underline"
-          >
-            Back to the overview
-          </Link>
+          <BackLink to={factoryPath(projectId)} label="Back to the overview" />
         </div>
       )}
     </FactoryFrame>
@@ -29,7 +25,7 @@ export function FactoryPlaceholder({ page }: { page: FactoryPlaceholderPage }): 
 }
 
 function PageName({ page }: { page: FactoryPlaceholderPage }): ReactNode {
-  const params = useParams<{ key: string; stage: string; workflow: string; node: string }>();
+  const params = useParams<{ key: string }>();
   const mono = (text: string): ReactElement => (
     <span className="font-mono text-console-12">{text}</span>
   );
@@ -38,9 +34,5 @@ function PageName({ page }: { page: FactoryPlaceholderPage }): ReactNode {
       return 'The board';
     case 'item':
       return <>Item {mono(params.key ?? '')}</>;
-    case 'stage':
-      return <>Stage {mono(params.stage ?? '')}</>;
-    case 'step':
-      return <>Step {mono(`${params.workflow ?? ''} · ${params.node ?? ''}`)}</>;
   }
 }

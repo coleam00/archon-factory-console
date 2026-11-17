@@ -22,6 +22,8 @@ export const K = {
   metrics: (scope: Scope, since: string): string => `metrics:${scopeKey(scope)}:${since}`,
   metricViews: (scope: Scope): string => `metric-views:${scopeKey(scope)}`,
   factoryViews: (projectId: string): string => `factory-views:${projectId}`,
+  factoryWorkflow: (projectId: string, workflow: string): string =>
+    `factory-workflow:${projectId}:${workflow}`,
   messages: (conversationId: string): string => `messages:${conversationId}`,
   conversations: (projectId: string): string => `conversations:${projectId}`,
   countsGlobal: 'counts:global' as const,

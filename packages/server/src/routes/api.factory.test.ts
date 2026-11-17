@@ -4,8 +4,10 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { trackTempRoots } from '@archon/paths/test-utils';
-import { registerFactoryViewsRoute } from './api.factory';
-import { factoryViewsSchema } from './schemas/factory.schemas';
+import { providerRegistry } from '@archon/providers';
+import { discoverWorkflows } from '@archon/workflows/workflow-discovery';
+import { registerFactoryViewsRoute, registerFactoryWorkflowRoute } from './api.factory';
+import { factoryViewsSchema, factoryWorkflowSchema } from './schemas/factory.schemas';
 
 const declaration = (pack: string, title: string): object => ({
   version: 1,
@@ -100,6 +102,75 @@ describe('GET /api/factory/views', () => {
   test('an unknown codebase returns 404', async () => {
     const { app } = await factoryApp({});
     const response = await app.request('/api/factory/views?codebaseId=missing');
+    expect(response.status).toBe(404);
+  });
+});
+
+describe('GET /api/factory/workflow', () => {
+  const track = trackTempRoots();
+
+  async function workflowApp(): Promise<OpenAPIHono> {
+    const project = track(await mkdtemp(join(tmpdir(), 'archon-factory-workflow-')));
+    const files: Record<string, string> = {
+      '.archon/packs/kit.factory-view.json': JSON.stringify(declaration('kit', 'Kit factory')),
+      '.archon/workflows/kit/deliver/deliver.yaml': [
+        'name: deliver',
+        'description: Delivers.',
+        'nodes:',
+        '  - id: rounds',
+        '    loop_group:',
+        '      max_iterations: 2',
+        '      until_bash: "true"',
+        '      nodes:',
+        '        - id: fix',
+        '          bash: echo fixed',
+        '',
+      ].join('\n'),
+    };
+    for (const [path, content] of Object.entries(files)) {
+      const file = join(project, ...path.split('/'));
+      await mkdir(join(file, '..'), { recursive: true });
+      await writeFile(file, content);
+    }
+    const app = new OpenAPIHono();
+    registerFactoryWorkflowRoute(app, {
+      codebaseCwd: async id => (id === 'cb-1' ? project : null),
+      loadConfig: async () => ({
+        assistant: undefined,
+        commands: {},
+        assistants: { claude: {}, codex: {} },
+      }),
+      ranWorkflows: async () => new Set(),
+      discoverWorkflows: cwd =>
+        discoverWorkflows(cwd, { providers: providerRegistry, loadDefaults: false }),
+    });
+    return app;
+  }
+
+  test("returns the steps of a workflow the project's view names", async () => {
+    const response = await (await workflowApp()).request(
+      '/api/factory/workflow?codebaseId=cb-1&workflow=deliver'
+    );
+    expect(response.status).toBe(200);
+    const body = factoryWorkflowSchema.parse(await response.json());
+    expect([body.name, body.runName]).toEqual(['deliver', 'deliver']);
+    expect(body.groups.map(g => [g.id, g.kind, g.maxRounds])).toEqual([['rounds', 'loop', 2]]);
+    expect(body.steps.map(s => [s.key, s.kind, s.yaml])).toEqual([
+      ['rounds.fix', 'bash', 'id: fix\nbash: echo fixed'],
+    ]);
+  });
+
+  test('a workflow no applying view names returns 404', async () => {
+    const response = await (await workflowApp()).request(
+      '/api/factory/workflow?codebaseId=cb-1&workflow=other'
+    );
+    expect(response.status).toBe(404);
+  });
+
+  test('an unknown codebase returns 404', async () => {
+    const response = await (await workflowApp()).request(
+      '/api/factory/workflow?codebaseId=missing&workflow=deliver'
+    );
     expect(response.status).toBe(404);
   });
 });

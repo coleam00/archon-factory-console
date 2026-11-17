@@ -603,6 +603,7 @@ See the [metrics guide](/guides/metrics/).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
+| GET | `/api/factory/workflow` | One workflow a factory view names, as its steps and groups (`FactoryWorkflow`) |
 
 A factory view is a JSON declaration that presents a workflow pack as a software factory in
 the console: its stages, where a finished run leaves an item, and a map. A pack ships one as
@@ -615,6 +616,17 @@ which replaces the pack's own. The schema is `factoryViewSchema` in
 project has a run of a workflow the view names. `views[]` holds each with its pack, source
 (`project-file` or the pack's scope) and file `path`; `errors[]` holds every declaration that
 could not be read or did not validate, with its `path`. An unknown `codebaseId` returns
+**404**.
+
+`GET /api/factory/workflow?codebaseId=&workflow=` reads one workflow a stage of an applying
+view names (`workflow` as the view names it, such as `deliver`), from the definition runs
+execute. `steps[]` holds every step keyed as run events name it (a loop group's body step is
+`<loop>.<node>`, an included workflow's step `<include>__<node>`), with its kind, declared
+model, `when:`, the prompt it runs (inline, or its command file's text) and the YAML block
+its author wrote, read from the pack's file. `groups[]` holds the loop groups (with their
+most rounds) and included workflows that frame the steps, outer before inner. A missing
+prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An unknown
+`codebaseId`, a workflow no applying view names, or one the project does not have returns
 **404**.
 
 ---

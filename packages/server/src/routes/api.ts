@@ -9,6 +9,8 @@ import {
 import { createWorkflowStore } from '@archon/core/workflows/store-adapter';
 import * as codebaseDb from '@archon/core/db/codebases';
 import * as factoryDb from '@archon/core/db/factory-reads';
+import { providerRegistry } from '@archon/providers';
+import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
 import type { WebAdapter } from '../adapters/web';
 import { dagNodeSseEventSchema } from '../adapters/web/workflow-event.schemas';
 import { isApiGateEnabled } from '../auth';
@@ -22,7 +24,7 @@ import { registerCodebaseEnvironmentRoute, registerCodebaseRoutes } from './api.
 import { registerConfigRoutes } from './api.config';
 import { registerConversationRoutes } from './api.conversations';
 import { registerConversationProcessingRoute } from './api.conversation-processing';
-import { registerFactoryViewsRoute } from './api.factory';
+import { registerFactoryViewsRoute, registerFactoryWorkflowRoute } from './api.factory';
 import { registerHealthRoutes } from './api.health';
 import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
@@ -125,10 +127,16 @@ export function registerApiRoutes(
     codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     loadConfig,
   });
-  registerFactoryViewsRoute(app, {
-    codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
+  const factoryViews = {
+    codebaseCwd: async (id: string) => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     loadConfig,
-    ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
+    ranWorkflows: async (id: string, names: readonly string[]) =>
+      new Set(await factoryDb.listRunWorkflowNames(id, names)),
+  };
+  registerFactoryViewsRoute(app, factoryViews);
+  registerFactoryWorkflowRoute(app, {
+    ...factoryViews,
+    discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerWorkflowDefinitionRoutes(app);
   registerArtifactRoutes(app);
