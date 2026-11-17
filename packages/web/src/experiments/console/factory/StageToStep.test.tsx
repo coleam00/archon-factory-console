@@ -215,12 +215,38 @@ test('a dashboard event moves an item onto the step page it is now on', async ()
   });
 });
 
-test('a failed items read says so on the stage page, and the graph still draws unlit', async () => {
-  serve(() => Response.json({ error: 'The items read failed.' }, { status: 500 }));
+test('a failed refresh says so on the stage page and stops the glow; the graph still draws', async () => {
+  serve(() => Response.json(capturedItemsPage));
   await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    expect(stepButton(container, '·build').hasAttribute('data-running')).toBe(true);
+    itemsResponse = () => Response.json({ error: 'The items read failed.' }, { status: 500 });
+    await act(async () => {
+      invalidate('factory-items');
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
     expect(container.textContent).toContain(
       'Could not load which items are running: The items read failed.'
     );
+    // The cache keeps the last list; it no longer says what runs.
     expect(stepButton(container, '·build').hasAttribute('data-running')).toBe(false);
+    expect(itemLinks(container)).toEqual([]);
+  });
+});
+
+test('a run between loop bodies lights the loop frame', async () => {
+  const between = capturedItemAs('loop', {
+    running: {
+      runId: 'run-loop',
+      workflow: 'deliver',
+      step: 'rounds',
+      startedAt: '2026-11-17T07:00:00.000Z',
+    },
+  });
+  serve(() => Response.json({ ...capturedItemsPage, items: [between] }));
+  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    const lit = [...container.querySelectorAll('div[data-running]')];
+    expect(lit.map(frame => frame.textContent)).toEqual([expect.stringContaining('rounds')]);
+    expect(lit[0]?.getAttribute('title')).toBe('Running for loop');
+    expect(container.querySelectorAll('button[data-running]')).toHaveLength(0);
   });
 });
