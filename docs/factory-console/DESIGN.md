@@ -191,16 +191,20 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## The board
 
 Columns are the declaration's stages in order, then the landed column. Placement of one item,
-first rule that matches:
+first rule that matches. The board, the map and the item page all place through one function
+(`factory/lib/placement.ts`), so they never disagree:
 
 1. A run of a declared workflow is **running** on it: the stage whose `workflows` (and `nodes`,
-   when given) match the run's workflow and deepest running step.
+   when given) match the run's workflow and deepest running step. On a step no stage names (a
+   loop group between rounds, or none between steps) the board keeps the item in the column it
+   sat in on its last read when that column lists the workflow, so the card does not hop; else
+   the workflow's first stage.
 2. Its change **merged**: the landed column.
 3. Its last completed run's `workflow:outcome` is in `placement`: that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
    "N closed by triage" under the board, each linking to its item.
-5. Its last run **failed** or was cancelled: the stage of that run's workflow, with the failed
-   pill and stop line.
+5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
+   else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
 
 A card, in this order:

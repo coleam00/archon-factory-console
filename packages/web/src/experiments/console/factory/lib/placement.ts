@@ -8,13 +8,14 @@ type RunStatus = FactoryItem['runs'][number]['status'];
 /**
  * One of an item's runs as placement reads it, in start order. `workflow` is the workflow as
  * the view declares it, null for a run of a workflow the view does not name; `step` is the
- * deepest running step while it runs.
+ * deepest running step while it runs; `failedStep` the step a failed run failed at.
  */
 export interface PlacementRun {
   workflow: string | null;
   status: RunStatus;
   outcome: string | null;
   step: string | null;
+  failedStep: string | null;
 }
 
 export interface PlacementInput {
@@ -31,13 +32,15 @@ export type RunFacts = ReadonlyMap<string, { workflow: string | null; step: stri
 /**
  * Placement's input for an item: its runs in the item read's order joined with `facts` by
  * id (a run without facts is of no declared workflow), and its change's merge state. Every
- * view that places an item builds its input here, so they place it alike.
+ * view that places an item builds its input here, so they place it alike. The failed step
+ * comes from the item's own `progress.runs`, which the board, map and item page all hold.
  */
 export function placementInput(
   item: FactoryItem,
   facts: RunFacts,
   needsYou: boolean
 ): PlacementInput {
+  const failedAt = new Map((item.progress?.runs ?? []).map(run => [run.runId, run.failedStep]));
   return {
     runs: item.runs.map(run => {
       const fact = facts.get(run.id);
@@ -46,6 +49,7 @@ export function placementInput(
         status: run.status,
         outcome: run.outcome,
         step: fact?.step ?? null,
+        failedStep: failedAt.get(run.id) ?? null,
       };
     }),
     merged: item.progress?.change?.merged ?? null,
@@ -128,14 +132,44 @@ function landedStage(view: Declaration): FactoryStage | undefined {
   return view.stages.find(stage => stage.id === view.landed.stage);
 }
 
-/** Where an item sits on the board: DESIGN's placement rules, first that matches. */
-export function itemColumn(view: Declaration, input: PlacementInput): ItemColumn | null {
+/**
+ * The stage a running run puts its item in: the stage holding its step (`nodes` name it, or
+ * a stage of the workflow declares no `nodes`). On a step no stage names (a loop group
+ * between rounds, or none between steps) the item stays in `previous`, the stage it sat in
+ * on the last read, when that stage lists the workflow, so a card does not hop; else it goes
+ * where the workflow starts.
+ */
+function runningStage(
+  view: Declaration,
+  run: DeclaredRun,
+  previous: string | undefined
+): FactoryStage | undefined {
+  const stages = stagesOfWorkflow(view.stages, run.workflow);
+  const named = run.step === null ? undefined : stageOfStep(view, run.workflow, run.step);
+  return (
+    named ??
+    stages.find(stage => stage.nodes === undefined) ??
+    stages.find(stage => stage.id === previous) ??
+    stages[0]
+  );
+}
+
+/**
+ * Where an item sits: DESIGN's placement rules, first that matches. The board, the map and
+ * the item page all place through here. `previous` is the stage the item sat in on the
+ * caller's last read, if it keeps one (the board does).
+ */
+export function itemColumn(
+  view: Declaration,
+  input: PlacementInput,
+  previous?: string
+): ItemColumn | null {
   const runs = declaredRuns(input.runs);
   const stageOf = (stage: FactoryStage | undefined): ItemColumn | null =>
     stage === undefined ? null : { stage };
   // 1. A run works it: the stage its running step is in.
   const running = runs.filter(run => run.status === 'running').at(-1);
-  if (running !== undefined) return stageOf(stageOfWorkflow(view, running.workflow, running.step));
+  if (running !== undefined) return stageOf(runningStage(view, running, previous));
   // 2. Its change merged.
   if (input.merged === true) return stageOf(landedStage(view));
   // 3. The last completed run's `workflow:outcome` is placed.
@@ -149,9 +183,13 @@ export function itemColumn(view: Declaration, input: PlacementInput): ItemColumn
   // 4. The last run ended the item without a change.
   const ending = last === undefined ? undefined : endingOf(view, last);
   if (ending !== undefined) return { ended: ending };
-  // 5. The last run failed or was cancelled: the stage of its workflow.
-  if (last !== undefined && last.status !== 'completed')
-    return stageOf(stageOfWorkflow(view, last.workflow, null));
+  // 5. The last run failed or was cancelled: the stage whose `nodes` name the step it failed
+  // at, else its workflow's first stage.
+  if (last !== undefined && last.status !== 'completed') {
+    const atStep =
+      last.failedStep === null ? undefined : stageOfStep(view, last.workflow, last.failedStep);
+    return stageOf(atStep ?? stagesOfWorkflow(view.stages, last.workflow)[0]);
+  }
   // 6. Otherwise the first stage.
   return stageOf(view.stages[0]);
 }

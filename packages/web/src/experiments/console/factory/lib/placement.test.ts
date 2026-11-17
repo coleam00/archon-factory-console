@@ -1,5 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { itemDetail, shippedView } from '../item-detail.test-fixtures';
+import type { FactoryItem } from './board';
+import {
+  delivering,
+  endLastRun,
+  keepRuns,
+  landRunning,
+  PAGE,
+  progressOf,
+  realItem,
+  VIEW,
+} from './board.test-fixtures';
 import {
   itemColumn,
   itemState,
@@ -17,8 +28,9 @@ const run = (
   workflow: string | null,
   status: PlacementRun['status'],
   outcome: string | null = null,
-  step: string | null = null
-): PlacementRun => ({ workflow, status, outcome, step });
+  step: string | null = null,
+  failedStep: string | null = null
+): PlacementRun => ({ workflow, status, outcome, step, failedStep });
 const input = (runs: PlacementRun[], extra: Partial<PlacementInput> = {}): PlacementInput => ({
   runs,
   merged: null,
@@ -93,9 +105,25 @@ describe('where an item sits', () => {
     expect(where(itemColumn(view, input(planned)))).toBe('build');
   });
 
-  test('5. the last run failed or was cancelled: the stage of its workflow', () => {
-    expect(where(itemColumn(view, input([run('deliver', 'failed')])))).toBe('build');
+  test('5. the last run failed or was cancelled: the stage naming the failed step, else the first of its workflow', () => {
+    const failedAt = (step: string | null) => [run('deliver', 'failed', null, null, step)];
+    expect(where(itemColumn(view, input(failedAt('rounds.review__review'))))).toBe('checks');
+    expect(where(itemColumn(view, input(failedAt('hostrounds.host__host'))))).toBe('host');
+    // A step no stage names, or none: the workflow's first stage.
+    expect(where(itemColumn(view, input(failedAt('rounds'))))).toBe('build');
+    expect(where(itemColumn(view, input(failedAt(null))))).toBe('build');
     expect(where(itemColumn(view, input([run('triage', 'cancelled')])))).toBe('triage');
+  });
+
+  test('1. a running step no stage names stays in the previous column when it lists the workflow', () => {
+    const between = input([run('deliver', 'running', null, 'rounds')]);
+    expect(where(itemColumn(view, between, 'checks'))).toBe('checks');
+    // Triage does not list deliver: the workflow's first stage.
+    expect(where(itemColumn(view, between, 'triage'))).toBe('build');
+    expect(where(itemColumn(view, between))).toBe('build');
+    // A named step goes where it is named, whatever the previous column.
+    const named = input([run('deliver', 'running', null, 'rounds.review__review')]);
+    expect(where(itemColumn(view, named, 'build'))).toBe('checks');
   });
 
   test('6. otherwise the first stage; runs of undeclared workflows do not count', () => {
@@ -146,5 +174,111 @@ describe('the state pill', () => {
     expect(itemState(input([run('deliver', 'failed'), run('deliver', 'completed', 'ready')]))).toBe(
       'waiting'
     );
+  });
+});
+
+/** Where the items read places `item`, as the board and the map build its input. */
+function placeOf(item: FactoryItem, previous?: string): string | null {
+  const facts = item.progress === null ? new Map() : pageRunFacts(item.progress);
+  return where(itemColumn(VIEW, placementInput(item, facts, false), previous));
+}
+
+describe('placing items of the items read, first rule that matches', () => {
+  test('every real item sits in the column its runs and change put it in', () => {
+    expect(PAGE.items.map(item => [item.item.key, placeOf(item)])).toEqual([
+      ['8', 'checks'],
+      ['5', 'build'],
+      ['4', 'build'],
+      ['6', 'build'],
+      ['3', 'build'],
+      ['7', 'landed'],
+      ['2', 'landed'],
+      ['1', 'landed'],
+    ]);
+  });
+
+  test('1: the review step of round 2 is in Checks', () => {
+    expect(placeOf(delivering('rounds.review__review'))).toBe('checks');
+  });
+
+  test('1: a step no stage names keeps the previous column when it lists the workflow', () => {
+    // A deliver run between rounds records only the bare loop group.
+    expect(placeOf(delivering('rounds'), 'checks')).toBe('checks');
+    expect(placeOf(delivering('rounds'), 'triage')).toBe('build');
+    expect(placeOf(delivering(null))).toBe('build');
+  });
+
+  test('1 before 2: a land run still running after it merged keeps the item in Ready to land', () => {
+    expect(placeOf(landRunning())).toBe('ready');
+  });
+
+  test('2: a merged change is in Landed', () => {
+    expect(placeOf(realItem('7'))).toBe('landed');
+  });
+
+  test('3: ended ready, its change unmerged or its merge state unknown, is in Ready to land', () => {
+    for (const merged of [false, 'unknown'] as const) {
+      const item = realItem('1');
+      const progress = progressOf(item);
+      if (progress.change === null) throw new Error('item 1 has a change');
+      item.progress = { ...progress, change: { ...progress.change, merged, mergedAt: null } };
+      expect(placeOf(item)).toBe('ready');
+    }
+  });
+
+  test('4: endings fold off the board, by workflow:* or an exact key on the last run', () => {
+    expect(placeOf(endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now'))).toBe(
+      'ended: Closed by triage'
+    );
+    // Plan stopped after triage said build: the last completed run is plan's, not triage's.
+    expect(placeOf(endLastRun(realItem('6'), 'completed', 'stop'))).toBe(
+      'ended: Stopped at planning'
+    );
+  });
+
+  test('5: a failed run sits in the stage of the step it failed at, else its workflow first stage', () => {
+    const item = endLastRun(keepRuns(realItem('5'), 3), 'failed', null, 'rounds.review__review');
+    // Its plan completed `planned`, which rule 3 places; take that away to reach rule 5.
+    const progress = progressOf(item);
+    const only = {
+      ...item,
+      runs: item.runs.slice(2),
+      progress: { ...progress, runs: progress.runs.slice(2) },
+    };
+    expect(placeOf(only)).toBe('checks');
+    expect(placeOf(endLastRun(only, 'cancelled', null, null))).toBe('build');
+  });
+
+  test('3 before 5: a failed deliver after a completed plan sits where the plan placed it', () => {
+    expect(placeOf(endLastRun(realItem('5'), 'failed', null, 'build__build'))).toBe('build');
+  });
+
+  test('6: no runs, or progress that could not be read: the first stage', () => {
+    expect(placeOf(keepRuns(realItem('6'), 0))).toBe('triage');
+    expect(placeOf({ ...realItem('6'), progress: null })).toBe('triage');
+  });
+
+  test('every outcome comes from the declaration: renamed there, placement follows', () => {
+    const { 'deliver:ready': _ready, ...placement } = VIEW.placement;
+    const { 'plan:stop': _stop, ...endings } = VIEW.endings;
+    const renamed = {
+      ...VIEW,
+      placement: { ...placement, 'deliver:shipit': 'ready' },
+      endings: { ...endings, 'plan:halt': 'Stopped at planning' },
+    };
+    const at = (item: FactoryItem): string | null =>
+      where(itemColumn(renamed, placementInput(item, pageRunFacts(progressOf(item)), false)));
+    const unmerged = (outcome: string): FactoryItem => {
+      const item = endLastRun(realItem('1'), 'completed', outcome);
+      const progress = progressOf(item);
+      if (progress.change === null) throw new Error('item 1 has a change');
+      item.progress = { ...progress, change: { ...progress.change, merged: false } };
+      return item;
+    };
+    expect(at(unmerged('shipit'))).toBe('ready');
+    // The old name places nothing now: the first stage.
+    expect(at(unmerged('ready'))).toBe('triage');
+    expect(at(endLastRun(realItem('6'), 'completed', 'halt'))).toBe('ended: Stopped at planning');
+    expect(at(endLastRun(realItem('6'), 'completed', 'stop'))).not.toMatch(/^ended/);
   });
 });
