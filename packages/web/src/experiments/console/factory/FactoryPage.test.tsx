@@ -3,17 +3,23 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { FactoryViews } from '../skills/factory';
+import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FactoryPage } from './FactoryPage';
 import { FactoryPlaceholder } from './FactoryPlaceholder';
+import { askItem } from './needs-you.test-fixtures';
 
 const ID = 'cb-1';
 
 afterEach(() => {
   invalidate('factory-views');
   invalidate('project');
+  invalidate('runs');
 });
+
+const asking: AttentionQueue = { items: [askItem()], runs: [], degraded: [] };
+const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
 
 const withView: FactoryViews = {
   views: [
@@ -52,8 +58,9 @@ const currentLinks = (html: string): string[] =>
       return `${href} ${(body ?? '').replace(/<[^>]*>/g, '')}`;
     });
 
-function render(path: string, listing: FactoryViews): string {
+function render(path: string, listing: FactoryViews, attention: AttentionQueue = quiet): string {
   set(K.factoryViews(ID), listing);
+  set(K.factoryAttention(ID), attention);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -104,6 +111,24 @@ describe('the Overview', () => {
     expect(html).toContain(`href="/console/p/${ID}/factory/board"`);
     expect(html).toContain(`href="/console/p/${ID}/factory#needs-you"`);
     expect(html).toContain('id="needs-you"');
+  });
+
+  test('the sub-navigation counts what needs you, on every Factory page', () => {
+    const needsYouLink = (html: string): string | undefined =>
+      /<a [^>]*href="[^"]*#needs-you"[^>]*>(.*?)<\/a>/.exec(html)?.[1];
+    expect(needsYouLink(render(`/console/p/${ID}/factory`, withView, asking))).toContain(
+      'aria-label="1 waiting"'
+    );
+    expect(needsYouLink(render(`/console/p/${ID}/factory/board`, withView, asking))).toContain(
+      '>1</span>'
+    );
+    expect(needsYouLink(render(`/console/p/${ID}/factory`, withView, quiet))).toBe('Needs you');
+  });
+
+  test('lists what needs you on the Overview', () => {
+    const html = render(`/console/p/${ID}/factory`, withView, asking);
+    expect(html).toContain('Which base should the change target?');
+    expect(html).toContain('Recommended: Use dev');
   });
 
   test('a broken project file shows its path and error, not an empty state', () => {

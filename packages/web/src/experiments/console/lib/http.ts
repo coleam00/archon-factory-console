@@ -90,9 +90,15 @@ export function serverErrorMessage(err: HttpError): string {
   return message;
 }
 
-/** Best-effort human detail from a thrown error (the server message for an HttpError). */
+/**
+ * Best-effort human detail from a thrown error: for an HttpError the server's own
+ * `error` (and `detail`), read from the whole body, else whatever the capped snippet holds.
+ */
 export function errorDetail(e: unknown): string {
-  if (e instanceof HttpError) return serverErrorMessage(e);
+  if (e instanceof HttpError) {
+    if (e.serverError === undefined) return serverErrorMessage(e);
+    return e.serverDetail ? `${e.serverError}: ${e.serverDetail}` : e.serverError;
+  }
   if (e instanceof Error) return e.message;
   return String(e);
 }
