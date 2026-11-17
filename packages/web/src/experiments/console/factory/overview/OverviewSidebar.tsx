@@ -16,7 +16,7 @@ export function OverviewSidebar({
 }): ReactElement {
   const [open, setOpen] = useState(true);
   return (
-    <aside aria-label="Views" className={`flex shrink-0 flex-col gap-2 ${open ? 'w-48' : ''}`}>
+    <aside aria-label="Views" className={`flex shrink-0 flex-col gap-2 ${open ? 'md:w-48' : ''}`}>
       <button
         type="button"
         aria-expanded={open}

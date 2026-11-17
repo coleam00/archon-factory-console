@@ -114,7 +114,7 @@ function OverviewExplorer({
       ? overview.caption
       : view?.caption;
   return (
-    <div className={`flex gap-4 ${fullScreen ? 'min-h-0 flex-1' : ''}`}>
+    <div className={`flex flex-col gap-4 md:flex-row ${fullScreen ? 'min-h-0 flex-1' : ''}`}>
       <OverviewSidebar views={viewList(overview)} current={viewId} onOpen={onOpen} />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <OverviewBreadcrumb trail={trail} onOpen={onOpen} />
@@ -122,9 +122,6 @@ function OverviewExplorer({
           <p className="text-console-12 text-text-tertiary">
             This overview has no view "{unknown}", so it opened at the top.
           </p>
-        )}
-        {caption === undefined ? null : (
-          <p className="max-w-4xl text-sm leading-relaxed text-text-secondary">{caption}</p>
         )}
         {view === undefined ? null : (
           <OverviewMap
@@ -138,6 +135,10 @@ function OverviewExplorer({
           />
         )}
         <OverviewLegend overview={overview} />
+        {/* Under the map, so the whole root view is in the first screen at 1440x900. */}
+        {caption === undefined ? null : (
+          <p className="max-w-4xl text-sm leading-relaxed text-text-secondary">{caption}</p>
+        )}
       </div>
     </div>
   );
