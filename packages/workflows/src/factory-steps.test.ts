@@ -28,6 +28,7 @@ nodes:
     bash: echo top
   - id: rounds
     depends_on: [odd__id]
+    when: "$odd__id.output != 'skip'"
     loop_group:
       max_iterations: 3
       until_bash: "true"
@@ -35,7 +36,7 @@ nodes:
         - id: fix
           command: fix
           model: ['@builder', large]
-          when: "$odd__id.output == 'go'"
+          when: "$odd__id.output == 'go' && $LOOP_PREV.verdict__decide.output == 'return'"
         - id: check
           include: check
           depends_on: [fix]
@@ -101,6 +102,10 @@ describe('factoryWorkflowSteps', () => {
       ['rounds.verdict', 'include', 'rounds', 'verdict', null],
     ]);
     expect(ship.groups.find(g => g.id === 'rounds')?.dependsOn).toEqual(['odd__id']);
+    // A loop's own condition is keyed as its steps' are.
+    expect(ship.groups.find(g => g.id === 'rounds')?.whenClauses).toEqual([
+      [{ reads: { kind: 'step', key: 'odd__id' }, operator: '!=', value: 'skip' }],
+    ]);
     expect(ship.steps.map(s => [s.key, s.label, s.group, s.kind, s.includedFrom])).toEqual([
       ['start__s', 's', 'start', 'agent', 'setup'],
       ['odd__id', 'odd__id', null, 'bash', null],
@@ -121,16 +126,22 @@ describe('factoryWorkflowSteps', () => {
   test("a command step carries its model, condition, command file's prompt and authored YAML", async () => {
     const fix = (await shipSteps()).steps.find(s => s.key === 'rounds.fix');
     expect(fix?.model).toEqual(['@builder', 'large']);
-    expect(fix?.when).toBe("$odd__id.output == 'go'");
-    // A top-level step a loop body's condition reads is keyed as run events name it.
+    expect(fix?.when).toBe(
+      "$odd__id.output == 'go' && $LOOP_PREV.verdict__decide.output == 'return'"
+    );
+    // Each step a loop body's condition reads is keyed as run events name it: a top-level
+    // step by its own id, a sibling in the same body under the loop's prefix.
     expect(fix?.whenClauses).toEqual([
-      [{ reads: { kind: 'step', key: 'odd__id' }, operator: '==', value: 'go' }],
+      [
+        { reads: { kind: 'step', key: 'odd__id' }, operator: '==', value: 'go' },
+        { reads: { kind: 'step', key: 'rounds.verdict__decide' }, operator: '==', value: 'return' },
+      ],
     ]);
     expect(fix?.command).toBe('fix');
     expect(fix?.prompt).toBe(PACK['ship/commands/fix.md']);
     expect(fix?.promptError).toBeNull();
     expect(fix?.yaml).toBe(
-      "id: fix\ncommand: fix\nmodel: ['@builder', large]\nwhen: \"$odd__id.output == 'go'\""
+      "id: fix\ncommand: fix\nmodel: ['@builder', large]\nwhen: \"$odd__id.output == 'go' && $LOOP_PREV.verdict__decide.output == 'return'\""
     );
   });
 

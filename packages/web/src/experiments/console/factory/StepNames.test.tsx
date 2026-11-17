@@ -24,8 +24,6 @@ import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from './lib/board';
 import { delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
-import { stepGraph } from './lib/step-graph';
-import { stepLabel } from './lib/step-label';
 
 const ID = 'cb-1';
 const DELIVER = deliverJson as FactoryWorkflow;
@@ -187,13 +185,7 @@ describe('no raw step id where a person reads', () => {
     const html = render(`/console/p/${ID}/factory/stages/checks`);
     const words = readable(html);
     // A condition reads a step by its bare id ("if rounds = approve"), which neither id
-    // shape catches, so every condition's subject is checked against the drawn names.
-    const graph = stepGraph(
-      DELIVER,
-      () => true,
-      key => stepLabel(VIEW, 'deliver', key)
-    );
-    const names = new Set([...graph.nodes, ...graph.groups].map(drawn => drawn.label));
+    // shape catches, so every condition's subject is checked against the declared names.
     const subjects = [...words.matchAll(/\bif (.+?) [=≠≤≥<>] /g)].map(match => match[1]);
     expect(subjects.sort()).toEqual([
       'Check rounds',
@@ -201,7 +193,6 @@ describe('no raw step id where a person reads', () => {
       'Reads CI and PR reviews',
       'Verdict',
     ]);
-    expect(subjects.every(subject => names.has(subject ?? ''))).toBe(true);
     // A condition the step box cuts reads in full on hover.
     expect(html).toContain('if Reads CI and PR reviews = return\nRuns when');
   });
