@@ -9,11 +9,9 @@ import {
   type Box,
   type MapLayout,
 } from './map-layout';
-import { shippedListed, shippedView } from '../item-detail.test-fixtures';
+import { shippedView } from '../item-detail.test-fixtures';
 import { crosses, enters, segments } from './map-geometry.test-fixtures';
-import { mapArrowsFromGraph } from './map-graph';
-import { LINE_H } from './map-sizes';
-import { LIVE_GRAPH } from './pack-graph.test-fixtures';
+import { CHAR_W, LINE_H } from './map-sizes';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -110,11 +108,6 @@ describe('one row', () => {
       'checks->plan',
       'host->build',
     ]);
-    for (const path of layout.feedback.paths) {
-      expect(path.d).toMatch(
-        new RegExp(`^M[\\d.]+,${CARD_H} V${CARD_H + LANE} H[\\d.]+ V${CARD_H}$`)
-      );
-    }
     expect(layout.feedback.labels.map(label => label.stage)).toEqual(['build', 'plan']);
   });
 
@@ -144,7 +137,7 @@ describe('one row', () => {
 });
 
 describe('two rows', () => {
-  const layout = layoutMap(seven, undefined, 2);
+  const layout = layoutMap(seven, 2);
   const row2 = layout.boxes.get('host')?.y ?? 0;
 
   test('the first half of the stages above, the rest below, each row left to right', () => {
@@ -208,74 +201,65 @@ describe('declarations the schema allows', () => {
   });
 });
 
-describe('the shipped map with the live pack graph', () => {
-  const graph = mapArrowsFromGraph(shippedView, shippedListed.runNames, LIVE_GRAPH);
-  const layout = layoutMap(shippedView, graph);
+describe('the shipped map', () => {
+  const layout = layoutMap(shippedView);
   const labelOf = (stage: string) =>
     layout.feedback.labels
       .find(label => label.stage === stage)
-      ?.lines.flatMap(line => line.parts.map(part => part.text))
-      .join(', ');
+      ?.lines.map(line => line.text)
+      .join(' ');
 
   test('one row of the eight stages in stages order', () => {
-    const xs = shippedView.stages.map(stage => layout.boxes.get(stage.id));
-    expect(xs.map(box => box?.y)).toEqual(Array(8).fill(0));
-    expect(xs.map(box => box?.x)).toEqual(shippedView.stages.map((_, i) => i * COL_PITCH));
+    const boxes = shippedView.stages.map(stage => layout.boxes.get(stage.id));
+    expect(boxes.map(box => box?.y)).toEqual(Array(8).fill(0));
+    expect(boxes.map(box => box?.x)).toEqual(shippedView.stages.map((_, i) => i * COL_PITCH));
   });
 
-  test('every forward hand-off runs side to side between cards next to each other', () => {
+  test('only the declared arrows: every forward hand-off side to side between neighbours', () => {
     expect(layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lane])).toEqual([
-      ['build', 'checks', undefined],
-      ['checks', 'host', undefined],
-      ['ready', 'landed', undefined],
       ['order', 'triage', undefined],
       ['triage', 'plan', undefined],
       ['plan', 'build', undefined],
+      ['build', 'checks', undefined],
+      ['checks', 'host', undefined],
       ['host', 'ready', undefined],
+      ['ready', 'landed', undefined],
     ]);
   });
 
-  test("the send-backs into Build share one leg and one label; Plan's own asks are a U labelled once", () => {
+  test('the send-backs into Build share one leg and one label; replan returns to Plan', () => {
+    expect(layout.feedback.paths.map(path => `${path.from}->${path.to}`)).toEqual([
+      'checks->build',
+      'host->build',
+      'checks->plan',
+    ]);
     const intoBuild = layout.feedback.paths.filter(path => path.to === 'build');
-    expect(intoBuild).toHaveLength(3);
     expect(new Set(intoBuild.map(path => path.d.split(' ').at(-2))).size).toBe(1);
-    expect(labelOf('build')).toBe('returned, asks answered');
-    const plan = layout.feedback.paths.filter(path => path.to === 'plan');
-    expect(plan.map(path => path.from)).toEqual(['plan']);
-    expect(labelOf('plan')).toBe('asks answered');
-    expect(layout.feedback.labels).toHaveLength(2);
-    expect('loops' in layout).toBe(false);
+    expect(labelOf('build')).toBe('returned');
+    expect(labelOf('plan')).toBe('replan');
   });
 
-  test('the ends sit above the row; nothing enters a card; the bounds hold ends and lane labels', () => {
-    for (const stub of layout.stubs)
-      for (const line of stub.lines) expect(line.at.y).toBeLessThan(0);
+  test('nothing enters a card, no line crosses another, and the bounds hold the lane labels', () => {
     nothingEntersACard(layout);
-    const tops = layout.stubs.flatMap(stub => stub.lines.map(line => line.at.y - LINE_H / 2));
-    expect(layout.bounds.y).toBeLessThanOrEqual(Math.min(...tops));
+    const all = lines(layout);
+    for (const p of all)
+      for (const q of all) if (p.id !== q.id) expect(crosses(p.s, q.s)).toBe(false);
     const bottoms = layout.feedback.labels.flatMap(l =>
       l.lines.map(line => line.at.y + LINE_H / 2)
     );
     expect(layout.bounds.y + layout.bounds.h).toBeGreaterThanOrEqual(Math.max(...bottoms));
   });
 
-  test('no label overlaps another or a card', () => {
+  test('no lane label overlaps another or a card', () => {
     const boxOf = (at: { x: number; y: number }, text: string): Box => ({
-      x: at.x - (text.length * 9) / 2,
+      x: at.x - (text.length * CHAR_W) / 2,
       y: at.y - LINE_H / 2,
-      w: text.length * 9,
+      w: text.length * CHAR_W,
       h: LINE_H,
     });
-    // Each label as the boxes of its lines, named by what it labels; cards as their own.
     const owned = [
-      ...layout.stubs.flatMap(stub =>
-        stub.lines.map(line => ({ owner: `ends:${stub.stage}`, box: boxOf(line.at, line.text) }))
-      ),
       ...layout.feedback.labels.flatMap(label =>
-        label.lines.map(line => ({
-          owner: `lane:${label.stage}`,
-          box: boxOf(line.at, line.parts.map(part => part.text).join(', ')),
-        }))
+        label.lines.map(line => ({ owner: `lane:${label.stage}`, box: boxOf(line.at, line.text) }))
       ),
       ...[...layout.boxes].map(([stage, box]) => ({ owner: `card:${stage}`, box })),
     ];

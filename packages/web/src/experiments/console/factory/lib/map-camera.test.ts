@@ -45,7 +45,7 @@ describe('the map camera', () => {
     // From a phone's frame up to a wide desktop's, in the rows that width takes, with the
     // height the frame takes there.
     for (let width = 0; width <= 2000; width += 50) {
-      const { bounds } = layoutMap(shippedView, undefined, rowsFor(oneRow, width));
+      const { bounds } = layoutMap(shippedView, rowsFor(oneRow, width));
       const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
       expect(MAP_TEXT_PX * k).toBeGreaterThanOrEqual(TYPE_FLOOR_PX);
     }

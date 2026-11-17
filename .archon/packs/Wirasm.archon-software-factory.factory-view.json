@@ -143,11 +143,16 @@
       { "stage": "landed" }
     ],
     "arrows": [
+      { "from": "order", "to": "triage", "label": "ready" },
+      { "from": "triage", "to": "plan", "label": "build, narrow" },
+      { "from": "plan", "to": "build", "label": "planned" },
       { "from": "build", "to": "checks", "label": "built" },
       { "from": "checks", "to": "host", "label": "approved" },
+      { "from": "host", "to": "ready", "label": "ready" },
       { "from": "ready", "to": "landed", "label": "merged" },
       { "from": "checks", "to": "build", "label": "returned", "back": true },
-      { "from": "host", "to": "build", "label": "returned", "back": true }
+      { "from": "host", "to": "build", "label": "returned", "back": true },
+      { "from": "checks", "to": "plan", "label": "replan", "back": true }
     ],
     "notes": [{ "text": "You answer asks here", "near": "needs-you" }]
   }

@@ -1,24 +1,19 @@
 /**
- * The map's one feedback lane: every send-back (a return, a replan, a stage started again by
- * its answered asks) drawn on a single line under the stages, running right to left. A
- * send-back leaves its source card's lane edge on the source's leg, runs along the lane, and
- * enters its target's lane edge on the target's leg. A card has at most one leg of each kind,
- * so every send-back into one card shares one leg, and one label per target names them all.
+ * The map's one feedback lane: every send-back the view file declares (`back: true`: a return,
+ * a replan) drawn on a single line under the stages, running right to left. A send-back leaves
+ * its source card's lane edge on the source's leg, runs along the lane, and enters its target's
+ * lane edge on the target's leg. A card has at most one leg of each kind, so every send-back
+ * into one card shares one leg, and one label per target names them all.
  *
  * Why nothing crosses: every leg is a vertical between its card's edge and the lane, and every
  * run lies on the lane. Two verticals never cross; a vertical meets the lane only at its own
  * end; and no leg enters a card, since it starts on the card's own edge. Where two runs
  * overlap they are collinear: one line, not a crossing. The line exists only where some
- * send-back runs, so a stage started again by its own asks is a short U of its own, not joined
- * to a trunk beside it, which would claim a hand-off nobody makes.
- *
- * Overlapping runs draw as one line, so a solid one hides a dashed one beneath it. Each label
- * part therefore carries its send-back's style, and the label says which outcome is which.
+ * send-back runs, so a send-back into its own card is a short U of its own, not joined to a
+ * trunk beside it, which would claim a hand-off nobody makes.
  */
-import type { GraphArrowStyle } from './map-graph';
 import type { Box, Point } from './map-layout';
-import { LINE_H } from './map-sizes';
-import { halfWidth, wrapParts } from './map-stubs';
+import { CHAR_W, LINE_H, WRAP } from './map-sizes';
 
 /**
  * How a card meets the lane: `one` for the single row (its bottom edge), `upper` and `lower`
@@ -46,14 +41,13 @@ export interface LaneCard {
   side: LaneSide;
 }
 
-/** A send-back to draw, declared or from the pack graph. */
+/** A send-back the view file declares. */
 export interface SendBack {
+  /** Unique on the map: `decl:<index>`. */
   id: string;
   from: string;
   to: string;
   label: string | undefined;
-  style: GraphArrowStyle;
-  problems: string[];
 }
 
 export interface LanePath extends SendBack {
@@ -61,29 +55,20 @@ export interface LanePath extends SendBack {
   d: string;
 }
 
-/** One outcome in a target's label, in its send-back's style. */
-export interface LanePart {
-  text: string;
-  style: GraphArrowStyle;
-}
-
 export interface LaneLabel {
   stage: string;
-  /** Top to bottom, each with where its centre goes. */
-  lines: { parts: LanePart[]; at: Point }[];
+  /** Top to bottom, each with where its centre goes; each line but the last ends in a comma. */
+  lines: { text: string; at: Point }[];
 }
 
 export interface FeedbackLane {
-  /** One path per send-back, so each keeps its style and title: declared, solid, then problem. */
+  /** One path per send-back. */
   paths: LanePath[];
   /** One per target stage. */
   labels: LaneLabel[];
-  /** What the legs, the lane and its labels take; undefined when nothing sends back. */
+  /** What the lane and its labels take; undefined when nothing sends back. */
   extent: Box | undefined;
 }
-
-/** Drawn last on top: a refused send-back's error dashes and title are not hidden. */
-const DRAW_ORDER: Record<GraphArrowStyle, number> = { declared: 0, solid: 1, problem: 2 };
 
 const edgeY = (card: LaneCard): number =>
   card.side === 'lower' ? card.box.y : card.box.y + card.box.h;
@@ -91,30 +76,28 @@ const edgeY = (card: LaneCard): number =>
 const legX = (card: LaneCard, leg: 'to' | 'from'): number =>
   card.box.x + card.box.w * LEGS[card.side][leg];
 
-/** Each target's outcomes in the order its send-backs come, each outcome once per style. */
-function partsByTarget(sendBacks: readonly SendBack[]): Map<string, LanePart[]> {
-  const parts = new Map<string, LanePart[]>();
-  for (const sendBack of sendBacks) {
-    const list = parts.get(sendBack.to) ?? [];
-    for (const text of sendBack.label?.split(', ') ?? []) {
-      if (!list.some(part => part.text === text && part.style === sendBack.style))
-        list.push({ text, style: sendBack.style });
-    }
-    parts.set(sendBack.to, list);
+/** `parts` joined into lines of at most `WRAP` characters where they fit, commas kept. */
+function wrap(parts: readonly string[]): string[] {
+  const lines: string[] = [];
+  for (const part of parts) {
+    const last = lines.at(-1);
+    if (last !== undefined && last.length + part.length + 2 <= WRAP)
+      lines[lines.length - 1] = `${last}, ${part}`;
+    else lines.push(part);
   }
-  return parts;
+  return lines.map((line, index) => (index < lines.length - 1 ? `${line},` : line));
 }
 
-/** The lines each target's label wraps to. */
-function labelLines(sendBacks: readonly SendBack[]): Map<string, LanePart[][]> {
-  const lines = new Map<string, LanePart[][]>();
-  for (const [stage, parts] of partsByTarget(sendBacks)) {
-    if (parts.length > 0)
-      lines.set(
-        stage,
-        wrapParts(parts, part => part.text)
-      );
+/** The lines of each target's label: its send-backs' outcomes in order, each once. */
+function labelLines(sendBacks: readonly SendBack[]): Map<string, string[]> {
+  const parts = new Map<string, string[]>();
+  for (const sendBack of sendBacks) {
+    const list = parts.get(sendBack.to) ?? [];
+    for (const text of sendBack.label?.split(', ') ?? []) if (!list.includes(text)) list.push(text);
+    parts.set(sendBack.to, list);
   }
+  const lines = new Map<string, string[]>();
+  for (const [stage, list] of parts) if (list.length > 0) lines.set(stage, wrap(list));
   return lines;
 }
 
@@ -123,8 +106,6 @@ export function laneLabelRoom(sendBacks: readonly SendBack[]): number {
   const most = Math.max(0, ...[...labelLines(sendBacks).values()].map(lines => lines.length));
   return most === 0 ? 0 : LABEL_OFFSET + LINE_H * most - LINE_H / 2;
 }
-
-const lineText = (parts: readonly LanePart[]): string => parts.map(part => part.text).join(', ');
 
 /**
  * The send-backs between two `cards` drawn on the lane at `y`, labels under it. A send-back
@@ -136,15 +117,13 @@ export function feedbackLane(
   sendBacks: readonly SendBack[]
 ): FeedbackLane {
   const drawn = sendBacks.filter(entry => cards.has(entry.from) && cards.has(entry.to));
-  const paths = drawn
-    .flatMap((entry): LanePath[] => {
-      const from = cards.get(entry.from);
-      const to = cards.get(entry.to);
-      if (from === undefined || to === undefined) return [];
-      const d = `M${legX(from, 'from')},${edgeY(from)} V${y} H${legX(to, 'to')} V${edgeY(to)}`;
-      return [{ ...entry, d }];
-    })
-    .sort((p, q) => DRAW_ORDER[p.style] - DRAW_ORDER[q.style]);
+  const paths = drawn.flatMap((entry): LanePath[] => {
+    const from = cards.get(entry.from);
+    const to = cards.get(entry.to);
+    if (from === undefined || to === undefined) return [];
+    const d = `M${legX(from, 'from')},${edgeY(from)} V${y} H${legX(to, 'to')} V${edgeY(to)}`;
+    return [{ ...entry, d }];
+  });
   const labels = [...labelLines(drawn)].flatMap(([stage, lines]): LaneLabel[] => {
     const card = cards.get(stage);
     if (card === undefined) return [];
@@ -152,8 +131,8 @@ export function feedbackLane(
     return [
       {
         stage,
-        lines: lines.map((parts, index) => ({
-          parts,
+        lines: lines.map((text, index) => ({
+          text,
           at: { x, y: y + LABEL_OFFSET + LINE_H * index },
         })),
       },
@@ -175,7 +154,7 @@ function extentOf(
     return from === undefined || to === undefined ? [] : [legX(from, 'from'), legX(to, 'to')];
   });
   for (const label of labels) {
-    const half = halfWidth(label.lines.map(line => `${lineText(line.parts)},`));
+    const half = (Math.max(...label.lines.map(line => line.text.length)) * CHAR_W) / 2;
     const x = label.lines[0]?.at.x ?? 0;
     xs.push(x - half, x + half);
   }

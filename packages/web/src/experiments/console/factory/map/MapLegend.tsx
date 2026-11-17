@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
-import type { GraphArrowStyle } from '../lib/map-graph';
 import type { FactoryStage } from '../lib/stage-steps';
-import { ARROW_STROKE } from './MapArrows';
+import { LINE } from './MapArrows';
 
 /**
  * Each colour group's colour and its plain words. Keyed by the generated group enum, so a
@@ -15,35 +14,11 @@ export const GROUPS: Record<FactoryStage['group'], { color: string; words: strin
   land: { color: 'var(--node-script)', words: 'Landing it' },
 };
 
-/** What each line on the map means, in plain words. */
-const LINES: { style: GraphArrowStyle; words: string }[] = [
-  { style: 'solid', words: 'Hands the item on' },
-  { style: 'declared', words: 'The pack declares it; this install does not start it' },
-  { style: 'problem', words: 'This install refuses to start it' },
-];
-
 const ITEM = 'flex items-center gap-1.5 text-console-12 text-text-secondary';
-
-function LineSwatch({ style }: { style: GraphArrowStyle }): ReactElement {
-  return (
-    <svg aria-hidden="true" width="22" height="8" className="shrink-0">
-      <line
-        x1="1"
-        y1="4"
-        x2="21"
-        y2="4"
-        stroke={ARROW_STROKE[style].stroke}
-        strokeWidth={1.5}
-        strokeDasharray={ARROW_STROKE[style].dash}
-      />
-    </svg>
-  );
-}
 
 /**
  * The colour groups the map draws, named in plain words in the order work reaches them, and
- * what its lines mean: a hand-off, one only declared, one refused, the feedback lane, and an
- * end.
+ * what its two kinds of line mean: a hand-off, and the feedback lane.
  */
 export function MapLegend({ stages }: { stages: readonly FactoryStage[] }): ReactElement {
   const shown = new Set(stages.map(stage => stage.group));
@@ -63,33 +38,17 @@ export function MapLegend({ stages }: { stages: readonly FactoryStage[] }): Reac
         ))}
       </ul>
       <ul aria-label="Lines" className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        {LINES.map(line => (
-          <li key={line.style} className={ITEM}>
-            <LineSwatch style={line.style} />
-            {line.words}
-          </li>
-        ))}
-        <li className={ITEM}>
-          <svg aria-hidden="true" width="22" height="10" className="shrink-0">
-            <path
-              d="M19,1 V9 H3 V1"
-              fill="none"
-              stroke={ARROW_STROKE.solid.stroke}
-              strokeWidth={1.5}
-            />
-          </svg>
-          The line under the stages: what sends an item back, labelled where it returns to
-        </li>
         <li className={ITEM}>
           <svg aria-hidden="true" width="22" height="8" className="shrink-0">
-            <path
-              d="M1,4 H17 M17,0 V8"
-              fill="none"
-              stroke={ARROW_STROKE.solid.stroke}
-              strokeWidth={1.5}
-            />
+            <line x1="1" y1="4" x2="21" y2="4" stroke={LINE} strokeWidth={1.5} />
           </svg>
-          Ends here: these outcomes start nothing
+          Hands the item on
+        </li>
+        <li className={ITEM}>
+          <svg aria-hidden="true" width="22" height="10" className="shrink-0">
+            <path d="M19,1 V9 H3 V1" fill="none" stroke={LINE} strokeWidth={1.5} />
+          </svg>
+          The line under the stages: what sends an item back, labelled where it returns to
         </li>
       </ul>
     </div>

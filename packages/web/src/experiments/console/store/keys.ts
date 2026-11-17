@@ -31,8 +31,6 @@ export const K = {
   factoryItems: (projectId: string): string => `factory-items:${projectId}`,
   // Under the same prefix, so the dashboard SSE refreshes one item's page too.
   factoryItem: (projectId: string, key: string): string => `factory-items:${projectId}:item:${key}`,
-  // A pack's stage graph for one project; trigger files change rarely, so nothing streams it.
-  packGraph: (projectId: string, packKey: string): string => `pack-graph:${projectId}:${packKey}`,
   messages: (conversationId: string): string => `messages:${conversationId}`,
   conversations: (projectId: string): string => `conversations:${projectId}`,
   countsGlobal: 'counts:global' as const,

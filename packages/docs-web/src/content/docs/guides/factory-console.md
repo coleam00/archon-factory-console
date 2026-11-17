@@ -28,13 +28,9 @@ it. Inside it:
   asks, **Answered lately** lists the last asks an item settled and the stage that answer
   started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the stages `map.cards` lists, in
   `stages` order in one row (two on a screen too narrow to read one), coloured by group, with
-  the hand-offs between them. Every send-back (a return, or a stage started again by answered
-  asks) runs in one feedback lane under the row, labelled once where it returns to. A hand-off from one
-  workflow to another comes from the pack's stage graph for this install (`archon pack graph`):
-  solid when a trigger file here starts it, dashed when the pack declares it and nothing here
-  starts it, and in the error colour when the install refuses it. An outcome that starts
-  nothing and leaves no ask ends at a bar on its card's outer edge; a start of a workflow with
-  no card is listed under the map. Each card says how many items are in it now, pulsing while
+  the arrows `map.arrows` declares and no others. A forward hand-off runs between two cards;
+  every send-back (`back: true`: a return, a replan) runs in one feedback lane under the row,
+  labelled once where it returns to. Each card says how many items are in it now, pulsing while
   a run works one, and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
   the whole map when it fits at a readable size; with a card's details open, or on a narrow
   screen, it stops at the smallest readable size, so drag, zoom out or close the details to
@@ -126,7 +122,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step is not reported; the step reads as its cleaned id. |
-| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` join stages one workflow works, or run into the `landed` stage (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. A hand-off from one workflow to another is not declared: the map draws it from the pack's stage graph. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back (`back: true`, or a graph hand-off into an earlier card or its own) runs in one feedback lane under the row. Eight cards fit one row of a 1440px screen; on a screen too narrow to read one row the map takes two. |
+| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to`, an optional `label` and `back: true` for a send-back), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
@@ -187,6 +183,7 @@ Every stage a field names must be declared in `stages`, and every workflow named
       { "stage": "landed" }
     ],
     "arrows": [
+      { "from": "plan", "to": "build", "label": "planned" },
       { "from": "build", "to": "review" },
       { "from": "review", "to": "build", "label": "returned", "back": true },
       { "from": "review", "to": "landed", "label": "merged" }

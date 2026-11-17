@@ -1,7 +1,7 @@
 /**
  * The factory map's sizes, in world units (px at zoom 1). Their own module because the layout
- * (`map-layout.ts`), the ends (`map-stubs.ts`) and the feedback lane (`map-feedback-lane.ts`)
- * all size from them, and the layout imports the other two.
+ * (`map-layout.ts`) and the feedback lane (`map-feedback-lane.ts`) both size from them, and
+ * the layout imports the lane.
  *
  * Sized so the shipped eight stages fit one row of the Overview's frame (about 1100px wide at
  * 1440x900): 7 * COL_PITCH + CARD_W = 1592, which fits at k of about 0.66, so card titles draw

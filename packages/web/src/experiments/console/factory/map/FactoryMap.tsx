@@ -4,7 +4,6 @@ import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { useFactoryItems } from '../useFactoryItems';
-import { mapArrowsFromGraph, type MapGraph } from '../lib/map-graph';
 import { rowsFor } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
 import { stageLive, type MapLive } from '../lib/map-live';
@@ -12,12 +11,10 @@ import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
-import { MapGraphNotes } from './MapGraphNotes';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
 import { useRowWidth } from './useRowWidth';
-import { usePackGraph } from './usePackGraph';
 
 interface FactoryMapProps {
   projectId: string;
@@ -25,43 +22,25 @@ interface FactoryMapProps {
   attention: EntityView<AttentionQueue>;
 }
 
-/** What the map draws from: the declaration, the attention queue, and the pack graph read. */
+/** What the map draws from: the declaration and the attention queue. */
 interface MapInputs {
   projectId: string;
   view: FactoryViewListed['declaration'];
   attention: EntityView<AttentionQueue>;
-  /** Undefined until the pack graph is read, or when reading it failed (`graphError`). */
-  graph: MapGraph | undefined;
-  graphError: unknown;
 }
 
 /**
- * The Overview's map: the declared stages and the hand-offs inside a workflow, the pack
- * graph's hand-offs between workflows, and live chips from the items read.
+ * The Overview's map: the stages and arrows the view file declares, and live chips from the
+ * items read.
  */
 export function FactoryMap({ projectId, view, attention }: FactoryMapProps): ReactElement {
   const items = useFactoryItems(projectId);
-  const read = usePackGraph(projectId, view.packKey);
-  const graph = useMemo(
-    () =>
-      read.data === undefined
-        ? undefined
-        : mapArrowsFromGraph(view.declaration, view.runNames, read.data),
-    [read.data, view.declaration, view.runNames]
-  );
   return (
     <section aria-label="The map" className="flex flex-col gap-2.5">
       <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
         The map
       </h3>
-      <MapBody
-        projectId={projectId}
-        view={view.declaration}
-        items={items}
-        attention={attention}
-        graph={graph}
-        graphError={read.error}
-      />
+      <MapBody projectId={projectId} view={view.declaration} items={items} attention={attention} />
     </section>
   );
 }
@@ -107,18 +86,13 @@ function MapLiveCanvas({
 function MapCanvas({
   projectId,
   view,
-  graph,
-  graphError,
   live,
 }: Omit<MapInputs, 'attention'> & { live: MapLive }): ReactElement {
   // The row holding the frame and the details panel, so opening the panel does not re-wrap.
   const row = useRowWidth();
-  const oneRow = useMemo(() => layoutMap(view, graph, 1), [view, graph]);
+  const oneRow = useMemo(() => layoutMap(view, 1), [view]);
   const rows = rowsFor(oneRow.bounds, row.width);
-  const layout = useMemo(
-    () => (rows === 1 ? oneRow : layoutMap(view, graph, 2)),
-    [rows, oneRow, view, graph]
-  );
+  const layout = useMemo(() => (rows === 1 ? oneRow : layoutMap(view, 2)), [rows, oneRow, view]);
   const { boxes, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
@@ -189,7 +163,6 @@ function MapCanvas({
         )}
       </div>
       <MapLegend stages={view.stages} />
-      <MapGraphNotes view={view} graph={graph} error={graphError} />
       <MapNotOnMap projectId={projectId} view={view} entries={live.notOnMap} />
     </div>
   );

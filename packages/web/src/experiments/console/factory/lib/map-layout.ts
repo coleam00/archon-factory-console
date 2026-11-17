@@ -2,23 +2,18 @@
  * Where the factory map draws its cards and arrows, in world units (px at zoom 1). The cards
  * are the stages the declaration gives a `map` card, in `stages` order (the board's), in one
  * row left to right; or in two, the first half above, when the frame is too narrow for one
- * row at a readable size (`rowsFor` in map-camera.ts). The arrows are the declared ones and
- * the pack graph's between workflows (`map-graph.ts`), in two kinds:
+ * row at a readable size (`rowsFor` in map-camera.ts). The arrows are the view file's
+ * `map.arrows` and no others, in two kinds:
  *
  * - A forward hand-off runs side to side between cards next to each other in a row. One that
  *   skips cards runs in a lane off the row's outer edge; one between the two rows, in a lane
  *   of the gap between them. Lanes are shared by arrows whose runs do not overlap.
- * - Every send-back (a declared return, and a graph arrow into its own card or one earlier in
- *   the order) is drawn in the one feedback lane (`map-feedback-lane.ts`): under the row, or in
- *   the gap below the forward lanes there.
+ * - Every send-back (`back: true`) is drawn in the one feedback lane (`map-feedback-lane.ts`):
+ *   under the row, or in the gap below the forward lanes there.
  *
- * The outcomes that end on a card are drawn on its outer edge (`map-stubs.ts`).
- *
- * Known limits: with two rows, a forward hand-off between the rows crosses the feedback lane,
- * and a send-back leg from the upper row crosses the forward lanes, both at right angles. A
- * lane that skips cards on a row's outer edge crosses the end line of a card it passes.
+ * Known limit: with two rows, a forward hand-off between the rows crosses the feedback lane,
+ * and a send-back leg from the upper row crosses the forward lanes, both at right angles.
  */
-import type { GraphArrow, GraphArrowStyle, MapStub } from './map-graph';
 import {
   feedbackLane,
   laneLabelRoom,
@@ -28,20 +23,16 @@ import {
   type SendBack,
 } from './map-feedback-lane';
 import { CARD_H, CARD_W, COL_PITCH, LANE, ROW_GAP } from './map-sizes';
-import { stubPath, type StubPath } from './map-stubs';
 import type { FactoryViewListed } from './views';
 
 export { CARD_H, CARD_W, COL_PITCH, LANE, ROW_GAP } from './map-sizes';
 
 type Declaration = FactoryViewListed['declaration'];
 
-/** An arrow to draw, declared or from the graph. A declared arrow is always `solid`. */
+/** A declared arrow. Two arrows may join one pair of cards. */
 interface Drawn extends SendBack {
-  /** Unique on the map: `decl:<index>` or `graph:<index>`. Two arrows may join one pair of cards. */
-  id: string;
   /** A send-back: drawn in the feedback lane. */
   back: boolean;
-  style: GraphArrowStyle;
 }
 
 /** Half the height a label takes, so bounds include labels drawn on a lane. */
@@ -74,26 +65,16 @@ export interface MapLayout {
   boxes: Map<string, Box>;
   /** How many rows the cards take. */
   rows: 1 | 2;
-  /** Every forward hand-off between two cards: the declared ones in order, then the graph's. */
+  /** Every forward hand-off between two cards, in declared order. */
   arrows: ArrowPath[];
   /** Every send-back, in the one feedback lane, and one label per target. */
   feedback: { paths: LanePath[]; labels: LaneLabel[] };
-  /** Each card's ends: outcomes that start nothing. */
-  stubs: StubPath[];
   /** The box holding every card, arrow and label; empty at the origin when there are no cards. */
   bounds: Box;
 }
 
-/** What the pack graph adds to the map (`mapArrowsFromGraph`). */
-export interface GraphLayer {
-  arrows: readonly GraphArrow[];
-  stubs: readonly MapStub[];
-}
-
 interface Card {
   stage: string;
-  /** Its place in the map's order. */
-  pos: number;
   row: 0 | 1;
   col: number;
 }
@@ -128,38 +109,26 @@ function placeCards(view: Declaration, rows: 1 | 2): Card[] {
   const perRow = rows === 1 ? ordered.length : Math.ceil(ordered.length / 2);
   return ordered.map((stage, pos) => {
     const row = pos < perRow ? 0 : 1;
-    return { stage: stage.id, pos, row, col: row === 0 ? pos : pos - perRow };
+    return { stage: stage.id, row, col: row === 0 ? pos : pos - perRow };
   });
 }
 
 /**
- * The declared arrows, then the graph's, between two cards. A graph arrow is a send-back when
- * it runs into its own card or one earlier in the order.
+ * The declared arrows between two cards. An arrow into its own card is a send-back whether or
+ * not it says so: it has no side to side to run.
  */
-function drawnArrows(
-  map: Declaration['map'],
-  cards: ReadonlyMap<string, Card>,
-  graph: GraphLayer | undefined
-): Drawn[] {
-  const declared = map.arrows.map(
-    (arrow, index): Drawn => ({
-      id: `decl:${index.toString()}`,
-      from: arrow.from,
-      to: arrow.to,
-      label: arrow.label,
-      back: arrow.back === true || arrow.from === arrow.to,
-      style: 'solid',
-      problems: [],
-    })
-  );
-  const fromGraph = (graph?.arrows ?? []).map(
-    (arrow, index): Drawn => ({
-      ...arrow,
-      id: `graph:${index.toString()}`,
-      back: (cards.get(arrow.to)?.pos ?? 0) <= (cards.get(arrow.from)?.pos ?? 0),
-    })
-  );
-  return [...declared, ...fromGraph].filter(arrow => cards.has(arrow.from) && cards.has(arrow.to));
+function drawnArrows(map: Declaration['map'], cards: ReadonlyMap<string, Card>): Drawn[] {
+  return map.arrows
+    .map(
+      (arrow, index): Drawn => ({
+        id: `decl:${index.toString()}`,
+        from: arrow.from,
+        to: arrow.to,
+        label: arrow.label,
+        back: arrow.back === true || arrow.from === arrow.to,
+      })
+    )
+    .filter(arrow => cards.has(arrow.from) && cards.has(arrow.to));
 }
 
 /** Undefined for a forward hand-off side to side; else where its lane runs. */
@@ -303,14 +272,11 @@ function boundsOf(boxes: readonly Box[], arrows: readonly ArrowPath[], extents: 
   return { x: left, y: top, w: right - left, h: lowest - top };
 }
 
-/**
- * The map's cards, arrows and bounds in `rows` rows, with the pack graph's arrows and ends
- * once it has been read.
- */
-export function layoutMap(view: Declaration, graph?: GraphLayer, rows: 1 | 2 = 1): MapLayout {
+/** The map's cards, arrows and bounds in `rows` rows. */
+export function layoutMap(view: Declaration, rows: 1 | 2 = 1): MapLayout {
   const placed = placeCards(view, rows);
   const cards = new Map(placed.map(card => [card.stage, card]));
-  const drawn = drawnArrows(view.map, cards, graph);
+  const drawn = drawnArrows(view.map, cards);
   const sendBacks = drawn.filter(arrow => arrow.back);
   const forward = drawn.flatMap((arrow, index): Placed[] => {
     const a = cards.get(arrow.from);
@@ -337,20 +303,12 @@ export function layoutMap(view: Declaration, graph?: GraphLayer, rows: 1 | 2 = 1
     })
   );
   const lane = feedbackLane(laneCards, feedbackY, sendBacks);
-  const stubs = (graph?.stubs ?? []).flatMap(stub => {
-    const card = cards.get(stub.stage);
-    const box = boxes.get(stub.stage);
-    if (card === undefined || box === undefined) return [];
-    const clear = LANE * lanesIn(laned, lanes, card.row === 0 ? 'above' : 'below');
-    return [stubPath(stub.stage, stub.label, box, card.row + 1, clear)];
-  });
-  const extents = [...stubs.map(stub => stub.extent), ...(lane.extent ? [lane.extent] : [])];
+  const extents = lane.extent ? [lane.extent] : [];
   return {
     boxes,
     rows,
     arrows,
     feedback: { paths: lane.paths, labels: lane.labels },
-    stubs,
     bounds: boundsOf([...boxes.values()], arrows, extents),
   };
 }

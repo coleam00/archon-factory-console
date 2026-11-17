@@ -73,27 +73,13 @@ describe('factoryViewSchema', () => {
     }
   });
 
-  test('a declared arrow joins stages of one workflow or runs into landed; the graph draws the rest', () => {
+  test('an arrow may join stages of different workflows: the view file declares every arrow', () => {
     const view = minimal();
-    view.stages.push({
-      id: 'review',
-      label: 'Review',
-      blurb: 'Reviews.',
-      group: 'check',
-      workflows: ['build'],
-    });
     view.map.arrows = [
-      { from: 'build', to: 'review' },
-      { from: 'review', to: 'landed' },
       { from: 'plan', to: 'build', label: 'planned' },
+      { from: 'build', to: 'plan', label: 'replan', back: true },
     ];
-    const parsed = factoryViewSchema.safeParse(view);
-    expect(parsed.error?.issues.map(issue => [issue.path.join('.'), issue.message])).toEqual([
-      [
-        'map.arrows.2',
-        'joins "plan" (plan) and "build" (build), which share no workflow: the pack graph draws a hand-off between workflows',
-      ],
-    ]);
+    expect(factoryViewSchema.safeParse(view).success).toBe(true);
   });
 
   test('a stage declared twice is rejected', () => {

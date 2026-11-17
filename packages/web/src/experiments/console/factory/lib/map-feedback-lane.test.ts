@@ -7,33 +7,25 @@ import {
   type LaneSide,
   type SendBack,
 } from './map-feedback-lane';
-import type { GraphArrowStyle } from './map-graph';
 import { crosses, enters, horizontal, segments } from './map-geometry.test-fixtures';
 import { CARD_H, CARD_W, COL_PITCH, LANE } from './map-sizes';
 
 const STAGES = ['triage', 'plan', 'build', 'checks', 'host', 'ready', 'landed'];
 
-/** Send-backs from several stages into several targets, in every style. */
-const sendBack = (
-  from: string,
-  to: string,
-  label: string,
-  style: GraphArrowStyle = 'solid'
-): SendBack => ({
+/** Send-backs from several stages into several targets, one into its own card. */
+const sendBack = (from: string, to: string, label: string): SendBack => ({
   id: `${from}->${to}:${label}`,
   from,
   to,
   label,
-  style,
-  problems: style === 'problem' ? ['refused'] : [],
 });
 const SEND_BACKS: SendBack[] = [
   sendBack('checks', 'build', 'returned'),
   sendBack('host', 'build', 'returned'),
-  sendBack('host', 'build', 'asks answered', 'declared'),
+  sendBack('host', 'build', 'asks answered'),
   sendBack('checks', 'plan', 'replan'),
   sendBack('plan', 'plan', 'asks answered'),
-  sendBack('ready', 'build', 'returned', 'problem'),
+  sendBack('ready', 'build', 'landing failed'),
 ];
 
 const oneRow = new Map(
@@ -130,42 +122,23 @@ describe('the feedback lane under one row', () => {
     );
   });
 
-  test('one label per target, under the lane on its leg, each outcome once per style', () => {
+  test('one label per target, under the lane on its leg, each outcome once', () => {
     expect(lane.labels.map(label => label.stage)).toEqual(['build', 'plan']);
-    const parts = (stage: string) =>
+    const text = (stage: string) =>
       lane.labels
         .find(label => label.stage === stage)
-        ?.lines.flatMap(line => line.parts.map(part => `${part.text} (${part.style})`));
-    // Two solid returns into Build are one outcome; the refused one is told apart.
-    expect(parts('build')).toEqual([
-      'returned (solid)',
-      'asks answered (declared)',
-      'returned (problem)',
-    ]);
-    expect(parts('plan')).toEqual(['replan (solid)', 'asks answered (solid)']);
+        ?.lines.map(line => line.text)
+        .join(' ');
+    // Two returns into Build, from Checks and from CI and review, are one outcome.
+    expect(text('build')).toBe('returned, asks answered, landing failed');
+    expect(text('plan')).toBe('replan, asks answered');
     const build = lane.labels.find(label => label.stage === 'build');
     const { to } = legs(lane);
+    expect(build?.lines.length).toBeGreaterThan(1);
     for (const line of build?.lines ?? []) {
       expect(line.at.x).toBe([...(to.get('build') ?? [])][0] ?? 0);
       expect(line.at.y).toBeGreaterThan(ONE_Y);
     }
-  });
-
-  test('two send-backs on one leg in different styles stay told apart by the label', () => {
-    // host -> build solid and host -> build declared draw the same line; the label differs.
-    const hostToBuild = lane.paths.filter(path => path.from === 'host' && path.to === 'build');
-    expect(new Set(hostToBuild.map(path => path.d)).size).toBe(1);
-    expect(new Set(hostToBuild.map(path => path.style))).toEqual(new Set(['solid', 'declared']));
-    const styles = lane.labels
-      .find(label => label.stage === 'build')
-      ?.lines.flatMap(line => line.parts.map(part => part.style));
-    expect(new Set(styles)).toEqual(new Set(['solid', 'declared', 'problem']));
-  });
-
-  test('declared send-backs draw first and refused ones last, so error dashes stay on top', () => {
-    const order = lane.paths.map(path => path.style);
-    expect(order).toEqual([...order].sort((p, q) => rank(p) - rank(q)));
-    expect(order.at(-1)).toBe('problem');
   });
 
   test('the extent holds the lane and its labels; the label room is what they take', () => {
@@ -212,5 +185,3 @@ describe('the feedback lane between two rows', () => {
     }
   });
 });
-
-const rank = (style: GraphArrowStyle): number => ({ declared: 0, solid: 1, problem: 2 })[style];
