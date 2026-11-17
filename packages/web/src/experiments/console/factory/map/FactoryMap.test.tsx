@@ -111,15 +111,56 @@ test('every card shows its chips; a click opens its details with the items there
   }
 });
 
-test('a double-click opens the stage page', async () => {
+const clickOf = (target: Element, detail: number): Promise<void> =>
+  act(async () => {
+    target.dispatchEvent(
+      new dom.MouseEvent('click', { bubbles: true, cancelable: true, detail }) as unknown as Event
+    );
+  });
+const stagePage = (container: HTMLElement): string | null | undefined =>
+  container.querySelector('[data-testid="stage-page"]')?.textContent;
+
+test('a double-click on a card opens its stage page', async () => {
   const { container, unmount } = await mount();
   try {
-    await act(async () => {
-      card(container, 'checks').dispatchEvent(
-        new dom.MouseEvent('dblclick', { bubbles: true }) as unknown as Event
-      );
-    });
-    expect(container.querySelector('[data-testid="stage-page"]')?.textContent).toBe('checks');
+    await clickOf(card(container, 'checks'), 1);
+    await clickOf(card(container, 'checks'), 2);
+    expect(stagePage(container)).toBe('checks');
+  } finally {
+    await unmount();
+  }
+});
+
+test("a double-click whose second click lands in the opened panel opens the first click's stage", async () => {
+  const { container, unmount } = await mount();
+  try {
+    await clickOf(card(container, 'landed'), 1);
+    const itemLink = container.querySelector('aside[aria-label="Landed details"] li a');
+    if (itemLink === null) throw new Error('The panel did not open on the first click');
+    await clickOf(itemLink, 2);
+    expect(stagePage(container)).toBe('landed');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a lone second click on a card, as a synthesised double-click sends, opens that card', async () => {
+  const { container, unmount } = await mount();
+  try {
+    await clickOf(card(container, 'plan'), 2);
+    expect(stagePage(container)).toBe('plan');
+  } finally {
+    await unmount();
+  }
+});
+
+test('two single clicks select, and never open a stage', async () => {
+  const { container, unmount } = await mount();
+  try {
+    await clickOf(card(container, 'landed'), 1);
+    await clickOf(card(container, 'build'), 1);
+    expect(stagePage(container)).toBeUndefined();
+    expect(container.querySelector('aside[aria-label="Build details"]')).not.toBeNull();
   } finally {
     await unmount();
   }

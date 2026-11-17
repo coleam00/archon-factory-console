@@ -14,9 +14,11 @@ interface MapCardProps {
   selected: boolean;
   /** The stage page's path. */
   openTo: string;
-  /** A click (`detail` counts the clicks of a double-click; 0 from the keyboard). */
+  /**
+   * A click; `detail` counts the clicks of a double-click (0 from the keyboard). The map opens
+   * the stage on a double-click's second click.
+   */
   onSelect: (stage: string, detail: number) => void;
-  onOpen: (stage: string) => void;
 }
 
 /** One stage on the map: its colour, label, blurb and live chips, selectable and openable. */
@@ -28,7 +30,6 @@ export function MapCard({
   selected,
   openTo,
   onSelect,
-  onOpen,
 }: MapCardProps): ReactElement {
   const color = GROUPS[stage.group].color;
   return (
@@ -42,7 +43,6 @@ export function MapCard({
         aria-pressed={selected}
         aria-label={`${stage.label}: ${chipWords(live)}`}
         onClick={(event: MouseEvent) => onSelect(stage.id, event.detail)}
-        onDoubleClick={() => onOpen(stage.id)}
         className={`relative flex size-full flex-col gap-1 overflow-hidden rounded-console-12 border bg-surface py-2.5 pl-4 pr-7 text-left transition-colors hover:bg-surface-elevated ${
           selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border'
         }`}

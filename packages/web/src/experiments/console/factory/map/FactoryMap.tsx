@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { useNavigate } from 'react-router';
 import { errorDetail } from '../../lib/http';
 import type { AttentionQueue } from '../../skills/runs';
@@ -13,13 +21,6 @@ import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
 import { MapLegend } from './MapLegend';
 import { useMapCamera } from './useMapCamera';
-
-/**
- * How long a first click waits before it opens the details panel. Opening the panel narrows
- * the frame and refits the map, so a second click landing after it could hit another card; a
- * double-click inside this time opens the stage instead.
- */
-const DOUBLE_CLICK_MS = 250;
 
 interface FactoryMapProps {
   projectId: string;
@@ -76,11 +77,11 @@ function MapCanvas({
   }, [view.map]);
   const [selected, setSelected] = useState<string | null>(null);
   const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
-  const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** The card the last single click selected: a second click of a double-click opens it. */
+  const firstClick = useRef<string | null>(null);
   const stagePath = (stage: string): string =>
     factoryPath(projectId, `/stages/${encodeURIComponent(stage)}`);
 
-  useEffect(() => () => clearTimeout(pending.current), []);
   useEffect(() => {
     if (selected === null) return;
     const onKey = (event: KeyboardEvent): void => {
@@ -91,13 +92,26 @@ function MapCanvas({
   }, [selected]);
 
   const select = (stage: string, detail: number): void => {
-    clearTimeout(pending.current);
-    // The keyboard (detail 0), or a panel already open, moves nothing: select at once.
-    if (detail === 0 || selected !== null) setSelected(stage);
-    else if (detail === 1) pending.current = setTimeout(() => setSelected(stage), DOUBLE_CLICK_MS);
+    if (detail === 1) firstClick.current = stage;
+    setSelected(stage);
   };
-  const open = (stage: string): void => {
-    clearTimeout(pending.current);
+  /**
+   * The first click opens the details panel at once, which narrows the frame and refits the
+   * map, so the second click of a double-click can land on another card or in the panel. The
+   * row catches it first and opens the card the first click was on, whatever is under it now.
+   */
+  const onRowClickCapture = (event: MouseEvent): void => {
+    if (event.detail < 2) {
+      firstClick.current = null;
+      return;
+    }
+    // No first click was seen (a synthesised double-click sends only the second): the card
+    // under this one.
+    const under = (event.target as Partial<Element>).closest?.('[data-stage]');
+    const stage = firstClick.current ?? under?.getAttribute('data-stage') ?? null;
+    if (stage === null) return;
+    event.preventDefault();
+    event.stopPropagation();
     void navigate(stagePath(stage));
   };
 
@@ -108,7 +122,7 @@ function MapCanvas({
   return (
     <div className="flex flex-col gap-2">
       {/* Side by side from md up; on a phone the details stack under the map. */}
-      <div className="flex flex-col gap-3 md:flex-row">
+      <div className="flex flex-col gap-3 md:flex-row" onClickCapture={onRowClickCapture}>
         <div
           ref={camera.frameRef}
           style={{ height: camera.height }}
@@ -139,7 +153,6 @@ function MapCanvas({
                   selected={stage.id === selected}
                   openTo={stagePath(stage.id)}
                   onSelect={select}
-                  onOpen={open}
                 />
               );
             })}
