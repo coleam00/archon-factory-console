@@ -33,7 +33,7 @@ const minimal = (): FactoryView => ({
       { stage: 'plan', col: 1, row: 1 },
       { stage: 'build', col: 2, row: 1 },
     ],
-    arrows: [{ from: 'plan', to: 'build', label: 'planned' }],
+    arrows: [{ from: 'build', to: 'landed', label: 'merged' }],
     notes: [{ text: 'You answer asks here', near: 'needs-you' }],
   },
 });
@@ -74,6 +74,29 @@ describe('factoryViewSchema', () => {
       broken.placement[key] = 'landed';
       expect(issuePaths(broken)).toEqual([`placement.${key}`]);
     }
+  });
+
+  test('a declared arrow joins stages of one workflow or runs into landed; the graph draws the rest', () => {
+    const view = minimal();
+    view.stages.push({
+      id: 'review',
+      label: 'Review',
+      blurb: 'Reviews.',
+      group: 'check',
+      workflows: ['build'],
+    });
+    view.map.arrows = [
+      { from: 'build', to: 'review' },
+      { from: 'review', to: 'landed' },
+      { from: 'plan', to: 'build', label: 'planned' },
+    ];
+    const parsed = factoryViewSchema.safeParse(view);
+    expect(parsed.error?.issues.map(issue => [issue.path.join('.'), issue.message])).toEqual([
+      [
+        'map.arrows.2',
+        'joins "plan" (plan) and "build" (build), which share no workflow: the pack graph draws a hand-off between workflows',
+      ],
+    ]);
   });
 
   test('a stage declared twice is rejected', () => {

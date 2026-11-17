@@ -15,7 +15,7 @@ export function FactoryPage(): ReactElement {
         <>
           <FactoryNumbers projectId={projectId} view={view.declaration} />
           <NeedsYouList projectId={projectId} attention={attention} />
-          <FactoryMap projectId={projectId} view={view.declaration} attention={attention} />
+          <FactoryMap projectId={projectId} view={view} attention={attention} />
         </>
       )}
     </FactoryFrame>

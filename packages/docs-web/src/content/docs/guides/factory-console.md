@@ -24,10 +24,16 @@ it. Inside it:
 - **Overview**: the view's title and summary, then a strip of numbers, then **Needs you**:
   every open question an item is waiting on, one line each with its recommended option.
   **Open** a line to answer it in place, the recommended option first. The newest few show;
-  **N more · show all** lists the rest. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
-  on the `map` grid, coloured by group, with the declared hand-offs between them (returns
-  dashed, in the gap below a row). Each card says how many items are in it now, pulsing while a run works one,
-  and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
+  **N more · show all** lists the rest. Paused runs' waits appear there too. Under the open
+  asks, **Answered lately** lists the last asks an item settled and the stage that answer
+  started again, linking to that run. Then **the map**: the declared stages as cards on the
+  `map` grid, coloured by group, with the hand-offs between them. A hand-off from one
+  workflow to another comes from the pack's stage graph for this install (`archon pack graph`):
+  solid when a trigger file here starts it, dashed when the pack declares it and nothing here
+  starts it, and in the error colour when the install refuses it. An outcome that starts
+  nothing and leaves no ask ends at a bar on its card's outer edge; a start of a workflow with
+  no card is listed under the map. Each card says how many items are in it now, pulsing while
+  a run works one, and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
   the whole map when it fits at a readable size; with a card's details open, or on a narrow
   screen, it stops at the smallest readable size, so drag, zoom out or close the details to
   see the rest. Click a card for its items and workflows; double-click it, or its open icon, for
@@ -111,7 +117,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose first line is the item's title. Without it, the item's key is its title. |
-| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. An arrow between cards in different rows and columns, and every return, runs through the gap below the upper row, and a gap grows with the arrows it carries. Four columns fill a 1440px screen at full size; a wider grid fits smaller. |
+| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages one workflow works, or run into the `landed` stage (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. A hand-off from one workflow to another is not declared: the map draws it from the pack's stage graph. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. An arrow between cards in different rows and columns, and every return, runs through the gap below the upper row, and a gap grows with the arrows it carries. Four columns fill a 1440px screen at full size; a wider grid fits smaller. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
@@ -172,7 +178,6 @@ Every stage a field names must be declared in `stages`, and every workflow named
       { "stage": "landed", "col": 4, "row": 1 }
     ],
     "arrows": [
-      { "from": "plan", "to": "build", "label": "planned" },
       { "from": "build", "to": "review" },
       { "from": "review", "to": "build", "label": "returned", "back": true },
       { "from": "review", "to": "landed", "label": "merged" }

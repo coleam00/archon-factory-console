@@ -7,7 +7,9 @@ import type { EntityView } from '../../store/cache';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import type { FactoryItem } from '../../skills/factory';
-import { shippedView } from '../item-detail.test-fixtures';
+import type { PackGraph } from '../../skills/packs';
+import { shippedListed } from '../item-detail.test-fixtures';
+import livePackGraph from '../lib/fixtures/pack-graph.json';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
 import { MAP_TEXT_PX } from '../lib/map-camera';
@@ -31,7 +33,10 @@ afterAll(async () => {
     else Reflect.deleteProperty(globalThis, key);
   }
 });
-afterEach(() => invalidate('factory-items'));
+afterEach(() => {
+  invalidate('factory-items');
+  invalidate('pack-graph');
+});
 
 const ID = 'cb-1';
 const asking = itemWith('9', [run('deliver', 'completed', 'ask')]);
@@ -53,9 +58,11 @@ function StagePage(): React.ReactElement {
 }
 
 async function mount(
-  read: FactoryItem[] = items
+  read: FactoryItem[] = items,
+  graph: PackGraph | null = livePackGraph as PackGraph
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
   set(K.factoryItems(ID), read);
+  if (graph !== null) set(K.packGraph(ID, shippedListed.packKey), graph);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -65,7 +72,7 @@ async function mount(
         <Routes>
           <Route
             path="/console/p/:projectId/factory"
-            element={<FactoryMap projectId={ID} view={shippedView} attention={attention} />}
+            element={<FactoryMap projectId={ID} view={shippedListed} attention={attention} />}
           />
           <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
         </Routes>
@@ -253,5 +260,60 @@ test('a later read on a step no stage names keeps the card where the last read p
     expect(hereChip(container, 'build')).toBeNull();
   } finally {
     await unmount();
+  }
+});
+
+test('hand-offs between workflows come from the pack graph, solid where the install starts them', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const drawn = [...container.querySelectorAll('g[data-arrow]')].map(
+      g => `${g.textContent ?? ''} (${g.getAttribute('data-style') ?? ''})`
+    );
+    // The declared hand-offs inside deliver and into Landed, then the graph's.
+    expect(drawn).toEqual([
+      'built (solid)',
+      'approved (solid)',
+      'merged (solid)',
+      'returned (solid)',
+      'returned (solid)',
+      'ready (solid)',
+      // Stacked one outcome per line in the narrow gap between two cards.
+      'build,narrow (solid)',
+      'planned (solid)',
+      'ready (solid)',
+      'asks answered (solid)',
+      'asks answered (solid)',
+    ]);
+    // The outcomes that start nothing end at a bar on their card.
+    expect(container.querySelector('g[data-ends="triage"]')?.textContent).toContain('decline');
+    expect(container.querySelector('g[data-ends="order"]')?.textContent).toBe('refused');
+    expect(container.querySelector('g[data-ends="plan"]')).toBeNull();
+    // A start of a workflow with no card is named under the map.
+    expect(
+      container.querySelector('ul[aria-label="Starts not on the map"]')?.textContent
+    ).toContain('Wirasm/archon-software-factory:discoveries');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a pack graph that cannot be read leaves the declared arrows and says why', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = Object.assign(
+    async () => Response.json({ error: 'No workflow pack was found' }, { status: 404 }),
+    { preconnect: originalFetch.preconnect }
+  );
+  const { container, unmount } = await mount(items, null);
+  try {
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'No workflow pack was found'
+    );
+    expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
+      shippedListed.declaration.map.arrows.length
+    );
+  } finally {
+    await unmount();
+    globalThis.fetch = originalFetch;
   }
 });

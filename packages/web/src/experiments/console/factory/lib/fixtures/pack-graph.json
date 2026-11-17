@@ -1,0 +1,582 @@
+{
+  "pack": "Wirasm.archon-software-factory",
+  "stages": [
+    {
+      "name": "Wirasm/archon-software-factory:build",
+      "returns": "build",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "built",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          },
+          {
+            "value": "stop",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:deliver",
+      "returns": "result",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "ready",
+            "startsNothing": false
+          },
+          {
+            "value": "returned",
+            "startsNothing": true
+          },
+          {
+            "value": "waiting",
+            "startsNothing": true
+          },
+          {
+            "value": "replan",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": true,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:discoveries",
+      "returns": "drain",
+      "outcome": null,
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:host",
+      "returns": "host",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "clear",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "waiting",
+            "startsNothing": true
+          },
+          {
+            "value": "none",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:inspect",
+      "returns": "report",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "approve",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "replan",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          },
+          {
+            "value": "refused",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:investigate",
+      "returns": "investigate",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "caused",
+            "startsNothing": true
+          },
+          {
+            "value": "not_reproduced",
+            "startsNothing": true
+          },
+          {
+            "value": "not_a_bug",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:judge",
+      "returns": "judge",
+      "outcome": null,
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:land",
+      "returns": "land",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "landed",
+            "startsNothing": true
+          },
+          {
+            "value": "returned",
+            "startsNothing": true
+          },
+          {
+            "value": "stop",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:landgate",
+      "returns": "gate",
+      "outcome": null,
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:link",
+      "returns": "link",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "place",
+            "startsNothing": true
+          },
+          {
+            "value": "fold",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:order",
+      "returns": "order",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "ready",
+            "startsNothing": false
+          },
+          {
+            "value": "refused",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:plan",
+      "returns": "plan",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "planned",
+            "startsNothing": false
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          },
+          {
+            "value": "stop",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": true,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:product",
+      "returns": "product",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "approve",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:review",
+      "returns": "review",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "approve",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "replan",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:tests",
+      "returns": "tests",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "sound",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:triage",
+      "returns": "judge__judge",
+      "outcome": {
+        "field": "recommend",
+        "form": "enum",
+        "values": [
+          {
+            "value": "build",
+            "startsNothing": false
+          },
+          {
+            "value": "narrow",
+            "startsNothing": false
+          },
+          {
+            "value": "recipe",
+            "startsNothing": true
+          },
+          {
+            "value": "native",
+            "startsNothing": true
+          },
+          {
+            "value": "fold",
+            "startsNothing": true
+          },
+          {
+            "value": "park",
+            "startsNothing": true
+          },
+          {
+            "value": "deprecate",
+            "startsNothing": true
+          },
+          {
+            "value": "decline",
+            "startsNothing": true
+          },
+          {
+            "value": "close",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:validate",
+      "returns": "validate",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "passed",
+            "startsNothing": true
+          },
+          {
+            "value": "failed",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    },
+    {
+      "name": "Wirasm/archon-software-factory:verdict",
+      "returns": "verdict",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "approve",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "replan",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": []
+    }
+  ],
+  "arrows": [
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:order",
+        "outcome": "ready"
+      },
+      "to": "Wirasm/archon-software-factory:triage",
+      "active": true,
+      "declared": {
+        "binding": "triage-after-order",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-triage-after-order-ready-da18e160b7b6.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-triage-after-order-ready-da18e160b7b6",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "build"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": true,
+      "declared": {
+        "binding": "plan-after-triage",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "narrow"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": true,
+      "declared": {
+        "binding": "plan-after-triage",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-narrow-022970381624.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-narrow-022970381624",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:plan",
+        "outcome": "planned"
+      },
+      "to": "Wirasm/archon-software-factory:deliver",
+      "active": true,
+      "declared": {
+        "binding": "deliver-after-plan",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:deliver",
+        "outcome": "ready"
+      },
+      "to": "Wirasm/archon-software-factory:landgate",
+      "active": true,
+      "declared": {
+        "binding": "landgate-after-deliver",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-landgate-after-deliver-ready-1c0ffe07697c.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-landgate-after-deliver-ready-1c0ffe07697c",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:deliver",
+        "outcome": "ready"
+      },
+      "to": "Wirasm/archon-software-factory:discoveries",
+      "active": true,
+      "declared": {
+        "binding": "discoveries-after-deliver",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-discoveries-after-deliver-ready-e89b89823cf2.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-discoveries-after-deliver-ready-e89b89823cf2",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:plan",
+        "settled": "answered"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": true,
+      "declared": {
+        "binding": "plan-after-answers",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-answers-701fe3d34872.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-answers-701fe3d34872",
+        "problems": []
+      }
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:deliver",
+        "settled": "answered"
+      },
+      "to": "Wirasm/archon-software-factory:deliver",
+      "active": true,
+      "declared": {
+        "binding": "deliver-after-answers",
+        "problems": []
+      },
+      "installed": {
+        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-answers-355e96d3ad67.json",
+        "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-answers-355e96d3ad67",
+        "problems": []
+      }
+    }
+  ],
+  "fanOutBlocks": [],
+  "discoveryErrors": []
+}

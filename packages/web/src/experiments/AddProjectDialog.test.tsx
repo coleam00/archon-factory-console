@@ -48,6 +48,7 @@ mock.module('./console/skills', () => ({
   getFactoryWorkflow: mock(),
   getFactoryProgress: mock(),
   listItemWindow: mock(),
+  getPackGraph: mock(),
   getFactoryItem: mock(),
   listAttentionQueue: mock(),
   answerAttentionItem: mock(),

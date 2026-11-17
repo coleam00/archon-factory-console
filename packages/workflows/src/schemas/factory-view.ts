@@ -65,13 +65,18 @@ const mapSchema = z.strictObject({
       row: z.number().int().min(1),
     })
   ),
+  /**
+   * Hand-offs the pack graph cannot report: between stages one workflow works (its steps),
+   * or into the landed stage. A hand-off from one workflow to another is the pack graph's
+   * (`GET /api/packs/{pack}/graph`), which the console draws from the install itself.
+   */
   arrows: z.array(
     z.strictObject({
       from: stageIdSchema,
       to: stageIdSchema,
       /** The outcome that moves an item along, in plain words. */
       label: labelSchema.optional(),
-      /** A return: drawn dashed and below. */
+      /** A return: routed below the row, in a lane of its own. */
       back: z.boolean().optional(),
     })
   ),
@@ -165,6 +170,30 @@ function stageReferenceIssues(view: FactoryViewShape): Issue[] {
   return issues;
 }
 
+/**
+ * A declared map arrow joins two stages one workflow works, or runs into the landed stage;
+ * an arrow between workflows would restate, and could contradict, the pack graph.
+ */
+function arrowIssues(view: FactoryViewShape): Issue[] {
+  const workflowsOf = new Map(view.stages.map(stage => [stage.id, stage.workflows]));
+  const issues: Issue[] = [];
+  view.map.arrows.forEach((arrow, index) => {
+    const from = workflowsOf.get(arrow.from);
+    const to = workflowsOf.get(arrow.to);
+    // A stage that is not declared is reported by `stageReferenceIssues`.
+    if (from === undefined || to === undefined) return;
+    if (arrow.to === view.landed.stage || arrow.from === view.landed.stage) return;
+    if (from.some(workflow => to.includes(workflow))) return;
+    const names = (workflows: string[]): string =>
+      workflows.length === 0 ? 'no workflow' : workflows.join(', ');
+    issues.push({
+      path: ['map', 'arrows', index],
+      message: `joins "${arrow.from}" (${names(from)}) and "${arrow.to}" (${names(to)}), which share no workflow: the pack graph draws a hand-off between workflows`,
+    });
+  });
+  return issues;
+}
+
 /** Every workflow the declaration reads outcomes or steps of is one a stage counts. */
 function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   const workflows = new Set(view.stages.flatMap(stage => stage.workflows));
@@ -188,7 +217,11 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
 }
 
 export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
-  for (const issue of [...stageReferenceIssues(view), ...workflowReferenceIssues(view)])
+  for (const issue of [
+    ...stageReferenceIssues(view),
+    ...workflowReferenceIssues(view),
+    ...arrowIssues(view),
+  ])
     ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
 });
 export type FactoryView = z.infer<typeof factoryViewSchema>;
