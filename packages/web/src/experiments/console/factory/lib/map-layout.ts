@@ -3,9 +3,9 @@
  * declaration's `map` block only: cards on its 1-based grid, forward arrows between card
  * sides, back arrows (returns) dropped into lanes below the cards so none overlap.
  */
-import type { Declaration } from './board';
+import type { FactoryViewListed } from './views';
 
-type MapBlock = Declaration['map'];
+type MapBlock = FactoryViewListed['declaration']['map'];
 type MapArrow = MapBlock['arrows'][number];
 
 /*

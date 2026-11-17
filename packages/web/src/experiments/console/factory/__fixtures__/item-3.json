@@ -138,6 +138,24 @@
       "progress": {
         "title": "A read-only page of a project's items with each item's live progress (running step, round, returns, change)",
         "running": null,
+        "runs": [
+          {
+            "runId": "d6a33d87-0ac6-431e-a2f8-4fa33e91a1b2",
+            "workflow": "triage"
+          },
+          {
+            "runId": "7e1a2eb1-d114-497f-ac42-71b2d598fa2d",
+            "workflow": "plan"
+          },
+          {
+            "runId": "ab288319-6192-4645-8306-65622f0a966b",
+            "workflow": "deliver"
+          },
+          {
+            "runId": "80cc1489-d934-4cba-8979-de51c375bcf1",
+            "workflow": "deliver"
+          }
+        ],
         "round": {
           "runId": "80cc1489-d934-4cba-8979-de51c375bcf1",
           "iteration": 2,

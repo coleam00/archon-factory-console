@@ -627,6 +627,9 @@ first view that applies (`pack` names it):
 
 - `running`: the latest-started running run of a workflow the view names, with the workflow as
   the view names it and its deepest running step; null when none runs.
+- `runs`: the item's runs of workflows the view names, in start order, each with its `runId`
+  and the workflow as the view names it; status and outcome are on the item read's `runs`,
+  joined by id.
 - `round`: the view's `rounds` loop on the latest run that entered it: the latest iteration,
   the loop's bound, and each round's `verdict` and `outcome`. `verdict` is `returned` (a
   `returns` point in the loop sent the item back that round), `ended` (the round completed

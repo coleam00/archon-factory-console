@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { FactoryStage } from '../lib/board';
+import type { FactoryStage } from '../lib/stage-steps';
 
 /**
  * Each colour group's colour and its plain words. Keyed by the generated group enum, so a

@@ -10,9 +10,9 @@ import {
   ROW_PITCH,
   type ArrowPath,
 } from './map-layout';
-import { softwareFactory } from './map.test-fixtures';
+import { shippedView } from '../item-detail.test-fixtures';
 
-const map = softwareFactory.map;
+const map = shippedView.map;
 const boxes = cardBoxes(map);
 const arrows = arrowPaths(map, boxes);
 const arrow = (from: string, to: string): ArrowPath => {

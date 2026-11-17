@@ -11,11 +11,11 @@ import { useNavigate } from 'react-router';
 import { errorDetail } from '../../lib/http';
 import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
-import { useFactoryItems } from '../items';
-import type { Declaration, FactoryItem } from '../lib/board';
+import type { FactoryItem } from '../../skills/factory';
+import { useFactoryItems } from '../useFactoryItems';
 import { arrowPaths, cardBoxes, mapBounds } from '../lib/map-layout';
 import { stageLive, type MapLive } from '../lib/map-live';
-import { factoryPath } from '../lib/views';
+import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
@@ -28,7 +28,7 @@ const DOUBLE_CLICK_SLOP = 4;
 
 interface FactoryMapProps {
   projectId: string;
-  view: Declaration;
+  view: FactoryViewListed['declaration'];
   attention: EntityView<AttentionQueue>;
 }
 
@@ -70,7 +70,7 @@ function MapCanvas({
   live,
 }: {
   projectId: string;
-  view: Declaration;
+  view: FactoryViewListed['declaration'];
   live: MapLive;
 }): ReactElement {
   const navigate = useNavigate();

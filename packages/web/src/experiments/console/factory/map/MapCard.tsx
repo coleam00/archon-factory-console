@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactElement } from 'react';
 import { Link } from 'react-router';
-import type { FactoryStage } from '../lib/board';
+import type { FactoryStage } from '../lib/stage-steps';
 import type { Box } from '../lib/map-layout';
 import type { StageLive } from '../lib/map-live';
 import { GROUPS } from './MapLegend';

@@ -21,9 +21,9 @@ import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
 import { parseRunUsage } from './schemas/run-usage';
-import { isTerminalRunStatus, terminalWorkflowRunStatusSchema } from './schemas/run-status';
+import { isTerminalRunStatus } from './schemas/run-status';
 import type { WorkflowEventRow } from './schemas/workflow-event';
-import { displayedRunOutcome, type WorkflowRun } from './schemas/workflow-run';
+import type { WorkflowRun } from './schemas/workflow-run';
 import {
   foldActiveNodeIds,
   NODE_STATE_EVENT_TYPES,
@@ -60,20 +60,16 @@ export const factoryItemProgressSchema = z.object({
     })
     .nullable(),
   /**
-   * The latest-started run of a declared workflow that ended; null when none has. A paused
-   * run is neither running nor ended, so the item keeps the place its previous run left it.
+   * The item's runs of declared workflows, in start order, each with the workflow as the
+   * view declares it (a run records `owner/name:workflow`). Status and outcome are on the
+   * item read's `runs`, joined by id: the console's placement reads them together.
    */
-  ended: z
-    .object({
+  runs: z.array(
+    z.object({
       runId: z.string(),
-      /** The workflow as the view declares it, not as the run records it. */
       workflow: z.string(),
-      status: terminalWorkflowRunStatusSchema,
-      /** The outcome it completed with, as `ItemRead`'s runs show it; null when none. */
-      outcome: z.string().nullable(),
-      completedAt: z.string().datetime().nullable(),
     })
-    .nullable(),
+  ),
   /** The declared rounds loop on the latest run of its workflow that entered it. */
   round: z
     .object({
@@ -425,17 +421,6 @@ export async function factoryItemProgress(
         }
       : null
   );
-  const ended = latest(run =>
-    isTerminalRunStatus(run.status)
-      ? {
-          runId: run.id,
-          workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
-          status: run.status,
-          outcome: displayedRunOutcome(run),
-          completedAt: run.completed_at?.toISOString() ?? null,
-        }
-      : null
-  );
   const round = latest((run, fact) => {
     const last = fact.rounds?.rounds.at(-1);
     return fact.rounds && last
@@ -456,7 +441,10 @@ export async function factoryItemProgress(
   return {
     title: itemTitle(view, runs),
     running,
-    ended,
+    runs: declared.flatMap(run => {
+      const workflow = declaredWorkflow(view, pack, run.workflow_name);
+      return workflow === null ? [] : [{ runId: run.id, workflow }];
+    }),
     round,
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change:

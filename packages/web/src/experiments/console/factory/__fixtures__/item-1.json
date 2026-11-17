@@ -57,6 +57,20 @@
       "progress": {
         "title": "The live-home guard and dev:console have tests",
         "running": null,
+        "runs": [
+          {
+            "runId": "88640c6d-975d-4232-8371-c55226236e2a",
+            "workflow": "triage"
+          },
+          {
+            "runId": "147ff872-555d-43fe-ae98-3ee9e3b884ab",
+            "workflow": "plan"
+          },
+          {
+            "runId": "c90ebf41-6ea3-4261-b63b-b460ad78045e",
+            "workflow": "deliver"
+          }
+        ],
         "round": {
           "runId": "c90ebf41-6ea3-4261-b63b-b460ad78045e",
           "iteration": 2,

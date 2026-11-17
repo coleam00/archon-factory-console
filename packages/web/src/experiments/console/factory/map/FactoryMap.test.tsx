@@ -6,7 +6,8 @@ import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import { endedWith, itemWith, realItem, softwareFactory } from '../lib/map.test-fixtures';
+import { shippedView } from '../item-detail.test-fixtures';
+import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
 import { FactoryMap } from './FactoryMap';
 
@@ -31,8 +32,8 @@ afterAll(async () => {
 afterEach(() => invalidate('factory-items'));
 
 const ID = 'cb-1';
-const asking = itemWith('9', endedWith('deliver', 'completed', 'ask'));
-const items = [realItem('5'), realItem('8'), realItem('7'), asking];
+const asking = itemWith('9', [run('deliver', 'completed', 'ask')]);
+const items = [realItem('5'), realItem('4'), realItem('7'), asking];
 const queue: AttentionQueue = {
   items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
   runs: [],
@@ -60,7 +61,7 @@ async function mount(): Promise<{ container: HTMLElement; unmount: () => Promise
         <Routes>
           <Route
             path="/console/p/:projectId/factory"
-            element={<FactoryMap projectId={ID} view={softwareFactory} attention={attention} />}
+            element={<FactoryMap projectId={ID} view={shippedView} attention={attention} />}
           />
           <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
         </Routes>

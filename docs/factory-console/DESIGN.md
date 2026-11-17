@@ -137,9 +137,9 @@ those land, this section adds **one read-only route file**, `packages/server/src
 - `GET /api/factory/items?codebaseId=&since=&limit=&after=` a page of the project's items, newest
   activity first. Each entry is the engine's own `ItemRead` (as `GET /api/items` returns it,
   same schema, imported, not restated) plus a `progress` object the board needs and `ItemRead`
-  does not carry: the running run's id, workflow and deepest running step, the last run that
-  ended with its declared workflow, status and outcome (what placement rules 3 to 5 read), the
-  current loop iteration of the declared `rounds` loop, the returned count, the change URL from
+  does not carry: the running run's id, workflow and deepest running step, each declared run's
+  workflow as the view names it (runs record `owner/name:workflow`; placement joins it with the
+  run's status and outcome), the current loop iteration of the declared `rounds` loop, the returned count, the change URL from
   the declared pointer, and the title. Shape the page like #5815 (`{ items, next }`) so swapping to it later
   is a change of one skill.
 - `GET /api/factory/item?codebaseId=&key=` one item as a page entry reads it, plus what its

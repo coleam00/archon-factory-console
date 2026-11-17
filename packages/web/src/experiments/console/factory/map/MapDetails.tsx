@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { Link } from 'react-router';
-import type { FactoryItem, FactoryStage } from '../lib/board';
+import type { FactoryItem } from '../../skills/factory';
+import type { FactoryStage } from '../lib/stage-steps';
 import type { StageLive } from '../lib/map-live';
 import { factoryPath } from '../lib/views';
 

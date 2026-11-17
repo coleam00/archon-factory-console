@@ -3,6 +3,8 @@ import { itemDetail, shippedView } from '../item-detail.test-fixtures';
 import {
   itemColumn,
   itemState,
+  pageRunFacts,
+  placementInput,
   stageOfStep,
   stageOfWorkflow,
   type ItemColumn,
@@ -84,6 +86,13 @@ describe('where an item sits', () => {
     );
   });
 
+  test("3 before 5: a failed run after a placed completion keeps the completion's place", () => {
+    const waiting = [run('deliver', 'completed', 'waiting'), run('deliver', 'failed')];
+    expect(where(itemColumn(view, input(waiting)))).toBe('host');
+    const planned = [run('plan', 'completed', 'planned'), run('triage', 'failed')];
+    expect(where(itemColumn(view, input(planned)))).toBe('build');
+  });
+
   test('5. the last run failed or was cancelled: the stage of its workflow', () => {
     expect(where(itemColumn(view, input([run('deliver', 'failed')])))).toBe('build');
     expect(where(itemColumn(view, input([run('triage', 'cancelled')])))).toBe('triage');
@@ -99,21 +108,27 @@ describe('where an item sits', () => {
   test('the captured items: item 1 merged, item 3 asked from build, item 6 building', () => {
     const fromDetail = (key: '1' | '3' | '6'): PlacementInput => {
       const detail = itemDetail(key);
-      const facts = new Map(detail.runs.map(fact => [fact.runId, fact]));
-      return input(
-        detail.item.runs.map(itemRun => ({
-          workflow: facts.get(itemRun.id)?.workflow ?? null,
-          status: itemRun.status,
-          outcome: itemRun.outcome,
-          step: facts.get(itemRun.id)?.step ?? null,
-        })),
-        { merged: detail.item.progress?.change?.merged ?? null }
-      );
+      return placementInput(detail.item, new Map(detail.runs.map(f => [f.runId, f])), false);
     };
     expect(where(itemColumn(view, fromDetail('1')))).toBe('landed');
     expect(where(itemColumn(view, fromDetail('6')))).toBe('build');
     // Item 3's merge state was unknown when it was captured: the placement of `deliver:ask`.
     expect(where(itemColumn(view, fromDetail('3')))).toBe('build');
+  });
+});
+
+describe('one placement input for every view of an item', () => {
+  test('the items read places a captured item as its item page does', () => {
+    for (const key of ['1', '2', '3', '6'] as const) {
+      const { item, runs } = itemDetail(key);
+      if (item.progress === null) throw new Error(`fixture ${key} has progress`);
+      const page = placementInput(item, pageRunFacts(item.progress), false);
+      const detail = placementInput(item, new Map(runs.map(f => [f.runId, f])), false);
+      // The detail knows every running run's step; the page only the latest's, which is the
+      // one placement reads.
+      expect(itemColumn(view, page)).toEqual(itemColumn(view, detail));
+      expect(page.runs.map(r => r.workflow)).toEqual(detail.runs.map(r => r.workflow));
+    }
   });
 });
 

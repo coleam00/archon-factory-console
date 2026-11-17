@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import type { Declaration } from '../lib/board';
+import type { FactoryViewListed } from '../lib/views';
 import type { NotOnMap } from '../lib/map-live';
 import { factoryPath } from '../lib/views';
 
@@ -14,7 +14,7 @@ export function MapNotOnMap({
   entries,
 }: {
   projectId: string;
-  view: Declaration;
+  view: FactoryViewListed['declaration'];
   entries: readonly NotOnMap[];
 }): ReactNode {
   if (entries.length === 0) return null;
@@ -42,7 +42,13 @@ export function MapNotOnMap({
   );
 }
 
-function Why({ view, why }: { view: Declaration; why: NotOnMap['why'] }): ReactElement {
+function Why({
+  view,
+  why,
+}: {
+  view: FactoryViewListed['declaration'];
+  why: NotOnMap['why'];
+}): ReactElement {
   const mono = (text: string): ReactElement => (
     <span className="font-mono text-console-11">{text}</span>
   );
@@ -54,7 +60,5 @@ function Why({ view, why }: { view: Declaration; why: NotOnMap['why'] }): ReactE
       </>
     );
   }
-  if (why.reason === 'no-stage')
-    return <>runs {mono(why.workflow)}, which no stage of the factory view lists.</>;
   return <>has no progress: the server could not derive where it stands.</>;
 }

@@ -12,8 +12,8 @@ import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
-import { needsYou, type NeedsYouItem } from './lib/needs-you';
-import { itemColumn, itemState } from './lib/placement';
+import { itemAsks, type NeedsYouItem } from './lib/needs-you';
+import { itemColumn, itemState, placementInput } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { NeedsYouRow } from './NeedsYouList';
@@ -66,21 +66,13 @@ function ItemRead({
       return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(error)} />;
     return <p className="text-xs text-text-tertiary">Loading…</p>;
   }
-  const asks = itemAsks(data.item, attention.data);
+  const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
-  const placement = {
-    runs: data.item.runs.map(run => {
-      const fact = data.runs.find(entry => entry.runId === run.id);
-      return {
-        workflow: fact?.workflow ?? null,
-        status: run.status,
-        outcome: run.outcome,
-        step: fact?.step ?? null,
-      };
-    }),
-    merged: data.item.progress?.change?.merged ?? null,
-    needsYou: asks.length > 0,
-  };
+  const placement = placementInput(
+    data.item,
+    new Map(data.runs.map(run => [run.runId, run])),
+    asks.length > 0
+  );
   return (
     <>
       <ItemHeader
@@ -94,19 +86,6 @@ function ItemRead({
       <ItemAnswers projectId={projectId} answers={data.item.answers} />
       <Degraded degraded={data.item.degraded} />
     </>
-  );
-}
-
-/**
- * What on the live queue waits on this item: an entry the item read lists among its
- * questions (it reads the item's whole run tree, so a wait inside a child run is one), or
- * one the queue itself names this item on. The header's pill reads the same list.
- */
-function itemAsks(item: FactoryItem, queue: AttentionQueue | undefined): NeedsYouItem[] {
-  if (queue === undefined) return [];
-  const refs = new Set(item.questions.map(question => question.ref));
-  return needsYou(queue.items).filter(
-    entry => refs.has(entry.ref) || entry.item?.id === item.item.id
   );
 }
 

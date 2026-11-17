@@ -25,6 +25,45 @@ export interface PlacementInput {
   needsYou: boolean;
 }
 
+/** What placement reads of each run beyond the item read's own: its declared workflow and running step. */
+export type RunFacts = ReadonlyMap<string, { workflow: string | null; step: string | null }>;
+
+/**
+ * Placement's input for an item: its runs in the item read's order joined with `facts` by
+ * id (a run without facts is of no declared workflow), and its change's merge state. Every
+ * view that places an item builds its input here, so they place it alike.
+ */
+export function placementInput(
+  item: FactoryItem,
+  facts: RunFacts,
+  needsYou: boolean
+): PlacementInput {
+  return {
+    runs: item.runs.map(run => {
+      const fact = facts.get(run.id);
+      return {
+        workflow: fact?.workflow ?? null,
+        status: run.status,
+        outcome: run.outcome,
+        step: fact?.step ?? null,
+      };
+    }),
+    merged: item.progress?.change?.merged ?? null,
+    needsYou,
+  };
+}
+
+/** The run facts one entry of the items read carries: `progress.runs`, with the running run's step. */
+export function pageRunFacts(progress: NonNullable<FactoryItem['progress']>): RunFacts {
+  const { running } = progress;
+  return new Map(
+    progress.runs.map(run => [
+      run.runId,
+      { workflow: run.workflow, step: run.runId === running?.runId ? running.step : null },
+    ])
+  );
+}
+
 /** Where an item sits: a stage's column, or ended without a change (DESIGN board rule 4). */
 export type ItemColumn = { stage: FactoryStage } | { ended: string };
 

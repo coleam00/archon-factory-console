@@ -1,3 +1,4 @@
+import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueueItem } from '../../skills/runs';
 
 /** A queue item a person acts on: everything but a usage limit. */
@@ -22,4 +23,17 @@ export function needsYou(items: readonly AttentionQueueItem[]): NeedsYouItem[] {
     if (ta === tb) return 0;
     return tb > ta ? 1 : -1;
   });
+}
+
+/**
+ * What on the live queue waits on one item: an entry the item read lists among its questions
+ * (it reads the item's whole run tree, so a wait inside a child run is one), or one the queue
+ * itself names the item on. The item page and the map's chips both read this.
+ */
+export function itemAsks(
+  item: Pick<FactoryItem, 'item' | 'questions'>,
+  queue: readonly AttentionQueueItem[]
+): NeedsYouItem[] {
+  const refs = new Set(item.questions.map(question => question.ref));
+  return needsYou(queue).filter(entry => refs.has(entry.ref) || entry.item?.id === item.item.id);
 }

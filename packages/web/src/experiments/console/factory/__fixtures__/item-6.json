@@ -62,6 +62,20 @@
           "step": "build__build",
           "startedAt": "2026-11-17T05:51:11.000Z"
         },
+        "runs": [
+          {
+            "runId": "a42ee66e-5206-412a-980e-ad0279a4e20f",
+            "workflow": "triage"
+          },
+          {
+            "runId": "2e291009-82e8-4582-8b36-8dd45ec8ee7e",
+            "workflow": "plan"
+          },
+          {
+            "runId": "585ed621-5f63-4148-bb95-92cfb4c7f52a",
+            "workflow": "deliver"
+          }
+        ],
         "round": null,
         "returned": 0,
         "change": null

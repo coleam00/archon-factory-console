@@ -265,13 +265,11 @@ describe("an item's progress", () => {
     expect(progress).toEqual({
       title: 'The live-home guard and dev:console have tests',
       running: null,
-      ended: {
-        runId: deliver1.run.id,
-        workflow: 'deliver',
-        status: 'completed',
-        outcome: 'ready',
-        completedAt: deliver1.run.completed_at?.toISOString() ?? null,
-      },
+      runs: [
+        { runId: triage1.run.id, workflow: 'triage' },
+        { runId: plan1.run.id, workflow: 'plan' },
+        { runId: deliver1.run.id, workflow: 'deliver' },
+      ],
       round: {
         runId: deliver1.run.id,
         iteration: 2,
@@ -308,29 +306,14 @@ describe("an item's progress", () => {
     expect(progress.change).toBeNull();
   });
 
-  test('ended is the latest-started declared run that ended, failed or cancelled too', async () => {
-    const failed = {
-      ...deliver1,
-      run: { ...deliver1.run, status: 'failed' as const, completed_outcome: null },
-    };
-    const progress = await progressOf([triage1, plan1, failed]);
-    expect(progress.ended).toMatchObject({ runId: failed.run.id, status: 'failed', outcome: null });
-  });
-
-  test('a run going after an ended one: running is the live run, ended the one before', async () => {
-    const progress = await progressOf([plan1, deliver2Cut]);
-    expect(progress.running?.runId).toBe(deliver2Cut.run.id);
-    expect(progress.ended).toMatchObject({
-      runId: plan1.run.id,
-      workflow: 'plan',
-      status: 'completed',
-      outcome: 'planned',
-    });
-  });
-
-  test('no declared run has ended: ended is null', async () => {
-    expect((await progressOf([deliver2Cut])).ended).toBeNull();
-    expect((await progressOf([])).ended).toBeNull();
+  test('runs lists the declared runs in start order, whatever order they come in', async () => {
+    const progress = await progressOf([deliver2Cut, plan1, triage1]);
+    expect(progress.runs.map(run => [run.runId, run.workflow])).toEqual([
+      [triage1.run.id, 'triage'],
+      [plan1.run.id, 'plan'],
+      [deliver2Cut.run.id, 'deliver'],
+    ]);
+    expect((await progressOf([])).runs).toEqual([]);
   });
 
   test('an item with only triage and plan: nothing returned, no round, no change', async () => {
