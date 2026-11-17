@@ -84,12 +84,13 @@ documents through Neon live queries.
   |---|---|
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the Needs-you list, then the map |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
+  | `factory/needs-you` | Needs you: every open ask and paused wait on this project's items, answerable in place (the Overview shows the newest few) |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, the workflows behind it, each workflow's step graph |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
 
 - Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
-  count). Item, stage and step pages have a back link to where you came from.
+  count), each its own route. Item, stage and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
@@ -209,13 +210,13 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   grid, and four columns fill the Overview at 1440 px at full size. A card shows the stage label, its blurb, and live chips: how many
   items are in it now ("2 here", pulsing while a run works), how many wait on a person.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
-- **Click** a card: a details panel beside the map with the blurb, the items in that stage
-  (linking to each item), and the workflows behind it with links to their steps.
-- **Double-click** (or the open icon) a card: the stage page, which draws each workflow's steps
+- **Click** a card: the stage page, which draws each workflow's steps
   as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
   now for any item glows, and above the graph each item running the workflow is named, linking
   to its item page. Clicking a step opens the step page.
+- Its **details** button: a panel beside the map with the blurb, the items in that stage
+  (linking to each item), and the workflows behind it with links to their steps.
 - A legend under the map names the colour groups in plain words.
 
 ## The board
