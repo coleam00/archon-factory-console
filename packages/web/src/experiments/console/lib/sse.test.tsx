@@ -3,7 +3,7 @@ import { Window } from 'happy-dom';
 import { act, useState, type ReactElement } from 'react';
 import { invalidate, useEntity } from '../store/cache';
 import { K } from '../store/keys';
-import { useConversationSSE } from './sse';
+import { useConversationSSE, useDashboardSSE } from './sse';
 
 class TestEventSource {
   static instances: TestEventSource[] = [];
@@ -82,4 +82,37 @@ test('unlock refetches the persisted reply and updates the subscribed chat view'
     invalidate(key);
   }
   expect(TestEventSource.instances.at(-1)?.close).toHaveBeenCalledTimes(1);
+});
+
+test('a run or node change on the dashboard stream refetches the factory item pages', async () => {
+  const key = K.factoryItems('project-1');
+  const loadItems = mock(async () => ['page']);
+  const onRunChanged = (): void => {};
+
+  function Board(): ReactElement {
+    useDashboardSSE(onRunChanged);
+    const { data } = useEntity(key, loadItems);
+    return <div>{data?.join('')}</div>;
+  }
+
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Board />));
+    expect(loadItems).toHaveBeenCalledTimes(1);
+    const stream = TestEventSource.instances.at(-1);
+    if (!stream) throw new Error('Dashboard stream was not opened');
+    const send = (event: object): void => stream.onmessage?.({ data: JSON.stringify(event) });
+
+    await act(async () => send({ type: 'heartbeat' }));
+    expect(loadItems).toHaveBeenCalledTimes(1);
+    await act(async () => send({ type: 'workflow_status', runId: 'run-1' }));
+    expect(loadItems).toHaveBeenCalledTimes(2);
+    await act(async () => send({ type: 'dag_node', runId: 'run-1' }));
+    expect(loadItems).toHaveBeenCalledTimes(3);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
 });

@@ -3847,6 +3847,81 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/factory/items': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * A page of a project's items with each item's progress
+     * @description Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description The project whose items to page. */
+          codebaseId: string;
+          /** @description Only items active at or after this: a duration back from now (40m, 24h, 7d, 2w) or an ISO date or time. Not with `after`, whose cursor carries its own. */
+          since?: string;
+          /** @description Items per page; 50 when omitted. */
+          limit?: number;
+          /** @description The `next` cursor a previous page returned. */
+          after?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FactoryItemsPage'];
+          };
+        };
+        /** @description Invalid since or cursor */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Codebase not found, or no factory view applies to it */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/workflows/validate': {
     parameters: {
       query?: never;
@@ -9548,6 +9623,479 @@ export interface components {
         path: string;
         error: string;
       }[];
+    };
+    FactoryItemsPage: {
+      pack: string;
+      items: {
+        item: {
+          id: string;
+          projectKey: string;
+          key: string;
+        };
+        runs: {
+          id: string;
+          workflow: string;
+          /** @enum {string} */
+          status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
+          outcome: string | null;
+          /** Format: date-time */
+          startedAt: string;
+          /** Format: date-time */
+          completedAt: string | null;
+          cause:
+            | {
+                /** @enum {string} */
+                kind: 'run_ended';
+                runId: string;
+              }
+            | {
+                /** @enum {string} */
+                kind: 'run_fired';
+                runId: string;
+                node: string | null;
+              }
+            | {
+                /** @enum {string} */
+                kind: 'receipt';
+                receiptId: string;
+                sourceInstanceId: string;
+              }
+            | unknown;
+          awaitingExecution: {
+            requestId: string;
+            hostId: string;
+          } | null;
+        }[];
+        questions: (
+          | {
+              /** @enum {string} */
+              kind: 'attention';
+              ref: string;
+              project: {
+                key: string;
+                codebaseId: string | null;
+                name: string;
+              } | null;
+              item?: {
+                id: string;
+                projectKey: string;
+                key: string;
+              };
+              revision: number;
+              labels: {
+                [key: string]: string;
+              };
+              /** Format: date-time */
+              pausedAt: string | null;
+              run?: {
+                id: string;
+                workflow: string;
+                parentRunId: string | null;
+                fanOut: {
+                  parentRunId: string;
+                  nodeId: string;
+                  index: number;
+                } | null;
+                context: {
+                  artifactsDir: string | null;
+                  transcript: string | null;
+                  workingPath: string | null;
+                  branch: string | null;
+                };
+                node: string;
+                occurrence: string;
+              };
+              message: string;
+              /** @enum {string} */
+              form: 'message' | 'approval' | 'select' | 'multi_select';
+              options: {
+                id: string;
+                label?: string;
+                does?: string;
+                value?: unknown;
+                cost?: string;
+              }[];
+              /** @enum {boolean} */
+              other?: true;
+              recommendation?: {
+                option: string;
+                why: string;
+                /** @enum {string} */
+                confidence?: 'low' | 'medium' | 'high';
+              };
+              context?: string;
+              artifacts?: {
+                /** @enum {string} */
+                type: 'archon_artifact';
+                run_id: string;
+                path: string;
+              }[];
+              askedIn?: {
+                runId: string;
+                workflow: string;
+              };
+            }
+          | {
+              /** @enum {string} */
+              kind: 'awaiting_response';
+              ref: string;
+              project: {
+                key: string;
+                codebaseId: string | null;
+                name: string;
+              } | null;
+              item?: {
+                id: string;
+                projectKey: string;
+                key: string;
+              };
+              revision: number;
+              labels: {
+                [key: string]: string;
+              };
+              /** Format: date-time */
+              pausedAt: string | null;
+              run: {
+                id: string;
+                workflow: string;
+                parentRunId: string | null;
+                fanOut: {
+                  parentRunId: string;
+                  nodeId: string;
+                  index: number;
+                } | null;
+                context: {
+                  artifactsDir: string | null;
+                  transcript: string | null;
+                  workingPath: string | null;
+                  branch: string | null;
+                };
+                node: string;
+                occurrence: string;
+              };
+              message: string;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'usage_limit';
+              ref: string;
+              project: {
+                key: string;
+                codebaseId: string | null;
+                name: string;
+              } | null;
+              item?: {
+                id: string;
+                projectKey: string;
+                key: string;
+              };
+              revision: number;
+              labels: {
+                [key: string]: string;
+              };
+              /** Format: date-time */
+              pausedAt: string | null;
+              run: {
+                id: string;
+                workflow: string;
+                parentRunId: string | null;
+                fanOut: {
+                  parentRunId: string;
+                  nodeId: string;
+                  index: number;
+                } | null;
+                context: {
+                  artifactsDir: string | null;
+                  transcript: string | null;
+                  workingPath: string | null;
+                  branch: string | null;
+                };
+                node: string;
+              };
+              /** Format: date-time */
+              resetAt: string;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'unreadable';
+              ref: string;
+              project: {
+                key: string;
+                codebaseId: string | null;
+                name: string;
+              } | null;
+              item?: {
+                id: string;
+                projectKey: string;
+                key: string;
+              };
+              revision: number;
+              labels: {
+                [key: string]: string;
+              };
+              /** Format: date-time */
+              pausedAt: string | null;
+              run: {
+                id: string;
+                workflow: string;
+                parentRunId: string | null;
+                fanOut: {
+                  parentRunId: string;
+                  nodeId: string;
+                  index: number;
+                } | null;
+                context: {
+                  artifactsDir: string | null;
+                  transcript: string | null;
+                  workingPath: string | null;
+                  branch: string | null;
+                };
+              };
+              /** @enum {string} */
+              reason:
+                | 'malformed_tool_call_attention'
+                | 'malformed_gate'
+                | 'unrecognized_gate_type'
+                | 'child_pointer_missing'
+                | 'child_run_missing'
+                | 'child_chain_too_deep'
+                | 'source_release_not_continued';
+              detail: string;
+            }
+        )[];
+        answers: (
+          | {
+              /** @enum {string} */
+              kind: 'attention';
+              runId: string;
+              node: string | null;
+              occurrence: string | null;
+              at: string;
+              via: string | null;
+              answer:
+                | {
+                    text: string;
+                  }
+                | {
+                    decision: string;
+                    text: string;
+                  }
+                | {
+                    decisions: string[];
+                    text: string;
+                  }
+                | unknown;
+              by:
+                | {
+                    declared: string;
+                  }
+                | {
+                    userId: string;
+                  }
+                | unknown;
+              fromRun: {
+                runId: string;
+                nodePath: string;
+              } | null;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'gate';
+              runId: string;
+              node: string | null;
+              occurrence: string | null;
+              at: string;
+              via: string | null;
+              decision: string | null;
+              text: string | null;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'ruling';
+              id: string;
+              text: string;
+              /** Format: date-time */
+              at: string;
+              via: string;
+              by:
+                | {
+                    declared: string;
+                  }
+                | {
+                    userId: string;
+                  }
+                | unknown;
+              fromRun: {
+                runId: string;
+                nodePath: string;
+              } | null;
+              withdrawn: {
+                /** Format: date-time */
+                at: string;
+                via: string;
+                by:
+                  | {
+                      declared: string;
+                    }
+                  | {
+                      userId: string;
+                    }
+                  | unknown;
+                fromRun: {
+                  runId: string;
+                  nodePath: string;
+                } | null;
+              } | null;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'ask';
+              runId: string;
+              node: string | null;
+              occurrence: string | null;
+              at: string;
+              via: string | null;
+              ref: string;
+              question: string;
+              answer:
+                | {
+                    text: string;
+                  }
+                | {
+                    decision: string;
+                    text: string;
+                  }
+                | {
+                    decisions: string[];
+                    text: string;
+                  }
+                | unknown;
+              chosen: {
+                id: string;
+                does: string;
+              } | null;
+              withdrawn: boolean;
+              by:
+                | {
+                    declared: string;
+                  }
+                | {
+                    userId: string;
+                  }
+                | unknown;
+              fromRun: {
+                runId: string;
+                nodePath: string;
+              } | null;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'asks_settled';
+              runId: string;
+              node: string | null;
+              occurrence: string | null;
+              at: string;
+              via: string | null;
+              answered: number;
+              withdrawn: number;
+            }
+        )[];
+        links: {
+          id: string;
+          /** @enum {string} */
+          kind: 'depends_on' | 'part_of' | 'duplicate_of';
+          /** @enum {string} */
+          direction: 'outgoing' | 'incoming';
+          other: {
+            id: string;
+            projectKey: string;
+            key: string;
+          };
+          /** Format: date-time */
+          at: string;
+          via: string;
+          by:
+            | {
+                declared: string;
+              }
+            | {
+                userId: string;
+              }
+            | unknown;
+          fromRun: {
+            runId: string;
+            nodePath: string;
+          } | null;
+          ended: {
+            /** Format: date-time */
+            at: string;
+            via: string;
+            by:
+              | {
+                  declared: string;
+                }
+              | {
+                  userId: string;
+                }
+              | unknown;
+            fromRun: {
+              runId: string;
+              nodePath: string;
+            } | null;
+          } | null;
+        }[];
+        degraded: (
+          | {
+              /** @enum {string} */
+              type: 'degraded';
+              /** @enum {string} */
+              reason: 'run_unreadable';
+              runId?: string;
+            }
+          | {
+              /** @enum {string} */
+              type: 'degraded';
+              /** @enum {string} */
+              reason: 'ruling_unreadable';
+              rulingId: string;
+            }
+          | {
+              /** @enum {string} */
+              type: 'degraded';
+              /** @enum {string} */
+              reason: 'link_unreadable';
+              linkId: string;
+            }
+        )[];
+        progress: {
+          title: string | null;
+          running: {
+            runId: string;
+            workflow: string;
+            step: string | null;
+            /** Format: date-time */
+            startedAt: string;
+          } | null;
+          round: {
+            runId: string;
+            iteration: number;
+            max: number | null;
+            rounds: {
+              iteration: number;
+              /** @enum {string} */
+              verdict: 'returned' | 'ended' | 'running' | 'stopped';
+              outcome: string | null;
+            }[];
+          } | null;
+          returned: number;
+          change: {
+            url: string;
+            merged: boolean | 'unknown';
+            mergedAt: string | null;
+          } | null;
+        } | null;
+      }[];
+      next: string | null;
     };
     ValidateWorkflowResponse: {
       valid: boolean;
