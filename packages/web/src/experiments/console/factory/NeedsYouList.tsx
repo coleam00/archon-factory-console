@@ -2,19 +2,24 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { errorDetail } from '../lib/http';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
+import { AnsweredLately } from './AnsweredLately';
 import { NEEDS_YOU_SHOWN, needsYou, visibleNeedsYou, type NeedsYouItem } from './lib/needs-you';
+import type { FactoryViewListed } from './lib/views';
 import { NeedsYouLine } from './NeedsYouLine';
 
 /**
  * The Overview's Needs-you section: every open ask and paused wait, newest first, one line
  * each until opened and answered in place. It shows the newest few and says how many more
- * there are, with "show all", so the map's top stays in the first screen.
+ * there are, with "show all", so the map's top stays in the first screen. Under them, the
+ * asks settled lately and the stage each started again.
  */
 export function NeedsYouList({
   projectId,
+  view,
   attention,
 }: {
   projectId: string;
+  view: FactoryViewListed['declaration'];
   attention: EntityView<AttentionQueue>;
 }): ReactElement {
   const items = attention.data === undefined ? [] : needsYou(attention.data.items);
@@ -24,6 +29,7 @@ export function NeedsYouList({
         Needs you{attention.data === undefined ? '' : ` · ${items.length.toString()}`}
       </h3>
       <NeedsYouBody projectId={projectId} attention={attention} items={items} />
+      <AnsweredLately projectId={projectId} view={view} />
     </section>
   );
 }

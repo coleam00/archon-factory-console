@@ -10,6 +10,8 @@ import { NeedsYouLine } from './NeedsYouLine';
 import { NeedsYouList } from './NeedsYouList';
 import { answerByRef } from './NeedsYouRow';
 import { askItem, gateItem, unreadableItem, usageLimitItem } from './needs-you.test-fixtures';
+import { shippedView } from './item-detail.test-fixtures';
+import { run, settledItem } from './lib/map.test-fixtures';
 
 const ID = 'cb-1';
 const originalFetch = globalThis.fetch;
@@ -19,6 +21,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   (globalThis as { window?: unknown }).window = originalWindow;
   invalidate('runs');
+  invalidate('factory-items');
 });
 
 const newest = askItem({ ref: 'ask:new', pausedAt: '2026-11-16T09:00:00.000Z' });
@@ -48,7 +51,7 @@ const loaded = (data: AttentionQueue): EntityView<AttentionQueue> => ({
 function render(attention: EntityView<AttentionQueue>): string {
   return renderToStaticMarkup(
     <MemoryRouter>
-      <NeedsYouList projectId={ID} attention={attention} />
+      <NeedsYouList projectId={ID} view={shippedView} attention={attention} />
     </MemoryRouter>
   );
 }
@@ -190,6 +193,33 @@ describe('the Needs-you list', () => {
         })
       )
     ).toContain('One paused run could not be read');
+  });
+});
+
+describe('answered lately', () => {
+  test('each settled set says the stage it started again, linking to that run, or that none has', () => {
+    set(K.factoryItems(ID), [
+      settledItem(
+        'p',
+        run('plan', 'completed', 'ask'),
+        '2026-11-17T10:00:00.000Z',
+        run('plan', 'running', null, 'plan')
+      ),
+      settledItem('w', run('deliver', 'completed', 'ask'), '2026-11-17T09:00:00.000Z'),
+    ]);
+    const html = render(loaded({ items: [], runs: [], degraded: [] }));
+    expect(html).toContain('Answered lately');
+    expect(html).toContain('2 answered, 1 withdrawn');
+    expect(html).toContain(`href="/console/p/${ID}/r/run-p-1"`);
+    expect(html).toContain('Plan started again (running)');
+    expect(html).toContain('no stage started from it');
+    // Newest first.
+    expect(html.indexOf('#p')).toBeLessThan(html.indexOf('#w'));
+  });
+
+  test('nothing settled: no list', () => {
+    set(K.factoryItems(ID), []);
+    expect(render(loaded({ items: [], runs: [], degraded: [] }))).not.toContain('Answered lately');
   });
 });
 
