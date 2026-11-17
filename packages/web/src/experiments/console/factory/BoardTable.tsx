@@ -1,6 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { PillBadge, RoundDots } from './BoardCard';
+import { MergeUnknown, PillBadge, RoundDots } from './BoardCard';
 import type { BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
 import {
@@ -110,14 +110,17 @@ function BoardRow({
       {cell(card.returned === null ? null : `×${card.returned.count.toString()}`)}
       {cell(
         card.change === null ? null : (
-          <a
-            href={card.change.href}
-            target="_blank"
-            rel="noreferrer"
-            className="whitespace-nowrap text-accent-bright hover:underline"
-          >
-            {card.change.label}
-          </a>
+          <span className="flex flex-col">
+            <a
+              href={card.change.href}
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap text-accent-bright hover:underline"
+            >
+              {card.change.label}
+            </a>
+            {card.change.mergeUnknown ? <MergeUnknown /> : null}
+          </span>
         )
       )}
       {cell(card.landedAt, 'whitespace-nowrap text-text-tertiary')}

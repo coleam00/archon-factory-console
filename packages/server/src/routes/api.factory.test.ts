@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
+import type { ChangeMergeState } from '@archon/adapters/forge-host';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
 import type { ItemReadSource } from '@archon/workflows/item-read';
@@ -255,7 +256,8 @@ describe('GET /api/factory/items', () => {
     },
   ];
   const source: ItemReadSource = {
-    branchOf: async () => null,
+    // The branch each run recorded, as the host reads it from the run's isolation record.
+    branchOf: async run => `branch-${run.id}`,
     store: {
       getItemRuns: async (projectKey, key) => {
         const item = items.find(entry => entry.key === key && entry.projectKey === projectKey);
@@ -278,7 +280,8 @@ describe('GET /api/factory/items', () => {
 
   async function itemsApp(
     files: Record<string, unknown>,
-    lookups: string[] = []
+    lookups: string[] = [],
+    branchesSeen: string[][] = []
   ): Promise<OpenAPIHono> {
     const project = await projectWith(track, files);
     const app = new OpenAPIHono();
@@ -294,9 +297,11 @@ describe('GET /api/factory/items', () => {
               { id: 'item-b', key: '2', activityAt: '2026-11-16T11:00:00.000Z' },
             ]
           : [],
-      changeMergeState: async url => {
+      changeMergeState: async (url, _audits, branches) => {
         lookups.push(url);
-        return { merged: true, mergedAt: '2026-11-17T01:00:00Z' };
+        branchesSeen.push([...(await branches())]);
+        // No number from the forge: the one the run's audit row names stands.
+        return { merged: true, mergedAt: '2026-11-17T01:00:00Z', number: null };
       },
     });
     return app;
@@ -339,7 +344,8 @@ describe('GET /api/factory/items', () => {
 
   test('a change is looked up once across requests, through the cache the route shares', async () => {
     const lookups: string[] = [];
-    const app = await itemsApp(withView, lookups);
+    const branchesSeen: string[][] = [];
+    const app = await itemsApp(withView, lookups, branchesSeen);
     for (let request = 0; request < 2; request++) {
       const response = await app.request('/api/factory/items?codebaseId=cb-1');
       const page = factoryItemsPageResponseSchema.parse(await response.json());
@@ -352,6 +358,8 @@ describe('GET /api/factory/items', () => {
       });
     }
     expect(lookups).toEqual([CHANGE]);
+    // The lookup is handed the item's runs' recorded branches, for a change no audit row names.
+    expect(branchesSeen).toEqual([['branch-run-a']]);
   });
 
   test('a cursor that is not one is a 400; a limit out of range is refused', async () => {
@@ -370,6 +378,7 @@ describe('GET /api/factory/items', () => {
 
 describe('the merge-state cache', () => {
   const CHANGE = 'https://forge.example/acme/web/pull/7';
+  const noBranches = async (): Promise<string[]> => [];
   const settle = async (): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 0));
   };
@@ -379,20 +388,20 @@ describe('the merge-state cache', () => {
     const state = changeStateCache({
       changeMergeState: async () => {
         lookups++;
-        return { merged: false, mergedAt: null };
+        return { merged: false, mergedAt: null, number: null };
       },
     });
-    const both = await Promise.all([state(CHANGE, []), state(CHANGE, [])]);
+    const both = await Promise.all([state(CHANGE, [], noBranches), state(CHANGE, [], noBranches)]);
     expect(both).toEqual([
-      { merged: false, mergedAt: null },
-      { merged: false, mergedAt: null },
+      { merged: false, mergedAt: null, number: null },
+      { merged: false, mergedAt: null, number: null },
     ]);
-    await state(CHANGE, []);
+    await state(CHANGE, [], noBranches);
     expect(lookups).toBe(1);
   });
 
   test('a slow first lookup answers unknown within the wait, then fills the cache', async () => {
-    let finish: (value: { merged: boolean; mergedAt: string | null }) => void = () => {};
+    let finish: (value: ChangeMergeState) => void = () => {};
     const state = changeStateCache({
       changeStateWaitMs: 10,
       changeMergeState: () =>
@@ -400,10 +409,18 @@ describe('the merge-state cache', () => {
           finish = resolve;
         }),
     });
-    expect(await state(CHANGE, [])).toEqual({ merged: 'unknown', mergedAt: null });
-    finish({ merged: true, mergedAt: '2026-11-17T01:00:00Z' });
+    expect(await state(CHANGE, [], noBranches)).toEqual({
+      merged: 'unknown',
+      mergedAt: null,
+      number: null,
+    });
+    finish({ merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
     await settle();
-    expect(await state(CHANGE, [])).toEqual({ merged: true, mergedAt: '2026-11-17T01:00:00Z' });
+    expect(await state(CHANGE, [], noBranches)).toEqual({
+      merged: true,
+      mergedAt: '2026-11-17T01:00:00Z',
+      number: 7,
+    });
   });
 
   test('an answer a minute old is served while it refreshes; a merge is kept', async () => {
@@ -413,19 +430,19 @@ describe('the merge-state cache', () => {
       now: () => clock,
       changeMergeState: async () =>
         lookups++ === 0
-          ? { merged: false, mergedAt: null }
-          : { merged: true, mergedAt: '2026-11-17T01:00:00Z' },
+          ? { merged: false, mergedAt: null, number: null }
+          : { merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 },
     });
-    expect((await state(CHANGE, [])).merged).toBe(false);
+    expect((await state(CHANGE, [], noBranches)).merged).toBe(false);
     clock = 59_999;
-    expect((await state(CHANGE, [])).merged).toBe(false);
+    expect((await state(CHANGE, [], noBranches)).merged).toBe(false);
     expect(lookups).toBe(1);
     clock = 60_000;
-    expect((await state(CHANGE, [])).merged).toBe(false);
+    expect((await state(CHANGE, [], noBranches)).merged).toBe(false);
     await settle();
-    expect((await state(CHANGE, [])).merged).toBe(true);
+    expect((await state(CHANGE, [], noBranches)).merged).toBe(true);
     clock = 10_000_000;
-    await state(CHANGE, []);
+    await state(CHANGE, [], noBranches);
     expect(lookups).toBe(2);
   });
 
@@ -435,7 +452,11 @@ describe('the merge-state cache', () => {
         throw new Error('offline');
       },
     });
-    expect(await state(CHANGE, [])).toEqual({ merged: 'unknown', mergedAt: null });
+    expect(await state(CHANGE, [], noBranches)).toEqual({
+      merged: 'unknown',
+      mergedAt: null,
+      number: null,
+    });
   });
 });
 

@@ -145,8 +145,8 @@ export function registerApiRoutes(
     ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
     itemsSource: attentionQueueSource(createWorkflowStore(), createWorkflowHostStore().isolation),
     listProjectItems: factoryDb.listProjectItemsByActivity,
-    changeMergeState: (url, audits) =>
-      changeMergeState(url, audits, { archonHome: getArchonHome(), env: process.env }),
+    changeMergeState: (url, audits, branches) =>
+      changeMergeState(url, audits, branches, { archonHome: getArchonHome(), env: process.env }),
     discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerWorkflowDefinitionRoutes(app);

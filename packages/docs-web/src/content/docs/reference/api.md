@@ -637,10 +637,13 @@ first view that applies (`pack` names it):
 - `returned`: how many times a `returns` point sent the item back, across its runs.
 - `change`: the URL at the view's `change` pointer in the latest run that has one, and
   `merged` (`true`, `false` or `unknown`) with `mergedAt`, read from the change host with the
-  forge's `pr.view`, for the pull request that run's forge operations recorded. The server
-  caches each answer: a merge for good, anything else for 60 seconds. A first lookup that
-  takes longer than 4 seconds answers `unknown` and finishes into the cache. `number` is the
-  pull request's number as the run's forge operations recorded it, or null.
+  forge's `pr.view`: by number for the pull request that run's forge operations recorded, or,
+  when they name none (an earlier run opened it), by head in any state on each branch the
+  item's runs recorded, newest first, taking the pull request whose URL is the change. The
+  server caches each answer: a merge for good, anything else for 60 seconds. A first lookup
+  that takes longer than 4 seconds answers `unknown` and finishes into the cache. `number` is
+  the pull request's number as the forge named it, else as the run's forge operations
+  recorded it, or null.
 - `runs`: the item's runs of workflows the view names, in start order, each with the workflow
   as the view names it (a run records `owner/name:workflow`) and `failedStep`, the first step
   that failed, or null. Status, outcome and times are on the item read's `runs`, by id.

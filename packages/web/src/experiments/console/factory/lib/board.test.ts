@@ -237,8 +237,10 @@ describe('card fields, in order', () => {
     expect(card(realItem('7')).change).toEqual({
       href: 'https://github.com/coleam00/archon-factory-console/pull/13',
       label: 'PR #13',
+      mergeUnknown: false,
     });
-    expect(card(realItem('3')).change?.label).toBe('the change');
+    // The fixture's lookup for item 3 could not reach its pull request: the card says so.
+    expect(card(realItem('3')).change).toMatchObject({ label: 'the change', mergeUnknown: true });
     expect(card(realItem('6')).change).toBeNull();
   });
 

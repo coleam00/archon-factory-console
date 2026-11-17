@@ -221,7 +221,8 @@ const notMerged: FactoryChangeState = async () => ({ merged: false, mergedAt: nu
 
 async function progressOf(
   runs: { run: WorkflowRun; events: WorkflowEventRow[] }[],
-  changeState: FactoryChangeState = notMerged
+  changeState: FactoryChangeState = notMerged,
+  branchOf: (run: WorkflowRun) => Promise<string | null> = async () => null
 ) {
   const facts = new Map(runs.map(entry => [entry.run.id, factsOf(entry)]));
   return factoryItemProgress(
@@ -229,11 +230,35 @@ async function progressOf(
     PACK,
     runs.map(entry => entry.run),
     facts,
-    changeState
+    changeState,
+    branchOf
   );
 }
 
 describe("an item's progress", () => {
+  test("the change lookup gets the declared runs' branches, newest first, once each", async () => {
+    const recorded: Record<string, string | null> = {
+      [triage1.run.id]: null,
+      [plan1.run.id]: 'shared',
+      [deliver1.run.id]: 'deliver-branch',
+    };
+    const later = {
+      ...deliver1,
+      run: { ...deliver1.run, id: 'later', started_at: new Date('2027-01-01') },
+    };
+    recorded.later = 'shared';
+    const read: string[][] = [];
+    await progressOf(
+      [triage1, plan1, deliver1, later],
+      async (_url, _audits, branches) => {
+        read.push([...(await branches())]);
+        return { merged: false, mergedAt: null, number: null };
+      },
+      async run => recorded[run.id] ?? null
+    );
+    expect(read).toEqual([['shared', 'deliver-branch']]);
+  });
+
   test('item 1 after its deliver run: title, round 2 of 3, returned twice, its change', async () => {
     const seen: [string, number][] = [];
     const progress = await progressOf([triage1, plan1, deliver1], async (url, audits) => {

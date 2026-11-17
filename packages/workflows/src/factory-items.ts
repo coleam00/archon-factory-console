@@ -355,11 +355,13 @@ function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | nu
 
 /**
  * The merge state and pull request number of a change URL, given the forge audit rows of
- * the run that recorded it.
+ * the run that recorded it and, read only when those name no pull request, the branches
+ * the item's declared runs recorded, newest first.
  */
 export type FactoryChangeState = (
   url: string,
-  audits: readonly unknown[]
+  audits: readonly unknown[],
+  branches: () => Promise<readonly string[]>
 ) => Promise<{ merged: FactoryChangeMerged; mergedAt: string | null; number: number | null }>;
 
 /**
@@ -371,7 +373,9 @@ export async function factoryItemProgress(
   pack: string,
   runs: readonly WorkflowRun[],
   facts: ReadonlyMap<string, FactoryRunFacts>,
-  changeState: FactoryChangeState
+  changeState: FactoryChangeState,
+  /** The branch a run recorded; null when it recorded none. */
+  branchOf: (run: WorkflowRun) => Promise<string | null>
 ): Promise<FactoryItemProgress> {
   const declared = [...runs]
     .filter(run => facts.has(run.id))
@@ -412,13 +416,27 @@ export async function factoryItemProgress(
     round,
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change:
-      found === null ? null : { url: found.url, ...(await changeState(found.url, found.audits)) },
+      found === null
+        ? null
+        : {
+            url: found.url,
+            ...(await changeState(found.url, found.audits, () => runBranches(declared, branchOf))),
+          },
     runs: declared.map(run => ({
       runId: run.id,
       workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
       failedStep: facts.get(run.id)?.failedStep ?? null,
     })),
   };
+}
+
+/** The distinct branches `runs` recorded, newest-started first. */
+async function runBranches(
+  runs: readonly WorkflowRun[],
+  branchOf: (run: WorkflowRun) => Promise<string | null>
+): Promise<string[]> {
+  const branches = await Promise.all([...runs].reverse().map(run => branchOf(run)));
+  return [...new Set(branches.filter((branch): branch is string => branch !== null))];
 }
 
 /** One of a project's items with its latest activity, as the project listing returns it. */
@@ -626,13 +644,14 @@ export async function readFactoryItemsPage(
   const items = await Promise.all(
     found.map(async (item): Promise<FactoryItem> => {
       const read = await assembleItemRead(source, item, queue);
-      return { ...read, progress: await itemProgress(input, item, facts) };
+      return { ...read, progress: await itemProgress(source, input, item, facts) };
     })
   );
   return { pack, items, next: page.next };
 }
 
 async function itemProgress(
+  source: ItemReadSource,
   input: ReadFactoryItemsPageInput,
   item: FoundItem,
   facts: ReadonlyMap<string, FactoryRunFacts>
@@ -643,7 +662,14 @@ async function itemProgress(
   // A declared run whose facts failed leaves the item's progress unknown, not partial.
   if (declared.some(run => !facts.has(run.id))) return null;
   try {
-    return await factoryItemProgress(input.view, input.pack, item.runs, facts, input.changeState);
+    return await factoryItemProgress(
+      input.view,
+      input.pack,
+      item.runs,
+      facts,
+      input.changeState,
+      run => source.branchOf(run)
+    );
   } catch (error) {
     input.onProgressError(item.item.id, error);
     return null;

@@ -147,7 +147,9 @@ those land, this section adds **one read-only route file**, `packages/server/src
   swapping to it later is a change of one skill.
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
-  60 s. The browser never calls GitHub.
+  60 s. The pull request is the one the run's forge records name, else the one on a branch
+  the item's runs recorded whose URL is the change (an earlier run may have opened it). The
+  browser never calls GitHub.
 
 All derivation (column, card fields) is pure TypeScript in the web package, with unit tests,
 fed by these reads. Logic worth porting from Mission Control (`C:\Users\colem\OpenSource\factory-mission-control`,
@@ -207,7 +209,8 @@ A card, in this order:
 4. While a run works it: the workflow and its running step in mono, "deliver · rounds.review",
    linking to the run in the console (`/console/p/:projectId/r/:runId`).
 5. "returned ×N" when checks or the host sent it back, linking to the item page.
-6. The change: "PR #123" linking to it, when there is one.
+6. The change: "PR #123" linking to it, when there is one. When the change host could not say
+   whether it merged, the card says "merge state unknown" rather than reading as unmerged.
 7. In the landed column: when it landed, in local time.
 8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
 

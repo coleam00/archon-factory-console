@@ -128,6 +128,18 @@ export function BoardCard({
   );
 }
 
+/** Said where a change's merge state could not be read, so it never reads as unmerged. */
+export function MergeUnknown(): ReactElement {
+  return (
+    <span
+      className="text-text-tertiary"
+      title="The change host could not say whether this change merged"
+    >
+      merge state unknown
+    </span>
+  );
+}
+
 function CardLinks({ card }: { card: BoardCardFields }): ReactNode {
   if (card.returned === null && card.change === null) return null;
   return (
@@ -147,6 +159,7 @@ function CardLinks({ card }: { card: BoardCardFields }): ReactNode {
           {card.change.label}
         </a>
       )}
+      {card.change?.mergeUnknown === true ? <MergeUnknown /> : null}
     </span>
   );
 }

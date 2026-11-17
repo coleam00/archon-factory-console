@@ -153,7 +153,11 @@ export interface BoardCard {
   /** `text` is "workflow · step"; `workflow` and `step` let a card break the line between them. */
   run: { text: string; workflow: string; step: string | null; href: string } | null;
   returned: { count: number; href: string } | null;
-  change: { href: string; label: string } | null;
+  /**
+   * The change, by its pull request number when known. `mergeUnknown` when the change host
+   * could not say whether it merged: the card says so rather than reading as unmerged.
+   */
+  change: { href: string; label: string; mergeUnknown: boolean } | null;
   /** When the change merged, in local time; only in the landed column. */
   landedAt: string | null;
   /** What stopped a failed item, or what an item that needs you asks. */
@@ -197,6 +201,7 @@ function changeField(progress: Progress | null): BoardCard['change'] {
   return {
     href: change.url,
     label: change.number === null ? 'the change' : `PR #${change.number.toString()}`,
+    mergeUnknown: change.merged === 'unknown',
   };
 }
 
