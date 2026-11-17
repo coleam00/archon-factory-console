@@ -77,6 +77,7 @@
     "./throughput": "./src/throughput.ts",
     "./metrics": "./src/metrics.ts",
     "./metric-views": "./src/metric-views.ts",
+    "./factory-views": "./src/factory-views.ts",
     "./dag-resume-snapshot": "./src/dag-resume-snapshot.ts",
     "./store-conformance": "./src/store-conformance.ts",
     "./file-store": "./src/file-store/index.ts",

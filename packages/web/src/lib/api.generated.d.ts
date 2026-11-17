@@ -3787,6 +3787,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/factory/views': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The factory views that apply to a project
+     * @description A view applies when the project ships its own `.archon/packs/<pack key>.factory-view.json`, or when a pack declares one and the project has run a workflow the view names. Declarations that could not be read or did not validate are listed under `errors` with their file.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description The project whose factory views to list. */
+          codebaseId: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FactoryViews'];
+          };
+        };
+        /** @description Codebase not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/workflows/validate': {
     parameters: {
       query?: never;
@@ -9413,6 +9473,79 @@ export interface components {
         pack: string;
         /** @enum {string} */
         source: 'project' | 'bundled' | 'global' | 'installed';
+        error: string;
+      }[];
+    };
+    FactoryViews: {
+      views: {
+        pack: string;
+        /** @enum {string} */
+        source: 'project' | 'bundled' | 'global' | 'installed' | 'project-file';
+        path: string;
+        declaration: {
+          /** @enum {number} */
+          version: 1;
+          pack: string;
+          title: string;
+          summary: string;
+          stages: {
+            id: string;
+            label: string;
+            blurb: string;
+            /** @enum {string} */
+            group: 'intake' | 'build' | 'check' | 'land';
+            workflows: string[];
+            nodes?: string[];
+          }[];
+          placement: {
+            [key: string]: string;
+          };
+          endings: {
+            [key: string]: string;
+          };
+          landed: {
+            stage: string;
+          };
+          rounds?: {
+            workflow: string;
+            loop: string;
+          };
+          returns?: {
+            workflow: string;
+            node: string;
+            outcome: string;
+          }[];
+          change?: {
+            workflow: string;
+            pointer: string;
+          };
+          itemTitle?: {
+            input: string;
+          };
+          map: {
+            cards: {
+              stage: string;
+              col: number;
+              row: number;
+            }[];
+            arrows: {
+              from: string;
+              to: string;
+              label?: string;
+              back?: boolean;
+            }[];
+            notes?: {
+              text: string;
+              near: string;
+            }[];
+          };
+        };
+      }[];
+      errors: {
+        pack: string;
+        /** @enum {string} */
+        source: 'project' | 'bundled' | 'global' | 'installed' | 'project-file';
+        path: string;
         error: string;
       }[];
     };

@@ -1,0 +1,28 @@
+import type { FactoryViews } from '../../skills/factory';
+
+/** One view the server listed, with where it was found. */
+export type FactoryViewListed = FactoryViews['views'][number];
+
+/**
+ * Whether a project gets the Factory tab: a view applies, or the project's own view file is
+ * broken. A project file is an explicit opt-in, so its error shows on the tab instead of the
+ * tab vanishing; a broken file in some pack the project never ran stays out of its way.
+ */
+export function factoryTabShown(listing: FactoryViews | undefined): boolean {
+  if (listing === undefined) return false;
+  return listing.views.length > 0 || listing.errors.some(error => error.source === 'project-file');
+}
+
+/**
+ * The view the Factory tab draws. The server lists project files first, so a project's own
+ * view wins. A project that two packs' views apply to shows the first; choosing between
+ * several is not built yet.
+ */
+export function currentView(listing: FactoryViews | undefined): FactoryViewListed | undefined {
+  return listing?.views[0];
+}
+
+/** The Factory section's paths under one project. */
+export function factoryPath(projectId: string, rest = ''): string {
+  return `/console/p/${projectId}/factory${rest}`;
+}

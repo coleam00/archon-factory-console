@@ -8,6 +8,7 @@ import {
 } from '@archon/core/workflows/sql-host';
 import { createWorkflowStore } from '@archon/core/workflows/store-adapter';
 import * as codebaseDb from '@archon/core/db/codebases';
+import * as factoryDb from '@archon/core/db/factory-reads';
 import type { WebAdapter } from '../adapters/web';
 import { dagNodeSseEventSchema } from '../adapters/web/workflow-event.schemas';
 import { isApiGateEnabled } from '../auth';
@@ -21,6 +22,7 @@ import { registerCodebaseEnvironmentRoute, registerCodebaseRoutes } from './api.
 import { registerConfigRoutes } from './api.config';
 import { registerConversationRoutes } from './api.conversations';
 import { registerConversationProcessingRoute } from './api.conversation-processing';
+import { registerFactoryViewsRoute } from './api.factory';
 import { registerHealthRoutes } from './api.health';
 import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
@@ -122,6 +124,11 @@ export function registerApiRoutes(
   registerMetricViewsRoute(app, {
     codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     loadConfig,
+  });
+  registerFactoryViewsRoute(app, {
+    codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
+    loadConfig,
+    ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
   });
   registerWorkflowDefinitionRoutes(app);
   registerArtifactRoutes(app);
