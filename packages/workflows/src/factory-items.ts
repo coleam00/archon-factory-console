@@ -31,11 +31,18 @@ import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
 
 /**
  * How one round of the declared rounds loop ended, from declared data only: `returned` when
- * a declared return point in the loop sent the item back that round, `ended` when the round
- * completed without one (an approval, but also an ask or a replan: the round's `outcome`
- * says which), `running` while it goes on, `stopped` when the run ended inside it.
+ * a declared return point in the loop sent the item back that round, `approved` when a
+ * declared approval point approved it, `undecided` when the round completed with neither
+ * (an ask, a replan, or a view that declares no approval: the round's `outcome` says
+ * which), `running` while it goes on, `stopped` when the run ended inside it.
  */
-export const factoryRoundVerdictSchema = z.enum(['returned', 'ended', 'running', 'stopped']);
+export const factoryRoundVerdictSchema = z.enum([
+  'approved',
+  'returned',
+  'undecided',
+  'running',
+  'stopped',
+]);
 export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
 
 /** Whether the change merged, as the change host reported it; `unknown` when it could not say. */
@@ -68,8 +75,8 @@ export const factoryItemProgressSchema = z.object({
           iteration: z.number().int().positive(),
           verdict: factoryRoundVerdictSchema,
           /**
-           * The outcome the loop's declared return-point step recorded that round, as the
-           * workflow names it (`return`, `approve`, `ask`...); null when it recorded none.
+           * The outcome the loop's declared return or approval step recorded that round, as
+           * the workflow names it (`return`, `approve`, `ask`...); null when it recorded none.
            */
           outcome: z.string().nullable(),
         })
@@ -84,8 +91,23 @@ export const factoryItemProgressSchema = z.object({
       url: z.string(),
       merged: factoryChangeMergedSchema,
       mergedAt: z.string().nullable(),
+      /** The pull request's number, as the run's forge audit rows name it; null when none does. */
+      number: z.number().int().positive().nullable(),
     })
     .nullable(),
+  /**
+   * The item's runs of declared workflows, in start order, each with the workflow as the
+   * view declares it (a run records `owner/name:workflow`). Status, outcome and times are
+   * on the item read's `runs`, joined by id.
+   */
+  runs: z.array(
+    z.object({
+      runId: z.string(),
+      workflow: z.string(),
+      /** The first step that failed, as the run's terminal record names it; null when none. */
+      failedStep: z.string().nullable(),
+    })
+  ),
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
@@ -118,6 +140,8 @@ export interface FactoryRunFacts {
     rounds: { iteration: number; verdict: FactoryRoundVerdict; outcome: string | null }[];
   } | null;
   returnCount: number;
+  /** The first step that failed, as the run's terminal record names it; null when none did. */
+  failedStep: string | null;
   /** The change at the declared pointer, with the run's forge audit rows; null when none. */
   change: { url: string; audits: unknown[] } | null;
 }
@@ -178,9 +202,16 @@ function outputOutcome(output: unknown): unknown {
 }
 
 type Outcomes = ReturnType<typeof buildNodeOutcomes>['nodes'];
-type ReturnPoint = NonNullable<FactoryView['returns']>[number];
+/** A declared return or approval: a step, and the outcome it records that decides. */
+type DecisionPoint = NonNullable<FactoryView['returns']>[number];
+/** The declared returns and approvals of one workflow. */
+interface DecisionPoints {
+  returns: readonly DecisionPoint[];
+  approves: readonly DecisionPoint[];
+}
 
-function returnsIn(outcomes: Outcomes, point: ReturnPoint): Outcomes {
+/** The entries in which `point`'s step recorded `point`'s outcome. */
+function decidedIn(outcomes: Outcomes, point: DecisionPoint): Outcomes {
   return outcomes.filter(
     entry => entry.node_id === point.node && outputOutcome(entry.output) === point.outcome
   );
@@ -210,12 +241,12 @@ function iterationsIn(entry: Outcomes[number], loop: string): number[] {
 }
 
 /**
- * What the loop's declared return-point steps decided in each round. Outcomes are in
- * recording order, so the last one recorded in a round is that round's decision.
+ * What the loop's declared return and approval steps decided in each round. Outcomes are
+ * in recording order, so the last one recorded in a round is that round's decision.
  */
 function roundDecisions(
   loop: string,
-  points: readonly ReturnPoint[],
+  points: readonly DecisionPoint[],
   outcomes: Outcomes
 ): Map<number, string> {
   const nodes = new Set(points.map(point => point.node));
@@ -230,26 +261,34 @@ function roundDecisions(
 
 function roundFacts(
   loop: string,
-  points: readonly ReturnPoint[],
+  points: DecisionPoints,
   run: WorkflowRun,
   events: readonly WorkflowEventRow[],
   outcomes: Outcomes
 ): NonNullable<FactoryRunFacts['rounds']> {
   const { started, completed } = loopRows(loop, events);
-  const bodyPoints = points.filter(point => point.node.startsWith(`${loop}.`));
-  const decided = roundDecisions(loop, bodyPoints, outcomes);
-  const returnedIn = new Set(
-    bodyPoints.flatMap(point => returnsIn(outcomes, point).flatMap(e => iterationsIn(e, loop)))
-  );
+  const inLoop = (list: readonly DecisionPoint[]): DecisionPoint[] =>
+    list.filter(point => point.node.startsWith(`${loop}.`));
+  const roundsDecided = (list: readonly DecisionPoint[]): Set<number> =>
+    new Set(
+      inLoop(list).flatMap(point =>
+        decidedIn(outcomes, point).flatMap(entry => iterationsIn(entry, loop))
+      )
+    );
+  const decided = roundDecisions(loop, inLoop([...points.returns, ...points.approves]), outcomes);
+  const returnedIn = roundsDecided(points.returns);
+  const approvedIn = roundsDecided(points.approves);
   const unfinished = isTerminalRunStatus(run.status) ? ('stopped' as const) : ('running' as const);
+  const verdict = (iteration: number): FactoryRoundVerdict => {
+    if (returnedIn.has(iteration)) return 'returned';
+    if (approvedIn.has(iteration)) return 'approved';
+    // A round is approved only by a declared approval; one that completed without it needs a decision.
+    return completed.has(iteration) ? 'undecided' : unfinished;
+  };
   const iterations = [...started.keys()].sort((a, b) => a - b);
   const rounds = iterations.map(iteration => ({
     iteration,
-    verdict: returnedIn.has(iteration)
-      ? ('returned' as const)
-      : completed.has(iteration)
-        ? ('ended' as const)
-        : unfinished,
+    verdict: verdict(iteration),
     outcome: decided.get(iteration) ?? null,
   }));
   const last = iterations.at(-1);
@@ -282,15 +321,19 @@ export function factoryRunFacts(
   events: readonly WorkflowEventRow[]
 ): FactoryRunFacts {
   const workflow = declaredWorkflow(view, pack, run.workflow_name);
-  const points = (view.returns ?? []).filter(point => point.workflow === workflow);
-  const outcomes = buildNodeOutcomes(run, events).nodes;
+  const ofWorkflow = (list: readonly DecisionPoint[] | undefined): DecisionPoint[] =>
+    (list ?? []).filter(point => point.workflow === workflow);
+  const points = { returns: ofWorkflow(view.returns), approves: ofWorkflow(view.approves) };
+  const listing = buildNodeOutcomes(run, events);
+  const outcomes = listing.nodes;
   return {
     active: deepestActiveStep(events),
     rounds:
       view.rounds !== undefined && view.rounds.workflow === workflow
         ? roundFacts(view.rounds.loop, points, run, events, outcomes)
         : null,
-    returnCount: points.reduce((sum, point) => sum + returnsIn(outcomes, point).length, 0),
+    returnCount: points.returns.reduce((sum, point) => sum + decidedIn(outcomes, point).length, 0),
+    failedStep: listing.first_failed_node,
     change:
       view.change !== undefined && view.change.workflow === workflow
         ? changeFacts(view.change.pointer, run, events)
@@ -310,11 +353,14 @@ function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | nu
   return null;
 }
 
-/** The merge state of a change URL, given the forge audit rows of the run that recorded it. */
+/**
+ * The merge state and pull request number of a change URL, given the forge audit rows of
+ * the run that recorded it.
+ */
 export type FactoryChangeState = (
   url: string,
   audits: readonly unknown[]
-) => Promise<{ merged: FactoryChangeMerged; mergedAt: string | null }>;
+) => Promise<{ merged: FactoryChangeMerged; mergedAt: string | null; number: number | null }>;
 
 /**
  * An item's progress from its runs (start order) and the facts of each declared run.
@@ -367,6 +413,11 @@ export async function factoryItemProgress(
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change:
       found === null ? null : { url: found.url, ...(await changeState(found.url, found.audits)) },
+    runs: declared.map(run => ({
+      runId: run.id,
+      workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
+      failedStep: facts.get(run.id)?.failedStep ?? null,
+    })),
   };
 }
 
@@ -478,6 +529,7 @@ export class FactoryRunFactsMemo {
       workflows: view.stages.map(stage => stage.workflows),
       rounds: view.rounds,
       returns: view.returns,
+      approves: view.approves,
       change: view.change,
     };
     return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;

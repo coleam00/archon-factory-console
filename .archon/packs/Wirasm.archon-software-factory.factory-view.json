@@ -89,6 +89,7 @@
     { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
     { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" }
   ],
+  "approves": [{ "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" }],
   "change": { "workflow": "deliver", "pointer": "/change" },
   "itemTitle": { "input": "item" },
   "map": {
