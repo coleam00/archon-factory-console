@@ -124,6 +124,24 @@ describe('where an item sits', () => {
     expect(where(itemColumn(view, named, 'build'))).toBe('checks');
   });
 
+  test('4 and 5 read the last declared run whatever its status: every status after an ending', () => {
+    const ended = run('triage', 'completed', 'reject');
+    const after = (status: PlacementRun['status'], outcome: string | null = null) =>
+      where(itemColumn(view, input([ended, run('triage', status, outcome)])));
+    // Taken up again: paused, pending or running, the item is back on the board.
+    expect(after('paused')).toBe('triage');
+    expect(after('pending')).toBe('triage');
+    expect(after('running')).toBe('triage');
+    // Stopped: rule 5, the stage of its workflow.
+    expect(after('failed')).toBe('triage');
+    expect(after('cancelled')).toBe('triage');
+    // Ended again: off the board.
+    expect(after('completed', 'reject')).toBe('ended: Closed by triage');
+    // An exact ending key with a newer pending run of the same workflow.
+    const stopped = [run('plan', 'completed', 'stop'), run('plan', 'pending')];
+    expect(where(itemColumn(view, input(stopped)))).toBe('triage');
+  });
+
   test('6. otherwise the first stage; runs of undeclared workflows do not count', () => {
     expect(where(itemColumn(view, input([])))).toBe('triage');
     expect(where(itemColumn(view, input([run(null, 'running', null, 'build__build')])))).toBe(

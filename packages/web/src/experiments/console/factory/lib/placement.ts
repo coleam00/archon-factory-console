@@ -100,7 +100,8 @@ export function stageOfWorkflow(
   return stages.find(stage => stage.nodes === undefined) ?? stages[0];
 }
 
-const TERMINAL: ReadonlySet<RunStatus> = new Set(['completed', 'failed', 'cancelled']);
+/** The statuses rule 5 places by: a run that stopped without completing. */
+const STOPPED: ReadonlySet<RunStatus> = new Set(['failed', 'cancelled']);
 
 type DeclaredRun = PlacementRun & { workflow: string };
 
@@ -166,13 +167,15 @@ export function itemColumn(
       ? undefined
       : view.placement[`${completed.workflow}:${completed.outcome}`];
   if (placed !== undefined) return stageOf(view.stages.find(stage => stage.id === placed));
-  const last = runs.filter(run => TERMINAL.has(run.status)).at(-1);
+  // Rules 4 and 5 read the item's last declared run whatever its status: a run paused or
+  // pending after an ending means the item was taken up again, so it is not ended.
+  const last = runs.at(-1);
   // 4. The last run ended the item without a change.
   const ending = last === undefined ? undefined : endingOf(view, last);
   if (ending !== undefined) return { ended: ending };
   // 5. The last run failed or was cancelled: the stage whose `nodes` name the step it failed
   // at, else its workflow's first stage.
-  if (last !== undefined && last.status !== 'completed') {
+  if (last !== undefined && STOPPED.has(last.status)) {
     const atStep =
       last.failedStep === null ? undefined : stageOfStep(view, last.workflow, last.failedStep);
     return stageOf(atStep ?? stagesOfWorkflow(view.stages, last.workflow)[0]);

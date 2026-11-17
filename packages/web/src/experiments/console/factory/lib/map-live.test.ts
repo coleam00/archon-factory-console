@@ -71,6 +71,16 @@ describe('the live chips on each card', () => {
     expect(live.notOnMap).toEqual([]);
   });
 
+  test('an item taken up again after triage closed it stays on a card while its new run is paused', () => {
+    const reopened = itemWith('again', [
+      run('triage', 'completed', 'reject'),
+      run('triage', 'paused'),
+    ]);
+    const live = stageLive(view, [reopened], []);
+    expect(chips(live).triage).toEqual([['again'], 0, []]);
+    expect(live.notOnMap).toEqual([]);
+  });
+
   test('needs you: an open ask on the item, matched by item id; a usage limit is not', () => {
     const asking = itemWith('ask', [run('deliver', 'completed', 'ask')]);
     const limited = itemWith('limit', [run('deliver', 'running', null, 'build__build')]);

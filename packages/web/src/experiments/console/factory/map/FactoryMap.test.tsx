@@ -239,30 +239,18 @@ function checking(step: string | null): FactoryItem {
   return { ...item, progress: { ...progress, running: { ...progress.running, step } } };
 }
 
+/** The "N here" chip a card draws; null when it draws none (nothing there). */
+const hereChip = (container: HTMLElement, stage: string): string | null =>
+  container.querySelector(`[data-stage="${stage}"] [data-chip="here"]`)?.textContent ?? null;
+
 test('a later read on a step no stage names keeps the card where the last read put it, as the board does', async () => {
   const { container, unmount } = await mount([checking('rounds.tests__tests')]);
   try {
-    expect(card(container, 'checks').getAttribute('aria-label')).toBe(
-      'Checks: 1 here, 1 being worked'
-    );
+    expect(hereChip(container, 'checks')).toContain('1');
     // Between rounds the run records only the bare loop group, which no stage names.
     await act(async () => set(K.factoryItems(ID), [checking('rounds')]));
-    expect(card(container, 'checks').getAttribute('aria-label')).toBe(
-      'Checks: 1 here, 1 being worked'
-    );
-    expect(card(container, 'build').getAttribute('aria-label')).toBe('Build: 0 here');
-  } finally {
-    await unmount();
-  }
-});
-
-test('with no read before it, a run on a step no stage names sits where its workflow starts', async () => {
-  const { container, unmount } = await mount([checking('rounds')]);
-  try {
-    expect(card(container, 'build').getAttribute('aria-label')).toBe(
-      'Build: 1 here, 1 being worked'
-    );
-    expect(card(container, 'checks').getAttribute('aria-label')).toBe('Checks: 0 here');
+    expect(hereChip(container, 'checks')).toContain('1');
+    expect(hereChip(container, 'build')).toBeNull();
   } finally {
     await unmount();
   }

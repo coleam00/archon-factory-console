@@ -26,8 +26,10 @@ it. Inside it:
   place. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
   on the `map` grid, coloured by group, with the declared hand-offs between them (returns
   dashed, below). Each card says how many items are in it now, pulsing while a run works one,
-  and how many need a person. Drag to pan, scroll or use the buttons to zoom, **Fit** to see
-  it whole. Click a card for its items and workflows; double-click it, or its open icon, for
+  and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
+  the whole map when it fits at a readable size; with a card's details open, or on a narrow
+  screen, it stops at the smallest readable size, so drag, zoom out or close the details to
+  see the rest. Click a card for its items and workflows; double-click it, or its open icon, for
   the stage page.
 - **Board**: one column per declared stage, each item one card in the column of the stage it
   is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
