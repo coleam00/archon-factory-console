@@ -44,15 +44,19 @@ function useMovedCards(
     const before = previous.current;
     previous.current = positions;
     const keys = movedKeys(before, positions);
-    if (keys.length === 0) return;
-    setMoved(new Set(keys));
+    if (keys.length > 0) setMoved(new Set(keys));
+  }, [positions, previous]);
+  // The clearing timer follows `moved`, not the reads: a refetch that moves nothing (several
+  // arrive within a second while checks start) must not cancel it and leave a card lit.
+  useEffect(() => {
+    if (moved.size === 0) return;
     const timer = setTimeout(() => {
       setMoved(new Set());
     }, MOVED_MS);
     return (): void => {
       clearTimeout(timer);
     };
-  }, [positions, previous]);
+  }, [moved]);
   return moved;
 }
 

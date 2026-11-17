@@ -130,6 +130,29 @@ describe('the Pipeline view', () => {
     }
   });
 
+  test('the highlight clears after its time even when a refetch that moves nothing follows', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const moved = PAGE.items.map(item =>
+        item.item.key === '6' ? { ...realItem('8'), item: item.item } : item
+      );
+      await act(async () => {
+        set(K.factoryItems(ID), moved);
+      });
+      // A second read right after, as several node events bring while checks start.
+      await act(async () => {
+        set(K.factoryItems(ID), structuredClone(moved));
+      });
+      expect(container.querySelector('[data-moved="true"]')).not.toBeNull();
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 1600));
+      });
+      expect(container.querySelector('[data-moved]')).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
   test('a refetch that moves a card marks it moved; one that does not, does not', async () => {
     const { container, unmount } = await mount(PAGE.items);
     try {
