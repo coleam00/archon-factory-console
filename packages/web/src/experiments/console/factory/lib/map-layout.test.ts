@@ -1,32 +1,134 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  arrowPaths,
-  cardBoxes,
   CARD_H,
   CARD_W,
   COL_PITCH,
   LANE,
-  mapBounds,
-  ROW_PITCH,
+  layoutMap,
+  ROW_GAP,
   type ArrowPath,
+  type Box,
+  type MapLayout,
 } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 
-const map = shippedView.map;
-const boxes = cardBoxes(map);
-const arrows = arrowPaths(map, boxes);
-const arrow = (from: string, to: string): ArrowPath => {
-  const found = arrows.find(entry => entry.from === from && entry.to === to);
+const arrowOf = (layout: MapLayout, from: string, to: string): ArrowPath => {
+  const found = layout.arrows.find(entry => entry.from === from && entry.to === to);
   if (found === undefined) throw new Error(`No arrow ${from} -> ${to}`);
   return found;
 };
 
-describe('the map layout of the software factory', () => {
-  test('cards sit on the declared grid, one pitch per column and row', () => {
-    expect(boxes.get('triage')).toEqual({ x: 0, y: 0, w: CARD_W, h: CARD_H });
-    expect(boxes.get('build')).toEqual({ x: 2 * COL_PITCH, y: 0, w: CARD_W, h: CARD_H });
-    expect(boxes.get('landed')?.x).toBe(6 * COL_PITCH);
-    expect(boxes.size).toBe(7);
+/** A path of M, H and V commands as its straight segments. */
+function segments(d: string): { x1: number; y1: number; x2: number; y2: number }[] {
+  const out: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  let x = 0;
+  let y = 0;
+  for (const command of d.split(' ')) {
+    const [kind, rest] = [command[0], command.slice(1)];
+    if (kind === 'M') {
+      [x, y] = rest.split(',').map(Number) as [number, number];
+      continue;
+    }
+    const next = Number(rest);
+    const [nx, ny] = kind === 'H' ? [next, y] : [x, next];
+    out.push({ x1: x, y1: y, x2: nx, y2: ny });
+    [x, y] = [nx, ny];
+  }
+  return out;
+}
+
+const inside = (box: Box, p: { x: number; y: number }): boolean =>
+  p.x > box.x && p.x < box.x + box.w && p.y > box.y && p.y < box.y + box.h;
+
+/** Whether an axis-aligned segment enters the box's interior, shrunk by half a pixel. */
+function enters(box: Box, s: { x1: number; y1: number; x2: number; y2: number }): boolean {
+  const [l, r, t, b] = [box.x + 0.5, box.x + box.w - 0.5, box.y + 0.5, box.y + box.h - 0.5];
+  const [sl, sr] = [Math.min(s.x1, s.x2), Math.max(s.x1, s.x2)];
+  const [st, sb] = [Math.min(s.y1, s.y2), Math.max(s.y1, s.y2)];
+  return sl <= r && sr >= l && st <= b && sb >= t;
+}
+
+describe('the shipped map: two rows of cards', () => {
+  const layout = layoutMap(shippedView.map);
+  const arrow = (from: string, to: string): ArrowPath => arrowOf(layout, from, to);
+  const row2 = layout.boxes.get('host')?.y ?? 0;
+
+  test('row 2 sits below a gap with room for the four lane arrows it carries', () => {
+    expect(layout.boxes.get('triage')).toEqual({ x: 0, y: 0, w: CARD_W, h: CARD_H });
+    expect(layout.boxes.get('host')).toEqual({ x: 0, y: row2, w: CARD_W, h: CARD_H });
+    expect(layout.boxes.get('landed')?.x).toBe(2 * COL_PITCH);
+    expect(row2 - CARD_H).toBeGreaterThanOrEqual((4 + 1) * LANE);
+    expect(layout.boxes.size).toBe(7);
+  });
+
+  test('the hand-off to the next row runs down to a lane, across, and down into its top edge', () => {
+    const approved = arrow('checks', 'host');
+    expect(approved.back).toBe(false);
+    expect(approved.lane).toBeDefined();
+    expect(approved.d).toMatch(new RegExp(`^M[\\d.]+,${CARD_H} V[\\d.]+ H[\\d.]+ V${row2}$`));
+  });
+
+  test('a return from row 2 leaves its top edge and ends at the bottom edge of row 1', () => {
+    const returned = arrow('host', 'build');
+    expect(returned).toMatchObject({ back: true, label: 'returned' });
+    expect(returned.d).toMatch(new RegExp(`^M[\\d.]+,${row2} V[\\d.]+ H[\\d.]+ V${CARD_H}$`));
+  });
+
+  test('ports on a card edge go in lane order, so lines leaving one edge do not cross', () => {
+    const startX = (entry: ArrowPath): number => Number(entry.d.split(',')[0]?.slice(1));
+    const endX = (entry: ArrowPath): number => Number(entry.d.split(' ').at(-2)?.slice(1));
+    // On checks' bottom edge, all three run left: the deeper the lane, the nearer the centre.
+    const fromChecks = [arrow('checks', 'build'), arrow('checks', 'plan'), arrow('checks', 'host')];
+    expect(fromChecks.map(entry => entry.lane)).toEqual([0, 2, 3]);
+    const xs = fromChecks.map(startX);
+    expect([...xs].sort((p, q) => p - q)).toEqual(xs);
+    // On host's top edge the deeper lane is nearer the card, so it runs outermost.
+    expect(startX(arrow('host', 'build'))).toBeLessThan(endX(arrow('checks', 'host')));
+  });
+
+  test('every lane label sits in the gap between the rows', () => {
+    const laned = layout.arrows.filter(entry => entry.lane !== undefined);
+    expect(laned).toHaveLength(4);
+    for (const entry of laned) {
+      expect(entry.labelAt.y).toBeGreaterThan(CARD_H);
+      expect(entry.labelAt.y).toBeLessThan(row2);
+    }
+  });
+
+  test('no arrow runs through a card, and no label sits on one', () => {
+    const boxes = [...layout.boxes.values()];
+    for (const entry of layout.arrows) {
+      for (const segment of segments(entry.d)) {
+        for (const box of boxes) expect(enters(box, segment)).toBe(false);
+      }
+      for (const box of boxes) expect(inside(box, entry.labelAt)).toBe(false);
+    }
+  });
+
+  test('bounds hold both rows and every label', () => {
+    expect(layout.bounds.x).toBe(0);
+    expect(layout.bounds.w).toBe(3 * COL_PITCH + CARD_W);
+    expect(layout.bounds.y + layout.bounds.h).toBe(row2 + CARD_H);
+  });
+});
+
+/** The factory's seven stages in one row, as the map shipped before it took two. */
+const oneRow = {
+  ...shippedView.map,
+  cards: ['triage', 'plan', 'build', 'checks', 'host', 'ready', 'landed'].map((stage, i) => ({
+    stage,
+    col: i + 1,
+    row: 1,
+  })),
+};
+
+describe('a map of one row', () => {
+  const layout = layoutMap(oneRow);
+  const arrow = (from: string, to: string): ArrowPath => arrowOf(layout, from, to);
+
+  test('cards sit on the declared grid, one pitch per column', () => {
+    expect(layout.boxes.get('build')).toEqual({ x: 2 * COL_PITCH, y: 0, w: CARD_W, h: CARD_H });
+    expect(layout.boxes.get('landed')?.x).toBe(6 * COL_PITCH);
   });
 
   test('a forward arrow runs from the right side of one card to the left side of the next', () => {
@@ -39,12 +141,12 @@ describe('the map layout of the software factory', () => {
     expect(planned.labelAt.y).toBeLessThan(mid);
   });
 
-  test('the three back arrows take three lanes below the row, the shortest span nearest', () => {
+  test('the three returns take three lanes below the row, the shortest span nearest', () => {
     const lanes = [arrow('checks', 'build'), arrow('host', 'build'), arrow('checks', 'plan')].map(
       entry => entry.lane
     );
     expect(lanes).toEqual([0, 1, 2]);
-    for (const entry of arrows.filter(a => a.back)) {
+    for (const entry of layout.arrows.filter(a => a.back)) {
       expect(entry.labelAt.y).toBe(CARD_H + LANE * ((entry.lane ?? 0) + 1));
       // Down from the source's bottom edge, across, and up into the target's bottom edge.
       expect(entry.d).toMatch(new RegExp(`^M[\\d.]+,${CARD_H} V[\\d.]+ H[\\d.]+ V${CARD_H}$`));
@@ -52,17 +154,16 @@ describe('the map layout of the software factory', () => {
   });
 
   test('lanes go by span, not by declaration order: the shortest return stays nearest', () => {
-    const reversed = { ...map, arrows: [...map.arrows].reverse() };
-    const drawn = arrowPaths(reversed, cardBoxes(reversed));
+    const reversed = layoutMap({ ...oneRow, arrows: [...oneRow.arrows].reverse() });
     const laneOf = (from: string, to: string): number | undefined =>
-      drawn.find(entry => entry.from === from && entry.to === to)?.lane;
+      arrowOf(reversed, from, to).lane;
     // Declared last now, the shortest return still takes the nearest lane; the two equal
     // spans share the next two.
     expect(laneOf('checks', 'build')).toBe(0);
     expect(new Set([laneOf('host', 'build'), laneOf('checks', 'plan')])).toEqual(new Set([1, 2]));
   });
 
-  test('two back arrows into one card meet its bottom edge at different points', () => {
+  test('two returns into one card meet its bottom edge at different points', () => {
     const ends = [arrow('checks', 'build'), arrow('host', 'build')].map(entry =>
       entry.d.split(' ').at(-2)
     );
@@ -70,30 +171,29 @@ describe('the map layout of the software factory', () => {
   });
 
   test('bounds hold every card and the lowest lane label', () => {
-    const bounds = mapBounds(boxes, arrows);
-    expect(bounds.x).toBe(0);
-    expect(bounds.w).toBe(6 * COL_PITCH + CARD_W);
-    expect(bounds.y + bounds.h).toBeGreaterThan(CARD_H + 3 * LANE);
+    expect(layout.bounds.x).toBe(0);
+    expect(layout.bounds.w).toBe(6 * COL_PITCH + CARD_W);
+    expect(layout.bounds.y + layout.bounds.h).toBeGreaterThan(CARD_H + 3 * LANE);
   });
 });
 
 describe('declarations the schema allows', () => {
   test('no cards: no boxes, no arrows, empty bounds', () => {
-    const empty = { cards: [], arrows: [{ from: 'a', to: 'b' }] };
-    const none = cardBoxes(empty);
-    expect(arrowPaths(empty, none)).toEqual([]);
-    expect(mapBounds(none, [])).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+    const empty = layoutMap({ cards: [], arrows: [{ from: 'a', to: 'b' }] });
+    expect(empty.boxes.size).toBe(0);
+    expect(empty.arrows).toEqual([]);
+    expect(empty.bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
   });
 
   test('an arrow to a stage with no card is left out', () => {
-    const partial = { ...map, cards: map.cards.filter(card => card.stage !== 'plan') };
-    const drawn = arrowPaths(partial, cardBoxes(partial));
-    expect(drawn.some(entry => entry.from === 'plan' || entry.to === 'plan')).toBe(false);
-    expect(drawn).toHaveLength(map.arrows.length - 3);
+    const map = shippedView.map;
+    const partial = layoutMap({ ...map, cards: map.cards.filter(card => card.stage !== 'plan') });
+    expect(partial.arrows.some(entry => entry.from === 'plan' || entry.to === 'plan')).toBe(false);
+    expect(partial.arrows).toHaveLength(map.arrows.length - 3);
   });
 
-  test('a forward arrow across rows is an elbow; in one column it runs bottom to top', () => {
-    const grid = {
+  test('a forward arrow to another row and column takes a lane; in one column it runs straight', () => {
+    const grid = layoutMap({
       cards: [
         { stage: 'a', col: 1, row: 1 },
         { stage: 'b', col: 2, row: 2 },
@@ -103,9 +203,14 @@ describe('declarations the schema allows', () => {
         { from: 'a', to: 'b' },
         { from: 'b', to: 'c' },
       ],
-    };
-    const [elbow, down] = arrowPaths(grid, cardBoxes(grid));
-    expect(elbow?.d).toMatch(/^M[\d.]+,[\d.]+ H[\d.]+ V[\d.]+ H[\d.]+$/);
-    expect(down?.d).toBe(`M${COL_PITCH + CARD_W / 2},${ROW_PITCH + CARD_H} V${2 * ROW_PITCH}`);
+    });
+    const [across, down] = grid.arrows;
+    const b = grid.boxes.get('b');
+    const c = grid.boxes.get('c');
+    expect(across?.d).toMatch(new RegExp(`^M[\\d.]+,${CARD_H} V[\\d.]+ H[\\d.]+ V${b?.y}$`));
+    expect(across?.lane).toBe(0);
+    // An empty-laned gap keeps the least row gap.
+    expect(c?.y).toBe((b?.y ?? 0) + CARD_H + ROW_GAP);
+    expect(down?.d).toBe(`M${COL_PITCH + CARD_W / 2},${(b?.y ?? 0) + CARD_H} V${c?.y}`);
   });
 });

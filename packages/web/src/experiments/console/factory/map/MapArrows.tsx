@@ -3,7 +3,7 @@ import type { ArrowPath, Box } from '../lib/map-layout';
 
 const LINE = 'color-mix(in oklch, white, transparent 70%)';
 
-/** The declared hand-offs: forward arrows solid, returns dashed in their lanes below. */
+/** The declared hand-offs: forward arrows solid, returns dashed in their lanes. */
 export function MapArrows({
   arrows,
   bounds,

@@ -12,7 +12,7 @@ import {
   TYPE_FLOOR_PX,
   zoomAt,
 } from './map-camera';
-import { arrowPaths, cardBoxes, mapBounds } from './map-layout';
+import { layoutMap } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 
 const world = { x: 0, y: -10, w: 1000, h: 200 };
@@ -40,13 +40,22 @@ describe('the map camera', () => {
   });
 
   test("the shipped map's text opens at or above the type floor at every frame width", () => {
-    const boxes = cardBoxes(shippedView.map);
-    const bounds = mapBounds(boxes, arrowPaths(shippedView.map, boxes));
+    const { bounds } = layoutMap(shippedView.map);
     // From a phone's frame up to a wide desktop's, with the height the frame takes there.
     for (let width = 0; width <= 2000; width += 50) {
       const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
       expect(MAP_TEXT_PX * k).toBeGreaterThanOrEqual(TYPE_FLOOR_PX);
     }
+  });
+
+  test("the shipped map fits the Overview's frame at 1440x900 large enough to project", () => {
+    const { bounds } = layoutMap(shippedView.map);
+    // The Overview's map frame measures 1100px wide in a 1440x900 window.
+    const width = 1100;
+    const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
+    // Card titles are 17 world px, so 14.45px or more; blurbs and labels are MAP_TEXT_PX
+    // (15), so 12.75px or more.
+    expect(k).toBeGreaterThanOrEqual(0.85);
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {

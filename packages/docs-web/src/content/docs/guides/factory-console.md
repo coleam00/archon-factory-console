@@ -26,7 +26,7 @@ it. Inside it:
   **Open** a line to answer it in place, the recommended option first. The newest few show;
   **N more · show all** lists the rest. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
   on the `map` grid, coloured by group, with the declared hand-offs between them (returns
-  dashed, below). Each card says how many items are in it now, pulsing while a run works one,
+  dashed, in the gap below a row). Each card says how many items are in it now, pulsing while a run works one,
   and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
   the whole map when it fits at a readable size; with a card's details open, or on a narrow
   screen, it stops at the smallest readable size, so drag, zoom out or close the details to
@@ -110,7 +110,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose first line is the item's title. Without it, the item's key is its title. |
-| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. |
+| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. An arrow between cards in different rows and columns, and every return, runs through the gap below the upper row, and a gap grows with the arrows it carries. Four columns fill a 1440px screen at full size; a wider grid fits smaller. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.

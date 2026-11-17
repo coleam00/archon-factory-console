@@ -55,8 +55,8 @@ export function MapCard({
         <span className="truncate pr-5 text-console-17 font-medium text-text-primary">
           {stage.label}
         </span>
-        {/* 15px is the smallest that reads at the opening fit (see map-layout.ts). The clamp
-            only guards a blurb longer than any card holds; the panel shows it whole. */}
+        {/* The map's sizing comment (map-layout.ts) says what this draws at when fitted. The
+            clamp only guards a blurb longer than any card holds; the panel shows it whole. */}
         <span className="line-clamp-5 text-console-15 leading-snug text-text-secondary">
           {stage.blurb}
         </span>

@@ -179,7 +179,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 - Cards laid out from `map.cards` on a grid, left to right in the order work flows, with the
   declared arrows between them (labelled with the outcome that moves an item along; back-arrows
-  drawn dashed and below). A card shows the stage label, its blurb, and live chips: how many
+  drawn dashed in the gap below their row). Each row reads left to right; the author picks the
+  grid, and four columns fill the Overview at 1440 px at full size. A card shows the stage label, its blurb, and live chips: how many
   items are in it now ("2 here", pulsing while a run works), how many wait on a person.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
 - **Click** a card: a details panel beside the map with the blurb, the items in that stage
