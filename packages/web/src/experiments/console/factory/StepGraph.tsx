@@ -31,7 +31,7 @@ const NOT_RUNNING: readonly ItemOnStep[] = [];
  * RunGraphPanel's running tint, held still: the items read carries no owner liveness, so a
  * pulse would claim more than it knows.
  */
-const RUNNING_GLOW: CSSProperties = {
+export const RUNNING_GLOW: CSSProperties = {
   background: 'color-mix(in oklch, var(--running), transparent 90%)',
   borderColor: 'color-mix(in oklch, var(--running), transparent 40%)',
   boxShadow: '0 0 0 3px color-mix(in oklch, var(--running), transparent 85%)',

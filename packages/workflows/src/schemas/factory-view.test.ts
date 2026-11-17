@@ -161,6 +161,15 @@ describe('factoryViewSchema', () => {
     ]);
   });
 
+  test('a drill-down card names an icon from the closed set', () => {
+    const view = minimal();
+    const steps = drilldown();
+    const first = steps.phases[0]!.cards[0]!;
+    steps.phases[0]!.cards = [{ ...first, icon: 'not-an-icon' as 'pencil' }, first];
+    view.stages[1] = { ...view.stages[1]!, drilldown: steps };
+    expect(issuePaths(view)).toEqual(['stages.1.drilldown.phases.0.cards.0.icon']);
+  });
+
   test('a stage declared twice is rejected', () => {
     const view = minimal();
     view.stages.push({ ...view.stages[0]!, label: 'Again' });

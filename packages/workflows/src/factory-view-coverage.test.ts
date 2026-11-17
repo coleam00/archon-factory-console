@@ -70,7 +70,7 @@ const graph = (): PackGraph => ({
 const card = (workflow: string, ...steps: string[]) => ({
   title: steps[0] ?? workflow,
   text: 'Does it.',
-  icon: 'pencil',
+  icon: 'pencil' as const,
   kind: 'agent' as const,
   covers: [{ workflow, steps }],
 });
