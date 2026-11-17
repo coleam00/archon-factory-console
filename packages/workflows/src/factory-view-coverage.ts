@@ -1,8 +1,9 @@
 /**
  * Whether a factory view tells the truth about its pack: every real step of a workflow the
  * view lists is covered by exactly one drill-down card (or loop), every step the view names
- * is real, and the map's arrows between workflows are exactly the hand-offs the pack graph
- * reports. The schema cannot see the pack's workflows; this check reads them as the pack
+ * is real, and the map's arrows are exactly the hand-offs the pack graph reports between the
+ * workflows the view lists. A workflow no stage lists is not compared (`unlistedWorkflows`
+ * names them). The schema cannot see the pack's workflows; this check reads them as the pack
  * graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
  */
@@ -40,6 +41,12 @@ function graphStagesOf(view: FactoryView, graph: PackGraph): Map<string, GraphSt
     if (stage !== undefined) found.set(workflow, stage);
   }
   return found;
+}
+
+/** The pack's workflows no stage of the view lists, in graph order: the check compares none of their steps or hand-offs. */
+export function unlistedWorkflows(view: FactoryView, graph: PackGraph): string[] {
+  const listed = new Set([...graphStagesOf(view, graph).values()].map(stage => stage.name));
+  return graph.stages.map(stage => stage.name).filter(name => !listed.has(name));
 }
 
 /** A step matches a stage `nodes` entry equal to it, or one it begins with followed by `.`. */
