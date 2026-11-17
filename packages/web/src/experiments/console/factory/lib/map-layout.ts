@@ -8,7 +8,8 @@
  * - A forward hand-off runs side to side between cards next to each other in a row. One that
  *   skips cards runs in a lane off the row's outer edge; one between the two rows, in a lane
  *   of the gap between them. Lanes are shared by arrows whose runs do not overlap.
- * - Every send-back (`back: true`) is drawn in the one feedback lane (`map-feedback-lane.ts`):
+ * - Every send-back (an arrow into its own card or one earlier in `stages` order) is drawn in
+ *   the one feedback lane (`map-feedback-lane.ts`):
  *   under the row, or in the gap below the forward lanes there.
  *
  * Known limit: with two rows, a forward hand-off between the rows crosses the feedback lane,
@@ -75,6 +76,8 @@ export interface MapLayout {
 
 interface Card {
   stage: string;
+  /** Its place in `stages` order. */
+  pos: number;
   row: 0 | 1;
   col: number;
 }
@@ -109,13 +112,14 @@ function placeCards(view: Declaration, rows: 1 | 2): Card[] {
   const perRow = rows === 1 ? ordered.length : Math.ceil(ordered.length / 2);
   return ordered.map((stage, pos) => {
     const row = pos < perRow ? 0 : 1;
-    return { stage: stage.id, row, col: row === 0 ? pos : pos - perRow };
+    return { stage: stage.id, pos, row, col: row === 0 ? pos : pos - perRow };
   });
 }
 
 /**
- * The declared arrows between two cards. An arrow into its own card is a send-back whether or
- * not it says so: it has no side to side to run.
+ * The declared arrows between two cards. The direction comes from `stages` order alone: an
+ * arrow into its own card or an earlier one is a send-back. The view file's `back` flag is
+ * ignored, since a second statement of direction could only disagree with that order.
  */
 function drawnArrows(map: Declaration['map'], cards: ReadonlyMap<string, Card>): Drawn[] {
   const drawn = map.arrows
@@ -125,7 +129,7 @@ function drawnArrows(map: Declaration['map'], cards: ReadonlyMap<string, Card>):
         from: arrow.from,
         to: arrow.to,
         label: arrow.label,
-        back: arrow.back === true || arrow.from === arrow.to,
+        back: (cards.get(arrow.to)?.pos ?? 0) <= (cards.get(arrow.from)?.pos ?? 0),
       })
     )
     .filter(arrow => cards.has(arrow.from) && cards.has(arrow.to));

@@ -47,9 +47,9 @@ const seven = declaration(SEVEN, {
     { from: 'checks', to: 'host', label: 'approved' },
     { from: 'host', to: 'ready', label: 'ready' },
     { from: 'ready', to: 'landed', label: 'landed' },
-    { from: 'checks', to: 'build', label: 'returned', back: true },
-    { from: 'host', to: 'build', label: 'returned', back: true },
-    { from: 'checks', to: 'plan', label: 'replan', back: true },
+    { from: 'checks', to: 'build', label: 'returned' },
+    { from: 'host', to: 'build', label: 'returned' },
+    { from: 'checks', to: 'plan', label: 'replan' },
   ],
 });
 
@@ -208,8 +208,8 @@ describe('several forward arrows between one pair of cards', () => {
     arrows: [
       ...twice('triage', 'plan', ['build', 'narrow', 'build']),
       ...twice('plan', 'host', ['planned', undefined]),
-      { from: 'host', to: 'build', label: 'returned', back: true },
-      { from: 'host', to: 'build', label: 'asks', back: true },
+      { from: 'host', to: 'build', label: 'returned' },
+      { from: 'host', to: 'build', label: 'asks' },
     ],
   });
 
@@ -236,6 +236,30 @@ describe('several forward arrows between one pair of cards', () => {
         ].map(p => `${p.x.toString()},${p.y.toString()}`);
         expect(new Set(points).size).toBe(points.length);
       }
+    }
+  });
+});
+
+describe('direction comes from stages order, not from a back flag', () => {
+  test('leftward arrows with no flag are send-backs in the one lane; a flag on a forward arrow is ignored', () => {
+    const view = declaration(SEVEN, {
+      arrows: [
+        { from: 'build', to: 'checks', label: 'built', back: true },
+        { from: 'checks', to: 'build', label: 'returned', back: false },
+        { from: 'checks', to: 'plan', label: 'replan' },
+      ],
+    });
+    for (const rows of [1, 2] as const) {
+      const layout = layoutMap(view, rows);
+      expect(layout.arrows.map(arrow => `${arrow.from}->${arrow.to}`)).toEqual(['build->checks']);
+      expect(
+        layout.feedback.labels.map(l => `${l.stage}: ${l.lines.map(x => x.text).join(' ')}`)
+      ).toEqual(['build: returned', 'plan: replan']);
+      const points = [
+        ...layout.arrows.map(arrow => arrow.labelAt),
+        ...layout.feedback.labels.flatMap(label => label.lines.map(line => line.at)),
+      ].map(p => `${p.x.toString()},${p.y.toString()}`);
+      expect(new Set(points).size).toBe(points.length);
     }
   });
 });

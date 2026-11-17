@@ -81,7 +81,11 @@ const mapSchema = z.strictObject({
       to: stageIdSchema,
       /** The outcome that moves an item along, in plain words. */
       label: labelSchema.optional(),
-      /** A send-back: drawn in the map's one feedback lane under the stages. */
+      /*
+       * Accepted, and ignored, so a view file that marks its send-backs still loads: the map
+       * reads a send-back from `stages` order (an arrow into its own stage or an earlier one),
+       * since a second statement of direction could only disagree with that order.
+       */
       back: z.boolean().optional(),
     })
   ),

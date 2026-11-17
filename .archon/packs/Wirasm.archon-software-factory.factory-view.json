@@ -150,9 +150,9 @@
       { "from": "checks", "to": "host", "label": "approved" },
       { "from": "host", "to": "ready", "label": "ready" },
       { "from": "ready", "to": "landed", "label": "merged" },
-      { "from": "checks", "to": "build", "label": "returned", "back": true },
-      { "from": "host", "to": "build", "label": "returned", "back": true },
-      { "from": "checks", "to": "plan", "label": "replan", "back": true }
+      { "from": "checks", "to": "build", "label": "returned" },
+      { "from": "host", "to": "build", "label": "returned" },
+      { "from": "checks", "to": "plan", "label": "replan" }
     ],
     "notes": [{ "text": "You answer asks here", "near": "needs-you" }]
   }

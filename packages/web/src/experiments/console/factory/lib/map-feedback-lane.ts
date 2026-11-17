@@ -1,6 +1,6 @@
 /**
- * The map's one feedback lane: every send-back the view file declares (`back: true`: a return,
- * a replan) drawn on a single line under the stages, running right to left. A send-back leaves
+ * The map's one feedback lane: every send-back the view file declares (an arrow into its own
+ * card or an earlier one in `stages` order: a return, a replan) drawn on a single line under the stages, running right to left. A send-back leaves
  * its source card's lane edge on the source's leg, runs along the lane, and enters its target's
  * lane edge on the target's leg. A card has at most one leg of each kind, so every send-back
  * into one card shares one leg, and one label per target names them all.

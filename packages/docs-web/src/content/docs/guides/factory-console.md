@@ -29,7 +29,7 @@ it. Inside it:
   started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the stages `map.cards` lists, in
   `stages` order in one row (two on a screen too narrow to read one), coloured by group, with
   the arrows `map.arrows` declares and no others. A forward hand-off runs between two cards;
-  every send-back (`back: true`: a return, a replan) runs in one feedback lane under the row,
+  every send-back (an arrow into an earlier stage: a return, a replan) runs in one feedback lane under the row,
   labelled once where it returns to. Each card says how many items are in it now, pulsing while
   a run works one, and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
   the whole map when it fits at a readable size; with a card's details open, or on a narrow
@@ -122,7 +122,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step is not reported; the step reads as its cleaned id. |
-| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to`, an optional `label` and `back: true` for a send-back), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
+| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to` and an optional `label`; an arrow into its own stage or an earlier one in `stages` order is a send-back, and a `back` flag an older file has is accepted and ignored), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
@@ -185,7 +185,7 @@ Every stage a field names must be declared in `stages`, and every workflow named
     "arrows": [
       { "from": "plan", "to": "build", "label": "planned" },
       { "from": "build", "to": "review" },
-      { "from": "review", "to": "build", "label": "returned", "back": true },
+      { "from": "review", "to": "build", "label": "returned" },
       { "from": "review", "to": "landed", "label": "merged" }
     ],
     "notes": [{ "text": "You answer questions here", "near": "needs-you" }]

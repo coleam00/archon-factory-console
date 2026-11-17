@@ -140,8 +140,8 @@ present itself without the console knowing it. Shape (validated with zod in
   "map": {
     "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
     "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // every arrow the
-                { "from": "checks", "to": "build", "label": "returned", "back": true },  // map
-                { "from": "checks", "to": "plan", "label": "replan", "back": true } ],  // draws
+                { "from": "checks", "to": "build", "label": "returned" },  // map draws; leftward
+                { "from": "checks", "to": "plan", "label": "replan" } ],  // ones send back
     "notes": [ { "text": "You answer asks here", "near": "needs-you" } ]
   }
 }
@@ -245,8 +245,9 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   graph, so the view file declares every hand-off, between workflows too, and every send-back.
   Forward arrows, labelled with the outcome that moves an item along, run side to side between
   cards next to each other; one that skips cards runs in a lane off the row's outer edge.
-- **One feedback lane** under the row carries every send-back (`back: true`: a return, a
-  replan). Each send-back drops from its source to the lane, runs right to left along it, and
+- **One feedback lane** under the row carries every send-back: an arrow into its own card or
+  an earlier one in `stages` order (a return, a replan). Direction comes from that order only;
+  an arrow's `back` flag is accepted, so an older view file loads, and ignored. Each send-back drops from its source to the lane, runs right to left along it, and
   rises into its target; every send-back into one card shares one leg, labelled once with all
   their outcomes. An arrow into its own card is a short U on the lane under it. In one row
   nothing crosses: no line crosses another or a card. In two rows the lane runs in the gap
