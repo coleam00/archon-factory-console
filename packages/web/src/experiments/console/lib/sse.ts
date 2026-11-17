@@ -39,9 +39,9 @@ function parse(raw: string): ParsedEvent | null {
 }
 
 /**
- * Subscribe to the dashboard SSE stream, invalidate the runs feed and metrics reports on any
- * lifecycle change, and report the changed run to `onRunChanged` (keep it
- * stable: a new callback reconnects). Mounted once, at the console root, so
+ * Subscribe to the dashboard SSE stream, invalidate the runs feed, metrics reports and
+ * factory item pages on any lifecycle change, and report the changed run to `onRunChanged`
+ * (keep it stable: a new callback reconnects). Mounted once, at the console root, so
  * every route stays live across navigation.
  *
  * Events we care about:
@@ -62,6 +62,8 @@ export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
         invalidate('runs');
         // Node outputs record metrics, so every metrics:* report may have changed.
         invalidate('metrics');
+        // A run starting, changing step or ending moves an item on the factory board.
+        invalidate('factory-items');
         // Also refresh any open run-detail cache so the detail page picks
         // up status / node-transition changes without its own SSE round-trip.
         if (typeof ev.runId === 'string') {

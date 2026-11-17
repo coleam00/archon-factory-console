@@ -46,6 +46,7 @@ mock.module('./console/skills', () => ({
   getMetricViews: mock(),
   getFactoryViews: mock(),
   getFactoryWorkflow: mock(),
+  listFactoryItems: mock(),
   listAttentionQueue: mock(),
   answerAttentionItem: mock(),
 }));

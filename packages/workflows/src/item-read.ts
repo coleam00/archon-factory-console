@@ -11,6 +11,7 @@ import {
   compareAge,
   isHeldByRun,
   listAttentionQueue,
+  type AttentionQueueItem,
   type AttentionQueueSource,
 } from './attention-queue';
 import {
@@ -337,14 +338,29 @@ export async function readItem(
 ): Promise<ItemRead | null> {
   const found = await readItemRuns(source.store, projectKey, key);
   if (found === null) return null;
+  // The one queue reader, so a question here reads as `workflow attention` lists it.
+  return assembleItemRead(source, found, splitAttentionRead(await listAttentionQueue(source)));
+}
+
+type FoundItem = NonNullable<Awaited<ReturnType<typeof readItemRuns>>>;
+type QueueRead = ReturnType<typeof splitAttentionRead<AttentionQueueItem>>;
+
+/**
+ * Build the read of an item `readItemRuns` found, against one read of the attention queue,
+ * so a reader of many items reads the queue once.
+ */
+export async function assembleItemRead(
+  source: ItemReadSource,
+  found: FoundItem,
+  queue: QueueRead
+): Promise<ItemRead> {
   const own = { values: found.runs, degraded: found.degraded };
   const tree = new Set([
     ...own.values.map(run => run.id),
     ...own.degraded.map(report => report.runId),
     ...found.descendantIds,
   ]);
-  // The one queue reader, so a question here reads as `workflow attention` lists it.
-  const { values, degraded } = splitAttentionRead(await listAttentionQueue(source));
+  const { values, degraded } = queue;
   // An ask no run holds belongs to the item it was left on.
   const questions = values
     .filter(item => (isHeldByRun(item) ? tree.has(item.run.id) : item.item?.id === found.item.id))

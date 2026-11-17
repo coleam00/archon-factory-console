@@ -5,12 +5,16 @@ import { webPushPayloadSchema } from '@archon/core/schemas/web-push';
 import {
   createSqlWorkflowHost,
   createSqlWorkflowOperations,
+  createWorkflowHostStore,
 } from '@archon/core/workflows/sql-host';
 import { createWorkflowStore } from '@archon/core/workflows/store-adapter';
 import * as codebaseDb from '@archon/core/db/codebases';
 import * as factoryDb from '@archon/core/db/factory-reads';
 import { providerRegistry } from '@archon/providers';
 import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
+import { attentionQueueSource } from '@archon/core/operations/attention-queue';
+import { changeMergeState } from '@archon/adapters/forge-host';
+import { getArchonHome, projectKeyForCodebase } from '@archon/paths/archon-paths';
 import type { WebAdapter } from '../adapters/web';
 import { dagNodeSseEventSchema } from '../adapters/web/workflow-event.schemas';
 import { isApiGateEnabled } from '../auth';
@@ -24,7 +28,7 @@ import { registerCodebaseEnvironmentRoute, registerCodebaseRoutes } from './api.
 import { registerConfigRoutes } from './api.config';
 import { registerConversationRoutes } from './api.conversations';
 import { registerConversationProcessingRoute } from './api.conversation-processing';
-import { registerFactoryViewsRoute, registerFactoryWorkflowRoute } from './api.factory';
+import { registerFactoryRoutes } from './api.factory';
 import { registerHealthRoutes } from './api.health';
 import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
@@ -127,15 +131,22 @@ export function registerApiRoutes(
     codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     loadConfig,
   });
-  const factoryViews = {
-    codebaseCwd: async (id: string) => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
+  registerFactoryRoutes(app, {
+    codebase: async id => {
+      const codebase = await codebaseDb.getCodebase(id);
+      return codebase === null
+        ? null
+        : {
+            cwd: codebase.default_cwd,
+            projectKey: projectKeyForCodebase(codebase, codebase.default_cwd),
+          };
+    },
     loadConfig,
-    ranWorkflows: async (id: string, names: readonly string[]) =>
-      new Set(await factoryDb.listRunWorkflowNames(id, names)),
-  };
-  registerFactoryViewsRoute(app, factoryViews);
-  registerFactoryWorkflowRoute(app, {
-    ...factoryViews,
+    ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
+    itemsSource: attentionQueueSource(createWorkflowStore(), createWorkflowHostStore().isolation),
+    listProjectItems: factoryDb.listProjectItemsByActivity,
+    changeMergeState: (url, audits) =>
+      changeMergeState(url, audits, { archonHome: getArchonHome(), env: process.env }),
     discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerWorkflowDefinitionRoutes(app);

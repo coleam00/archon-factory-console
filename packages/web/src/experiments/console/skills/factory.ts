@@ -3,6 +3,7 @@ import { requestJson } from '../lib/http';
 import type { components } from '@/lib/api.generated';
 
 export type FactoryViews = components['schemas']['FactoryViews'];
+export type FactoryItemsPage = components['schemas']['FactoryItemsPage'];
 
 /** The factory views that apply to one project, and declarations that failed, with their files. */
 export async function getFactoryViews(
@@ -18,4 +19,11 @@ export async function getFactoryWorkflow(
   opts: QueryParams<'/api/factory/workflow', 'get'>
 ): Promise<FactoryWorkflow> {
   return requestJson('/api/factory/workflow', 'get', { query: opts });
+}
+
+/** A page of one project's items, newest activity first, each with its progress on the board. */
+export async function listFactoryItems(
+  opts: QueryParams<'/api/factory/items', 'get'>
+): Promise<FactoryItemsPage> {
+  return requestJson('/api/factory/items', 'get', { query: opts });
 }

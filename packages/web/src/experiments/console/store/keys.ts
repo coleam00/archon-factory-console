@@ -27,6 +27,8 @@ export const K = {
   factoryViews: (projectId: string): string => `factory-views:${projectId}`,
   factoryWorkflow: (projectId: string, workflow: string): string =>
     `factory-workflow:${projectId}:${workflow}`,
+  // Every page of one project's items; the dashboard SSE invalidates the `factory-items` prefix.
+  factoryItems: (projectId: string): string => `factory-items:${projectId}`,
   messages: (conversationId: string): string => `messages:${conversationId}`,
   conversations: (projectId: string): string => `conversations:${projectId}`,
   countsGlobal: 'counts:global' as const,
