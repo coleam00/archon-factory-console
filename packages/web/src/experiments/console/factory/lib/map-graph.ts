@@ -47,7 +47,11 @@ export interface OffMapStart {
   workflow: string;
   /** The outcomes that start it, joined, or `asks answered`. */
   when: string;
-  /** The workflow it starts, as the graph names it. */
+  /**
+   * The workflow it starts, in the words a person reads: without this pack's `owner/name:`
+   * run-name prefix, as the view names its own workflows; another pack's workflow keeps its
+   * full name, so it is not mistaken for one of this pack's.
+   */
   starts: string;
 }
 
@@ -57,6 +61,15 @@ export interface MapGraph {
   offMap: OffMapStart[];
   /** How many of the pack's workflows failed to load: the graph may be missing stages. */
   failedToLoad: number;
+}
+
+/**
+ * A run name as a person reads it: this pack's own workflows without the `<pack>:` prefix an
+ * installed pack's runs record. A workflow the view lists has its run name in `runNames`; a
+ * started workflow no stage lists does not, so the prefix is dropped here.
+ */
+function shownName(pack: string, runName: string): string {
+  return runName.startsWith(`${pack}:`) ? runName.slice(pack.length + 1) : runName;
 }
 
 function styleOf(edge: GraphEdge): GraphArrowStyle {
@@ -145,7 +158,7 @@ export function mapArrowsFromGraph(
     const toWorkflow = declaredOf.get(edge.to);
     const to = toWorkflow === undefined ? undefined : stageOfWorkflow(view, toWorkflow, null)?.id;
     if (to === undefined || !cards.has(to)) {
-      offMap.push({ from, workflow, when: whenOf(edge), starts: edge.to });
+      offMap.push({ from, workflow, when: whenOf(edge), starts: shownName(view.pack, edge.to) });
       continue;
     }
     const style = styleOf(edge);

@@ -452,7 +452,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-triage-after-order-ready-da18e160b7b6.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-triage-after-order-ready-da18e160b7b6.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-triage-after-order-ready-da18e160b7b6",
         "problems": []
       }
@@ -469,7 +469,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f",
         "problems": []
       }
@@ -486,7 +486,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-narrow-022970381624.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-narrow-022970381624.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-narrow-022970381624",
         "problems": []
       }
@@ -503,7 +503,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838",
         "problems": []
       }
@@ -520,7 +520,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-landgate-after-deliver-ready-1c0ffe07697c.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-landgate-after-deliver-ready-1c0ffe07697c.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-landgate-after-deliver-ready-1c0ffe07697c",
         "problems": []
       }
@@ -537,7 +537,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-discoveries-after-deliver-ready-e89b89823cf2.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-discoveries-after-deliver-ready-e89b89823cf2.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-discoveries-after-deliver-ready-e89b89823cf2",
         "problems": []
       }
@@ -554,7 +554,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-answers-701fe3d34872.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-answers-701fe3d34872.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-answers-701fe3d34872",
         "problems": []
       }
@@ -571,7 +571,7 @@
         "problems": []
       },
       "installed": {
-        "file": "C:\\Users\\colem\\AppData\\Local\\Temp\\fc23\\home\\triggers\\Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-answers-355e96d3ad67.json",
+        "file": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-answers-355e96d3ad67.json",
         "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-answers-355e96d3ad67",
         "problems": []
       }

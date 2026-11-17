@@ -10,10 +10,9 @@ import {
   type Box,
   type MapLayout,
 } from './map-layout';
-import type { PackGraph } from '../../skills/packs';
 import { shippedListed, shippedView } from '../item-detail.test-fixtures';
-import livePackGraph from './fixtures/pack-graph.json';
 import { mapArrowsFromGraph } from './map-graph';
+import { LIVE_GRAPH } from './pack-graph.test-fixtures';
 import type { FactoryViewListed } from './views';
 
 /**
@@ -248,7 +247,7 @@ describe('declarations the schema allows', () => {
 });
 
 describe('the shipped map with the live pack graph', () => {
-  const graph = mapArrowsFromGraph(shippedView, shippedListed.runNames, livePackGraph as PackGraph);
+  const graph = mapArrowsFromGraph(shippedView, shippedListed.runNames, LIVE_GRAPH);
   const layout = layoutMap(shippedView.map, graph);
   const row2 = layout.boxes.get('checks')?.y ?? 0;
 

@@ -59,7 +59,7 @@
     {
       "id": "ready",
       "label": "Ready to land",
-      "blurb": "The change is approved and waits for a person to land it.",
+      "blurb": "A gate checks the approved change, then it waits for a person to land it.",
       "group": "land",
       "workflows": ["landgate", "land"]
     },

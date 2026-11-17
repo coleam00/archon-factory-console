@@ -9,7 +9,7 @@ import { K } from '../../store/keys';
 import type { FactoryItem } from '../../skills/factory';
 import type { PackGraph } from '../../skills/packs';
 import { shippedListed } from '../item-detail.test-fixtures';
-import livePackGraph from '../lib/fixtures/pack-graph.json';
+import { DECLARED_GRAPH, LIVE_GRAPH } from '../lib/pack-graph.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
 import { MAP_TEXT_PX } from '../lib/map-camera';
@@ -59,7 +59,7 @@ function StagePage(): React.ReactElement {
 
 async function mount(
   read: FactoryItem[] = items,
-  graph: PackGraph | null = livePackGraph as PackGraph
+  graph: PackGraph | null = LIVE_GRAPH
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
   set(K.factoryItems(ID), read);
   if (graph !== null) set(K.packGraph(ID, shippedListed.packKey), graph);
@@ -291,7 +291,32 @@ test('hand-offs between workflows come from the pack graph, solid where the inst
     // A start of a workflow with no card is named under the map.
     expect(
       container.querySelector('ul[aria-label="Starts not on the map"]')?.textContent
-    ).toContain('Wirasm/archon-software-factory:discoveries');
+    ).toContain('also starts discoveries, which has no card here');
+    expect(container.textContent).not.toContain('Wirasm/archon-software-factory:');
+  } finally {
+    await unmount();
+  }
+});
+
+test('an install that starts none of them draws every graph hand-off dashed, the declared ones solid', async () => {
+  const { container, unmount } = await mount(items, DECLARED_GRAPH);
+  try {
+    const arrows = [...container.querySelectorAll('g[data-arrow]')];
+    const graph = arrows.filter(g => g.getAttribute('data-arrow')?.startsWith('graph:'));
+    const declared = arrows.filter(g => g.getAttribute('data-arrow')?.startsWith('decl:'));
+    // Five hand-offs between cards, and the loop on Plan.
+    expect(graph).toHaveLength(6);
+    expect(declared).toHaveLength(shippedListed.declaration.map.arrows.length);
+    const dashed = (g: Element): boolean =>
+      g.querySelector('path')?.hasAttribute('stroke-dasharray') ?? false;
+    for (const g of graph) {
+      expect(g.getAttribute('data-style')).toBe('declared');
+      expect(dashed(g)).toBe(true);
+    }
+    for (const g of declared) {
+      expect(g.getAttribute('data-style')).toBe('solid');
+      expect(dashed(g)).toBe(false);
+    }
   } finally {
     await unmount();
   }

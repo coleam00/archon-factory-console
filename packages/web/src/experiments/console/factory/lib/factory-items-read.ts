@@ -2,9 +2,9 @@ import { getFactoryProgress, type FactoryItem } from '../../skills/factory';
 import { listItemWindow, type ItemRead } from '../../skills/items';
 
 /**
- * The board shows every item, and the window needs a start: one before any run. The window
- * lists an item once one of its own runs started in it, so an item whose only start is
- * still queued shows from its first run on.
+ * A window start before any run, so every item with a run shows. The window lists an item
+ * once one of its own runs started in it, so an item whose only start is still queued shows
+ * from its first run on.
  */
 const EVERY_ITEM_SINCE = '1970-01-01T00:00:00Z';
 /** The most items one window page holds (`ITEM_WINDOW_MAX_LIMIT` on the server). */
