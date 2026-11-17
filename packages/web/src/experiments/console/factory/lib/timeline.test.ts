@@ -241,6 +241,29 @@ describe('an outcome the declaration says nothing about', () => {
   });
 });
 
+describe('a gate that records no outcome', () => {
+  test('reads as where `workflow:*` sent the item, as the board places it', () => {
+    const detail = itemDetail('1');
+    const [triage, ...rest] = detail.item.runs;
+    if (triage === undefined) throw new Error('item 1 has runs');
+    const gate = { ...triage, id: 'gate', workflow: 'Wirasm/archon-software-factory:landgate' };
+    const rows = buildTimeline(
+      shippedView,
+      PROJECT,
+      {
+        ...detail,
+        item: { ...detail.item, runs: [...rest, { ...gate, outcome: null }] },
+        runs: [
+          ...detail.runs.slice(1),
+          { ...detail.runs[0]!, runId: 'gate', workflow: 'landgate' },
+        ],
+      },
+      NOW
+    );
+    expect(rows.at(-1)?.outcome).toEqual(said('sent to Ready to land'));
+  });
+});
+
 describe('round steps in a stage that names no steps', () => {
   test('sit under that stage, as the stage page lists them, not under a catch-all', () => {
     // A view whose deliver stages declare no `nodes` at all: every deliver step is Build's.

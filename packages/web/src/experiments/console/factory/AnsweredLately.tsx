@@ -19,7 +19,7 @@ function counts(entry: SettledAsks): string {
   return parts.join(', ');
 }
 
-/** What the settling started: the stage, linking to its run, or that nothing has yet. */
+/** What the settling started: the stage, linking to its run, or that no run names it as its start. */
 function Restart({
   projectId,
   restart,
@@ -27,7 +27,8 @@ function Restart({
   projectId: string;
   restart: SettledAsks['restart'];
 }): ReactNode {
-  if (restart === null) return <span className="text-text-tertiary">no stage started from it</span>;
+  if (restart === null)
+    return <span className="text-text-tertiary">no run started from these answers</span>;
   return (
     <Link
       to={`/console/p/${projectId}/r/${restart.runId}`}

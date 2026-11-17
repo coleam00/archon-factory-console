@@ -196,7 +196,7 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    too (the attention list already reads both into one shape). The item page shows its own asks
    opened. Under the open asks, **Answered lately** lists the three newest sets of asks an item
    settled, with how many were answered and withdrawn and the stage the settling started again
-   (engine #5834), linking to that run with its status, or that no stage started from it. It
+   (engine #5834), linking to that run with its status, or that no run started from these answers. It
    joins the item read's `asks_settled` answer to the run whose `cause` names the same asking
    run, so an answer given through the CLI or by an agent shows too.
 4. **The map.**

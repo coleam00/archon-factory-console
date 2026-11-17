@@ -2,16 +2,38 @@ import { describe, expect, test } from 'bun:test';
 import type { PackGraph } from '../../skills/packs';
 import { shippedListed, shippedView } from '../item-detail.test-fixtures';
 import live from './fixtures/pack-graph.json';
-import declaredOnly from './fixtures/pack-graph-declared.json';
 import { mapArrowsFromGraph, type GraphArrow } from './map-graph';
 
 /**
  * `archon pack graph Wirasm.archon-software-factory --json` for the live factory's install on
- * 2026-11-17 (each stage's `nodes` dropped, each trigger file named by its file name only), and
- * the same graph as a home with no trigger files reads it: every arrow declared, none active.
+ * 2026-11-17, each stage's `nodes` dropped and each trigger file named by its file name only.
  */
 const LIVE = live as PackGraph;
-const DECLARED = declaredOnly as PackGraph;
+
+/**
+ * The same graph as a home with no trigger files reads it (`dev:console`'s): every arrow only
+ * declared, and so every outcome starting nothing.
+ */
+function declaredOnly(graph: PackGraph): PackGraph {
+  return {
+    ...graph,
+    arrows: graph.arrows.map(edge => {
+      if (edge.declared === null) throw new Error('every live arrow is one the pack declares');
+      return { ...edge, active: false, declared: edge.declared, installed: null };
+    }),
+    stages: graph.stages.map(stage => ({
+      ...stage,
+      outcome:
+        stage.outcome === null
+          ? null
+          : {
+              ...stage.outcome,
+              values: stage.outcome.values.map(value => ({ ...value, startsNothing: true })),
+            },
+    })),
+  };
+}
+const DECLARED = declaredOnly(LIVE);
 const read = (graph: PackGraph) => mapArrowsFromGraph(shippedView, shippedListed.runNames, graph);
 const ends = (arrows: readonly GraphArrow[]) =>
   arrows.map(arrow => `${arrow.from} -> ${arrow.to}: ${arrow.label} (${arrow.style})`);

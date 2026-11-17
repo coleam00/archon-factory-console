@@ -26,7 +26,7 @@ it. Inside it:
   **Open** a line to answer it in place, the recommended option first. The newest few show;
   **N more · show all** lists the rest. Paused runs' waits appear there too. Under the open
   asks, **Answered lately** lists the last asks an item settled and the stage that answer
-  started again, linking to that run, or that none was. Then **the map**: the declared stages as cards on the
+  started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the declared stages as cards on the
   `map` grid, coloured by group, with the hand-offs between them. A hand-off from one
   workflow to another comes from the pack's stage graph for this install (`archon pack graph`):
   solid when a trigger file here starts it, dashed when the pack declares it and nothing here

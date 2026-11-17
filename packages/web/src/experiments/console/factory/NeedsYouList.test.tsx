@@ -212,7 +212,7 @@ describe('answered lately', () => {
     expect(html).toContain('2 answered, 1 withdrawn');
     expect(html).toContain(`href="/console/p/${ID}/r/run-p-1"`);
     expect(html).toContain('Plan started again (running)');
-    expect(html).toContain('no stage started from it');
+    expect(html).toContain('no run started from these answers');
     // Newest first.
     expect(html.indexOf('#p')).toBeLessThan(html.indexOf('#w'));
   });

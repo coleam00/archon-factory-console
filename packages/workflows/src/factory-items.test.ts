@@ -518,6 +518,45 @@ describe('reading progress, and one item whole', () => {
     expect(counts.loaded.at(-1)).toEqual([deliver2Cut.run.id]);
   });
 
+  test("items' merge states are looked up together, not one after another", async () => {
+    // Item 3 is a second item whose deliver run recorded the same kind of change as item 1's.
+    const source = pageSource({ queue: 0, loaded: [] });
+    const reads = source.store.getItemRuns;
+    source.store.getItemRuns = async (projectKey, key) =>
+      key === '3'
+        ? {
+            item: { id: 'item-3', projectKey, key: '3' },
+            runs: [{ ...deliver1.run, id: 'run-3', item_id: 'item-3' }],
+            descendantIds: [],
+          }
+        : reads(projectKey, key);
+    const listEvents = source.store.listEventsForRuns;
+    source.store.listEventsForRuns = async (ids, types) => {
+      const read = await listEvents(ids, types);
+      if (ids.includes('run-3')) read.set('run-3', deliver1.events);
+      return read;
+    };
+    // Each lookup answers only once both are in flight: a read that waited on one first would hang.
+    let started = 0;
+    let release: () => void = () => {};
+    const both = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const changeState: FactoryChangeState = async () => {
+      started++;
+      if (started === 2) release();
+      await both;
+      return { merged: false, mergedAt: null, number: null };
+    };
+    const read = await readFactoryProgress(
+      source,
+      { ...progressInput(new FactoryRunFactsMemo(), () => {}), changeState },
+      ['1', '3']
+    );
+    expect(started).toBe(2);
+    expect(Object.keys(read.progress).sort()).toEqual(['1', '3']);
+  });
+
   test("one item's facts failing gives it null progress and leaves the others", async () => {
     const failed: string[] = [];
     const read = await readFactoryProgress(

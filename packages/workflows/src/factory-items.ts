@@ -484,10 +484,13 @@ export async function readFactoryProgress(
     if (item !== null) found.push(item);
   }
   const facts = await runFactsFor(source, input, found);
-  const progress: FactoryProgress['progress'] = {};
-  for (const item of found)
-    progress[item.item.key] = await itemProgress(source, input, item, facts);
-  return { pack: input.pack, progress };
+  // Together: each may wait on the change host for a merge state no request has read yet.
+  const read = await Promise.all(
+    found.map(
+      async item => [item.item.key, await itemProgress(source, input, item, facts)] as const
+    )
+  );
+  return { pack: input.pack, progress: Object.fromEntries(read) };
 }
 
 /**
