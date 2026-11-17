@@ -26,9 +26,11 @@ export function DrilldownSteps({
   const named = stage.workflows.length > 1;
   // The panel opens under the phases, below the fold of a projected screen; bring it into view.
   const panel = useRef<HTMLElement>(null);
+  // On mount only: the parent keys the panel by the picked card, and a views refresh that
+  // hands back a new card object must not scroll the page back here.
   useEffect(() => {
     panel.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [card]);
+  }, []);
   return (
     <section
       ref={panel}
@@ -51,8 +53,9 @@ export function DrilldownSteps({
           <X aria-hidden="true" className="size-4" />
         </button>
       </div>
-      {card.covers.map(cover => (
-        <div key={cover.workflow} className="flex flex-col gap-1.5">
+      {card.covers.map((cover, k) => (
+        // Keyed by position: two covers of one card may name the same workflow.
+        <div key={k} className="flex flex-col gap-1.5">
           {named ? (
             <h5 className="font-mono text-console-12 font-semibold text-text-secondary">
               {cover.workflow}

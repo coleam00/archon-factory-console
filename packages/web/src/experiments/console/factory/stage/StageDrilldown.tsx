@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react';
-import { useMemo, useState, type CSSProperties, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import type { FactoryItem } from '../../skills/factory';
 import type { EntityView } from '../../store/cache';
 import { drilldownLive, type DrilldownLive, type FactoryDrilldown } from '../lib/drilldown-live';
@@ -54,7 +54,7 @@ export function StageDrilldown({
         : undefined,
     [drilldown, items.data, items.error]
   );
-  const phase = (p: number, style?: CSSProperties): ReactElement => (
+  const phase = (p: number, besideLoop = false): ReactElement => (
     <Phase
       key={p}
       index={p}
@@ -66,7 +66,7 @@ export function StageDrilldown({
       onSelect={card =>
         setSelected(selected?.phase === p && selected.card === card ? null : { phase: p, card })
       }
-      style={style}
+      besideLoop={besideLoop}
     />
   );
   const { loop, phases } = drilldown;
@@ -83,16 +83,18 @@ export function StageDrilldown({
           all.map(p => phase(p))
         ) : (
           <>
-            {all.slice(0, loop.from - 1).map(p => phase(p, outside(p)))}
+            {all.slice(0, loop.from - 1).map(p => phase(p, true))}
             <LoopFrame loop={loop} onLoop={live?.loop ?? NOTHING}>
               {all.slice(loop.from - 1, loop.to).map(p => phase(p))}
             </LoopFrame>
-            {all.slice(loop.to).map(p => phase(p, outside(p)))}
+            {all.slice(loop.to).map(p => phase(p, true))}
           </>
         )}
       </div>
       {card === undefined ? null : (
         <DrilldownSteps
+          // A new card is a new panel, which brings itself into view once.
+          key={`${String(selected?.phase)}.${String(selected?.card)}`}
           projectId={projectId}
           view={view}
           stage={stage}
@@ -104,12 +106,6 @@ export function StageDrilldown({
   );
 }
 
-/**
- * A phase beside a loop frame: in its own column of the row, its header level with the
- * framed phases' headers, which sit inside the frame's border and padding.
- */
-const outside = (p: number): CSSProperties => ({ gridColumn: String(p + 1), gridRow: '1' });
-
 /** One numbered phase: its header, then its cards stacked. */
 function Phase({
   index,
@@ -119,7 +115,7 @@ function Phase({
   live,
   selected,
   onSelect,
-  style,
+  besideLoop,
 }: {
   index: number;
   view: Declaration;
@@ -128,7 +124,11 @@ function Phase({
   live: DrilldownLive | undefined;
   selected: Selected | null;
   onSelect: (card: number) => void;
-  style?: CSSProperties;
+  /**
+   * Beside a loop frame: in its own column of the row, its header padded level with the
+   * framed phases' headers, which sit inside the frame's border and padding.
+   */
+  besideLoop: boolean;
 }): ReactElement | null {
   const phase = drilldown.phases[index];
   if (phase === undefined) return null;
@@ -136,8 +136,8 @@ function Phase({
     <section
       data-phase={index + 1}
       aria-label={`Phase ${String(index + 1)}: ${phase.label}`}
-      className={`flex min-w-0 flex-col gap-3 ${style === undefined ? '' : 'md:pt-3.5'}`}
-      style={style}
+      className={`flex min-w-0 flex-col gap-3 ${besideLoop ? 'md:pt-3.5' : ''}`}
+      style={besideLoop ? { gridColumn: String(index + 1), gridRow: '1' } : undefined}
     >
       <h4 className="flex items-center gap-2.5">
         <span
