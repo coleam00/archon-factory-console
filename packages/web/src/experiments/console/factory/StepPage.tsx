@@ -114,9 +114,9 @@ function StepBody({
         {step.yaml === null ? (
           <p className="text-console-12 text-text-secondary">{step.yamlError}</p>
         ) : (
-          // The whole block, at its own height: the page scrolls down it, and the pane
-          // scrolls sideways along a long line.
-          <div className="overflow-hidden rounded-console-12 border border-border">
+          // The whole block, at its own height, with long lines wrapped: a block runs to a
+          // hundred lines, and a sideways scrollbar under the last one is out of sight.
+          <div className="overflow-hidden rounded-console-12 border border-border [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words">
             <YamlPreview yamlText={step.yaml} />
           </div>
         )}
