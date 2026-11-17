@@ -201,6 +201,45 @@ describe('declarations the schema allows', () => {
   });
 });
 
+describe('several forward arrows between one pair of cards', () => {
+  const twice = (from: string, to: string, labels: (string | undefined)[]) =>
+    labels.map(label => ({ from, to, label }));
+  const view = declaration(SEVEN, {
+    arrows: [
+      ...twice('triage', 'plan', ['build', 'narrow', 'build']),
+      ...twice('plan', 'host', ['planned', undefined]),
+      { from: 'host', to: 'build', label: 'returned', back: true },
+      { from: 'host', to: 'build', label: 'asks', back: true },
+    ],
+  });
+
+  test('draw as one arrow, their outcomes joined, each once, side to side and in a lane', () => {
+    for (const rows of [1, 2] as const) {
+      const layout = layoutMap(view, rows);
+      expect(layout.arrows.map(arrow => [arrow.id, arrow.from, arrow.to, arrow.label])).toEqual([
+        ['decl:0', 'triage', 'plan', 'build, narrow'],
+        ['decl:3', 'plan', 'host', 'planned'],
+      ]);
+      // Send-backs stay one path each; the lane labels their target once.
+      expect(layout.feedback.paths).toHaveLength(2);
+      expect(layout.feedback.labels).toHaveLength(1);
+    }
+  });
+
+  test('no two labels on the map share a point', () => {
+    for (const map of [view, seven, shippedView]) {
+      for (const rows of [1, 2] as const) {
+        const layout = layoutMap(map, rows);
+        const points = [
+          ...layout.arrows.map(arrow => arrow.labelAt),
+          ...layout.feedback.labels.flatMap(label => label.lines.map(line => line.at)),
+        ].map(p => `${p.x.toString()},${p.y.toString()}`);
+        expect(new Set(points).size).toBe(points.length);
+      }
+    }
+  });
+});
+
 describe('the shipped map', () => {
   const layout = layoutMap(shippedView);
   const labelOf = (stage: string) =>

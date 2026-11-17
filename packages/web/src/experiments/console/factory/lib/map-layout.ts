@@ -29,7 +29,7 @@ export { CARD_H, CARD_W, COL_PITCH, LANE, ROW_GAP } from './map-sizes';
 
 type Declaration = FactoryViewListed['declaration'];
 
-/** A declared arrow. Two arrows may join one pair of cards. */
+/** A declared arrow, or several forward ones between one pair of cards merged. */
 interface Drawn extends SendBack {
   /** A send-back: drawn in the feedback lane. */
   back: boolean;
@@ -118,7 +118,7 @@ function placeCards(view: Declaration, rows: 1 | 2): Card[] {
  * not it says so: it has no side to side to run.
  */
 function drawnArrows(map: Declaration['map'], cards: ReadonlyMap<string, Card>): Drawn[] {
-  return map.arrows
+  const drawn = map.arrows
     .map(
       (arrow, index): Drawn => ({
         id: `decl:${index.toString()}`,
@@ -129,6 +129,30 @@ function drawnArrows(map: Declaration['map'], cards: ReadonlyMap<string, Card>):
       })
     )
     .filter(arrow => cards.has(arrow.from) && cards.has(arrow.to));
+  return mergeForward(drawn);
+}
+
+/**
+ * Forward arrows between one pair of cards as one, at the first's place, their outcomes
+ * joined, each once: two would draw one line with their labels on one point. Send-backs stay
+ * one each; the feedback lane joins their outcomes per target.
+ */
+function mergeForward(drawn: readonly Drawn[]): Drawn[] {
+  const merged: Drawn[] = [];
+  const byPair = new Map<string, Drawn>();
+  for (const arrow of drawn) {
+    const pair = `${arrow.from} -> ${arrow.to}`;
+    const first = arrow.back ? undefined : byPair.get(pair);
+    if (first === undefined) {
+      const copy = { ...arrow };
+      if (!arrow.back) byPair.set(pair, copy);
+      merged.push(copy);
+      continue;
+    }
+    const parts = [first.label, arrow.label].flatMap(label => label?.split(', ') ?? []);
+    first.label = parts.length === 0 ? undefined : [...new Set(parts)].join(', ');
+  }
+  return merged;
 }
 
 /** Undefined for a forward hand-off side to side; else where its lane runs. */
