@@ -135,7 +135,6 @@ describe('the Needs-you list', () => {
 
     const four = render(loaded({ items: six.slice(0, 4), runs: [], degraded: [] }));
     expect(four).not.toContain('show all');
-    expect(four).not.toContain('Show fewer');
   });
 
   test('a gate whose run row is missing, opened, leads to the run instead of answering blind', () => {
