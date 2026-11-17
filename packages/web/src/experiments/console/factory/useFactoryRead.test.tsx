@@ -2,8 +2,8 @@ import { afterAll, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { invalidate } from '../store/cache';
-import { FactoryLoading } from './FactoryLoading';
-import { SlowReadError } from './lib/deadline';
+import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
+import { FACTORY_READ_DEADLINE_MS } from './lib/deadline';
 import { useFactoryRead } from './useFactoryRead';
 
 const dom = new Window({ url: 'http://localhost' });
@@ -48,41 +48,53 @@ const advance = (ms: number): Promise<void> =>
     jest.advanceTimersByTime(ms);
   });
 
-test('a read that missed its deadline says so and retries, waiting longer each time', async () => {
-  jest.useFakeTimers();
-  let refetches = 0;
-  const refetch = (): void => {
-    refetches += 1;
+/** A read that never answers, as one queued behind a full connection pool; counts attempts. */
+function stalled(): { attempts: () => number; read: (signal: AbortSignal) => Promise<string> } {
+  let attempts = 0;
+  return {
+    attempts: () => attempts,
+    read: signal => {
+      attempts += 1;
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'));
+        });
+      });
+    },
   };
+}
+
+test('a read that missed its deadline says so and retries itself, waiting longer each time', async () => {
+  jest.useFakeTimers();
+  const key = 'factory-stalled-read-test';
+  const stall = stalled();
+  function Stalled(): ReactElement {
+    const read = useFactoryRead(key, within => within(stall.read));
+    return <FactoryLoading read={read} label="L" />;
+  }
   const page = await mount();
-  await page.show(<FactoryLoading read={{ error: undefined, refetch }} label="L" />);
-  expect(page.text()).toBe('L');
-
-  const first = new SlowReadError(8_000);
-  await page.show(<FactoryLoading read={{ error: first, refetch }} label="L" />);
-  // The page says the read is slow: a notice in place of its loading label.
-  expect(page.text()).not.toBe('L');
-  expect(page.text()).not.toBe('');
-  await advance(1_999);
-  expect(refetches).toBe(0);
-  await advance(1);
-  expect(refetches).toBe(1);
-  // The same failure rendered again schedules nothing more.
-  await page.show(<FactoryLoading read={{ error: first, refetch }} />);
-  await advance(20_000);
-  expect(refetches).toBe(1);
-
-  // The retry missed its deadline too: the next wait is twice as long.
-  await page.show(<FactoryLoading read={{ error: new SlowReadError(8_000), refetch }} />);
-  await advance(3_999);
-  expect(refetches).toBe(1);
-  await advance(1);
-  expect(refetches).toBe(2);
-
-  // Any other failure is the page's to show; this only waits.
-  await page.show(<FactoryLoading read={{ error: undefined, refetch }} label="L" />);
-  expect(page.text()).toBe('L');
-  await page.unmount();
+  try {
+    await page.show(<Stalled />);
+    expect(page.text()).toBe('L');
+    expect(stall.attempts()).toBe(1);
+    // The 8 s deadline passes: the page says so in place of its label.
+    await advance(FACTORY_READ_DEADLINE_MS);
+    expect(page.text()).toBe(SLOW_READ_NOTICE);
+    await advance(1_999);
+    expect(stall.attempts()).toBe(1);
+    await advance(1);
+    expect(stall.attempts()).toBe(2);
+    // The retry has a 16 s deadline; after it misses, the next wait is 4 s, not 2.
+    await advance(16_000);
+    await advance(3_999);
+    expect(stall.attempts()).toBe(2);
+    expect(page.text()).toBe(SLOW_READ_NOTICE);
+    await advance(1);
+    expect(stall.attempts()).toBe(3);
+  } finally {
+    await page.unmount();
+    invalidate(key);
+  }
 });
 
 test('a read slower than the first deadline on every attempt still lands, on a longer one', async () => {
@@ -110,8 +122,8 @@ test('a read slower than the first deadline on every attempt still lands, on a l
   try {
     await page.show(<Slow />);
     expect(page.text()).toBe('L');
-    await advance(8_000);
-    expect(page.text()).not.toBe('L');
+    await advance(FACTORY_READ_DEADLINE_MS);
+    expect(page.text()).toBe(SLOW_READ_NOTICE);
     // The retry, 2 s later, gets a 16 s deadline, which the 9 s answer meets.
     await advance(2_000);
     await advance(9_000);
@@ -123,24 +135,30 @@ test('a read slower than the first deadline on every attempt still lands, on a l
   }
 });
 
-test('parts of a page waiting on the same read retry it once between them', async () => {
+test('readers of the same key retry it once between them', async () => {
   jest.useFakeTimers();
-  let refetches = 0;
-  const read = {
-    error: new SlowReadError(8_000),
-    refetch: (): void => {
-      refetches += 1;
-    },
-  };
+  const key = 'factory-shared-read-test';
+  const stall = stalled();
+  // Each shows nothing while it waits: the retry does not depend on a loading notice.
+  function Reader(): null {
+    useFactoryRead(key, within => within(stall.read));
+    return null;
+  }
   const page = await mount();
-  await page.show(
-    <>
-      <FactoryLoading read={read} />
-      <FactoryLoading read={read} />
-      <FactoryLoading read={read} />
-    </>
-  );
-  await advance(2_000);
-  expect(refetches).toBe(1);
-  await page.unmount();
+  try {
+    await page.show(
+      <>
+        <Reader />
+        <Reader />
+        <Reader />
+      </>
+    );
+    expect(stall.attempts()).toBe(1);
+    await advance(FACTORY_READ_DEADLINE_MS);
+    await advance(2_000);
+    expect(stall.attempts()).toBe(2);
+  } finally {
+    await page.unmount();
+    invalidate(key);
+  }
 });

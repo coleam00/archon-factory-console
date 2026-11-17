@@ -76,7 +76,7 @@ export function deadlineOf(ms: number): WithinDeadline {
 
 /**
  * The failure a page shows for a read: its error, unless the read only missed its deadline,
- * which the page shows as a retry instead (`FactoryLoading`).
+ * which `useFactoryRead` retries and `FactoryLoading` says so.
  */
 export function readFailed(error: Error | undefined): Error | undefined {
   return error instanceof SlowReadError ? undefined : error;

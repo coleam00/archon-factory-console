@@ -7,16 +7,16 @@ import type { Project } from '../primitives/project';
 import * as skill from '../skills';
 import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { useFactoryRead } from './useFactoryRead';
 import { useFactoryViews } from './useFactoryViews';
-import { readFailed } from './lib/deadline';
+import { readFailed, SlowReadError } from './lib/deadline';
 import { needsYou } from './lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
 import { useSectionAttention } from './section-attention';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
-import { FactoryLoading } from './FactoryLoading';
+import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
 export type FactorySection = 'overview' | 'board' | 'needs-you' | 'how-it-works' | null;
@@ -40,14 +40,20 @@ interface FactoryFrameProps {
  */
 export function FactoryFrame({ section, wide = false, children }: FactoryFrameProps): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
-  const { data: project } = useEntity<Project>(K.project(projectId), () =>
-    skill.getProject(projectId)
+  const project = useFactoryRead<Project>(K.project(projectId), within =>
+    within(signal => skill.getProject(projectId, { signal }))
   );
   const listing = useFactoryViews(projectId);
   const view = currentView(listing.data);
   return (
     <section className="flex h-full flex-col">
-      <ProjectHeader title={project?.name ?? 'Project'} subtitle={project?.path ?? 'Loading…'}>
+      <ProjectHeader
+        title={project.data?.name ?? 'Project'}
+        subtitle={
+          project.data?.path ??
+          (project.error instanceof SlowReadError ? SLOW_READ_NOTICE : 'Loading…')
+        }
+      >
         <ProjectViewTabs projectId={projectId} active="factory" />
       </ProjectHeader>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
