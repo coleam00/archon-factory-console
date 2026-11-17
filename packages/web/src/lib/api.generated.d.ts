@@ -10915,7 +10915,29 @@ export interface components {
                 cards: {
                   title: string;
                   text: string;
-                  icon: string;
+                  /** @enum {string} */
+                  icon:
+                    | 'inbox'
+                    | 'scale'
+                    | 'link'
+                    | 'ruler'
+                    | 'scissors'
+                    | 'database'
+                    | 'clipboard-list'
+                    | 'pencil'
+                    | 'wrench'
+                    | 'git-branch'
+                    | 'search-code'
+                    | 'flask-conical'
+                    | 'monitor-check'
+                    | 'gavel'
+                    | 'message-square'
+                    | 'circle-alert'
+                    | 'git-pull-request'
+                    | 'flag'
+                    | 'send'
+                    | 'shield-check'
+                    | 'git-merge';
                   /** @enum {string} */
                   kind: 'agent' | 'check' | 'script' | 'you';
                   covers: {

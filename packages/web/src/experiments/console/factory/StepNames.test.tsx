@@ -81,8 +81,23 @@ function runningDetail(): FactoryItemDetail {
   return detail;
 }
 
-function render(path: string, detail?: FactoryItemDetail): string {
-  set(K.factoryViews(ID), listing);
+/**
+ * The same view with no drill-downs, so a stage page draws its step graphs (which a drill-down
+ * puts behind a toggle static markup cannot press).
+ */
+const graphsListing: FactoryViews = {
+  ...listing,
+  views: listing.views.map(listed => ({
+    ...listed,
+    declaration: {
+      ...listed.declaration,
+      stages: listed.declaration.stages.map(({ drilldown: _drilldown, ...stage }) => stage),
+    },
+  })),
+};
+
+function render(path: string, detail?: FactoryItemDetail, views = listing): string {
+  set(K.factoryViews(ID), views);
   set(K.factoryAttention(ID), quiet);
   set(K.factoryWorkflow(ID, 'deliver'), DELIVER);
   set(K.factoryItems(ID), ITEMS);
@@ -193,8 +208,17 @@ describe('no raw step id where a person reads', () => {
     expect(rawIds(html)).toEqual([]);
   });
 
-  test('the stage page', () => {
+  test("the stage page's drill-down", () => {
     const html = render(`/console/p/${ID}/factory/stages/checks`);
+    // The card reads its own title; the item on it reads its step by name, its id on hover.
+    expect(readable(html)).toContain('Code review');
+    expect(readable(html)).toContain('on Code review');
+    expect(titles(html)).toContain('rounds.review__review');
+    expect(rawIds(html)).toEqual([]);
+  });
+
+  test("the stage page's step graph", () => {
+    const html = render(`/console/p/${ID}/factory/stages/checks`, undefined, graphsListing);
     expect(readable(html)).toContain('Code review');
     // A name the step box may cut reads in full on hover, with its engine id.
     expect(html).toContain('title="Code review (engine id: rounds.review__review)');
@@ -206,7 +230,7 @@ describe('no raw step id where a person reads', () => {
   });
 
   test("the stage page's conditions name each step by the name the graph prints it by", () => {
-    const html = render(`/console/p/${ID}/factory/stages/checks`);
+    const html = render(`/console/p/${ID}/factory/stages/checks`, undefined, graphsListing);
     const words = readable(html);
     // A condition reads a step by its bare id ("if rounds = approve"), which neither id
     // shape catches, so every condition's subject is checked against the declared names.

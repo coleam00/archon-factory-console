@@ -174,6 +174,15 @@ test('clicking a step on the stage graph opens its step page, which leads back t
   });
 });
 
+test('a stage with no drill-down draws its graphs, with no toggle', async () => {
+  serve(itemsReadAnswer(capturedItemsPage.items));
+  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    expect(stepButton(container, '·fix')).toBeDefined();
+    const buttons = [...container.querySelectorAll('button')].map(button => button.textContent);
+    expect(buttons).not.toContain('Show the real steps');
+  });
+});
+
 test('the stage page glows the step items are on now and links each item', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {

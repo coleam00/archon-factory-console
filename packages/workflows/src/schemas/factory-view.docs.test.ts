@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { factoryViewSchema } from './factory-view';
+import { factoryDrilldownIconSchema, factoryViewSchema } from './factory-view';
 
 // `* text=auto` checks the guide out with CRLF on Windows.
 const guide = readFileSync(
@@ -24,4 +24,11 @@ test("the factory console guide's example is a valid factory view", () => {
 test("the guide's fields table lists exactly the declaration's fields", () => {
   const fields = [...section('Fields').matchAll(/^\| `([A-Za-z]+)` \|/gm)].map(match => match[1]);
   expect(fields.sort()).toEqual(Object.keys(factoryViewSchema.shape).sort());
+});
+
+test('the guide names exactly the icons a drill-down card may show', () => {
+  const icons = /an `icon` \(one of ([^)]*)\)/.exec(section('Fields'))?.[1] ?? '';
+  expect([...icons.matchAll(/`([a-z-]+)`/g)].map(match => match[1])).toEqual([
+    ...factoryDrilldownIconSchema.options,
+  ]);
 });
