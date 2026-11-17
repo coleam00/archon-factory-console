@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
+import { VERDICT_TEXT_CLASS } from './BoardCard';
 import { formatCost, formatElapsed } from '../lib/format';
 import type { StartedText, TimelineRound, TimelineRow } from './lib/timeline';
 
@@ -97,9 +98,7 @@ function RoundEntry({ round }: { round: TimelineRound }): ReactElement {
       <p className="text-console-12 text-text-secondary">
         round {round.iteration.toString()}
         {of} ·{' '}
-        <span className={round.returned ? 'font-medium text-warning' : 'font-medium'}>
-          {round.verdict}
-        </span>
+        <span className={`font-medium ${VERDICT_TEXT_CLASS[round.kind]}`}>{round.verdict}</span>
       </p>
       {round.groups.map((group, index) => (
         // A label repeats when a stage's steps recorded on either side of another's.

@@ -9,7 +9,10 @@ import {
   type RoundVerdict,
 } from './lib/board';
 
-/** State colours: the console's status colours, with Needs you the one loud one. */
+/**
+ * State colours: the console's status colours, with Needs you the one loud one. The board's
+ * card and table and the item page's header all draw the pill from here.
+ */
 export const PILL_CLASS: Record<Pill, string> = {
   running: `bg-surface-hover ${statusTextClass.running}`,
   'needs-you': 'bg-warning/20 font-semibold text-warning',
@@ -18,12 +21,21 @@ export const PILL_CLASS: Record<Pill, string> = {
   landed: 'bg-success/15 text-success',
 };
 
-const DOT_CLASS: Record<RoundVerdict, string> = {
+/** A round's verdict colour, as a dot on the card and as its words on the item's timeline. */
+const VERDICT_DOT_CLASS: Record<RoundVerdict, string> = {
   approved: 'bg-success',
   returned: 'bg-error',
   undecided: 'bg-warning',
   running: statusDotClass.running,
   stopped: 'bg-text-tertiary/60',
+};
+
+export const VERDICT_TEXT_CLASS: Record<RoundVerdict, string> = {
+  approved: 'text-success',
+  returned: 'text-error',
+  undecided: 'text-warning',
+  running: statusTextClass.running,
+  stopped: 'text-text-tertiary',
 };
 
 export function PillBadge({ pill }: { pill: Pill }): ReactElement {
@@ -51,7 +63,7 @@ export function RoundDots({
             role="img"
             aria-label={dot.label}
             title={dot.label}
-            className={`inline-block h-1.5 w-1.5 rounded-full ${DOT_CLASS[dot.verdict]}`}
+            className={`inline-block h-1.5 w-1.5 rounded-full ${VERDICT_DOT_CLASS[dot.verdict]}`}
           />
         ))}
       </span>

@@ -56,10 +56,10 @@ describe('the timeline of a multi-round item', () => {
   const rounds = rows.find(row => row.workflow === 'deliver')?.rounds ?? [];
 
   test('three rounds: returned, returned, approved', () => {
-    expect(rounds.map(round => [round.verdict, round.returned])).toEqual([
-      ['returned', true],
-      ['returned', true],
-      ['approved', false],
+    expect(rounds.map(round => [round.verdict, round.kind])).toEqual([
+      ['returned', 'returned'],
+      ['returned', 'returned'],
+      ['approved', 'approved'],
     ]);
     expect(rounds.map(round => round.returnedSummary === null)).toEqual([false, false, true]);
   });
