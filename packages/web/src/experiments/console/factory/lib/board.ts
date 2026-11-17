@@ -8,7 +8,7 @@
  */
 import { formatDateTime } from '../../lib/format';
 import type { FactoryItemsPage } from '../../skills/factory';
-import { needsYou } from './needs-you';
+import { needsYou, ownerLostMessage } from './needs-you';
 import { showsCard, type BoardShow } from './board-show';
 import { pageItemColumn, type ItemColumn } from './placement';
 import { factoryPath, type FactoryViewListed } from './views';
@@ -123,7 +123,14 @@ function changeField(progress: Progress | null): BoardCard['change'] {
 
 /** What the newest open question asks, in the words the queue gives it. */
 function askLine(question: ReturnType<typeof needsYou>[number]): string {
-  return question.kind === 'unreadable' ? 'A paused run could not be read.' : question.message;
+  switch (question.kind) {
+    case 'unreadable':
+      return 'A paused run could not be read.';
+    case 'owner_lost':
+      return ownerLostMessage(question);
+    default:
+      return question.message;
+  }
 }
 
 function failedLine(run: DeclaredRun): string {

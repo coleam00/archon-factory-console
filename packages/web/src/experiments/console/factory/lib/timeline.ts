@@ -186,6 +186,12 @@ function startedText(projectId: string, row: Row, rows: readonly Row[]): Started
             mono: cause.node,
             runHref: runHref(projectId, cause.runId),
           };
+    case 'asks_settled':
+      return {
+        text: 'After its questions were settled',
+        mono: null,
+        runHref: runHref(projectId, cause.runId),
+      };
     case 'receipt':
       return { text: 'Started by a trigger', mono: cause.sourceInstanceId, runHref: null };
   }

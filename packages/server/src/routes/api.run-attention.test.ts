@@ -6,6 +6,7 @@ import {
   mockFindLatestEnvironment,
   mockLabelAttentionWait,
   mockGetItemRuns,
+  mockListItemsInWindow,
   mockListEventsForRuns,
   mockListCodebases,
   mockListItemRulings,
@@ -26,6 +27,7 @@ import {
 } from '../test/api-workflow-runs-harness';
 import { describe, test, expect } from 'bun:test';
 import { itemReadSchema } from '@archon/workflows/item-read';
+import { itemWindowSchema } from '@archon/workflows/item-window';
 import type { StoredItemAsk } from '@archon/workflows/schemas/item-ask';
 import {
   ItemRulingNotFoundError,
@@ -301,7 +303,8 @@ describe('reading an item over HTTP', () => {
   };
 
   test('reads a known item by project and key, with its question and answers', async () => {
-    mockGetItemRuns.mockImplementationOnce(async (projectKey, key) =>
+    // The read resolves the item twice: once for its queued starts, then for its runs.
+    mockGetItemRuns.mockImplementation(async (projectKey, key) =>
       projectKey === item.projectKey && key === item.key
         ? { item, runs: [asking], descendantIds: [] }
         : null
@@ -328,16 +331,23 @@ describe('reading an item over HTTP', () => {
           ])
         )
     );
-    const { app } = makeApp();
-    const response = await app.request(
-      `/api/items?project=${encodeURIComponent(item.projectKey)}&key=${encodeURIComponent(item.key)}`
-    );
-    expect(response.status).toBe(200);
-    const read = itemReadSchema.parse(await response.json());
-    expect(read.item).toEqual(item);
-    expect(read.runs.map(run => [run.id, run.status])).toEqual([['run-item', 'paused']]);
-    expect(read.questions.map(question => question.run?.id)).toEqual(['run-item']);
-    expect(read.answers).toMatchObject([{ kind: 'gate', runId: 'run-item', decision: 'approved' }]);
+    try {
+      const { app } = makeApp();
+      const response = await app.request(
+        `/api/items?project=${encodeURIComponent(item.projectKey)}&key=${encodeURIComponent(item.key)}`
+      );
+      expect(response.status).toBe(200);
+      const read = itemReadSchema.parse(await response.json());
+      expect(read.item).toEqual(item);
+      expect(read.runs.map(run => [run.id, run.status])).toEqual([['run-item', 'paused']]);
+      expect(read.questions.map(question => question.run?.id)).toEqual(['run-item']);
+      expect(read.answers).toMatchObject([
+        { kind: 'gate', runId: 'run-item', decision: 'approved' },
+      ]);
+      expect(read.queued).toEqual([]);
+    } finally {
+      mockGetItemRuns.mockImplementation(async () => null);
+    }
   });
 
   test('an unknown key is 404 and a missing parameter is 400', async () => {
@@ -347,6 +357,27 @@ describe('reading an item over HTTP', () => {
     );
     expect(unknown.status).toBe(404);
     expect((await app.request('/api/items?key=nope')).status).toBe(400);
+  });
+
+  test('a window read returns the page of items readItemWindow builds, and refuses a bad cursor', async () => {
+    mockListItemsInWindow.mockImplementationOnce(async () => [item]);
+    mockListAttentionQueueRows.mockImplementationOnce(async () => []);
+    mockGetItemRuns.mockImplementationOnce(async () => ({
+      item,
+      runs: [asking],
+      descendantIds: [],
+    }));
+    const { app } = makeApp();
+    const project = encodeURIComponent(item.projectKey);
+    const response = await app.request(`/api/items/window?project=${project}&since=7d`);
+    expect(response.status).toBe(200);
+    const page = itemWindowSchema.parse(await response.json());
+    expect(page.items.map(read => [read.item.key, read.runs.map(run => run.id)])).toEqual([
+      [item.key, ['run-item']],
+    ]);
+    expect(page.next).toBeNull();
+    expect((await app.request(`/api/items/window?project=${project}&after=nope`)).status).toBe(400);
+    expect((await app.request('/api/items/window?project=no-such')).status).toBe(400);
   });
 
   test('a database failure while resolving the project is an opaque 500, not a 400', async () => {
@@ -475,13 +506,17 @@ describe('rulings on an item over HTTP', () => {
 
   test('reading the item shows its rulings', async () => {
     const item = { id: 'item-row', projectKey: project, key: 'issues/8' };
-    mockGetItemRuns.mockImplementationOnce(async () => ({ item, runs: [], descendantIds: [] }));
+    mockGetItemRuns.mockImplementation(async () => ({ item, runs: [], descendantIds: [] }));
     mockListItemRulings.mockImplementationOnce(async () => [ruling()]);
     mockListAttentionQueueRows.mockImplementationOnce(async () => []);
-    const response = await makeApp().app.request(
-      `/api/items?project=${encodeURIComponent(project)}&key=issues%2F8`
-    );
-    expect(itemReadSchema.parse(await response.json()).answers).toEqual([ruling()]);
+    try {
+      const response = await makeApp().app.request(
+        `/api/items?project=${encodeURIComponent(project)}&key=issues%2F8`
+      );
+      expect(itemReadSchema.parse(await response.json()).answers).toEqual([ruling()]);
+    } finally {
+      mockGetItemRuns.mockImplementation(async () => null);
+    }
   });
 });
 
@@ -557,6 +592,7 @@ describe('asks answered and withdrawn by ref over HTTP', () => {
       kind: 'closed',
       ask: answered,
       settled: true,
+      startReceipts: [],
     }));
     const response = await post('/api/attention/answer', { ref: 'ask:a1', recommended: true });
     expect(response.status).toBe(200);
@@ -604,6 +640,7 @@ describe('asks answered and withdrawn by ref over HTTP', () => {
         },
       },
       settled: false,
+      startReceipts: [],
     }));
     const withdrawn = await post('/api/attention/withdraw', { ref: 'ask:a1' });
     expect(withdrawn.status).toBe(200);

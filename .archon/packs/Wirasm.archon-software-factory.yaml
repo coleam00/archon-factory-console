@@ -2,6 +2,8 @@
 # builds the factory console proof of concept. Paths are relative to the repository root.
 settings:
   product_policy: docs/factory-console/DESIGN.md
+  propose_policy: docs/factory-console/DESIGN.md
+  plan_policy: docs/factory-console/ENGINEERING.md
   build_policy: docs/factory-console/ENGINEERING.md
   review_policy: docs/factory-console/ENGINEERING.md
   test_policy: docs/factory-console/ENGINEERING.md

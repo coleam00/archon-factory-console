@@ -12,9 +12,12 @@ import { providerEventRecordSchema as engineProviderEventRecordSchema } from '@a
  * Zod schemas for workflow API endpoints.
  */
 import { z } from '@hono/zod-openapi';
+import { loopRoundSchema } from '@archon/workflows/schemas/loop-rounds';
 import { openAttentionQueueCountsSchema } from '@archon/workflows/attention-counts';
 import { attentionQueueItemSchema } from '@archon/workflows/attention-queue';
 import { itemReadSchema } from '@archon/workflows/item-read';
+import { itemWindowSchema } from '@archon/workflows/item-window';
+import { packGraphSchema } from '@archon/workflows/pack-graph';
 import { itemRulingSchema } from '@archon/workflows/schemas/item-ruling';
 import {
   attentionWatchLevelSchema,
@@ -189,7 +192,7 @@ const nullableRunAttentionSchema = z.union([runAttentionSchema, z.literal(null)]
 
 const ownerObservationSchema = runOwnerObservationSchema.nullable().openapi({
   description:
-    "What this server observes about the running run's execution owner, by the rule `archon workflow wait` uses for `owner_lost`: `reachable` (an owner answers), `unreachable` (the recorded owner is on this server's host and user and nothing answers; the stored status is unchanged and abandoning the run is the operator's call), `unknown` (this server cannot observe the owner: another host or user, no recorded owner, or no answer in time). Null when the run is not running. Observed per request; never stored.",
+    "What this server observes about the run's execution owner while its state needs one (running, or paused on a sub-run that runs in its process), by the rule `archon workflow wait` uses for `owner_lost`: `reachable` (an owner answers), `unreachable` (the recorded owner is on this server's host and user and nothing answers; the stored status is unchanged and abandoning the run is the operator's call), `unknown` (this server cannot observe the owner: another host or user, no recorded owner, or no answer in time). Null when the run needs no owner now (an ordinary pause, a pending or ended run). Observed per request; never stored.",
 });
 
 /** A workflow run record (wire shape with ISO string dates). */
@@ -236,7 +239,11 @@ export const workflowRunDetailSchema = z
       terminal_record: terminalRecordSchema.nullable(),
       nodes: z.array(runNodeStateSchema).openapi({
         description:
-          "The engine's node states: the terminal record's when present, otherwise the engine fold over the events recorded so far.",
+          "The engine's node states: the terminal record's when present, otherwise the engine fold over the events recorded so far. A loop body node holds its latest round.",
+      }),
+      loop_rounds: z.array(loopRoundSchema).optional().openapi({
+        description:
+          'Each round of each loop_group the run has entered, in order: the body nodes it reached, with state, timing and output. Absent when the run ran no loop.',
       }),
     }),
     events: z.array(workflowEventSchema),
@@ -437,8 +444,26 @@ export const itemReadQuerySchema = z.object({
   key: z.string().min(1),
 });
 
+/** GET /api/packs/{pack}/graph response: the pack's stages and run-ended arrows. */
+export const packGraphResponseSchema = packGraphSchema.meta({ id: 'PackGraph' });
+
 /** GET /api/items response: the item, its runs, open questions and answers. */
 export const itemReadResponseSchema = itemReadSchema.meta({ id: 'ItemRead' });
+
+/**
+ * GET /api/items/window query: the project as for GET /api/items, and either a window
+ * (`since`, `until` in `archon metrics` syntax) or the `after` cursor a page returned.
+ */
+export const itemWindowQuerySchema = z.object({
+  project: z.string().min(1),
+  since: z.string().min(1).optional(),
+  until: z.string().min(1).optional(),
+  limit: z.coerce.number().int().optional(),
+  after: z.string().min(1).optional(),
+});
+
+/** GET /api/items/window response: a page of items, as `archon workflow items --json`. */
+export const itemWindowResponseSchema = itemWindowSchema.meta({ id: 'ItemWindow' });
 
 /** POST /api/items/rulings body: the item, by project and key, and the ruling's text. */
 export const recordItemRulingBodySchema = z

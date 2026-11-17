@@ -1,8 +1,18 @@
 /**
- * The text of an item read (`workflow runs --item`): its runs, links, open questions, and
- * answers with rulings, each oldest first. Built from the same `ItemRead` that `--json` prints.
+/**
+ * The text of an item read (`workflow runs --item`): its runs, its starts waiting to start
+ * and its refused starts, links, open questions, and answers with rulings, each oldest
+ * first. Built from the same `ItemRead` that `--json` prints.
  */
-import type { ItemAnswer, ItemRead, ItemReadLink, ItemRun } from '@archon/workflows/item-read';
+import type {
+  ItemAnswer,
+  ItemHeldBehind,
+  ItemQueuedStart,
+  ItemRead,
+  ItemReadLink,
+  ItemRun,
+  ItemSkippedStart,
+} from '@archon/workflows/item-read';
 import { answererText, attentionItemLines } from './workflow-attention-text';
 
 /** A recorded time to the minute, or the stored text when it does not parse. */
@@ -51,23 +61,87 @@ function answerText(answer: Exclude<ItemAnswer, { kind: 'ruling' }>): string {
 function causeText(cause: ItemRun['cause']): string {
   if (cause === null) return '';
   if (cause.kind === 'run_ended') return ` · after run ${cause.runId.slice(0, 8)} ended`;
+  if (cause.kind === 'asks_settled')
+    return ` · after the asks of run ${cause.runId.slice(0, 8)} settled`;
   if (cause.kind === 'run_fired')
     return ` · fired by run ${cause.runId.slice(0, 8)}${cause.node === null ? '' : ` (${cause.node})`}`;
   return ` · trigger ${cause.sourceInstanceId}`;
 }
 
-/** One run, and how to start it when it was admitted but no process is running it. */
+/**
+ * The run a start is held behind. When that run's owner is gone, only an operator moves
+ * it, so both actions are printed; the engine never ends it.
+ */
+function heldBehindLines(verb: string, held: ItemHeldBehind): string[] {
+  const lines = [
+    `            ${verb} run ${held.runId.slice(0, 8)} (${held.workflow}, ${held.status}): one run of a workflow works an item at a time.`,
+  ];
+  if (held.owner === 'unreachable')
+    lines.push(
+      `            Run ${held.runId.slice(0, 8)} has lost its owner. Continue it with archon workflow resume ${held.runId}, or end it with archon workflow abandon ${held.runId}.`
+    );
+  return lines;
+}
+
+function skippedLines(start: ItemSkippedStart): string[] {
+  const lines = [
+    `  ${start.requestId}  ${start.workflow ?? '(launch unreadable)'}  on ${start.resource}, skipped`,
+  ];
+  if (start.heldBehind) lines.push(...heldBehindLines('refused, held by', start.heldBehind));
+  return lines;
+}
+
+/**
+ * One run, how to read its result when it has one, and how to start it when it was admitted
+ * but no process is running it.
+ */
 function runLines(run: ItemRun): string[] {
   const outcome = run.outcome === null ? '' : ` · authored outcome: ${run.outcome}`;
   const ended = run.completedAt === null ? '' : ` → ${minute(run.completedAt)}`;
   const lines = [
     `  ${run.id.slice(0, 8)}  ${run.status.padEnd(9)}  ${run.workflow}${outcome}  ${minute(run.startedAt)}${ended}${causeText(run.cause)}`,
   ];
+  if (run.hasResult) lines.push(`            result: archon workflow get ${run.id} --json`);
   const waiting = run.awaitingExecution;
   if (waiting)
     lines.push(
       `            admitted, not started. If no process is running it: archon trigger execute ${waiting.requestId} --host ${waiting.hostId}`
     );
+  if (run.heldBehind)
+    lines.push(
+      ...heldBehindLines(
+        run.status === 'cancelled' ? 'refused, held by' : 'waits behind',
+        run.heldBehind
+      )
+    );
+  return lines;
+}
+
+/**
+ * One start waiting for capacity. The request id prints in full: it is what
+ * `archon trigger inspect` and `archon trigger withdraw` take.
+ */
+function queuedLines(start: ItemQueuedStart): string[] {
+  const waits =
+    start.ahead === 0
+      ? `next for a free slot on host ${start.hostId}`
+      : `${String(start.ahead)} ahead on host ${start.hostId}`;
+  const lines = [
+    `  ${start.requestId}  ${start.workflow ?? '(launch unreadable)'}  on ${start.resource}, ${waits}, queued ${minute(start.queuedAt)}`,
+  ];
+  if (start.heldBehind) lines.push(...heldBehindLines('waits behind', start.heldBehind));
+  return lines;
+}
+
+/** The item's starts with no run: those waiting to start, then any that were refused. */
+function startSectionLines(read: ItemRead): string[] {
+  const lines = ['', 'Waiting to start:'];
+  if (read.queued.length === 0) lines.push('  none');
+  for (const start of read.queued) lines.push(...queuedLines(start));
+  if (read.skipped.length > 0) {
+    lines.push('', 'Refused starts:');
+    for (const start of read.skipped) lines.push(...skippedLines(start));
+  }
   return lines;
 }
 
@@ -104,9 +178,14 @@ function answerLine(answer: ItemAnswer): string {
 
 /** The item read as lines a terminal prints, each section saying `none` when empty. */
 export function itemReadLines(read: ItemRead): string[] {
-  const lines = [`Item ${read.item.key} (${read.item.projectKey})`, '', 'Runs:'];
+  const lines = [`Item ${read.item.key} (${read.item.projectKey})`];
+  if (read.merged !== null) lines.push(`Merged ${minute(read.merged.at)}: ${read.merged.change}`);
+  if (read.degraded.some(report => report.reason === 'merge_unreadable'))
+    lines.push('The merge recorded on this item could not be read.');
+  lines.push('', 'Runs:');
   if (read.runs.length === 0) lines.push('  none');
   for (const run of read.runs) lines.push(...runLines(run));
+  lines.push(...startSectionLines(read));
   lines.push('', 'Links:');
   // Active links first; an ended one stays readable below them.
   const active = read.links.filter(link => link.ended === null);

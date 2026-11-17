@@ -31,6 +31,7 @@ import {
   type ResumeClaimCursor,
   waitCompletionEvents,
   FAN_OUT_CANCEL_REASONS,
+  requireOwnerlessLease,
   resumeCursorMatches,
   waitAnsweredEvent,
   labeledAttentionWait,
@@ -83,6 +84,9 @@ export type TransactionView = Omit<
   | 'listItemRulings'
   | 'recordItemRuling'
   | 'withdrawItemRuling'
+  | 'listItemsInWindow'
+  | 'getItemMerge'
+  | 'recordItemMerge'
   | 'listItemLinks'
   | 'recordItemLink'
   | 'endItemLink'
@@ -135,6 +139,7 @@ export function createTransactionView(
     });
   };
   const resumableRun = (id: string, cursor?: ResumeClaimCursor): WorkflowRun => {
+    requireOwnerlessLease(id, cursor);
     const run = row(id);
     const statusAllows = isResumable(run) || cursor?.kind === 'ownerless';
     if (!statusAllows || (cursor !== undefined && !resumeCursorMatches(run, cursor)))

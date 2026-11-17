@@ -518,6 +518,9 @@ describe('reading a page', () => {
         getWorkflowRunForAttention: async () => null,
         getCodebase: async () => null,
         getItem: async () => null,
+        getItemMerge: async () => null,
+        listSkippedItemStarts: async () => [],
+        listQueuedItemStarts: async () => [],
         listItemAsks: async () => [],
         listItemRulings: async () => [],
         listItemLinks: async () => [],
@@ -690,7 +693,7 @@ describe('reading a page', () => {
     const detail = await readFactoryItem(source, itemInput(unexpected), '1');
     expect(detail?.runs.map(run => run.cause ?? null)).toEqual([
       null,
-      { kind: 'run_ended', runId: triage.id },
+      { kind: 'run_ended', runId: triage.id, sourceInstanceId: 'fc-start-plan' },
       null,
     ]);
     expect(detail?.runs.map(run => run.cause ?? null)).toEqual(

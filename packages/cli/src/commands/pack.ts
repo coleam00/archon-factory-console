@@ -1,4 +1,6 @@
 /**
+ * `archon pack graph <pack>`: the pack's stage graph in this install (`readPackGraph`).
+ *
  * `archon pack bindings <pack>`: write the trigger bindings a pack recommends as files for
  * one repository.
  *
@@ -8,13 +10,13 @@
  *
  * Every file goes to `--out` and nothing registers it: the operator still runs
  * `archon trigger fire` and `archon trigger schedule install` for a timer binding, adds an
- * event binding to the source plugin's configuration, and copies a run-ended file into the
- * triggers directory, where the engine reads it. A fire-only file is what a run or an
- * operator passes to `archon trigger fire`.
+ * event binding to the source plugin's configuration, and copies a run-ended or
+ * asks-settled file into the triggers directory, where the engine reads it. A fire-only
+ * file is what a run or an operator passes to `archon trigger fire`.
  *
- * One invalid run-ended file in the triggers directory fails item runs on the whole
- * install, so every run-ended file is checked as `archon trigger check` checks it before
- * anything is written.
+ * One invalid run-ended or asks-settled file in the triggers directory fails item runs on
+ * the whole install, so every such file is checked as `archon trigger check` checks it
+ * before anything is written.
  */
 import { createHash } from 'node:crypto';
 import { access, mkdir, writeFile } from 'node:fs/promises';
@@ -23,24 +25,37 @@ import { githubWebhookSourceConfigSchema } from '@archon/adapters/forge/github/s
 import { loadConfig } from '@archon/core/config/config-loader';
 import { loadWorkflowRunConfigFile } from '@archon/core/config/run-config';
 import { loadStoreSelection } from '@archon/core/config/store-selection';
+import * as codebaseDb from '@archon/core/db/codebases';
+import { registeredProjectKeyForPath } from '@archon/core/services/codebase-checkout-resolver';
+import { readPackGraph } from '@archon/core/workflows/pack-graph';
+import { asksSettledTriggerCheck } from '@archon/core/workflows/asks-settled';
 import {
+  type AsksSettledBinding,
   getTriggersPath,
+  launchProjectKey,
+  type OnBinding,
   type RunEndedBinding,
   runEndedTriggerCheck,
 } from '@archon/core/workflows/run-ended';
 import { providerRegistry } from '@archon/providers';
 import { FileStoreUnsupportedError } from '@archon/workflows/file-store';
 import {
+  type KindedPackBinding,
   kindedPackBinding,
   type PackBinding,
   type PackBindingInput,
   type PackBindingKind,
 } from '@archon/workflows/schemas/pack-bindings';
-import type { WorkflowSource } from '@archon/workflows/schemas/workflow';
+import {
+  nearestPackBindings,
+  type PackGraph,
+  packWorkflowName,
+  packWorkflows,
+} from '@archon/workflows/pack-graph';
 import { writeJsonLine } from '../utils/stdout';
 import {
   triggerConfigSchema,
-  type RunEndedInputSource,
+  type AsksSettledInputSource,
 } from '@archon/workflows/schemas/resource-start';
 import { loadWorkflows } from './workflow-list';
 
@@ -111,6 +126,55 @@ function bindingPath(target: Target, id: string, outcome?: string): string {
   return join(target.outDir, `${bindingName(target, id, outcome)}.json`);
 }
 
+/**
+ * The trigger files a run-ended or asks-settled binding is written as: one per outcome for
+ * a run-ended binding, one for an asks-settled binding.
+ */
+function onFiles(
+  id: string,
+  kinded: Extract<KindedPackBinding, { kind: 'asks_settled' | 'run_ended' }>,
+  pack: DeclaredPack,
+  target: Target,
+  intent: Record<string, unknown>,
+  fromRun: Record<string, AsksSettledInputSource>
+): Generated[] {
+  const mapped = Object.keys(fromRun).length > 0 ? { inputs: fromRun } : {};
+  const file = (name: string, on: Record<string, unknown>) => ({
+    version: 1,
+    sourceInstanceId: name,
+    binding: { ...intent, bindingId: name, bindingRevision: null },
+    on,
+  });
+  if (kinded.kind === 'asks_settled') {
+    const { workflow, settled, checkout } = kinded.binding.asks_settled;
+    const asksSettled = {
+      workflowName: workflowNameFor(pack, id, workflow),
+      settled,
+      ...(checkout === undefined ? {} : { checkout }),
+      ...mapped,
+    };
+    const document = file(bindingName(target, id), { asksSettled });
+    return [{ id, kind: kinded.kind, path: bindingPath(target, id), document }];
+  }
+  const { workflow, outcome, checkout } = kinded.binding.run_ended;
+  const workflowName = workflowNameFor(pack, id, workflow);
+  return (typeof outcome === 'string' ? [outcome] : outcome).map(value => {
+    const runEnded = {
+      workflowName,
+      outcome: value,
+      ...(checkout === undefined ? {} : { checkout }),
+      ...mapped,
+    };
+    return {
+      id,
+      kind: kinded.kind,
+      path: bindingPath(target, id, value),
+      outcome: value,
+      document: file(bindingName(target, id, value), { runEnded }),
+    };
+  });
+}
+
 function generate(
   id: string,
   binding: PackBinding,
@@ -119,13 +183,13 @@ function generate(
 ): Generated[] {
   const literals: Record<string, string> = {};
   const fields: Record<string, { source: 'field'; field: string }> = {};
-  const fromEnded: Record<string, RunEndedInputSource> = {};
+  const fromRun: Record<string, AsksSettledInputSource> = {};
   const resolveInput = (name: string, input: PackBindingInput): void => {
     if (typeof input === 'string') literals[name] = input;
     else if ('repo' in input) literals[name] = target.repo[input.repo];
     else if ('binding' in input) literals[name] = bindingPath(target, input.binding);
     else if ('event' in input) fields[name] = { source: 'field', field: input.event };
-    else fromEnded[name] = input;
+    else fromRun[name] = input;
   };
   for (const [name, input] of Object.entries(binding.inputs)) resolveInput(name, input);
 
@@ -148,28 +212,8 @@ function generate(
     },
   };
   const kinded = kindedPackBinding(binding);
-  if (kinded.kind === 'run_ended') {
-    const { workflow, outcome } = kinded.binding.run_ended;
-    const workflowName = workflowNameFor(pack, id, workflow);
-    const hasMapped = Object.keys(fromEnded).length > 0;
-    return (typeof outcome === 'string' ? [outcome] : outcome).map(value => {
-      const name = bindingName(target, id, value);
-      return {
-        id,
-        kind: kinded.kind,
-        path: bindingPath(target, id, value),
-        outcome: value,
-        document: {
-          version: 1,
-          sourceInstanceId: name,
-          binding: { ...intent, bindingId: name, bindingRevision: null },
-          on: {
-            runEnded: { workflowName, outcome: value, ...(hasMapped ? { inputs: fromEnded } : {}) },
-          },
-        },
-      };
-    });
-  }
+  if (kinded.kind === 'asks_settled' || kinded.kind === 'run_ended')
+    return onFiles(id, kinded, pack, target, intent, fromRun);
   const path = bindingPath(target, id);
   // A timer and a fire-only binding are the same `trigger fire --config` file; only the
   // timer carries a schedule.
@@ -180,7 +224,17 @@ function generate(
   };
   switch (kinded.kind) {
     case 'fire':
-      return [{ id, kind: kinded.kind, path, document: fireConfig }];
+      return [
+        {
+          id,
+          kind: kinded.kind,
+          path,
+          document: {
+            ...fireConfig,
+            ...(kinded.binding.item ? { item: kinded.binding.item } : {}),
+          },
+        },
+      ];
     case 'timer':
       return [
         {
@@ -206,6 +260,7 @@ function generate(
             ...intent,
             selector: { ...kinded.binding.event, repository: target.repo },
             inputMapping: fields,
+            ...(kinded.binding.item ? { item: kinded.binding.item } : {}),
           },
         },
       ];
@@ -214,12 +269,12 @@ function generate(
 
 /**
  * Check a generated document against the schema of the loader that will read it, and
- * return the run-ended binding a run-ended file holds, as the engine reads it.
+ * return the binding a run-ended or asks-settled file holds, as the engine reads it.
  */
 function assertLoadable(
   { id, kind, path, document }: Generated,
   target: Target
-): RunEndedBinding | undefined {
+): OnBinding | undefined {
   const result =
     kind !== 'event'
       ? triggerConfigSchema.safeParse(document)
@@ -232,9 +287,13 @@ function assertLoadable(
           bindings: [document],
         });
   if (result.success) {
-    if (!('on' in result.data) || result.data.on === undefined) return undefined;
+    if (!('on' in result.data)) return undefined;
     const { sourceInstanceId, binding, on } = result.data;
-    return { file: path, sourceInstanceId, binding, runEnded: on.runEnded };
+    if (on?.runEnded !== undefined)
+      return { file: path, sourceInstanceId, binding, runEnded: on.runEnded };
+    if (on?.asksSettled !== undefined)
+      return { file: path, sourceInstanceId, binding, asksSettled: on.asksSettled };
+    return undefined;
   }
   const reader = kind === 'event' ? 'GitHub source plugin binding' : 'trigger file';
   const issues = result.error.issues
@@ -260,29 +319,9 @@ interface DeclaredPack {
   workflowNames: readonly string[];
 }
 
-/** Nearest scope first. A `Record` so a new workflow source cannot be left unranked. */
-const SCOPE_RANK: Readonly<Record<WorkflowSource, number>> = {
-  project: 0,
-  global: 1,
-  bundled: 2,
-  installed: 3,
-};
-
 async function findPack(cwd: string, packKey: string): Promise<DeclaredPack> {
-  const discovered = await loadWorkflows(cwd);
-  const workflows = discovered.workflows.filter(entry => entry.workflow.pack?.key === packKey);
-  if (workflows.length === 0) {
-    // An invalid declaration fails every workflow of its pack, so the reason is here.
-    const errors = [...new Set(discovered.errors.map(e => `  ${e.filename}: ${e.error}`))];
-    throw new Error(
-      [`No workflow pack '${packKey}' was found from ${cwd}.`, ...errors.slice(0, 20)].join('\n')
-    );
-  }
-  // Pack folders of one name in several scopes are one pack to a run, and the nearest
-  // scope's file wins there; the nearest declaration wins here.
-  const bindings = workflows
-    .flatMap(({ workflow: { pack } }) => (pack?.bindings !== undefined ? [pack] : []))
-    .sort((a, b) => SCOPE_RANK[a.source] - SCOPE_RANK[b.source])[0]?.bindings;
+  const workflows = packWorkflows(await loadWorkflows(cwd), packKey, cwd);
+  const bindings = nearestPackBindings(workflows);
   if (bindings === undefined)
     throw new Error(`Pack '${packKey}' declares no bindings in its .pack/pack.yaml.`);
   return {
@@ -306,7 +345,7 @@ function selectIds(pack: DeclaredPack, only: string | undefined): string[] {
 
 /** An installed pack's workflow is named `owner/plugin:<name>`; a binding must use that name. */
 function workflowNameFor(pack: DeclaredPack, id: string, declared: string): string {
-  const name = pack.workflowNames.find(n => n === declared || n.endsWith(`:${declared}`));
+  const name = packWorkflowName(pack.workflowNames, declared);
   if (name === undefined)
     throw new Error(
       `Binding '${id}' names workflow '${declared}', which pack '${pack.key}' does not provide.`
@@ -319,19 +358,32 @@ function shellQuote(path: string): string {
   return `'${path.replaceAll("'", `'\\''`)}'`;
 }
 
+/** How to register files the engine reads from the triggers directory. */
+function triggerAddSteps(files: readonly Generated[], heading: string, starts: string): string[] {
+  if (files.length === 0) return [];
+  return [
+    '',
+    `${heading}. Add each to the triggers directory, where it is active at once: it starts its workflow ${starts}. Then list and check them with \`archon trigger check\`; deleting one from the triggers directory turns it off:`,
+    ...files.map(
+      item =>
+        `  archon trigger add ${shellQuote(item.path)}${item.outcome === undefined ? '' : `  # outcome '${item.outcome}'`}`
+    ),
+  ];
+}
+
 function nextSteps(generated: readonly Generated[], target: Target): string[] {
-  const lines: string[] = [];
-  const ended = generated.filter(g => g.kind === 'run_ended');
-  if (ended.length > 0) {
-    const triggers = shellQuote(getTriggersPath());
-    lines.push(
-      '',
-      'Run-ended bindings. Copy each into the triggers directory, where it is active at once: it starts its workflow when a run on an item ends with its outcome. Then list and check them with `archon trigger check`; deleting a copy turns it off:',
-      `  mkdir -p ${triggers}`
-    );
-    for (const item of ended)
-      lines.push(`  cp ${shellQuote(item.path)} ${triggers}/  # outcome '${item.outcome ?? ''}'`);
-  }
+  const lines = [
+    ...triggerAddSteps(
+      generated.filter(g => g.kind === 'run_ended'),
+      'Run-ended bindings',
+      'when a run on an item ends with its outcome'
+    ),
+    ...triggerAddSteps(
+      generated.filter(g => g.kind === 'asks_settled'),
+      'Asks-settled bindings',
+      'when the asks a run left on an item are settled'
+    ),
+  ];
   const timers = generated.filter(g => g.kind === 'timer');
   const events = generated.filter(g => g.kind === 'event');
   if (timers.length > 0) {
@@ -413,6 +465,30 @@ async function assertRunEndedChecks(
     );
 }
 
+/** The same check for every asks-settled file, as `archon trigger check` checks it. */
+async function assertAsksSettledChecks(
+  asks: readonly { id: string; check: AsksSettledBinding }[]
+): Promise<void> {
+  if (asks.length === 0) return;
+  // The file store has no items or asks, so an asks-settled binding never starts there.
+  if ((await loadStoreSelection()) === 'files')
+    throw new FileStoreUnsupportedError(
+      `Asks-settled bindings (${asks.map(item => item.id).join(', ')})`
+    );
+  const found = await asksSettledTriggerCheck(
+    asks.map(item => item.check),
+    // As for run-ended bindings, a duplicate among installed files is left to `trigger check`.
+    { loadConfig, providers: providerRegistry, projectKeyOf: async () => null }
+  );
+  const problems = asks.flatMap(({ id }, index) =>
+    found[index].map(problem => `  Binding '${id}': ${problem}`)
+  );
+  if (problems.length > 0)
+    throw new Error(
+      ['Asks-settled bindings have problems:', ...problems, 'Nothing was written.'].join('\n')
+    );
+}
+
 /**
  * A sibling reference is written as a file path. A path to a file that is not there would
  * make the run's follow-up start fail later, far from this choice, so it is refused here.
@@ -450,17 +526,20 @@ async function generateChecked(
 ): Promise<Generated[]> {
   const generated: Generated[] = [];
   const ended: { id: string; check: RunEndedBinding }[] = [];
+  const asks: { id: string; check: AsksSettledBinding }[] = [];
   for (const id of ids) {
     const binding = pack.bindings[id];
     if (binding === undefined) continue;
     await assertSiblingFiles(id, binding, ids, target);
     for (const item of generate(id, binding, pack, target)) {
       const check = assertLoadable(item, target);
-      if (check !== undefined) ended.push({ id, check });
+      if (check !== undefined && 'runEnded' in check) ended.push({ id, check });
+      if (check !== undefined && 'asksSettled' in check) asks.push({ id, check });
       generated.push(item);
     }
   }
   await assertRunEndedChecks(ended);
+  await assertAsksSettledChecks(asks);
   return generated;
 }
 
@@ -501,12 +580,76 @@ async function packBindings(packKey: string, options: PackBindingsOptions): Prom
   );
 }
 
+const GRAPH_USAGE =
+  'Usage: archon pack graph <pack> [--cwd <checkout>] [--workflow-source <dir>] [--json]';
+
+function arrowText(arrow: PackGraph['arrows'][number]): string {
+  const problems = arrow.active ? arrow.installed.problems : [];
+  const state = !arrow.active
+    ? 'declared, inactive'
+    : problems.length > 0
+      ? `active, refused: ${problems.join('; ')}`
+      : 'active';
+  const declared = arrow.declared?.problems ?? [];
+  const note = declared.length > 0 ? ` (binding ${declared.join('; ')})` : '';
+  const from =
+    'outcome' in arrow.from
+      ? `${arrow.from.stage}:${arrow.from.outcome}`
+      : `${arrow.from.stage}:asks(${arrow.from.settled})`;
+  return `  ${from} -> ${arrow.to} [${state}]${note}`;
+}
+
+/** The graph as plain lines; `--json` prints the read itself, which is the contract. */
+function graphText(graph: PackGraph): string {
+  const lines = [`Pack '${graph.pack}': ${String(graph.stages.length)} stage(s)`];
+  for (const stage of graph.stages) {
+    const values = stage.outcome?.values.map(v => v.value).join(', ');
+    lines.push(`  ${stage.name}${values === undefined ? ' (no outcome)' : `: ${values}`}`);
+  }
+  lines.push('', `Arrows: ${String(graph.arrows.length)}`);
+  for (const arrow of graph.arrows) lines.push(arrowText(arrow));
+  const nothing = graph.stages.flatMap(stage =>
+    (stage.outcome?.values ?? [])
+      .filter(v => v.startsNothing)
+      .map(v => `  ${stage.name}:${v.value}${stage.asks ? '' : ' (no asks: ends in silence)'}`)
+  );
+  if (nothing.length > 0) lines.push('', 'Outcomes that start nothing:', ...nothing);
+  if (graph.discoveryErrors.length > 0)
+    lines.push(
+      '',
+      'Workflows that failed to load (a stage among them is missing above):',
+      ...graph.discoveryErrors.map(e => `  ${e.filename}: ${e.error}`)
+    );
+  return lines.join('\n');
+}
+
+async function packGraph(packKey: string, options: PackBindingsOptions): Promise<void> {
+  const graph = await readPackGraph(
+    resolve(options.cwd),
+    packKey,
+    {
+      loadConfig,
+      providers: providerRegistry,
+      triggersDirectory: getTriggersPath,
+      projectKeyOf: launchProjectKey(cwd => registeredProjectKeyForPath(cwd, codebaseDb)),
+    },
+    options.workflowSource === undefined ? {} : { workflowSource: resolve(options.workflowSource) }
+  );
+  if (options.json) await writeJsonLine(graph);
+  else console.log(graphText(graph));
+}
+
 export async function packCommand(
   subcommand: string | undefined,
   args: readonly string[],
   options: PackBindingsOptions
 ): Promise<void> {
   const [packKey] = args;
+  if (subcommand === 'graph') {
+    if (!packKey || args.length !== 1) throw new Error(GRAPH_USAGE);
+    await packGraph(packKey, options);
+    return;
+  }
   if (subcommand !== 'bindings' || !packKey || args.length !== 1) throw new Error(USAGE);
   await packBindings(packKey, options);
 }

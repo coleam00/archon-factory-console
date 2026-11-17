@@ -14,8 +14,23 @@ const read: ItemRead = {
       completedAt: '2026-11-01T09:30:00.000Z',
       cause: null,
       awaitingExecution: null,
+      spend: { usd: 0.5, inputTokens: 100, outputTokens: 20 },
+      heldBehind: null,
+      hasResult: true,
     },
   ],
+  queued: [
+    {
+      requestId: 'b6f1c2d4-0000-4000-8000-000000000001',
+      workflow: 'review',
+      resource: 'build',
+      hostId: 'host',
+      queuedAt: '2026-11-01T09:35:00.000Z',
+      ahead: 12,
+      heldBehind: null,
+    },
+  ],
+  skipped: [],
   questions: [
     {
       kind: 'awaiting_response',
@@ -123,6 +138,14 @@ const read: ItemRead = {
     { type: 'degraded', reason: 'ruling_unreadable', rulingId: 'ruling-lost' },
     { type: 'degraded', reason: 'link_unreadable', linkId: 'link-lost' },
   ],
+  merged: {
+    change: 'https://github.com/acme/web/pull/12',
+    commit: null,
+    at: '2026-11-01T11:00:00.000Z',
+    recordedAt: '2026-11-01T11:01:00.000Z',
+    via: 'cli',
+    fromRun: null,
+  },
 };
 
 test('an item read prints its runs, open questions and answers', () => {
@@ -134,6 +157,8 @@ test('an item read prints its runs, open questions and answers', () => {
   expect(runLine).toContain('2026-11-01T09:00Z');
   expect(runLine).toContain('2026-11-01T09:30Z');
   const text = lines.join('\n');
+  expect(text).toContain('Merged 2026-11-01T11:00Z: https://github.com/acme/web/pull/12');
+  expect(text).toContain('result: archon workflow get run-done-1 --json');
   expect(text).toContain('Ship the fix?');
   expect(text).toContain('archon workflow approve run-ask-1 --occurrence gate-3');
   const answerLine = lines.find(line => line.includes('needs tests'));
@@ -154,6 +179,60 @@ test('an item read prints its runs, open questions and answers', () => {
   expect(lines[ruling]).toContain('by operator-agent (self-declared)');
   expect(lines[ruling]).toContain('(withdrawn 2026-11-01T10:05Z)');
   expect(text).toContain('1 ruling(s) on this item could not be read: ruling-lost');
+});
+
+test('a start held behind a run whose owner is gone prints both actions on that run', () => {
+  const holder = 'a1b2c3d4-0000-4000-8000-000000000001';
+  const heldBehind = {
+    runId: holder,
+    workflow: 'deliver',
+    status: 'running',
+    owner: 'unreachable',
+  } as const;
+  const text = itemReadLines({
+    ...read,
+    // No run carries the holder, so only the start's own line can name it.
+    runs: [],
+    queued: [{ ...read.queued[0]!, requestId: 'req-queued', workflow: 'deliver', heldBehind }],
+  }).join('\n');
+  expect(text).toContain('req-queued');
+  expect(text).toContain(`waits behind run ${holder.slice(0, 8)}`);
+  expect(text).toContain(`archon workflow resume ${holder}`);
+  expect(text).toContain(`archon workflow abandon ${holder}`);
+});
+
+test('a start refused for a held item keeps naming the run that held it', () => {
+  const holder = 'a1b2c3d4-0000-4000-8000-000000000001';
+  const text = itemReadLines({
+    ...read,
+    runs: [
+      {
+        ...read.runs[0]!,
+        id: 'run-refused',
+        status: 'cancelled',
+        outcome: null,
+        heldBehind: { runId: holder, workflow: 'deliver', status: 'completed', owner: null },
+      },
+    ],
+  }).join('\n');
+  expect(text).toContain(`refused, held by run ${holder.slice(0, 8)}`);
+});
+
+test('an item read prints a start waiting for capacity with the id that withdraws it', () => {
+  const lines = itemReadLines(read);
+  const section = lines.slice(lines.indexOf('Waiting to start:') + 1, lines.indexOf('Links:'));
+  expect(section).toHaveLength(2);
+  expect(section[0]).toContain('b6f1c2d4-0000-4000-8000-000000000001');
+  expect(section[0]).toContain('build');
+  expect(section[0]).toContain('12 ahead on host host');
+  // The host that must drain the start shows when it is next, too.
+  const next = itemReadLines({
+    ...read,
+    queued: read.queued.map(start => ({ ...start, ahead: 0 })),
+  });
+  expect(next.find(line => line.includes('b6f1c2d4'))).toContain('on host host');
+  const empty = itemReadLines({ ...read, queued: [] });
+  expect(empty[empty.indexOf('Waiting to start:') + 1]).toBe('  none');
 });
 
 test('an item read prints each link with the other item, kind and direction', () => {

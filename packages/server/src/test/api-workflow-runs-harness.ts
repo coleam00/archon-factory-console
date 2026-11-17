@@ -439,12 +439,30 @@ const unusedItemWrite = mock(async () => {
 export const mockGetItem = mock<typeof import('@archon/core/db/items')['getItem']>(
   async () => null
 );
+export const mockListItemsInWindow = mock<
+  typeof import('@archon/core/db/items')['listItemsInWindow']
+>(async () => []);
 mock.module('@archon/core/db/items', () => ({
   getItemRuns: mockGetItemRuns,
+  listItemsInWindow: mockListItemsInWindow,
   getItem: mockGetItem,
   ensureItem: unusedItemWrite,
   ensureItemInProject: unusedItemWrite,
   continuedItem: unusedItemWrite,
+}));
+// The item read lists the item's queued and skipped starts; without these it queries a
+// real database.
+const realResourceStarts = { ...(await import('@archon/core/db/resource-starts')) };
+export const mockListQueuedItemStarts = mock<
+  typeof import('@archon/core/db/resource-starts')['listQueuedItemStarts']
+>(async () => []);
+export const mockListSkippedItemStarts = mock<
+  typeof import('@archon/core/db/resource-starts')['listSkippedItemStarts']
+>(async () => []);
+mock.module('@archon/core/db/resource-starts', () => ({
+  ...realResourceStarts,
+  listQueuedItemStarts: mockListQueuedItemStarts,
+  listSkippedItemStarts: mockListSkippedItemStarts,
 }));
 type ItemRulingsDb = typeof import('@archon/core/db/item-rulings');
 export const mockListItemRulings = mock<ItemRulingsDb['listItemRulings']>(async () => []);
@@ -459,6 +477,11 @@ mock.module('@archon/core/db/item-rulings', () => ({
   recordItemRuling: mockRecordItemRuling,
   withdrawItemRuling: mockWithdrawItemRuling,
 }));
+mock.module('@archon/core/db/item-merges', () => ({
+  getItemMerge: mock(async () => null),
+  recordItemMerge: unusedItemWrite,
+}));
+
 type ItemLinksDb = typeof import('@archon/core/db/item-links');
 mock.module('@archon/core/db/item-links', () => ({
   listItemLinks: mock<ItemLinksDb['listItemLinks']>(async () => []),

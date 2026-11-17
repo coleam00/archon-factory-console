@@ -10,7 +10,7 @@ import { basename, join } from 'node:path';
 import { githubWebhookSourceConfigSchema } from '@archon/adapters/forge/github/source-config';
 import { defaultPlatformPolicies } from '@archon/adapters/platform-policies';
 import { setPlatformPolicies } from '@archon/core/platforms/registry';
-import { readRunEndedBindings } from '@archon/core/workflows/run-ended';
+import { readAsksSettledBindings, readRunEndedBindings } from '@archon/core/workflows/run-ended';
 import { FileStoreUnsupportedError } from '@archon/workflows/file-store';
 import { removeTempTree } from '@archon/paths/test-utils';
 import { packCommand, type PackBindingsOptions } from './pack';
@@ -41,6 +41,7 @@ const DECLARATION = `bindings:
     workflow: fixture-sweep
     resource: follow-up
     overlap: queue
+    item: { field: number, prefix: issue- }
   opened:
     workflow: fixture-sweep
     resource: opened
@@ -48,6 +49,7 @@ const DECLARATION = `bindings:
     event:
       kind: issue.lifecycle
       actions: [opened]
+    item: { field: subject.number, prefix: issue- }
     inputs:
       number: { event: subject.number }
       mode: slow
@@ -102,6 +104,32 @@ nodes:
     bash: echo hi
 `;
 
+// `fixture-ask` leaves asks; `build-again` starts `fixture-build` in its checkout once they are answered.
+const ASKS_SETTLED_DECLARATION = `bindings:
+  build-again:
+    workflow: fixture-build
+    resource: build
+    overlap: queue
+    asks_settled: { workflow: fixture-ask, settled: answered, checkout: asking-run }
+    inputs:
+      plan: { answers: true }
+      issue: { input: issue }
+`;
+
+const ASK_WORKFLOW = `name: fixture-ask
+description: d
+inputs:
+  issue: { required: true }
+returns: { node: decide, asks: asks }
+nodes:
+  - id: decide
+    bash: echo '{"asks":[]}'
+    output_format:
+      type: object
+      properties:
+        summary: { type: string }
+`;
+
 async function writeWorkflow(packDir: string, name: string, body: string): Promise<void> {
   await mkdir(join(packDir, name), { recursive: true });
   await writeFile(join(packDir, name, `${name}.yaml`), body);
@@ -124,6 +152,7 @@ async function writePack(declaration: string, dir: string = cwd): Promise<void> 
   );
   await writeWorkflow(pack, 'fixture-plan', PLAN_WORKFLOW);
   await writeWorkflow(pack, 'fixture-build', BUILD_WORKFLOW);
+  await writeWorkflow(pack, 'fixture-ask', ASK_WORKFLOW);
 }
 
 function options(extra: Partial<PackBindingsOptions> = {}): PackBindingsOptions {
@@ -223,6 +252,7 @@ describe('archon pack bindings', () => {
     const file = await fileFor('follow-up');
     const config = triggerConfigSchema.parse(await readJson(file));
     expect(config.schedule).toBeUndefined();
+    expect(config.item).toEqual({ field: 'number', prefix: 'issue-' });
     expect(config.binding.resource).toBe('fixture:git.example.com/acme/widgets:follow-up');
     const printed = logSpy.mock.calls.flat().join('\n');
     expect(printed).toContain('Fire-only bindings');
@@ -257,6 +287,7 @@ describe('archon pack bindings', () => {
       },
       inputMapping: { number: { source: 'field', field: 'subject.number' } },
     });
+    expect(config.bindings[0]?.item).toEqual({ field: 'subject.number', prefix: 'issue-' });
   });
 
   it('refuses an event binding for a host the source plugin does not read, writing nothing', async () => {
@@ -353,6 +384,8 @@ describe('archon pack bindings: run-ended', () => {
     expect(existsSync(join(root, 'home', 'triggers'))).toBe(false);
     const bindings = await readRunEndedBindings(out);
     expect(bindings.map(entry => entry.runEnded.outcome).sort()).toEqual(['blocked', 'planned']);
+    const printed = logSpy.mock.calls.flat().join('\n');
+    for (const entry of bindings) expect(printed).toContain(`archon trigger add '${entry.file}'`);
     for (const entry of bindings) {
       const name = basename(entry.file, '.json');
       expect(entry.sourceInstanceId).toBe(name);
@@ -422,6 +455,44 @@ describe('archon pack bindings: run-ended', () => {
       if (databaseUrl === undefined) delete process.env.DATABASE_URL;
       else process.env.DATABASE_URL = databaseUrl;
     }
+    expect(existsSync(out)).toBe(false);
+  });
+});
+
+describe('archon pack bindings: asks-settled', () => {
+  it("writes one trigger file that takes the asking run's checkout and its answers, and activates none", async () => {
+    await writePack(ASKS_SETTLED_DECLARATION);
+    await packCommand('bindings', ['fixture'], options());
+
+    expect(existsSync(join(root, 'home', 'triggers'))).toBe(false);
+    const [binding, ...others] = await readAsksSettledBindings(out);
+    expect(others).toEqual([]);
+    expect(binding?.asksSettled).toEqual({
+      workflowName: 'fixture-ask',
+      settled: 'answered',
+      checkout: 'asking-run',
+      inputs: { plan: { answers: true }, issue: { input: 'issue' } },
+    });
+    expect(binding?.binding.launch.isolation).toEqual({ kind: 'default' });
+    expect(logSpy.mock.calls.flat().join('\n')).toContain(`archon trigger add '${binding?.file}'`);
+  });
+
+  it.each([
+    [
+      'an asking workflow that declares no returns.asks',
+      ASKS_SETTLED_DECLARATION.replace('workflow: fixture-ask', 'workflow: fixture-plan'),
+      "'fixture-plan' declares no returns.asks",
+    ],
+    [
+      'an input the started workflow does not declare',
+      ASKS_SETTLED_DECLARATION.replace('plan: { answers: true }', 'decisions: { answers: true }'),
+      "does not declare input 'decisions'",
+    ],
+  ])('refuses %s, writing nothing', async (_case, declaration, reason) => {
+    await writePack(
+      `${declaration}  sweep:\n    workflow: fixture-sweep\n    resource: sweep\n    overlap: skip\n`
+    );
+    await expect(packCommand('bindings', ['fixture'], options())).rejects.toThrow(reason);
     expect(existsSync(out)).toBe(false);
   });
 });

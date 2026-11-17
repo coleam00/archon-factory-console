@@ -605,6 +605,7 @@ CREATE TABLE IF NOT EXISTS remote_agent_start_receipt_bindings (
   host_id TEXT,
   intent TEXT,
   event_input_names TEXT,
+  item_key TEXT,
   checkout_from TEXT,
   preparation_status VARCHAR(20) NOT NULL CHECK (preparation_status IN ('pending', 'preparing', 'failed', 'rejected', 'unmatched', 'complete')),
   preparation_owner TEXT,
@@ -733,6 +734,10 @@ ALTER TABLE remote_agent_start_receipt_bindings ADD COLUMN IF NOT EXISTS event_i
 -- intent for the same reason.
 ALTER TABLE remote_agent_start_receipt_bindings ADD COLUMN IF NOT EXISTS checkout_from TEXT;
 
+-- The item a source plugin's binding mapped from its event; null means the receipt's
+-- item_key, if any. One receipt can start several bindings, not all on an item.
+ALTER TABLE remote_agent_start_receipt_bindings ADD COLUMN IF NOT EXISTS item_key TEXT;
+
 -- The durable thing runs are about: a key within a project, and when it was first named.
 -- No status, stage or config; where an item stands is derived from its runs. project_key
 -- is the engine's project identity, the one remote_agent_state_revisions scopes by.
@@ -779,6 +784,22 @@ CREATE TABLE IF NOT EXISTS remote_agent_item_rulings (
   from_node_path TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   CHECK ((withdraws IS NULL) = (text IS NOT NULL))
+);
+
+-- The merge of an item's change, as the forge reported it to the caller that recorded it.
+-- An append-only fact beside the item, like a ruling: the primary key on item_id makes it
+-- recorded once, so a second report keeps the first. change is the forge's identity of
+-- the merged change (a pull request URL), stored and never parsed. from_run_id has no
+-- foreign key, so run cleanup keeps the fact.
+CREATE TABLE IF NOT EXISTS remote_agent_item_merges (
+  item_id UUID PRIMARY KEY REFERENCES remote_agent_items(id),
+  change TEXT NOT NULL,
+  merge_commit TEXT,
+  merged_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  via TEXT NOT NULL,
+  from_run_id TEXT,
+  from_node_path TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Links between items: accepted, directed relations, read from from_item_id to to_item_id.

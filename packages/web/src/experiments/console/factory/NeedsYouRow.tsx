@@ -10,7 +10,7 @@ import { relativeTime } from '../lib/format';
 import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate } from '../store/cache';
-import type { NeedsYouItem } from './lib/needs-you';
+import { ownerLostMessage, type NeedsYouItem } from './lib/needs-you';
 import { factoryPath } from './lib/views';
 
 /**
@@ -121,6 +121,15 @@ export function RowContent({
         </>
       );
     }
+    case 'owner_lost':
+      return (
+        <>
+          <p className="text-sm text-text-primary">{ownerLostMessage(item)}</p>
+          <RunLink projectId={projectId} runId={item.run.id}>
+            Resume or abandon it on the run
+          </RunLink>
+        </>
+      );
     case 'unreadable':
       return (
         <>

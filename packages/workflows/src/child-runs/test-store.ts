@@ -83,8 +83,13 @@ export class InMemoryStore implements IWorkflowStore {
   getResourceStartRequest: IWorkflowStore['getResourceStartRequest'] = async () => {
     throw new Error('Unexpected getResourceStartRequest');
   };
+  listSkippedItemStarts: IWorkflowStore['listSkippedItemStarts'] = async () => [];
+  listWaitedItemHolders: IWorkflowStore['listWaitedItemHolders'] = async () => [];
   listQueuedResourceStartsForHost: IWorkflowStore['listQueuedResourceStartsForHost'] = async () => {
     throw new Error('Unexpected listQueuedResourceStartsForHost');
+  };
+  listQueuedItemStarts: IWorkflowStore['listQueuedItemStarts'] = async () => {
+    throw new Error('Unexpected listQueuedItemStarts');
   };
   withdrawQueuedResourceStart: IWorkflowStore['withdrawQueuedResourceStart'] = async () => {
     throw new Error('Unexpected withdrawQueuedResourceStart');
@@ -152,6 +157,15 @@ export class InMemoryStore implements IWorkflowStore {
     throw new Error('not used');
   };
   withdrawItemRuling: IWorkflowStore['withdrawItemRuling'] = async () => {
+    throw new Error('not used');
+  };
+  listItemsInWindow: IWorkflowStore['listItemsInWindow'] = async () => {
+    throw new Error('not used');
+  };
+  getItemMerge: IWorkflowStore['getItemMerge'] = async () => {
+    throw new Error('not used');
+  };
+  recordItemMerge: IWorkflowStore['recordItemMerge'] = async () => {
     throw new Error('not used');
   };
   listItemLinks: IWorkflowStore['listItemLinks'] = async () => {

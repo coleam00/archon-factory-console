@@ -98,7 +98,10 @@ export async function runPack({
   cwd,
   json,
 }: CliRouteContext): Promise<number> {
-  const { packCommand } = await loadRoute(() => import('../commands/pack'));
+  // The graph resolves each run-ended file's project from the codebase records.
+  const { packCommand } = await loadRoute(() => import('../commands/pack'), {
+    database: subcommand === 'graph' && (await usesDatabaseStore()),
+  });
   const text = (name: string): string | undefined => {
     const value = values[name];
     return typeof value === 'string' ? value : undefined;
@@ -385,13 +388,14 @@ export async function runValidate({
   positionals,
   effectiveCwd,
   json,
+  forgeTrustedEnv,
 }: CliRouteContext): Promise<number> {
   const { validateWorkflowsCommand, validateCommandsCommand } = await loadRoute(
     () => import('../commands/validate')
   );
   switch (subcommand) {
     case 'workflows':
-      return await validateWorkflowsCommand(effectiveCwd, positionals[2], json);
+      return await validateWorkflowsCommand(effectiveCwd, positionals[2], json, forgeTrustedEnv);
 
     case 'commands':
       return await validateCommandsCommand(effectiveCwd, positionals[2], json);

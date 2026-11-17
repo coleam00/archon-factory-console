@@ -10,13 +10,17 @@
  * merged is the caller's lookup (`changeState`), since only the server reaches the forge.
  */
 import { z } from 'zod';
-import { listAttentionQueue } from './attention-queue';
 import { factoryRunWorkflowName } from './factory-views';
-import { assembleItemRead, itemReadSchema, readItemRuns, type ItemReadSource } from './item-read';
+import {
+  assembleItemRead,
+  itemReadSchema,
+  readItemQueue,
+  readItemRuns,
+  type ItemReadSource,
+} from './item-read';
 import { resolveJsonPointer } from './json-pointer';
 import { MetricsQueryError, resolveMetricsWindow } from './metrics';
 import type { JsonValue } from './output-ref';
-import { splitAttentionRead } from './schemas/attention-degraded';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
@@ -554,15 +558,17 @@ async function readFoundItems(
   found: readonly FoundItem[]
 ): Promise<{ items: FactoryItem[]; facts: ReadonlyMap<string, FactoryRunFacts> }> {
   // The one queue reader, read once for all of them.
-  const queue = splitAttentionRead(await listAttentionQueue(source));
+  const queue = await readItemQueue(source);
   const facts = await runFactsFor(source, input, found);
-  const items = await Promise.all(
-    found.map(async (item): Promise<FactoryItem> => {
-      const read = await assembleItemRead(source, item, queue);
-      return { ...read, progress: await itemProgress(source, input, item, facts) };
+  const read = await Promise.all(
+    found.map(async (item): Promise<FactoryItem | null> => {
+      const itemRead = await assembleItemRead(source, item.item, queue);
+      // An item gone from the store since it was found is no longer the project's.
+      if (itemRead === null) return null;
+      return { ...itemRead, progress: await itemProgress(source, input, item, facts) };
     })
   );
-  return { items, facts };
+  return { items: read.filter((item): item is FactoryItem => item !== null), facts };
 }
 
 /** A page of the project's items, each its `ItemRead` plus `progress`. */

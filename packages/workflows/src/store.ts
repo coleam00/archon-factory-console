@@ -14,6 +14,7 @@ import type { SourceReceiptAcceptance } from './schemas/resource-start';
 import type { CheckoutObservation } from './schemas/checkout-observation';
 import type { ProviderEventQuery, ProviderEventRecord } from './schemas/provider-event';
 import type { WorkflowEventRow } from './schemas/workflow-event';
+import type { NodeFailureKind } from './schemas/node-execution';
 import type { ExpectedApprovalGate } from './schemas/workflow-run';
 import type { ListDashboardRunsOptions, DashboardRunsResult } from './schemas/workflow-run-listing';
 import type {
@@ -237,6 +238,34 @@ export interface IWorkflowStore
     input: { rulingId: string; projectKey?: string } & ItemAct
   ): Promise<import('./schemas/item-ruling').ItemRuling>;
   /**
+   * The items of a project with one of their own runs (`item_id` set, so not a
+   * `workflow:` child) started in `[since, until)`, ordered by item id, after
+   * `afterItemId` when given. The id order is a resume key, not a ranking.
+   */
+  listItemsInWindow(query: {
+    projectKey: string;
+    since: Date;
+    until: Date;
+    afterItemId: string | null;
+    limit: number;
+  }): Promise<import('./schemas/workflow-run').WorkflowItem[]>;
+  /** The merge recorded on an item; null when none is. An unreadable row is reported, not thrown. */
+  getItemMerge(
+    itemId: string
+  ): Promise<
+    | import('./schemas/item-merge').ItemMerge
+    | import('./schemas/item-merge').ItemMergeDegraded
+    | null
+  >;
+  /**
+   * Record that the item `key` names merged, as the forge reported it. Recorded once: a
+   * second report keeps the first and returns it with `recorded: false`. Null when the
+   * project has no item under the key; a merge never creates an item.
+   */
+  recordItemMerge(
+    input: import('./schemas/item-merge').ItemMergeReport
+  ): Promise<import('./schemas/item-merge').ItemMergeRecorded | null>;
+  /**
    * Every link from or to an item, ended ones included, in recording order. A row that does
    * not read is reported as unreadable in its place, not thrown.
    */
@@ -278,7 +307,10 @@ export interface IWorkflowStore
   /**
    * Answer an open ask. The same answer to an answered ask is `unchanged`; any other close
    * stands and the answer is `refused`. The write that closes the last open ask of its set
-   * records `asks_settled` on the run that left them, once.
+   * records `asks_settled` on the run that left them, once, and in the same transaction
+   * writes the starts that settlement causes (asks-settled bindings), returned as the
+   * result's `startReceipts`. A binding that cannot be read refuses a settling close,
+   * naming the file, and nothing is recorded.
    */
   answerItemAsk(
     input: { askId: string; answer: AttentionAnswer } & ItemAskActInput
@@ -337,7 +369,8 @@ export interface IWorkflowStore
    * Fresh execution must win this pending-to-running CAS before doing any work.
    * `workingPath` is the checkout the run will use; the claim stamps it on a row
    * created without one. The claim records the calling process as the run's execution
-   * owner (`currentExecutionOwner`).
+   * owner (`currentExecutionOwner`). A store with items throws `WorkflowItemHeldError`,
+   * writing nothing, while another run of the run's workflow holds its item (`holdsItem`).
    */
   claimPendingWorkflowRun(id: string, workingPath?: string): Promise<WorkflowRun | null>;
   /**
@@ -439,13 +472,18 @@ export interface IWorkflowStore
    * `WorkflowNotResumableError`. A failed or paused run resumes with or without a
    * `cursor`. A `running` run resumes only with an `ownerless` cursor whose claim still
    * matches; the caller has checked that no owner answers for it, and an admitted one
-   * keeps the resource slot it already holds.
+   * keeps the resource slot it already holds. That cursor must carry the caller's held
+   * live-owner lease for this run, or the store throws before it changes anything
+   * (`requireOwnerlessLease`).
    *
    * A resume of a failed or paused run admitted through a resource start takes a slot or throws
    * `WorkflowResourceBusyError` (`resourceResumeBlocker`). A paused run refused while ready
    * to continue (answered, due or signaled, or claimed with a `cursor`) records its first
    * refusal (`CAPACITY_WAIT_METADATA_KEY`) before the error is thrown, so it keeps its place
    * while the host retries (`resumeRefusal`).
+   *
+   * A failed run on an item resumes only while no other run of its workflow holds that
+   * item; otherwise it stays failed and `WorkflowItemHeldError` is thrown.
    */
   resumeWorkflowRun(id: string, cursor?: ResumeClaimCursor): Promise<WorkflowRun>;
   /**
@@ -538,7 +576,14 @@ export interface IWorkflowStore
     id: string,
     error: string,
     options?: WorkflowRunFailureOptions
-  ): Promise<{ failed: boolean }>;
+  ): Promise<{
+    failed: boolean;
+    /**
+     * When this call failed the run: the recorded kind of the node it failed at, from the
+     * terminal record written in the same transaction. Absent when no node failure caused it.
+     */
+    failureKind?: NodeFailureKind;
+  }>;
   /**
    * Pause a running run for human review, stamping the approval context. Optional
    * `extraMetadata` is folded into the SAME atomic metadata write (e.g. the

@@ -7,7 +7,7 @@ export type {
   RunsAttention,
 } from '../primitives/run';
 import { requestJson, buildApiUrl } from '../lib/http';
-import { toRun, type Run } from '../primitives/run';
+import { toOwnerLostHolders, toRun, type Run } from '../primitives/run';
 import { toRunEvent, type RunEvent, type RunNodeState } from '../primitives/event';
 import type { components } from '@/lib/api.generated';
 
@@ -47,14 +47,22 @@ export async function listRuns(
 export async function listRunsNeedingAttention(): Promise<RunsAttention> {
   const res = await requestJson('/api/runs/attention', 'get');
   if (!('runs' in res)) throw new Error('Attention endpoint returned counts instead of runs');
-  return { runs: res.runs.map(toRun), degraded: res.degraded ?? [] };
+  return {
+    runs: res.runs.map(toRun),
+    ownerLost: toOwnerLostHolders(res.items),
+    degraded: res.degraded ?? [],
+  };
 }
 
 /** The open attention items of one project (a codebase id), with the runs holding them. */
 export async function listAttentionQueue(project: string): Promise<AttentionQueue> {
   const res = await requestJson('/api/runs/attention', 'get', { query: { project } });
   if (!('items' in res)) throw new Error('Attention endpoint returned counts instead of items');
-  return { items: res.items, runs: res.runs.map(toRun), degraded: res.degraded ?? [] };
+  return {
+    items: res.items,
+    runs: res.runs.map(toRun),
+    degraded: res.degraded ?? [],
+  };
 }
 
 type AnswerAttentionItemBody = components['schemas']['AnswerAttentionItemBody'];

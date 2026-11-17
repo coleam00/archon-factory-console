@@ -15,10 +15,14 @@ import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discover
 import { attentionQueueSource } from '@archon/core/operations/attention-queue';
 import { changeMergeState } from '@archon/adapters/forge-host';
 import { getArchonHome, projectKeyForCodebase } from '@archon/paths/archon-paths';
+import { registeredProjectKeyForPath } from '@archon/core/services/codebase-checkout-resolver';
+import { readPackGraph } from '@archon/core/workflows/pack-graph';
+import { getTriggersPath, launchProjectKey } from '@archon/core/workflows/run-ended';
 import type { WebAdapter } from '../adapters/web';
 import { dagNodeSseEventSchema } from '../adapters/web/workflow-event.schemas';
 import { isApiGateEnabled } from '../auth';
 import type { AttentionRouter } from '../services/attention-router';
+import type { ItemTracker } from '../services/item-tracker';
 import type { WebPushDestination } from '../services/web-push';
 import { createOrchestratorDispatch } from './api-message-dispatch';
 import { requireWebUser, resolveAuthContext } from './api-request-auth';
@@ -33,6 +37,7 @@ import { registerHealthRoutes } from './api.health';
 import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
 import { registerMetricViewsRoute, registerMetricsRoute } from './api.metrics';
+import { registerPackGraphRoute } from './api.packs';
 import { registerProviderKeyRoutes } from './api.provider-keys';
 import { registerProviderRoutes } from './api.providers';
 import { registerAttentionStreamRoute, registerRunAttentionRoutes } from './api.run-attention';
@@ -58,7 +63,11 @@ export function registerApiRoutes(
   webAdapter: WebAdapter,
   lockManager: ConversationLockManager,
   activePlatforms?: readonly string[],
-  attention?: { webPush: WebPushDestination; router: AttentionRouter },
+  attention?: {
+    webPush: WebPushDestination;
+    router: AttentionRouter;
+    tracker?: Pick<ItemTracker, 'health'>;
+  },
   registration: Pick<CloneOptions, 'githubAppAuth'> = {},
   commit?: AppCommit
 ): void {
@@ -148,6 +157,21 @@ export function registerApiRoutes(
     changeMergeState: (url, audits, branches) =>
       changeMergeState(url, audits, branches, { archonHome: getArchonHome(), env: process.env }),
     discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
+  });
+  registerPackGraphRoute(app, {
+    codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
+    readPackGraph: (cwd, pack, workflowSource) =>
+      readPackGraph(
+        cwd,
+        pack,
+        {
+          loadConfig,
+          providers: providerRegistry,
+          triggersDirectory: getTriggersPath,
+          projectKeyOf: launchProjectKey(path => registeredProjectKeyForPath(path, codebaseDb)),
+        },
+        workflowSource === undefined ? {} : { workflowSource }
+      ),
   });
   registerWorkflowDefinitionRoutes(app);
   registerArtifactRoutes(app);

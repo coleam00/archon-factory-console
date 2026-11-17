@@ -2,12 +2,19 @@ import type { ReactElement } from 'react';
 import { optionName } from '../components/AttentionAnswerPanel';
 import { relativeTime } from '../lib/format';
 import type { AttentionQueue } from '../skills/runs';
-import type { NeedsYouItem } from './lib/needs-you';
+import { ownerLostMessage, type NeedsYouItem } from './lib/needs-you';
 import { RowContent, RowSubject } from './NeedsYouRow';
 
 /** The question the line names, in one line. */
 function lineMessage(item: NeedsYouItem): string {
-  return item.kind === 'unreadable' ? item.detail : item.message;
+  switch (item.kind) {
+    case 'unreadable':
+      return item.detail;
+    case 'owner_lost':
+      return ownerLostMessage(item);
+    default:
+      return item.message;
+  }
 }
 
 /** What answering takes, in a few words: the recommended option when the ask has one. */
@@ -26,6 +33,8 @@ export function lineLabel(item: NeedsYouItem): string {
       return 'Approve or reject';
     case 'unreadable':
       return 'Could not be read';
+    case 'owner_lost':
+      return 'Resume or abandon';
   }
 }
 

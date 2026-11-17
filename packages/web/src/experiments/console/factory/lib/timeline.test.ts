@@ -170,7 +170,10 @@ describe('how a run started', () => {
   });
 
   test('after a run that is not on this item', () => {
-    expect(withCause({ kind: 'run_ended', runId: 'elsewhere' })?.started).toEqual({
+    expect(
+      withCause({ kind: 'run_ended', runId: 'elsewhere', sourceInstanceId: 'fc-start-plan' })
+        ?.started
+    ).toEqual({
       text: 'After another run',
       mono: null,
       runHref: runHref(PROJECT, 'elsewhere'),

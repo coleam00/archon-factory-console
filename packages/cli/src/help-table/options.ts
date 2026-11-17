@@ -43,7 +43,7 @@ export const orderedFlags: FlagHelp[] = [
   {
     spec: '--workflow-source <path>',
     description:
-      'Read the workflow, its commands and scripts from this directory\ninstead of --cwd (which stays the workspace the run acts on)',
+      'Read the workflow, its commands and scripts from this checkout root\n(<path>/.archon/workflows) instead of --cwd (which stays the workspace the run acts on)',
     owners: [{ command: 'workflow', subcommand: 'run' }],
   },
   {
@@ -206,7 +206,7 @@ export const orderedFlags: FlagHelp[] = [
   {
     spec: '--no-wait',
     description:
-      "For 'workflow run': refuse, naming the resource, instead of waiting when the workflow's\nresource is full",
+      "For 'workflow run': refuse instead of waiting, naming the resource when the workflow's\nresource is full, or the holding run when another run of the workflow on the same --item\nis not terminal (with or without a resource:)",
     owners: [{ command: 'workflow', subcommand: 'run' }],
   },
   {
@@ -225,11 +225,12 @@ export const orderedFlags: FlagHelp[] = [
   {
     spec: '--item <key>',
     description:
-      "The item a 'workflow run' or 'trigger fire' start belongs to; for 'workflow runs': read the item's runs, open questions and answers; for 'workflow rule': the item the ruling is on; for 'workflow link': the item the link is from; for 'workflow wait/cancel/abandon': the item whose runs to wait on or act on",
+      "The item a 'workflow run' or 'trigger fire' start belongs to; for 'workflow runs': read the item's runs, open questions and answers; for 'workflow rule': the item the ruling is on; for 'workflow merged': the item whose change merged; for 'workflow link': the item the link is from; for 'workflow wait/cancel/abandon': the item whose runs to wait on or act on",
     owners: [
       { command: 'workflow', subcommand: 'run' },
       { command: 'workflow', subcommand: 'runs' },
       { command: 'workflow', subcommand: 'rule' },
+      { command: 'workflow', subcommand: 'merged' },
       { command: 'workflow', subcommand: 'link' },
       { command: 'workflow', subcommand: 'wait' },
       { command: 'workflow', subcommand: 'cancel' },
@@ -251,8 +252,12 @@ export const orderedFlags: FlagHelp[] = [
   },
   {
     spec: '--limit <n>',
-    description: "For 'workflow runs': max rows (default 20)",
-    owners: [{ command: 'workflow', subcommand: 'runs' }],
+    description:
+      "For 'workflow runs': max rows (default 20); for 'workflow items': items a page (default 20, at most 100)",
+    owners: [
+      { command: 'workflow', subcommand: 'runs' },
+      { command: 'workflow', subcommand: 'items' },
+    ],
   },
   {
     spec: '--timeout <seconds>',

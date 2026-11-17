@@ -119,11 +119,16 @@ function createMockStore(): IWorkflowStore {
     listPendingStartBindings: mock<IWorkflowStore['listPendingStartBindings']>(() => {
       throw new Error('Unexpected listPendingStartBindings');
     }),
+    listSkippedItemStarts: mock<IWorkflowStore['listSkippedItemStarts']>(async () => []),
+    listWaitedItemHolders: mock<IWorkflowStore['listWaitedItemHolders']>(async () => []),
     getResourceStartRequest: mock<IWorkflowStore['getResourceStartRequest']>(() => {
       throw new Error('Unexpected getResourceStartRequest');
     }),
     listQueuedResourceStartsForHost: mock<IWorkflowStore['listQueuedResourceStartsForHost']>(() => {
       throw new Error('Unexpected listQueuedResourceStartsForHost');
+    }),
+    listQueuedItemStarts: mock<IWorkflowStore['listQueuedItemStarts']>(() => {
+      throw new Error('Unexpected listQueuedItemStarts');
     }),
     withdrawQueuedResourceStart: mock<IWorkflowStore['withdrawQueuedResourceStart']>(() => {
       throw new Error('Unexpected withdrawQueuedResourceStart');
@@ -190,6 +195,9 @@ function createMockStore(): IWorkflowStore {
     withdrawItemRuling: mock<IWorkflowStore['withdrawItemRuling']>(async () => {
       throw new Error('Not used by this test');
     }),
+    listItemsInWindow: mock<IWorkflowStore['listItemsInWindow']>(async () => []),
+    getItemMerge: mock<IWorkflowStore['getItemMerge']>(async () => null),
+    recordItemMerge: mock<IWorkflowStore['recordItemMerge']>(async () => null),
     listItemLinks: mock<IWorkflowStore['listItemLinks']>(async () => []),
     recordItemLink: mock<IWorkflowStore['recordItemLink']>(async () => {
       throw new Error('Not used by this test');
