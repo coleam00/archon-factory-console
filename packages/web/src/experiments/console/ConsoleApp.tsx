@@ -13,6 +13,7 @@ import { BoardPage } from './factory/BoardPage';
 import { FactoryPage } from './factory/FactoryPage';
 import { ItemPage } from './factory/ItemPage';
 import { NeedsYouPage } from './factory/NeedsYouPage';
+import { OverviewPage } from './factory/overview/OverviewPage';
 import { StagePage } from './factory/StagePage';
 import { StepPage } from './factory/StepPage';
 import { ChatPage } from './routes/ChatPage';
@@ -131,6 +132,7 @@ export function ConsoleApp(): ReactElement {
             <Route path="p/:projectId/factory" element={<FactoryPage />} />
             <Route path="p/:projectId/factory/board" element={<BoardPage />} />
             <Route path="p/:projectId/factory/needs-you" element={<NeedsYouPage />} />
+            <Route path="p/:projectId/factory/overview" element={<OverviewPage />} />
             <Route path="p/:projectId/factory/items/:key" element={<ItemPage />} />
             <Route path="p/:projectId/factory/stages/:stage" element={<StagePage />} />
             <Route path="p/:projectId/factory/steps/:workflow/:node" element={<StepPage />} />

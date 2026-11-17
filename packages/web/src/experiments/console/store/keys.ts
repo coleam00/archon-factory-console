@@ -25,6 +25,7 @@ export const K = {
   metrics: (scope: Scope, since: string): string => `metrics:${scopeKey(scope)}:${since}`,
   metricViews: (scope: Scope): string => `metric-views:${scopeKey(scope)}`,
   factoryViews: (projectId: string): string => `factory-views:${projectId}`,
+  factoryOverview: (projectId: string): string => `factory-overview:${projectId}`,
   factoryWorkflow: (projectId: string, workflow: string): string =>
     `factory-workflow:${projectId}:${workflow}`,
   // Every page of one project's items; the dashboard SSE invalidates the `factory-items` prefix.

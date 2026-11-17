@@ -85,12 +85,14 @@ documents through Neon live queries.
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the Needs-you list, then the map |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/needs-you` | Needs you: every open ask and paused wait on this project's items, answerable in place (the Overview shows the newest few) |
+  | `factory/overview` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down), when it has one |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, the workflows behind it, each workflow's step graph |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
 
 - Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
-  count), each its own route. Item, stage and step pages have a back link to where you came from.
+  count), each its own route, and How it works when the pack has a factory overview file (or a
+  broken one). Item, stage and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
@@ -161,6 +163,8 @@ attention routes, but no list of a project's items. Rasmus has open engine work 
 those land, this section adds **one read-only route file**, `packages/server/src/routes/api.factory.ts`:
 
 - `GET /api/factory/views?codebaseId=` the factory views that apply to the project.
+- `GET /api/factory/overview?codebaseId=` the factory overview of the pack the first applying
+  view draws, or null, with any overview file that failed.
 - `GET /api/factory/workflow?codebaseId=&workflow=` one workflow a view names, for the stage and
   step pages: its steps keyed as run events name them, the loop groups and included workflows
   that frame them, and each step's kind, model, `when:`, prompt and authored YAML.

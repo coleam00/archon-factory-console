@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
-import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
+import type { FactoryOverviewRead, FactoryViews, FactoryWorkflow } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
@@ -15,11 +15,13 @@ import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from './lib/board';
 import { PAGE, VIEW } from './lib/board.test-fixtures';
 import { askItem } from './needs-you.test-fixtures';
+import { OVERVIEW } from './lib/overview.test-fixtures';
 
 const ID = 'cb-1';
 
 afterEach(() => {
   invalidate('factory-views');
+  invalidate('factory-overview');
   invalidate('factory-workflow');
   invalidate('project');
   invalidate('runs');
@@ -213,6 +215,34 @@ describe('the Overview', () => {
     const needsYou = html.indexOf('aria-label="Needs you"');
     expect(needsYou).toBeGreaterThan(-1);
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
+  });
+
+  test('the sub-navigation shows How it works only when the pack has an overview file, or a broken one', () => {
+    const link = `href="/console/p/${ID}/factory/overview"`;
+    const withOverview = (read: FactoryOverviewRead | undefined): string => {
+      if (read !== undefined) set(K.factoryOverview(ID), read);
+      return render(`/console/p/${ID}/factory`, withView);
+    };
+    // Unread, and read as none: no entry.
+    expect(withOverview(undefined)).not.toContain(link);
+    expect(withOverview({ overview: null, errors: [] })).not.toContain(link);
+    const overview = {
+      pack: 'acme/kit',
+      source: 'project-file' as const,
+      path: '/repo/.archon/packs/acme.kit.factory-overview.json',
+      declaration: OVERVIEW,
+    };
+    expect(withOverview({ overview, errors: [] })).toContain(link);
+    // A broken file shows the entry and its error, with the view files' errors.
+    const broken = withOverview({
+      overview: null,
+      errors: [
+        { pack: 'acme.kit', source: 'project-file', path: '/repo/o.json', error: 'bad root' },
+      ],
+    });
+    expect(broken).toContain(link);
+    expect(broken).toContain('/repo/o.json');
+    expect(broken).toContain('A factory file could not be read');
   });
 
   test('a broken project file shows its path and error, not an empty state', () => {

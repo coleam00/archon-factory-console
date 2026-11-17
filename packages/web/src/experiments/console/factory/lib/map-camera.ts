@@ -41,13 +41,14 @@ export function clampK(k: number): number {
 }
 
 /**
- * The scale that fits `bounds` in `frame`, inside the padding, never under `READABLE_K` nor
- * over the drawn size; 1 for an empty map.
+ * The scale that fits `bounds` in `frame`, inside the padding, never under `minK` nor over the
+ * drawn size; 1 for an empty map. `minK` is `READABLE_K` for the live map; a drawing that holds
+ * its own legibility to a test (the factory overview) may pass `MIN_ZOOM` to fit whole.
  */
-function fitScale(bounds: Box, frame: Frame, pad: number): number {
+function fitScale(bounds: Box, frame: Frame, pad: number, minK: number): number {
   const sx = bounds.w > 0 ? (frame.width - 2 * pad) / bounds.w : MAX_FIT;
   const sy = bounds.h > 0 ? (frame.height - 2 * pad) / bounds.h : MAX_FIT;
-  return clampK(Math.max(READABLE_K, Math.min(MAX_FIT, sx, sy)));
+  return clampK(Math.max(minK, Math.min(MAX_FIT, sx, sy)));
 }
 
 /** Where a span of `size` starts in an `extent`: centred when it fits, else at the padding. */
@@ -60,8 +61,8 @@ function place(size: number, extent: number, pad: number): number {
  * (top-left), so a narrow frame shows the first stages and pans to the rest. Finite for any
  * frame, a zero-sized one included.
  */
-export function fitCamera(bounds: Box, frame: Frame, pad = FIT_PAD): Camera {
-  const k = fitScale(bounds, frame, pad);
+export function fitCamera(bounds: Box, frame: Frame, pad = FIT_PAD, minK = READABLE_K): Camera {
+  const k = fitScale(bounds, frame, pad, minK);
   return {
     k,
     x: place(bounds.w * k, frame.width, pad) - bounds.x * k,
@@ -70,8 +71,8 @@ export function fitCamera(bounds: Box, frame: Frame, pad = FIT_PAD): Camera {
 }
 
 /** The frame height for a frame `width` wide: the map at its fitting scale, no empty bands. */
-export function fittedHeight(bounds: Box, width: number, pad = FIT_PAD): number {
-  const k = fitScale(bounds, { width, height: Number.POSITIVE_INFINITY }, pad);
+export function fittedHeight(bounds: Box, width: number, pad = FIT_PAD, minK = READABLE_K): number {
+  const k = fitScale(bounds, { width, height: Number.POSITIVE_INFINITY }, pad, minK);
   return Math.max(MIN_FRAME_HEIGHT, Math.ceil(bounds.h * k + 2 * pad));
 }
 

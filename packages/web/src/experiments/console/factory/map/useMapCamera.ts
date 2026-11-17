@@ -8,9 +8,11 @@ import {
   type RefObject,
 } from 'react';
 import {
+  FIT_PAD,
   fitCamera,
   fittedHeight,
   MIN_FRAME_HEIGHT,
+  READABLE_K,
   reveal,
   zoomAt,
   type Camera,
@@ -57,9 +59,9 @@ const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el
  * keeps its scale and pans only as far as it must to keep that card in view: refitting to the
  * narrower frame would shrink the cards' text below what a person can read. The cards the
  * panel's width pushes out of the frame are a drag away. Closing the panel refits again,
- * unless the person has moved the map.
+ * unless the person has moved the map. `minK` is the least scale a fit opens at (`fitCamera`).
  */
-export function useMapCamera(bounds: Box, focus: Box | null): MapCamera {
+export function useMapCamera(bounds: Box, focus: Box | null, minK = READABLE_K): MapCamera {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, k: 1 });
   const [height, setHeight] = useState(MIN_FRAME_HEIGHT);
@@ -78,11 +80,11 @@ export function useMapCamera(bounds: Box, focus: Box | null): MapCamera {
     const el = frameRef.current;
     if (el === null) return;
     const row = el.parentElement ?? el;
-    setHeight(fittedHeight(bounds, row.clientWidth));
+    setHeight(fittedHeight(bounds, row.clientWidth, FIT_PAD, minK));
     const target = focused.current;
     if (target !== null) put(reveal(current.current, target, frameOf(el)));
-    else if (!moved.current) put(fitCamera(bounds, frameOf(el)));
-  }, [bounds, put]);
+    else if (!moved.current) put(fitCamera(bounds, frameOf(el), FIT_PAD, minK));
+  }, [bounds, minK, put]);
 
   useEffect(() => {
     focused.current = focus;
@@ -132,7 +134,7 @@ export function useMapCamera(bounds: Box, focus: Box | null): MapCamera {
     const el = frameRef.current;
     if (el === null) return;
     moved.current = false;
-    put(fitCamera(bounds, frameOf(el)));
+    put(fitCamera(bounds, frameOf(el), FIT_PAD, minK));
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {

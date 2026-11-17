@@ -30,8 +30,8 @@
         },
         {
           "id": "found",
-          "title": "Found while working",
-          "text": "What agents noticed outside their task",
+          "title": "Found by agents",
+          "text": "Noticed outside their own task",
           "icon": "search",
           "kind": "input",
           "col": 1,
@@ -208,7 +208,7 @@
         {
           "id": "plan-read",
           "title": "Read the project",
-          "text": "Its code, its rules, its history; changes nothing",
+          "text": "Code, rules and history; changes nothing",
           "icon": "search",
           "kind": "stage",
           "col": 2,
@@ -292,7 +292,7 @@
       "edges": [
         { "from": "build-plan", "to": "build-build", "kind": "feeds" },
         { "from": "build-build", "to": "build-pr", "kind": "feeds" },
-        { "from": "build-pr", "to": "build-back", "kind": "feeds", "label": "read" },
+        { "from": "build-pr", "to": "build-back", "kind": "feeds" },
         { "from": "build-back", "to": "build-build", "kind": "loops-back", "label": "fix it, same builder" }
       ]
     },

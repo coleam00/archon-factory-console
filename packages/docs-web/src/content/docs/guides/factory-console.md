@@ -48,6 +48,9 @@ it. Inside it:
   stage's own steps stand out, steps another stage works are dimmed, and a step running for
   an item now glows.
 - **Step page**: the items on a step now, its prompt, its YAML and the model it runs on.
+- **How it works**: the pack's [factory overview](#the-factory-overview), when it ships one: a
+  hand-written picture of how the factory runs, for explaining it to someone who has never
+  seen it.
 
 Views update within a few seconds of a run starting, changing step or ending, and of a
 question opening or closing.
@@ -180,6 +183,84 @@ Every stage a field names must be declared in `stages`, and every workflow named
       { "from": "review", "to": "landed", "label": "merged" }
     ],
     "notes": [{ "text": "You answer questions here", "near": "needs-you" }]
+  }
+}
+```
+
+## The factory overview
+
+A factory overview explains how a factory runs, for presenting it. It is written by hand: it
+is not live, not exhaustive, and never generated from the pack's workflows. The Factory tab
+shows it under **How it works** (`factory/overview`) when the pack the tab draws has one.
+
+It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
+joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
+number of cards, a breadcrumb leads back up, and **Full screen** draws the overview over the
+whole console until **Esc**. Drag to pan, scroll or use the buttons to zoom, and **Fit** to see
+a whole view.
+
+The file is found as the view file is: the project's
+`.archon/packs/<pack key>.factory-overview.json` first, then the pack's own
+`.shared/factory-overview.json`. A file that does not validate is listed with its path and the
+field at fault on every Factory page.
+
+Lines are drawn straight, so a view validates only when its picture is clean:
+
+- A `feeds` or `calls` line joins two ends that share a row or a column, and runs along it.
+- A `loops-back` line joins two cards. It drops from the bottom of its source into a lane under
+  everything, runs along it, and rises into its target. A view has one at most, and the root
+  view exactly one.
+- No line may run through a card other than its ends, through a group that holds neither end,
+  or into another line. Move a card to give a line a clear row or column.
+
+## Overview fields
+
+| Field | Required | What it does |
+|---|---|---|
+| `version` | yes | Always `1`. |
+| `pack` | yes | The pack the overview explains: `owner/name` when installed, else its folder name. |
+| `title` | yes | The overview's name: its heading, and the first entry of the breadcrumb. |
+| `caption` | yes | One paragraph in plain words, shown above the root view. |
+| `root` | yes | The id of the view the page opens on. |
+| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups` and a `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), and an optional `label`. Every view but the root is opened by exactly one card. |
+
+The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
+`git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.
+
+## Overview example
+
+```json
+{
+  "version": 1,
+  "pack": "acme/factory",
+  "title": "How the factory works",
+  "caption": "An issue comes in. Build writes the change, Review reads it, and a change Review approves lands. What Review finds goes back to Build.",
+  "root": "factory",
+  "views": {
+    "factory": {
+      "cards": [
+        { "id": "issue", "title": "An issue", "text": "What someone wants built", "icon": "issue", "kind": "input", "col": 1, "row": 2 },
+        { "id": "build", "title": "Build", "text": "Writes the change", "icon": "hammer", "kind": "stage", "col": 2, "row": 2, "opens": "build" },
+        { "id": "review", "title": "Review", "text": "Reads the change", "icon": "eye", "kind": "check", "col": 3, "row": 2 },
+        { "id": "landed", "title": "Landed", "text": "The change is merged", "icon": "flag", "kind": "outcome", "col": 4, "row": 2 },
+        { "id": "you", "title": "You", "text": "Answer what it asks", "icon": "users", "kind": "person", "col": 2, "row": 1 }
+      ],
+      "edges": [
+        { "from": "issue", "to": "build", "kind": "feeds" },
+        { "from": "build", "to": "review", "kind": "feeds" },
+        { "from": "review", "to": "landed", "kind": "feeds" },
+        { "from": "build", "to": "you", "kind": "calls", "label": "asks" },
+        { "from": "review", "to": "build", "kind": "loops-back", "label": "sent back" }
+      ]
+    },
+    "build": {
+      "caption": "Build writes the change in its own checkout.",
+      "cards": [
+        { "id": "build-write", "title": "Write it", "text": "Code and tests", "icon": "hammer", "kind": "stage", "col": 1, "row": 1 },
+        { "id": "build-pr", "title": "Pull request", "text": "Opened as a draft", "icon": "git-pull-request", "kind": "outcome", "col": 2, "row": 1 }
+      ],
+      "edges": [{ "from": "build-write", "to": "build-pr", "kind": "feeds" }]
+    }
   }
 }
 ```

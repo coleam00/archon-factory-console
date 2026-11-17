@@ -37,3 +37,12 @@ export async function getFactoryItem(
 ): Promise<FactoryItemDetail> {
   return requestJson('/api/factory/item', 'get', { query: opts });
 }
+
+export type FactoryOverviewRead = components['schemas']['FactoryOverview'];
+
+/** The hand-written overview of the pack the project's factory view draws, or null when it has none. */
+export async function getFactoryOverview(
+  opts: QueryParams<'/api/factory/overview', 'get'>
+): Promise<FactoryOverviewRead> {
+  return requestJson('/api/factory/overview', 'get', { query: opts });
+}

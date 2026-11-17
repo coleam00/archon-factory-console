@@ -26,7 +26,9 @@ The factory building this repository runs Archon from another checkout, on the h
 - Keep factory code together: web under `packages/web/src/experiments/console/factory/`
   (components, pure `lib/`, the page routes), server under `packages/server/src/routes/api.factory.ts`
   plus a reader in `packages/core` or `packages/workflows` where the data access belongs. The
-  declaration schema lives in `packages/workflows/src/schemas/factory-view.ts`. The server
+  declaration schemas live in `packages/workflows/src/schemas/factory-view.ts` (the view file)
+  and `factory-overview.ts` (the overview file); both files are found by one reader,
+  `packages/workflows/src/factory-pack-files.ts`. The server
   asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins
   through `@archon/forge/host-plugins` as the CLI's `archon forge` does.
 - A new or changed server route regenerates the web API types: `bun run --cwd packages/server generate:api-types`
