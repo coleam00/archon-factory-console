@@ -92,6 +92,18 @@ test('every card shows its chips; a click opens its details with the items there
       'Checks: 1 here, 1 being worked'
     );
     expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+    // What a person sees: the chips drawn on the card, by count.
+    const chip = (stage: string, kind: string): string | null | undefined =>
+      container.querySelector(`[data-stage="${stage}"] [data-chip="${kind}"]`)?.textContent;
+    expect(chip('build', 'here')).toContain('2');
+    expect(chip('build', 'need-you')).toContain('1');
+    expect(chip('checks', 'here')).toContain('1');
+    expect(chip('checks', 'need-you')).toBeUndefined();
+    expect(chip('plan', 'here')).toBeUndefined();
+    // The open icon leads to the stage page.
+    expect(container.querySelector('a[aria-label="Open Build"]')?.getAttribute('href')).toBe(
+      `/console/p/${ID}/factory/stages/build`
+    );
 
     // A keyboard click (detail 0) selects at once.
     await act(async () => card(container, 'build').click());
@@ -111,10 +123,17 @@ test('every card shows its chips; a click opens its details with the items there
   }
 });
 
-const clickOf = (target: Element, detail: number): Promise<void> =>
+/** A click with click count `detail`, at the screen point `at` (where the pointer was). */
+const clickOf = (target: Element, detail: number, at = { x: 0, y: 0 }): Promise<void> =>
   act(async () => {
     target.dispatchEvent(
-      new dom.MouseEvent('click', { bubbles: true, cancelable: true, detail }) as unknown as Event
+      new dom.MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        detail,
+        clientX: at.x,
+        clientY: at.y,
+      }) as unknown as Event
     );
   });
 const stagePage = (container: HTMLElement): string | null | undefined =>
@@ -149,6 +168,32 @@ test('a lone second click on a card, as a synthesised double-click sends, opens 
   try {
     await clickOf(card(container, 'plan'), 2);
     expect(stagePage(container)).toBe('plan');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a lone second click after an earlier single click elsewhere opens the card under it', async () => {
+  const { container, unmount } = await mount();
+  try {
+    await clickOf(card(container, 'plan'), 1, { x: 300, y: 500 });
+    await clickOf(card(container, 'build'), 2, { x: 450, y: 500 });
+    expect(stagePage(container)).toBe('build');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a click, Escape, then a double-click elsewhere opens the card double-clicked', async () => {
+  const { container, unmount } = await mount();
+  try {
+    await clickOf(card(container, 'landed'), 1, { x: 1300, y: 500 });
+    await act(async () => {
+      window.dispatchEvent(new dom.KeyboardEvent('keydown', { key: 'Escape' }) as unknown as Event);
+    });
+    expect(container.querySelector('aside')).toBeNull();
+    await clickOf(card(container, 'checks'), 2, { x: 700, y: 500 });
+    expect(stagePage(container)).toBe('checks');
   } finally {
     await unmount();
   }

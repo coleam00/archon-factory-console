@@ -36,7 +36,7 @@ describe('the live chips on each card', () => {
       ready: [[], 0, []],
       landed: [['7'], 0, []],
     });
-    expect(live.unplaced).toEqual([]);
+    expect(live.notOnMap).toEqual([]);
   });
 
   test('which card a running step belongs to', () => {
@@ -66,7 +66,7 @@ describe('the live chips on each card', () => {
     );
     expect(chips(live).ready).toEqual([['ready'], 0, []]);
     expect([...live.stages.values()].flatMap(entry => entry.items)).toHaveLength(1);
-    expect(live.unplaced).toEqual([]);
+    expect(live.notOnMap).toEqual([]);
   });
 
   test('needs you: an open ask on the item, matched by item id; a usage limit is not', () => {
@@ -85,13 +85,17 @@ describe('the live chips on each card', () => {
     expect(chips(live).build).toEqual([['ask', 'limit'], 1, ['ask']]);
   });
 
-  test('an item without progress is unplaced; one on a stage with no card is off the map', () => {
+  test('items no card shows are listed with why: no progress, an unlisted workflow, no card', () => {
     const noCards = { ...view, map: { ...view.map, cards: [] } };
     const unknown = itemWith('z', null);
+    const stray = itemWith('s', runningOn('mystery-flow', 'a'));
     const ready = itemWith('ready', endedWith('deliver', 'completed', 'ready'));
-    const live = stageLive(noCards, [unknown, ready], []);
-    expect(live.unplaced.map(item => item.item.key)).toEqual(['z']);
-    expect(live.offMap.map(item => item.item.key)).toEqual(['ready']);
+    const live = stageLive(noCards, [unknown, stray, ready], []);
+    expect(live.notOnMap.map(entry => [entry.item.item.key, entry.why])).toEqual([
+      ['z', { kind: 'unplaced', reason: 'no-progress' }],
+      ['s', { kind: 'unplaced', reason: 'no-stage', workflow: 'mystery-flow' }],
+      ['ready', { kind: 'no-card', stage: 'ready' }],
+    ]);
     expect(chips(live).ready).toEqual([['ready'], 0, []]);
   });
 });

@@ -8,15 +8,21 @@ import type { Declaration } from './board';
 type MapBlock = Declaration['map'];
 type MapArrow = MapBlock['arrows'][number];
 
-export const CARD_W = 184;
-export const CARD_H = 128;
-/** Room between columns for a forward arrow and its one-word label. */
-export const COL_PITCH = 240;
-export const ROW_PITCH = 176;
+/*
+ * Sized so the map reads at the console's smallest type step when fitted at 1440x900: the
+ * Overview's frame is about 1100px wide, a row of seven columns is 6 * COL_PITCH + CARD_W =
+ * 1716 wide, so it fits at about 0.61 and the cards' 15px text draws at about 9.2px. Taller
+ * cards cost nothing there, since the fit is limited by width: they hold a whole blurb.
+ */
+export const CARD_W = 180;
+export const CARD_H = 184;
+/** Room between columns for a forward arrow and its one-word label at 15px. */
+export const COL_PITCH = 256;
+export const ROW_PITCH = 232;
 /** Vertical distance between back-arrow lanes, and from the cards to the first lane. */
 export const LANE = 26;
 /** Half the height a label takes, so bounds include labels drawn on a lane. */
-const LABEL_HALF = 8;
+const LABEL_HALF = 10;
 
 export interface Box {
   x: number;
@@ -73,7 +79,7 @@ function forwardPath(a: Box, b: Box): { d: string; labelAt: Point } {
   const y2 = centreY(b);
   const midX = (x1 + x2) / 2;
   const d = y1 === y2 ? `M${x1},${y1} H${x2}` : `M${x1},${y1} H${midX} V${y2} H${x2}`;
-  return { d, labelAt: { x: midX, y: Math.min(y1, y2) - 8 } };
+  return { d, labelAt: { x: midX, y: Math.min(y1, y2) - 11 } };
 }
 
 interface Back {

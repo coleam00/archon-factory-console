@@ -4,7 +4,7 @@
  * "needs you" test is the Needs-you list's (`needsYou`), so the chip agrees with the list.
  */
 import type { AttentionQueueItem } from '../../skills/runs';
-import { placeItem, type Declaration, type FactoryItem } from './board';
+import { placeItem, type Declaration, type FactoryItem, type Placement } from './board';
 import { needsYou } from './needs-you';
 
 export interface StageLive {
@@ -16,13 +16,17 @@ export interface StageLive {
   needYou: FactoryItem[];
 }
 
+/** An item the map cannot show on a card, with why, so the reader knows what to fix. */
+export type NotOnMap =
+  | { item: FactoryItem; why: Extract<Placement, { kind: 'unplaced' }> }
+  /** Placed on `stage`, which the map draws no card for. */
+  | { item: FactoryItem; why: { kind: 'no-card'; stage: string } };
+
 export interface MapLive {
   /** Every declared stage, with or without a card, empty when nothing sits there. */
   stages: Map<string, StageLive>;
-  /** Items placed nowhere: progress unknown, or a run of a workflow no stage lists. */
-  unplaced: FactoryItem[];
-  /** Items placed on a stage the map draws no card for. */
-  offMap: FactoryItem[];
+  /** Items no card shows: placed nowhere, or on a stage without a card. */
+  notOnMap: NotOnMap[];
 }
 
 export function stageLive(
@@ -35,22 +39,23 @@ export function stageLive(
   const stages = new Map<string, StageLive>(
     view.stages.map(stage => [stage.id, { items: [], working: 0, needYou: [] }])
   );
-  const unplaced: FactoryItem[] = [];
-  const offMap: FactoryItem[] = [];
+  const notOnMap: NotOnMap[] = [];
   for (const item of items) {
     const placement = placeItem(view, item);
     // An item ended without a change (`endings`) is on no card, by design.
     if (placement.kind === 'ended') continue;
-    // The schema only lets placement name declared stages, so `live` is found for any stage.
-    const live = placement.kind === 'stage' ? stages.get(placement.stage) : undefined;
-    if (placement.kind !== 'stage' || live === undefined) {
-      unplaced.push(item);
+    if (placement.kind === 'unplaced') {
+      notOnMap.push({ item, why: placement });
       continue;
     }
+    // The schema only lets placement name declared stages.
+    const live = stages.get(placement.stage);
+    if (live === undefined) throw new Error(`Placed on undeclared stage ${placement.stage}`);
     live.items.push(item);
     if (placement.working) live.working += 1;
     if (waiting.has(item.item.id)) live.needYou.push(item);
-    if (!carded.has(placement.stage)) offMap.push(item);
+    if (!carded.has(placement.stage))
+      notOnMap.push({ item, why: { kind: 'no-card', stage: placement.stage } });
   }
-  return { stages, unplaced, offMap };
+  return { stages, notOnMap };
 }

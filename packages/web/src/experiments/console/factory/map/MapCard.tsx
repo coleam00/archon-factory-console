@@ -15,10 +15,10 @@ interface MapCardProps {
   /** The stage page's path. */
   openTo: string;
   /**
-   * A click; `detail` counts the clicks of a double-click (0 from the keyboard). The map opens
-   * the stage on a double-click's second click.
+   * A click; its `detail` counts the clicks of a double-click (0 from the keyboard). The map
+   * opens the stage on a double-click's second click.
    */
-  onSelect: (stage: string, detail: number) => void;
+  onSelect: (stage: string, event: MouseEvent) => void;
 }
 
 /** One stage on the map: its colour, label, blurb and live chips, selectable and openable. */
@@ -42,8 +42,8 @@ export function MapCard({
         type="button"
         aria-pressed={selected}
         aria-label={`${stage.label}: ${chipWords(live)}`}
-        onClick={(event: MouseEvent) => onSelect(stage.id, event.detail)}
-        className={`relative flex size-full flex-col gap-1 overflow-hidden rounded-console-12 border bg-surface py-2.5 pl-4 pr-7 text-left transition-colors hover:bg-surface-elevated ${
+        onClick={(event: MouseEvent) => onSelect(stage.id, event)}
+        className={`relative flex size-full flex-col gap-1 overflow-hidden rounded-console-12 border bg-surface py-2.5 pl-4 pr-3 text-left transition-colors hover:bg-surface-elevated ${
           selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border'
         }`}
       >
@@ -52,14 +52,16 @@ export function MapCard({
           className="absolute inset-y-2.5 left-1.5 w-1 rounded-full"
           style={{ background: color }}
         />
-        <span className="truncate text-console-17 font-medium text-text-primary">
+        <span className="truncate pr-5 text-console-17 font-medium text-text-primary">
           {stage.label}
         </span>
-        <span className="line-clamp-3 text-console-13 leading-snug text-text-secondary">
+        {/* 15px is the smallest that reads at the opening fit (see map-layout.ts). The clamp
+            only guards a blurb longer than any card holds; the panel shows it whole. */}
+        <span className="line-clamp-5 text-console-15 leading-snug text-text-secondary">
           {stage.blurb}
         </span>
         {notes.map(note => (
-          <span key={note} className="truncate text-console-12 italic text-text-tertiary">
+          <span key={note} className="truncate text-console-15 italic text-text-tertiary">
             {note}
           </span>
         ))}
@@ -99,7 +101,8 @@ function Chips({ live }: { live: StageLive }): ReactElement | null {
     <>
       {here > 0 ? (
         <span
-          className={`rounded-full px-2 text-console-13 font-medium ${
+          data-chip="here"
+          className={`rounded-full px-2 text-console-15 font-medium ${
             live.working > 0
               ? 'bg-[color:var(--running-soft)] text-[color:var(--running)] motion-safe:animate-pulse'
               : 'bg-surface-elevated text-text-secondary'
@@ -109,7 +112,10 @@ function Chips({ live }: { live: StageLive }): ReactElement | null {
         </span>
       ) : null}
       {waiting > 0 ? (
-        <span className="rounded-full bg-warning/20 px-2 text-console-13 font-semibold text-warning">
+        <span
+          data-chip="need-you"
+          className="rounded-full bg-warning/20 px-2 text-console-15 font-semibold text-warning"
+        >
           {needYouWords(waiting)}
         </span>
       ) : null}

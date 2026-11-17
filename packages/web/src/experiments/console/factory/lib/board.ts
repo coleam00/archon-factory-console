@@ -17,10 +17,11 @@ export type Placement =
   /** Ended without a change (`endings`): on no column, under the board's folded row `label`. */
   | { kind: 'ended'; label: string }
   /**
-   * Nowhere: the server could not derive the item's progress, or the run it would be placed
-   * by is of a workflow no stage lists. Shown as such, never guessed onto a stage.
+   * Nowhere, shown as such and never guessed onto a stage: the server could not derive the
+   * item's progress, or the run it would be placed by is of `workflow`, which no stage lists.
    */
-  | { kind: 'unplaced'; reason: 'no-progress' | 'no-stage' };
+  | { kind: 'unplaced'; reason: 'no-progress' }
+  | { kind: 'unplaced'; reason: 'no-stage'; workflow: string };
 
 /** A step matches a `nodes` entry equal to it, or one it begins with followed by `.`. */
 function stepMatches(step: string, entry: string): boolean {
@@ -49,7 +50,7 @@ function runningStage(view: Declaration, running: NonNullable<Progress['running'
         );
   const stage = covering ?? firstStageOf(view, workflow);
   return stage === undefined
-    ? { kind: 'unplaced', reason: 'no-stage' }
+    ? { kind: 'unplaced', reason: 'no-stage', workflow }
     : { kind: 'stage', stage: stage.id, working: true };
 }
 
@@ -68,17 +69,16 @@ function endedPlacement(view: Declaration, ended: NonNullable<Progress['ended']>
   // Failed or cancelled: the stage of that run's workflow, where it stopped.
   const stage = firstStageOf(view, workflow);
   return stage === undefined
-    ? { kind: 'unplaced', reason: 'no-stage' }
+    ? { kind: 'unplaced', reason: 'no-stage', workflow }
     : { kind: 'stage', stage: stage.id, working: false };
 }
 
 /** Nothing placed the item: the first stage, waiting. */
 function idle(view: Declaration): Placement {
-  // The schema requires at least one stage.
   const [first] = view.stages;
-  return first === undefined
-    ? { kind: 'unplaced', reason: 'no-stage' }
-    : { kind: 'stage', stage: first.id, working: false };
+  // The server's schema refuses a declaration without stages.
+  if (first === undefined) throw new Error('A factory view declares at least one stage');
+  return { kind: 'stage', stage: first.id, working: false };
 }
 
 /**

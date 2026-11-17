@@ -51,6 +51,17 @@ describe('the map layout of the software factory', () => {
     }
   });
 
+  test('lanes go by span, not by declaration order: the shortest return stays nearest', () => {
+    const reversed = { ...map, arrows: [...map.arrows].reverse() };
+    const drawn = arrowPaths(reversed, cardBoxes(reversed));
+    const laneOf = (from: string, to: string): number | undefined =>
+      drawn.find(entry => entry.from === from && entry.to === to)?.lane;
+    // Declared last now, the shortest return still takes the nearest lane; the two equal
+    // spans share the next two.
+    expect(laneOf('checks', 'build')).toBe(0);
+    expect(new Set([laneOf('host', 'build'), laneOf('checks', 'plan')])).toEqual(new Set([1, 2]));
+  });
+
   test('two back arrows into one card meet its bottom edge at different points', () => {
     const ends = [arrow('checks', 'build'), arrow('host', 'build')].map(entry =>
       entry.d.split(' ').at(-2)

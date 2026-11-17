@@ -20,7 +20,11 @@ import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
 import { MapLegend } from './MapLegend';
+import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
+
+/** How far (px) a double-click's second click may land from its first: Windows' default is 4. */
+const DOUBLE_CLICK_SLOP = 4;
 
 interface FactoryMapProps {
   projectId: string;
@@ -77,8 +81,8 @@ function MapCanvas({
   }, [view.map]);
   const [selected, setSelected] = useState<string | null>(null);
   const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
-  /** The card the last single click selected: a second click of a double-click opens it. */
-  const firstClick = useRef<string | null>(null);
+  /** Where the last single click on a card was, and which card: a double-click opens it. */
+  const firstClick = useRef<{ stage: string; x: number; y: number } | null>(null);
   const stagePath = (stage: string): string =>
     factoryPath(projectId, `/stages/${encodeURIComponent(stage)}`);
 
@@ -91,24 +95,31 @@ function MapCanvas({
     return () => window.removeEventListener('keydown', onKey);
   }, [selected]);
 
-  const select = (stage: string, detail: number): void => {
-    if (detail === 1) firstClick.current = stage;
+  const select = (stage: string, event: MouseEvent): void => {
+    if (event.detail === 1) firstClick.current = { stage, x: event.clientX, y: event.clientY };
     setSelected(stage);
   };
   /**
-   * The first click opens the details panel at once, which narrows the frame and refits the
-   * map, so the second click of a double-click can land on another card or in the panel. The
-   * row catches it first and opens the card the first click was on, whatever is under it now.
+   * The first click opens the details panel at once, which narrows the frame and moves the
+   * map, so the second click of a slow double-click can land on another card or in the panel.
+   * The row catches it first. A second click at the first click's point (a person's
+   * double-click: the pointer did not move, the map did) opens the first click's card. Any
+   * other second click, such as a synthesised double-click elsewhere, which sends only the
+   * second click, opens the card under it.
    */
   const onRowClickCapture = (event: MouseEvent): void => {
+    const first = firstClick.current;
     if (event.detail < 2) {
       firstClick.current = null;
       return;
     }
-    // No first click was seen (a synthesised double-click sends only the second): the card
-    // under this one.
+    firstClick.current = null;
+    const samePoint =
+      first !== null &&
+      Math.abs(event.clientX - first.x) <= DOUBLE_CLICK_SLOP &&
+      Math.abs(event.clientY - first.y) <= DOUBLE_CLICK_SLOP;
     const under = (event.target as Partial<Element>).closest?.('[data-stage]');
-    const stage = firstClick.current ?? under?.getAttribute('data-stage') ?? null;
+    const stage = samePoint ? first.stage : (under?.getAttribute('data-stage') ?? null);
     if (stage === null) return;
     event.preventDefault();
     event.stopPropagation();
@@ -168,10 +179,8 @@ function MapCanvas({
           />
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <MapLegend stages={view.stages} />
-        <NotOnMap live={live} />
-      </div>
+      <MapLegend stages={view.stages} />
+      <MapNotOnMap projectId={projectId} view={view} entries={live.notOnMap} />
     </div>
   );
 }
@@ -206,17 +215,3 @@ function MapControls({
     </div>
   );
 }
-
-/** Items the map cannot show, said rather than dropped, so the cards never undercount silently. */
-function NotOnMap({ live }: { live: MapLive }): ReactNode {
-  const lines: string[] = [];
-  const n = (count: number): string => (count === 1 ? '1 item' : `${count.toString()} items`);
-  if (live.unplaced.length > 0)
-    lines.push(`${n(live.unplaced.length)} could not be placed: ${keys(live.unplaced)}`);
-  if (live.offMap.length > 0)
-    lines.push(`${n(live.offMap.length)} in a stage the map has no card for: ${keys(live.offMap)}`);
-  if (lines.length === 0) return null;
-  return <p className="text-console-12 text-warning">{lines.join('. ')}</p>;
-}
-
-const keys = (items: readonly FactoryItem[]): string => items.map(item => item.item.key).join(', ');

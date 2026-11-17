@@ -52,10 +52,12 @@ const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el
 
 /**
  * The map's camera, ported from Mission Control's map: it opens fitted and refits as the frame
- * resizes (the details panel opening beside it, too) until the person pans or zooms, so every
- * card stays in reach; a drag pans, the wheel zooms around the cursor. Once moved, the camera
- * stays where the person put it, panning only as far as it must to keep the `focus`ed card
- * (the one whose details are open) in view.
+ * resizes until the person pans or zooms; a drag pans, the wheel zooms around the cursor.
+ * While a card is `focus`ed (its details open beside the frame, which narrows it) the camera
+ * keeps its scale and pans only as far as it must to keep that card in view: refitting to the
+ * narrower frame would shrink the cards' text below what a person can read. The cards the
+ * panel's width pushes out of the frame are a drag away. Closing the panel refits again,
+ * unless the person has moved the map.
  */
 export function useMapCamera(bounds: Box, focus: Box | null): MapCamera {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -78,8 +80,8 @@ export function useMapCamera(bounds: Box, focus: Box | null): MapCamera {
     const row = el.parentElement ?? el;
     setHeight(fittedHeight(bounds, row.clientWidth));
     const target = focused.current;
-    if (!moved.current) put(fitCamera(bounds, frameOf(el)));
-    else if (target !== null) put(reveal(current.current, target, frameOf(el)));
+    if (target !== null) put(reveal(current.current, target, frameOf(el)));
+    else if (!moved.current) put(fitCamera(bounds, frameOf(el)));
   }, [bounds, put]);
 
   useEffect(() => {

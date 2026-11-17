@@ -47,7 +47,7 @@ export function MapArrows({
               y={arrow.labelAt.y}
               textAnchor="middle"
               dominantBaseline="middle"
-              className="fill-text-secondary text-console-13"
+              className="fill-text-secondary text-console-15"
               // A halo in the frame's colour keeps a label readable where it crosses a line.
               stroke="var(--surface-inset)"
               strokeWidth={4}

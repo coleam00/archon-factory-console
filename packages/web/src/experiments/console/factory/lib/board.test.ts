@@ -12,9 +12,10 @@ describe('placing an item', () => {
     expect(placeItem(view, itemWith('h', runningOn('deliver', 'hostrounds.host__host')))).toEqual(
       at('host', true)
     );
-    // A dotted entry covers the steps under it.
-    expect(placeItem(view, itemWith('f', runningOn('deliver', 'rounds.fix.inner')))).toEqual(
-      at('build', true)
+    // A dotted entry covers the steps under it. Checks is not deliver's first stage, so the
+    // between-steps fallback (Build) cannot satisfy this.
+    expect(placeItem(view, itemWith('f', runningOn('deliver', 'rounds.base.inner')))).toEqual(
+      at('checks', true)
     );
   });
 
@@ -32,6 +33,7 @@ describe('placing an item', () => {
     expect(placeItem(view, itemWith('x', runningOn('elsewhere', 'a')))).toEqual({
       kind: 'unplaced',
       reason: 'no-stage',
+      workflow: 'elsewhere',
     });
   });
 
