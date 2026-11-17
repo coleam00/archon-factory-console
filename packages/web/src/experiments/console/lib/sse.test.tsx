@@ -76,6 +76,9 @@ test('unlock refetches the persisted reply and updates the subscribed chat view'
     expect(loadMessages).toHaveBeenCalledTimes(2);
     expect(container.textContent).toBe('User question\nPersisted assistant reply');
     expect(container.firstElementChild?.getAttribute('data-locked')).toBe('false');
+
+    await act(async () => dom.dispatchEvent(new dom.Event('pagehide')));
+    expect(stream.close).toHaveBeenCalledTimes(1);
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -114,6 +117,11 @@ test('a run or node change on the dashboard stream refetches the factory item pa
     expect([loadItems, loadItem].map(load => load.mock.calls.length)).toEqual([2, 2]);
     await act(async () => send({ type: 'dag_node', runId: 'run-1' }));
     expect([loadItems, loadItem].map(load => load.mock.calls.length)).toEqual([3, 3]);
+
+    // A full page load unloads the document without unmounting React: the stream must close
+    // on pagehide, or the old page keeps its socket (#39).
+    await act(async () => dom.dispatchEvent(new dom.Event('pagehide')));
+    expect(stream.close).toHaveBeenCalledTimes(1);
   } finally {
     await act(async () => root.unmount());
     container.remove();

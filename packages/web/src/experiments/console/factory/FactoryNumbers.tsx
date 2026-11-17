@@ -7,6 +7,8 @@ import type { BoardShow } from './lib/board-show';
 import { durationWords } from './lib/duration';
 import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
+import { FactoryLoading } from './FactoryLoading';
+import { readFailed } from './lib/deadline';
 import { StaleRead } from './StaleRead';
 
 /** "Landed today" turns over at midnight without a reload. */
@@ -78,10 +80,11 @@ export function FactoryNumbers({
         : factoryNumbers(boardModel(view, projectId, items.data, new Map()), now),
     [view, projectId, items.data, now]
   );
-  if (numbers === undefined && items.error !== undefined)
+  const failed = readFailed(items.error);
+  if (numbers === undefined && failed !== undefined)
     return (
       <p role="alert" className="text-sm text-error">
-        The numbers could not be loaded: {errorDetail(items.error)}
+        The numbers could not be loaded: {errorDetail(failed)}
       </p>
     );
   return (
@@ -90,7 +93,11 @@ export function FactoryNumbers({
       <ul aria-label="Numbers" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         {(numbers === undefined ? undefined : tiles(numbers))?.map(tile => (
           <NumberTile key={tile.label} projectId={projectId} tile={tile} />
-        )) ?? <li className="text-xs text-text-tertiary">Loading…</li>}
+        )) ?? (
+          <li>
+            <FactoryLoading read={items} />
+          </li>
+        )}
       </ul>
     </div>
   );

@@ -19,6 +19,7 @@ import { useEffect } from 'react';
 import { invalidate } from '../store/cache';
 import { K } from './../store/keys';
 import { SSE_BASE_URL } from './http';
+import { followWhilePageShown } from './page-stream';
 import { DASHBOARD_SSE_PATH } from './sse-endpoints';
 import { providerEventStore, type ProviderEventRecord } from './provider-events';
 
@@ -50,43 +51,47 @@ function parse(raw: string): ParsedEvent | null {
  *                       each ActiveRunCard
  */
 export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
-  useEffect(() => {
-    // Use SSE_BASE_URL so dev bypasses the Vite proxy (which buffers SSE).
-    const es = new EventSource(`${SSE_BASE_URL}${DASHBOARD_SSE_PATH}`);
+  useEffect(
+    () =>
+      followWhilePageShown(() => {
+        // Use SSE_BASE_URL so dev bypasses the Vite proxy (which buffers SSE).
+        const es = new EventSource(`${SSE_BASE_URL}${DASHBOARD_SSE_PATH}`);
 
-    es.onmessage = (e: MessageEvent<string>): void => {
-      const ev = parse(e.data);
-      if (ev?.type === undefined || ev.type === 'heartbeat') return;
-      if (ev.type === 'workflow_status' || ev.type === 'dag_node') {
-        // Refetch every runs:* key (runs:all, runs:project:<id>).
-        invalidate('runs');
-        // Node outputs record metrics, so every metrics:* report may have changed.
-        invalidate('metrics');
-        // A run starting, changing step or ending moves an item on the factory board.
-        invalidate('factory-items');
-        // Also refresh any open run-detail cache so the detail page picks
-        // up status / node-transition changes without its own SSE round-trip.
-        if (typeof ev.runId === 'string') {
-          invalidate(K.run(ev.runId));
-          onRunChanged(ev.runId);
-        }
-      }
-    };
+        es.onmessage = (e: MessageEvent<string>): void => {
+          const ev = parse(e.data);
+          if (ev?.type === undefined || ev.type === 'heartbeat') return;
+          if (ev.type === 'workflow_status' || ev.type === 'dag_node') {
+            // Refetch every runs:* key (runs:all, runs:project:<id>).
+            invalidate('runs');
+            // Node outputs record metrics, so every metrics:* report may have changed.
+            invalidate('metrics');
+            // A run starting, changing step or ending moves an item on the factory board.
+            invalidate('factory-items');
+            // Also refresh any open run-detail cache so the detail page picks
+            // up status / node-transition changes without its own SSE round-trip.
+            if (typeof ev.runId === 'string') {
+              invalidate(K.run(ev.runId));
+              onRunChanged(ev.runId);
+            }
+          }
+        };
 
-    // EventSource auto-reconnects on transient errors; we only surface a
-    // warn when the connection has permanently closed so dropped streams
-    // aren't completely silent (the 30s safety-net poll in RunDetailPage
-    // covers the actual recovery; this is purely an observability hook).
-    es.onerror = (): void => {
-      if (es.readyState === EventSource.CLOSED) {
-        console.warn('[console-sse] dashboard stream closed');
-      }
-    };
+        // EventSource auto-reconnects on transient errors; we only surface a
+        // warn when the connection has permanently closed so dropped streams
+        // aren't completely silent (the 30s safety-net poll in RunDetailPage
+        // covers the actual recovery; this is purely an observability hook).
+        es.onerror = (): void => {
+          if (es.readyState === EventSource.CLOSED) {
+            console.warn('[console-sse] dashboard stream closed');
+          }
+        };
 
-    return (): void => {
-      es.close();
-    };
-  }, [onRunChanged]);
+        return (): void => {
+          es.close();
+        };
+      }),
+    [onRunChanged]
+  );
 }
 
 /**
@@ -105,96 +110,99 @@ export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
 export function useRunStreamSSE(conversationPlatformId: string | null, runId: string | null): void {
   useEffect(() => {
     if (conversationPlatformId === null || runId === null) return;
-
-    const es = new EventSource(
-      `${SSE_BASE_URL}/api/stream/${encodeURIComponent(conversationPlatformId)}`
-    );
-
-    let messagesDirty = false;
-    let runDirty = false;
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    // Outside the connection: a stream reopened after the page was hidden missed frames too.
     let opened = false;
+    return followWhilePageShown(() => {
+      const es = new EventSource(
+        `${SSE_BASE_URL}/api/stream/${encodeURIComponent(conversationPlatformId)}`
+      );
 
-    es.onopen = (): void => {
-      // EventSource reconnects on its own; frames sent while it was away are lost.
-      if (opened) providerEventStore.catchUp(runId);
-      opened = true;
-    };
+      let messagesDirty = false;
+      let runDirty = false;
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Coalesce bursts. Streamed text can arrive at >10Hz; we don't want a
-    // refetch per chunk. 100ms is fast enough to feel live and slow enough
-    // to dedupe.
-    const scheduleFlush = (): void => {
-      if (flushTimer !== null) return;
-      flushTimer = setTimeout(() => {
-        flushTimer = null;
-        if (messagesDirty) {
-          invalidate(K.messages(conversationPlatformId));
-          messagesDirty = false;
-        }
-        if (runDirty) {
-          invalidate(K.run(runId));
-          runDirty = false;
-        }
-      }, 100);
-    };
+      es.onopen = (): void => {
+        // EventSource reconnects on its own, and a hidden page closed it; frames sent while it
+        // was away are lost.
+        if (opened) providerEventStore.catchUp(runId);
+        opened = true;
+      };
 
-    es.onmessage = (e: MessageEvent<string>): void => {
-      const ev = parse(e.data);
-      if (ev?.type === undefined || ev.type === 'heartbeat') return;
-
-      switch (ev.type) {
-        case 'workflow_provider_event': {
-          // The frame is the engine's record plus the channel's `type`.
-          const frame = JSON.parse(e.data) as ProviderEventRecord;
-          providerEventStore.receive({
-            runId: frame.runId,
-            stepName: frame.stepName,
-            attemptId: frame.attemptId,
-            seq: frame.seq,
-            observedAt: frame.observedAt,
-            event: frame.event,
-          });
-          return;
-        }
-        case 'text':
-        case 'tool_call':
-        case 'tool_result':
-          messagesDirty = true;
-          break;
-        case 'dag_node':
-          if (
-            typeof ev.nodeId === 'string' &&
-            (ev.status === 'completed' || ev.status === 'failed')
-          ) {
-            providerEventStore.nodeFinished(runId, ev.nodeId);
+      // Coalesce bursts. Streamed text can arrive at >10Hz; we don't want a
+      // refetch per chunk. 100ms is fast enough to feel live and slow enough
+      // to dedupe.
+      const scheduleFlush = (): void => {
+        if (flushTimer !== null) return;
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          if (messagesDirty) {
+            invalidate(K.messages(conversationPlatformId));
+            messagesDirty = false;
           }
-          runDirty = true;
-          break;
-        case 'workflow_status':
-        case 'workflow_step':
-        case 'workflow_artifact':
-        case 'workflow_dispatch':
-          runDirty = true;
-          break;
-        // Other event types (system_status, retract, etc.) don't change
-        // persisted state we render — ignore.
-        default:
-          return;
-      }
-      scheduleFlush();
-    };
+          if (runDirty) {
+            invalidate(K.run(runId));
+            runDirty = false;
+          }
+        }, 100);
+      };
 
-    es.onerror = (): void => {
-      if (es.readyState === EventSource.CLOSED) {
-        console.warn('[console-sse] conversation stream closed', { conversationPlatformId });
-      }
-    };
+      es.onmessage = (e: MessageEvent<string>): void => {
+        const ev = parse(e.data);
+        if (ev?.type === undefined || ev.type === 'heartbeat') return;
 
-    return (): void => {
-      if (flushTimer !== null) clearTimeout(flushTimer);
-      es.close();
-    };
+        switch (ev.type) {
+          case 'workflow_provider_event': {
+            // The frame is the engine's record plus the channel's `type`.
+            const frame = JSON.parse(e.data) as ProviderEventRecord;
+            providerEventStore.receive({
+              runId: frame.runId,
+              stepName: frame.stepName,
+              attemptId: frame.attemptId,
+              seq: frame.seq,
+              observedAt: frame.observedAt,
+              event: frame.event,
+            });
+            return;
+          }
+          case 'text':
+          case 'tool_call':
+          case 'tool_result':
+            messagesDirty = true;
+            break;
+          case 'dag_node':
+            if (
+              typeof ev.nodeId === 'string' &&
+              (ev.status === 'completed' || ev.status === 'failed')
+            ) {
+              providerEventStore.nodeFinished(runId, ev.nodeId);
+            }
+            runDirty = true;
+            break;
+          case 'workflow_status':
+          case 'workflow_step':
+          case 'workflow_artifact':
+          case 'workflow_dispatch':
+            runDirty = true;
+            break;
+          // Other event types (system_status, retract, etc.) don't change
+          // persisted state we render — ignore.
+          default:
+            return;
+        }
+        scheduleFlush();
+      };
+
+      es.onerror = (): void => {
+        if (es.readyState === EventSource.CLOSED) {
+          console.warn('[console-sse] conversation stream closed', { conversationPlatformId });
+        }
+      };
+
+      return (): void => {
+        if (flushTimer !== null) clearTimeout(flushTimer);
+        es.close();
+      };
+    });
   }, [conversationPlatformId, runId]);
 }
 
@@ -213,57 +221,58 @@ export function useConversationSSE(
 ): void {
   useEffect(() => {
     if (conversationPlatformId === null) return;
+    return followWhilePageShown(() => {
+      const es = new EventSource(
+        `${SSE_BASE_URL}/api/stream/${encodeURIComponent(conversationPlatformId)}`
+      );
 
-    const es = new EventSource(
-      `${SSE_BASE_URL}/api/stream/${encodeURIComponent(conversationPlatformId)}`
-    );
+      let messagesDirty = false;
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-    let messagesDirty = false;
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const scheduleFlush = (): void => {
+        if (flushTimer !== null) return;
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          if (messagesDirty) {
+            invalidate(K.messages(conversationPlatformId));
+            messagesDirty = false;
+          }
+        }, 100);
+      };
 
-    const scheduleFlush = (): void => {
-      if (flushTimer !== null) return;
-      flushTimer = setTimeout(() => {
-        flushTimer = null;
-        if (messagesDirty) {
-          invalidate(K.messages(conversationPlatformId));
-          messagesDirty = false;
+      es.onmessage = (e: MessageEvent<string>): void => {
+        const ev = parse(e.data);
+        if (ev?.type === undefined || ev.type === 'heartbeat') return;
+
+        switch (ev.type) {
+          case 'text':
+          case 'tool_call':
+          case 'tool_result':
+            messagesDirty = true;
+            scheduleFlush();
+            break;
+          case 'conversation_lock':
+            // The server awaits its unlock flush; earlier text/tool events can
+            // trigger refetches before the buffered reply is persisted.
+            if (ev.locked === false) invalidate(K.messages(conversationPlatformId));
+            if (typeof ev.locked === 'boolean') onLockChange?.(ev.locked);
+            break;
+          // No run-detail cache here; ignore workflow_* and everything else.
+          default:
+            return;
         }
-      }, 100);
-    };
+      };
 
-    es.onmessage = (e: MessageEvent<string>): void => {
-      const ev = parse(e.data);
-      if (ev?.type === undefined || ev.type === 'heartbeat') return;
+      es.onerror = (): void => {
+        if (es.readyState === EventSource.CLOSED) {
+          console.warn('[console-sse] conversation stream closed', { conversationPlatformId });
+        }
+      };
 
-      switch (ev.type) {
-        case 'text':
-        case 'tool_call':
-        case 'tool_result':
-          messagesDirty = true;
-          scheduleFlush();
-          break;
-        case 'conversation_lock':
-          // The server awaits its unlock flush; earlier text/tool events can
-          // trigger refetches before the buffered reply is persisted.
-          if (ev.locked === false) invalidate(K.messages(conversationPlatformId));
-          if (typeof ev.locked === 'boolean') onLockChange?.(ev.locked);
-          break;
-        // No run-detail cache here; ignore workflow_* and everything else.
-        default:
-          return;
-      }
-    };
-
-    es.onerror = (): void => {
-      if (es.readyState === EventSource.CLOSED) {
-        console.warn('[console-sse] conversation stream closed', { conversationPlatformId });
-      }
-    };
-
-    return (): void => {
-      if (flushTimer !== null) clearTimeout(flushTimer);
-      es.close();
-    };
+      return (): void => {
+        if (flushTimer !== null) clearTimeout(flushTimer);
+        es.close();
+      };
+    });
   }, [conversationPlatformId, onLockChange]);
 }

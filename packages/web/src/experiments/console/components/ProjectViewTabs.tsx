@@ -1,10 +1,7 @@
 import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import { factoryTabShown } from '../factory/lib/views';
-import * as skill from '../skills';
-import type { FactoryViews } from '../skills/factory';
-import { useEntity } from '../store/cache';
-import { K } from '../store/keys';
+import { useFactoryViews } from '../factory/useFactoryViews';
 
 type ProjectView = 'runs' | 'chat' | 'metrics' | 'factory';
 
@@ -27,9 +24,7 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
  * the All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
-  const { data: factoryViews } = useEntity<FactoryViews>(K.factoryViews(projectId), () =>
-    skill.getFactoryViews({ codebaseId: projectId })
-  );
+  const { data: factoryViews } = useFactoryViews(projectId);
   const tabs = factoryTabShown(factoryViews) ? [...TABS, FACTORY_TAB] : TABS;
   return (
     <div className="flex items-center gap-1">

@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { readEveryFactoryItem } from './lib/factory-items-read';
+import { FACTORY_ITEMS_READS, readEveryFactoryItem } from './lib/factory-items-read';
 import { anyMergePending } from './lib/merge-pending';
 import { scheduleReread } from './merge-reread';
+import { useFactoryRead } from './useFactoryRead';
 import type { FactoryItem } from '../skills/factory';
 
 /**
@@ -13,7 +14,9 @@ import type { FactoryItem } from '../skills/factory';
  * again shortly, a failed read included, until the server has the answer.
  */
 export function useFactoryItems(projectId: string): EntityView<FactoryItem[]> {
-  const read = useEntity(K.factoryItems(projectId), () => readEveryFactoryItem(projectId));
+  const read = useFactoryRead(K.factoryItems(projectId), within =>
+    readEveryFactoryItem(projectId, FACTORY_ITEMS_READS, within)
+  );
   const { data, error } = read;
   // `error` is a dependency on purpose: a failed re-read keeps the same `data`, and must
   // still schedule the next one.

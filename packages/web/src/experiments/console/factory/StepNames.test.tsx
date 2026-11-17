@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Routes } from 'react-router';
 import type {
   FactoryItem,
   FactoryItemDetail,
@@ -18,11 +18,7 @@ import type {
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { BoardPage } from './BoardPage';
-import { FactoryPage } from './FactoryPage';
-import { ItemPage } from './ItemPage';
-import { StagePage } from './StagePage';
-import { StepPage } from './StepPage';
+import { factoryRoutes } from './routes';
 import { MapDetails } from './map/MapDetails';
 import { itemDetail, shippedListed } from './item-detail.test-fixtures';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
@@ -89,13 +85,7 @@ function render(path: string, detail?: FactoryItemDetail): string {
   if (detail !== undefined) set(K.factoryItem(ID, detail.item.item.key), detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/console/p/:projectId/factory" element={<FactoryPage />} />
-        <Route path="/console/p/:projectId/factory/board" element={<BoardPage />} />
-        <Route path="/console/p/:projectId/factory/items/:key" element={<ItemPage />} />
-        <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
-        <Route path="/console/p/:projectId/factory/steps/:workflow/:node" element={<StepPage />} />
-      </Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }

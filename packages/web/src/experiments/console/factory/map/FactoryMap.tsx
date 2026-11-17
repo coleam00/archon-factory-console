@@ -16,6 +16,8 @@ import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
 import { useRowWidth } from './useRowWidth';
+import { FactoryLoading } from '../FactoryLoading';
+import { readFailed } from '../lib/deadline';
 
 interface FactoryMapProps {
   projectId: string;
@@ -51,13 +53,14 @@ function MapBody({
   ...inputs
 }: MapInputs & { items: EntityView<FactoryItem[]> }): ReactNode {
   if (items.data === undefined) {
-    if (items.error !== undefined)
+    const failed = readFailed(items.error);
+    if (failed !== undefined)
       return (
         <p role="alert" className="text-sm text-error">
-          The factory's items could not be loaded: {errorDetail(items.error)}
+          The factory's items could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <p className="text-xs text-text-tertiary">Loading…</p>;
+    return <FactoryLoading read={items} />;
   }
   return (
     <>

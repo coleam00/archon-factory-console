@@ -4,9 +4,11 @@ import { useParams, useSearchParams } from 'react-router';
 import { errorDetail } from '../../lib/http';
 import * as skill from '../../skills';
 import type { FactoryOverviewRead } from '../../skills/factory';
-import { useEntity } from '../../store/cache';
 import { K } from '../../store/keys';
+import { useFactoryRead } from '../useFactoryRead';
 import { FactoryFrame } from '../FactoryFrame';
+import { FactoryLoading } from '../FactoryLoading';
+import { readFailed } from '../lib/deadline';
 import { openView, viewList, viewTrail, type OverviewDeclaration } from '../lib/overview-nav';
 import { OverviewBreadcrumb } from './OverviewBreadcrumb';
 import { OverviewLegend } from './OverviewLegend';
@@ -28,16 +30,17 @@ export function OverviewPage(): ReactElement {
 
 function OverviewRead({ projectId }: { projectId: string }): ReactNode {
   // The frame reads the same key for its sub-navigation, so this is one fetch.
-  const read = useEntity<FactoryOverviewRead>(K.factoryOverview(projectId), () =>
-    skill.getFactoryOverview({ codebaseId: projectId })
+  const read = useFactoryRead<FactoryOverviewRead>(K.factoryOverview(projectId), within =>
+    within(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
   );
-  if (read.error !== undefined)
+  const failed = readFailed(read.error);
+  if (failed !== undefined)
     return (
       <p role="alert" className="text-sm text-error">
-        The factory overview could not be loaded: {errorDetail(read.error)}
+        The factory overview could not be loaded: {errorDetail(failed)}
       </p>
     );
-  if (read.data === undefined) return <p className="text-xs text-text-tertiary">Loading…</p>;
+  if (read.data === undefined) return <FactoryLoading read={read} />;
   // A broken file is listed by the frame above; with none at all, say so here.
   if (read.data.overview === null)
     return read.data.errors.length > 0 ? null : (

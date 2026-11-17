@@ -6,6 +6,8 @@ import { AnsweredLately } from './AnsweredLately';
 import { NEEDS_YOU_SHOWN, needsYou, visibleNeedsYou, type NeedsYouItem } from './lib/needs-you';
 import type { FactoryViewListed } from './lib/views';
 import { NeedsYouLine } from './NeedsYouLine';
+import { FactoryLoading } from './FactoryLoading';
+import { readFailed } from './lib/deadline';
 
 /**
  * Every open ask and paused wait, newest first, one line each until opened and answered in
@@ -48,15 +50,16 @@ function NeedsYouBody({
   items: NeedsYouItem[];
   all: boolean;
 }): ReactNode {
-  const { data, error } = attention;
+  const { data } = attention;
   if (data === undefined) {
-    if (error !== undefined)
+    const failed = readFailed(attention.error);
+    if (failed !== undefined)
       return (
         <p role="alert" className="text-sm text-error">
-          What needs you could not be loaded: {errorDetail(error)}
+          What needs you could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <p className="text-xs text-text-tertiary">Loading…</p>;
+    return <FactoryLoading read={attention} />;
   }
   return (
     <>

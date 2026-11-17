@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryItemDetail, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
+import { factoryRoutes } from './routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { PILL_CLASS } from './BoardCard';
-import { ItemPage } from './ItemPage';
 import { itemPill } from './lib/board';
 import { askItem } from './needs-you.test-fixtures';
 
@@ -31,9 +31,7 @@ function render(detail: FactoryItemDetail, attention: AttentionQueue = quiet): s
   set(K.factoryItem(PROJECT, key), detail);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/${key}`]}>
-      <Routes>
-        <Route path="/console/p/:projectId/factory/items/:key" element={<ItemPage />} />
-      </Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }

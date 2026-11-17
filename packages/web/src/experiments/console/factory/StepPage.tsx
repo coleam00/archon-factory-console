@@ -6,8 +6,9 @@ import { useLocation, useParams } from 'react-router';
 import { YamlPreview } from '../builder/components/YamlPreview';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
-import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
@@ -23,6 +24,7 @@ import { readFailure } from './lib/read-failure';
 import { conditionText } from './lib/step-graph';
 import { stepLabel } from './lib/step-label';
 import { factoryPath, type FactoryViewListed } from './lib/views';
+import { FactoryLoading } from './FactoryLoading';
 
 type Declaration = FactoryViewListed['declaration'];
 type FactoryStep = FactoryWorkflow['steps'][number];
@@ -108,17 +110,23 @@ function StepBody({
   workflow: string;
   stepKey: string;
 }): ReactElement {
-  const read = useEntity<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), () =>
-    skill.getFactoryWorkflow({ codebaseId: projectId, workflow })
+  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
+    within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
   );
-  if (read.data === undefined)
-    return read.error === undefined ? (
-      <p className="text-console-12 text-text-tertiary">Loading the step…</p>
+  if (read.data === undefined) {
+    const failed = readFailed(read.error);
+    return failed === undefined ? (
+      <FactoryLoading
+        read={read}
+        label="Loading the step…"
+        className="text-console-12 text-text-tertiary"
+      />
     ) : (
       <p className="font-mono text-console-12 text-error">
-        Could not load the step: {readFailure(read.error)}
+        Could not load the step: {readFailure(failed)}
       </p>
     );
+  }
   const step = read.data.steps.find(candidate => candidate.key === stepKey);
   if (step === undefined)
     return (
@@ -170,9 +178,11 @@ function OnThisStep({
     [items.data, workflow, stepKey]
   );
   // A failed refresh keeps the last list in the cache; it is no longer evidence of what runs.
-  if (items.error !== undefined) return <RunningItemsFailure error={items.error} />;
-  if (items.data === undefined)
-    return <p className="text-console-12 text-text-tertiary">Loading…</p>;
+  const failed = readFailed(items.error);
+  if (failed !== undefined) return <RunningItemsFailure error={failed} />;
+  // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
+  if (items.error !== undefined || items.data === undefined)
+    return <FactoryLoading read={items} className="text-console-12 text-text-tertiary" />;
   if (onStep === undefined)
     return <p className="text-console-12 text-text-secondary">No item is on this step now.</p>;
   return <RunningItemLinks view={view} projectId={projectId} items={onStep} />;

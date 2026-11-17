@@ -5,8 +5,10 @@ import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
 import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
@@ -20,6 +22,7 @@ import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
 import { NeedsYouRow } from './NeedsYouRow';
+import { FactoryLoading } from './FactoryLoading';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
 export function ItemPage(): ReactElement {
@@ -40,8 +43,8 @@ function ItemBody({
   const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
   // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
   const itemKey = K.factoryItem(projectId, key);
-  const read = useEntity<FactoryItemDetail>(itemKey, () =>
-    skill.getFactoryItem({ codebaseId: projectId, key })
+  const read = useFactoryRead<FactoryItemDetail>(itemKey, within =>
+    within(signal => skill.getFactoryItem({ codebaseId: projectId, key }, { signal }))
   );
   // As `useFactoryItems`: read again while the server is still asking whether it merged.
   const { data, error } = read;
@@ -69,7 +72,8 @@ function ItemRead({
   read: EntityView<FactoryItemDetail>;
   attention: EntityView<AttentionQueue>;
 }): ReactNode {
-  const { data, error } = read;
+  const { data } = read;
+  const failed = readFailed(read.error);
   // The stage the item sat in on the last read: a run on a step no stage names stays there,
   // as on the board and the map.
   const previous = useRef<{ key: string; stage: string | undefined } | null>(null);
@@ -85,9 +89,9 @@ function ItemRead({
     if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
   }, [column, itemKey]);
   if (data === undefined) {
-    if (error !== undefined)
-      return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(error)} />;
-    return <p className="text-xs text-text-tertiary">Loading…</p>;
+    if (failed !== undefined)
+      return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
+    return <FactoryLoading read={read} />;
   }
   const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
@@ -120,15 +124,18 @@ function ItemAsks({
   attention: EntityView<AttentionQueue>;
 }): ReactElement {
   const queue = attention.data;
+  const failed = readFailed(attention.error);
   return (
     <section className="flex flex-col gap-2.5">
       <SectionTitle>Asks</SectionTitle>
       {queue === undefined ? (
-        <p className="text-xs text-text-tertiary">
-          {attention.error === undefined
-            ? 'Loading…'
-            : `What waits on you could not be loaded: ${errorDetail(attention.error)}`}
-        </p>
+        failed === undefined ? (
+          <FactoryLoading read={attention} />
+        ) : (
+          <p className="text-xs text-text-tertiary">
+            What waits on you could not be loaded: {errorDetail(failed)}
+          </p>
+        )
       ) : asks.length === 0 ? (
         <p className="text-sm text-text-secondary">Nothing on this item is waiting on you.</p>
       ) : (

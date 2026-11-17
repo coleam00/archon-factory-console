@@ -2,8 +2,10 @@ import { useMemo, type ReactElement } from 'react';
 import { useParams } from 'react-router';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
@@ -16,6 +18,7 @@ import { stepGraph } from './lib/step-graph';
 import { stepLabel } from './lib/step-label';
 import { readFailure } from './lib/read-failure';
 import { factoryPath, type FactoryViewListed } from './lib/views';
+import { FactoryLoading } from './FactoryLoading';
 
 type Declaration = FactoryViewListed['declaration'];
 
@@ -95,8 +98,8 @@ function StageWorkflow({
   workflow: string;
   items: EntityView<FactoryItem[]>;
 }): ReactElement {
-  const read = useEntity<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), () =>
-    skill.getFactoryWorkflow({ codebaseId: projectId, workflow })
+  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
+    within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
   );
   const graph = useMemo(
     () =>
@@ -114,6 +117,7 @@ function StageWorkflow({
     () => (items.error === undefined ? itemsOnStep(items.data ?? [], workflow) : undefined),
     [items.data, items.error, workflow]
   );
+  const stepsFailed = readFailed(read.error);
   return (
     <section className="flex flex-col gap-2">
       <h4 className="font-mono text-console-13 font-semibold text-text-primary">{workflow}</h4>
@@ -131,12 +135,16 @@ function StageWorkflow({
           graph={graph}
           running={running}
         />
-      ) : read.error !== undefined ? (
+      ) : stepsFailed !== undefined ? (
         <p className="font-mono text-console-12 text-error">
-          Could not load the steps: {readFailure(read.error)}
+          Could not load the steps: {readFailure(stepsFailed)}
         </p>
       ) : (
-        <p className="text-console-12 text-text-tertiary">Loading the steps…</p>
+        <FactoryLoading
+          read={read}
+          label="Loading the steps…"
+          className="text-console-12 text-text-tertiary"
+        />
       )}
     </section>
   );
@@ -158,7 +166,11 @@ function RunningNow({
     () => runningItems(items.data ?? [], workflow),
     [items.data, workflow]
   );
-  if (items.error !== undefined) return <RunningItemsFailure error={items.error} />;
+  const failed = readFailed(items.error);
+  if (failed !== undefined) return <RunningItemsFailure error={failed} />;
+  // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
+  if (items.error !== undefined)
+    return <FactoryLoading read={items} className="text-console-12 text-text-tertiary" />;
   if (onWorkflow.length === 0) return null;
   return (
     <div className="flex flex-col gap-1">

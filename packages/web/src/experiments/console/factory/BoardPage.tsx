@@ -14,6 +14,8 @@ import {
   type FactoryDeclaration,
 } from './lib/board';
 import { BOARD_SHOW_LABEL, parseBoardShow, type BoardShow } from './lib/board-show';
+import { FactoryLoading } from './FactoryLoading';
+import { readFailed } from './lib/deadline';
 
 /** How long a card that changed column stays highlighted. */
 const MOVED_MS = 1500;
@@ -150,13 +152,14 @@ function BoardBody({
   moved: ReadonlySet<string>;
 }): ReactElement {
   if (model === undefined) {
-    if (items.error !== undefined)
+    const failed = readFailed(items.error);
+    if (failed !== undefined)
       return (
         <p role="alert" className="text-sm text-error">
-          The board could not be loaded: {errorDetail(items.error)}
+          The board could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <p className="text-xs text-text-tertiary">Loading…</p>;
+    return <FactoryLoading read={items} />;
   }
   return (
     <>
