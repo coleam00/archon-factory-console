@@ -1,0 +1,85 @@
+/**
+ * A workflow's steps as a console draws them: every step the engine runs, keyed as run
+ * events name it, with the loop groups and included workflows that frame it, the prompt it
+ * runs and the YAML its author wrote. `factory-steps.ts` builds it from the engine's own
+ * composed definition. Objects are not strict, so a reader keeps working when a field is added.
+ */
+import { z } from 'zod';
+
+/** What a step does, in the words the console shows: an agent, a shell command, a script... */
+export const factoryStepKindSchema = z.enum([
+  'agent',
+  'bash',
+  'script',
+  'loop',
+  'approval',
+  'wait',
+  'other',
+]);
+export type FactoryStepKind = z.infer<typeof factoryStepKindSchema>;
+
+export const factoryStepGroupSchema = z.object({
+  /** A step-key prefix: `rounds` for a loop group, `rounds.review` for an include in it. */
+  id: z.string(),
+  kind: z.enum(['loop', 'include']),
+  /** The group this one is drawn inside, or null at the top. */
+  parent: z.string().nullable(),
+  /** A loop: its id. An include: the included workflow's name. */
+  label: z.string(),
+  /** A loop: the most rounds it runs. Null for an include. */
+  maxRounds: z.number().int().nullable(),
+  /** A loop's own `when:`, verbatim. */
+  when: z.string().nullable(),
+  /** `when` in short, for a label read at a glance: `if rounds = approve`. */
+  whenLabel: z.string().nullable(),
+  /** A loop: the step keys or group ids it waits on. Empty for an include. */
+  dependsOn: z.array(z.string()),
+});
+export type FactoryStepGroup = z.infer<typeof factoryStepGroupSchema>;
+
+export const factoryStepSchema = z.object({
+  /** The step's id as run events name it: `rounds.fix`, `rounds.review__review`, `exhausted`. */
+  key: z.string(),
+  /** The id its author wrote: `fix`, `review`. */
+  label: z.string(),
+  /** The innermost group it is drawn in, or null at the top. */
+  group: z.string().nullable(),
+  /** The step keys or loop group ids it waits on. */
+  dependsOn: z.array(z.string()),
+  kind: factoryStepKindSchema,
+  /** The workflow that declared the step, when it came in through `include:`. */
+  includedFrom: z.string().nullable(),
+  /** The model or tier list as declared, such as `["@builder", "large"]`. */
+  model: z.array(z.string()).nullable(),
+  /** Its `when:` condition as the engine runs it. */
+  when: z.string().nullable(),
+  /**
+   * `when` in short, for a label read at a glance: each comparison as the step it reads,
+   * the operator and the value, such as `if verdict = return`. Null without a `when:`, or
+   * when the engine's parser does not take it (the full `when` still says it).
+   */
+  whenLabel: z.string().nullable(),
+  /** The command file it runs, by name. */
+  command: z.string().nullable(),
+  /** The prompt it runs, as markdown. Null for a step that runs none. */
+  prompt: z.string().nullable(),
+  /** Why the prompt could not be read, when a prompt was expected. */
+  promptError: z.string().nullable(),
+  /** The step's block as its author wrote it. */
+  yaml: z.string().nullable(),
+  /** Why `yaml` is null. */
+  yamlError: z.string().nullable(),
+});
+export type FactoryStep = z.infer<typeof factoryStepSchema>;
+
+export const factoryWorkflowSchema = z.object({
+  /** The workflow as the factory view names it: `deliver`. */
+  name: z.string(),
+  /** The workflow as runs record it: `owner/name:deliver` for an installed pack. */
+  runName: z.string(),
+  /** In definition order; a loop's body follows the steps before it. */
+  steps: z.array(factoryStepSchema),
+  /** Every loop and include group, outer before inner. */
+  groups: z.array(factoryStepGroupSchema),
+});
+export type FactoryWorkflow = z.infer<typeof factoryWorkflowSchema>;

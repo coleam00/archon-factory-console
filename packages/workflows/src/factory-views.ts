@@ -31,6 +31,11 @@ function installedIdentity(pack: string): { owner: string; name: string } | unde
   return { owner: pack.slice(0, slash), name: pack.slice(slash + 1) };
 }
 
+/** Whether a view's `pack` names an installed pack (`owner/name`) rather than a folder pack. */
+export function factoryPackIsInstalled(pack: string): boolean {
+  return installedIdentity(pack) !== undefined;
+}
+
 /** The key a pack's project files are named by, as pack settings use: `owner.name` when installed. */
 export function factoryPackKey(pack: string): string {
   const installed = installedIdentity(pack);

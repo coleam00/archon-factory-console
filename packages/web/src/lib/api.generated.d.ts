@@ -3922,6 +3922,68 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/factory/workflow': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * One workflow's steps, as a factory view draws them
+     * @description The steps of a workflow a factory view applying to the project names, from the definition runs execute: each step keyed as run events name it, the loop groups and included workflows that frame it, its kind, declared model, `when:`, the prompt it runs and the YAML its author wrote. The first applying view whose stages name the workflow says which pack's workflow it is.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description The project whose factory view to read. */
+          codebaseId: string;
+          /** @description A workflow a factory view's stage names, as the view names it. */
+          workflow: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FactoryWorkflow'];
+          };
+        };
+        /** @description Codebase, view or workflow not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/workflows/validate': {
     parameters: {
       query?: never;
@@ -10105,6 +10167,38 @@ export interface components {
         } | null;
       }[];
       next: string | null;
+    };
+    FactoryWorkflow: {
+      name: string;
+      runName: string;
+      steps: {
+        key: string;
+        label: string;
+        group: string | null;
+        dependsOn: string[];
+        /** @enum {string} */
+        kind: 'agent' | 'bash' | 'script' | 'loop' | 'approval' | 'wait' | 'other';
+        includedFrom: string | null;
+        model: string[] | null;
+        when: string | null;
+        whenLabel: string | null;
+        command: string | null;
+        prompt: string | null;
+        promptError: string | null;
+        yaml: string | null;
+        yamlError: string | null;
+      }[];
+      groups: {
+        id: string;
+        /** @enum {string} */
+        kind: 'loop' | 'include';
+        parent: string | null;
+        label: string;
+        maxRounds: number | null;
+        when: string | null;
+        whenLabel: string | null;
+        dependsOn: string[];
+      }[];
     };
     ValidateWorkflowResponse: {
       valid: boolean;

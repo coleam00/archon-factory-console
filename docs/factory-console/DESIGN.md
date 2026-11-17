@@ -131,6 +131,9 @@ attention routes, but no list of a project's items. Rasmus has open engine work 
 those land, this section adds **one read-only route file**, `packages/server/src/routes/api.factory.ts`:
 
 - `GET /api/factory/views?codebaseId=` the factory views that apply to the project.
+- `GET /api/factory/workflow?codebaseId=&workflow=` one workflow a view names, for the stage and
+  step pages: its steps keyed as run events name them, the loop groups and included workflows
+  that frame them, and each step's kind, model, `when:`, prompt and authored YAML.
 - `GET /api/factory/items?codebaseId=&since=&limit=&after=` a page of the project's items, newest
   activity first. Each entry is the engine's own `ItemRead` (as `GET /api/items` returns it,
   same schema, imported, not restated) plus a `progress` object the board needs and `ItemRead`

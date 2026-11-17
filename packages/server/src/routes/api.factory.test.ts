@@ -4,11 +4,17 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { trackTempRoots } from '@archon/paths/test-utils';
+import { providerRegistry } from '@archon/providers';
 import type { ItemReadSource } from '@archon/workflows/item-read';
 import type { WorkflowEventRow } from '@archon/workflows/schemas/workflow-event';
 import type { WorkflowItem, WorkflowRun } from '@archon/workflows/schemas/workflow-run';
+import { discoverWorkflows } from '@archon/workflows/workflow-discovery';
 import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from './api.factory';
-import { factoryItemsPageResponseSchema, factoryViewsSchema } from './schemas/factory.schemas';
+import {
+  factoryItemsPageResponseSchema,
+  factoryViewsSchema,
+  factoryWorkflowSchema,
+} from './schemas/factory.schemas';
 
 const declaration = (pack: string, title: string): Record<string, unknown> => ({
   version: 1,
@@ -51,6 +57,9 @@ const noItems: FactoryRouteDeps = {
   listProjectItems: async () => [],
   changeMergeState: async () => {
     throw new Error('no change is looked up here');
+  },
+  discoverWorkflows: async () => {
+    throw new Error('no workflow is discovered here');
   },
 };
 
@@ -380,5 +389,75 @@ describe('the merge-state cache', () => {
       },
     });
     expect(await state(CHANGE, [])).toEqual({ merged: 'unknown', mergedAt: null });
+  });
+});
+
+describe('GET /api/factory/workflow', () => {
+  const track = trackTempRoots();
+  const DELIVER = [
+    'name: deliver',
+    'description: Delivers.',
+    'nodes:',
+    '  - id: rounds',
+    '    loop_group:',
+    '      max_iterations: 2',
+    '      until_bash: "true"',
+    '      nodes:',
+    '        - id: fix',
+    '          bash: echo fixed',
+    '',
+  ].join('\n');
+
+  async function workflowApp(withWorkflow = true): Promise<OpenAPIHono> {
+    const project = await projectWith(track, {
+      '.archon/packs/kit.factory-view.json': declaration('kit', 'Kit factory'),
+      ...(withWorkflow ? { '.archon/workflows/kit/deliver/deliver.yaml': DELIVER } : {}),
+    });
+    const app = new OpenAPIHono();
+    registerFactoryRoutes(app, {
+      ...noItems,
+      codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
+      discoverWorkflows: cwd =>
+        discoverWorkflows(cwd, { providers: providerRegistry, loadDefaults: false }),
+    });
+    return app;
+  }
+
+  test("returns the steps of a workflow the project's view names", async () => {
+    const response = await (await workflowApp()).request(
+      '/api/factory/workflow?codebaseId=cb-1&workflow=deliver'
+    );
+    expect(response.status).toBe(200);
+    const body = factoryWorkflowSchema.parse(await response.json());
+    expect([body.name, body.runName]).toEqual(['deliver', 'deliver']);
+    expect(body.groups.map(g => [g.id, g.kind, g.maxRounds])).toEqual([['rounds', 'loop', 2]]);
+    expect(body.steps.map(s => [s.key, s.kind, s.yaml])).toEqual([
+      ['rounds.fix', 'bash', 'id: fix\nbash: echo fixed'],
+    ]);
+  });
+
+  test('a workflow no applying view names returns 404', async () => {
+    const response = await (await workflowApp()).request(
+      '/api/factory/workflow?codebaseId=cb-1&workflow=other'
+    );
+    expect(response.status).toBe(404);
+  });
+
+  test('a workflow the view names but the project lacks returns 404 naming the pack', async () => {
+    const response = await (await workflowApp(false)).request(
+      '/api/factory/workflow?codebaseId=cb-1&workflow=deliver'
+    );
+    expect(response.status).toBe(404);
+    const { error } = (await response.json()) as { error: string };
+    // Read by a person on the stage page: it names the pack and the workflow.
+    expect(error).toContain('kit');
+    expect(error).toContain('deliver');
+  });
+
+  test('an unknown codebase returns 404', async () => {
+    const response = await (await workflowApp()).request(
+      '/api/factory/workflow?codebaseId=missing&workflow=deliver'
+    );
+    expect(response.status).toBe(404);
   });
 });
