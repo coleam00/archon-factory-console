@@ -29,8 +29,13 @@ import {
 } from './store/event-types';
 import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
 
-/** How one round of the declared rounds loop ended, from declared data only. */
-export const factoryRoundVerdictSchema = z.enum(['returned', 'passed', 'running', 'stopped']);
+/**
+ * How one round of the declared rounds loop ended, from declared data only: `returned` when
+ * a declared return point in the loop sent the item back that round, `ended` when the round
+ * completed without one (an approval, but also an ask or a replan: the round's `outcome`
+ * says which), `running` while it goes on, `stopped` when the run ended inside it.
+ */
+export const factoryRoundVerdictSchema = z.enum(['returned', 'ended', 'running', 'stopped']);
 export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
 
 /** Whether the change merged, as the change host reported it; `unknown` when it could not say. */
@@ -59,7 +64,15 @@ export const factoryItemProgressSchema = z.object({
       /** The loop's bound as its latest round recorded it; null when it recorded none. */
       max: z.number().int().positive().nullable(),
       rounds: z.array(
-        z.object({ iteration: z.number().int().positive(), verdict: factoryRoundVerdictSchema })
+        z.object({
+          iteration: z.number().int().positive(),
+          verdict: factoryRoundVerdictSchema,
+          /**
+           * The outcome the loop's declared return-point step recorded that round, as the
+           * workflow names it (`return`, `approve`, `ask`...); null when it recorded none.
+           */
+          outcome: z.string().nullable(),
+        })
       ),
     })
     .nullable(),
@@ -102,7 +115,7 @@ export interface FactoryRunFacts {
   /** The declared rounds loop's rounds on this run; null when the run is not of that workflow. */
   rounds: {
     max: number | null;
-    rounds: { iteration: number; verdict: FactoryRoundVerdict }[];
+    rounds: { iteration: number; verdict: FactoryRoundVerdict; outcome: string | null }[];
   } | null;
   returnCount: number;
   /** The change at the declared pointer, with the run's forge audit rows; null when none. */
@@ -173,13 +186,11 @@ function returnsIn(outcomes: Outcomes, point: ReturnPoint): Outcomes {
   );
 }
 
-function roundFacts(
+/** The loop's rounds as its own events record them: each started round's bound, and those that completed. */
+function loopRows(
   loop: string,
-  points: readonly ReturnPoint[],
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[],
-  outcomes: Outcomes
-): NonNullable<FactoryRunFacts['rounds']> {
+  events: readonly WorkflowEventRow[]
+): { started: Map<number, number | undefined>; completed: Set<number> } {
   const started = new Map<number, number | undefined>();
   const completed = new Set<number>();
   for (const row of events) {
@@ -190,26 +201,56 @@ function roundFacts(
       started.set(parsed.data.iteration, parsed.data.maxIterations);
     else if (row.event_type === 'loop_iteration_completed') completed.add(parsed.data.iteration);
   }
+  return { started, completed };
+}
+
+/** The rounds of `loop` an entry ran in. */
+function iterationsIn(entry: Outcomes[number], loop: string): number[] {
+  return entry.loop_group_path?.filter(frame => frame.groupId === loop).map(f => f.iteration) ?? [];
+}
+
+/**
+ * What the loop's declared return-point steps decided in each round. Outcomes are in
+ * recording order, so the last one recorded in a round is that round's decision.
+ */
+function roundDecisions(
+  loop: string,
+  points: readonly ReturnPoint[],
+  outcomes: Outcomes
+): Map<number, string> {
+  const nodes = new Set(points.map(point => point.node));
+  const decided = new Map<number, string>();
+  for (const entry of outcomes) {
+    const outcome = outputOutcome(entry.output);
+    if (!nodes.has(entry.node_id) || typeof outcome !== 'string') continue;
+    for (const iteration of iterationsIn(entry, loop)) decided.set(iteration, outcome);
+  }
+  return decided;
+}
+
+function roundFacts(
+  loop: string,
+  points: readonly ReturnPoint[],
+  run: WorkflowRun,
+  events: readonly WorkflowEventRow[],
+  outcomes: Outcomes
+): NonNullable<FactoryRunFacts['rounds']> {
+  const { started, completed } = loopRows(loop, events);
   const bodyPoints = points.filter(point => point.node.startsWith(`${loop}.`));
+  const decided = roundDecisions(loop, bodyPoints, outcomes);
   const returnedIn = new Set(
-    bodyPoints.flatMap(point =>
-      returnsIn(outcomes, point).flatMap(
-        entry =>
-          entry.loop_group_path?.filter(frame => frame.groupId === loop).map(f => f.iteration) ?? []
-      )
-    )
+    bodyPoints.flatMap(point => returnsIn(outcomes, point).flatMap(e => iterationsIn(e, loop)))
   );
-  const ended = isTerminalRunStatus(run.status);
+  const unfinished = isTerminalRunStatus(run.status) ? ('stopped' as const) : ('running' as const);
   const iterations = [...started.keys()].sort((a, b) => a - b);
   const rounds = iterations.map(iteration => ({
     iteration,
     verdict: returnedIn.has(iteration)
       ? ('returned' as const)
-      : !completed.has(iteration)
-        ? ended
-          ? ('stopped' as const)
-          : ('running' as const)
-        : ('passed' as const),
+      : completed.has(iteration)
+        ? ('ended' as const)
+        : unfinished,
+    outcome: decided.get(iteration) ?? null,
   }));
   const last = iterations.at(-1);
   return { max: (last === undefined ? undefined : started.get(last)) ?? null, rounds };

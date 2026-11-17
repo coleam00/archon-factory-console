@@ -129,11 +129,15 @@ describe('the merge state of a change', () => {
     ]);
   });
 
-  test('an open pull request is not merged', async () => {
-    const { dispatch } = answering(viewed('open', null));
-    expect(
-      await changeMergeState(URL10, audits, { archonHome: await home(), env: {}, dispatch })
-    ).toEqual({ merged: false, mergedAt: null });
+  test('an open pull request, or one closed without merging, is not merged', async () => {
+    const archonHome = await home();
+    for (const state of ['open', 'closed'] as const) {
+      const { dispatch } = answering(viewed(state, null));
+      expect(await changeMergeState(URL10, audits, { archonHome, env: {}, dispatch })).toEqual({
+        merged: false,
+        mergedAt: null,
+      });
+    }
   });
 
   test('a forge failure, a throw or no record of the change is unknown, with why', async () => {

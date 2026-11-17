@@ -164,7 +164,31 @@ describe('GET /api/factory/items', () => {
       run('run-b', items[1], { status: 'running', completed_at: null, completed_outcome: null }),
     ],
   };
+  const CHANGE = 'https://forge.example/acme/web/pull/7';
   const events: WorkflowEventRow[] = [
+    {
+      // The shape a completed run records: its terminal record carries the declared result.
+      id: 'e0',
+      workflow_run_id: 'run-a',
+      event_type: 'workflow_completed',
+      step_index: null,
+      step_name: null,
+      data: {
+        terminal_record: {
+          run_id: 'run-a',
+          status: 'completed',
+          outcome: null,
+          completed_outcome: 'ready',
+          error: null,
+          first_failed_node: null,
+          nodes: [],
+          returns: { availability: 'available', node_id: 'result', value: { change: CHANGE } },
+          artifacts: { root: null, files: [], limitations: [] },
+        },
+      },
+      created_at: '2026-11-16T10:30:00Z',
+      event_order: 9,
+    },
     {
       id: 'e1',
       workflow_run_id: 'run-b',
@@ -179,8 +203,8 @@ describe('GET /api/factory/items', () => {
   const source: ItemReadSource = {
     branchOf: async () => null,
     store: {
-      getItemRuns: async (_projectKey, key) => {
-        const item = items.find(entry => entry.key === key);
+      getItemRuns: async (projectKey, key) => {
+        const item = items.find(entry => entry.key === key && entry.projectKey === projectKey);
         return item ? { item, runs: runs[key] ?? [], descendantIds: [] } : null;
       },
       listEventsForRuns: async ids =>
@@ -198,17 +222,28 @@ describe('GET /api/factory/items', () => {
     },
   };
 
-  async function itemsApp(files: Record<string, unknown>): Promise<OpenAPIHono> {
+  async function itemsApp(
+    files: Record<string, unknown>,
+    lookups: string[] = []
+  ): Promise<OpenAPIHono> {
     const project = await projectWith(track, files);
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
       codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
       itemsSource: source,
-      listProjectItems: async () => [
-        { id: 'item-a', key: '1', activityAt: '2026-11-16T10:30:00.000Z' },
-        { id: 'item-b', key: '2', activityAt: '2026-11-16T11:00:00.000Z' },
-      ],
+      // Only the codebase's own project has these items.
+      listProjectItems: async projectKey =>
+        projectKey === 'acme/web'
+          ? [
+              { id: 'item-a', key: '1', activityAt: '2026-11-16T10:30:00.000Z' },
+              { id: 'item-b', key: '2', activityAt: '2026-11-16T11:00:00.000Z' },
+            ]
+          : [],
+      changeMergeState: async url => {
+        lookups.push(url);
+        return { merged: true, mergedAt: '2026-11-17T01:00:00Z' };
+      },
     });
     return app;
   }
@@ -216,6 +251,7 @@ describe('GET /api/factory/items', () => {
     '.archon/packs/acme.kit.factory-view.json': {
       ...declaration('acme/kit', 'Kit factory'),
       itemTitle: { input: 'item' },
+      change: { workflow: 'deliver', pointer: '/change' },
     },
   };
 
@@ -244,6 +280,21 @@ describe('GET /api/factory/items', () => {
     const second = factoryItemsPageResponseSchema.parse(await next.json());
     expect(second.items.map(entry => entry.item.key)).toEqual(['1']);
     expect(second.next).toBeNull();
+  });
+
+  test('a change is looked up once across requests, through the cache the route shares', async () => {
+    const lookups: string[] = [];
+    const app = await itemsApp(withView, lookups);
+    for (let request = 0; request < 2; request++) {
+      const response = await app.request('/api/factory/items?codebaseId=cb-1');
+      const page = factoryItemsPageResponseSchema.parse(await response.json());
+      expect(page.items.find(entry => entry.item.key === '1')?.progress?.change).toEqual({
+        url: CHANGE,
+        merged: true,
+        mergedAt: '2026-11-17T01:00:00Z',
+      });
+    }
+    expect(lookups).toEqual([CHANGE]);
   });
 
   test('a cursor that is not one is a 400; a limit out of range is refused', async () => {

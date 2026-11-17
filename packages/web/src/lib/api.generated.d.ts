@@ -10083,7 +10083,8 @@ export interface components {
             rounds: {
               iteration: number;
               /** @enum {string} */
-              verdict: 'returned' | 'passed' | 'running' | 'stopped';
+              verdict: 'returned' | 'ended' | 'running' | 'stopped';
+              outcome: string | null;
             }[];
           } | null;
           returned: number;

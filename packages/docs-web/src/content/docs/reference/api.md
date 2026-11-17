@@ -626,8 +626,12 @@ first view that applies (`pack` names it):
 - `running`: the latest-started running run of a workflow the view names, with the workflow as
   the view names it and its deepest running step; null when none runs.
 - `round`: the view's `rounds` loop on the latest run that entered it: the latest iteration,
-  the loop's bound, and each round as `returned` (a `returns` point in the loop sent it back),
-  `passed`, `running`, or `stopped` (the run ended inside it).
+  the loop's bound, and each round's `verdict` and `outcome`. `verdict` is `returned` (a
+  `returns` point in the loop sent the item back that round), `ended` (the round completed
+  without one: an approval, but also an ask or a replan), `running`, or `stopped` (the run
+  ended inside the round). `outcome` is what the loop's `returns` step recorded that round, as
+  the workflow names it (`return`, `approve`, `ask`...), or null when it recorded none; it is
+  what tells an approval from an ask.
 - `returned`: how many times a `returns` point sent the item back, across its runs.
 - `change`: the URL at the view's `change` pointer in the latest run that has one, and
   `merged` (`true`, `false` or `unknown`) with `mergedAt`, read from the change host with the

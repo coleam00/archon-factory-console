@@ -85,14 +85,14 @@ const PR10 = 'https://github.com/coleam00/archon-factory-console/pull/10';
 const PR11 = 'https://github.com/coleam00/archon-factory-console/pull/11';
 
 describe('the facts of one run', () => {
-  test('a deliver run with two rounds: returned, then passed; one verdict and one host return', () => {
+  test('a deliver run with two rounds: returned, then approved; one verdict and one host return', () => {
     const facts = factsOf(deliver1);
     expect(facts.active).toBeNull();
     expect(facts.rounds).toEqual({
       max: 3,
       rounds: [
-        { iteration: 1, verdict: 'returned' },
-        { iteration: 2, verdict: 'passed' },
+        { iteration: 1, verdict: 'returned', outcome: 'return' },
+        { iteration: 2, verdict: 'ended', outcome: 'approve' },
       ],
     });
     expect(facts.returnCount).toBe(2);
@@ -100,12 +100,12 @@ describe('the facts of one run', () => {
     expect(facts.change?.audits.length).toBeGreaterThan(0);
   });
 
-  test('a deliver run with three rounds: returned twice, then passed; the host cleared it', () => {
+  test('a deliver run with three rounds: returned twice, then approved; the host cleared it', () => {
     const facts = factsOf(deliver2);
-    expect(facts.rounds?.rounds.map(round => round.verdict)).toEqual([
-      'returned',
-      'returned',
-      'passed',
+    expect(facts.rounds?.rounds.map(round => [round.verdict, round.outcome])).toEqual([
+      ['returned', 'return'],
+      ['returned', 'return'],
+      ['ended', 'approve'],
     ]);
     expect(facts.returnCount).toBe(2);
     expect(facts.change?.url).toBe(PR11);
@@ -118,8 +118,8 @@ describe('the facts of one run', () => {
     expect(facts.rounds).toEqual({
       max: 3,
       rounds: [
-        { iteration: 1, verdict: 'returned' },
-        { iteration: 2, verdict: 'running' },
+        { iteration: 1, verdict: 'returned', outcome: 'return' },
+        { iteration: 2, verdict: 'running', outcome: null },
       ],
     });
     expect(facts.returnCount).toBe(1);
@@ -129,7 +129,34 @@ describe('the facts of one run', () => {
 
   test('a round that never completed on a run that ended is stopped', () => {
     const facts = factsOf({ ...deliver2Cut, run: { ...deliver2Cut.run, status: 'failed' } });
-    expect(facts.rounds?.rounds.at(-1)).toEqual({ iteration: 2, verdict: 'stopped' });
+    expect(facts.rounds?.rounds.at(-1)).toEqual({
+      iteration: 2,
+      verdict: 'stopped',
+      outcome: null,
+    });
+  });
+
+  test('a round whose checks asked instead of approving ends with that outcome, not an approval', () => {
+    // The same run, its verdict step answering `ask` where it approved.
+    const events = deliver1.events.map(row =>
+      JSON.stringify(row.data).includes('"outcome":"approve"')
+        ? (JSON.parse(
+            JSON.stringify(row).replaceAll('"outcome":"approve"', '"outcome":"ask"')
+          ) as WorkflowEventRow)
+        : row
+    );
+    expect(factsOf({ ...deliver1, events }).rounds?.rounds).toEqual([
+      { iteration: 1, verdict: 'returned', outcome: 'return' },
+      { iteration: 2, verdict: 'ended', outcome: 'ask' },
+    ]);
+  });
+
+  test("rounds read only the declared loop's events, not another loop's", () => {
+    // deliver2 ran three review rounds and one host round.
+    const hostView = { ...view, rounds: { workflow: 'deliver', loop: 'hostrounds' } };
+    expect(factoryRunFacts(hostView, PACK, deliver2.run, deliver2.events).rounds?.rounds).toEqual([
+      { iteration: 1, verdict: 'ended', outcome: 'clear' },
+    ]);
   });
 
   test('triage and plan runs have no rounds, returns or change', () => {
@@ -174,14 +201,20 @@ describe("an item's progress", () => {
         iteration: 2,
         max: 3,
         rounds: [
-          { iteration: 1, verdict: 'returned' },
-          { iteration: 2, verdict: 'passed' },
+          { iteration: 1, verdict: 'returned', outcome: 'return' },
+          { iteration: 2, verdict: 'ended', outcome: 'approve' },
         ],
       },
       returned: 2,
       change: { url: PR10, merged: true, mergedAt: '2026-11-17T01:00:00Z' },
     });
     expect(seen).toEqual([[PR10, factsOf(deliver1).change?.audits.length ?? -1]]);
+  });
+
+  test('returned counts every run that sent the item back, not only the latest', async () => {
+    const later = { ...deliver2.run, started_at: new Date('2027-01-01T00:00:00Z') };
+    // Two returns on each deliver run.
+    expect((await progressOf([deliver1, { ...deliver2, run: later }])).returned).toBe(4);
   });
 
   test('a running deliver run: its declared workflow name and running step', async () => {
