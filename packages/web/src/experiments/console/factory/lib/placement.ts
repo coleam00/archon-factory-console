@@ -100,6 +100,21 @@ export function stageOfWorkflow(
   return stages.find(stage => stage.nodes === undefined) ?? stages[0];
 }
 
+/**
+ * The stage `placement` sends an item to after a run of `workflow` completed with `outcome`:
+ * its exact `workflow:outcome` key, else `workflow:*`, which also places a run that returns
+ * no outcome (a gate that only records). The board and the item page's timeline both read it.
+ */
+export function placedStage(
+  view: Declaration,
+  workflow: string,
+  outcome: string | null
+): FactoryStage | undefined {
+  const exact = outcome === null ? undefined : view.placement[`${workflow}:${outcome}`];
+  const id = exact ?? view.placement[`${workflow}:*`];
+  return id === undefined ? undefined : view.stages.find(stage => stage.id === id);
+}
+
 /** The statuses rule 5 places by: a run that stopped without completing. */
 const STOPPED: ReadonlySet<RunStatus> = new Set(['failed', 'cancelled']);
 
@@ -160,13 +175,11 @@ export function itemColumn(
   if (running !== undefined) return stageOf(runningStage(view, running, previous));
   // 2. Its change merged.
   if (input.merged === true) return stageOf(landedStage(view));
-  // 3. The last completed run's `workflow:outcome` is placed.
+  // 3. The last completed run's `workflow:outcome` is placed, else its `workflow:*`.
   const completed = runs.filter(run => run.status === 'completed').at(-1);
   const placed =
-    completed?.outcome === null || completed === undefined
-      ? undefined
-      : view.placement[`${completed.workflow}:${completed.outcome}`];
-  if (placed !== undefined) return stageOf(view.stages.find(stage => stage.id === placed));
+    completed === undefined ? undefined : placedStage(view, completed.workflow, completed.outcome);
+  if (placed !== undefined) return stageOf(placed);
   // Rules 4 and 5 read the item's last declared run whatever its status: a run paused or
   // pending after an ending means the item was taken up again, so it is not ended.
   const last = runs.at(-1);

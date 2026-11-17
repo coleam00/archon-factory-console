@@ -79,6 +79,17 @@ describe('discoverFactoryViews', () => {
     ]);
   });
 
+  test('each view names its pack key and the run name of every workflow a stage lists', async () => {
+    await write(projectFile('acme.kit'), view('acme/kit', 'Installed'));
+    await write(packFile('folder'), view('folder', 'Folder'));
+
+    const listing = await discoverFactoryViews(roots);
+    expect(listing.views.map(v => [v.pack, v.packKey, v.runNames])).toEqual([
+      ['acme/kit', 'acme.kit', { deliver: 'acme/kit:deliver' }],
+      ['folder', 'folder', { deliver: 'deliver' }],
+    ]);
+  });
+
   test('a malformed file is an error with its path and issue, and other views still list', async () => {
     const broken = view('factory', 'Broken');
     broken.placement = { 'deliver:ready': 'nowhere' };
@@ -122,6 +133,8 @@ describe('factoryViewsForProject', () => {
     source: FactoryViewsListing['views'][number]['source']
   ): FactoryViewsListing['views'][number] => ({
     pack,
+    packKey: pack,
+    runNames: {},
     source,
     path: `/${pack}`,
     declaration: view(pack, pack),

@@ -10,7 +10,38 @@ import {
   type Box,
   type MapLayout,
 } from './map-layout';
-import { shippedView } from '../item-detail.test-fixtures';
+import { shippedListed, shippedView } from '../item-detail.test-fixtures';
+import { mapArrowsFromGraph } from './map-graph';
+import { LIVE_GRAPH } from './pack-graph.test-fixtures';
+import type { FactoryViewListed } from './views';
+
+/**
+ * A two-row map of seven stages with every kind of arrow: forward in a row, down to the next
+ * row, and returns within and between rows. The layout is tested on it, not on the shipped
+ * declaration, whose cards and arrows follow the pack.
+ */
+const twoRows: FactoryViewListed['declaration']['map'] = {
+  cards: [
+    { stage: 'triage', col: 1, row: 1 },
+    { stage: 'plan', col: 2, row: 1 },
+    { stage: 'build', col: 3, row: 1 },
+    { stage: 'checks', col: 4, row: 1 },
+    { stage: 'host', col: 1, row: 2 },
+    { stage: 'ready', col: 2, row: 2 },
+    { stage: 'landed', col: 3, row: 2 },
+  ],
+  arrows: [
+    { from: 'triage', to: 'plan', label: 'build' },
+    { from: 'plan', to: 'build', label: 'planned' },
+    { from: 'build', to: 'checks', label: 'built' },
+    { from: 'checks', to: 'host', label: 'approved' },
+    { from: 'host', to: 'ready', label: 'ready' },
+    { from: 'ready', to: 'landed', label: 'landed' },
+    { from: 'checks', to: 'build', label: 'returned', back: true },
+    { from: 'host', to: 'build', label: 'returned', back: true },
+    { from: 'checks', to: 'plan', label: 'replan', back: true },
+  ],
+};
 
 const arrowOf = (layout: MapLayout, from: string, to: string): ArrowPath => {
   const found = layout.arrows.find(entry => entry.from === from && entry.to === to);
@@ -48,8 +79,8 @@ function enters(box: Box, s: { x1: number; y1: number; x2: number; y2: number })
   return sl <= r && sr >= l && st <= b && sb >= t;
 }
 
-describe('the shipped map: two rows of cards', () => {
-  const layout = layoutMap(shippedView.map);
+describe('a map of two rows', () => {
+  const layout = layoutMap(twoRows);
   const arrow = (from: string, to: string): ArrowPath => arrowOf(layout, from, to);
   const row2 = layout.boxes.get('host')?.y ?? 0;
 
@@ -114,7 +145,7 @@ describe('the shipped map: two rows of cards', () => {
 
 /** The factory's seven stages in one row, as the map shipped before it took two. */
 const oneRow = {
-  ...shippedView.map,
+  ...twoRows,
   cards: ['triage', 'plan', 'build', 'checks', 'host', 'ready', 'landed'].map((stage, i) => ({
     stage,
     col: i + 1,
@@ -186,7 +217,7 @@ describe('declarations the schema allows', () => {
   });
 
   test('an arrow to a stage with no card is left out', () => {
-    const map = shippedView.map;
+    const map = twoRows;
     const partial = layoutMap({ ...map, cards: map.cards.filter(card => card.stage !== 'plan') });
     expect(partial.arrows.some(entry => entry.from === 'plan' || entry.to === 'plan')).toBe(false);
     expect(partial.arrows).toHaveLength(map.arrows.length - 3);
@@ -212,5 +243,60 @@ describe('declarations the schema allows', () => {
     // An empty-laned gap keeps the least row gap.
     expect(c?.y).toBe((b?.y ?? 0) + CARD_H + ROW_GAP);
     expect(down?.d).toBe(`M${COL_PITCH + CARD_W / 2},${(b?.y ?? 0) + CARD_H} V${c?.y}`);
+  });
+});
+
+describe('the shipped map with the live pack graph', () => {
+  const graph = mapArrowsFromGraph(shippedView, shippedListed.runNames, LIVE_GRAPH);
+  const layout = layoutMap(shippedView.map, graph);
+  const row2 = layout.boxes.get('checks')?.y ?? 0;
+
+  test('two arrows between one pair of cards keep their own ids and lanes', () => {
+    const intoBuild = layout.arrows.filter(entry => entry.from === 'host' && entry.to === 'build');
+    expect(intoBuild.map(entry => [entry.label, entry.back])).toEqual([
+      ['returned', true],
+      ['asks answered', true],
+    ]);
+    expect(new Set(intoBuild.map(entry => entry.id)).size).toBe(2);
+    expect(new Set(intoBuild.map(entry => entry.lane)).size).toBe(2);
+  });
+
+  test('a forward hand-off from the graph runs side to side, as a declared one does', () => {
+    const planned = layout.arrows.find(entry => entry.from === 'plan' && entry.to === 'build');
+    expect(planned).toMatchObject({
+      label: 'planned',
+      back: false,
+      lane: undefined,
+      style: 'solid',
+    });
+  });
+
+  test("plan's answered asks loop above row 1; the ends sit off each card's outer edge", () => {
+    expect(layout.loops.map(loop => [loop.stage, loop.label])).toEqual([['plan', 'asks answered']]);
+    expect(layout.loops[0]?.labelAt.y).toBeLessThan(0);
+    const ends = new Map(layout.stubs.map(stub => [stub.stage, stub]));
+    expect([...ends.keys()].sort()).toEqual(['order', 'ready', 'triage']);
+    // Wrapped to about a card's width, reading top to bottom, above row 1 and below row 2.
+    const triage = ends.get('triage')?.lines ?? [];
+    expect(triage.map(line => line.text)).toEqual([
+      'recipe, native, fold,',
+      'park, deprecate, decline,',
+      'close',
+    ]);
+    expect(triage.map(line => line.at.y)).toEqual(
+      [...triage.map(line => line.at.y)].sort((p, q) => p - q)
+    );
+    expect(Math.max(...triage.map(line => line.at.y))).toBeLessThan(0);
+    expect(ends.get('ready')?.lines[0]?.at.y).toBeGreaterThan(row2 + CARD_H);
+  });
+
+  test('bounds hold the loops and ends; no arrow runs through a card', () => {
+    const lowest = Math.max(...layout.stubs.map(stub => stub.extent.y + stub.extent.h));
+    expect(layout.bounds.y).toBeLessThan(0);
+    expect(layout.bounds.y + layout.bounds.h).toBe(lowest);
+    const boxes = [...layout.boxes.values()];
+    for (const entry of layout.arrows)
+      for (const segment of segments(entry.d))
+        for (const box of boxes) expect(enters(box, segment)).toBe(false);
   });
 });

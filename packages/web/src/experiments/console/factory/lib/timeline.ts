@@ -1,5 +1,5 @@
 import type { FactoryItemDetail } from '../../skills/factory';
-import { stageOfWorkflow } from './placement';
+import { placedStage, stageOfWorkflow } from './placement';
 import { VERDICT_LABEL, type RoundVerdict } from './board';
 import type { FactoryViewListed } from './views';
 
@@ -84,11 +84,10 @@ const words = (text: string): OutcomeWords => ({ text, mono: false });
  * the `endings` entry that closed it, else the pack's token as an identifier.
  */
 function completedOutcome(view: Declaration, workflow: string | null, outcome: string | null) {
+  const stage = workflow === null ? undefined : placedStage(view, workflow, outcome);
+  if (stage !== undefined) return words(`sent to ${stage.label}`);
   if (outcome === null) return words('completed');
   if (workflow === null) return { text: outcome, mono: true };
-  const placed = view.placement[`${workflow}:${outcome}`];
-  const stage = view.stages.find(candidate => candidate.id === placed);
-  if (stage !== undefined) return words(`sent to ${stage.label}`);
   const ending = view.endings[`${workflow}:${outcome}`] ?? view.endings[`${workflow}:*`];
   return ending === undefined ? { text: outcome, mono: true } : words(ending);
 }

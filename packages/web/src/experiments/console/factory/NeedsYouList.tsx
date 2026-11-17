@@ -2,20 +2,25 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { errorDetail } from '../lib/http';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
+import { AnsweredLately } from './AnsweredLately';
 import { NEEDS_YOU_SHOWN, needsYou, visibleNeedsYou, type NeedsYouItem } from './lib/needs-you';
+import type { FactoryViewListed } from './lib/views';
 import { NeedsYouLine } from './NeedsYouLine';
 
 /**
  * Every open ask and paused wait, newest first, one line each until opened and answered in
  * place. On the Overview it shows the newest few and says how many more there are, with
  * "show all", so the map's top stays in the first screen; the Needs-you page shows them all.
+ * Under them, the asks settled lately and the stage each started again.
  */
 export function NeedsYouList({
   projectId,
+  view,
   attention,
   all = false,
 }: {
   projectId: string;
+  view: FactoryViewListed['declaration'];
   attention: EntityView<AttentionQueue>;
   /** Show every line, as the Needs-you page does; the Overview caps them. */
   all?: boolean;
@@ -27,6 +32,7 @@ export function NeedsYouList({
         Needs you{attention.data === undefined ? '' : ` · ${items.length.toString()}`}
       </h3>
       <NeedsYouBody projectId={projectId} attention={attention} items={items} all={all} />
+      <AnsweredLately projectId={projectId} view={view} />
     </section>
   );
 }

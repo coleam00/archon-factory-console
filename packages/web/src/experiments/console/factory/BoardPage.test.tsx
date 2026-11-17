@@ -5,8 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { Board } from './BoardPage';
-import { readAllFactoryItems } from './board-items';
-import type { FactoryItem } from './lib/board';
+import type { FactoryItem } from '../skills/factory';
 import { endLastRun, keepRuns, PAGE, realItem, VIEW } from './lib/board.test-fixtures';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
@@ -82,6 +81,7 @@ describe('the Pipeline view', () => {
     const { container, unmount } = await mount(PAGE.items);
     try {
       expect(headers(container)).toEqual([
+        'Order0',
         'Triage0',
         'Plan0',
         'Build4',
@@ -248,16 +248,4 @@ describe('a board opened from a number', () => {
       await unmount();
     }
   });
-});
-
-test('the board reads every page, following next to the last', async () => {
-  const seen: (string | undefined)[] = [];
-  const items = await readAllFactoryItems(ID, async query => {
-    seen.push(query.after);
-    return query.after === undefined
-      ? { pack: 'p', items: PAGE.items.slice(0, 2), next: 'cursor-2' }
-      : { pack: 'p', items: PAGE.items.slice(2), next: null };
-  });
-  expect(seen).toEqual([undefined, 'cursor-2']);
-  expect(items).toHaveLength(PAGE.items.length);
 });

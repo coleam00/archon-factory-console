@@ -1,6 +1,5 @@
-import type { FactoryItemsPage } from '../../skills/factory';
+import type { FactoryItem } from '../../skills/factory';
 
-export type FactoryItem = FactoryItemsPage['items'][number];
 type FactoryRunning = NonNullable<NonNullable<FactoryItem['progress']>['running']>;
 
 /** An item a run of a declared workflow works now, and where that run is. */

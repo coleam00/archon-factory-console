@@ -12,8 +12,9 @@ import { NeedsYouPage } from './NeedsYouPage';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
-import type { FactoryItem } from './lib/board';
+import type { FactoryItem } from '../skills/factory';
 import { PAGE, VIEW } from './lib/board.test-fixtures';
+import { shippedListed } from './item-detail.test-fixtures';
 import { askItem } from './needs-you.test-fixtures';
 
 const ID = 'cb-1';
@@ -33,6 +34,8 @@ const withView: FactoryViews = {
   views: [
     {
       pack: 'acme/kit',
+      packKey: 'acme.kit',
+      runNames: { deliver: 'acme/kit:deliver' },
       source: 'project-file',
       path: '/repo/.archon/packs/acme.kit.factory-view.json',
       declaration: {
@@ -73,9 +76,7 @@ const none: FactoryViews = { views: [], errors: [] };
 const shipped: FactoryViews = {
   views: [
     {
-      pack: VIEW.pack,
-      source: 'project-file',
-      path: '/repo/.archon/packs/Wirasm.archon-software-factory.factory-view.json',
+      ...shippedListed,
       declaration: VIEW,
     },
   ],

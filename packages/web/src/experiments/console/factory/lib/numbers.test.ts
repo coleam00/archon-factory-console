@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { askItem } from '../needs-you.test-fixtures';
-import { boardModel, filterBoard, type FactoryItem } from './board';
+import type { FactoryItem } from '../../skills/factory';
+import { boardModel, filterBoard } from './board';
 import { endLastRun, keepRuns, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
 import { showsCard } from './board-show';
 import { factoryNumbers, median } from './numbers';
