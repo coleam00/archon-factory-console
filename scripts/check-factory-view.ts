@@ -48,8 +48,26 @@ function installedPlugins(): string | undefined {
   return existsSync(plugins) ? plugins : undefined;
 }
 
-/** The installed pack's graph, read on a throwaway copy of `plugins`; throws when it cannot be read. */
-function installedGraph(plugins: string, packKey: string): PackGraph {
+/** What reading the installed pack gave: its graph, or why it could not be read. */
+type InstalledRead = { graph: PackGraph } | { error: string };
+
+/**
+ * Why `archon pack graph --json` failed, in the CLI's own words: it prints `{ ok: false, error }`
+ * on stdout. Output of any other shape is kept as written, so the evidence is not lost.
+ */
+function cliError(stdout: string, exitCode: number): string {
+  try {
+    const parsed: unknown = JSON.parse(stdout);
+    if (typeof parsed === 'object' && parsed !== null && 'error' in parsed)
+      return String(parsed.error);
+  } catch {
+    // Not JSON: the raw text below is the evidence.
+  }
+  return stdout.trim() || `exited ${String(exitCode)} with no output`;
+}
+
+/** The installed pack's graph, read on a throwaway copy of `plugins`, or why it could not be. */
+function installedGraph(plugins: string, packKey: string): InstalledRead {
   const scratch = mkdtempSync(join(tmpdir(), 'factory-view-home-'));
   try {
     cpSync(plugins, getPluginsPath(scratch), { recursive: true });
@@ -57,15 +75,20 @@ function installedGraph(plugins: string, packKey: string): PackGraph {
       ['bun', 'run', 'cli', 'pack', 'graph', packKey, '--cwd', root, '--json'],
       { cwd: root, stderr: 'inherit', env: { ...process.env, ARCHON_HOME: scratch } }
     );
-    if (read.exitCode !== 0)
-      throw new Error(`archon pack graph ${packKey} exited ${String(read.exitCode)} on ${plugins}`);
-    return packGraphSchema.parse(JSON.parse(read.stdout.toString()));
+    const stdout = read.stdout.toString();
+    if (read.exitCode !== 0) return { error: cliError(stdout, read.exitCode) };
+    return { graph: packGraphSchema.parse(JSON.parse(stdout)) };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
 }
 
 const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
+
+/** A named home whose `plugins/` cannot give the pack: what the CLI said, and what to do next. */
+const notInstalled = (packKey: string, plugins: string, error: string): string =>
+  `${plugins}: [install] \`archon pack graph ${packKey}\` could not read the pack there: ${error} ` +
+  'Install the pack in that home, or unset ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME to check against the committed snapshot.';
 
 /** Every finding of one declaration as `path: message` lines; empty when it is clean. */
 function checkOne(file: string, plugins: string | undefined): string[] {
@@ -77,7 +100,12 @@ function checkOne(file: string, plugins: string | undefined): string[] {
   const snapshot = existsSync(snapshotPath)
     ? packGraphSchema.parse(readJson(snapshotPath))
     : undefined;
-  const installed = plugins === undefined ? undefined : installedGraph(plugins, packKey);
+  const read = plugins === undefined ? undefined : installedGraph(plugins, packKey);
+  // A named home that lacks the pack fails rather than falling back to the snapshot: naming the
+  // home says the pack is installed there, and a quiet fallback would hide that it is not.
+  if (plugins !== undefined && read !== undefined && 'error' in read)
+    return [notInstalled(packKey, plugins, read.error)];
+  const installed = read !== undefined && 'graph' in read ? read.graph : undefined;
   const lines: string[] = [];
   const refresh = `run \`bun run check:factory-view --write ${packKey}\``;
   if (snapshot === undefined) lines.push(`${snapshotPath}: [snapshot] missing; ${refresh}`);
@@ -123,8 +151,13 @@ function write(packKey: string): number {
     );
     return 1;
   }
+  const read = installedGraph(plugins, packKey);
+  if ('error' in read) {
+    console.error(notInstalled(packKey, plugins, read.error));
+    return 1;
+  }
   const target = join(packs, `${packKey}${SNAPSHOT_SUFFIX}`);
-  writeFileSync(target, `${JSON.stringify(installedGraph(plugins, packKey), null, 2)}\n`);
+  writeFileSync(target, `${JSON.stringify(read.graph, null, 2)}\n`);
   console.log(`Wrote ${target} from the pack installed in ${plugins}`);
   return 0;
 }

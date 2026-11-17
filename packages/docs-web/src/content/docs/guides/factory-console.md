@@ -145,7 +145,9 @@ graph (what `archon pack graph <pack key> --json` prints) from two places:
   `ARCHON_FACTORY_LIVE_HOME` names, else of `ARCHON_HOME`. The view is then checked against the
   installed pack, and a snapshot that differs from it fails the check, so a reinstall that
   changes the pack is caught where it is installed. With neither variable set, the check says
-  it used the snapshots only.
+  it used the snapshots only. When the named home's `plugins/` does not hold the pack, the check
+  fails with the reason `archon pack graph` gives, rather than falling back to the snapshot:
+  install the pack there, or unset both variables to check against the snapshot.
 
 It reads the installed pack on a throwaway home holding a copy of that `plugins/` directory and
 nothing else, so the install is only read, and with no trigger files every arrow is one the
