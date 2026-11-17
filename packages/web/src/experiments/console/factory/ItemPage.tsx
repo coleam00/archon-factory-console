@@ -90,7 +90,7 @@ function ItemRead({
     <>
       <ItemHeader
         item={data.item}
-        pill={itemPill(data.item, landed).pill}
+        pill={itemPill(declaration, data.item, landed).pill}
         column={column ?? null}
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />

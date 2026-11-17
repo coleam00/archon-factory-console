@@ -3,16 +3,19 @@ import { Link } from 'react-router';
 import { RunningDot } from '../components/LiveDot';
 import type { ItemOnStep } from './lib/items-on-step';
 import { readFailure } from './lib/read-failure';
-import { factoryPath } from './lib/views';
+import { roundOfStep, stepLabel } from './lib/step-label';
+import { factoryPath, type FactoryViewListed } from './lib/views';
 
 /**
  * The items a run works now, each linking to its item page, with the step it is on. The dot
  * is still: the items read says a run is running, not that its owner still answers.
  */
 export function RunningItemLinks({
+  view,
   projectId,
   items,
 }: {
+  view: FactoryViewListed['declaration'];
   projectId: string;
   items: readonly ItemOnStep[];
 }): ReactElement {
@@ -38,9 +41,21 @@ export function RunningItemLinks({
               {running.step === null ? (
                 'between steps'
               ) : (
-                <>
-                  on <span className="font-mono">{running.step}</span>
-                </>
+                <span title={running.step}>
+                  on{' '}
+                  {stepLabel(
+                    view,
+                    running.workflow,
+                    running.step,
+                    roundOfStep(
+                      view,
+                      running.workflow,
+                      running.step,
+                      item.progress?.round,
+                      running.runId
+                    )
+                  )}
+                </span>
               )}
             </span>
           </span>

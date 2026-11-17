@@ -11,6 +11,7 @@ import type { FactoryItem } from '../../skills/factory';
 import { needsYou, ownerLostMessage } from './needs-you';
 import { showsCard, type BoardShow } from './board-show';
 import { pageItemColumn, type ItemColumn } from './placement';
+import { runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
 
 export type FactoryDeclaration = FactoryViewListed['declaration'];
@@ -65,8 +66,11 @@ export interface BoardCard {
     text: string;
     dots: { iteration: number; verdict: RoundVerdict; label: string }[];
   } | null;
-  /** `text` is "workflow · step"; `workflow` and `step` let a card break the line between them. */
-  run: { text: string; workflow: string; step: string | null; href: string } | null;
+  /**
+   * What the running run is doing, as `runLine` words it; `step` is the raw engine id, for
+   * the hover title only.
+   */
+  run: (RunLine & { step: string | null; href: string }) | null;
   returned: { count: number; href: string } | null;
   /**
    * The change, by its pull request number when known. `mergeUnknown` when the change host
@@ -99,12 +103,17 @@ function roundField(progress: Progress | null): BoardCard['round'] {
   };
 }
 
-function runField(projectId: string, progress: Progress | null): BoardCard['run'] {
+function runField(
+  view: FactoryDeclaration,
+  projectId: string,
+  progress: Progress | null,
+  column: ItemColumn | null
+): BoardCard['run'] {
   const running = progress?.running;
   if (running == null) return null;
+  const placed = column !== null && 'stage' in column ? column.stage : undefined;
   return {
-    text: running.step === null ? running.workflow : `${running.workflow} · ${running.step}`,
-    workflow: running.workflow,
+    ...runLine(view, running, progress?.round, placed),
     step: running.step,
     href: `/console/p/${projectId}/r/${running.runId}`,
   };
@@ -132,11 +141,11 @@ function askLine(question: ReturnType<typeof needsYou>[number]): string {
   }
 }
 
-function failedLine(run: DeclaredRun): string {
+function failedLine(view: FactoryDeclaration, run: DeclaredRun): string {
   if (run.status === 'cancelled') return `${run.workflow} was cancelled`;
   return run.failedStep === null
     ? `${run.workflow} failed`
-    : `${run.workflow} failed at ${run.failedStep}`;
+    : `${run.workflow} failed at ${stepLabel(view, run.workflow, run.failedStep)}`;
 }
 
 /** An item's card, given where it was placed (`itemColumn`). */
@@ -149,14 +158,14 @@ export function cardFields(
   const { key } = item.item;
   const progress = item.progress;
   const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
-  const { pill, stopLine } = itemPill(item, landed);
+  const { pill, stopLine } = itemPill(view, item, landed);
   const mergedAt = progress?.change?.mergedAt ?? null;
   return {
     key,
     title: progress?.title ?? key,
     pill,
     round: roundField(progress),
-    run: runField(projectId, progress),
+    run: runField(view, projectId, progress, column),
     returned:
       progress !== null && progress.returned > 0
         ? { count: progress.returned, href: itemPath(projectId, key) }
@@ -173,7 +182,11 @@ export function cardFields(
  * line saying what an item that needs you asks, or what stopped a failed one. The board's
  * card and the item page's header both read it, so an item says the same in both.
  */
-export function itemPill(item: FactoryItem, landed: boolean): Pick<BoardCard, 'pill' | 'stopLine'> {
+export function itemPill(
+  view: FactoryDeclaration,
+  item: FactoryItem,
+  landed: boolean
+): Pick<BoardCard, 'pill' | 'stopLine'> {
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
   if (landed) return { pill: 'landed', stopLine: unread };
   const [ask] = needsYou(item.questions);
@@ -181,7 +194,7 @@ export function itemPill(item: FactoryItem, landed: boolean): Pick<BoardCard, 'p
   if (item.progress?.running != null) return { pill: 'running', stopLine: null };
   const last = declaredRuns(item).at(-1);
   if (last !== undefined && ENDED_STATUSES.has(last.status))
-    return { pill: 'failed', stopLine: failedLine(last) };
+    return { pill: 'failed', stopLine: failedLine(view, last) };
   return { pill: 'waiting', stopLine: unread };
 }
 

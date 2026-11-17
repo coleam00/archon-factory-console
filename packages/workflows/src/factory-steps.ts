@@ -13,7 +13,7 @@ import { INCLUDE_ID_SEPARATOR } from './include/inline';
 import type { WorkflowDeps } from './deps';
 import { resolvedBodyNodes } from './graph-plan';
 import { loadCommandPrompt } from './load-command-prompt';
-import { parseWhenExpression, type WhenAtom, type WhenOperator } from './when-atom';
+import { parseWhenExpression, type WhenAtom } from './when-atom';
 import { unqualifiedResourceName } from './packaged-workflow';
 import type { DagNode, ResolvedWorkflow } from './schemas';
 import { isLoopGroupNode } from './schemas';
@@ -21,6 +21,8 @@ import type {
   FactoryStep,
   FactoryStepGroup,
   FactoryStepKind,
+  FactoryWhenAtom,
+  FactoryWhenClauses,
   FactoryWorkflow,
 } from './schemas/factory-steps';
 import type { WorkflowPack } from './schemas/pack-settings';
@@ -97,8 +99,8 @@ class Outline {
   private readonly known = new Set<string>();
   // An include group is named for the workflow its direct members came from.
   private readonly origins = new Map<string, string>();
-  // Step keys and loop ids to the ids their authors wrote, for naming a `when:`'s steps.
-  private readonly labels = new Map<string, string>();
+  // Every step key and loop id, for keying the steps a `when:` reads.
+  private readonly stepKeys = new Set<string>();
   // The key prefix (`rounds.`) a step or loop's `when:` names its sibling steps under.
   private readonly scopes = new Map<string, string>();
 
@@ -114,7 +116,7 @@ class Outline {
         this.origins.set(group, localWorkflowName(meta.origin));
       const key = prefix + node.id;
       const dependsOn = (node.depends_on ?? []).map(dependency => prefix + dependency);
-      this.labels.set(key, id);
+      this.stepKeys.add(key);
       this.scopes.set(key, prefix);
       if (isLoopGroupNode(node)) {
         this.known.add(key);
@@ -125,7 +127,7 @@ class Outline {
           label: id,
           maxRounds: node.loop_group.max_iterations,
           when: node.when ?? null,
-          whenLabel: null,
+          whenClauses: null,
           dependsOn,
         });
         this.walk(resolvedBodyNodes(node.loop_group), `${key}.`, key);
@@ -141,24 +143,26 @@ class Outline {
         ...outlined,
         step: {
           ...outlined.step,
-          whenLabel: this.whenLabel(outlined.step.key, outlined.step.when),
+          whenClauses: this.whenClauses(outlined.step.key, outlined.step.when),
         },
       })),
       groups: this.groups.map(group =>
         group.kind === 'include'
           ? { ...group, label: this.origins.get(group.id) ?? group.label }
-          : { ...group, whenLabel: this.whenLabel(group.id, group.when) }
+          : { ...group, whenClauses: this.whenClauses(group.id, group.when) }
       ),
     };
   }
 
-  /** `when` in short, its steps named as their authors wrote them. */
-  private whenLabel(key: string, when: string | null): string | null {
+  /**
+   * `when` as its comparisons, each step it reads by key: a sibling in the same loop body
+   * first, else a step at the top; a reference to neither keeps the id written.
+   */
+  private whenClauses(key: string, when: string | null): FactoryWhenClauses {
     if (when === null) return null;
     const prefix = this.scopes.get(key) ?? '';
-    return shortCondition(
-      when,
-      nodeId => this.labels.get(prefix + nodeId) ?? this.labels.get(nodeId) ?? nodeId
+    return conditionClauses(when, nodeId =>
+      this.stepKeys.has(prefix + nodeId) ? prefix + nodeId : nodeId
     );
   }
 
@@ -193,7 +197,7 @@ class Outline {
         includedFrom: meta === undefined ? null : localWorkflowName(meta.origin),
         model: declaredModel(node),
         when: node.when ?? null,
-        whenLabel: null,
+        whenClauses: null,
       },
       node,
       authored:
@@ -212,34 +216,31 @@ function includeGroup(id: string, parent: string | null, segment: string): Facto
     label: segment,
     maxRounds: null,
     when: null,
-    whenLabel: null,
+    whenClauses: null,
     dependsOn: [],
   };
 }
 
-const OPERATOR_WORDS: Record<WhenOperator, string> = {
-  '==': '=',
-  '!=': '≠',
-  '<=': '≤',
-  '>=': '≥',
-  '<': '<',
-  '>': '>',
-};
-
 /**
- * A `when:` in short, through the engine's own parser: each comparison as the step it reads
- * (named by `name`), the operator and the value, joined with `and` and `or` as written, such
- * as `if verdict = return`. The field a comparison reads is left out: the full expression
- * says it. Null when the parser does not take the expression.
+ * A `when:` as its comparisons, through the engine's own parser, with each step it reads
+ * keyed by `stepKey`. The field a comparison reads is left out: the full expression says
+ * it. Null when the parser does not take the expression.
  */
-export function shortCondition(when: string, name: (nodeId: string) => string): string | null {
+export function conditionClauses(
+  when: string,
+  stepKey: (nodeId: string) => string
+): FactoryWhenClauses {
   const clauses = parseWhenExpression(when, true);
   if (clauses === null || clauses.length === 0) return null;
-  const atom = ({ ref, operator, expected }: WhenAtom): string =>
-    `${ref.kind === 'input' ? ref.name : name(ref.nodeId)} ${OPERATOR_WORDS[operator]} ${
-      expected === '' ? 'empty' : expected
-    }`;
-  return `if ${clauses.map(atoms => atoms.map(atom).join(' and ')).join(' or ')}`;
+  const atom = ({ ref, operator, expected }: WhenAtom): FactoryWhenAtom => ({
+    reads:
+      ref.kind === 'input'
+        ? { kind: 'input', name: ref.name }
+        : { kind: 'step', key: stepKey(ref.nodeId) },
+    operator,
+    value: expected,
+  });
+  return clauses.map(atoms => atoms.map(atom));
 }
 
 /**

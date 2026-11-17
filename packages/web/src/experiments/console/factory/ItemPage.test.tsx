@@ -73,7 +73,8 @@ describe('the item page', () => {
     const html = render(itemDetail('6'));
     const words = text(html);
     expect(html).toContain(pill('running', 'Running'));
-    expect(words).toContain('deliver · build__build');
+    expect(words).toContain('deliver · Writes the change');
+    expect(html).toContain('title="build__build"');
     expect(words).toContain('No change yet');
     // Where the plan sent it, in the declaration's words; its duration runs to now, with its
     // units; its cost shows as a dash until the run records one.
@@ -102,7 +103,7 @@ describe('the item page', () => {
     const detail = itemDetail('6');
     const ask = askItem({ ref: 'ask:open', item: { ...detail.item.item } });
     const read = { ...detail, item: { ...detail.item, questions: [ask] } };
-    expect(itemPill(read.item, false).pill).toBe('needs-you');
+    expect(itemPill(shippedView, read.item, false).pill).toBe('needs-you');
     const html = render(read, { items: [ask], runs: [], degraded: [] });
     expect(html).toContain(pill('needs-you', 'Needs you'));
     expect(html).not.toContain(pill('running', 'Running'));

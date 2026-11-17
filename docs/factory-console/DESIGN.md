@@ -299,8 +299,9 @@ A card, in this order:
 3. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),
    returned (a declared return), needs a decision (neither: an ask or a replan), running.
-4. While a run works it: the workflow and its running step in mono, "deliver · rounds.review",
-   linking to the run in the console (`/console/p/:projectId/r/:runId`).
+4. While a run works it: its stage, the running step's name and the round when the step is of the
+   declared rounds loop, "Checks · Code review · round 2", linking to the run in the console
+   (`/console/p/:projectId/r/:runId`). The step's engine id shows on hover.
 5. "returned ×N" when checks or the host sent it back, linking to the item page.
 6. The change: "PR #123" linking to it, when there is one. When the change host could not say
    whether it merged, the card says "merge state unknown" rather than reading as unmerged.

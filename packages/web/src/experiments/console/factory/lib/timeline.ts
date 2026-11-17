@@ -1,6 +1,7 @@
 import type { FactoryItemDetail } from '../../skills/factory';
 import { placedStage, stageOfWorkflow } from './placement';
 import { VERDICT_LABEL, type RoundVerdict } from './board';
+import { stepLabel } from './step-label';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -12,12 +13,14 @@ export type RoundStep = Round['steps'][number];
 type StartCause = RunFacts['cause'];
 
 /**
- * How a run started, in words. `mono` follows the words in mono: the step that started it,
- * or the trigger's id. `runHref` links the run that caused it.
+ * How a run started, in words. `mono` follows the words in mono: the trigger's id. `step`
+ * is the step that started it, by name, with its engine id for the hover title. `runHref`
+ * links the run that caused it.
  */
 export interface StartedText {
   text: string;
   mono: string | null;
+  step: { name: string; node: string } | null;
   runHref: string | null;
 }
 
@@ -33,7 +36,10 @@ export interface OutcomeWords {
 
 /** A step that recorded an outcome in a round, with that outcome as a person reads it. */
 export interface TimelineStep {
+  /** The engine id, for keys and the hover title. */
   node: string;
+  /** The step's name (`stepLabel`); no round, as it sits under its round already. */
+  name: string;
   outcome: OutcomeWords;
   summary: string | null;
 }
@@ -69,8 +75,10 @@ export interface TimelineRow {
   /** Null for a run that has not started executing. */
   durationMs: number | null;
   costUsd: number | null;
-  /** The running step while the run runs. */
+  /** The running step's engine id while the run runs, for the hover title. */
   liveStep: string | null;
+  /** The running step's name, with its round when it is of the rounds loop. */
+  liveStepName: string | null;
   rounds: TimelineRound[];
 }
 
@@ -130,6 +138,7 @@ function groupSteps(view: Declaration, workflow: string, steps: readonly RoundSt
     const label = stageOfWorkflow(view, workflow, step.node)?.label ?? workflow;
     const entry = {
       node: step.node,
+      name: stepLabel(view, workflow, step.node),
       outcome: stepOutcome(view, workflow, step),
       summary: step.summary,
     };
@@ -164,35 +173,44 @@ function durationOf(run: ItemRun, now: number): number | null {
 
 type Row = Omit<TimelineRow, 'started'> & { cause: StartCause };
 
-function startedText(projectId: string, row: Row, rows: readonly Row[]): StartedText {
+const started = (text: string, runHref: string | null): StartedText => ({
+  text,
+  mono: null,
+  step: null,
+  runHref,
+});
+
+function startedText(
+  view: Declaration,
+  projectId: string,
+  row: Row,
+  rows: readonly Row[]
+): StartedText {
   const { cause } = row;
-  if (cause === undefined) return { text: 'Started by hand', mono: null, runHref: null };
+  if (cause === undefined) return started('Started by hand', null);
   switch (cause.kind) {
     case 'run_ended': {
-      const before = rows.find(other => other.runId === cause.runId);
       const href = runHref(projectId, cause.runId);
-      if (before === undefined) return { text: 'After another run', mono: null, runHref: href };
+      const before = rows.find(other => other.runId === cause.runId);
+      if (before === undefined) return started('After another run', href);
       const after = `After ${before.stage ?? before.workflow}:`;
       return before.outcome.mono
-        ? { text: after, mono: before.outcome.text, runHref: href }
-        : { text: `${after} ${before.outcome.text}`, mono: null, runHref: href };
+        ? { ...started(after, href), mono: before.outcome.text }
+        : started(`${after} ${before.outcome.text}`, href);
     }
-    case 'run_fired':
-      return cause.node === null
-        ? { text: 'Started by another run', mono: null, runHref: runHref(projectId, cause.runId) }
-        : {
-            text: 'Started by step',
-            mono: cause.node,
-            runHref: runHref(projectId, cause.runId),
-          };
+    case 'run_fired': {
+      const href = runHref(projectId, cause.runId);
+      // Naming the step needs its workflow, which only the firing run's row says.
+      const firing = rows.find(other => other.runId === cause.runId);
+      if (cause.node === null || firing === undefined)
+        return started('Started by another run', href);
+      const name = stepLabel(view, firing.workflow, cause.node);
+      return { ...started('Started by step', href), step: { name, node: cause.node } };
+    }
     case 'asks_settled':
-      return {
-        text: 'After its questions were settled',
-        mono: null,
-        runHref: runHref(projectId, cause.runId),
-      };
+      return started('After its questions were settled', runHref(projectId, cause.runId));
     case 'receipt':
-      return { text: 'Started by a trigger', mono: cause.sourceInstanceId, runHref: null };
+      return { ...started('Started by a trigger', null), mono: cause.sourceInstanceId };
   }
 }
 
@@ -211,6 +229,7 @@ export function buildTimeline(
     const fact = facts.get(run.id);
     const workflow = fact?.workflow ?? null;
     const liveStep = run.status === 'running' ? (fact?.step ?? null) : null;
+    const iteration = fact?.rounds?.rounds.at(-1)?.iteration;
     return {
       runId: run.id,
       href: runHref(projectId, run.id),
@@ -221,12 +240,14 @@ export function buildTimeline(
       durationMs: durationOf(run, now),
       costUsd: fact?.costUsd ?? null,
       liveStep,
+      liveStepName:
+        liveStep === null ? null : stepLabel(view, workflow ?? run.workflow, liveStep, iteration),
       rounds: workflow === null ? [] : timelineRounds(view, workflow, fact?.rounds ?? null),
       cause: fact?.cause,
     };
   });
   return rows.map(row => {
     const { cause: _cause, ...rest } = row;
-    return { ...rest, started: startedText(projectId, row, rows) };
+    return { ...rest, started: startedText(view, projectId, row, rows) };
   });
 }

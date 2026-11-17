@@ -136,7 +136,7 @@ test('every card shows its chips and links to its stage; its details button list
       `/console/p/${ID}/factory/stages/build`,
     ]);
     expect(panel?.textContent).toContain('Needs you');
-    expect(panel?.textContent).toContain('deliver · build__build');
+    expect(panel?.textContent).toContain('Build · Writes the change');
   } finally {
     await unmount();
   }

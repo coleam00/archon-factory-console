@@ -43,7 +43,8 @@ it. Inside it:
   in place as on the Overview.
 - **Board**: one column per declared stage, each item one card in the column of the stage it
   is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
-  round it is on, the step running now, how often checks sent it back, and its pull request.
+  round it is on, the stage and step running now ("Checks · Code review · round 2"), how often
+  checks sent it back, and its pull request.
   A **Table** view lists the same fields as sortable columns.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
   other items, and the rulings and answers given on it. The timeline words an outcome from the
@@ -53,7 +54,9 @@ it. Inside it:
 - **Stage page**: what a stage does and the step graph of each workflow behind it. The
   stage's own steps stand out, steps another stage works are dimmed, and a step running for
   an item now glows.
-- **Step page**: the items on a step now, its prompt, its YAML and the model it runs on.
+- **Step page**: the step by its name, with its engine id under it, the items on it now, when
+  it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
+  prompt, its YAML and the model it runs on.
 - **How it works**: the pack's [factory overview](#the-factory-overview), when it ships one: a
   hand-written picture of how the factory runs, for explaining it to someone who has never
   seen it.
@@ -123,6 +126,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
+| `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step is not reported; the step reads as its cleaned id. |
 | `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages one workflow works, or run into the `landed` stage (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. A hand-off from one workflow to another is not declared: the map draws it from the pack's stage graph. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. An arrow between cards in different rows and columns, and every return, runs through the gap below the upper row, and a gap grows with the arrows it carries. Four columns fill a 1440px screen at full size; a wider grid fits smaller. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in

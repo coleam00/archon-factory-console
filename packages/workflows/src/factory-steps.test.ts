@@ -5,7 +5,7 @@ import { dirname, join } from 'path';
 import { providerRegistry } from '@archon/providers';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
-import { factoryWorkflowSteps, shortCondition } from './factory-steps';
+import { conditionClauses, factoryWorkflowSteps } from './factory-steps';
 import { DEFAULT_WORKFLOW_SOURCE_CONFIG, liveSourceRoots } from './workflow-source';
 import { discoverWorkflows } from './workflow-discovery';
 
@@ -28,6 +28,7 @@ nodes:
     bash: echo top
   - id: rounds
     depends_on: [odd__id]
+    when: "$odd__id.output != 'skip'"
     loop_group:
       max_iterations: 3
       until_bash: "true"
@@ -35,7 +36,7 @@ nodes:
         - id: fix
           command: fix
           model: ['@builder', large]
-          when: "$odd__id.output == 'go'"
+          when: "$odd__id.output == 'go' && $LOOP_PREV.verdict__decide.output == 'return'"
         - id: check
           include: check
           depends_on: [fix]
@@ -101,6 +102,10 @@ describe('factoryWorkflowSteps', () => {
       ['rounds.verdict', 'include', 'rounds', 'verdict', null],
     ]);
     expect(ship.groups.find(g => g.id === 'rounds')?.dependsOn).toEqual(['odd__id']);
+    // A loop's own condition is keyed as its steps' are.
+    expect(ship.groups.find(g => g.id === 'rounds')?.whenClauses).toEqual([
+      [{ reads: { kind: 'step', key: 'odd__id' }, operator: '!=', value: 'skip' }],
+    ]);
     expect(ship.steps.map(s => [s.key, s.label, s.group, s.kind, s.includedFrom])).toEqual([
       ['start__s', 's', 'start', 'agent', 'setup'],
       ['odd__id', 'odd__id', null, 'bash', null],
@@ -121,13 +126,22 @@ describe('factoryWorkflowSteps', () => {
   test("a command step carries its model, condition, command file's prompt and authored YAML", async () => {
     const fix = (await shipSteps()).steps.find(s => s.key === 'rounds.fix');
     expect(fix?.model).toEqual(['@builder', 'large']);
-    expect(fix?.when).toBe("$odd__id.output == 'go'");
-    expect(fix?.whenLabel).toBe('if odd__id = go');
+    expect(fix?.when).toBe(
+      "$odd__id.output == 'go' && $LOOP_PREV.verdict__decide.output == 'return'"
+    );
+    // Each step a loop body's condition reads is keyed as run events name it: a top-level
+    // step by its own id, a sibling in the same body under the loop's prefix.
+    expect(fix?.whenClauses).toEqual([
+      [
+        { reads: { kind: 'step', key: 'odd__id' }, operator: '==', value: 'go' },
+        { reads: { kind: 'step', key: 'rounds.verdict__decide' }, operator: '==', value: 'return' },
+      ],
+    ]);
     expect(fix?.command).toBe('fix');
     expect(fix?.prompt).toBe(PACK['ship/commands/fix.md']);
     expect(fix?.promptError).toBeNull();
     expect(fix?.yaml).toBe(
-      "id: fix\ncommand: fix\nmodel: ['@builder', large]\nwhen: \"$odd__id.output == 'go'\""
+      "id: fix\ncommand: fix\nmodel: ['@builder', large]\nwhen: \"$odd__id.output == 'go' && $LOOP_PREV.verdict__decide.output == 'return'\""
     );
   });
 
@@ -147,23 +161,37 @@ describe('factoryWorkflowSteps', () => {
   });
 });
 
-describe('shortCondition', () => {
-  const name = (nodeId: string): string => nodeId.split('__').at(-1) ?? nodeId;
+describe('conditionClauses', () => {
+  const key = (nodeId: string): string => `rounds.${nodeId}`;
 
-  test('names the step a comparison reads, its operator and value, and drops the field', () => {
-    expect(shortCondition("$LOOP_PREV.verdict__verdict.output.outcome == 'return'", name)).toBe(
-      'if verdict = return'
+  test('keys the step a comparison reads, with its operator and value, and drops the field', () => {
+    expect(conditionClauses("$LOOP_PREV.verdict__verdict.output.outcome == 'return'", key)).toEqual(
+      [
+        [
+          {
+            reads: { kind: 'step', key: 'rounds.verdict__verdict' },
+            operator: '==',
+            value: 'return',
+          },
+        ],
+      ]
     );
-    expect(shortCondition("$rounds.output.outcome == 'approve'", name)).toBe('if rounds = approve');
   });
 
   test('keeps and, or, inputs, other operators and an empty value', () => {
+    const step = (name: string) => ({ kind: 'step' as const, key: `rounds.${name}` });
     expect(
-      shortCondition("$a.output != '' && $INPUTS.mode == 'fast' || $b.output.score >= 80", name)
-    ).toBe('if a ≠ empty and mode = fast or b ≥ 80');
+      conditionClauses("$a.output != '' && $INPUTS.mode == 'fast' || $b.output.score >= 80", key)
+    ).toEqual([
+      [
+        { reads: step('a'), operator: '!=', value: '' },
+        { reads: { kind: 'input', name: 'mode' }, operator: '==', value: 'fast' },
+      ],
+      [{ reads: step('b'), operator: '>=', value: '80' }],
+    ]);
   });
 
-  test('an expression the engine does not parse has no short form', () => {
-    expect(shortCondition('not a condition', name)).toBeNull();
+  test('an expression the engine does not parse has no clauses', () => {
+    expect(conditionClauses('not a condition', key)).toBeNull();
   });
 });

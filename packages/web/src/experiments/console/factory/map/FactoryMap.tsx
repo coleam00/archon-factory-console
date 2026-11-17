@@ -172,6 +172,7 @@ function MapCanvas({
         {selectedStage === undefined ? null : (
           <MapDetails
             projectId={projectId}
+            view={view}
             stage={selectedStage}
             live={live.stages.get(selectedStage.id) ?? { items: [], working: 0, needYou: [] }}
             onClose={() => setSelected(null)}

@@ -11,6 +11,7 @@ import {
 } from './lib/step-graph-layout';
 import type { ItemOnStep } from './lib/items-on-step';
 import type { StepPageState } from './lib/stage-steps';
+import { engineIdTitle } from './lib/step-label';
 import { factoryPath } from './lib/views';
 
 interface StepGraphProps {
@@ -171,7 +172,9 @@ function GroupFrame({
             <span className="shrink-0 whitespace-nowrap font-medium text-text-secondary">
               up to {String(group.group.maxRounds ?? 1)} rounds
             </span>
-            <span className="shrink-0 font-mono text-text-tertiary">{group.group.label}</span>
+            <span className="shrink-0 text-text-tertiary" title={group.group.id}>
+              {group.group.label}
+            </span>
             {group.group.condition === null ? null : (
               <span className="font-medium text-text-primary">{group.group.condition}</span>
             )}
@@ -219,8 +222,11 @@ function StepButton({
   const glows = onStep.length > 0;
   // The opened stage's steps stand out; another stage's step recedes, unless it runs now.
   const lit = node.inStage || glows;
+  // The name in full, as the box may cut it, then the engine id.
   const title = [
-    node.key,
+    engineIdTitle(node.label, node.key),
+    // The box may cut its condition line too; the worded condition, then the expression.
+    ...(node.condition === null ? [] : [node.condition]),
     ...(node.when === null ? [] : [`Runs when ${node.when}`]),
     ...(glows ? [runningFor(onStep)] : []),
   ].join('\n');
@@ -250,7 +256,7 @@ function StepButton({
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span
-          className={`truncate font-mono text-console-13 font-semibold ${
+          className={`truncate text-console-13 font-semibold ${
             lit ? 'text-text-primary' : 'text-text-tertiary'
           }`}
         >
