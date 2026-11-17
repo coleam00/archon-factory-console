@@ -50,7 +50,7 @@ describe('the item page', () => {
   test('item 3: header, its two deliver runs, and the asks it was answered', () => {
     const html = render(itemDetail('3'));
     const words = text(html);
-    expect(words).toContain('Waiting');
+    expect(html).toMatch(/rounded-full[^>]*>Waiting</);
     expect(words).toContain('In Build');
     expect(words).toContain('PR #14');
     expect(words).toContain('merge state unknown');
@@ -60,13 +60,17 @@ describe('the item page', () => {
     expect(words).toContain('1 answered, 0 withdrawn');
     expect(words).toContain('Nothing on this item is waiting on you.');
     expect(words).toContain('No links to other items.');
+    // Each timeline row's own link: started-by and answer links carry the same hrefs.
     for (const run of itemDetail('3').item.runs)
-      expect(html).toContain(`href="/console/p/${PROJECT}/r/${run.id}"`);
+      expect(html).toMatch(
+        new RegExp(`href="/console/p/${PROJECT}/r/${run.id}"[^>]*><span class="font-medium">`)
+      );
   });
 
   test('item 6 runs: its live step, the Running pill, a cost not recorded yet', () => {
-    const words = text(render(itemDetail('6')));
-    expect(words).toContain('Running');
+    const html = render(itemDetail('6'));
+    const words = text(html);
+    expect(html).toMatch(/rounded-full[^>]*>Running</);
     expect(words).toContain('deliver · build__build');
     expect(words).toContain('No change yet');
     // Its duration runs to now; its cost shows as a dash until the run records one.
@@ -82,7 +86,8 @@ describe('the item page', () => {
     const read = { ...detail, item: { ...detail.item, questions: [child] } };
     const html = render(read, { items: [mine, child, other], runs: [], degraded: [] });
     const words = text(html);
-    expect(words).toContain('Needs you');
+    // The header pill, not the sub-navigation entry that prints the same words on every page.
+    expect(html).toMatch(/rounded-full[^>]*>Needs you</);
     expect(words).toContain('Which base should the change target?');
     expect(words).toContain('From the child run?');
     expect(words).not.toContain('Not this item?');

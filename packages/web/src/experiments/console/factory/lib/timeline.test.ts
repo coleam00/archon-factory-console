@@ -178,3 +178,23 @@ describe('how a run started', () => {
     expect([row?.outcome, row?.durationMs]).toEqual(['waiting to start', null]);
   });
 });
+
+describe('round steps in a stage that names no steps', () => {
+  test('sit under that stage, as the stage page lists them, not under a catch-all', () => {
+    // A view whose deliver stages declare no `nodes` at all: every deliver step is Build's.
+    const plain = {
+      ...shippedView,
+      stages: shippedView.stages.map(stage => {
+        const { nodes: _nodes, ...rest } = stage;
+        return stage.workflows.includes('deliver') && stage.id !== 'build'
+          ? { ...rest, workflows: rest.workflows.filter(w => w !== 'deliver') }
+          : rest;
+      }),
+    };
+    const rows = buildTimeline(plain, PROJECT, itemDetail('2'), NOW);
+    const labels = rows
+      .flatMap(row => row.rounds)
+      .flatMap(round => round.groups.map(group => group.label));
+    expect(new Set(labels)).toEqual(new Set(['Build']));
+  });
+});

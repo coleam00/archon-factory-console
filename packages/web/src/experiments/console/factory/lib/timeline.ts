@@ -1,5 +1,5 @@
 import type { FactoryItemDetail } from '../../skills/factory';
-import { stageOfStep, stageOfWorkflow } from './placement';
+import { stageOfWorkflow } from './placement';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -21,7 +21,7 @@ export interface StartedText {
 }
 
 export interface TimelineGroup {
-  /** The declared stage the steps belong to; `Other` for steps no stage names. */
+  /** The declared stage the steps belong to, as `stageOfWorkflow` places a step. */
   label: string;
   steps: RoundStep[];
 }
@@ -93,7 +93,7 @@ function verdictWord(round: Round): string {
 function groupSteps(view: Declaration, workflow: string, steps: readonly RoundStep[]) {
   const groups: TimelineGroup[] = [];
   for (const step of steps) {
-    const label = stageOfStep(view, workflow, step.node)?.label ?? 'Other';
+    const label = stageOfWorkflow(view, workflow, step.node)?.label ?? workflow;
     const last = groups.at(-1);
     if (last?.label === label) last.steps.push(step);
     else groups.push({ label, steps: [step] });
