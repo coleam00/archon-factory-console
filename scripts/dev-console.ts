@@ -7,7 +7,8 @@
  * - When ARCHON_FACTORY_LIVE_HOME names the live factory's home (its launcher sets it, so
  *   every factory agent has it), the database is seeded once with a read-only copy of that
  *   home's archon.db (`VACUUM INTO`), so the console shows the factory's real items and runs.
- *   `--fresh` takes a new copy. The live database is only ever opened read-only.
+ *   `--fresh` takes a new copy. The live database is only ever opened read-only. The copy's
+ *   projects point at this checkout, so the console reads this branch's `.archon/` files.
  * - It serves the built web UI (`bun run build:web` first) on the given port, default 3190.
  */
 import { Database } from 'bun:sqlite';
@@ -40,6 +41,9 @@ if (live && !existsSync(db)) {
     copy.run(
       "UPDATE remote_agent_isolation_environments SET status = 'destroyed' WHERE status = 'active'"
     );
+    // Projects read their `.archon/` from their checkout. Pointing them at this one makes the
+    // console show this branch's files (a factory view a change adds, for example), not main's.
+    copy.run('UPDATE remote_agent_codebases SET default_cwd = ?', [root]);
     copy.close();
     console.log(`Seeded ${db} from a read-only copy of the live factory database.`);
   }
