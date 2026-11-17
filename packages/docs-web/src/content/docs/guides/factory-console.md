@@ -119,7 +119,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `returns` | no | Steps whose outcome sends an item back: each `{ "workflow", "node", "outcome" }`. The board counts them as "returned ×N" and colours that round returned. |
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
-| `itemTitle` | no | `{ "input" }`: the run input whose first line is the item's title. Without it, the item's key is its title. |
+| `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages one workflow works, or run into the `landed` stage (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. A hand-off from one workflow to another is not declared: the map draws it from the pack's stage graph. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. An arrow between cards in different rows and columns, and every return, runs through the gap below the upper row, and a gap grows with the arrows it carries. Four columns fill a 1440px screen at full size; a wider grid fits smaller. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in

@@ -136,7 +136,7 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // a round is approved only by a declared
                                                    // approval; with neither, it needs a decision
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
-  "itemTitle": { "input": "item" },                // item title = first line of this run input
+  "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
     "cards": [ { "stage": "build", "col": 4, "row": 1 } ],
     "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // only inside one
@@ -288,7 +288,8 @@ first rule that matches. The board, the map and the item page all place through 
 
 A card, in this order:
 
-1. Item key and title (title from the declared run input's first line, else the key).
+1. Item key and title (title from the declared run input's title line: the first non-empty line
+   after any `---` front matter, without a leading `#<n> ` or heading marker; else the key).
 2. State pill: **Running** (a run works it now), **Needs you** (it has an open ask), **Failed**,
    **Waiting** (queued or idle between stages), **Landed**.
 3. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
