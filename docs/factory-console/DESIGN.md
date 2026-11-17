@@ -100,6 +100,9 @@ present itself without the console knowing it. Shape (validated with zod in
   "rounds": { "workflow": "deliver", "loop": "rounds" },
   "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
                { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" } ],
+  "approves": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" } ],
+                                                   // a round is approved only by a declared
+                                                   // approval; with neither, it needs a decision
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = first line of this run input
   "map": {
@@ -139,8 +142,9 @@ those land, this section adds **one read-only route file**, `packages/server/src
   same schema, imported, not restated) plus a `progress` object the board needs and `ItemRead`
   does not carry: the running run's id, workflow and deepest running step, the current loop
   iteration of the declared `rounds` loop, the returned count, the change URL from the declared
-  pointer, and the title. Shape the page like #5815 (`{ items, next }`) so swapping to it later
-  is a change of one skill.
+  pointer with its pull request number, the title, and each declared run's workflow as the
+  view names it with the step it failed at. Shape the page like #5815 (`{ items, next }`) so
+  swapping to it later is a change of one skill.
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The browser never calls GitHub.
@@ -198,7 +202,8 @@ A card, in this order:
 2. State pill: **Running** (a run works it now), **Needs you** (it has an open ask), **Failed**,
    **Waiting** (queued or idle between stages), **Landed**.
 3. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
-   one dot per round coloured by that round's verdict (approved, returned).
+   one dot per round coloured by that round's verdict: approved (a declared approval),
+   returned (a declared return), needs a decision (neither: an ask or a replan), running.
 4. While a run works it: the workflow and its running step in mono, "deliver · rounds.review",
    linking to the run in the console (`/console/p/:projectId/r/:runId`).
 5. "returned ×N" when checks or the host sent it back, linking to the item page.

@@ -49,6 +49,13 @@ const stageSchema = z.strictObject({
   nodes: z.array(stepIdSchema).min(1).optional(),
 });
 
+/** A step of a workflow the view names, and the outcome it records that decides something. */
+const decisionPointSchema = z.strictObject({
+  workflow: workflowNameSchema,
+  node: stepIdSchema,
+  outcome: z.string().min(1),
+});
+
 const mapSchema = z.strictObject({
   cards: z.array(
     z.strictObject({
@@ -92,15 +99,13 @@ const factoryViewShape = z.strictObject({
   /** The loop group whose iterations the board counts as rounds. */
   rounds: z.strictObject({ workflow: workflowNameSchema, loop: stepIdSchema }).optional(),
   /** The steps whose outcome sends an item back. */
-  returns: z
-    .array(
-      z.strictObject({
-        workflow: workflowNameSchema,
-        node: stepIdSchema,
-        outcome: z.string().min(1),
-      })
-    )
-    .optional(),
+  returns: z.array(decisionPointSchema).optional(),
+  /**
+   * The steps whose outcome approves an item: a round of the rounds loop in which one of
+   * these recorded its outcome is approved. A round with neither a declared return nor a
+   * declared approval needs a decision; nothing is read as approved unless declared here.
+   */
+  approves: z.array(decisionPointSchema).optional(),
   /** Where the change's URL is in a run's result, as a JSON pointer. */
   change: z
     .strictObject({
@@ -166,6 +171,9 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   if (view.rounds !== undefined) refer(['rounds', 'workflow'], view.rounds.workflow);
   view.returns?.forEach((entry, index) => {
     refer(['returns', index, 'workflow'], entry.workflow);
+  });
+  view.approves?.forEach((entry, index) => {
+    refer(['approves', index, 'workflow'], entry.workflow);
   });
   if (view.change !== undefined) refer(['change', 'workflow'], view.change.workflow);
   return issues;

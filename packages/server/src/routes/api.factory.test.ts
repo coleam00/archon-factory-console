@@ -199,6 +199,51 @@ describe('GET /api/factory/items', () => {
       event_order: 9,
     },
     {
+      // A forge audit row naming the pull request, the shape `pr.ready` records.
+      id: 'e0-audit',
+      workflow_run_id: 'run-a',
+      event_type: 'integration_operation',
+      step_index: null,
+      step_name: null,
+      data: {
+        integration: 'forge',
+        operationId: 'op-1',
+        operation: 'pr.ready',
+        target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
+        plugin: { name: 'github', version: '1' },
+        result: {
+          operationId: 'op-1',
+          ok: true,
+          result: {
+            op: 'pr.ready',
+            value: {
+              target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
+              outcome: 'applied',
+              changed: true,
+              pr: {
+                repo: { host: 'forge.example', path: 'acme/web' },
+                number: 7,
+                schemaVersion: 1,
+                url: CHANGE,
+                head: 'feature',
+                base: 'main',
+                is_draft: false,
+                state: 'open',
+                head_repo: { host: 'forge.example', path: 'acme/web' },
+                head_revision: 'a'.repeat(40),
+                base_revision: 'b'.repeat(40),
+                maintainer_can_modify: false,
+              },
+            },
+          },
+        },
+        retries: 0,
+        durationMs: 1,
+      },
+      created_at: '2026-11-16T10:29:00Z',
+      event_order: 8,
+    },
+    {
       id: 'e1',
       workflow_run_id: 'run-b',
       event_type: 'node_started',
@@ -282,6 +327,7 @@ describe('GET /api/factory/items', () => {
       round: null,
       returned: 0,
       change: null,
+      runs: [{ runId: 'run-b', workflow: 'deliver', failedStep: null }],
     });
     const next = await app.request(
       `/api/factory/items?codebaseId=cb-1&after=${encodeURIComponent(first.next ?? '')}`
@@ -301,6 +347,8 @@ describe('GET /api/factory/items', () => {
         url: CHANGE,
         merged: true,
         mergedAt: '2026-11-17T01:00:00Z',
+        // Named by the run's own forge audit row.
+        number: 7,
       });
     }
     expect(lookups).toEqual([CHANGE]);

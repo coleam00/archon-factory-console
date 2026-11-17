@@ -5,6 +5,7 @@
  * change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { prRefFromAudits } from '@archon/adapters/forge-host';
 import {
   FACTORY_ITEMS_MAX_LIMIT,
   FactoryItemsQueryError,
@@ -160,6 +161,11 @@ const CHANGE_STATE_TTL_MS = 60_000;
 const CHANGE_STATE_WAIT_MS = 4_000;
 
 type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
+/** A change's merge state as a page reads it: the forge's answer without its reason. */
+type ChangeMerge = (
+  url: string,
+  audits: readonly unknown[]
+) => Promise<Pick<Awaited<ReturnType<FactoryChangeState>>, 'merged' | 'mergedAt'>>;
 
 /**
  * The change host's answer for each change URL, shared by every request: one lookup in
@@ -169,7 +175,7 @@ type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
  */
 export function changeStateCache(
   deps: Pick<FactoryRouteDeps, 'changeMergeState' | 'changeStateWaitMs' | 'now'>
-): FactoryChangeState {
+): ChangeMerge {
   const now = deps.now ?? Date.now;
   const waitMs = deps.changeStateWaitMs ?? CHANGE_STATE_WAIT_MS;
   const answers = new Map<string, { answer: ChangeAnswer; at: number }>();
@@ -238,7 +244,13 @@ async function applyingViews(
 
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
-  const changeState = changeStateCache(deps);
+  const mergeState = changeStateCache(deps);
+  // The number is read from the run's own audit rows, outside the cache, so a cold lookup
+  // that answers `unknown` still names the pull request.
+  const changeState: FactoryChangeState = async (url, audits) => ({
+    ...(await mergeState(url, audits)),
+    number: prRefFromAudits(url, audits)?.number ?? null,
+  });
   const memo = new FactoryRunFactsMemo();
 
   register(getFactoryViewsRoute, async c => {

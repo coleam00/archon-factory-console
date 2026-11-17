@@ -9,6 +9,7 @@ import { BuilderConnected } from './builder/BuilderConnected';
 import { RunsPage } from './routes/RunsPage';
 import { RunDetailPage } from './routes/RunDetailPage';
 import { MetricsPage } from './routes/metrics/MetricsPage';
+import { BoardPage } from './factory/BoardPage';
 import { FactoryPage } from './factory/FactoryPage';
 import { FactoryPlaceholder } from './factory/FactoryPlaceholder';
 import { StagePage } from './factory/StagePage';
@@ -127,10 +128,7 @@ export function ConsoleApp(): ReactElement {
             <Route path="p/:projectId/metrics" element={<MetricsPage />} />
             <Route path="p/:projectId/metrics/details" element={<MetricsPage view="details" />} />
             <Route path="p/:projectId/factory" element={<FactoryPage />} />
-            <Route
-              path="p/:projectId/factory/board"
-              element={<FactoryPlaceholder page="board" />}
-            />
+            <Route path="p/:projectId/factory/board" element={<BoardPage />} />
             <Route
               path="p/:projectId/factory/items/:key"
               element={<FactoryPlaceholder page="item" />}
