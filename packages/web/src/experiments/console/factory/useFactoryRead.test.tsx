@@ -157,6 +157,10 @@ test('readers of the same key retry it once between them', async () => {
     await advance(FACTORY_READ_DEADLINE_MS);
     await advance(2_000);
     expect(stall.attempts()).toBe(2);
+    // Past the retry's 16 s deadline, short of the next 4 s wait. Without the dedup, the other
+    // readers' retries, queued behind attempt 2 by the cache, start a third attempt here.
+    await advance(16_000);
+    expect(stall.attempts()).toBe(2);
   } finally {
     await page.unmount();
     invalidate(key);
