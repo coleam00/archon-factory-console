@@ -40,9 +40,7 @@ export function StepGraph({ projectId, workflow, graph }: StepGraphProps): React
       }}
     >
       <div className="relative shrink-0" style={size}>
-        {laid.groups.map(group => (
-          <GroupFrame key={group.group.id} group={group} />
-        ))}
+        {/* Under the frames, so a frame's label stays readable where an edge crosses it. */}
         <svg
           className="absolute inset-0 overflow-visible"
           width={size.width}
@@ -59,6 +57,9 @@ export function StepGraph({ projectId, workflow, graph }: StepGraphProps): React
             />
           ))}
         </svg>
+        {laid.groups.map(group => (
+          <GroupFrame key={group.group.id} group={group} />
+        ))}
         {laid.steps.map(step => (
           <StepButton
             key={step.node.key}
@@ -83,11 +84,11 @@ function GroupFrame({ group }: { group: LaidOutGroup }): ReactElement {
   return (
     <div
       className={`absolute rounded-console-12 border ${
-        loop ? 'border-border-bright bg-surface/40' : 'border-dashed border-border-bright'
+        loop ? 'border-border-bright' : 'border-dashed border-border-bright'
       }`}
       style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
     >
-      <div className="flex items-baseline gap-1.5 px-2.5 pt-1.5 text-console-11">
+      <div className="ml-1.5 mt-1 inline-flex items-baseline gap-1.5 rounded bg-surface px-1 text-console-11">
         {loop ? (
           <>
             <span className="font-medium text-text-secondary">
