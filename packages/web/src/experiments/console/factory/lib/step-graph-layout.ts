@@ -23,10 +23,17 @@ export interface LaidOutGroup extends Box {
   group: StepGraphGroup;
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export interface LaidOutEdge {
   from: string;
   to: string;
-  /** An orthogonal elbow path, as RunGraphPanel draws. */
+  /** The path's corners, from the source's bottom to the target's top. */
+  points: Point[];
+  /** The same path as SVG path data. */
   d: string;
 }
 
@@ -42,6 +49,8 @@ export interface StepGraphLayout {
 /**
  * Lay a step graph out top to bottom with dagre, each group a compound node around its
  * steps. Edges only join steps: dagre's compound layout does not take edges on a group.
+ * Edges follow dagre's own routes (see `route`), which keep out of frames they do not
+ * belong to.
  */
 export function layoutStepGraph(graph: StepGraph): StepGraphLayout {
   // A group holds at least one step; an empty one would be laid out as a zero-size node.
@@ -68,7 +77,14 @@ export function layoutStepGraph(graph: StepGraph): StepGraphLayout {
     edges: graph.edges.flatMap(({ from, to }) => {
       const a = byKey.get(from);
       const b = byKey.get(to);
-      return a === undefined || b === undefined ? [] : [{ from, to, d: elbow(a, b) }];
+      if (a === undefined || b === undefined) return [];
+      const inFrom = enclosing(graph, from);
+      const inTo = enclosing(graph, to);
+      const frames = (ids: Set<string>, not: Set<string>): Box[] =>
+        [...ids].filter(id => !not.has(id)).map(box);
+      const laidEdge = g.edge(from, to) as { points: Point[] };
+      const points = route(laidEdge.points, a, b, frames(inFrom, inTo), frames(inTo, inFrom));
+      return [{ from, to, points, d: pathData(points) }];
     }),
     width: size.width ?? 0,
     height: size.height ?? 0,
@@ -105,13 +121,86 @@ function usedGroups(graph: StepGraph): Set<string> {
   return used;
 }
 
-/** Drop from the source's bottom centre, elbow halfway, into the target's top centre. */
-function elbow(a: Box, b: Box): string {
-  const ax = a.x + a.width / 2;
-  const ay = a.y + a.height;
-  const bx = b.x + b.width / 2;
-  const by = b.y;
-  if (ax === bx) return `M${ax.toString()},${ay.toString()} V${by.toString()}`;
-  const mid = ay + (by - ay) / 2;
-  return `M${ax.toString()},${ay.toString()} V${mid.toString()} H${bx.toString()} V${by.toString()}`;
+/** Where an edge leaves its source, kept this far inside the source's sides. */
+const EDGE_INSET = 10;
+
+/** The groups a step is drawn in, innermost first. */
+function enclosing(graph: StepGraph, key: string): Set<string> {
+  const parents = new Map(graph.groups.map(group => [group.id, group.parent]));
+  const found = new Set<string>();
+  let group = graph.nodes.find(node => node.key === key)?.group ?? null;
+  for (; group !== null; group = parents.get(group) ?? null) found.add(group);
+  return found;
+}
+
+/**
+ * dagre's waypoints for an edge, without those inside the frames the edge leaves or enters:
+ * a compound layout puts them on the frames' borders, and a turn there would run along a
+ * frame's edge or through its label.
+ */
+function clearWaypoints(
+  points: readonly Point[],
+  leaving: readonly Box[],
+  entering: readonly Box[]
+): Point[] {
+  const below = Math.max(...leaving.map(box => box.y + box.height), -Infinity);
+  const above = Math.min(...entering.map(box => box.y), Infinity);
+  return points.slice(1, -1).filter(point => point.y > below + 1 && point.y < above - 1);
+}
+
+/**
+ * An edge from the source's bottom to the target's top centre through dagre's waypoints, in
+ * vertical and horizontal runs. dagre routes an edge around the frames it does not belong to
+ * and spreads the edges leaving one step along its side, so siblings do not share a run.
+ * Every turn sits on a waypoint, which lies between ranks rather than on a frame's border.
+ */
+function route(points: readonly Point[], a: Box, b: Box, leaving: Box[], entering: Box[]): Point[] {
+  const first = points[0]?.x ?? a.x + a.width / 2;
+  const start = {
+    x: Math.round(Math.min(a.x + a.width - EDGE_INSET, Math.max(a.x + EDGE_INSET, first))),
+    y: a.y + a.height,
+  };
+  const end = { x: b.x + b.width / 2, y: b.y };
+  const via = clearWaypoints(points, leaving, entering);
+  const path: Point[] = [start];
+  const stops = [...via, end];
+  stops.forEach((stop, index) => {
+    const from = path.at(-1) ?? start;
+    if (stop.x !== from.x) {
+      // Turn on a waypoint's level: the next one's on the way down, else the last one's.
+      const level = index < via.length ? stop.y : (via.at(-1)?.y ?? (from.y + stop.y) / 2);
+      path.push({ x: from.x, y: level }, { x: stop.x, y: level });
+    }
+    path.push(stop);
+  });
+  return straighten(path);
+}
+
+/** The path without repeated points or corners that do not turn. */
+function straighten(path: readonly Point[]): Point[] {
+  const out: Point[] = [];
+  for (const point of path) {
+    const last = out.at(-1);
+    if (last !== undefined && last.x === point.x && last.y === point.y) continue;
+    const before = out.at(-2);
+    if (
+      before !== undefined &&
+      last !== undefined &&
+      ((before.x === last.x && last.x === point.x) || (before.y === last.y && last.y === point.y))
+    )
+      out.pop();
+    out.push(point);
+  }
+  return out;
+}
+
+/** The SVG path through orthogonal corners. */
+function pathData(points: readonly Point[]): string {
+  return points
+    .map((point, index) => {
+      if (index === 0) return `M${point.x.toString()},${point.y.toString()}`;
+      const before = points[index - 1];
+      return before?.x === point.x ? `V${point.y.toString()}` : `H${point.x.toString()}`;
+    })
+    .join(' ');
 }

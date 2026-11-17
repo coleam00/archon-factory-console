@@ -43,8 +43,9 @@ function runningFor(onStep: readonly ItemOnStep[]): string {
 /**
  * One workflow's steps, top to bottom (RunGraphPanel's canvas, nodes and connectors), with
  * each loop group framed and labelled with its rounds and each included workflow framed in
- * dashes. A step another stage works is dimmed, unless an item is on it now: a running step,
- * or a loop between its bodies, glows whichever stage works it. Clicking a step opens its page.
+ * dashes. A step another stage works is dimmed, and so is the label of a frame holding none
+ * of this stage's steps, unless an item is on it now: a running step, or a loop between its
+ * bodies, glows whichever stage works it. Clicking a step opens its page.
  */
 export function StepGraph({
   projectId,
@@ -55,6 +56,7 @@ export function StepGraph({
 }: StepGraphProps): ReactElement {
   const navigate = useNavigate();
   const laid = useMemo(() => layoutStepGraph(graph), [graph]);
+  const framesInStage = useMemo(() => groupsHoldingStageSteps(graph), [graph]);
   const size: CSSProperties = {
     width: Math.max(laid.width, STEP_W + STEP_GRAPH_PADDING * 2),
     height: Math.max(laid.height, STEP_H + STEP_GRAPH_PADDING * 2),
@@ -93,6 +95,7 @@ export function StepGraph({
             key={group.group.id}
             group={group}
             onStep={running?.get(group.group.id) ?? NOT_RUNNING}
+            inStage={framesInStage.has(group.group.id)}
           />
         ))}
         {laid.steps.map(step => (
@@ -116,12 +119,26 @@ export function StepGraph({
   );
 }
 
+/** The groups that hold, at any depth, a step of the stage drawing the graph. */
+function groupsHoldingStageSteps(graph: StepGraphData): Set<string> {
+  const parents = new Map(graph.groups.map(group => [group.id, group.parent]));
+  const held = new Set<string>();
+  for (const node of graph.nodes) {
+    if (!node.inStage) continue;
+    for (let id = node.group; id !== null; id = parents.get(id) ?? null) held.add(id);
+  }
+  return held;
+}
+
 function GroupFrame({
   group,
   onStep,
+  inStage,
 }: {
   group: LaidOutGroup;
   onStep: readonly ItemOnStep[];
+  /** Whether the frame holds a step of this stage; its label dims when it does not. */
+  inStage: boolean;
 }): ReactElement {
   const loop = group.group.kind === 'loop';
   // Only a loop is ever the running step: between its bodies, the deepest step is the loop.
@@ -144,7 +161,9 @@ function GroupFrame({
       <div
         // A label wider than a narrow frame runs past its edge on its backing rather than cut
         // off the condition, which must read without hovering.
-        className="relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-11"
+        className={`relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-11 ${
+          inStage || glows ? '' : 'opacity-50'
+        }`}
         title={group.group.when === null ? undefined : `Runs when ${group.group.when}`}
       >
         {loop ? (
@@ -198,6 +217,8 @@ function StepButton({
 }): ReactElement {
   const { node } = step;
   const glows = onStep.length > 0;
+  // The opened stage's steps stand out; another stage's step recedes, unless it runs now.
+  const lit = node.inStage || glows;
   const title = [
     node.key,
     ...(node.when === null ? [] : [`Runs when ${node.when}`]),
@@ -209,8 +230,9 @@ function StepButton({
       onClick={onOpen}
       data-running={glows ? '' : undefined}
       title={title}
-      className={`absolute flex items-center gap-2.5 overflow-hidden rounded-lg border border-border-bright bg-surface-elevated px-3.5 text-left transition-colors hover:brightness-110 ${
-        node.inStage || glows ? '' : 'opacity-60'
+      data-in-stage={node.inStage ? '' : undefined}
+      className={`absolute flex items-center gap-2.5 overflow-hidden rounded-lg border bg-surface-elevated px-3.5 text-left transition-colors hover:brightness-110 ${
+        lit ? 'border-border-bright' : 'border-border opacity-35'
       }`}
       style={{
         left: step.x,
@@ -227,7 +249,11 @@ function StepButton({
         {kindGlyph(node.kind)}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-mono text-console-13 font-semibold text-text-primary">
+        <span
+          className={`truncate font-mono text-console-13 font-semibold ${
+            lit ? 'text-text-primary' : 'text-text-tertiary'
+          }`}
+        >
           {node.label}
         </span>
         {node.condition === null ? null : (

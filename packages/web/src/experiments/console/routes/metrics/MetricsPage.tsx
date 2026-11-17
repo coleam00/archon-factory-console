@@ -71,9 +71,7 @@ export function MetricsPage({ view = 'overview' }: { view?: MetricsView }): Reac
           <span role="status">{windowStatus(days, report.data, failing(report), shown)}</span>
         }
         aside={
-          // Wraps inside itself on a narrow screen rather than pushing the title row's
-          // layout around.
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <div className="flex shrink-0 items-center gap-3">
             <WindowButtons scope={scope} view={view} days={days} />
             <Link
               to={screenPath(scope, view === 'overview' ? 'details' : 'overview', days)}
