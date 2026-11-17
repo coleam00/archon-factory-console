@@ -70,3 +70,47 @@ export function endLastRun(
     },
   };
 }
+
+/** Item 8 with its deliver run working `step` in round `iteration` of 3. */
+export function delivering(step: string | null, iteration = 2): FactoryItem {
+  const item = realItem('8');
+  const progress = progressOf(item);
+  const running = progress.running;
+  if (running === null) throw new Error('item 8 is running in the fixture');
+  item.progress = {
+    ...progress,
+    running: { ...running, step },
+    round: {
+      runId: running.runId,
+      iteration,
+      max: 3,
+      rounds: (
+        [
+          { iteration: 1, verdict: 'returned', outcome: 'return' },
+          { iteration: 2, verdict: 'running', outcome: null },
+        ] as const
+      ).slice(0, iteration),
+    },
+  };
+  return item;
+}
+
+/** Item 7, merged, with a land run still running after it: the read's run and its progress. */
+export function landRunning(): FactoryItem {
+  const item = realItem('7');
+  const last = item.runs.at(-1);
+  if (last === undefined) throw new Error('item 7 has runs');
+  item.runs = [...item.runs, { ...last, id: 'land-run', status: 'running', outcome: null }];
+  const progress = progressOf(item);
+  item.progress = {
+    ...progress,
+    runs: [...progress.runs, { runId: 'land-run', workflow: 'land', failedStep: null }],
+    running: {
+      runId: 'land-run',
+      workflow: 'land',
+      step: 'land',
+      startedAt: '2026-11-17T04:29:00.000Z',
+    },
+  };
+  return item;
+}

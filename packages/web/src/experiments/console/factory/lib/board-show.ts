@@ -35,7 +35,8 @@ function sameLocalDay(iso: string, now: Date): boolean {
 /**
  * Whether the filter `show` keeps `placed`. In flight: on the board, outside the landed
  * column. Needs you: its pill says so. Landed: in the landed column. Landed today: landed,
- * its change merged on `now`'s local day. An item an ending took off the board is none.
+ * its change merged on `now`'s local day. An item an ending took off the board, or one
+ * placement found no column for, is none.
  */
 export function showsCard(
   show: BoardShow,
@@ -43,9 +44,9 @@ export function showsCard(
   landedStage: string,
   now: Date
 ): boolean {
-  const { placement, card, item } = placed;
-  if (placement.kind !== 'column') return false;
-  const landed = placement.stage === landedStage;
+  const { column, card, item } = placed;
+  if (column === null || 'ended' in column) return false;
+  const landed = column.stage.id === landedStage;
   switch (show) {
     case 'in-flight':
       return !landed;

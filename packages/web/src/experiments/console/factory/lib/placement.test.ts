@@ -1,8 +1,43 @@
 import { describe, expect, test } from 'bun:test';
-import { shippedView } from '../item-detail.test-fixtures';
-import { stageOfStep, stageOfWorkflow } from './placement';
+import { itemDetail, shippedView } from '../item-detail.test-fixtures';
+import type { FactoryItem } from './board';
+import {
+  delivering,
+  endLastRun,
+  keepRuns,
+  landRunning,
+  PAGE,
+  progressOf,
+  realItem,
+  VIEW,
+} from './board.test-fixtures';
+import {
+  itemColumn,
+  pageRunFacts,
+  placementInput,
+  stageOfStep,
+  stageOfWorkflow,
+  type ItemColumn,
+  type PlacementInput,
+  type PlacementRun,
+} from './placement';
 
 const view = shippedView;
+const run = (
+  workflow: string | null,
+  status: PlacementRun['status'],
+  outcome: string | null = null,
+  step: string | null = null,
+  failedStep: string | null = null
+): PlacementRun => ({ workflow, status, outcome, step, failedStep });
+const input = (runs: PlacementRun[], extra: Partial<PlacementInput> = {}): PlacementInput => ({
+  runs,
+  merged: null,
+  ...extra,
+});
+const where = (column: ItemColumn | null): string | null =>
+  column === null ? null : 'stage' in column ? column.stage.id : `ended: ${column.ended}`;
+
 describe('which stage a step is in', () => {
   test('a declared node, or a step inside it', () => {
     expect(stageOfStep(view, 'deliver', 'build__build')?.id).toBe('build');
@@ -22,5 +57,227 @@ describe('which stage a step is in', () => {
     expect(stageOfWorkflow(view, 'deliver', 'rounds')?.id).toBe('build');
     expect(stageOfWorkflow(view, 'triage', 'anything')?.id).toBe('triage');
     expect(stageOfWorkflow(view, 'unknown', null)).toBeUndefined();
+  });
+});
+
+describe('where an item sits', () => {
+  test('1. a running run: the stage of its running step', () => {
+    const runs = [
+      run('plan', 'completed', 'planned'),
+      run('deliver', 'running', null, 'rounds.tests__tests'),
+    ];
+    expect(where(itemColumn(view, input(runs, { merged: true })))).toBe('checks');
+  });
+
+  test('2. its change merged: the landed column', () => {
+    expect(
+      where(itemColumn(view, input([run('deliver', 'completed', 'ready')], { merged: true })))
+    ).toBe('landed');
+    // A merge state the host could not report is not a merge.
+    expect(
+      where(itemColumn(view, input([run('deliver', 'completed', 'ready')], { merged: 'unknown' })))
+    ).toBe('ready');
+  });
+
+  test("3. the last completed run's workflow and outcome, through placement", () => {
+    const runs = [run('triage', 'completed', 'build'), run('plan', 'completed', 'planned')];
+    expect(where(itemColumn(view, input(runs)))).toBe('build');
+    expect(where(itemColumn(view, input([...runs, run('deliver', 'completed', 'ask')])))).toBe(
+      'build'
+    );
+  });
+
+  test('4. an ending: off the board with its label, wildcard or exact', () => {
+    expect(where(itemColumn(view, input([run('triage', 'completed', 'duplicate')])))).toBe(
+      'ended: Closed by triage'
+    );
+    expect(where(itemColumn(view, input([run('plan', 'completed', 'stop')])))).toBe(
+      'ended: Stopped at planning'
+    );
+  });
+
+  test("3 before 5: a failed run after a placed completion keeps the completion's place", () => {
+    const waiting = [run('deliver', 'completed', 'waiting'), run('deliver', 'failed')];
+    expect(where(itemColumn(view, input(waiting)))).toBe('host');
+    const planned = [run('plan', 'completed', 'planned'), run('triage', 'failed')];
+    expect(where(itemColumn(view, input(planned)))).toBe('build');
+  });
+
+  test('5. the last run failed or was cancelled: the stage naming the failed step, else the first of its workflow', () => {
+    const failedAt = (step: string | null) => [run('deliver', 'failed', null, null, step)];
+    expect(where(itemColumn(view, input(failedAt('rounds.review__review'))))).toBe('checks');
+    expect(where(itemColumn(view, input(failedAt('hostrounds.host__host'))))).toBe('host');
+    // A step no stage names, or none: the workflow's first stage.
+    expect(where(itemColumn(view, input(failedAt('rounds'))))).toBe('build');
+    expect(where(itemColumn(view, input(failedAt(null))))).toBe('build');
+    expect(where(itemColumn(view, input([run('triage', 'cancelled')])))).toBe('triage');
+  });
+
+  test('1. a running step no stage names stays in the previous column when it lists the workflow', () => {
+    const between = input([run('deliver', 'running', null, 'rounds')]);
+    expect(where(itemColumn(view, between, 'checks'))).toBe('checks');
+    // Triage does not list deliver: the workflow's first stage.
+    expect(where(itemColumn(view, between, 'triage'))).toBe('build');
+    expect(where(itemColumn(view, between))).toBe('build');
+    // A named step goes where it is named, whatever the previous column.
+    const named = input([run('deliver', 'running', null, 'rounds.review__review')]);
+    expect(where(itemColumn(view, named, 'build'))).toBe('checks');
+  });
+
+  test('4 and 5 read the last declared run whatever its status: every status after an ending', () => {
+    const ended = run('triage', 'completed', 'reject');
+    const after = (status: PlacementRun['status'], outcome: string | null = null) =>
+      where(itemColumn(view, input([ended, run('triage', status, outcome)])));
+    // Taken up again: paused, pending or running, the item is back on the board.
+    expect(after('paused')).toBe('triage');
+    expect(after('pending')).toBe('triage');
+    expect(after('running')).toBe('triage');
+    // Stopped: rule 5, the stage of its workflow.
+    expect(after('failed')).toBe('triage');
+    expect(after('cancelled')).toBe('triage');
+    // Ended again: off the board.
+    expect(after('completed', 'reject')).toBe('ended: Closed by triage');
+    // An exact ending key with a newer pending run of the same workflow.
+    const stopped = [run('plan', 'completed', 'stop'), run('plan', 'pending')];
+    expect(where(itemColumn(view, input(stopped)))).toBe('triage');
+  });
+
+  test('6. otherwise the first stage; runs of undeclared workflows do not count', () => {
+    expect(where(itemColumn(view, input([])))).toBe('triage');
+    expect(where(itemColumn(view, input([run(null, 'running', null, 'build__build')])))).toBe(
+      'triage'
+    );
+  });
+
+  test('the captured items: item 1 merged, item 3 asked from build, item 6 building', () => {
+    const fromDetail = (key: '1' | '3' | '6'): PlacementInput => {
+      const detail = itemDetail(key);
+      return placementInput(detail.item, new Map(detail.runs.map(f => [f.runId, f])));
+    };
+    expect(where(itemColumn(view, fromDetail('1')))).toBe('landed');
+    expect(where(itemColumn(view, fromDetail('6')))).toBe('build');
+    // Item 3's merge state was unknown when it was captured: the placement of `deliver:ask`.
+    expect(where(itemColumn(view, fromDetail('3')))).toBe('build');
+  });
+});
+
+describe('one placement input for every view of an item', () => {
+  test('the items read places a captured item as its item page does', () => {
+    for (const key of ['1', '2', '3', '6'] as const) {
+      const { item, runs } = itemDetail(key);
+      if (item.progress === null) throw new Error(`fixture ${key} has progress`);
+      const page = placementInput(item, pageRunFacts(item.progress));
+      const detail = placementInput(item, new Map(runs.map(f => [f.runId, f])));
+      // The detail knows every running run's step; the page only the latest's, which is the
+      // one placement reads.
+      expect(itemColumn(view, page)).toEqual(itemColumn(view, detail));
+      expect(page.runs.map(r => r.workflow)).toEqual(detail.runs.map(r => r.workflow));
+    }
+  });
+});
+
+/** Where the items read places `item`, as the board and the map build its input. */
+function placeOf(item: FactoryItem, previous?: string): string | null {
+  const facts = item.progress === null ? new Map() : pageRunFacts(item.progress);
+  return where(itemColumn(VIEW, placementInput(item, facts), previous));
+}
+
+describe('placing items of the items read, first rule that matches', () => {
+  test('every real item sits in the column its runs and change put it in', () => {
+    expect(PAGE.items.map(item => [item.item.key, placeOf(item)])).toEqual([
+      ['8', 'checks'],
+      ['5', 'build'],
+      ['4', 'build'],
+      ['6', 'build'],
+      ['3', 'build'],
+      ['7', 'landed'],
+      ['2', 'landed'],
+      ['1', 'landed'],
+    ]);
+  });
+
+  test('1: the review step of round 2 is in Checks', () => {
+    expect(placeOf(delivering('rounds.review__review'))).toBe('checks');
+  });
+
+  test('1: a step no stage names keeps the previous column when it lists the workflow', () => {
+    // A deliver run between rounds records only the bare loop group.
+    expect(placeOf(delivering('rounds'), 'checks')).toBe('checks');
+    expect(placeOf(delivering('rounds'), 'triage')).toBe('build');
+    expect(placeOf(delivering(null))).toBe('build');
+  });
+
+  test('1 before 2: a land run still running after it merged keeps the item in Ready to land', () => {
+    expect(placeOf(landRunning())).toBe('ready');
+  });
+
+  test('2: a merged change is in Landed', () => {
+    expect(placeOf(realItem('7'))).toBe('landed');
+  });
+
+  test('3: ended ready, its change unmerged or its merge state unknown, is in Ready to land', () => {
+    for (const merged of [false, 'unknown'] as const) {
+      const item = realItem('1');
+      const progress = progressOf(item);
+      if (progress.change === null) throw new Error('item 1 has a change');
+      item.progress = { ...progress, change: { ...progress.change, merged, mergedAt: null } };
+      expect(placeOf(item)).toBe('ready');
+    }
+  });
+
+  test('4: endings fold off the board, by workflow:* or an exact key on the last run', () => {
+    expect(placeOf(endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now'))).toBe(
+      'ended: Closed by triage'
+    );
+    // Plan stopped after triage said build: the last completed run is plan's, not triage's.
+    expect(placeOf(endLastRun(realItem('6'), 'completed', 'stop'))).toBe(
+      'ended: Stopped at planning'
+    );
+  });
+
+  test('5: a failed run sits in the stage of the step it failed at, else its workflow first stage', () => {
+    const item = endLastRun(keepRuns(realItem('5'), 3), 'failed', null, 'rounds.review__review');
+    // Its plan completed `planned`, which rule 3 places; take that away to reach rule 5.
+    const progress = progressOf(item);
+    const only = {
+      ...item,
+      runs: item.runs.slice(2),
+      progress: { ...progress, runs: progress.runs.slice(2) },
+    };
+    expect(placeOf(only)).toBe('checks');
+    expect(placeOf(endLastRun(only, 'cancelled', null, null))).toBe('build');
+  });
+
+  test('3 before 5: a failed deliver after a completed plan sits where the plan placed it', () => {
+    expect(placeOf(endLastRun(realItem('5'), 'failed', null, 'build__build'))).toBe('build');
+  });
+
+  test('6: no runs, or progress that could not be read: the first stage', () => {
+    expect(placeOf(keepRuns(realItem('6'), 0))).toBe('triage');
+    expect(placeOf({ ...realItem('6'), progress: null })).toBe('triage');
+  });
+
+  test('every outcome comes from the declaration: renamed there, placement follows', () => {
+    const { 'deliver:ready': _ready, ...placement } = VIEW.placement;
+    const { 'plan:stop': _stop, ...endings } = VIEW.endings;
+    const renamed = {
+      ...VIEW,
+      placement: { ...placement, 'deliver:shipit': 'ready' },
+      endings: { ...endings, 'plan:halt': 'Stopped at planning' },
+    };
+    const at = (item: FactoryItem): string | null =>
+      where(itemColumn(renamed, placementInput(item, pageRunFacts(progressOf(item)))));
+    const unmerged = (outcome: string): FactoryItem => {
+      const item = endLastRun(realItem('1'), 'completed', outcome);
+      const progress = progressOf(item);
+      if (progress.change === null) throw new Error('item 1 has a change');
+      item.progress = { ...progress, change: { ...progress.change, merged: false } };
+      return item;
+    };
+    expect(at(unmerged('shipit'))).toBe('ready');
+    // The old name places nothing now: the first stage.
+    expect(at(unmerged('ready'))).toBe('triage');
+    expect(at(endLastRun(realItem('6'), 'completed', 'halt'))).toBe('ended: Stopped at planning');
+    expect(at(endLastRun(realItem('6'), 'completed', 'stop'))).not.toMatch(/^ended/);
   });
 });

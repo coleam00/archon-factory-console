@@ -1,0 +1,79 @@
+/**
+ * The map's live chips: which items sit on each card, how many a run works now, and which
+ * need a person. An item is placed by `placement.ts`'s `pageItemColumn`, as the board places
+ * it, so a card and a board column never name different stages; "needs you" is the item page's
+ * `itemAsks`, which reads the Needs-you list's `needsYou`, so the chip agrees with both.
+ */
+import type { FactoryItem } from '../../skills/factory';
+import type { AttentionQueueItem } from '../../skills/runs';
+import { itemAsks } from './needs-you';
+import { pageItemColumn, stageIdOf } from './placement';
+import type { FactoryViewListed } from './views';
+
+export interface StageLive {
+  /** The items placed on this stage, in the order the items read returned them. */
+  items: FactoryItem[];
+  /** How many of them a run works now. */
+  working: number;
+  /** Those with an open ask or wait a person answers. */
+  needYou: FactoryItem[];
+}
+
+/** Why an item is on no card: so the reader knows whether to fix the read or the view. */
+export type NotOnMapWhy =
+  /** Placement found no column: the view names no stage for it (as the item page's "Position unknown"). */
+  | { kind: 'no-column' }
+  /** Placed on `stage`, which the map draws no card for. */
+  | { kind: 'no-card'; stage: string };
+
+export interface NotOnMap {
+  item: FactoryItem;
+  why: NotOnMapWhy;
+}
+
+export interface MapLive {
+  /** Every declared stage, with or without a card, empty when nothing sits there. */
+  stages: Map<string, StageLive>;
+  /** Items no card shows: not placed, or on a stage without a card. */
+  notOnMap: NotOnMap[];
+  /** The stage each placed item sits in, by key: pass it back as `previous` on the next read. */
+  positions: Map<string, string>;
+}
+
+/**
+ * The map for these items. `previous` holds the stage each item sat in on the last read, as
+ * the board keeps it, so a run on a step no stage names holds its card where the board
+ * holds its column.
+ */
+export function stageLive(
+  view: FactoryViewListed['declaration'],
+  items: readonly FactoryItem[],
+  attention: readonly AttentionQueueItem[],
+  previous: ReadonlyMap<string, string> = new Map()
+): MapLive {
+  const carded = new Set(view.map.cards.map(card => card.stage));
+  const stages = new Map<string, StageLive>(
+    view.stages.map(stage => [stage.id, { items: [], working: 0, needYou: [] }])
+  );
+  const notOnMap: NotOnMap[] = [];
+  const positions = new Map<string, string>();
+  for (const item of items) {
+    const column = pageItemColumn(view, item, previous.get(item.item.key));
+    // An item ended without a change (`endings`) is on no card, by design.
+    if (column !== null && 'ended' in column) continue;
+    const stage = stageIdOf(column);
+    const live = stage === undefined ? undefined : stages.get(stage);
+    // Reachable when the cached view changed under cached items: say so, as the item page does.
+    if (stage === undefined || live === undefined) {
+      notOnMap.push({ item, why: { kind: 'no-column' } });
+      continue;
+    }
+    positions.set(item.item.key, stage);
+    live.items.push(item);
+    // `progress.running` is the latest running run of a declared workflow.
+    if (item.progress?.running != null) live.working += 1;
+    if (itemAsks(item, attention).length > 0) live.needYou.push(item);
+    if (!carded.has(stage)) notOnMap.push({ item, why: { kind: 'no-card', stage } });
+  }
+  return { stages, notOnMap, positions };
+}

@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 3, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided.",
+  "note": "GET /api/factory/item for item 3, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided. progress.runs added after capture, from this response's runs[].workflow (none of these runs failed, so failedStep is null).",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {
@@ -138,6 +138,28 @@
       "progress": {
         "title": "A read-only page of a project's items with each item's live progress (running step, round, returns, change)",
         "running": null,
+        "runs": [
+          {
+            "runId": "d6a33d87-0ac6-431e-a2f8-4fa33e91a1b2",
+            "workflow": "triage",
+            "failedStep": null
+          },
+          {
+            "runId": "7e1a2eb1-d114-497f-ac42-71b2d598fa2d",
+            "workflow": "plan",
+            "failedStep": null
+          },
+          {
+            "runId": "ab288319-6192-4645-8306-65622f0a966b",
+            "workflow": "deliver",
+            "failedStep": null
+          },
+          {
+            "runId": "80cc1489-d934-4cba-8979-de51c375bcf1",
+            "workflow": "deliver",
+            "failedStep": null
+          }
+        ],
         "round": {
           "runId": "80cc1489-d934-4cba-8979-de51c375bcf1",
           "iteration": 2,
@@ -158,6 +180,7 @@
         "returned": 2,
         "change": {
           "url": "https://github.com/coleam00/archon-factory-console/pull/14",
+          "number": null,
           "merged": "unknown",
           "mergedAt": null,
           "number": 14

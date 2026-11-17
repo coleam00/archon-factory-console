@@ -7,156 +7,50 @@ import {
   filterBoard,
   hiddenColumnsHint,
   movedKeys,
-  placeItem,
   type FactoryItem,
 } from './board';
-import { endLastRun, keepRuns, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
+import {
+  delivering,
+  endLastRun,
+  keepRuns,
+  landRunning,
+  PAGE,
+  progressOf,
+  realItem,
+  VIEW,
+} from './board.test-fixtures';
+import { pageItemColumn } from './placement';
 
 const PROJECT = 'cb-1';
 const card = (item: FactoryItem, previous?: string) =>
-  cardFields(VIEW, PROJECT, item, placeItem(VIEW, item, previous));
+  cardFields(VIEW, PROJECT, item, pageItemColumn(VIEW, item, previous));
 
-/** Item 8 with its deliver run working `step` in round `iteration` of 3. */
-function delivering(step: string | null, iteration = 2): FactoryItem {
-  const item = realItem('8');
-  const progress = progressOf(item);
-  const running = progress.running;
-  if (running === null) throw new Error('item 8 is running in the fixture');
-  item.progress = {
-    ...progress,
-    running: { ...running, step },
-    round: {
-      runId: running.runId,
-      iteration,
-      max: 3,
-      rounds: (
-        [
-          { iteration: 1, verdict: 'returned', outcome: 'return' },
-          { iteration: 2, verdict: 'running', outcome: null },
-        ] as const
-      ).slice(0, iteration),
-    },
-  };
-  return item;
-}
-
-describe('every real item, as dev:console served it', () => {
-  test('sits in the column its runs and change put it in', () => {
-    const where = PAGE.items.map(item => [item.item.key, placeItem(VIEW, item)]);
-    expect(where).toEqual([
-      ['8', { kind: 'column', stage: 'checks', rule: 1 }],
-      ['5', { kind: 'column', stage: 'build', rule: 1 }],
-      ['4', { kind: 'column', stage: 'build', rule: 1 }],
-      ['6', { kind: 'column', stage: 'build', rule: 3 }],
-      ['3', { kind: 'column', stage: 'build', rule: 3 }],
-      ['7', { kind: 'column', stage: 'landed', rule: 2 }],
-      ['2', { kind: 'column', stage: 'landed', rule: 2 }],
-      ['1', { kind: 'column', stage: 'landed', rule: 2 }],
-    ]);
-  });
-});
-
-describe('placement, first rule that matches', () => {
-  test('1: the review step of round 2 is in Checks, round 2 of 3', () => {
-    const item = delivering('rounds.review__review');
-    expect(placeItem(VIEW, item)).toEqual({ kind: 'column', stage: 'checks', rule: 1 });
-    expect(card(item).round?.text).toBe('round 2 of 3');
-  });
-
-  test('1: a step no stage names keeps the column it was in, when that column lists the workflow', () => {
-    // A deliver run between rounds records only the bare loop group.
-    const item = delivering('rounds');
-    expect(placeItem(VIEW, item, 'checks')).toMatchObject({ stage: 'checks', rule: 1 });
-    // Triage does not list deliver, so the item goes to the first stage that does.
-    expect(placeItem(VIEW, item, 'triage')).toMatchObject({ stage: 'build', rule: 1 });
-  });
-
-  test('1: between steps with no column before, the first stage listing the workflow', () => {
-    expect(placeItem(VIEW, delivering(null))).toMatchObject({ stage: 'build', rule: 1 });
-  });
-
-  test('1 before 2: a land run still running after it merged the change keeps the item in Ready to land', () => {
-    // The land workflow merges, then returns its outcome: the run is still running then.
-    const item = realItem('7');
-    item.progress = {
-      ...progressOf(item),
-      running: {
-        runId: 'land-run',
-        workflow: 'land',
-        step: 'land',
-        startedAt: '2026-11-17T04:29:00.000Z',
-      },
-    };
-    expect(placeItem(VIEW, item)).toEqual({ kind: 'column', stage: 'ready', rule: 1 });
+describe('cards of placed items', () => {
+  test('a running item says its round; a land run still running keeps it out of Landed', () => {
+    expect(card(delivering('rounds.review__review')).round?.text).toBe('round 2 of 3');
+    const item = landRunning();
     expect(card(item)).toMatchObject({ pill: 'running', landedAt: null });
   });
 
-  test('2: a merged change is in Landed', () => {
-    expect(placeItem(VIEW, realItem('7'))).toEqual({ kind: 'column', stage: 'landed', rule: 2 });
-  });
-
-  test('3: an item whose deliver ended ready, its change not merged yet, is in Ready to land', () => {
-    const item = realItem('1');
-    const progress = progressOf(item);
-    if (progress.change === null) throw new Error('item 1 has a change');
-    item.progress = { ...progress, change: { ...progress.change, merged: false, mergedAt: null } };
-    expect(placeItem(VIEW, item)).toEqual({ kind: 'column', stage: 'ready', rule: 3 });
-  });
-
-  test('3: an item whose merge state is unknown is not taken for landed', () => {
-    const item = realItem('1');
-    const progress = progressOf(item);
-    if (progress.change === null) throw new Error('item 1 has a change');
-    item.progress = { ...progress, change: { ...progress.change, merged: 'unknown' } };
-    expect(placeItem(VIEW, item)).toMatchObject({ stage: 'ready', rule: 3 });
-  });
-
-  test('4: a triage outcome placement does not take folds into "Closed by triage"', () => {
-    const item = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now');
-    expect(placeItem(VIEW, item)).toEqual({ kind: 'ended', label: 'Closed by triage' });
-  });
-
-  test('4: an exact ending key, read from the last run only', () => {
-    // Plan stopped after triage said build: the last completed run is plan's, not triage's.
-    const item = endLastRun(realItem('6'), 'completed', 'stop');
-    expect(placeItem(VIEW, item)).toEqual({ kind: 'ended', label: 'Stopped at planning' });
-  });
-
-  test('5: a failed run sits in the stage of the step it failed at', () => {
-    const item = endLastRun(keepRuns(realItem('5'), 3), 'failed', null, 'rounds.review__review');
-    // Its plan completed `planned`, which rule 3 places; take that away to reach rule 5.
-    const progress = progressOf(item);
-    const only = {
-      ...item,
-      runs: item.runs.slice(2),
-      progress: { ...progress, runs: progress.runs.slice(2) },
-    };
-    expect(placeItem(VIEW, only)).toEqual({ kind: 'column', stage: 'checks', rule: 5 });
-    const unnamed = endLastRun(only, 'cancelled', null, null);
-    expect(placeItem(VIEW, unnamed)).toEqual({ kind: 'column', stage: 'build', rule: 5 });
-  });
-
-  test('a failed deliver after a completed plan sits where the plan placed it, marked failed', () => {
-    const item = endLastRun(realItem('5'), 'failed', null, 'build__build');
-    expect(placeItem(VIEW, item)).toMatchObject({ stage: 'build', rule: 3 });
-    expect(card(item)).toMatchObject({
+  test('a failed deliver after a completed plan is marked failed, with the step it failed at', () => {
+    expect(card(endLastRun(realItem('5'), 'failed', null, 'build__build'))).toMatchObject({
       pill: 'failed',
       stopLine: 'deliver failed at build__build',
     });
   });
 
-  test('6: an item with no runs is in the first stage', () => {
-    expect(placeItem(VIEW, keepRuns(realItem('6'), 0))).toEqual({
-      kind: 'column',
-      stage: 'triage',
-      rule: 6,
-    });
+  test('an item whose progress could not be read stays on the board and says so', () => {
+    const item = { ...realItem('6'), progress: null };
+    expect(pageItemColumn(VIEW, item)).toMatchObject({ stage: { id: 'triage' } });
+    expect(card(item)).toMatchObject({ title: '6', stopLine: 'Its progress could not be read.' });
   });
 
-  test('6: an item whose progress could not be read stays on the board, in the first stage', () => {
-    const item = { ...realItem('6'), progress: null };
-    expect(placeItem(VIEW, item)).toEqual({ kind: 'column', stage: 'triage', rule: 6 });
-    expect(card(item)).toMatchObject({ title: '6', stopLine: 'Its progress could not be read.' });
+  test('the board keeps a running item in its previous column on a step no stage names', () => {
+    const item = delivering('rounds');
+    const position = (previous: Map<string, string>) =>
+      boardModel(VIEW, PROJECT, [item], previous).positions.get('8');
+    expect(position(new Map([['8', 'checks']]))).toBe('checks');
+    expect(position(new Map())).toBe('build');
   });
 });
 
@@ -315,33 +209,5 @@ describe('the board', () => {
     expect(hiddenColumnsHint(columns, new Set(['triage', 'plan', 'build', 'checks', 'host']))).toBe(
       'Scroll for: Ready to land, Landed'
     );
-  });
-
-  test('every outcome comes from the declaration: renamed there, placement follows the new names', () => {
-    // The declaration renames deliver's `ready` to `shipit` and plan's `stop` to `halt`.
-    const { 'deliver:ready': _ready, ...placement } = VIEW.placement;
-    const { 'plan:stop': _stop, ...endings } = VIEW.endings;
-    const renamed = {
-      ...VIEW,
-      placement: { ...placement, 'deliver:shipit': 'ready' },
-      endings: { ...endings, 'plan:halt': 'Stopped at planning' },
-    };
-    const unmerged = (outcome: string): FactoryItem => {
-      const item = endLastRun(realItem('1'), 'completed', outcome);
-      const progress = progressOf(item);
-      if (progress.change === null) throw new Error('item 1 has a change');
-      item.progress = { ...progress, change: { ...progress.change, merged: false } };
-      return item;
-    };
-    expect(placeItem(renamed, unmerged('shipit'))).toMatchObject({ stage: 'ready', rule: 3 });
-    // The old name places nothing now: the item falls back to the first stage.
-    expect(placeItem(renamed, unmerged('ready'))).toMatchObject({ stage: 'triage', rule: 6 });
-    expect(placeItem(renamed, endLastRun(realItem('6'), 'completed', 'halt'))).toEqual({
-      kind: 'ended',
-      label: 'Stopped at planning',
-    });
-    expect(placeItem(renamed, endLastRun(realItem('6'), 'completed', 'stop'))).toMatchObject({
-      kind: 'column',
-    });
   });
 });

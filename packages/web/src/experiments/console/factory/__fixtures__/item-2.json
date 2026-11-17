@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 2, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided.",
+  "note": "GET /api/factory/item for item 2, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided. progress.runs added after capture, from this response's runs[].workflow (none of these runs failed, so failedStep is null).",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {
@@ -57,6 +57,23 @@
       "progress": {
         "title": "The Factory tab: a pack's factory view declaration, discovered per project, opens a Software Factory section",
         "running": null,
+        "runs": [
+          {
+            "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d",
+            "workflow": "triage",
+            "failedStep": null
+          },
+          {
+            "runId": "d4e76223-9187-490b-ba5f-ce8aff023767",
+            "workflow": "plan",
+            "failedStep": null
+          },
+          {
+            "runId": "934682d0-bf74-494c-9949-7b0f7697d9d9",
+            "workflow": "deliver",
+            "failedStep": null
+          }
+        ],
         "round": {
           "runId": "934682d0-bf74-494c-9949-7b0f7697d9d9",
           "iteration": 3,
@@ -82,6 +99,7 @@
         "returned": 2,
         "change": {
           "url": "https://github.com/coleam00/archon-factory-console/pull/11",
+          "number": 11,
           "merged": true,
           "mergedAt": "2026-11-17T03:05:25Z",
           "number": 11

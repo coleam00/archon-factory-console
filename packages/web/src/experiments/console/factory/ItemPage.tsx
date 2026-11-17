@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react';
+import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
 import { errorDetail } from '../lib/http';
@@ -12,8 +12,9 @@ import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
-import { needsYou, type NeedsYouItem } from './lib/needs-you';
-import { itemPill, placeItem } from './lib/board';
+import { itemPill } from './lib/board';
+import { itemAsks, type NeedsYouItem } from './lib/needs-you';
+import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { NeedsYouRow } from './NeedsYouList';
@@ -61,23 +62,36 @@ function ItemRead({
   attention: EntityView<AttentionQueue>;
 }): ReactNode {
   const { data, error } = read;
+  // The stage the item sat in on the last read: a run on a step no stage names stays there,
+  // as on the board and the map.
+  const previous = useRef<{ key: string; stage: string | undefined } | null>(null);
+  const column =
+    data === undefined
+      ? undefined
+      : itemColumn(
+          view.declaration,
+          placementInput(data.item, new Map(data.runs.map(run => [run.runId, run]))),
+          previous.current?.key === itemKey ? previous.current.stage : undefined
+        );
+  useEffect(() => {
+    if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
+  }, [column, itemKey]);
   if (data === undefined) {
     if (error !== undefined)
       return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(error)} />;
     return <p className="text-xs text-text-tertiary">Loading…</p>;
   }
-  const asks = itemAsks(data.item, attention.data);
+  const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
-  // The board's own placement and pill, so the header says what the item's card says.
-  const placement = placeItem(declaration, data.item);
-  const landed = placement.kind === 'column' && placement.stage === declaration.landed.stage;
+  // The placement every view shares, and the board's pill, so the header says what the
+  // item's card says.
+  const landed = stageIdOf(column ?? null) === declaration.landed.stage;
   return (
     <>
       <ItemHeader
         item={data.item}
         pill={itemPill(data.item, landed).pill}
-        placement={placement}
-        view={declaration}
+        column={column ?? null}
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
@@ -85,20 +99,6 @@ function ItemRead({
       <ItemAnswers projectId={projectId} answers={data.item.answers} />
       <Degraded degraded={data.item.degraded} />
     </>
-  );
-}
-
-/**
- * What on the live queue waits on this item: an entry the item read lists among its
- * questions (it reads the item's whole run tree, so a wait inside a child run is one), or
- * one the queue itself names this item on. The header's pill reads the item's own
- * questions, as the board's card does.
- */
-function itemAsks(item: FactoryItem, queue: AttentionQueue | undefined): NeedsYouItem[] {
-  if (queue === undefined) return [];
-  const refs = new Set(item.questions.map(question => question.ref));
-  return needsYou(queue.items).filter(
-    entry => refs.has(entry.ref) || entry.item?.id === item.item.id
   );
 }
 

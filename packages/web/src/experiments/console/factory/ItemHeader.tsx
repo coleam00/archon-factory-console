@@ -1,19 +1,19 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { FactoryItem } from '../skills/factory';
 import { PillBadge } from './BoardCard';
-import type { FactoryDeclaration, Pill, Placement } from './lib/board';
+import type { Pill } from './lib/board';
+import type { ItemColumn } from './lib/placement';
 
 /** The item's key, title, state, column and change: the same pill its board card shows. */
 export function ItemHeader({
   item,
   pill,
-  placement,
-  view,
+  column,
 }: {
   item: FactoryItem;
   pill: Pill;
-  placement: Placement;
-  view: FactoryDeclaration;
+  /** Where `placement.ts` puts the item; null when no declared stage holds it. */
+  column: ItemColumn | null;
 }): ReactElement {
   const title = item.progress?.title ?? null;
   return (
@@ -26,7 +26,7 @@ export function ItemHeader({
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
         <PillBadge pill={pill} />
-        <ColumnWords item={item} placement={placement} view={view} />
+        <ColumnWords item={item} column={column} />
         <ChangeLink change={item.progress?.change ?? null} />
       </div>
     </header>
@@ -35,17 +35,14 @@ export function ItemHeader({
 
 function ColumnWords({
   item,
-  placement,
-  view,
+  column,
 }: {
   item: FactoryItem;
-  placement: Placement;
-  view: FactoryDeclaration;
+  column: ItemColumn | null;
 }): ReactNode {
-  if (item.progress === null) return <span>Position unknown</span>;
-  if (placement.kind === 'ended') return <span>{placement.label}</span>;
-  const stage = view.stages.find(candidate => candidate.id === placement.stage);
-  return <span>In {stage?.label ?? placement.stage}</span>;
+  if (item.progress === null || column === null) return <span>Position unknown</span>;
+  if ('ended' in column) return <span>{column.ended}</span>;
+  return <span>In {column.stage.label}</span>;
 }
 
 type Change = NonNullable<NonNullable<FactoryItem['progress']>['change']>;

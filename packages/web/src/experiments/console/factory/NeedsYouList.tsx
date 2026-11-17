@@ -41,7 +41,7 @@ export function NeedsYouList({
 }): ReactElement {
   const items = attention.data === undefined ? [] : needsYou(attention.data.items);
   return (
-    <section id="needs-you" className="flex flex-col gap-2.5">
+    <section id="needs-you" className="flex max-w-5xl flex-col gap-2.5">
       <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
         Needs you{attention.data === undefined ? '' : ` · ${items.length.toString()}`}
       </h3>

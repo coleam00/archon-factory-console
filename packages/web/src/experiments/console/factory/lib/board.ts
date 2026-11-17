@@ -1,6 +1,8 @@
 /**
- * The board, as pure derivation: which column each item sits in and what its card says,
- * from the items read and the factory view declaration (DESIGN.md, "The board"). Nothing
+ * The board, as pure derivation: what each item's card says and how the cards group into
+ * columns, from the items read and the factory view declaration (DESIGN.md, "The board").
+ * Which column an item sits in is `placement.ts`'s, the one placement the map and the item
+ * page share. Nothing
  * here names a pack's stages, workflows, steps or outcomes; every one comes from the
  * declaration or the engine's records.
  */
@@ -8,18 +10,13 @@ import { formatDateTime } from '../../lib/format';
 import type { FactoryItemsPage } from '../../skills/factory';
 import { needsYou } from './needs-you';
 import { showsCard, type BoardShow } from './board-show';
+import { pageItemColumn, type ItemColumn } from './placement';
 import { factoryPath, type FactoryViewListed } from './views';
 
 export type FactoryItem = FactoryItemsPage['items'][number];
 export type FactoryDeclaration = FactoryViewListed['declaration'];
-type Stage = FactoryDeclaration['stages'][number];
 type Progress = NonNullable<FactoryItem['progress']>;
 export type RoundVerdict = NonNullable<Progress['round']>['rounds'][number]['verdict'];
-
-/** Where an item sits: a column, by the rule that put it there, or the folded endings row. */
-export type Placement =
-  | { kind: 'column'; stage: string; rule: 1 | 2 | 3 | 5 | 6 }
-  | { kind: 'ended'; label: string };
 
 /** One of an item's declared runs: the declared workflow joined with the run's own read. */
 interface DeclaredRun {
@@ -40,88 +37,6 @@ function declaredRuns(item: FactoryItem): DeclaredRun[] {
 }
 
 const ENDED_STATUSES: ReadonlySet<DeclaredRun['status']> = new Set(['failed', 'cancelled']);
-
-/**
- * Whether `step` of a run of `workflow` counts in `stage`: the stage lists the workflow and
- * declares no steps, or the step equals one or begins with one followed by `.`.
- */
-export function stepMatches(stage: Stage, workflow: string, step: string | null): boolean {
-  if (!stage.workflows.includes(workflow)) return false;
-  if (stage.nodes === undefined) return true;
-  return step !== null && stage.nodes.some(node => step === node || step.startsWith(`${node}.`));
-}
-
-function firstListing(view: FactoryDeclaration, workflow: string): Stage | undefined {
-  return view.stages.find(stage => stage.workflows.includes(workflow));
-}
-
-/**
- * The column a running run puts an item in. A step no stage names (a loop group between
- * rounds, an admission step, or none at all between steps) keeps the item where it was when
- * that column lists the workflow, so the card does not hop and flash; else the first stage
- * listing the workflow.
- */
-function runningStage(
-  view: FactoryDeclaration,
-  running: NonNullable<Progress['running']>,
-  previous: string | undefined
-): Stage | undefined {
-  const matched = view.stages.find(stage => stepMatches(stage, running.workflow, running.step));
-  if (matched !== undefined) return matched;
-  const kept = view.stages.find(
-    stage => stage.id === previous && stage.workflows.includes(running.workflow)
-  );
-  return kept ?? firstListing(view, running.workflow);
-}
-
-/** The ending label of a completed run's outcome: its exact key, else its workflow's `*`. */
-function endingLabel(view: FactoryDeclaration, run: DeclaredRun): string | undefined {
-  if (run.status !== 'completed' || run.outcome === null) return undefined;
-  return view.endings[`${run.workflow}:${run.outcome}`] ?? view.endings[`${run.workflow}:*`];
-}
-
-/**
- * Where an item sits: the first of the six rules that matches (DESIGN.md, "The board").
- * `previous` is the column it sat in on the last read, if any.
- */
-export function placeItem(
-  view: FactoryDeclaration,
-  item: FactoryItem,
-  previous?: string
-): Placement {
-  const first = view.stages[0]?.id ?? view.landed.stage;
-  const progress = item.progress;
-  if (progress === null) return { kind: 'column', stage: first, rule: 6 };
-  // 1. A run of a declared workflow is running on it.
-  if (progress.running !== null) {
-    const stage = runningStage(view, progress.running, previous);
-    if (stage !== undefined) return { kind: 'column', stage: stage.id, rule: 1 };
-  }
-  // 2. Its change merged.
-  if (progress.change?.merged === true)
-    return { kind: 'column', stage: view.landed.stage, rule: 2 };
-  const runs = declaredRuns(item);
-  // 3. Its last completed run's outcome has a place.
-  const completed = runs.filter(run => run.status === 'completed').at(-1);
-  const placed =
-    completed?.outcome == null
-      ? undefined
-      : view.placement[`${completed.workflow}:${completed.outcome}`];
-  if (placed !== undefined) return { kind: 'column', stage: placed, rule: 3 };
-  const last = runs.at(-1);
-  // 4. Its last run ended it without a change.
-  const ending = last === undefined ? undefined : endingLabel(view, last);
-  if (ending !== undefined) return { kind: 'ended', label: ending };
-  // 5. Its last run failed or was cancelled: the stage of the step it failed at.
-  if (last !== undefined && ENDED_STATUSES.has(last.status)) {
-    const stage =
-      view.stages.find(candidate => stepMatches(candidate, last.workflow, last.failedStep)) ??
-      firstListing(view, last.workflow);
-    if (stage !== undefined) return { kind: 'column', stage: stage.id, rule: 5 };
-  }
-  // 6. Otherwise the first stage.
-  return { kind: 'column', stage: first, rule: 6 };
-}
 
 export type Pill = 'running' | 'needs-you' | 'failed' | 'waiting' | 'landed';
 
@@ -218,16 +133,16 @@ function failedLine(run: DeclaredRun): string {
     : `${run.workflow} failed at ${run.failedStep}`;
 }
 
-/** An item's card, given where it was placed. */
+/** An item's card, given where it was placed (`itemColumn`). */
 export function cardFields(
   view: FactoryDeclaration,
   projectId: string,
   item: FactoryItem,
-  placement: Placement
+  column: ItemColumn | null
 ): BoardCard {
   const { key } = item.item;
   const progress = item.progress;
-  const landed = placement.kind === 'column' && placement.stage === view.landed.stage;
+  const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
   const { pill, stopLine } = itemPill(item, landed);
   const mergedAt = progress?.change?.mergedAt ?? null;
   return {
@@ -267,7 +182,8 @@ export function itemPill(item: FactoryItem, landed: boolean): Pick<BoardCard, 'p
 /** A card on the board: the item, where it sits, and what it says. */
 export interface PlacedCard {
   item: FactoryItem;
-  placement: Placement;
+  /** Null when no declared stage holds it, which a view changed under cached items can cause. */
+  column: ItemColumn | null;
   card: BoardCard;
 }
 
@@ -275,15 +191,22 @@ export interface BoardModel {
   /** The declaration's landed stage: the column an item whose change merged sits in. */
   landedStage: string;
   columns: { stage: string; label: string; cards: PlacedCard[] }[];
-  /** The folded rows under the board: items an ending took off it, by label. */
+  /**
+   * The folded rows under the board: items an ending took off it, by label, and items
+   * placement found no column for, under `UNPLACED_LABEL`.
+   */
   ended: { label: string; cards: PlacedCard[] }[];
   /** Where every item sits, filter or not: a column id, or `ended:<label>`. */
   positions: Map<string, string>;
 }
 
-/** Where a placement puts an item, as one comparable string. */
-export function positionOf(placement: Placement): string {
-  return placement.kind === 'column' ? placement.stage : `ended:${placement.label}`;
+/** The folded row of items placement found no column for; the item page says the same. */
+export const UNPLACED_LABEL = 'Position unknown';
+
+/** Where an item sits, as one comparable string: a column id, or `ended:<label>`. */
+export function positionOf(column: ItemColumn | null): string {
+  if (column === null) return `ended:${UNPLACED_LABEL}`;
+  return 'ended' in column ? `ended:${column.ended}` : column.stage.id;
 }
 
 /** Whether `query` finds the card by key or title, ignoring case. An empty query finds all. */
@@ -311,12 +234,13 @@ export function boardModel(
   const ended = new Map<string, PlacedCard[]>();
   const positions = new Map<string, string>();
   for (const item of items) {
-    const placement = placeItem(view, item, previous.get(item.item.key));
-    positions.set(item.item.key, positionOf(placement));
-    const placed = { item, placement, card: cardFields(view, projectId, item, placement) };
-    if (placement.kind === 'ended')
-      ended.set(placement.label, [...(ended.get(placement.label) ?? []), placed]);
-    else columns.find(column => column.stage === placement.stage)?.cards.push(placed);
+    const column = pageItemColumn(view, item, previous.get(item.item.key));
+    positions.set(item.item.key, positionOf(column));
+    const placed = { item, column, card: cardFields(view, projectId, item, column) };
+    if (column === null || 'ended' in column) {
+      const label = column === null ? UNPLACED_LABEL : column.ended;
+      ended.set(label, [...(ended.get(label) ?? []), placed]);
+    } else columns.find(entry => entry.stage === column.stage.id)?.cards.push(placed);
   }
   return {
     landedStage: view.landed.stage,

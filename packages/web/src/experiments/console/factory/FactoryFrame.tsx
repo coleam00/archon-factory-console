@@ -144,7 +144,7 @@ function FactoryHeading({
   waiting: number | undefined;
 }): ReactElement {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex max-w-5xl flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
         {/* The summary introduces the factory once, on the Overview; the other pages need
@@ -226,7 +226,7 @@ function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): ReactNod
   return (
     <div
       role="alert"
-      className="flex flex-col gap-2 rounded-console-12 border border-error/30 bg-error/10 px-4 py-3"
+      className="flex max-w-5xl flex-col gap-2 rounded-console-12 border border-error/30 bg-error/10 px-4 py-3"
     >
       <p className="text-console-12 font-medium text-error">
         {errors.length === 1

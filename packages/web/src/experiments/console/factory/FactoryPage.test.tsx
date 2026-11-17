@@ -101,6 +101,7 @@ function render(
 ): string {
   set(K.factoryViews(ID), listing);
   set(K.factoryAttention(ID), attention);
+  set(K.factoryItems(ID), []);
   set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
   set(K.factoryItems(ID), items);
   return renderToStaticMarkup(
@@ -197,6 +198,13 @@ describe('the Overview', () => {
     const html = render(`/console/p/${ID}/factory`, withView, asking);
     expect(html).toContain('Which base should the change target?');
     expect(html).toContain('Recommended: Use dev');
+  });
+
+  test('the map follows what needs you', () => {
+    const html = render(`/console/p/${ID}/factory`, withView, asking);
+    const needsYou = html.indexOf('id="needs-you"');
+    expect(needsYou).toBeGreaterThan(-1);
+    expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
   });
 
   test('a broken project file shows its path and error, not an empty state', () => {

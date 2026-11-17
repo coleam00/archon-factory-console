@@ -158,7 +158,7 @@ those land, this section adds **one read-only route file**, `packages/server/src
 All derivation (column, card fields) is pure TypeScript in the web package, with unit tests,
 fed by these reads. Logic worth porting from Mission Control (`C:\Users\colem\OpenSource\factory-mission-control`,
 read-only reference): `app/lib/board.ts` (placement and card fields), `app/map/live.ts`
-(which card a running step belongs to), `app/map/FactoryMap.tsx` (pan, zoom, fit, details
+(which card a running step belongs to), `app/components/FactoryMap.tsx` (pan, zoom, fit, details
 panel). Port the logic and ideas, not the styling: Mission Control used its own tokens.
 
 ## Overview page
@@ -191,16 +191,22 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## The board
 
 Columns are the declaration's stages in order, then the landed column. Placement of one item,
-first rule that matches:
+first rule that matches. The board, the map and the item page all place through one function
+(`factory/lib/placement.ts`), so they never disagree:
 
 1. A run of a declared workflow is **running** on it: the stage whose `workflows` (and `nodes`,
-   when given) match the run's workflow and deepest running step.
+   when given) match the run's workflow and deepest running step. On a step no stage names (a
+   loop group between rounds, or none between steps) the board, the map and the item page each
+   keep the item in the stage it sat in on their last read when that stage lists the workflow,
+   so a card does not hop; else the workflow's first stage. A view opened while a run is
+   between named steps has no last read, so for that moment it can show the workflow's first
+   stage where a view open longer still holds the item.
 2. Its change **merged**: the landed column.
 3. Its last completed run's `workflow:outcome` is in `placement`: that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
    "N closed by triage" under the board, each linking to its item.
-5. Its last run **failed** or was cancelled: the stage of that run's workflow, with the failed
-   pill and stop line.
+5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
+   else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
 
 A card, in this order:

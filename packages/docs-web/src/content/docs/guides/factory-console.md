@@ -23,7 +23,14 @@ it. Inside it:
 
 - **Overview**: the view's title and summary, then a strip of numbers, then **Needs you**:
   every open question an item is waiting on, with the recommended option first, answerable in
-  place. Paused runs' waits appear there too.
+  place. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
+  on the `map` grid, coloured by group, with the declared hand-offs between them (returns
+  dashed, below). Each card says how many items are in it now, pulsing while a run works one,
+  and how many need a person. Drag to pan, and scroll or use the buttons to zoom. **Fit** shows
+  the whole map when it fits at a readable size; with a card's details open, or on a narrow
+  screen, it stops at the smallest readable size, so drag, zoom out or close the details to
+  see the rest. Click a card for its items and workflows; double-click it, or its open icon, for
+  the stage page.
 - **Board**: one column per declared stage, each item one card in the column of the stage it
   is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
   round it is on, the step running now, how often checks sent it back, and its pull request.
@@ -59,12 +66,17 @@ Nothing stores an item's column. The console derives it from the item's runs, it
 questions and whether its change merged, taking the first rule that matches:
 
 1. A run of a workflow the view names is running on it: the stage whose `workflows` (and
-   `nodes`, when given) match the run's workflow and running step.
+   `nodes`, when given) match the run's workflow and running step. On a step no stage names
+   (a loop between rounds, or between steps) the item stays where it was on the last read,
+   when that stage lists the workflow; else it goes to the workflow's first stage.
 2. Its change merged: the `landed` stage.
 3. Its last completed run's `workflow:outcome` is a key of `placement`: that stage.
 4. Its last run's outcome is a key of `endings`: off the board, in a folded row under it.
-5. Its last run failed or was cancelled: the stage of the step it failed at.
+5. Its last run failed or was cancelled: the stage whose `nodes` name the step it failed at,
+   else the first stage of its workflow.
 6. Otherwise the first stage.
+
+The board, the map and the item page all place an item by these same rules.
 
 ## Where the declaration lives
 
@@ -97,7 +109,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose first line is the item's title. Without it, the item's key is its title. |
-| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. The console does not draw the map yet. |
+| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
