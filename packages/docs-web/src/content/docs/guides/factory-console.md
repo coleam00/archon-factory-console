@@ -136,9 +136,20 @@ A drill-down card and loop must name a workflow their own stage lists.
 The schema cannot see a pack's workflows, so a separate check compares a view file with them.
 It is a script of an Archon checkout, `bun run check:factory-view`, and it checks only the
 project files in that checkout's own `.archon/packs/` (`<pack key>.factory-view.json`), not
-another project's files or a pack's `.shared/factory-view.json`. For each one it reads the
-pack's stage graph from `<pack key>.pack-graph.json` beside it, fails when that snapshot is
-missing, and reports, each with its path in the view file:
+another project's files or a pack's `.shared/factory-view.json`. It reads each pack's stage
+graph (what `archon pack graph <pack key> --json` prints) from two places:
+
+- the snapshot `<pack key>.pack-graph.json` committed beside the view file, which CI checks
+  against since it has no installed pack; a missing snapshot fails the check;
+- the installed pack, when the machine has one: the `plugins/` directory of the home
+  `ARCHON_FACTORY_LIVE_HOME` names, else of `ARCHON_HOME`. The view is then checked against the
+  installed pack, and a snapshot that differs from it fails the check, so a reinstall that
+  changes the pack is caught where it is installed. With neither variable set, the check says
+  it used the snapshots only.
+
+It reads the installed pack on a throwaway home holding a copy of that `plugins/` directory and
+nothing else, so the install is only read, and with no trigger files every arrow is one the
+pack declares. It reports, each with its path in the view file:
 
 - every real step of a workflow a stage lists that no drill-down card or loop covers, and every
   step two of them cover (a loop group counts as a step);
@@ -149,16 +160,9 @@ missing, and reports, each with its path in the view file:
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
   own stage is a rerun only a hand-off starts, so it is always checked.
 
-The snapshot is `archon pack graph <pack key> --json` read on a home that has the pack
-installed and no trigger files, so every arrow in it is one the pack declares. Refresh it after
-reinstalling the pack, on a scratch home and never on a home a running Archon uses:
-
-1. Make an empty directory for the scratch home and copy the installed packs into it: the
-   `plugins/` directory of the home the pack is installed in.
-2. From the checkout, run `bun run check:factory-view --write <pack key>` with `ARCHON_HOME`
-   set to the scratch home. It refuses a home that has trigger files for the pack, and the home
-   `ARCHON_FACTORY_LIVE_HOME` names, when that variable is set.
-3. Commit the rewritten `<pack key>.pack-graph.json`, then delete the scratch home.
+After reinstalling the pack, refresh the snapshot from the installed pack with
+`bun run check:factory-view --write <pack key>`, then fix what the check reports in the view
+file and commit both.
 
 ## Example
 
