@@ -96,11 +96,21 @@ export function BoardCard({
       </Link>
       {card.round === null ? null : <RoundDots round={card.round} />}
       {card.run === null ? null : (
+        // Breaks between the workflow and the step, never inside a name; a step too long for
+        // the card is cut with its full name in the title.
         <Link
           to={card.run.href}
-          className={`${INNER_LINK} break-all font-mono text-console-11 ${statusTextClass.running}`}
+          title={card.run.text}
+          aria-label={card.run.text}
+          className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 font-mono text-console-11 ${statusTextClass.running}`}
         >
-          {card.run.text}
+          <span className="whitespace-nowrap">
+            {card.run.workflow}
+            {card.run.step === null ? '' : ' ·'}
+          </span>
+          {card.run.step === null ? null : (
+            <span className="min-w-0 max-w-full truncate">{card.run.step}</span>
+          )}
         </Link>
       )}
       <CardLinks card={card} />

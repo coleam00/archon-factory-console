@@ -150,7 +150,8 @@ export interface BoardCard {
     text: string;
     dots: { iteration: number; verdict: RoundVerdict; label: string }[];
   } | null;
-  run: { text: string; href: string } | null;
+  /** `text` is "workflow · step"; `workflow` and `step` let a card break the line between them. */
+  run: { text: string; workflow: string; step: string | null; href: string } | null;
   returned: { count: number; href: string } | null;
   change: { href: string; label: string } | null;
   /** When the change merged, in local time; only in the landed column. */
@@ -184,6 +185,8 @@ function runField(projectId: string, progress: Progress | null): BoardCard['run'
   if (running == null) return null;
   return {
     text: running.step === null ? running.workflow : `${running.workflow} · ${running.step}`,
+    workflow: running.workflow,
+    step: running.step,
     href: `/console/p/${projectId}/r/${running.runId}`,
   };
 }

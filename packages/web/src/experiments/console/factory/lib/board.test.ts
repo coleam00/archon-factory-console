@@ -1,6 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { formatDateTime } from '../../lib/format';
 import { askItem } from '../needs-you.test-fixtures';
 import {
@@ -75,6 +73,22 @@ describe('placement, first rule that matches', () => {
 
   test('1: between steps with no column before, the first stage listing the workflow', () => {
     expect(placeItem(VIEW, delivering(null))).toMatchObject({ stage: 'build', rule: 1 });
+  });
+
+  test('1 before 2: a land run still running after it merged the change keeps the item in Ready to land', () => {
+    // The land workflow merges, then returns its outcome: the run is still running then.
+    const item = realItem('7');
+    item.progress = {
+      ...progressOf(item),
+      running: {
+        runId: 'land-run',
+        workflow: 'land',
+        step: 'land',
+        startedAt: '2026-11-17T04:29:00.000Z',
+      },
+    };
+    expect(placeItem(VIEW, item)).toEqual({ kind: 'column', stage: 'ready', rule: 1 });
+    expect(card(item)).toMatchObject({ pill: 'running', landedAt: null });
   });
 
   test('2: a merged change is in Landed', () => {
@@ -203,6 +217,8 @@ describe('card fields, in order', () => {
     const item = realItem('8');
     expect(card(item).run).toEqual({
       text: 'deliver · rounds.product__product',
+      workflow: 'deliver',
+      step: 'rounds.product__product',
       href: `/console/p/${PROJECT}/r/${progressOf(item).running!.runId}`,
     });
     expect(card(delivering(null)).run?.text).toBe('deliver');
@@ -299,9 +315,31 @@ describe('the board', () => {
     );
   });
 
-  test('no outcome is named in the board code; every one comes from the declaration', () => {
-    const source = readFileSync(join(import.meta.dir, 'board.ts'), 'utf8');
-    for (const outcome of ['approve', 'return', 'ask', 'replan', 'ready', 'planned'])
-      expect(source).not.toContain(`'${outcome}'`);
+  test('every outcome comes from the declaration: renamed there, placement follows the new names', () => {
+    // The declaration renames deliver's `ready` to `shipit` and plan's `stop` to `halt`.
+    const { 'deliver:ready': _ready, ...placement } = VIEW.placement;
+    const { 'plan:stop': _stop, ...endings } = VIEW.endings;
+    const renamed = {
+      ...VIEW,
+      placement: { ...placement, 'deliver:shipit': 'ready' },
+      endings: { ...endings, 'plan:halt': 'Stopped at planning' },
+    };
+    const unmerged = (outcome: string): FactoryItem => {
+      const item = endLastRun(realItem('1'), 'completed', outcome);
+      const progress = progressOf(item);
+      if (progress.change === null) throw new Error('item 1 has a change');
+      item.progress = { ...progress, change: { ...progress.change, merged: false } };
+      return item;
+    };
+    expect(placeItem(renamed, unmerged('shipit'))).toMatchObject({ stage: 'ready', rule: 3 });
+    // The old name places nothing now: the item falls back to the first stage.
+    expect(placeItem(renamed, unmerged('ready'))).toMatchObject({ stage: 'triage', rule: 6 });
+    expect(placeItem(renamed, endLastRun(realItem('6'), 'completed', 'halt'))).toEqual({
+      kind: 'ended',
+      label: 'Stopped at planning',
+    });
+    expect(placeItem(renamed, endLastRun(realItem('6'), 'completed', 'stop'))).toMatchObject({
+      kind: 'column',
+    });
   });
 });

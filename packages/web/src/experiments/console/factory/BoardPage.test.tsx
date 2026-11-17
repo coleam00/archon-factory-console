@@ -91,7 +91,9 @@ describe('the Pipeline view', () => {
         'Landed3',
       ]);
       const checks = container.querySelector('section[aria-label="Checks"]');
-      expect(checks?.textContent).toContain('deliver · rounds.product__product');
+      expect(checks?.querySelector('a[title="deliver · rounds.product__product"]')).not.toBeNull();
+      // The card opens its item page.
+      expect(checks?.querySelector(`a[href="/console/p/${ID}/factory/items/8"]`)).not.toBeNull();
       expect(checks?.querySelector('a[href^="/console/p/cb-1/r/"]')).not.toBeNull();
     } finally {
       await unmount();
@@ -192,6 +194,10 @@ describe('the Table view', () => {
         [...container.querySelectorAll('th button')].find(button =>
           button.textContent?.startsWith(label)
         ) as HTMLButtonElement;
+      const firstRow = container.querySelector('tbody tr');
+      expect(firstRow?.querySelector('a')?.getAttribute('href')).toBe(
+        `/console/p/${ID}/factory/items/5`
+      );
       await act(async () => header('Item').click());
       expect(keys()).toEqual(['1', '2', '3', '4', '5', '6', '7', '8']);
       await act(async () => header('Item').click());
