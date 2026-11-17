@@ -9,6 +9,7 @@ import {
   type LaidOutGroup,
   type LaidOutStep,
 } from './lib/step-graph-layout';
+import type { ItemOnStep } from './lib/items-on-step';
 import type { StepPageState } from './lib/stage-steps';
 import { factoryPath } from './lib/views';
 
@@ -19,14 +20,39 @@ interface StepGraphProps {
   /** The stage drawing this graph; the step page leads back to it. */
   stageId: string;
   graph: StepGraphData;
+  /** The items on each step now, keyed by step key or loop id; nothing glows without it. */
+  running?: ReadonlyMap<string, readonly ItemOnStep[]>;
+}
+
+const NOT_RUNNING: readonly ItemOnStep[] = [];
+
+/**
+ * RunGraphPanel's running tint, held still: the items read carries no owner liveness, so a
+ * pulse would claim more than it knows.
+ */
+const RUNNING_GLOW: CSSProperties = {
+  background: 'color-mix(in oklch, var(--running), transparent 90%)',
+  borderColor: 'color-mix(in oklch, var(--running), transparent 40%)',
+  boxShadow: '0 0 0 3px color-mix(in oklch, var(--running), transparent 85%)',
+};
+
+function runningFor(onStep: readonly ItemOnStep[]): string {
+  return `Running for ${onStep.map(({ item }) => item.item.key).join(', ')}`;
 }
 
 /**
  * One workflow's steps, top to bottom (RunGraphPanel's canvas, nodes and connectors), with
  * each loop group framed and labelled with its rounds and each included workflow framed in
- * dashes. A step another stage works is dimmed. Clicking a step opens its page.
+ * dashes. A step another stage works is dimmed, unless an item is on it now: a running step,
+ * or a loop between its bodies, glows whichever stage works it. Clicking a step opens its page.
  */
-export function StepGraph({ projectId, workflow, stageId, graph }: StepGraphProps): ReactElement {
+export function StepGraph({
+  projectId,
+  workflow,
+  stageId,
+  graph,
+  running,
+}: StepGraphProps): ReactElement {
   const navigate = useNavigate();
   const laid = useMemo(() => layoutStepGraph(graph), [graph]);
   const size: CSSProperties = {
@@ -63,12 +89,17 @@ export function StepGraph({ projectId, workflow, stageId, graph }: StepGraphProp
           ))}
         </svg>
         {laid.groups.map(group => (
-          <GroupFrame key={group.group.id} group={group} />
+          <GroupFrame
+            key={group.group.id}
+            group={group}
+            onStep={running?.get(group.group.id) ?? NOT_RUNNING}
+          />
         ))}
         {laid.steps.map(step => (
           <StepButton
             key={step.node.key}
             step={step}
+            onStep={running?.get(step.node.key) ?? NOT_RUNNING}
             onOpen={() => {
               void navigate(
                 factoryPath(
@@ -85,14 +116,30 @@ export function StepGraph({ projectId, workflow, stageId, graph }: StepGraphProp
   );
 }
 
-function GroupFrame({ group }: { group: LaidOutGroup }): ReactElement {
+function GroupFrame({
+  group,
+  onStep,
+}: {
+  group: LaidOutGroup;
+  onStep: readonly ItemOnStep[];
+}): ReactElement {
   const loop = group.group.kind === 'loop';
+  // Only a loop is ever the running step: between its bodies, the deepest step is the loop.
+  const glows = loop && onStep.length > 0;
   return (
     <div
+      data-running={glows ? '' : undefined}
+      title={glows ? runningFor(onStep) : undefined}
       className={`absolute rounded-console-12 border ${
         loop ? 'border-border-bright' : 'border-dashed border-border-bright'
       }`}
-      style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
+      style={{
+        left: group.x,
+        top: group.y,
+        width: group.width,
+        height: group.height,
+        ...(glows ? { borderColor: RUNNING_GLOW.borderColor } : {}),
+      }}
     >
       <div
         // A label wider than a narrow frame runs past its edge on its backing rather than cut
@@ -140,17 +187,38 @@ function kindGlyph(kind: StepGraphNode['kind']): string {
   }
 }
 
-function StepButton({ step, onOpen }: { step: LaidOutStep; onOpen: () => void }): ReactElement {
+function StepButton({
+  step,
+  onStep,
+  onOpen,
+}: {
+  step: LaidOutStep;
+  onStep: readonly ItemOnStep[];
+  onOpen: () => void;
+}): ReactElement {
   const { node } = step;
+  const glows = onStep.length > 0;
+  const title = [
+    node.key,
+    ...(node.when === null ? [] : [`Runs when ${node.when}`]),
+    ...(glows ? [runningFor(onStep)] : []),
+  ].join('\n');
   return (
     <button
       type="button"
       onClick={onOpen}
-      title={node.when === null ? node.key : `${node.key}\nRuns when ${node.when}`}
+      data-running={glows ? '' : undefined}
+      title={title}
       className={`absolute flex items-center gap-2.5 overflow-hidden rounded-lg border border-border-bright bg-surface-elevated px-3.5 text-left transition-colors hover:brightness-110 ${
-        node.inStage ? '' : 'opacity-60'
+        node.inStage || glows ? '' : 'opacity-60'
       }`}
-      style={{ left: step.x, top: step.y, width: step.width, height: step.height }}
+      style={{
+        left: step.x,
+        top: step.y,
+        width: step.width,
+        height: step.height,
+        ...(glows ? RUNNING_GLOW : {}),
+      }}
     >
       <span
         aria-hidden

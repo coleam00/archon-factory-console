@@ -2,12 +2,13 @@ import { afterAll, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
+import type { FactoryItemsPage, FactoryViews, FactoryWorkflow } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
+import { capturedItemAs, capturedItemsPage } from './lib/fixtures/factory-items-page';
 
 // Clicking a step is the only way onto a step page, and static markup cannot click.
 const dom = new Window({ url: 'http://localhost' });
@@ -39,6 +40,7 @@ afterAll(async () => {
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
   invalidate('factory-workflow');
+  invalidate('factory-items');
   invalidate('runs');
   await dom.happyDOM.close();
   for (const [key, descriptor] of descriptors) {
@@ -80,13 +82,18 @@ const views: FactoryViews = {
   errors: [],
 };
 
-test('clicking a step on the stage graph opens its step page, which leads back to the stage', async () => {
-  // The pages read through the cache; a revalidation gets the same answers.
+/** What the stubbed server answers for the items read; a test swaps it to move an item. */
+let itemsResponse: () => Response = () => Response.json(capturedItemsPage);
+
+// The pages read through the cache; a revalidation gets the same answers.
+function serve(items: () => Response): void {
+  itemsResponse = items;
   globalThis.fetch = Object.assign(
     async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/factory/views')) return Response.json(views);
       if (url.includes('/api/factory/workflow')) return Response.json(deliver);
+      if (url.includes('/api/factory/items')) return itemsResponse();
       if (url.includes('/api/runs/attention'))
         return Response.json({ items: [], runs: [], degraded: [] });
       return Response.json({ error: 'not in this test' }, { status: 404 });
@@ -95,14 +102,23 @@ test('clicking a step on the stage graph opens its step page, which leads back t
   );
   set(K.factoryViews(ID), views);
   set(K.factoryWorkflow(ID, 'deliver'), deliver);
+  // Each test starts from a cold items read, so it loads what this test serves.
+  invalidate('factory-items');
+}
 
+const settle = (): Promise<void> => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+
+async function renderAt(
+  path: string,
+  check: (container: HTMLElement) => Promise<void>
+): Promise<void> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   try {
     await act(async () =>
       root.render(
-        <MemoryRouter initialEntries={[`/console/p/${ID}/factory/stages/checks`]}>
+        <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
             <Route
@@ -113,10 +129,33 @@ test('clicking a step on the stage graph opens its step page, which leads back t
         </MemoryRouter>
       )
     );
-    const fix = [...container.querySelectorAll('button')].find(button =>
-      button.textContent.startsWith('·fix')
-    );
-    if (!fix) throw new Error('The stage graph drew no fix step');
+    await settle();
+    await check(container);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+}
+
+function stepButton(container: HTMLElement, label: string): HTMLButtonElement {
+  const button = [...container.querySelectorAll('button')].find(candidate =>
+    candidate.textContent.startsWith(label)
+  );
+  if (!button) throw new Error(`The stage graph drew no ${label} step`);
+  return button;
+}
+
+const itemLinks = (container: HTMLElement): string[] =>
+  [...container.querySelectorAll('a[href*="/factory/items/"]')].map(
+    link => link.getAttribute('href') ?? ''
+  );
+
+const capturedLinks = ['12', '4', '6'].map(key => `/console/p/${ID}/factory/items/${key}`);
+
+test('clicking a step on the stage graph opens its step page, which leads back to the stage', async () => {
+  serve(() => Response.json(capturedItemsPage));
+  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    const fix = stepButton(container, '·fix');
     await act(async () => {
       fix.click();
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -124,8 +163,64 @@ test('clicking a step on the stage graph opens its step page, which leads back t
 
     expect(container.textContent).toContain('deliver · rounds.fix');
     expect(container.textContent).toContain('Back to Checks');
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
+  });
+});
+
+test('the stage page glows the step items are on now and links each item', async () => {
+  serve(() => Response.json(capturedItemsPage));
+  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    expect(container.textContent).toContain('Running now');
+    expect(itemLinks(container)).toEqual(capturedLinks);
+    // Another stage works build__build; a step an item is on glows whichever stage works it.
+    const build = stepButton(container, '·build');
+    expect(build.hasAttribute('data-running')).toBe(true);
+    expect(build.className).not.toContain('opacity-60');
+    expect(build.title).toContain('Running for 12, 4, 6');
+    expect(stepButton(container, '·fix').hasAttribute('data-running')).toBe(false);
+  });
+});
+
+test('the step page lists the items on the step now, and says when there are none', async () => {
+  serve(() => Response.json(capturedItemsPage));
+  await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async container => {
+    expect(container.textContent).toContain('On this step now');
+    expect(itemLinks(container)).toEqual(capturedLinks);
+  });
+  await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async container => {
+    expect(itemLinks(container)).toEqual([]);
+    expect(container.textContent).toContain('No item is on this step now.');
+  });
+});
+
+test('a dashboard event moves an item onto the step page it is now on', async () => {
+  serve(() => Response.json(capturedItemsPage));
+  await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async container => {
+    expect(container.textContent).toContain('No item is on this step now.');
+    const moved = capturedItemAs('12', {
+      running: {
+        runId: 'c9773ff3-36bf-413e-a3b3-45ce93a77087',
+        workflow: 'deliver',
+        step: 'rounds.fix',
+        startedAt: '2026-11-17T06:41:56.000Z',
+      },
+    });
+    const next: FactoryItemsPage = { ...capturedItemsPage, items: [moved] };
+    itemsResponse = () => Response.json(next);
+    // What lib/sse.ts calls on a workflow_status or dag_node event.
+    await act(async () => {
+      invalidate('factory-items');
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(itemLinks(container)).toEqual([`/console/p/${ID}/factory/items/12`]);
+  });
+});
+
+test('a failed items read says so on the stage page, and the graph still draws unlit', async () => {
+  serve(() => Response.json({ error: 'The items read failed.' }, { status: 500 }));
+  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    expect(container.textContent).toContain(
+      'Could not load which items are running: The items read failed.'
+    );
+    expect(stepButton(container, '·build').hasAttribute('data-running')).toBe(false);
+  });
 });
