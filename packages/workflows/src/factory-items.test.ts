@@ -196,6 +196,13 @@ describe("an item's progress", () => {
     expect(progress).toEqual({
       title: 'The live-home guard and dev:console have tests',
       running: null,
+      ended: {
+        runId: deliver1.run.id,
+        workflow: 'deliver',
+        status: 'completed',
+        outcome: 'ready',
+        completedAt: deliver1.run.completed_at?.toISOString() ?? null,
+      },
       round: {
         runId: deliver1.run.id,
         iteration: 2,
@@ -230,6 +237,31 @@ describe("an item's progress", () => {
     });
     expect(progress.round?.iteration).toBe(2);
     expect(progress.change).toBeNull();
+  });
+
+  test('ended is the latest-started declared run that ended, failed or cancelled too', async () => {
+    const failed = {
+      ...deliver1,
+      run: { ...deliver1.run, status: 'failed' as const, completed_outcome: null },
+    };
+    const progress = await progressOf([triage1, plan1, failed]);
+    expect(progress.ended).toMatchObject({ runId: failed.run.id, status: 'failed', outcome: null });
+  });
+
+  test('a run going after an ended one: running is the live run, ended the one before', async () => {
+    const progress = await progressOf([plan1, deliver2Cut]);
+    expect(progress.running?.runId).toBe(deliver2Cut.run.id);
+    expect(progress.ended).toMatchObject({
+      runId: plan1.run.id,
+      workflow: 'plan',
+      status: 'completed',
+      outcome: 'planned',
+    });
+  });
+
+  test('no declared run has ended: ended is null', async () => {
+    expect((await progressOf([deliver2Cut])).ended).toBeNull();
+    expect((await progressOf([])).ended).toBeNull();
   });
 
   test('an item with only triage and plan: nothing returned, no round, no change', async () => {

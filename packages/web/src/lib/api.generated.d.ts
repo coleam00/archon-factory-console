@@ -3856,7 +3856,7 @@ export interface paths {
     };
     /**
      * A page of a project's items with each item's progress
-     * @description Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).
+     * @description Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the last run that ended with its outcome, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).
      */
     get: {
       parameters: {
@@ -10075,6 +10075,15 @@ export interface components {
             step: string | null;
             /** Format: date-time */
             startedAt: string;
+          } | null;
+          ended: {
+            runId: string;
+            workflow: string;
+            /** @enum {string} */
+            status: 'completed' | 'failed' | 'cancelled';
+            outcome: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
           } | null;
           round: {
             runId: string;

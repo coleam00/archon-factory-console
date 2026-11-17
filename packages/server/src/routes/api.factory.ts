@@ -82,7 +82,7 @@ const getFactoryItemsRoute = createRoute({
   tags: ['Workflows'],
   summary: "A page of a project's items with each item's progress",
   description:
-    "Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).",
+    "Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the last run that ended with its outcome, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).",
   request: { query: factoryItemsQuerySchema },
   responses: {
     200: {
