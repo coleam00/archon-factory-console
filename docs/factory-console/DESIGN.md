@@ -4,6 +4,32 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## Owner changes of 2026-11-17 (bind every later change; win over older text below)
+
+The section has **two separate things**, each with its own file:
+
+1. **The factory overview** (new, its own page). A hand-curated explainer of how the factory runs, for
+   presenting: not live, not exhaustive, never generated from workflow YAML. Its own file per pack
+   (`.archon/packs/<pack key>.factory-overview.json`, or `<pack>/.shared/factory-overview.json`), in the
+   format of Mission Control's `app/map/factory-map.json` (read-only reference at
+   `C:\Users\colem\OpenSource\factory-mission-control`): views (a root view and drill-downs), groups,
+   cards (title, one line of text, icon, kind), edges (feeds, calls, and exactly one "loops back" line
+   drawn as a single lane under the line, never crossing dotted lines). Interaction like Eric Tech's
+   skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
+   counts, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a full-screen
+   mode. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
+2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
+   map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
+   grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
+   card `covers` the real step ids it stands for) and display names for steps. A coverage check reads
+   the pack's real workflows and fails when a real step is covered by no card or by two. The live map
+   is one row of stages with one feedback lane underneath; clicking a stage opens it.
+
+**Step names, everywhere a person reads:** never a raw engine id such as `build__build` or
+`rounds.review__review`. One function gives a step's display name: the view file's name when it has
+one, else a cleaned id (a doubled include name collapses, a loop prefix becomes "round N", separators
+become spaces). The raw id appears only on hover and on the step page.
+
 ## What it is for
 
 A factory is Archon running a pack of stages over work items: an item comes in, stages work it,
