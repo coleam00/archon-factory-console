@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import type { components } from '@/lib/api.generated';
 import { SSE_BASE_URL } from '../lib/http';
+import { followWhilePageShown, type PageEvents } from '../lib/page-stream';
 import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
+import { factoryRead } from './lib/deadline';
 
 type StreamLineType = components['schemas']['AttentionStreamLine']['type'];
 
@@ -37,9 +39,20 @@ function lineType(data: string): StreamLineType | undefined {
  * Every line but `bookmark` counts, the connect snapshot and `ready` included, so an item
  * that opened between the list fetch and the stream connecting is not missed. An `error`
  * line means the server ended the stream on a cursor it can no longer read; reconnecting
- * natively would resend that cursor, so a fresh stream starts instead.
+ * natively would resend that cursor, so a fresh stream starts instead. The stream closes
+ * while the page is hidden (`followWhilePageShown`).
  */
 export function watchAttentionStream(
+  url: string,
+  onChange: () => void,
+  open: (url: string) => AttentionEventSource,
+  page: PageEvents = window
+): () => void {
+  return followWhilePageShown(() => followAttentionStream(url, onChange, open), page);
+}
+
+/** One connection's life: its source, its pending refetch, and the fresh start an error line asks for. */
+function followAttentionStream(
   url: string,
   onChange: () => void,
   open: (url: string) => AttentionEventSource
@@ -94,13 +107,16 @@ export function refreshOnAttentionChange(projectId: string): void {
 }
 
 /**
- * A project's attention queue, kept live. Mounted once per Factory page (by FactoryFrame),
- * so the sub-navigation count and the Needs-you list share one fetch and one stream.
+ * A project's attention queue, kept live. Mounted once for the whole Factory section (by
+ * `FactorySectionLayout`), so every page's sub-navigation count and Needs-you list share one
+ * fetch and one stream, which stays open across the section's pages.
  * The dashboard SSE's `invalidate('runs')` refreshes it too: the key sits under `runs:`.
  */
 export function useFactoryAttention(projectId: string): EntityView<AttentionQueue> {
   const key = K.factoryAttention(projectId);
-  const view = useEntity<AttentionQueue>(key, () => skill.listAttentionQueue(projectId));
+  const view = useEntity<AttentionQueue>(key, () =>
+    factoryRead(signal => skill.listAttentionQueue(projectId, { signal }))
+  );
   useEffect(
     () =>
       watchAttentionStream(

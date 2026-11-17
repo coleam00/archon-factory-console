@@ -6,11 +6,7 @@ import type { FactoryOverviewRead, FactoryViews, FactoryWorkflow } from '../skil
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { BoardPage } from './BoardPage';
-import { FactoryPage } from './FactoryPage';
-import { NeedsYouPage } from './NeedsYouPage';
-import { StagePage } from './StagePage';
-import { StepPage } from './StepPage';
+import { factoryRoutes } from './routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from '../skills/factory';
 import { PAGE, VIEW } from './lib/board.test-fixtures';
@@ -111,11 +107,7 @@ function render(
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/console/p/:projectId/factory" element={<FactoryPage />} />
-        <Route path="/console/p/:projectId/factory/board" element={<BoardPage />} />
-        <Route path="/console/p/:projectId/factory/needs-you" element={<NeedsYouPage />} />
-        <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
-        <Route path="/console/p/:projectId/factory/steps/:workflow/:node" element={<StepPage />} />
+        {factoryRoutes('/console/')}
         <Route
           path="/console/p/:projectId"
           element={<ProjectViewTabs projectId={ID} active="runs" />}

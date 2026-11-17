@@ -1,12 +1,11 @@
 import { afterAll, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { StagePage } from './StagePage';
-import { StepPage } from './StepPage';
+import { factoryRoutes } from './routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import {
   capturedItemAs,
@@ -126,13 +125,7 @@ async function renderAt(
     await act(async () =>
       root.render(
         <MemoryRouter initialEntries={[path]}>
-          <Routes>
-            <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
-            <Route
-              path="/console/p/:projectId/factory/steps/:workflow/:node"
-              element={<StepPage />}
-            />
-          </Routes>
+          <Routes>{factoryRoutes('/console/')}</Routes>
         </MemoryRouter>
       )
     );

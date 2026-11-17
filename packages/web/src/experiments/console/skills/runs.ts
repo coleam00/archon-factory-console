@@ -55,8 +55,14 @@ export async function listRunsNeedingAttention(): Promise<RunsAttention> {
 }
 
 /** The open attention items of one project (a codebase id), with the runs holding them. */
-export async function listAttentionQueue(project: string): Promise<AttentionQueue> {
-  const res = await requestJson('/api/runs/attention', 'get', { query: { project } });
+export async function listAttentionQueue(
+  project: string,
+  init: { signal?: AbortSignal } = {}
+): Promise<AttentionQueue> {
+  const res = await requestJson('/api/runs/attention', 'get', {
+    query: { project },
+    signal: init.signal,
+  });
   if (!('items' in res)) throw new Error('Attention endpoint returned counts instead of items');
   return {
     items: res.items,

@@ -9,10 +9,12 @@ import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { useFactoryAttention } from './attention-stream';
+import { factoryRead, readFailed } from './lib/deadline';
 import { needsYou } from './lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
+import { useSectionAttention } from './section-attention';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
+import { FactoryLoading } from './FactoryLoading';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
 export type FactorySection = 'overview' | 'board' | 'needs-you' | 'how-it-works' | null;
@@ -23,7 +25,8 @@ interface FactoryFrameProps {
   wide?: boolean;
   /**
    * The page body, drawn under the view's header once a view applies, with the project's
-   * attention queue: read once here, so the count and a page's list share one fetch and stream.
+   * attention queue: the section's one read (`useSectionAttention`), so the count and a page's
+   * list share one fetch and stream.
    */
   children: (view: FactoryViewListed, attention: EntityView<AttentionQueue>) => ReactNode;
 }
@@ -39,7 +42,7 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
     skill.getProject(projectId)
   );
   const listing = useEntity<FactoryViews>(K.factoryViews(projectId), () =>
-    skill.getFactoryViews({ codebaseId: projectId })
+    factoryRead(signal => skill.getFactoryViews({ codebaseId: projectId }, { signal }))
   );
   const view = currentView(listing.data);
   return (
@@ -52,7 +55,7 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
           {view === undefined ? (
             <>
               <FactoryErrors errors={listing.data?.errors ?? []} />
-              <FactoryAbsent projectId={projectId} listing={listing.data} failed={listing.error} />
+              <FactoryAbsent projectId={projectId} listing={listing} />
             </>
           ) : (
             <FactoryViewed
@@ -84,11 +87,11 @@ function FactoryViewed({
   errors: FactoryViews['errors'];
   children: FactoryFrameProps['children'];
 }): ReactElement {
-  const attention = useFactoryAttention(projectId);
+  const attention = useSectionAttention();
   const waiting = attention.data === undefined ? undefined : needsYou(attention.data.items).length;
   // Read here, where a view applies: the route answers 404 for a project without one.
   const overview = useEntity<FactoryOverviewRead>(K.factoryOverview(projectId), () =>
-    skill.getFactoryOverview({ codebaseId: projectId })
+    factoryRead(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
   );
   return (
     <>
@@ -108,16 +111,16 @@ function FactoryViewed({
 /** A project no view applies to, or whose views have not loaded. */
 function FactoryAbsent({
   projectId,
-  listing,
-  failed,
+  listing: read,
 }: {
   projectId: string;
-  listing: FactoryViews | undefined;
-  failed: Error | undefined;
+  listing: EntityView<FactoryViews>;
 }): ReactNode {
+  const listing = read.data;
+  const failed = readFailed(read.error);
   if (failed !== undefined)
     return <EmptyState title="The factory view could not be loaded" hint={failed.message} />;
-  if (listing === undefined) return <p className="text-xs text-text-tertiary">Loading…</p>;
+  if (listing === undefined) return <FactoryLoading read={read} />;
   // A broken project file already shows above; an empty state under it would contradict it.
   if (listing.errors.some(error => error.source === 'project-file')) return null;
   return (

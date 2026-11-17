@@ -11,7 +11,8 @@ export type ItemRead = components['schemas']['ItemRead'];
  * names its window (`since`, `until`); a later one names only the `after` cursor it follows.
  */
 export async function listItemWindow(
-  opts: QueryParams<'/api/items/window', 'get'>
+  opts: QueryParams<'/api/items/window', 'get'>,
+  init: { signal?: AbortSignal } = {}
 ): Promise<ItemWindow> {
-  return requestJson('/api/items/window', 'get', { query: opts });
+  return requestJson('/api/items/window', 'get', { query: opts, signal: init.signal });
 }
