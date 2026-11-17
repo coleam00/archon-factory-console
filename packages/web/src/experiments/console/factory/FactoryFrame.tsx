@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
+import { ProjectHeader } from '../components/ProjectHeader';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
@@ -42,15 +43,9 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
   const view = currentView(listing.data);
   return (
     <section className="flex h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-6 py-4">
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-medium text-text-primary">
-            {project?.name ?? 'Project'}
-          </h1>
-          <p className="truncate text-xs text-text-tertiary">{project?.path ?? 'Loading…'}</p>
-        </div>
+      <ProjectHeader title={project?.name ?? 'Project'} subtitle={project?.path ?? 'Loading…'}>
         <ProjectViewTabs projectId={projectId} active="factory" />
-      </header>
+      </ProjectHeader>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
         <div className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'}`}>
           {view === undefined ? (
