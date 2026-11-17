@@ -78,6 +78,8 @@ present itself without the console knowing it. Shape (validated with zod in
   "title": "Software factory",
   "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
   "stages": [                                      // map cards and board columns, left to right
+    { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
+      "group": "intake", "workflows": ["order"] },
     {
       "id": "build",
       "label": "Build",
@@ -90,12 +92,15 @@ present itself without the console knowing it. Shape (validated with zod in
     }
   ],
   "placement": {                                    // where an idle item sits after a run ended
+    "order:ready": "triage",
     "triage:build": "plan", "triage:narrow": "plan",
     "plan:planned": "build", "plan:ask": "plan",
     "deliver:ready": "ready", "deliver:waiting": "host", "deliver:returned": "build",
-    "deliver:replan": "plan", "deliver:ask": "build"
-  },
-  "endings": { "triage:*": "Closed by triage" },   // outcomes that end an item without a change
+    "deliver:replan": "plan", "deliver:ask": "build",
+    "landgate:*": "ready"                           // workflow:* takes every completed run no
+  },                                                // exact key does, one with no outcome too
+  "endings": { "triage:*": "Closed by triage", "order:refused": "Refused at intake" },
+                                                   // outcomes that end an item without a change
   "landed": { "stage": "landed" },                 // the column for an item whose change merged
   "rounds": { "workflow": "deliver", "loop": "rounds" },
   "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
@@ -106,9 +111,10 @@ present itself without the console knowing it. Shape (validated with zod in
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = first line of this run input
   "map": {
-    "cards": [ { "stage": "build", "col": 3, "row": 1 } ],
-    "arrows": [ { "from": "plan", "to": "build", "label": "planned" },
-                { "from": "checks", "to": "build", "label": "returned", "back": true } ],
+    "cards": [ { "stage": "build", "col": 4, "row": 1 } ],
+    "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // only inside one
+                { "from": "checks", "to": "build", "label": "returned", "back": true },  // workflow,
+                { "from": "ready", "to": "landed", "label": "merged" } ],  // or into landed
     "notes": [ { "text": "You answer asks here", "near": "needs-you" } ]
   }
 }
@@ -124,31 +130,47 @@ enable the factory for a project and its view appears.
 
 This repository ships the declaration for `Wirasm/archon-software-factory` as the project file
 `.archon/packs/Wirasm.archon-software-factory.factory-view.json`. Proposing it upstream into the
-pack is later work.
+pack is later work. The pack's `discoveries` drain runs after deliver but moves no item, so the
+declaration names no stage for it: runs of a workflow no stage lists do not place an item.
+
+A declared map arrow joins stages one workflow works (its steps), or runs into the landed
+stage; the schema refuses any other. A hand-off from one workflow to another is the pack
+graph's (see The map), so the declaration cannot draw one the install does not have.
 
 ## Data
 
-The engine on this repository's base has `GET /api/items?project&key` (one item, whole) and the
-attention routes, but no list of a project's items. Rasmus has open engine work for it (#5815,
-`GET /api/items/window`) and for the stage graph (#5848, `GET /api/packs/{pack}/graph`). Until
-those land, this section adds **one read-only route file**, `packages/server/src/routes/api.factory.ts`:
+The items and the stage graph are the engine's own reads, which any API client uses:
 
-- `GET /api/factory/views?codebaseId=` the factory views that apply to the project.
+- `GET /api/items/window?project=&since=&limit=&after=` (#5815) is the items read: a page of the
+  project's items, each read whole (`ItemRead`). The console walks it from a far-back `since`
+  (1970, so every item shows) by its `after` cursor, which carries the window, 100 items a page.
+  The window pages by item id; the console sorts newest activity first (the latest of each
+  item's runs' end, or start while one runs), since a board column keeps the order it is given.
+- `GET /api/packs/{pack}/graph?codebaseId=` (#5848, what `archon pack graph` prints) gives the
+  pack's stages, outcomes and the arrows between them, each active (a trigger file in this
+  install starts it) or only declared by the pack. The map draws its hand-offs between workflows
+  from it. `{pack}` is the pack's folder key (`Wirasm.archon-software-factory`), not
+  `owner/name`.
+
+What those reads do not carry comes from **one read-only route file**,
+`packages/server/src/routes/api.factory.ts`:
+
+- `GET /api/factory/views?codebaseId=` the factory views that apply to the project. Each carries
+  `packKey` (the graph's `{pack}`) and `runNames` (each workflow a stage lists, as its runs record
+  it and the graph names its stage), so the web never re-derives either.
 - `GET /api/factory/workflow?codebaseId=&workflow=` one workflow a view names, for the stage and
   step pages: its steps keyed as run events name them, the loop groups and included workflows
   that frame them, and each step's kind, model, `when:`, prompt and authored YAML.
-- `GET /api/factory/items?codebaseId=&since=&limit=&after=` a page of the project's items, newest
-  activity first. Each entry is the engine's own `ItemRead` (as `GET /api/items` returns it,
-  same schema, imported, not restated) plus a `progress` object the board needs and `ItemRead`
-  does not carry: the running run's id, workflow and deepest running step, the current loop
-  iteration of the declared `rounds` loop, the returned count, the change URL from the declared
-  pointer with its pull request number, the title, and each declared run's workflow as the
-  view names it with the step it failed at. Shape the page like #5815 (`{ items, next }`) so
-  swapping to it later is a change of one skill.
-- `GET /api/factory/item?codebaseId=&key=` one item as a page entry reads it, plus what its
-  timeline needs per run and neither read carries: the declared workflow, the run's cost, its
-  running step, and each round of the declared `rounds` loop with the steps that recorded an
-  outcome in it and the deciding step's summary.
+- `GET /api/factory/progress?codebaseId=&keys=` (`keys` repeated, up to one window page) the
+  progress the board needs and `ItemRead` does not carry, by item key: the running run's id,
+  workflow and deepest running step, the current loop iteration of the declared `rounds` loop,
+  the returned count, the change URL from the declared pointer with its pull request number,
+  the title, and each declared run's workflow as the view names it with the step it failed at.
+  The web joins each window page with it: one reader, `factory/lib/factory-items-read.ts`.
+- `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
+  timeline needs per run and neither read carries: the declared workflow, the run's cause, its
+  cost, its running step, and each round of the declared `rounds` loop with the steps that
+  recorded an outcome in it and the deciding step's summary.
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The pull request is the one the run's forge records name, else the one on a branch
@@ -172,16 +194,34 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    `POST /api/attention/answer`. The list shows the newest few and says how many more there
    are, with "show all"; a line the operator opened stays shown. Paused runs' waits appear here
    too (the attention list already reads both into one shape). The item page shows its own asks
-   opened.
+   opened. Under the open asks, **Answered lately** lists the three newest sets of asks an item
+   settled, with how many were answered and withdrawn and the stage the settling started again
+   (engine #5834), linking to that run with its status, or that no stage started from it. It
+   joins the item read's `asks_settled` answer to the run whose `cause` names the same asking
+   run, so an answer given through the CLI or by an agent shows too.
 4. **The map.**
 
 ## The map
 
-- Cards laid out from `map.cards` on a grid, left to right in the order work flows, with the
-  declared arrows between them (labelled with the outcome that moves an item along; back-arrows
-  drawn dashed in the gap below their row). Each row reads left to right; the author picks the
-  grid, and four columns fill the Overview at 1440 px at full size. A card shows the stage label, its blurb, and live chips: how many
-  items are in it now ("2 here", pulsing while a run works), how many wait on a person.
+- Cards laid out from `map.cards` on a grid, left to right in the order work flows. Each row
+  reads left to right; the author picks the grid, and four columns fill the Overview at 1440 px
+  at full size. A card shows the stage label, its blurb, and live chips: how many items are in
+  it now ("2 here", pulsing while a run works), how many wait on a person.
+- Arrows, labelled with the outcome that moves an item along. A hand-off from one workflow to
+  another comes from the pack graph read: it leaves the card a run of its stage ends on (the
+  stage whose `nodes` name the stage's returns node, else where its workflow sits) and enters
+  the card its workflow starts on. Arrows of one kind between the same two cards merge, their
+  outcomes joined. Solid: a trigger file in this install starts it. Dashed: the pack declares
+  it and nothing here starts it (all of them on `dev:console`, whose home has no trigger
+  files). Error colour, dashed: a trigger file starts it but the install's check refuses the
+  run, its problems as the title. Hand-offs inside one workflow, and the merge into Landed, come
+  from `map.arrows`. A return runs in a lane of the gap below its row.
+- An arrow back into its own card (a stage whose answered asks start it again) loops on the
+  card's outer edge: the top for the first row, the bottom for any other. On the same edge, the
+  outcomes of a stage that leaves no asks and that no arrow at all leaves end at a bar: they
+  start nothing. A start of a workflow with no card is listed under the map in one line. When
+  the graph cannot be read, the map draws the declared arrows and says why; when some of the
+  pack's workflows failed to load, it says the graph may be missing hand-offs.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
 - **Click** a card: a details panel beside the map with the blurb, the items in that stage
   (linking to each item), and the workflows behind it with links to their steps.
@@ -190,7 +230,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
   now for any item glows, and above the graph each item running the workflow is named, linking
   to its item page. Clicking a step opens the step page.
-- A legend under the map names the colour groups in plain words.
+- A legend under the map names the colour groups and what each kind of line means, in plain
+  words.
 
 ## The board
 
@@ -229,7 +270,7 @@ A card, in this order:
 7. In the landed column: when it landed, in local time.
 8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
 
-Cards are compact (the board fits seven columns at 1440 px wide; below that the board scrolls
+Cards are compact (the board fits eight columns at 1440 px wide; below that the board scrolls
 sideways with a hint naming the hidden columns). A card opens the item page. **Table** view: one
 row per item with the same fields as columns, sortable. A filter box narrows by key or title.
 
@@ -268,19 +309,11 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 
 ## Later (not in the first slices, written down so they are not lost)
 
-1. **The map generated from the pack.** When #5848 lands, the stage graph read gives stages,
-   outcomes and active hand-offs from the pack's YAML and the install's trigger files. The map
-   then draws arrows from that read and uses the declaration only for labels, grouping and
-   layout, so the picture is always true. Rasmus's prototype: `evals/graph/graph.ts` in
-   `Wirasm/archon-software-factory`. Discussed 2026-11-16: the author's YAML tags map onto the
-   view; generation, not agent-written UI code.
-2. **Swap the items read** to `GET /api/items/window` (#5815) when it merges; drop our route.
-3. **Work orders** as items with `part_of` links: a strip above the board grouping members, an
+1. **Work orders** as items with `part_of` links: a strip above the board grouping members, an
    order's own column and landing target (`docs/shape.md` in the pack: hypothesis today).
-4. **Graph view of the board** (Rasmus's preference): items as a graph by links instead of
+2. **Graph view of the board** (Rasmus's preference): items as a graph by links instead of
    columns, as a third view.
-5. **Asks restart stages** once engine #5834 lands: answering shows the stage starting.
-6. **Pool of machines** (Rasmus's idea): one console observing several Archon daemons.
-7. **Manager:** a Claude Code session with the factory skill as the operator, local or over SSH;
+3. **Pool of machines** (Rasmus's idea): one console observing several Archon daemons.
+4. **Manager:** a Claude Code session with the factory skill as the operator, local or over SSH;
    the console stays the observation pane.
-8. **Upstream:** propose the declaration format and this section to Archon dev with Rasmus.
+5. **Upstream:** propose the declaration format and this section to Archon dev with Rasmus.
