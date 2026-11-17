@@ -6,8 +6,8 @@ import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
+import { BoardPage } from './BoardPage';
 import { FactoryPage } from './FactoryPage';
-import { FactoryPlaceholder } from './FactoryPlaceholder';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
@@ -20,6 +20,7 @@ afterEach(() => {
   invalidate('factory-workflow');
   invalidate('project');
   invalidate('runs');
+  invalidate('factory-items');
 });
 
 const asking: AttentionQueue = { items: [askItem()], runs: [], degraded: [] };
@@ -86,14 +87,12 @@ function render(
   set(K.factoryViews(ID), listing);
   set(K.factoryAttention(ID), attention);
   set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
+  set(K.factoryItems(ID), []);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/console/p/:projectId/factory" element={<FactoryPage />} />
-        <Route
-          path="/console/p/:projectId/factory/board"
-          element={<FactoryPlaceholder page="board" />}
-        />
+        <Route path="/console/p/:projectId/factory/board" element={<BoardPage />} />
         <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
         <Route path="/console/p/:projectId/factory/steps/:workflow/:node" element={<StepPage />} />
         <Route
@@ -173,16 +172,15 @@ describe('the Overview', () => {
   });
 });
 
-describe('the pages not built yet', () => {
-  test('the board says it is coming next and leads back to the overview', () => {
+describe('the board', () => {
+  test('sits under Board in the sub-navigation, its columns the declared stages', () => {
     const html = render(`/console/p/${ID}/factory/board`, withView);
-    expect(html).toContain('The board');
-    expect(html).toContain('is coming next');
     expect(currentLinks(html)).toEqual([
       `/console/p/${ID}/factory Factory`,
       `/console/p/${ID}/factory/board Board`,
     ]);
-    expect(html).toContain('Back to the overview');
+    expect(html).toContain('aria-label="Build"');
+    expect(html).not.toContain('is coming next');
   });
 });
 

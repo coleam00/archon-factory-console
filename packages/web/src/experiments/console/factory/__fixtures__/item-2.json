@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 2, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed.",
+  "note": "GET /api/factory/item for item 2, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided.",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {
@@ -74,7 +74,7 @@
             },
             {
               "iteration": 3,
-              "verdict": "ended",
+              "verdict": "approved",
               "outcome": "approve"
             }
           ]
@@ -186,7 +186,7 @@
             },
             {
               "iteration": 3,
-              "verdict": "ended",
+              "verdict": "approved",
               "outcome": "approve",
               "summary": "Approve: the review, product review and test check all approve or call the tests sound, and the builder fixed both returned findings in commit 6d5ec050f. No report returns the change, replans, or leav…",
               "steps": [

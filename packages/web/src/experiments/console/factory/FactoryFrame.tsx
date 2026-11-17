@@ -17,6 +17,8 @@ export type FactorySection = 'overview' | 'board' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
+  /** Let the page use the full width, as the board's columns need; others keep a reading width. */
+  wide?: boolean;
   /**
    * The page body, drawn under the view's header once a view applies, with the project's
    * attention queue: read once here, so the count and a page's list share one fetch and stream.
@@ -29,7 +31,7 @@ interface FactoryFrameProps {
  * summary and sub-navigation, any declaration that failed, and the page. A project no view
  * applies to gets an empty state instead.
  */
-export function FactoryFrame({ section, children }: FactoryFrameProps): ReactElement {
+export function FactoryFrame({ section, wide = false, children }: FactoryFrameProps): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const { data: project } = useEntity<Project>(K.project(projectId), () =>
     skill.getProject(projectId)
@@ -50,7 +52,7 @@ export function FactoryFrame({ section, children }: FactoryFrameProps): ReactEle
         <ProjectViewTabs projectId={projectId} active="factory" />
       </header>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
-        <div className="flex max-w-5xl flex-col gap-5">
+        <div className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'}`}>
           {view === undefined ? (
             <>
               <FactoryErrors errors={listing.data?.errors ?? []} />

@@ -9723,6 +9723,11 @@ export interface components {
             node: string;
             outcome: string;
           }[];
+          approves?: {
+            workflow: string;
+            node: string;
+            outcome: string;
+          }[];
           change?: {
             workflow: string;
             pointer: string;
@@ -10216,7 +10221,7 @@ export interface components {
             rounds: {
               iteration: number;
               /** @enum {string} */
-              verdict: 'returned' | 'ended' | 'running' | 'stopped';
+              verdict: 'approved' | 'returned' | 'undecided' | 'running' | 'stopped';
               outcome: string | null;
             }[];
           } | null;
@@ -10225,7 +10230,13 @@ export interface components {
             url: string;
             merged: boolean | 'unknown';
             mergedAt: string | null;
+            number: number | null;
           } | null;
+          runs: {
+            runId: string;
+            workflow: string;
+            failedStep: string | null;
+          }[];
         } | null;
       };
       runs: {
@@ -10256,7 +10267,7 @@ export interface components {
           rounds: {
             iteration: number;
             /** @enum {string} */
-            verdict: 'returned' | 'ended' | 'running' | 'stopped';
+            verdict: 'approved' | 'returned' | 'undecided' | 'running' | 'stopped';
             outcome: string | null;
             summary: string | null;
             steps: {
@@ -10727,7 +10738,7 @@ export interface components {
             rounds: {
               iteration: number;
               /** @enum {string} */
-              verdict: 'returned' | 'ended' | 'running' | 'stopped';
+              verdict: 'approved' | 'returned' | 'undecided' | 'running' | 'stopped';
               outcome: string | null;
             }[];
           } | null;
@@ -10736,7 +10747,13 @@ export interface components {
             url: string;
             merged: boolean | 'unknown';
             mergedAt: string | null;
+            number: number | null;
           } | null;
+          runs: {
+            runId: string;
+            workflow: string;
+            failedStep: string | null;
+          }[];
         } | null;
       }[];
       next: string | null;

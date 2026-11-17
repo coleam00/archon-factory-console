@@ -100,6 +100,9 @@ present itself without the console knowing it. Shape (validated with zod in
   "rounds": { "workflow": "deliver", "loop": "rounds" },
   "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
                { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" } ],
+  "approves": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" } ],
+                                                   // a round is approved only by a declared
+                                                   // approval; with neither, it needs a decision
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = first line of this run input
   "map": {
@@ -139,15 +142,18 @@ those land, this section adds **one read-only route file**, `packages/server/src
   same schema, imported, not restated) plus a `progress` object the board needs and `ItemRead`
   does not carry: the running run's id, workflow and deepest running step, the current loop
   iteration of the declared `rounds` loop, the returned count, the change URL from the declared
-  pointer, and the title. Shape the page like #5815 (`{ items, next }`) so swapping to it later
-  is a change of one skill.
+  pointer with its pull request number, the title, and each declared run's workflow as the
+  view names it with the step it failed at. Shape the page like #5815 (`{ items, next }`) so
+  swapping to it later is a change of one skill.
 - `GET /api/factory/item?codebaseId=&key=` one item as a page entry reads it, plus what its
   timeline needs per run and neither read carries: the declared workflow, the run's cost, its
   running step, and each round of the declared `rounds` loop with the steps that recorded an
   outcome in it and the deciding step's summary.
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
-  60 s. The browser never calls GitHub.
+  60 s. The pull request is the one the run's forge records name, else the one on a branch
+  the item's runs recorded whose URL is the change (an earlier run may have opened it). The
+  browser never calls GitHub.
 
 All derivation (column, card fields) is pure TypeScript in the web package, with unit tests,
 fed by these reads. Logic worth porting from Mission Control (`C:\Users\colem\OpenSource\factory-mission-control`,
@@ -203,11 +209,13 @@ A card, in this order:
 2. State pill: **Running** (a run works it now), **Needs you** (it has an open ask), **Failed**,
    **Waiting** (queued or idle between stages), **Landed**.
 3. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
-   one dot per round coloured by that round's verdict (approved, returned).
+   one dot per round coloured by that round's verdict: approved (a declared approval),
+   returned (a declared return), needs a decision (neither: an ask or a replan), running.
 4. While a run works it: the workflow and its running step in mono, "deliver · rounds.review",
    linking to the run in the console (`/console/p/:projectId/r/:runId`).
 5. "returned ×N" when checks or the host sent it back, linking to the item page.
-6. The change: "PR #123" linking to it, when there is one.
+6. The change: "PR #123" linking to it, when there is one. When the change host could not say
+   whether it merged, the card says "merge state unknown" rather than reading as unmerged.
 7. In the landed column: when it landed, in local time.
 8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
 

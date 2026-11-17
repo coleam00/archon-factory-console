@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 1, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed.",
+  "note": "GET /api/factory/item for item 1, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided.",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {
@@ -69,7 +69,7 @@
             },
             {
               "iteration": 2,
-              "verdict": "ended",
+              "verdict": "approved",
               "outcome": "approve"
             }
           ]
@@ -148,7 +148,7 @@
             },
             {
               "iteration": 2,
-              "verdict": "ended",
+              "verdict": "approved",
               "outcome": "approve",
               "summary": "Approve item #1: one new file, packages/server/src/boot/live-home-guard.test.ts, with 7 tests covering every case in Done-when (no live home, different home, case and trailing-separator refusal, LIVE_…",
               "steps": [

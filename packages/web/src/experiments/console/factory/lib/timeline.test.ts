@@ -43,7 +43,7 @@ describe('the timeline of an item that landed', () => {
     const rounds = rows[2]?.rounds ?? [];
     expect(rounds.map(round => [round.iteration, round.max, round.verdict])).toEqual([
       [1, 3, 'returned'],
-      [2, 3, 'approve'],
+      [2, 3, 'approved'],
     ]);
     const verdict = detail.runs[2]?.rounds?.rounds[0]?.summary;
     expect(rounds[0]?.returnedSummary).toBe(verdict ?? null);
@@ -55,11 +55,11 @@ describe('the timeline of a multi-round item', () => {
   const rows = timeline(itemDetail('2'));
   const rounds = rows.find(row => row.workflow === 'deliver')?.rounds ?? [];
 
-  test('three rounds: returned, returned, approve', () => {
+  test('three rounds: returned, returned, approved', () => {
     expect(rounds.map(round => [round.verdict, round.returned])).toEqual([
       ['returned', true],
       ['returned', true],
-      ['approve', false],
+      ['approved', false],
     ]);
     expect(rounds.map(round => round.returnedSummary === null)).toEqual([false, false, true]);
   });
@@ -92,8 +92,8 @@ describe('the timeline of an item asked twice', () => {
   test('both deliver runs, each with its own rounds, ending in an ask', () => {
     const delivers = rows.filter(row => row.workflow === 'deliver');
     expect(delivers.map(row => [row.outcome, row.rounds.map(round => round.verdict)])).toEqual([
-      ['ask', ['returned', 'ask']],
-      ['ask', ['returned', 'ask']],
+      ['ask', ['returned', 'needs a decision']],
+      ['ask', ['returned', 'needs a decision']],
     ]);
     // The second was started again by a trigger, not after the first.
     expect(delivers[1]?.started).toEqual({
