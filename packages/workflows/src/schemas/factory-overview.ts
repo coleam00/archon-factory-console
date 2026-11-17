@@ -89,7 +89,7 @@ const edgeSchema = z.strictObject({
 });
 
 const viewSchema = z.strictObject({
-  /** A drill-down's own line; the root's is the overview's caption. */
+  /** A drill-down's own line, under its map; the root's is the overview's caption. */
   caption: z.string().min(1).max(400).optional(),
   groups: z.array(groupSchema).optional(),
   cards: z.array(cardSchema).min(1),
@@ -105,7 +105,7 @@ const factoryOverviewShape = z.strictObject({
     .regex(/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?$/, 'a pack folder name or owner/name'),
   /** The page heading and the breadcrumb's first entry. */
   title: z.string().min(1).max(80),
-  /** One paragraph above the map, plain words for someone who has never seen Archon. */
+  /** One paragraph under the root view's map, plain words for someone who has never seen Archon. */
   caption: z.string().min(1).max(800),
   /** The view the page opens on. */
   root: slugSchema,

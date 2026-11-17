@@ -220,9 +220,9 @@ Lines are drawn straight, so a view validates only when its picture is clean:
 | `version` | yes | Always `1`. |
 | `pack` | yes | The pack the overview explains: `owner/name` when installed, else its folder name. |
 | `title` | yes | The overview's name: its heading, and the first entry of the breadcrumb. |
-| `caption` | yes | One paragraph in plain words, shown above the root view. |
+| `caption` | yes | One paragraph in plain words, shown under the root view's map on the page. Full screen does not show it: whoever presents says it. |
 | `root` | yes | The id of the view the page opens on. |
-| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups` and a `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), and an optional `label`. Every view but the root is opened by exactly one card. |
+| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups` and a `caption`, shown under that view's map as the root's is. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), and an optional `label`. Every view but the root is opened by exactly one card. |
 
 The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
 `git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.
