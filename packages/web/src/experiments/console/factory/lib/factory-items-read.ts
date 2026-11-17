@@ -1,6 +1,6 @@
 import { getFactoryProgress, type FactoryItem } from '../../skills/factory';
 import { listItemWindow, type ItemRead, type ItemWindow } from '../../skills/items';
-import { factoryRead } from './deadline';
+import { deadlineOf, FACTORY_READ_DEADLINE_MS, type WithinDeadline } from './deadline';
 
 /**
  * A window start before any run, so every item with a run shows. The window lists an item
@@ -35,7 +35,8 @@ function activityOf(item: ItemRead): number {
  */
 export async function readEveryFactoryItem(
   codebaseId: string,
-  reads: FactoryItemsReads = SKILLS
+  reads: FactoryItemsReads = SKILLS,
+  within: WithinDeadline = deadlineOf(FACTORY_READ_DEADLINE_MS)
 ): Promise<FactoryItem[]> {
   const items: FactoryItem[] = [];
   let after: string | null = null;
@@ -44,10 +45,10 @@ export async function readEveryFactoryItem(
       after === null
         ? { project: codebaseId, since: EVERY_ITEM_SINCE, limit: PAGE_LIMIT }
         : { project: codebaseId, after, limit: PAGE_LIMIT };
-    const page: ItemWindow = await factoryRead(signal => reads.listWindow(query, { signal }));
+    const page: ItemWindow = await within(signal => reads.listWindow(query, { signal }));
     if (page.items.length > 0) {
       const keys = page.items.map(read => read.item.key);
-      const { progress } = await factoryRead(signal =>
+      const { progress } = await within(signal =>
         reads.getProgress({ codebaseId, keys }, { signal })
       );
       for (const read of page.items)

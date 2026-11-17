@@ -1,5 +1,12 @@
 import { afterEach, expect, jest, test } from 'bun:test';
-import { readFailed, SlowReadError, withDeadline } from './deadline';
+import {
+  FACTORY_READ_DEADLINE_MAX_MS,
+  FACTORY_READ_DEADLINE_MS,
+  nextDeadlineMs,
+  readFailed,
+  SlowReadError,
+  withDeadline,
+} from './deadline';
 
 afterEach(() => {
   jest.useRealTimers();
@@ -57,4 +64,15 @@ test('one slow failure is claimed for a retry once; the page shows only other fa
   const failure = new Error('500');
   expect(readFailed(failure)).toBe(failure);
   expect(readFailed(undefined)).toBeUndefined();
+});
+
+test('each attempt after a miss gets twice the deadline it missed, up to the cap', () => {
+  expect(nextDeadlineMs(undefined)).toBe(FACTORY_READ_DEADLINE_MS);
+  expect(nextDeadlineMs(new Error('500'))).toBe(FACTORY_READ_DEADLINE_MS);
+  expect(nextDeadlineMs(new SlowReadError(FACTORY_READ_DEADLINE_MS))).toBe(
+    FACTORY_READ_DEADLINE_MS * 2
+  );
+  expect(nextDeadlineMs(new SlowReadError(FACTORY_READ_DEADLINE_MAX_MS))).toBe(
+    FACTORY_READ_DEADLINE_MAX_MS
+  );
 });

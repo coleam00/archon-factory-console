@@ -9,7 +9,8 @@ import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRead, readFailed } from './lib/deadline';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { needsYou } from './lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
 import { useSectionAttention } from './section-attention';
@@ -41,8 +42,8 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
   const { data: project } = useEntity<Project>(K.project(projectId), () =>
     skill.getProject(projectId)
   );
-  const listing = useEntity<FactoryViews>(K.factoryViews(projectId), () =>
-    factoryRead(signal => skill.getFactoryViews({ codebaseId: projectId }, { signal }))
+  const listing = useFactoryRead<FactoryViews>(K.factoryViews(projectId), within =>
+    within(signal => skill.getFactoryViews({ codebaseId: projectId }, { signal }))
   );
   const view = currentView(listing.data);
   return (
@@ -90,8 +91,8 @@ function FactoryViewed({
   const attention = useSectionAttention();
   const waiting = attention.data === undefined ? undefined : needsYou(attention.data.items).length;
   // Read here, where a view applies: the route answers 404 for a project without one.
-  const overview = useEntity<FactoryOverviewRead>(K.factoryOverview(projectId), () =>
-    factoryRead(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
+  const overview = useFactoryRead<FactoryOverviewRead>(K.factoryOverview(projectId), within =>
+    within(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
   );
   return (
     <>

@@ -4,9 +4,9 @@ import { SSE_BASE_URL } from '../lib/http';
 import { followWhilePageShown, type PageEvents } from '../lib/page-stream';
 import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
-import { invalidate, useEntity, type EntityView } from '../store/cache';
+import { invalidate, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRead } from './lib/deadline';
+import { useFactoryRead } from './useFactoryRead';
 
 type StreamLineType = components['schemas']['AttentionStreamLine']['type'];
 
@@ -114,8 +114,8 @@ export function refreshOnAttentionChange(projectId: string): void {
  */
 export function useFactoryAttention(projectId: string): EntityView<AttentionQueue> {
   const key = K.factoryAttention(projectId);
-  const view = useEntity<AttentionQueue>(key, () =>
-    factoryRead(signal => skill.listAttentionQueue(projectId, { signal }))
+  const view = useFactoryRead<AttentionQueue>(key, within =>
+    within(signal => skill.listAttentionQueue(projectId, { signal }))
   );
   useEffect(
     () =>

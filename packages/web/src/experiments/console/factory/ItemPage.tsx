@@ -5,9 +5,10 @@ import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
 import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRead, readFailed } from './lib/deadline';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
@@ -39,8 +40,8 @@ function ItemBody({
 }): ReactElement {
   const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
   // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
-  const read = useEntity<FactoryItemDetail>(K.factoryItem(projectId, key), () =>
-    factoryRead(signal => skill.getFactoryItem({ codebaseId: projectId, key }, { signal }))
+  const read = useFactoryRead<FactoryItemDetail>(K.factoryItem(projectId, key), within =>
+    within(signal => skill.getFactoryItem({ codebaseId: projectId, key }, { signal }))
   );
   return (
     <div className="flex flex-col gap-5">

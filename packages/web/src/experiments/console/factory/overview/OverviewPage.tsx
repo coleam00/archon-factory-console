@@ -4,11 +4,11 @@ import { useParams, useSearchParams } from 'react-router';
 import { errorDetail } from '../../lib/http';
 import * as skill from '../../skills';
 import type { FactoryOverviewRead } from '../../skills/factory';
-import { useEntity } from '../../store/cache';
 import { K } from '../../store/keys';
+import { useFactoryRead } from '../useFactoryRead';
 import { FactoryFrame } from '../FactoryFrame';
 import { FactoryLoading } from '../FactoryLoading';
-import { factoryRead, readFailed } from '../lib/deadline';
+import { readFailed } from '../lib/deadline';
 import { openView, viewList, viewTrail, type OverviewDeclaration } from '../lib/overview-nav';
 import { OverviewBreadcrumb } from './OverviewBreadcrumb';
 import { OverviewLegend } from './OverviewLegend';
@@ -30,8 +30,8 @@ export function OverviewPage(): ReactElement {
 
 function OverviewRead({ projectId }: { projectId: string }): ReactNode {
   // The frame reads the same key for its sub-navigation, so this is one fetch.
-  const read = useEntity<FactoryOverviewRead>(K.factoryOverview(projectId), () =>
-    factoryRead(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
+  const read = useFactoryRead<FactoryOverviewRead>(K.factoryOverview(projectId), within =>
+    within(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
   );
   const failed = readFailed(read.error);
   if (failed !== undefined)

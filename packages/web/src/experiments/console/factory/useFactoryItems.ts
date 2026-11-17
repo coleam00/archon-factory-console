@@ -1,6 +1,7 @@
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { readEveryFactoryItem } from './lib/factory-items-read';
+import { useFactoryRead } from './useFactoryRead';
 import type { FactoryItem } from '../skills/factory';
 
 /**
@@ -9,5 +10,7 @@ import type { FactoryItem } from '../skills/factory';
  * stream when an ask opens or closes.
  */
 export function useFactoryItems(projectId: string): EntityView<FactoryItem[]> {
-  return useEntity(K.factoryItems(projectId), () => readEveryFactoryItem(projectId));
+  return useFactoryRead(K.factoryItems(projectId), within =>
+    readEveryFactoryItem(projectId, undefined, within)
+  );
 }

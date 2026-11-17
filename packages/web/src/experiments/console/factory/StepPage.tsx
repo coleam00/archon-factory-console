@@ -6,9 +6,9 @@ import { useLocation, useParams } from 'react-router';
 import { YamlPreview } from '../builder/components/YamlPreview';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
-import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRead, readFailed } from './lib/deadline';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
@@ -110,8 +110,8 @@ function StepBody({
   workflow: string;
   stepKey: string;
 }): ReactElement {
-  const read = useEntity<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), () =>
-    factoryRead(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
+  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
+    within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
   );
   if (read.data === undefined) {
     const failed = readFailed(read.error);

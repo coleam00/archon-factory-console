@@ -2,9 +2,10 @@ import { useMemo, type ReactElement } from 'react';
 import { useParams } from 'react-router';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
-import { useEntity, type EntityView } from '../store/cache';
+import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRead, readFailed } from './lib/deadline';
+import { useFactoryRead } from './useFactoryRead';
+import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
@@ -97,8 +98,8 @@ function StageWorkflow({
   workflow: string;
   items: EntityView<FactoryItem[]>;
 }): ReactElement {
-  const read = useEntity<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), () =>
-    factoryRead(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
+  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
+    within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
   );
   const graph = useMemo(
     () =>
