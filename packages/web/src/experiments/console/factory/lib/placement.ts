@@ -204,3 +204,23 @@ export function itemState(input: PlacementInput): ItemState {
   if (last !== undefined && last.status !== 'completed') return 'failed';
   return 'waiting';
 }
+
+/**
+ * Where an entry of the items read sits: the board and the map both place through here, so
+ * a column and a card never name different stages. `previous` is the stage the item sat in
+ * on the caller's last read. An item whose progress could not be read has no declared runs
+ * here, so it sits in the first stage (rule 6). Placement does not read `needsYou`.
+ */
+export function pageItemColumn(
+  view: Declaration,
+  item: FactoryItem,
+  previous?: string
+): ItemColumn | null {
+  const facts: RunFacts = item.progress === null ? new Map() : pageRunFacts(item.progress);
+  return itemColumn(view, placementInput(item, facts, false), previous);
+}
+
+/** The stage a placement put an item in; undefined when it is off the board or unplaced. */
+export function stageIdOf(column: ItemColumn | null): string | undefined {
+  return column !== null && 'stage' in column ? column.stage.id : undefined;
+}

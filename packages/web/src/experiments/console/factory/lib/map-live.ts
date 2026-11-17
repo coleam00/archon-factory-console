@@ -1,13 +1,13 @@
 /**
  * The map's live chips: which items sit on each card, how many a run works now, and which
- * need a person. An item is placed by `placement.ts`, as the item page places it, so a card
- * and an item's header never name different stages; "needs you" is the item page's
+ * need a person. An item is placed by `placement.ts`'s `pageItemColumn`, as the board places
+ * it, so a card and a board column never name different stages; "needs you" is the item page's
  * `itemAsks`, which reads the Needs-you list's `needsYou`, so the chip agrees with both.
  */
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueueItem } from '../../skills/runs';
 import { itemAsks } from './needs-you';
-import { itemColumn, itemState, pageRunFacts, placementInput } from './placement';
+import { pageItemColumn, stageIdOf } from './placement';
 import type { FactoryViewListed } from './views';
 
 export interface StageLive {
@@ -21,8 +21,6 @@ export interface StageLive {
 
 /** Why an item is on no card: so the reader knows whether to fix the read or the view. */
 export type NotOnMapWhy =
-  /** The server could not derive the item's progress, so nothing places it. */
-  | { kind: 'no-progress' }
   /** Placement found no column: the view names no stage for it (as the item page's "Position unknown"). */
   | { kind: 'no-column' }
   /** Placed on `stage`, which the map draws no card for. */
@@ -38,51 +36,44 @@ export interface MapLive {
   stages: Map<string, StageLive>;
   /** Items no card shows: not placed, or on a stage without a card. */
   notOnMap: NotOnMap[];
+  /** The stage each placed item sits in, by key: pass it back as `previous` on the next read. */
+  positions: Map<string, string>;
 }
 
-/** Where one item goes on the map: a stage's entry, with whether a run works it and it needs you; or why not. */
-type MapPlace =
-  | { live: StageLive; stage: string; working: boolean; asks: boolean }
-  | { ended: true }
-  | { why: NotOnMapWhy };
-
-function mapPlace(
-  view: FactoryViewListed['declaration'],
-  stages: ReadonlyMap<string, StageLive>,
-  item: FactoryItem,
-  attention: readonly AttentionQueueItem[]
-): MapPlace {
-  if (item.progress === null) return { why: { kind: 'no-progress' } };
-  const asks = itemAsks(item, attention).length > 0;
-  const input = placementInput(item, pageRunFacts(item.progress), asks);
-  const column = itemColumn(view, input);
-  // An item ended without a change (`endings`) is on no card, by design.
-  if (column !== null && 'ended' in column) return { ended: true };
-  const live = column === null ? undefined : stages.get(column.stage.id);
-  // Reachable when the cached view changed under cached items: say so, as the item page does.
-  if (column === null || live === undefined) return { why: { kind: 'no-column' } };
-  return { live, stage: column.stage.id, working: itemState(input) === 'running', asks };
-}
-
+/**
+ * The map for these items. `previous` holds the stage each item sat in on the last read, as
+ * the board keeps it, so a run on a step no stage names holds its card where the board
+ * holds its column.
+ */
 export function stageLive(
   view: FactoryViewListed['declaration'],
   items: readonly FactoryItem[],
-  attention: readonly AttentionQueueItem[]
+  attention: readonly AttentionQueueItem[],
+  previous: ReadonlyMap<string, string> = new Map()
 ): MapLive {
   const carded = new Set(view.map.cards.map(card => card.stage));
   const stages = new Map<string, StageLive>(
     view.stages.map(stage => [stage.id, { items: [], working: 0, needYou: [] }])
   );
   const notOnMap: NotOnMap[] = [];
+  const positions = new Map<string, string>();
   for (const item of items) {
-    const place = mapPlace(view, stages, item, attention);
-    if ('why' in place) notOnMap.push({ item, why: place.why });
-    if (!('live' in place)) continue;
-    place.live.items.push(item);
-    if (place.working) place.live.working += 1;
-    if (place.asks) place.live.needYou.push(item);
-    if (!carded.has(place.stage))
-      notOnMap.push({ item, why: { kind: 'no-card', stage: place.stage } });
+    const column = pageItemColumn(view, item, previous.get(item.item.key));
+    // An item ended without a change (`endings`) is on no card, by design.
+    if (column !== null && 'ended' in column) continue;
+    const stage = stageIdOf(column);
+    const live = stage === undefined ? undefined : stages.get(stage);
+    // Reachable when the cached view changed under cached items: say so, as the item page does.
+    if (stage === undefined || live === undefined) {
+      notOnMap.push({ item, why: { kind: 'no-column' } });
+      continue;
+    }
+    positions.set(item.item.key, stage);
+    live.items.push(item);
+    // `progress.running` is the latest running run of a declared workflow.
+    if (item.progress?.running != null) live.working += 1;
+    if (itemAsks(item, attention).length > 0) live.needYou.push(item);
+    if (!carded.has(stage)) notOnMap.push({ item, why: { kind: 'no-card', stage } });
   }
-  return { stages, notOnMap };
+  return { stages, notOnMap, positions };
 }

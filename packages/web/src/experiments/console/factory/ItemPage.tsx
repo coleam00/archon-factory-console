@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react';
+import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
 import { errorDetail } from '../lib/http';
@@ -13,7 +13,7 @@ import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { itemAsks, type NeedsYouItem } from './lib/needs-you';
-import { itemColumn, itemState, placementInput } from './lib/placement';
+import { itemColumn, itemState, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { NeedsYouRow } from './NeedsYouList';
@@ -61,6 +61,20 @@ function ItemRead({
   attention: EntityView<AttentionQueue>;
 }): ReactNode {
   const { data, error } = read;
+  // The stage the item sat in on the last read: a run on a step no stage names stays there,
+  // as on the board and the map.
+  const previous = useRef<{ key: string; stage: string | undefined } | null>(null);
+  const column =
+    data === undefined
+      ? undefined
+      : itemColumn(
+          view.declaration,
+          placementInput(data.item, new Map(data.runs.map(run => [run.runId, run])), false),
+          previous.current?.key === itemKey ? previous.current.stage : undefined
+        );
+  useEffect(() => {
+    if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
+  }, [column, itemKey]);
   if (data === undefined) {
     if (error !== undefined)
       return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(error)} />;
@@ -75,11 +89,7 @@ function ItemRead({
   );
   return (
     <>
-      <ItemHeader
-        item={data.item}
-        state={itemState(placement)}
-        column={itemColumn(declaration, placement)}
-      />
+      <ItemHeader item={data.item} state={itemState(placement)} column={column ?? null} />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
       <ItemLinks projectId={projectId} links={data.item.links} />

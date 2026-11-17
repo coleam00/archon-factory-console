@@ -60,7 +60,30 @@ function MapBody({
       );
     return <p className="text-xs text-text-tertiary">Loading…</p>;
   }
-  const live = stageLive(view, items.data, attention.data?.items ?? []);
+  return (
+    <MapLiveCanvas projectId={projectId} view={view} items={items.data} attention={attention} />
+  );
+}
+
+/**
+ * The map over loaded items. It keeps where each item sat on the last read, as the board
+ * does, so a run on a step no stage names holds its card where the board holds its column.
+ */
+function MapLiveCanvas({
+  projectId,
+  view,
+  items,
+  attention,
+}: FactoryMapProps & { items: FactoryItem[] }): ReactElement {
+  const previous = useRef<ReadonlyMap<string, string>>(new Map());
+  const queue = attention.data?.items;
+  const live = useMemo(
+    () => stageLive(view, items, queue ?? [], previous.current),
+    [view, items, queue]
+  );
+  useEffect(() => {
+    previous.current = live.positions;
+  }, [live]);
   return <MapCanvas projectId={projectId} view={view} live={live} />;
 }
 

@@ -9,7 +9,7 @@
 import { formatDateTime } from '../../lib/format';
 import type { FactoryItemsPage } from '../../skills/factory';
 import { needsYou } from './needs-you';
-import { itemColumn, pageRunFacts, placementInput, type ItemColumn } from './placement';
+import { pageItemColumn, type ItemColumn } from './placement';
 import { factoryPath, type FactoryViewListed } from './views';
 
 export type FactoryItem = FactoryItemsPage['items'][number];
@@ -213,21 +213,6 @@ export function cardMatches(card: BoardCard, query: string): boolean {
 }
 
 /**
- * Where the board puts an item: `placement.ts`, as the map and the item page place it, kept
- * in `previous` while a run is on a step no stage names. An item whose progress could not be
- * read has no declared runs there, so it sits in the first stage (rule 6).
- */
-export function boardColumn(
-  view: FactoryDeclaration,
-  item: FactoryItem,
-  previous?: string
-): ItemColumn | null {
-  const facts = item.progress === null ? new Map() : pageRunFacts(item.progress);
-  const input = placementInput(item, facts, needsYou(item.questions).length > 0);
-  return itemColumn(view, input, previous);
-}
-
-/**
  * The board for these items. Columns are the declared stages in order, the landed stage
  * among them. `previous` holds each item's position on the last read.
  */
@@ -245,7 +230,7 @@ export function boardModel(
   const ended = new Map<string, PlacedCard[]>();
   const positions = new Map<string, string>();
   for (const item of items) {
-    const column = boardColumn(view, item, previous.get(item.item.key));
+    const column = pageItemColumn(view, item, previous.get(item.item.key));
     positions.set(item.item.key, positionOf(column));
     const placed = { item, column, card: cardFields(view, projectId, item, column) };
     if (column === null || 'ended' in column) {

@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import { formatDateTime } from '../../lib/format';
 import { askItem } from '../needs-you.test-fixtures';
 import {
-  boardColumn,
   boardModel,
   cardFields,
   filterBoard,
@@ -20,10 +19,11 @@ import {
   realItem,
   VIEW,
 } from './board.test-fixtures';
+import { pageItemColumn } from './placement';
 
 const PROJECT = 'cb-1';
 const card = (item: FactoryItem, previous?: string) =>
-  cardFields(VIEW, PROJECT, item, boardColumn(VIEW, item, previous));
+  cardFields(VIEW, PROJECT, item, pageItemColumn(VIEW, item, previous));
 
 describe('cards of placed items', () => {
   test('a running item says its round; a land run still running keeps it out of Landed', () => {
@@ -41,7 +41,7 @@ describe('cards of placed items', () => {
 
   test('an item whose progress could not be read stays on the board and says so', () => {
     const item = { ...realItem('6'), progress: null };
-    expect(boardColumn(VIEW, item)).toMatchObject({ stage: { id: 'triage' } });
+    expect(pageItemColumn(VIEW, item)).toMatchObject({ stage: { id: 'triage' } });
     expect(card(item)).toMatchObject({ title: '6', stopLine: 'Its progress could not be read.' });
   });
 

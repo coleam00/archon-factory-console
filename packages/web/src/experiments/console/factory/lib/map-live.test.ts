@@ -4,7 +4,7 @@ import { askItem, usageLimitItem } from '../needs-you.test-fixtures';
 import { stageLive } from './map-live';
 import { itemWith, itemWithoutProgress, realItem, run } from './map.test-fixtures';
 import { shippedView } from '../item-detail.test-fixtures';
-import { itemColumn, pageRunFacts, placementInput } from './placement';
+import { boardModel } from './board';
 
 const view = shippedView;
 
@@ -103,26 +103,31 @@ describe('the live chips on each card', () => {
     const live = stageLive(view, histories, []);
     expect(chips(live).host).toEqual([['w'], 0, []]);
     expect(chips(live).build).toEqual([['p'], 0, []]);
-    // The card is the column the item page computes from the same runs.
-    for (const item of histories) {
-      const progress = item.progress;
-      if (progress === null) throw new Error('fixture has progress');
-      const column = itemColumn(view, placementInput(item, pageRunFacts(progress), false));
-      const card = [...live.stages].find(([, entry]) => entry.items.includes(item))?.[0];
-      expect(column !== null && 'stage' in column ? column.stage.id : null).toBe(card ?? null);
-    }
   });
 
-  test('items no card shows are listed with why: no progress, or a stage without a card', () => {
+  test('an item whose progress could not be read sits in the first stage, as on the board', () => {
+    const live = stageLive(view, [itemWithoutProgress('z')], []);
+    expect(chips(live).triage).toEqual([['z'], 0, []]);
+    expect(live.notOnMap).toEqual([]);
+  });
+
+  test('an item on a stage the map draws no card for is listed with that stage', () => {
     const noCards = { ...view, map: { ...view.map, cards: [] } };
-    const unknown = itemWithoutProgress('z');
     const ready = itemWith('ready', [run('deliver', 'completed', 'ready')]);
-    const live = stageLive(noCards, [unknown, ready], []);
+    const live = stageLive(noCards, [ready], []);
     expect(live.notOnMap.map(entry => [entry.item.item.key, entry.why])).toEqual([
-      ['z', { kind: 'no-progress' }],
       ['ready', { kind: 'no-card', stage: 'ready' }],
     ]);
     expect(chips(live).ready).toEqual([['ready'], 0, []]);
+  });
+
+  test('a run on a step no stage names keeps its card where it sat on the last read', () => {
+    const between = itemWith('r', [run('deliver', 'running', null, 'rounds')]);
+    const first = stageLive(view, [between], [], new Map([['r', 'checks']]));
+    expect(chips(first).checks).toEqual([['r'], 1, []]);
+    expect(first.positions.get('r')).toBe('checks');
+    // With no last read, the workflow's first stage.
+    expect(chips(stageLive(view, [between], [])).build).toEqual([['r'], 1, []]);
   });
 
   test('an item placement finds no column for is listed, not thrown', () => {
@@ -134,5 +139,28 @@ describe('the live chips on each card', () => {
     const item = itemWith('r', [run('deliver', 'running', null, 'build__build')]);
     const live = stageLive({ ...view, stages }, [item], []);
     expect(live.notOnMap).toEqual([{ item, why: { kind: 'no-column' } }]);
+  });
+});
+
+describe('the map and the board', () => {
+  test('put every item in the same stage, over two reads, a run between named steps included', () => {
+    const items = [
+      ...['6', '5', '4', '3', '8', '7'].map(realItem),
+      itemWith('between', [run('deliver', 'running', null, 'rounds')]),
+      itemWith('nostep', [run('deliver', 'running', null, null)]),
+      itemWithoutProgress('unread'),
+    ];
+    // The first read has no last read; the second holds the run between steps in Checks.
+    for (const previous of [
+      new Map<string, string>(),
+      new Map([
+        ['between', 'checks'],
+        ['nostep', 'checks'],
+      ]),
+    ]) {
+      const board = boardModel(view, 'cb-1', items, previous).positions;
+      const map = stageLive(view, items, [], previous).positions;
+      for (const item of items) expect(map.get(item.item.key)).toBe(board.get(item.item.key));
+    }
   });
 });

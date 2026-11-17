@@ -196,9 +196,11 @@ first rule that matches. The board, the map and the item page all place through 
 
 1. A run of a declared workflow is **running** on it: the stage whose `workflows` (and `nodes`,
    when given) match the run's workflow and deepest running step. On a step no stage names (a
-   loop group between rounds, or none between steps) the board keeps the item in the column it
-   sat in on its last read when that column lists the workflow, so the card does not hop; else
-   the workflow's first stage.
+   loop group between rounds, or none between steps) the board, the map and the item page each
+   keep the item in the stage it sat in on their last read when that stage lists the workflow,
+   so a card does not hop; else the workflow's first stage. A view opened while a run is
+   between named steps has no last read, so for that moment it can show the workflow's first
+   stage where a view open longer still holds the item.
 2. Its change **merged**: the landed column.
 3. Its last completed run's `workflow:outcome` is in `placement`: that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
