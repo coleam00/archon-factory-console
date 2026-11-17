@@ -6,6 +6,7 @@ import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import type { FactoryItem } from '../lib/board';
 import { shippedView } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
@@ -51,8 +52,10 @@ function StagePage(): React.ReactElement {
   return <p data-testid="stage-page">{useParams().stage}</p>;
 }
 
-async function mount(): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
-  set(K.factoryItems(ID), items);
+async function mount(
+  read: FactoryItem[] = items
+): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
+  set(K.factoryItems(ID), read);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -223,6 +226,43 @@ test('two single clicks select, and never open a stage', async () => {
     await clickOf(card(container, 'build'), 1);
     expect(stagePage(container)).toBeUndefined();
     expect(container.querySelector('aside[aria-label="Build details"]')).not.toBeNull();
+  } finally {
+    await unmount();
+  }
+});
+
+/** Item 4, whose deliver run is in its checks, with its running step set to `step`. */
+function checking(step: string | null): FactoryItem {
+  const item = realItem('4');
+  const progress = item.progress;
+  if (progress === null || progress.running === null) throw new Error('item 4 is running');
+  return { ...item, progress: { ...progress, running: { ...progress.running, step } } };
+}
+
+test('a later read on a step no stage names keeps the card where the last read put it, as the board does', async () => {
+  const { container, unmount } = await mount([checking('rounds.tests__tests')]);
+  try {
+    expect(card(container, 'checks').getAttribute('aria-label')).toBe(
+      'Checks: 1 here, 1 being worked'
+    );
+    // Between rounds the run records only the bare loop group, which no stage names.
+    await act(async () => set(K.factoryItems(ID), [checking('rounds')]));
+    expect(card(container, 'checks').getAttribute('aria-label')).toBe(
+      'Checks: 1 here, 1 being worked'
+    );
+    expect(card(container, 'build').getAttribute('aria-label')).toBe('Build: 0 here');
+  } finally {
+    await unmount();
+  }
+});
+
+test('with no read before it, a run on a step no stage names sits where its workflow starts', async () => {
+  const { container, unmount } = await mount([checking('rounds')]);
+  try {
+    expect(card(container, 'build').getAttribute('aria-label')).toBe(
+      'Build: 1 here, 1 being worked'
+    );
+    expect(card(container, 'checks').getAttribute('aria-label')).toBe('Checks: 0 here');
   } finally {
     await unmount();
   }
