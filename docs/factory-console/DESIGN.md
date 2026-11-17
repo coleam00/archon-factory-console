@@ -84,8 +84,9 @@ present itself without the console knowing it. Shape (validated with zod in
       "blurb": "Writes the change and opens a draft pull request.",
       "group": "build",                            // colour group: intake | build | check | land
       "workflows": ["deliver"],                    // pack entrypoints whose runs count here
-      "nodes": ["build", "rounds.fix", "hostrounds.hostfix"]  // optional: only while one of
-                                                   // these steps runs (id or dotted prefix)
+      "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"]  // optional: only while one of
+                                                   // these steps runs (id or dotted prefix;
+                                                   // an included node is <include>__<node>)
     }
   ],
   "placement": {                                    // where an idle item sits after a run ended
@@ -97,8 +98,8 @@ present itself without the console knowing it. Shape (validated with zod in
   "endings": { "triage:*": "Closed by triage" },   // outcomes that end an item without a change
   "landed": { "stage": "landed" },                 // the column for an item whose change merged
   "rounds": { "workflow": "deliver", "loop": "rounds" },
-  "returns": [ { "workflow": "deliver", "node": "verdict", "outcome": "return" },
-               { "workflow": "deliver", "node": "host", "outcome": "return" } ],
+  "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
+               { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" } ],
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = first line of this run input
   "map": {

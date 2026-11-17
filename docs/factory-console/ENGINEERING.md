@@ -26,7 +26,7 @@ The factory building this repository runs Archon from another checkout, on the h
   (components, pure `lib/`, the page routes), server under `packages/server/src/routes/api.factory.ts`
   plus a reader in `packages/core` or `packages/workflows` where the data access belongs. The
   declaration schema lives in `packages/workflows/src/schemas/factory-view.ts`.
-- A new or changed server route regenerates the web API types: `bun run generate:api-types`
+- A new or changed server route regenerates the web API types: `bun run --cwd packages/server generate:api-types`
   (`check:api-types` fails CI otherwise). Two open changes that both add routes conflict in
   `api.generated.d.ts`; regenerate after rebasing rather than hand-merging it.
 - Console token lint: arbitrary sizes need a `console-token-exception` comment with a reason;
