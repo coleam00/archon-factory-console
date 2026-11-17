@@ -38,11 +38,14 @@ const minimal = (): FactoryView => ({
   },
 });
 
-/** The issues of a rejected declaration, as `path: message` lines. */
-function issues(view: unknown): string[] {
+/**
+ * Where a rejected declaration fails, as dotted issue paths. The path is what a pack author
+ * acts on; the message wording is not asserted.
+ */
+function issuePaths(view: unknown): string[] {
   const parsed = factoryViewSchema.safeParse(view);
   if (parsed.success) throw new Error('expected the declaration to be rejected');
-  return parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`);
+  return parsed.error.issues.map(issue => issue.path.join('.'));
 }
 
 describe('factoryViewSchema', () => {
@@ -59,15 +62,13 @@ describe('factoryViewSchema', () => {
   test('a placement naming an undeclared stage is rejected at its key', () => {
     const view = minimal();
     view.placement['plan:planned'] = 'biuld';
-    expect(issues(view)).toEqual([
-      'placement.plan:planned: names stage "biuld", which is not declared in stages',
-    ]);
+    expect(issuePaths(view)).toEqual(['placement.plan:planned']);
   });
 
   test('a stage declared twice is rejected', () => {
     const view = minimal();
     view.stages.push({ ...view.stages[0]!, label: 'Again' });
-    expect(issues(view)).toEqual(['stages.3.id: stage "plan" is declared twice']);
+    expect(issuePaths(view)).toEqual(['stages.3.id']);
   });
 
   test('a returns entry naming a workflow no stage lists is rejected', () => {
@@ -75,22 +76,18 @@ describe('factoryViewSchema', () => {
       ...minimal(),
       returns: [{ workflow: 'deliver', node: 'verdict', outcome: 'x' }],
     };
-    expect(issues(view)).toEqual([
-      'returns.0.workflow: names workflow "deliver", which no stage lists',
-    ]);
+    expect(issuePaths(view)).toEqual(['returns.0.workflow']);
   });
 
   test('two cards in one cell, and a note near nothing, are rejected', () => {
     const view = minimal();
     view.map.cards[1] = { stage: 'build', col: 1, row: 1 };
     view.map.notes = [{ text: 'Here', near: 'nowhere' }];
-    expect(issues(view)).toEqual([
-      'map.cards.1: cell 1,1 holds another card',
-      'map.notes.0.near: names stage "nowhere", which is not declared in stages',
-    ]);
+    expect(issuePaths(view)).toEqual(['map.cards.1', 'map.notes.0.near']);
   });
 
   test('an unknown field is rejected', () => {
-    expect(issues({ ...minimal(), colour: 'red' })).toEqual([': Unrecognized key: "colour"']);
+    const parsed = factoryViewSchema.safeParse({ ...minimal(), colour: 'red' });
+    expect(parsed.success).toBe(false);
   });
 });

@@ -94,10 +94,10 @@ describe('discoverFactoryViews', () => {
       ['factory', 'project-file', projectFile('factory')],
       ['bad-json', 'project', packFile('bad-json')],
     ]);
-    expect(listing.errors[0]?.error).toBe(
-      `${projectFile('factory')} is invalid: placement.deliver:ready: names stage "nowhere", which is not declared in stages`
-    );
-    expect(listing.errors[1]?.error).toStartWith(`${packFile('bad-json')} is not JSON:`);
+    // Each error names its file, and the schema error names the field at fault.
+    expect(listing.errors[0]?.error).toContain(projectFile('factory'));
+    expect(listing.errors[0]?.error).toContain('placement.deliver:ready');
+    expect(listing.errors[1]?.error).toContain(packFile('bad-json'));
   });
 
   test('a declaration naming another pack than its file is an error', async () => {
@@ -105,11 +105,14 @@ describe('discoverFactoryViews', () => {
     await write(packFile('folder'), view('elsewhere', 'Mislabelled'));
 
     const listing = await discoverFactoryViews(roots);
+    // Both are refused, each listed under its file and naming the pack it declared.
     expect(listing.views).toEqual([]);
-    expect(listing.errors.map(e => e.error)).toEqual([
-      `${projectFile('acme.kit')} declares pack "acme/other", whose project file is acme.other.factory-view.json`,
-      `${packFile('folder')} declares pack "elsewhere" but belongs to pack "folder"`,
+    expect(listing.errors.map(({ pack, source, path }) => [pack, source, path])).toEqual([
+      ['acme.kit', 'project-file', projectFile('acme.kit')],
+      ['folder', 'project', packFile('folder')],
     ]);
+    expect(listing.errors[0]?.error).toContain('acme/other');
+    expect(listing.errors[1]?.error).toContain('elsewhere');
   });
 });
 

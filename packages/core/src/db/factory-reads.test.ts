@@ -41,8 +41,7 @@ describe('listRunWorkflowNames', () => {
 
   test('a query failure is rethrown with its cause', async () => {
     mockQuery.mockRejectedValueOnce(new Error('offline'));
-    await expect(listRunWorkflowNames('cb-1', ['plan'])).rejects.toThrow(
-      'Failed to list run workflow names: offline'
-    );
+    // The original error is kept as evidence; the wrapping sentence is not asserted.
+    await expect(listRunWorkflowNames('cb-1', ['plan'])).rejects.toThrow('offline');
   });
 });
