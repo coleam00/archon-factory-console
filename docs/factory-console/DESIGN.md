@@ -169,7 +169,7 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
    highlighted, the other options with what each does and costs, answered in place through
-   `POST /api/attention/answer`. The list shows the newest four and says how many more there
+   `POST /api/attention/answer`. The list shows the newest few and says how many more there
    are, with "show all"; a line the operator opened stays shown. Paused runs' waits appear here
    too (the attention list already reads both into one shape). The item page shows its own asks
    opened.
@@ -237,7 +237,7 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 ## The item page
 
 - Header: key, title, state pill, the change link, the column it is in.
-- **Asks** it waits on, answerable in place (same component as Needs you).
+- **Asks** it waits on, answerable in place (the same answer form as Needs you, always open).
 - **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
   or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
   round with each check's verdict and what was returned. Each row links to its run.

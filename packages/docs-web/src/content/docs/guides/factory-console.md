@@ -23,7 +23,7 @@ it. Inside it:
 
 - **Overview**: the view's title and summary, then a strip of numbers, then **Needs you**:
   every open question an item is waiting on, one line each with its recommended option.
-  **Open** a line to answer it in place, the recommended option first. The newest four show;
+  **Open** a line to answer it in place, the recommended option first. The newest few show;
   **N more · show all** lists the rest. Paused runs' waits appear there too. Then **the map**: the declared stages as cards
   on the `map` grid, coloured by group, with the declared hand-offs between them (returns
   dashed, below). Each card says how many items are in it now, pulsing while a run works one,
