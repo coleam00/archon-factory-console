@@ -45,6 +45,11 @@ bun run --cwd packages/server test
 bun run build:web
 ```
 
+CI runs that full set on every push, so a check need not repeat it. A review or test check runs
+the tests of the packages the change touches (`bun test <dir>` inside the package), and only when
+it needs a comparison runs the same tests on the base. Running a whole package suite twice on
+Windows costs most of an hour and finds nothing CI does not.
+
 On top of that, anything a person sees is checked in a browser (DESIGN.md, Testing) and the pull
 request says what was seen, at which size, with which data. A screenshot path is welcome; a claim
 of "works" without having looked is not.
