@@ -97,6 +97,8 @@ export function useFactoryAttention(projectId: string): EntityView<AttentionQueu
         `${SSE_BASE_URL}/api/runs/attention/stream?project=${encodeURIComponent(projectId)}`,
         () => {
           invalidate(key);
+          // An ask opening or closing changes a card's pill and stop line on the board.
+          invalidate(K.factoryItems(projectId));
         },
         url => new EventSource(url)
       ),

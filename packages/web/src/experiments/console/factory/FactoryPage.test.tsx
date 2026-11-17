@@ -6,6 +6,7 @@ import type { FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
+import { BoardPage } from './BoardPage';
 import { FactoryPage } from './FactoryPage';
 import { FactoryPlaceholder } from './FactoryPlaceholder';
 import { askItem } from './needs-you.test-fixtures';
@@ -16,6 +17,7 @@ afterEach(() => {
   invalidate('factory-views');
   invalidate('project');
   invalidate('runs');
+  invalidate('factory-items');
 });
 
 const asking: AttentionQueue = { items: [askItem()], runs: [], degraded: [] };
@@ -61,14 +63,12 @@ const currentLinks = (html: string): string[] =>
 function render(path: string, listing: FactoryViews, attention: AttentionQueue = quiet): string {
   set(K.factoryViews(ID), listing);
   set(K.factoryAttention(ID), attention);
+  set(K.factoryItems(ID), []);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/console/p/:projectId/factory" element={<FactoryPage />} />
-        <Route
-          path="/console/p/:projectId/factory/board"
-          element={<FactoryPlaceholder page="board" />}
-        />
+        <Route path="/console/p/:projectId/factory/board" element={<BoardPage />} />
         <Route
           path="/console/p/:projectId/factory/steps/:workflow/:node"
           element={<FactoryPlaceholder page="step" />}
@@ -150,18 +150,19 @@ describe('the Overview', () => {
   });
 });
 
-describe('the pages not built yet', () => {
-  test('the board says it is coming next and leads back to the overview', () => {
+describe('the board', () => {
+  test('sits under Board in the sub-navigation, its columns the declared stages', () => {
     const html = render(`/console/p/${ID}/factory/board`, withView);
-    expect(html).toContain('The board');
-    expect(html).toContain('is coming next');
     expect(currentLinks(html)).toEqual([
       `/console/p/${ID}/factory Factory`,
       `/console/p/${ID}/factory/board Board`,
     ]);
-    expect(html).toContain('Back to the overview');
+    expect(html).toContain('aria-label="Build"');
+    expect(html).not.toContain('is coming next');
   });
+});
 
+describe('the pages not built yet', () => {
   test('a step page names the workflow and step', () => {
     const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, withView);
     expect(html).toContain('deliver · rounds.fix');
