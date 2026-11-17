@@ -54,7 +54,8 @@ it. Inside it:
 - **Stage page**: what a stage does and the step graph of each workflow behind it. The
   stage's own steps stand out, steps another stage works are dimmed, and a step running for
   an item now glows.
-- **Step page**: the step by its name, with its engine id under it, the items on it now, its
+- **Step page**: the step by its name, with its engine id under it, the items on it now, when
+  it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
   prompt, its YAML and the model it runs on.
 
 Views update within a few seconds of a run starting, changing step or ending, and of a

@@ -20,6 +20,7 @@ import {
   type FactoryStage,
 } from './lib/stage-steps';
 import { readFailure } from './lib/read-failure';
+import { conditionText } from './lib/step-graph';
 import { stepLabel } from './lib/step-label';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 
@@ -131,7 +132,10 @@ function StepBody({
       <Section title="On this step now">
         <OnThisStep projectId={projectId} view={view} workflow={workflow} stepKey={stepKey} />
       </Section>
-      <StepFacts step={step} />
+      <StepFacts
+        step={step}
+        condition={conditionText(step.whenClauses, key => stepLabel(view, workflow, key))}
+      />
       <StepPrompt step={step} />
       <Section title="YAML">
         {step.yaml === null ? (
@@ -184,7 +188,14 @@ const KIND_WORDS: Record<FactoryStep['kind'], string> = {
   other: 'Other',
 };
 
-function StepFacts({ step }: { step: FactoryStep }): ReactElement {
+function StepFacts({
+  step,
+  condition,
+}: {
+  step: FactoryStep;
+  /** `when:` in words, by the names steps read by; null when the parser gave no comparisons. */
+  condition: string | null;
+}): ReactElement {
   const runsCode = step.kind === 'bash' || step.kind === 'script';
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
@@ -203,7 +214,13 @@ function StepFacts({ step }: { step: FactoryStep }): ReactElement {
       )}
       {step.when === null ? null : (
         <Fact term="Runs when">
-          <span className="break-all font-mono text-console-12">{step.when}</span>
+          {condition === null ? (
+            // An expression the engine's parser did not take: this page is where engine detail
+            // lives, so it shows as written rather than not at all.
+            <span className="break-all font-mono text-console-12">{step.when}</span>
+          ) : (
+            <span title={step.when}>{condition}</span>
+          )}
         </Fact>
       )}
     </dl>

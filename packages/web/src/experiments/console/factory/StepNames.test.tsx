@@ -9,7 +9,12 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import type { FactoryItemDetail, FactoryViews, FactoryWorkflow } from '../skills/factory';
+import type {
+  FactoryItem,
+  FactoryItemDetail,
+  FactoryViews,
+  FactoryWorkflow,
+} from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
@@ -19,16 +24,15 @@ import { ItemPage } from './ItemPage';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import { MapDetails } from './map/MapDetails';
-import { itemDetail } from './item-detail.test-fixtures';
+import { itemDetail, shippedListed } from './item-detail.test-fixtures';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
-import type { FactoryItem } from './lib/board';
 import { delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
 
 const ID = 'cb-1';
 const DELIVER = deliverJson as FactoryWorkflow;
 const listing: FactoryViews = {
-  views: [{ pack: VIEW.pack, source: 'project-file', path: '/repo/view.json', declaration: VIEW }],
+  views: [{ ...shippedListed, declaration: VIEW }],
   errors: [],
 };
 const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
@@ -202,5 +206,16 @@ describe('no raw step id where a person reads', () => {
     // The heading itself: "Code review" also reads in the page's running list.
     expect(/<h3[^>]*>([^<]*)<\/h3>/.exec(html)?.[1]).toBe('Code review');
     expect(readable(html)).toMatch(/Engine id\s+deliver · rounds\.review__review/);
+  });
+
+  test("the step page's Runs when line names the step it reads, the expression on hover", () => {
+    const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`);
+    expect(readable(html)).toMatch(/Runs when\s+if Verdict = return/);
+    expect(html).toContain(
+      `title="$LOOP_PREV.verdict__verdict.output.outcome == &#x27;return&#x27;"`
+    );
+    // Outside the YAML block and the labelled engine id, no raw id shows.
+    const facts = /<dl[\s\S]*?<\/dl>/.exec(html)?.[0] ?? '';
+    expect(rawIds(facts)).toEqual([]);
   });
 });

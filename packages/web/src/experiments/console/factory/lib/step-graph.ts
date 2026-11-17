@@ -89,9 +89,10 @@ const OPERATOR_WORDS: Record<WhenAtom['operator'], string> = {
  * A `when:` read at a glance on a projected screen, such as `if Verdict = return`: each
  * comparison as the step it reads (`stepName`) or the input, the operator and the value,
  * joined with `and` and `or` as written. Null without comparisons: the engine's parser did
- * not take the expression, and the full expression stays in the hover title only.
+ * not take the expression. The stage graph and the step page both print it from here, with
+ * the full expression on hover.
  */
-function conditionText(
+export function conditionText(
   clauses: WorkflowStep['whenClauses'],
   stepName: (stepKey: string) => string
 ): string | null {
