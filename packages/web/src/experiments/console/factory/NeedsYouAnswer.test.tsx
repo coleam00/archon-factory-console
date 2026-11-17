@@ -4,7 +4,7 @@ import { act } from 'react';
 import { AttentionAnswerForm } from '../components/AttentionAnswerPanel';
 import { get, set } from '../store/cache';
 import { K } from '../store/keys';
-import { answerByRef } from './NeedsYouList';
+import { answerByRef } from './NeedsYouRow';
 import { askItem } from './needs-you.test-fixtures';
 
 // A refusal shows after a click re-renders the form, which static markup cannot reach.

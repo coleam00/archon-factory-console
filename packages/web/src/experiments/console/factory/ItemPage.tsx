@@ -17,7 +17,7 @@ import { itemAsks, type NeedsYouItem } from './lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
-import { NeedsYouRow } from './NeedsYouList';
+import { NeedsYouRow } from './NeedsYouRow';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
 export function ItemPage(): ReactElement {

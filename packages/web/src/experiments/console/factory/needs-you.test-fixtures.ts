@@ -68,3 +68,23 @@ export function usageLimitItem(overrides: Partial<UsageLimit> = {}): UsageLimit 
     ...overrides,
   };
 }
+
+type Unreadable = Extract<AttentionQueueItem, { kind: 'unreadable' }>;
+
+/** A paused run whose wait could not be read: answered on the run, not here. */
+export function unreadableItem(overrides: Partial<Unreadable> = {}): Unreadable {
+  const { occurrence, ...run } = runRef('run-unreadable');
+  void occurrence;
+  return {
+    kind: 'unreadable',
+    ref: 'run-unreadable:1',
+    project,
+    revision: 1,
+    labels: {},
+    pausedAt: null,
+    run,
+    reason: 'child_run_missing',
+    detail: 'The child run this one waits on is gone.',
+    ...overrides,
+  };
+}
