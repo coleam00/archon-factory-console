@@ -43,7 +43,10 @@ function graphStagesOf(view: FactoryView, graph: PackGraph): Map<string, GraphSt
   return found;
 }
 
-/** The pack's workflows no stage of the view lists, in graph order: the check compares none of their steps or hand-offs. */
+/**
+ * The pack's workflows no stage of the view lists, by their names in the graph and in its
+ * order: the check compares none of their steps or hand-offs.
+ */
 export function unlistedWorkflows(view: FactoryView, graph: PackGraph): string[] {
   const listed = new Set([...graphStagesOf(view, graph).values()].map(stage => stage.name));
   return graph.stages.map(stage => stage.name).filter(name => !listed.has(name));
