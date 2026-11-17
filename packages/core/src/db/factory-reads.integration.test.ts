@@ -4,7 +4,10 @@ import { SqliteAdapter, sqliteDialect } from './adapters/sqlite';
 import { checkProjectItemsByActivity } from './factory-reads.conformance-harness';
 
 const db = new SqliteAdapter(':memory:');
+// The rest of the connection module stays real on purpose: the read only touches `pool`.
+const connection = { ...(await import('./connection')) };
 mock.module('./connection', () => ({
+  ...connection,
   pool: db,
   getDatabase: () => db,
   getDialect: () => sqliteDialect,

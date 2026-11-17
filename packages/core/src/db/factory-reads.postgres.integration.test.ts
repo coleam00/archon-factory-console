@@ -5,6 +5,8 @@ import { PostgresAdapter, postgresDialect } from './adapters/postgres';
 import { checkProjectItemsByActivity } from './factory-reads.conformance-harness';
 
 const baseUrl = process.env.ARCHON_TEST_PG_URL;
+// The rest of the connection module stays real on purpose: the read only touches `pool`.
+const connection = { ...(await import('./connection')) };
 
 test.skipIf(!baseUrl)(
   'PostgreSQL lists a project’s items with their latest run activity',
@@ -22,6 +24,7 @@ test.skipIf(!baseUrl)(
       db = new PostgresAdapter(scratchUrl.toString());
       const adapter = db;
       mock.module('./connection', () => ({
+        ...connection,
         pool: adapter,
         getDatabase: () => adapter,
         getDialect: () => postgresDialect,
