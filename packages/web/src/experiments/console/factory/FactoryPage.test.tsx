@@ -40,9 +40,17 @@ const withView: FactoryViews = {
 };
 const none: FactoryViews = { views: [], errors: [] };
 
-/** The sub-navigation link marked as the current page, as rendered. */
-const current = (href: string, label: string): string =>
-  `<a aria-current="page" class="rounded px-2 py-1 text-console-12 font-medium transition-colors bg-surface-elevated text-text-primary" href="${href}" data-discover="true">${label}</a>`;
+/**
+ * Every link marked as the current page, as `href label`, whatever its other attributes:
+ * the project tab and the sub-navigation entry. Styling is not what is asserted.
+ */
+const currentLinks = (html: string): string[] =>
+  [...html.matchAll(/<a\s([^>]*)>(.*?)<\/a>/g)]
+    .filter(([, attributes]) => / aria-current="page"|^aria-current="page"/.test(attributes ?? ''))
+    .map(([, attributes, body]) => {
+      const href = /href="([^"]*)"/.exec(attributes ?? '')?.[1] ?? '';
+      return `${href} ${(body ?? '').replace(/<[^>]*>/g, '')}`;
+    });
 
 function render(path: string, listing: FactoryViews): string {
   set(K.factoryViews(ID), listing);
@@ -89,7 +97,10 @@ describe('the Overview', () => {
     const html = render(`/console/p/${ID}/factory`, withView);
     expect(html).toContain('Kit factory');
     expect(html).toContain('Issues come in; changes go out.');
-    expect(html).toContain(current(`/console/p/${ID}/factory`, 'Overview'));
+    expect(currentLinks(html)).toEqual([
+      `/console/p/${ID}/factory Factory`,
+      `/console/p/${ID}/factory Overview`,
+    ]);
     expect(html).toContain(`href="/console/p/${ID}/factory/board"`);
     expect(html).toContain(`href="/console/p/${ID}/factory#needs-you"`);
     expect(html).toContain('id="needs-you"');
@@ -119,7 +130,10 @@ describe('the pages not built yet', () => {
     const html = render(`/console/p/${ID}/factory/board`, withView);
     expect(html).toContain('The board');
     expect(html).toContain('is coming next');
-    expect(html).toContain(current(`/console/p/${ID}/factory/board`, 'Board'));
+    expect(currentLinks(html)).toEqual([
+      `/console/p/${ID}/factory Factory`,
+      `/console/p/${ID}/factory/board Board`,
+    ]);
     expect(html).toContain('Back to the overview');
   });
 
