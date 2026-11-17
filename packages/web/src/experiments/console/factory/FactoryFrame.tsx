@@ -11,6 +11,7 @@ import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { useFactoryAttention } from './attention-stream';
 import { needsYou } from './lib/needs-you';
+import { howItWorksShown } from './lib/overview-nav';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
@@ -96,7 +97,7 @@ function FactoryViewed({
         view={view}
         section={section}
         waiting={waiting}
-        overview={overview.data}
+        overview={overview}
       />
       <FactoryErrors errors={[...errors, ...(overview.data?.errors ?? [])]} />
       {children(view, attention)}
@@ -157,11 +158,10 @@ function FactoryHeading({
   section: FactorySection;
   /** How many open asks and waits need a person; undefined until the queue loads. */
   waiting: number | undefined;
-  /** The pack's overview file, read; its entry shows only when there is one, or a broken one. */
-  overview: FactoryOverviewRead | undefined;
+  /** The pack's overview file, read; its entry shows when there is one, a broken one, or the read failed. */
+  overview: EntityView<FactoryOverviewRead>;
 }): ReactElement {
-  const hasOverview =
-    overview !== undefined && (overview.overview !== null || overview.errors.length > 0);
+  const hasOverview = howItWorksShown(overview);
   return (
     <div className="flex max-w-5xl flex-col gap-3">
       <div className="flex flex-col gap-1.5">

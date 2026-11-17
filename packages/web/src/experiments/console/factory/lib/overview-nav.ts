@@ -84,3 +84,16 @@ export function openView(
   if (overview.views[asked] !== undefined) return { id: asked, unknown: undefined };
   return { id: overview.root, unknown: asked };
 }
+
+/**
+ * Whether the Factory sub-navigation offers How it works: the pack has an overview file, or a
+ * broken one, or the read failed. A failed read shows the entry so its page can say why;
+ * hiding it would be silent. Unread or read as none, there is nothing to show.
+ */
+export function howItWorksShown(read: {
+  data: FactoryOverviewRead | undefined;
+  error: Error | undefined;
+}): boolean {
+  if (read.error !== undefined) return true;
+  return read.data !== undefined && (read.data.overview !== null || read.data.errors.length > 0);
+}

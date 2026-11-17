@@ -1,11 +1,19 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { FIT_PAD, fitCamera, fittedHeight, MIN_ZOOM, type Frame } from './map-camera';
+import {
+  FIT_PAD,
+  fitCamera,
+  fittedHeight,
+  MIN_ZOOM,
+  TYPE_FLOOR_PX,
+  type Frame,
+} from './map-camera';
 import type { Box, Point } from './map-layout';
 import {
   layoutOverview,
   OVERVIEW_PAGE_MAX_H,
+  OVERVIEW_SMALLEST_PX,
   OVERVIEW_TITLE_PX,
   type OverviewEdgePath,
 } from './overview-layout';
@@ -112,12 +120,12 @@ describe('the shipped overview, drawn', () => {
   }
 
   test.each(views)(
-    'view %s fits whole with titles at 14 px or more, on the page and full screen',
+    'view %s fits whole with titles at 14 px or more and no text under the type floor, on the page and full screen',
     (_, view) => {
-      expect(OVERVIEW_TITLE_PX * fitted(view, pageFrame(view))).toBeGreaterThanOrEqual(
-        TITLE_FLOOR_PX
-      );
-      expect(OVERVIEW_TITLE_PX * fitted(view, FULL)).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+      for (const k of [fitted(view, pageFrame(view)), fitted(view, FULL)]) {
+        expect(OVERVIEW_TITLE_PX * k).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
+        expect(OVERVIEW_SMALLEST_PX * k).toBeGreaterThanOrEqual(TYPE_FLOOR_PX);
+      }
     }
   );
 });

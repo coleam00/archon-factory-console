@@ -4,9 +4,9 @@ import type { OverviewCard as Card } from '../lib/overview-nav';
 import { ICONS, KINDS } from './overview-kinds';
 
 /*
- * Sizes are world px on a canvas the camera scales (about 0.45 on the page at 1440x900, more
- * full screen): the title is OVERVIEW_TITLE_PX (overview-layout.ts), held by its test to draw at
- * 14 px or more fitted.
+ * Sizes are world px on a canvas the camera scales (about 0.44 on the page at 1440x900, more
+ * full screen): the title is OVERVIEW_TITLE_PX and everything else OVERVIEW_SMALLEST_PX
+ * (overview-layout.ts), held by its test to draw at 14 px and at the type floor fitted.
  */
 
 /**
@@ -31,7 +31,7 @@ export function OverviewCard({
         className="absolute inset-x-0 top-0 h-2"
         style={{ background: kind.color }}
       />
-      <span className="flex items-center gap-3 text-console-18 font-medium uppercase tracking-wider text-text-tertiary">
+      <span className="flex items-center gap-3 text-console-22 font-medium uppercase text-text-tertiary">
         <Icon aria-hidden="true" className="size-8 shrink-0" style={{ color: kind.color }} />
         {kind.label}
         {card.opens === undefined ? null : (

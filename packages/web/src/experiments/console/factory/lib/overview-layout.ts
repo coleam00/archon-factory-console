@@ -29,6 +29,11 @@ export const OVERVIEW_LANE_BELOW = 64;
 /** A card title's size in world px (`text-console-34`); the fit test holds it to 14 px drawn. */
 export const OVERVIEW_TITLE_PX = 34;
 /**
+ * The smallest text the overview draws, in world px (`text-console-22`: card text, kind words,
+ * group and line labels); the fit test holds it to the console's type floor drawn.
+ */
+export const OVERVIEW_SMALLEST_PX = 22;
+/**
  * The tallest the map frame grows on the page, so a tall drill-down fits in one screen at
  * 1440x900 instead of scrolling; full screen it fills the screen instead.
  */
