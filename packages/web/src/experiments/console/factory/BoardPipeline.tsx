@@ -38,7 +38,10 @@ function useShownColumns(
   return shown;
 }
 
-/** Pipeline view: one column per declared stage, left to right, then the folded endings. */
+/**
+ * Pipeline view: one column per declared stage, left to right (top to bottom on a phone),
+ * then the folded endings.
+ */
 export function BoardPipeline({
   projectId,
   model,
@@ -57,16 +60,22 @@ export function BoardPipeline({
   return (
     <div className="flex flex-col gap-2">
       {hint === null ? null : (
-        <p className="text-console-11 text-text-tertiary" aria-live="polite">
+        // Only where the columns sit side by side: on a phone they stack and none is hidden.
+        <p className="hidden text-console-11 text-text-tertiary md:block" aria-live="polite">
           {hint} →
         </p>
       )}
-      <div ref={scroller} className="flex gap-2 overflow-x-auto pb-2">
+      {/* A phone stacks the columns, each at full width; from md they sit side by side and
+          the row scrolls sideways when they do not fit. */}
+      <div
+        ref={scroller}
+        className="flex flex-col gap-4 pb-2 md:flex-row md:gap-2 md:overflow-x-auto"
+      >
         {model.columns.map(column => (
           <section
             key={column.stage}
             aria-label={column.label}
-            className="flex w-0 min-w-36 flex-1 flex-col gap-2"
+            className="flex flex-col gap-2 md:w-0 md:min-w-36 md:flex-1"
           >
             <h3
               data-stage={column.stage}

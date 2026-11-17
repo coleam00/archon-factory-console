@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
+import { ProjectHeader } from '../components/ProjectHeader';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
@@ -42,15 +43,9 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
   const view = currentView(listing.data);
   return (
     <section className="flex h-full flex-col">
-      <header className="flex flex-col gap-3 border-b border-border px-6 py-4">
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-medium text-text-primary">
-            {project?.name ?? 'Project'}
-          </h1>
-          <p className="truncate text-xs text-text-tertiary">{project?.path ?? 'Loading…'}</p>
-        </div>
+      <ProjectHeader title={project?.name ?? 'Project'} subtitle={project?.path ?? 'Loading…'}>
         <ProjectViewTabs projectId={projectId} active="factory" />
-      </header>
+      </ProjectHeader>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
         <div className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'}`}>
           {view === undefined ? (
@@ -152,9 +147,13 @@ function FactoryHeading({
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
-        <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">
-          {view.declaration.summary}
-        </p>
+        {/* The summary introduces the factory once, on the Overview; the other pages need
+            their first screen for the board, the item or the graph. */}
+        {section === 'overview' ? (
+          <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">
+            {view.declaration.summary}
+          </p>
+        ) : null}
       </div>
       <nav aria-label="Factory" className="flex items-center gap-1">
         {SECTIONS.map(({ key, label, rest }) => (

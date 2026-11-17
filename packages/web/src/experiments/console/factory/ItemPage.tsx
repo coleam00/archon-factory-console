@@ -13,7 +13,7 @@ import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { needsYou, type NeedsYouItem } from './lib/needs-you';
-import { itemColumn, itemState } from './lib/placement';
+import { itemPill, placeItem } from './lib/board';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { NeedsYouRow } from './NeedsYouList';
@@ -68,25 +68,16 @@ function ItemRead({
   }
   const asks = itemAsks(data.item, attention.data);
   const declaration = view.declaration;
-  const placement = {
-    runs: data.item.runs.map(run => {
-      const fact = data.runs.find(entry => entry.runId === run.id);
-      return {
-        workflow: fact?.workflow ?? null,
-        status: run.status,
-        outcome: run.outcome,
-        step: fact?.step ?? null,
-      };
-    }),
-    merged: data.item.progress?.change?.merged ?? null,
-    needsYou: asks.length > 0,
-  };
+  // The board's own placement and pill, so the header says what the item's card says.
+  const placement = placeItem(declaration, data.item);
+  const landed = placement.kind === 'column' && placement.stage === declaration.landed.stage;
   return (
     <>
       <ItemHeader
         item={data.item}
-        state={itemState(placement)}
-        column={itemColumn(declaration, placement)}
+        pill={itemPill(data.item, landed).pill}
+        placement={placement}
+        view={declaration}
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
@@ -100,7 +91,8 @@ function ItemRead({
 /**
  * What on the live queue waits on this item: an entry the item read lists among its
  * questions (it reads the item's whole run tree, so a wait inside a child run is one), or
- * one the queue itself names this item on. The header's pill reads the same list.
+ * one the queue itself names this item on. The header's pill reads the item's own
+ * questions, as the board's card does.
  */
 function itemAsks(item: FactoryItem, queue: AttentionQueue | undefined): NeedsYouItem[] {
   if (queue === undefined) return [];

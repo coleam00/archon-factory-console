@@ -6,7 +6,9 @@ import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { itemDetail, PROJECT, shippedView } from './item-detail.test-fixtures';
+import { PILL_CLASS } from './BoardCard';
 import { ItemPage } from './ItemPage';
+import { itemPill } from './lib/board';
 import { askItem } from './needs-you.test-fixtures';
 
 afterEach(() => {
@@ -43,6 +45,10 @@ function render(detail: FactoryItemDetail, attention: AttentionQueue = quiet): s
   );
 }
 
+/** The header's pill, as the board's card draws it: one class map for both. */
+const pill = (state: keyof typeof PILL_CLASS, words: string): string =>
+  `${PILL_CLASS[state]}">${words}<`;
+
 /** The page's visible words, tags dropped. */
 const text = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
@@ -50,7 +56,10 @@ describe('the item page', () => {
   test('item 3: header, its two deliver runs, and the asks it was answered', () => {
     const html = render(itemDetail('3'));
     const words = text(html);
-    expect(html).toMatch(/rounded-full[^>]*>Waiting</);
+    expect(html).toContain(pill('waiting', 'Waiting'));
+    // The title alone: the summary is the Overview's.
+    expect(words).toContain(shippedView.title);
+    expect(html).not.toContain(shippedView.summary);
     expect(words).toContain('In Build');
     expect(words).toContain('PR #14');
     expect(words).toContain('merge state unknown');
@@ -70,15 +79,17 @@ describe('the item page', () => {
   test('item 6 runs: its live step, the Running pill, a cost not recorded yet', () => {
     const html = render(itemDetail('6'));
     const words = text(html);
-    expect(html).toMatch(/rounded-full[^>]*>Running</);
+    expect(html).toContain(pill('running', 'Running'));
     expect(words).toContain('deliver · build__build');
     expect(words).toContain('No change yet');
-    // Its duration runs to now; its cost shows as a dash until the run records one.
-    expect(words).toMatch(/After Plan: planned \S+ - /);
+    // Where the plan sent it, in the declaration's words; its duration runs to now, with its
+    // units; its cost shows as a dash until the run records one.
+    expect(words).toMatch(/After Plan: sent to Build \d+ (s|min|h|d)( \d+ (min|h))? - /);
   });
 
   test("lists only this item's asks from the live queue, answerable, and says it needs you", () => {
-    const detail = itemDetail('1');
+    // Item 3: its change has not merged, so an open ask is what its pill says.
+    const detail = itemDetail('3');
     const mine = askItem({ ref: 'ask:mine', item: { ...detail.item.item } });
     // A wait in a child run names no item; the item read lists it among its questions.
     const child = askItem({ ref: 'ask:child', item: undefined, message: 'From the child run?' });
@@ -87,11 +98,21 @@ describe('the item page', () => {
     const html = render(read, { items: [mine, child, other], runs: [], degraded: [] });
     const words = text(html);
     // The header pill, not the sub-navigation entry that prints the same words on every page.
-    expect(html).toMatch(/rounded-full[^>]*>Needs you</);
+    expect(html).toContain(pill('needs-you', 'Needs you'));
     expect(words).toContain('Which base should the change target?');
     expect(words).toContain('From the child run?');
     expect(words).not.toContain('Not this item?');
     expect(words).toContain('Recommended: Use dev');
+  });
+
+  test('an open ask on a running item: Needs you, as its board card says', () => {
+    const detail = itemDetail('6');
+    const ask = askItem({ ref: 'ask:open', item: { ...detail.item.item } });
+    const read = { ...detail, item: { ...detail.item, questions: [ask] } };
+    expect(itemPill(read.item, false).pill).toBe('needs-you');
+    const html = render(read, { items: [ask], runs: [], degraded: [] });
+    expect(html).toContain(pill('needs-you', 'Needs you'));
+    expect(html).not.toContain(pill('running', 'Running'));
   });
 
   test('links in plain words, both directions, an ended one marked', () => {

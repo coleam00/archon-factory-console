@@ -1,25 +1,19 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { FactoryItem } from '../skills/factory';
-import { ITEM_STATE_LABEL, type ItemColumn, type ItemState } from './lib/placement';
+import { PillBadge } from './BoardCard';
+import type { FactoryDeclaration, Pill, Placement } from './lib/board';
 
-const PILL_CLASS: Record<ItemState, string> = {
-  running: 'bg-[color-mix(in_oklch,var(--running),transparent_80%)] text-[color:var(--running)]',
-  'needs-you': 'bg-warning/20 text-warning',
-  failed: 'bg-error/15 text-error',
-  waiting: 'bg-surface-elevated text-text-secondary',
-  landed: 'bg-success/15 text-success',
-};
-
-/** The item's key, title, state, column and change. */
+/** The item's key, title, state, column and change: the same pill its board card shows. */
 export function ItemHeader({
   item,
-  state,
-  column,
+  pill,
+  placement,
+  view,
 }: {
   item: FactoryItem;
-  state: ItemState;
-  /** Null when the item's position could not be derived. */
-  column: ItemColumn | null;
+  pill: Pill;
+  placement: Placement;
+  view: FactoryDeclaration;
 }): ReactElement {
   const title = item.progress?.title ?? null;
   return (
@@ -31,12 +25,8 @@ export function ItemHeader({
         </h3>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
-        <span
-          className={`rounded-full px-2 py-0.5 text-console-11 font-semibold ${PILL_CLASS[state]}`}
-        >
-          {ITEM_STATE_LABEL[state]}
-        </span>
-        <ColumnWords item={item} column={column} />
+        <PillBadge pill={pill} />
+        <ColumnWords item={item} placement={placement} view={view} />
         <ChangeLink change={item.progress?.change ?? null} />
       </div>
     </header>
@@ -45,14 +35,17 @@ export function ItemHeader({
 
 function ColumnWords({
   item,
-  column,
+  placement,
+  view,
 }: {
   item: FactoryItem;
-  column: ItemColumn | null;
+  placement: Placement;
+  view: FactoryDeclaration;
 }): ReactNode {
-  if (item.progress === null || column === null) return <span>Position unknown</span>;
-  if ('ended' in column) return <span>{column.ended}</span>;
-  return <span>In {column.stage.label}</span>;
+  if (item.progress === null) return <span>Position unknown</span>;
+  if (placement.kind === 'ended') return <span>{placement.label}</span>;
+  const stage = view.stages.find(candidate => candidate.id === placement.stage);
+  return <span>In {stage?.label ?? placement.stage}</span>;
 }
 
 type Change = NonNullable<NonNullable<FactoryItem['progress']>['change']>;

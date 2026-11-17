@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { FactoryWorkflow } from '../../skills/factory';
 import deliverJson from './fixtures/deliver-workflow.json';
 import { stepGraph } from './step-graph';
-import { layoutStepGraph, type Box } from './step-graph-layout';
+import { layoutStepGraph, type Box, type Point } from './step-graph-layout';
 import { stepInStage } from './stage-steps';
 
 /**
@@ -129,5 +129,66 @@ describe('layoutStepGraph on deliver', () => {
     const top = new Map(laid.steps.map(step => [step.node.key, step.y]));
     for (const edge of laid.edges)
       expect((top.get(edge.to) ?? 0) > (top.get(edge.from) ?? 0)).toBe(true);
+  });
+});
+
+describe('edges of the deliver graph keep out of frames they do not belong to', () => {
+  // Every step of every stage, as the stage pages draw them.
+  const laid = layoutStepGraph(stepGraph(deliver, () => true));
+  const groups = new Map(laid.groups.map(group => [group.group.id, group]));
+  const stepGroup = new Map(laid.steps.map(step => [step.node.key, step.node.group]));
+  /** The groups a step is drawn in, innermost first. */
+  const enclosing = (key: string): Set<string> => {
+    const found = new Set<string>();
+    for (
+      let id = stepGroup.get(key) ?? null;
+      id !== null;
+      id = groups.get(id)?.group.parent ?? null
+    )
+      found.add(id);
+    return found;
+  };
+  /** Whether the segment a→b passes inside `box`, shrunk by a tolerance for its border. */
+  const crosses = (a: Point, b: Point, box: Box, tolerance = 4): boolean => {
+    const left = box.x + tolerance;
+    const right = box.x + box.width - tolerance;
+    const top = box.y + tolerance;
+    const bottom = box.y + box.height - tolerance;
+    const [x0, x1] = [Math.min(a.x, b.x), Math.max(a.x, b.x)];
+    const [y0, y1] = [Math.min(a.y, b.y), Math.max(a.y, b.y)];
+    return x1 > left && x0 < right && y1 > top && y0 < bottom;
+  };
+
+  test('every edge is drawn in straight vertical and horizontal runs', () => {
+    for (const edge of laid.edges)
+      for (const [a, b] of edge.points.slice(1).map((p, i) => [edge.points[i], p] as const))
+        expect(a !== undefined && (a.x === b.x || a.y === b.y)).toBe(true);
+  });
+
+  test('an edge enters a frame only when one of its steps is inside it', () => {
+    const offending: string[] = [];
+    for (const edge of laid.edges) {
+      const own = new Set([...enclosing(edge.from), ...enclosing(edge.to)]);
+      for (const group of laid.groups) {
+        if (own.has(group.group.id)) continue;
+        const hit = edge.points.slice(1).some((point, index) => {
+          const before = edge.points[index];
+          return before !== undefined && crosses(before, point, group);
+        });
+        if (hit) offending.push(`${edge.from}→${edge.to} crosses ${group.group.id}`);
+      }
+    }
+    expect(offending).toEqual([]);
+  });
+
+  test('edges leaving one step leave it at different points', () => {
+    const starts = new Map<string, Set<number>>();
+    for (const edge of laid.edges) {
+      const xs = starts.get(edge.from) ?? new Set<number>();
+      xs.add(edge.points[0]?.x ?? Number.NaN);
+      starts.set(edge.from, xs);
+    }
+    const fanOut = laid.edges.filter(edge => edge.from === 'rounds.base').length;
+    expect(starts.get('rounds.base')?.size).toBe(fanOut);
   });
 });

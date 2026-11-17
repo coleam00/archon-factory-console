@@ -12,12 +12,15 @@ import {
   type BoardModel,
   type FactoryDeclaration,
 } from './lib/board';
+import { BOARD_SHOW_LABEL, parseBoardShow, type BoardShow } from './lib/board-show';
 
 /** How long a card that changed column stays highlighted. */
 const MOVED_MS = 1500;
 /** `?view=table` shows the Table view; Pipeline is the default. */
 const VIEW_PARAM = 'view';
 const TABLE_VIEW = 'table';
+/** `?show=` narrows the board to what one of the Overview's numbers counts. */
+const SHOW_PARAM = 'show';
 
 /** `/console/p/:projectId/factory/board`: every item, in the column of the stage it is in. */
 export function BoardPage(): ReactElement {
@@ -70,6 +73,8 @@ export function Board({
   const items = useFactoryBoardItems(projectId);
   const [params, setParams] = useSearchParams();
   const table = params.get(VIEW_PARAM) === TABLE_VIEW;
+  const showParam = params.get(SHOW_PARAM);
+  const show = showParam === null ? undefined : parseBoardShow(showParam);
   const [query, setQuery] = useState('');
   // Where each item sat on the last read: placement keeps a run between named steps where
   // it was, and the highlight compares against it.
@@ -83,19 +88,22 @@ export function Board({
   );
   const moved = useMovedCards(all?.positions, previous);
   const shown = useMemo(
-    () => (all === undefined ? undefined : filterBoard(all, query)),
-    [all, query]
+    () => (all === undefined ? undefined : filterBoard(all, query, show)),
+    [all, query, show]
   );
-  const showView = (next: 'pipeline' | 'table'): void => {
+  const setParam = (name: string, value: string | null): void => {
     setParams(
       current => {
         const updated = new URLSearchParams(current);
-        if (next === 'table') updated.set(VIEW_PARAM, TABLE_VIEW);
-        else updated.delete(VIEW_PARAM);
+        if (value === null) updated.delete(name);
+        else updated.set(name, value);
         return updated;
       },
       { replace: true }
     );
+  };
+  const showView = (next: 'pipeline' | 'table'): void => {
+    setParam(VIEW_PARAM, next === 'table' ? TABLE_VIEW : null);
   };
   return (
     <div className="flex flex-col gap-3">
@@ -114,6 +122,13 @@ export function Board({
           <ViewToggle label="Pipeline" active={!table} onClick={() => showView('pipeline')} />
           <ViewToggle label="Table" active={table} onClick={() => showView('table')} />
         </div>
+        <ShowChip
+          param={showParam}
+          show={show}
+          onClear={() => {
+            setParam(SHOW_PARAM, null);
+          }}
+        />
       </div>
       <BoardBody projectId={projectId} items={items} model={shown} table={table} moved={moved} />
     </div>
@@ -146,6 +161,42 @@ function BoardBody({
     <BoardTable projectId={projectId} model={model} moved={moved} />
   ) : (
     <BoardPipeline projectId={projectId} model={model} moved={moved} />
+  );
+}
+
+/**
+ * The number the board was opened from, with a way back to every item. A `show` no filter
+ * has says so rather than quietly showing everything.
+ */
+function ShowChip({
+  param,
+  show,
+  onClear,
+}: {
+  param: string | null;
+  show: BoardShow | undefined;
+  onClear: () => void;
+}): ReactElement | null {
+  if (param === null) return null;
+  return (
+    <span
+      role={show === undefined ? 'alert' : undefined}
+      className={`flex items-center gap-2 rounded border px-2 py-0.5 text-console-12 ${
+        show === undefined
+          ? 'border-error/40 bg-error/10 text-error'
+          : 'border-border bg-surface-elevated text-text-primary'
+      }`}
+    >
+      {show === undefined ? `Unknown filter "${param}"` : `Showing: ${BOARD_SHOW_LABEL[show]}`}
+      <button
+        type="button"
+        onClick={onClear}
+        className="text-text-tertiary hover:text-text-primary"
+        aria-label="Show every item"
+      >
+        Show all
+      </button>
+    </span>
   );
 }
 
