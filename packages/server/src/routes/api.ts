@@ -10,6 +10,8 @@ import {
 import { createWorkflowStore } from '@archon/core/workflows/store-adapter';
 import * as codebaseDb from '@archon/core/db/codebases';
 import * as factoryDb from '@archon/core/db/factory-reads';
+import { providerRegistry } from '@archon/providers';
+import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
 import { attentionQueueSource } from '@archon/core/operations/attention-queue';
 import { changeMergeState } from '@archon/adapters/forge-host';
 import { getArchonHome, projectKeyForCodebase } from '@archon/paths/archon-paths';
@@ -145,6 +147,7 @@ export function registerApiRoutes(
     listProjectItems: factoryDb.listProjectItemsByActivity,
     changeMergeState: (url, audits) =>
       changeMergeState(url, audits, { archonHome: getArchonHome(), env: process.env }),
+    discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerWorkflowDefinitionRoutes(app);
   registerArtifactRoutes(app);

@@ -9,10 +9,12 @@
  *   home's archon.db (`VACUUM INTO`), so the console shows the factory's real items and runs.
  *   `--fresh` takes a new copy. The live database is only ever opened read-only. The copy's
  *   projects point at this checkout, so the console reads this branch's `.archon/` files.
+ * - The live home's installed packs (`plugins/`) are copied in once too, so the console can
+ *   draw their workflows' steps, prompts and YAML. `--fresh` copies them again.
  * - It serves the built web UI (`bun run build:web` first) on the given port, default 3190.
  */
 import { Database } from 'bun:sqlite';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -47,6 +49,15 @@ if (live && !existsSync(db)) {
     copy.close();
     console.log(`Seeded ${db} from a read-only copy of the live factory database.`);
   }
+}
+
+// The installed packs, so the console can draw their workflows' steps and prompts. Copied
+// once, apart from the database, so a home seeded before this step gets them too.
+const livePlugins = live && join(live, 'plugins');
+const plugins = join(home, 'plugins');
+if (livePlugins && existsSync(livePlugins) && !existsSync(plugins)) {
+  cpSync(livePlugins, plugins, { recursive: true });
+  console.log(`Copied the live factory's installed packs into ${plugins}.`);
 }
 
 const env: Record<string, string | undefined> = {

@@ -604,6 +604,7 @@ See the [metrics guide](/guides/metrics/).
 |--------|------|-------------|
 | GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
 | GET | `/api/factory/items` | A page of a project's items with each item's progress, as `FactoryItemsPage` |
+| GET | `/api/factory/workflow` | One workflow a factory view names, as its steps and groups (`FactoryWorkflow`) |
 
 A factory view is a JSON declaration that presents a workflow pack as a software factory in
 the console: its stages, where a finished run leaves an item, and a map. A pack ships one as
@@ -645,6 +646,18 @@ stands. `since` takes a duration back from now (`7d`) or an ISO date or time; `l
 100, 50 by default; `next` is the cursor for `after`, which carries its own `since`. A
 malformed cursor, one from another project, one passed with `since`, or an unreadable `since`
 returns **400**. An unknown `codebaseId`, or a project no view applies to, returns **404**.
+
+`GET /api/factory/workflow?codebaseId=&workflow=` reads one workflow a stage of an applying
+view names (`workflow` as the view names it, such as `deliver`), from the definition runs
+execute. `steps[]` holds every step keyed as run events name it (a loop group's body step is
+`<loop>.<node>`, an included workflow's step `<include>__<node>`), with its kind, declared
+model, `when:` (and `whenLabel`, its short form such as `if verdict = return`, built with
+the engine's `when:` parser), the prompt it runs (inline, or its command file's text) and the YAML block
+its author wrote, read from the pack's file. `groups[]` holds the loop groups (with their
+most rounds) and included workflows that frame the steps, outer before inner. A missing
+prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An unknown
+`codebaseId`, a workflow no applying view names, or one the project does not have returns
+**404**.
 
 ---
 

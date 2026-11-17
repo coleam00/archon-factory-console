@@ -15,12 +15,16 @@ import {
 } from '@archon/workflows/factory-items';
 import {
   discoverFactoryViews,
+  factoryPackIsInstalled,
+  factoryRunWorkflowName,
   factoryViewWorkflowNames,
   factoryViewsForProject,
 } from '@archon/workflows/factory-views';
+import { factoryWorkflowSteps } from '@archon/workflows/factory-steps';
 import type { WorkflowConfig } from '@archon/workflows/deps';
 import type { ItemReadSource } from '@archon/workflows/item-read';
 import type { FactoryViewsListing } from '@archon/workflows/schemas/factory-view';
+import type { WorkflowLoadResult } from '@archon/workflows/schemas/workflow';
 import { liveSourceRoots, workflowSourceConfigFrom } from '@archon/workflows/workflow-source';
 import {
   apiError,
@@ -29,7 +33,11 @@ import {
   jsonError,
   openApiRouteRegistrar,
 } from './api-route-kit';
-import { factoryItemsPageResponseSchema, factoryViewsSchema } from './schemas/factory.schemas';
+import {
+  factoryItemsPageResponseSchema,
+  factoryViewsSchema,
+  factoryWorkflowSchema,
+} from './schemas/factory.schemas';
 
 const factoryViewsQuerySchema = z.object({
   codebaseId: z
@@ -95,6 +103,32 @@ const getFactoryItemsRoute = createRoute({
   },
 });
 
+const factoryWorkflowQuerySchema = z.object({
+  codebaseId: z.string().min(1).openapi({ description: 'The project whose factory view to read.' }),
+  workflow: z
+    .string()
+    .min(1)
+    .openapi({ description: "A workflow a factory view's stage names, as the view names it." }),
+});
+
+const getFactoryWorkflowRoute = createRoute({
+  method: 'get',
+  path: '/api/factory/workflow',
+  tags: ['Workflows'],
+  summary: "One workflow's steps, as a factory view draws them",
+  description:
+    "The steps of a workflow a factory view applying to the project names, from the definition runs execute: each step keyed as run events name it, the loop groups and included workflows that frame it, its kind, declared model, `when:`, the prompt it runs and the YAML its author wrote. The first applying view whose stages name the workflow says which pack's workflow it is.",
+  request: { query: factoryWorkflowQuerySchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: factoryWorkflowSchema } },
+      description: 'OK',
+    },
+    404: jsonError('Codebase, view or workflow not found'),
+    500: jsonError('Server error'),
+  },
+});
+
 /** The merge state of one change, as the forge seam answered it. */
 export type ChangeMergeLookup = (
   url: string,
@@ -110,6 +144,8 @@ export interface FactoryRouteDeps {
   itemsSource: ItemReadSource;
   listProjectItems: (projectKey: string) => Promise<FactoryListedItem[]>;
   changeMergeState: ChangeMergeLookup;
+  /** Workflow discovery for a project, as runs see it. */
+  discoverWorkflows: (cwd: string) => Promise<WorkflowLoadResult>;
   /** How long one page waits on a lookup no request has made yet; tests shorten it. */
   changeStateWaitMs?: number;
   now?: () => number;
@@ -179,13 +215,22 @@ export function changeStateCache(
   };
 }
 
-/** The factory views that apply to the project checked out at `cwd`. */
+type ProjectRoots = ReturnType<typeof liveSourceRoots>;
+
+/** The live source roots of the project checked out at `cwd`, under its config. */
+async function projectRoots(deps: FactoryRouteDeps, cwd: string): Promise<ProjectRoots> {
+  return liveSourceRoots(cwd, workflowSourceConfigFrom(await deps.loadConfig(cwd)));
+}
+
+/**
+ * The factory views that apply to the project read through `roots`. Every factory route
+ * reads them here, so they cannot disagree about which view applies.
+ */
 async function applyingViews(
   deps: FactoryRouteDeps,
   codebaseId: string,
-  cwd: string
+  roots: ProjectRoots
 ): Promise<FactoryViewsListing> {
-  const roots = liveSourceRoots(cwd, workflowSourceConfigFrom(await deps.loadConfig(cwd)));
   const listing = await discoverFactoryViews(roots);
   const ran = await deps.ranWorkflows(codebaseId, factoryViewWorkflowNames(listing));
   return factoryViewsForProject(listing, ran);
@@ -201,7 +246,8 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     const project = await deps.codebase(codebaseId);
     if (project === null) return apiError(c, 404, 'Codebase not found');
     try {
-      const applying = await applyingViews(deps, codebaseId, project.cwd);
+      const roots = await projectRoots(deps, project.cwd);
+      const applying = await applyingViews(deps, codebaseId, roots);
       // The body lists these too; the log keeps them findable without a console open.
       for (const { pack, path, error } of applying.errors)
         getLog().warn({ codebaseId, pack, path, error }, 'factory_view_invalid');
@@ -218,7 +264,8 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     if (project === null) return apiError(c, 404, 'Codebase not found');
     try {
       // The first view, as the console's Factory tab draws it; `pack` says which.
-      const [view] = (await applyingViews(deps, codebaseId, project.cwd)).views;
+      const roots = await projectRoots(deps, project.cwd);
+      const [view] = (await applyingViews(deps, codebaseId, roots)).views;
       if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
       const page = await readFactoryItemsPage(deps.itemsSource, {
         view: view.declaration,
@@ -238,6 +285,39 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
       if (error instanceof FactoryItemsQueryError) return apiError(c, 400, error.message);
       getLog().error({ err: error, codebaseId }, 'factory_items_read_failed');
       return apiError(c, 500, 'Failed to read the factory items');
+    }
+  });
+
+  register(getFactoryWorkflowRoute, async c => {
+    const { codebaseId, workflow } = getValidatedQuery(c, factoryWorkflowQuerySchema);
+    const project = await deps.codebase(codebaseId);
+    if (project === null) return apiError(c, 404, 'Codebase not found');
+    try {
+      const roots = await projectRoots(deps, project.cwd);
+      const view = (await applyingViews(deps, codebaseId, roots)).views.find(candidate =>
+        candidate.declaration.stages.some(stage => stage.workflows.includes(workflow))
+      );
+      if (view === undefined)
+        return apiError(c, 404, `This factory has no stage that runs the workflow ${workflow}.`);
+      const runName = factoryRunWorkflowName(view.pack, workflow);
+      const entry = (await deps.discoverWorkflows(project.cwd)).workflows.find(
+        candidate => candidate.workflow.name === runName
+      );
+      // Said for the person reading the stage page, who can act on it.
+      if (entry === undefined)
+        return apiError(
+          c,
+          404,
+          factoryPackIsInstalled(view.pack)
+            ? `The pack ${view.pack} is not installed here, so its workflow ${workflow} cannot be drawn. Install it with the command archon plugin add, then reload this page.`
+            : `The pack ${view.pack} has no workflow ${workflow} in this project, so it cannot be drawn.`
+        );
+      return c.json(
+        await factoryWorkflowSteps(workflow, entry.workflow, { cwd: project.cwd, deps, roots })
+      );
+    } catch (error) {
+      getLog().error({ err: error, codebaseId, workflow }, 'read_factory_workflow_failed');
+      return apiError(c, 500, 'Failed to read the workflow');
     }
   });
 }

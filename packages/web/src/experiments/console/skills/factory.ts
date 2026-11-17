@@ -12,6 +12,15 @@ export async function getFactoryViews(
   return requestJson('/api/factory/views', 'get', { query: opts });
 }
 
+export type FactoryWorkflow = components['schemas']['FactoryWorkflow'];
+
+/** One workflow a project's factory view names: its steps, loop groups and includes. */
+export async function getFactoryWorkflow(
+  opts: QueryParams<'/api/factory/workflow', 'get'>
+): Promise<FactoryWorkflow> {
+  return requestJson('/api/factory/workflow', 'get', { query: opts });
+}
+
 /** A page of one project's items, newest activity first, each with its progress on the board. */
 export async function listFactoryItems(
   opts: QueryParams<'/api/factory/items', 'get'>
