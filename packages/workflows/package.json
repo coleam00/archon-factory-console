@@ -83,6 +83,7 @@
     "./metrics": "./src/metrics.ts",
     "./metric-views": "./src/metric-views.ts",
     "./factory-views": "./src/factory-views.ts",
+    "./factory-overviews": "./src/factory-overviews.ts",
     "./factory-steps": "./src/factory-steps.ts",
     "./factory-items": "./src/factory-items.ts",
     "./dag-resume-snapshot": "./src/dag-resume-snapshot.ts",

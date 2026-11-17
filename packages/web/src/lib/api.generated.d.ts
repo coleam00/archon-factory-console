@@ -3907,6 +3907,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/factory/overview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The factory overview of the pack a project's factory view draws
+     * @description The hand-written explainer of how the factory runs, for the pack of the first factory view that applies to the project: the project's `.archon/packs/<pack key>.factory-overview.json`, else the pack's own `.shared/factory-overview.json`. `overview` is null when the pack has none. Files that could not be read or did not validate are listed under `errors` with their file.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description The project whose factory overview to read. */
+          codebaseId: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FactoryOverview'];
+          };
+        };
+        /** @description Codebase not found, or no factory view applies to it */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/factory/item': {
     parameters: {
       query?: never;
@@ -10904,6 +10964,75 @@ export interface components {
           };
         };
       }[];
+      errors: {
+        pack: string;
+        /** @enum {string} */
+        source: 'project' | 'bundled' | 'global' | 'installed' | 'project-file';
+        path: string;
+        error: string;
+      }[];
+    };
+    FactoryOverview: {
+      overview: {
+        pack: string;
+        /** @enum {string} */
+        source: 'project' | 'bundled' | 'global' | 'installed' | 'project-file';
+        path: string;
+        declaration: {
+          /** @enum {number} */
+          version: 1;
+          pack: string;
+          title: string;
+          caption: string;
+          root: string;
+          views: {
+            [key: string]: {
+              caption?: string;
+              groups?: {
+                id: string;
+                label: string;
+              }[];
+              cards: {
+                id: string;
+                title: string;
+                text: string;
+                /** @enum {string} */
+                icon:
+                  | 'inbox'
+                  | 'issue'
+                  | 'order'
+                  | 'search'
+                  | 'scale'
+                  | 'map'
+                  | 'list'
+                  | 'hammer'
+                  | 'git-pull-request'
+                  | 'check'
+                  | 'flask'
+                  | 'eye'
+                  | 'sparkles'
+                  | 'gavel'
+                  | 'users'
+                  | 'flag'
+                  | 'rotate';
+                /** @enum {string} */
+                kind: 'input' | 'stage' | 'check' | 'person' | 'gate' | 'outcome';
+                col: number;
+                row: number;
+                group?: string;
+                opens?: string;
+              }[];
+              edges: {
+                from: string;
+                to: string;
+                /** @enum {string} */
+                kind: 'feeds' | 'calls' | 'loops-back';
+                label?: string;
+              }[];
+            };
+          };
+        };
+      } | null;
       errors: {
         pack: string;
         /** @enum {string} */

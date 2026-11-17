@@ -1,6 +1,7 @@
 /** Schemas for the Software Factory section's read-only routes (`api.factory.ts`). */
 import { factoryItemDetailSchema, factoryProgressSchema } from '@archon/workflows/factory-items';
 import { factoryWorkflowSchema as factoryWorkflowShape } from '@archon/workflows/schemas/factory-steps';
+import { factoryOverviewForPackSchema } from '@archon/workflows/schemas/factory-overview';
 import { factoryViewsListingSchema } from '@archon/workflows/schemas/factory-view';
 
 export const factoryViewsSchema = factoryViewsListingSchema.meta({ id: 'FactoryViews' });
@@ -11,4 +12,8 @@ export const factoryWorkflowSchema = factoryWorkflowShape.meta({ id: 'FactoryWor
 
 export const factoryItemDetailResponseSchema = factoryItemDetailSchema.meta({
   id: 'FactoryItemDetail',
+});
+
+export const factoryOverviewResponseSchema = factoryOverviewForPackSchema.meta({
+  id: 'FactoryOverview',
 });

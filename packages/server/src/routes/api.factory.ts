@@ -1,7 +1,7 @@
 /**
  * Read-only routes for the console's Software Factory section. Nothing here writes: the
- * section reads the engine's own records and the factory view declarations packs and
- * projects ship (`@archon/workflows/factory-views`), and asks the change host whether a
+ * section reads the engine's own records, the factory view and overview files packs and
+ * projects ship (`@archon/workflows/factory-views`, `factory-overviews`), and asks the change host whether a
  * change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
@@ -13,6 +13,10 @@ import {
   type FactoryChangeState,
 } from '@archon/workflows/factory-items';
 import { ITEM_WINDOW_MAX_LIMIT } from '@archon/workflows/item-window';
+import {
+  discoverFactoryOverviews,
+  factoryOverviewForPack,
+} from '@archon/workflows/factory-overviews';
 import {
   discoverFactoryViews,
   factoryPackIsInstalled,
@@ -35,6 +39,7 @@ import {
 } from './api-route-kit';
 import {
   factoryItemDetailResponseSchema,
+  factoryOverviewResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
@@ -61,6 +66,31 @@ const getFactoryViewsRoute = createRoute({
       description: 'OK',
     },
     404: jsonError('Codebase not found'),
+    500: jsonError('Server error'),
+  },
+});
+
+const factoryOverviewQuerySchema = z.object({
+  codebaseId: z
+    .string()
+    .min(1)
+    .openapi({ description: 'The project whose factory overview to read.' }),
+});
+
+const getFactoryOverviewRoute = createRoute({
+  method: 'get',
+  path: '/api/factory/overview',
+  tags: ['Workflows'],
+  summary: "The factory overview of the pack a project's factory view draws",
+  description:
+    "The hand-written explainer of how the factory runs, for the pack of the first factory view that applies to the project: the project's `.archon/packs/<pack key>.factory-overview.json`, else the pack's own `.shared/factory-overview.json`. `overview` is null when the pack has none. Files that could not be read or did not validate are listed under `errors` with their file.",
+  request: { query: factoryOverviewQuerySchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: factoryOverviewResponseSchema } },
+      description: 'OK',
+    },
+    404: jsonError('Codebase not found, or no factory view applies to it'),
     500: jsonError('Server error'),
   },
 });
@@ -284,6 +314,25 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     } catch (error) {
       getLog().error({ err: error, codebaseId }, 'discover_factory_views_failed');
       return apiError(c, 500, 'Failed to discover factory views');
+    }
+  });
+
+  register(getFactoryOverviewRoute, async c => {
+    const { codebaseId } = getValidatedQuery(c, factoryOverviewQuerySchema);
+    const project = await deps.codebase(codebaseId);
+    if (project === null) return apiError(c, 404, 'Codebase not found');
+    try {
+      // The pack the Factory tab draws, so the overview explains the factory the tab shows.
+      const roots = await projectRoots(deps, project.cwd);
+      const [view] = (await applyingViews(deps, codebaseId, roots)).views;
+      if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
+      const found = factoryOverviewForPack(await discoverFactoryOverviews(roots), view.pack);
+      for (const { pack, path, error } of found.errors)
+        getLog().warn({ codebaseId, pack, path, error }, 'factory_overview_invalid');
+      return c.json(found);
+    } catch (error) {
+      getLog().error({ err: error, codebaseId }, 'discover_factory_overview_failed');
+      return apiError(c, 500, 'Failed to discover the factory overview');
     }
   });
 

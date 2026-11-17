@@ -5,16 +5,17 @@ import { ProjectHeader } from '../components/ProjectHeader';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
-import type { FactoryViews } from '../skills/factory';
+import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { useFactoryAttention } from './attention-stream';
 import { needsYou } from './lib/needs-you';
+import { howItWorksShown } from './lib/overview-nav';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
-export type FactorySection = 'overview' | 'board' | 'needs-you' | null;
+export type FactorySection = 'overview' | 'board' | 'needs-you' | 'how-it-works' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
@@ -85,10 +86,20 @@ function FactoryViewed({
 }): ReactElement {
   const attention = useFactoryAttention(projectId);
   const waiting = attention.data === undefined ? undefined : needsYou(attention.data.items).length;
+  // Read here, where a view applies: the route answers 404 for a project without one.
+  const overview = useEntity<FactoryOverviewRead>(K.factoryOverview(projectId), () =>
+    skill.getFactoryOverview({ codebaseId: projectId })
+  );
   return (
     <>
-      <FactoryHeading projectId={projectId} view={view} section={section} waiting={waiting} />
-      <FactoryErrors errors={errors} />
+      <FactoryHeading
+        projectId={projectId}
+        view={view}
+        section={section}
+        waiting={waiting}
+        overview={overview}
+      />
+      <FactoryErrors errors={[...errors, ...(overview.data?.errors ?? [])]} />
       {children(view, attention)}
     </>
   );
@@ -125,7 +136,11 @@ function FactoryAbsent({
   );
 }
 
-const SECTIONS: readonly { key: Exclude<FactorySection, null>; label: string; rest: string }[] = [
+const SECTIONS: readonly {
+  key: Exclude<FactorySection, null | 'how-it-works'>;
+  label: string;
+  rest: string;
+}[] = [
   { key: 'overview', label: 'Overview', rest: '' },
   { key: 'board', label: 'Board', rest: '/board' },
   { key: 'needs-you', label: 'Needs you', rest: '/needs-you' },
@@ -136,13 +151,17 @@ function FactoryHeading({
   view,
   section,
   waiting,
+  overview,
 }: {
   projectId: string;
   view: FactoryViewListed;
   section: FactorySection;
   /** How many open asks and waits need a person; undefined until the queue loads. */
   waiting: number | undefined;
+  /** The pack's overview file, read; its entry shows when there is one, a broken one, or the read failed. */
+  overview: EntityView<FactoryOverviewRead>;
 }): ReactElement {
+  const hasOverview = howItWorksShown(overview);
   return (
     <div className="flex max-w-5xl flex-col gap-3">
       <div className="flex flex-col gap-1.5">
@@ -165,6 +184,13 @@ function FactoryHeading({
             count={key === 'needs-you' ? waiting : undefined}
           />
         ))}
+        {hasOverview ? (
+          <SectionLink
+            to={factoryPath(projectId, '/overview')}
+            label="How it works"
+            active={section === 'how-it-works'}
+          />
+        ) : null}
       </nav>
     </div>
   );
@@ -206,7 +232,7 @@ function SectionLink({
   );
 }
 
-/** Declarations that failed, each with its file, so a broken one is never silent. */
+/** View and overview files that failed, each with its file, so a broken one is never silent. */
 function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): ReactNode {
   if (errors.length === 0) return null;
   return (
@@ -216,8 +242,8 @@ function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): ReactNod
     >
       <p className="text-console-12 font-medium text-error">
         {errors.length === 1
-          ? 'A factory view declaration could not be read'
-          : `${errors.length.toString()} factory view declarations could not be read`}
+          ? 'A factory file could not be read'
+          : `${errors.length.toString()} factory files could not be read`}
       </p>
       <ul className="flex flex-col gap-1">
         {errors.map(error => (
