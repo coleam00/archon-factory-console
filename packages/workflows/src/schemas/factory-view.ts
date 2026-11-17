@@ -25,10 +25,11 @@ const workflowNameSchema = z.string().regex(/^[A-Za-z0-9_.-]+$/, 'a workflow nam
  * and a loop group's body node is `<group>.<node>`, as in `rounds.review__review`.
  */
 const stepIdSchema = z.string().regex(/^[A-Za-z0-9_.-]+$/, 'a step id');
-/** `workflow:outcome`, the completed outcome of a run of a workflow the view names. */
-const outcomeKeySchema = z.string().regex(/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+$/, 'workflow:outcome');
-/** `workflow:outcome`, or `workflow:*` for every outcome placement does not take. */
-const endingKeySchema = z
+/**
+ * `workflow:outcome`, the completed outcome of a run of a workflow the view names, or
+ * `workflow:*` for every completed run of it no exact key takes.
+ */
+const outcomeKeySchema = z
   .string()
   .regex(/^[A-Za-z0-9_.-]+:([A-Za-z0-9_.-]+|\*)$/, 'workflow:outcome or workflow:*');
 
@@ -90,10 +91,17 @@ const factoryViewShape = z.strictObject({
   summary: z.string().min(1).max(1200),
   /** Map cards and board columns, left to right. */
   stages: z.array(stageSchema).min(1),
-  /** Where an idle item sits after a run ended with this outcome; checked before `endings`. */
+  /**
+   * Where an idle item sits after a run completed with this outcome; checked before
+   * `endings`. `workflow:*` places every completed run of the workflow no exact key takes,
+   * a run that returns no outcome included.
+   */
   placement: z.record(outcomeKeySchema, stageIdSchema),
-  /** Outcomes that end an item without a change, with the label the folded row shows. */
-  endings: z.record(endingKeySchema, labelSchema),
+  /**
+   * Outcomes that end an item without a change, with the label the folded row shows.
+   * `workflow:*` takes every outcome no exact key does, not a run without one.
+   */
+  endings: z.record(outcomeKeySchema, labelSchema),
   /** The stage an item whose change merged sits in. */
   landed: z.strictObject({ stage: stageIdSchema }),
   /** The loop group whose iterations the board counts as rounds. */

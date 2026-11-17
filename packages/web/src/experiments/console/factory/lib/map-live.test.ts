@@ -30,6 +30,7 @@ describe('the live chips on each card', () => {
     const items = ['6', '5', '4', '3', '8', '7'].map(realItem);
     const live = stageLive(view, items, []);
     expect(chips(live)).toEqual({
+      order: [[], 0, []],
       triage: [[], 0, []],
       plan: [[], 0, []],
       build: [['5', '3'], 1, []],
@@ -77,7 +78,8 @@ describe('the live chips on each card', () => {
       run('triage', 'paused'),
     ]);
     const live = stageLive(view, [reopened], []);
-    expect(chips(live).triage).toEqual([['again'], 0, []]);
+    // Paused, it works on no step: the first stage, as on the board.
+    expect(chips(live).order).toEqual([['again'], 0, []]);
     expect(live.notOnMap).toEqual([]);
   });
 
@@ -117,7 +119,7 @@ describe('the live chips on each card', () => {
 
   test('an item whose progress could not be read sits in the first stage, as on the board', () => {
     const live = stageLive(view, [itemWithoutProgress('z')], []);
-    expect(chips(live).triage).toEqual([['z'], 0, []]);
+    expect(chips(live).order).toEqual([['z'], 0, []]);
     expect(live.notOnMap).toEqual([]);
   });
 

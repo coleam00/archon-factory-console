@@ -82,6 +82,7 @@ describe('the Pipeline view', () => {
     const { container, unmount } = await mount(PAGE.items);
     try {
       expect(headers(container)).toEqual([
+        'Order0',
         'Triage0',
         'Plan0',
         'Build4',

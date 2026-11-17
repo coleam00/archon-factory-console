@@ -10,7 +10,35 @@ import {
   type Box,
   type MapLayout,
 } from './map-layout';
-import { shippedView } from '../item-detail.test-fixtures';
+import type { FactoryViewListed } from './views';
+
+/**
+ * A two-row map of seven stages with every kind of arrow: forward in a row, down to the next
+ * row, and returns within and between rows. The layout is tested on it, not on the shipped
+ * declaration, whose cards and arrows follow the pack.
+ */
+const twoRows: FactoryViewListed['declaration']['map'] = {
+  cards: [
+    { stage: 'triage', col: 1, row: 1 },
+    { stage: 'plan', col: 2, row: 1 },
+    { stage: 'build', col: 3, row: 1 },
+    { stage: 'checks', col: 4, row: 1 },
+    { stage: 'host', col: 1, row: 2 },
+    { stage: 'ready', col: 2, row: 2 },
+    { stage: 'landed', col: 3, row: 2 },
+  ],
+  arrows: [
+    { from: 'triage', to: 'plan', label: 'build' },
+    { from: 'plan', to: 'build', label: 'planned' },
+    { from: 'build', to: 'checks', label: 'built' },
+    { from: 'checks', to: 'host', label: 'approved' },
+    { from: 'host', to: 'ready', label: 'ready' },
+    { from: 'ready', to: 'landed', label: 'landed' },
+    { from: 'checks', to: 'build', label: 'returned', back: true },
+    { from: 'host', to: 'build', label: 'returned', back: true },
+    { from: 'checks', to: 'plan', label: 'replan', back: true },
+  ],
+};
 
 const arrowOf = (layout: MapLayout, from: string, to: string): ArrowPath => {
   const found = layout.arrows.find(entry => entry.from === from && entry.to === to);
@@ -48,8 +76,8 @@ function enters(box: Box, s: { x1: number; y1: number; x2: number; y2: number })
   return sl <= r && sr >= l && st <= b && sb >= t;
 }
 
-describe('the shipped map: two rows of cards', () => {
-  const layout = layoutMap(shippedView.map);
+describe('a map of two rows', () => {
+  const layout = layoutMap(twoRows);
   const arrow = (from: string, to: string): ArrowPath => arrowOf(layout, from, to);
   const row2 = layout.boxes.get('host')?.y ?? 0;
 
@@ -114,7 +142,7 @@ describe('the shipped map: two rows of cards', () => {
 
 /** The factory's seven stages in one row, as the map shipped before it took two. */
 const oneRow = {
-  ...shippedView.map,
+  ...twoRows,
   cards: ['triage', 'plan', 'build', 'checks', 'host', 'ready', 'landed'].map((stage, i) => ({
     stage,
     col: i + 1,
@@ -186,7 +214,7 @@ describe('declarations the schema allows', () => {
   });
 
   test('an arrow to a stage with no card is left out', () => {
-    const map = shippedView.map;
+    const map = twoRows;
     const partial = layoutMap({ ...map, cards: map.cards.filter(card => card.stage !== 'plan') });
     expect(partial.arrows.some(entry => entry.from === 'plan' || entry.to === 'plan')).toBe(false);
     expect(partial.arrows).toHaveLength(map.arrows.length - 3);

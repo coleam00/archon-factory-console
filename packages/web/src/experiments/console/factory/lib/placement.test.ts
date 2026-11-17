@@ -128,9 +128,9 @@ describe('where an item sits', () => {
     const ended = run('triage', 'completed', 'reject');
     const after = (status: PlacementRun['status'], outcome: string | null = null) =>
       where(itemColumn(view, input([ended, run('triage', status, outcome)])));
-    // Taken up again: paused, pending or running, the item is back on the board.
-    expect(after('paused')).toBe('triage');
-    expect(after('pending')).toBe('triage');
+    // Taken up again: back on the board, where a running run works it, else the first stage.
+    expect(after('paused')).toBe('order');
+    expect(after('pending')).toBe('order');
     expect(after('running')).toBe('triage');
     // Stopped: rule 5, the stage of its workflow.
     expect(after('failed')).toBe('triage');
@@ -139,13 +139,13 @@ describe('where an item sits', () => {
     expect(after('completed', 'reject')).toBe('ended: Closed by triage');
     // An exact ending key with a newer pending run of the same workflow.
     const stopped = [run('plan', 'completed', 'stop'), run('plan', 'pending')];
-    expect(where(itemColumn(view, input(stopped)))).toBe('triage');
+    expect(where(itemColumn(view, input(stopped)))).toBe('order');
   });
 
   test('6. otherwise the first stage; runs of undeclared workflows do not count', () => {
-    expect(where(itemColumn(view, input([])))).toBe('triage');
+    expect(where(itemColumn(view, input([])))).toBe('order');
     expect(where(itemColumn(view, input([run(null, 'running', null, 'build__build')])))).toBe(
-      'triage'
+      'order'
     );
   });
 
@@ -158,6 +158,33 @@ describe('where an item sits', () => {
     expect(where(itemColumn(view, fromDetail('6')))).toBe('build');
     // Item 3's merge state was unknown when it was captured: the placement of `deliver:ask`.
     expect(where(itemColumn(view, fromDetail('3')))).toBe('build');
+  });
+});
+
+describe('the pack after its work-order upgrade', () => {
+  const after = (...runs: PlacementRun[]): string | null => where(itemColumn(view, input(runs)));
+  const ready = run('deliver', 'completed', 'ready');
+
+  test('an order running is in Order; one that ended ready moves to Triage', () => {
+    expect(after(run('order', 'running', null, 'order'))).toBe('order');
+    expect(after(run('order', 'completed', 'ready'))).toBe('triage');
+  });
+
+  test('an order refused ends the item at intake', () => {
+    expect(after(run('order', 'completed', 'refused'))).toBe('ended: Refused at intake');
+  });
+
+  test('a landgate run that completed with no outcome keeps a ready change in Ready to land', () => {
+    expect(after(ready, run('landgate', 'running', null, 'gate'))).toBe('ready');
+    expect(after(ready, run('landgate', 'completed'))).toBe('ready');
+    // Whatever outcome a later version of the gate returns, `landgate:*` places it.
+    expect(after(ready, run('landgate', 'completed', 'held'))).toBe('ready');
+  });
+
+  test('a discoveries run after the gate is no stage: the item stays in Ready to land', () => {
+    // The view names no `discoveries` workflow, so its runs are not the view's.
+    for (const status of ['running', 'completed', 'failed'] as const)
+      expect(after(ready, run('landgate', 'completed'), run(null, status))).toBe('ready');
   });
 });
 
@@ -253,8 +280,8 @@ describe('placing items of the items read, first rule that matches', () => {
   });
 
   test('6: no runs, or progress that could not be read: the first stage', () => {
-    expect(placeOf(keepRuns(realItem('6'), 0))).toBe('triage');
-    expect(placeOf({ ...realItem('6'), progress: null })).toBe('triage');
+    expect(placeOf(keepRuns(realItem('6'), 0))).toBe('order');
+    expect(placeOf({ ...realItem('6'), progress: null })).toBe('order');
   });
 
   test('every outcome comes from the declaration: renamed there, placement follows', () => {
@@ -276,7 +303,7 @@ describe('placing items of the items read, first rule that matches', () => {
     };
     expect(at(unmerged('shipit'))).toBe('ready');
     // The old name places nothing now: the first stage.
-    expect(at(unmerged('ready'))).toBe('triage');
+    expect(at(unmerged('ready'))).toBe('order');
     expect(at(endLastRun(realItem('6'), 'completed', 'halt'))).toBe('ended: Stopped at planning');
     expect(at(endLastRun(realItem('6'), 'completed', 'stop'))).not.toMatch(/^ended/);
   });

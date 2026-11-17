@@ -160,12 +160,16 @@ export function itemColumn(
   if (running !== undefined) return stageOf(runningStage(view, running, previous));
   // 2. Its change merged.
   if (input.merged === true) return stageOf(landedStage(view));
-  // 3. The last completed run's `workflow:outcome` is placed.
+  // 3. The last completed run's `workflow:outcome` is placed, else its `workflow:*`, which
+  // also places a run that returns no outcome (a gate that only records).
   const completed = runs.filter(run => run.status === 'completed').at(-1);
   const placed =
-    completed?.outcome === null || completed === undefined
+    completed === undefined
       ? undefined
-      : view.placement[`${completed.workflow}:${completed.outcome}`];
+      : ((completed.outcome === null
+          ? undefined
+          : view.placement[`${completed.workflow}:${completed.outcome}`]) ??
+        view.placement[`${completed.workflow}:*`]);
   if (placed !== undefined) return stageOf(view.stages.find(stage => stage.id === placed));
   // Rules 4 and 5 read the item's last declared run whatever its status: a run paused or
   // pending after an ending means the item was taken up again, so it is not ended.

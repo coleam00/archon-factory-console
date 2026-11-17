@@ -41,7 +41,7 @@ describe('cards of placed items', () => {
 
   test('an item whose progress could not be read stays on the board and says so', () => {
     const item = { ...realItem('6'), progress: null };
-    expect(pageItemColumn(VIEW, item)).toMatchObject({ stage: { id: 'triage' } });
+    expect(pageItemColumn(VIEW, item)).toMatchObject({ stage: { id: 'order' } });
     expect(card(item)).toMatchObject({ title: '6', stopLine: 'Its progress could not be read.' });
   });
 
@@ -163,6 +163,7 @@ describe('the board', () => {
       new Map()
     );
     expect(model.columns.map(column => [column.label, column.cards.length])).toEqual([
+      ['Order', 0],
       ['Triage', 0],
       ['Plan', 0],
       ['Build', 3],
@@ -206,8 +207,8 @@ describe('the board', () => {
   test('the hint names the columns scrolled out of view', () => {
     const columns = boardModel(VIEW, PROJECT, [], new Map()).columns;
     expect(hiddenColumnsHint(columns, new Set(columns.map(c => c.stage)))).toBeNull();
-    expect(hiddenColumnsHint(columns, new Set(['triage', 'plan', 'build', 'checks', 'host']))).toBe(
-      'Scroll for: Ready to land, Landed'
-    );
+    expect(
+      hiddenColumnsHint(columns, new Set(['order', 'triage', 'plan', 'build', 'checks', 'host']))
+    ).toBe('Scroll for: Ready to land, Landed');
   });
 });

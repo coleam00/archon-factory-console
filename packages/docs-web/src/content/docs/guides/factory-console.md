@@ -71,7 +71,8 @@ questions and whether its change merged, taking the first rule that matches:
    (a loop between rounds, or between steps) the item stays where it was on the last read,
    when that stage lists the workflow; else it goes to the workflow's first stage.
 2. Its change merged: the `landed` stage.
-3. Its last completed run's `workflow:outcome` is a key of `placement`: that stage.
+3. Its last completed run's `workflow:outcome` is a key of `placement`, else its
+   `workflow:*`: that stage. `workflow:*` also places a run that returns no outcome.
 4. Its last run's outcome is a key of `endings`: off the board, in a folded row under it.
 5. Its last run failed or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of its workflow.
@@ -102,7 +103,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `title` | yes | The factory's name, at the top of every Factory page. |
 | `summary` | yes | One paragraph in plain words: what goes in, what comes out, where people step in. Shown on the Overview. |
 | `stages` | yes | The board's columns, left to right. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Landed), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. |
-| `placement` | yes | Where an item waits after a run ends: `workflow:outcome` to a stage id. |
+| `placement` | yes | Where an item waits after a run ends: `workflow:outcome` to a stage id, or `workflow:*` for every completed run of the workflow no exact key takes, a run that returns no outcome (a gate that only records) included. |
 | `endings` | yes | Outcomes that end an item without a change: `workflow:outcome`, or `workflow:*` for every outcome `placement` does not take, to the label of the folded row. Use `{}` for none. |
 | `landed` | yes | `{ "stage": <id> }`: the stage an item whose change merged sits in. |
 | `rounds` | no | `{ "workflow", "loop" }`: the loop whose iterations the board counts as rounds ("round 2 of 3"). |

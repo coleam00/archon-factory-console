@@ -65,6 +65,17 @@ describe('factoryViewSchema', () => {
     expect(issuePaths(view)).toEqual(['placement.plan:planned']);
   });
 
+  test('placement takes workflow:* beside exact outcomes; a key without both halves is rejected', () => {
+    const view = minimal();
+    view.placement['build:*'] = 'landed';
+    expect(factoryViewSchema.safeParse(view).success).toBe(true);
+    for (const key of ['build:', ':built', 'build']) {
+      const broken = minimal();
+      broken.placement[key] = 'landed';
+      expect(issuePaths(broken)).toEqual([`placement.${key}`]);
+    }
+  });
+
   test('a stage declared twice is rejected', () => {
     const view = minimal();
     view.stages.push({ ...view.stages[0]!, label: 'Again' });
