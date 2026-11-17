@@ -143,7 +143,8 @@ present itself without the console knowing it. Shape (validated with zod in
     "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
     "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // every arrow the
                 { "from": "checks", "to": "build", "label": "returned" },  // map draws; leftward
-                { "from": "checks", "to": "plan", "label": "replan" } ],  // ones send back
+                { "from": "checks", "to": "plan", "label": "replan",  // ones send back;
+                  "person": true } ],                // a person's step, no hand-off backs it
     "notes": [ { "text": "You answer asks here", "near": "needs-you" } ]
   }
 }
@@ -163,8 +164,16 @@ pack is later work. The pack's `discoveries` drain runs after deliver but moves 
 declaration names no stage for it: runs of a workflow no stage lists do not place an item.
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
-included; the map reads no other source (see The map). An arrow the pack stops making stays
-drawn until the view file changes; comparing the two is the coverage check's job (#28).
+included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
+two true to each other in this repository (#28). It reads the pack graph from the installed pack
+where this machine has one (failing when the snapshot of `archon pack graph` committed beside
+the view file differs from it), and from that snapshot in CI. It fails on a hand-off between two
+stages that the pack declares (every binding, installed by a trigger file on this machine or
+not; owner ruling of 2026-11-17) that the view does not declare, and on a declared arrow no
+such hand-off backs, unless it is marked `person: true` (a replan, a landing), joins two
+different stages of one workflow (its steps), or runs into Landed. An arrow back into its own stage is a rerun only
+a hand-off starts, so it is never exempt. The same check fails on a real step no drill-down card
+covers or two cover, and on a step or workflow the view names that the pack does not have.
 
 ## Data
 

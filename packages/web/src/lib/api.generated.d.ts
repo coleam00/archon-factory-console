@@ -10909,6 +10909,29 @@ export interface components {
             group: 'intake' | 'build' | 'check' | 'land';
             workflows: string[];
             nodes?: string[];
+            drilldown?: {
+              phases: {
+                label: string;
+                cards: {
+                  title: string;
+                  text: string;
+                  icon: string;
+                  /** @enum {string} */
+                  kind: 'agent' | 'check' | 'script' | 'you';
+                  covers: {
+                    workflow: string;
+                    steps: string[];
+                  }[];
+                }[];
+              }[];
+              loop?: {
+                label: string;
+                from: number;
+                to: number;
+                workflow: string;
+                step: string;
+              };
+            };
           }[];
           placement: {
             [key: string]: string;
@@ -10956,6 +10979,7 @@ export interface components {
               to: string;
               label?: string;
               back?: boolean;
+              person?: boolean;
             }[];
             notes?: {
               text: string;

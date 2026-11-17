@@ -258,7 +258,12 @@ test("the map draws the view file's arrows and no others: forward ones labelled,
       'merged',
     ]);
     const lane = [...container.querySelectorAll('g[data-lane="feedback"]')];
-    expect(lane.map(g => g.getAttribute('data-arrow'))).toEqual(['decl:7', 'decl:8', 'decl:9']);
+    expect(lane.map(g => g.getAttribute('data-arrow'))).toEqual([
+      'decl:7',
+      'decl:8',
+      'decl:9',
+      'decl:10',
+    ]);
     // Every arrow drawn is a declared one.
     expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
       shippedListed.declaration.map.arrows.length
@@ -266,7 +271,7 @@ test("the map draws the view file's arrows and no others: forward ones labelled,
     const labels = [...container.querySelectorAll('g[data-lane-label]')].map(
       g => `${g.getAttribute('data-lane-label') ?? ''}: ${g.textContent ?? ''}`
     );
-    expect(labels).toEqual(['build: returned', 'plan: replan']);
+    expect(labels).toEqual(['build: returned', 'plan: replan, asks answered']);
   } finally {
     await unmount();
   }

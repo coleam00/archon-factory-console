@@ -115,7 +115,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `pack` | yes | The pack the view draws: `owner/name` when installed, else its folder name. |
 | `title` | yes | The factory's name, at the top of every Factory page. |
 | `summary` | yes | One paragraph in plain words: what goes in, what comes out, where people step in. Shown on the Overview. |
-| `stages` | yes | The board's columns, left to right. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Landed), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. |
+| `stages` | yes | The board's columns, left to right. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Landed), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. A stage may carry a `drilldown`: what it does step by step, as numbered `phases` (each a `label` and one to six `cards`), and an optional `loop` (`label`, `from` and `to` phase numbers, and the loop group's `workflow` and `step`) around the phases a loop group repeats. A card has a `title`, one line of `text`, a Lucide `icon` name, a `kind` (`agent`, `check`, `script` or `you`), and `covers`: the real steps it stands for, as `{ "workflow", "steps" }` for a workflow its stage lists. Nothing draws a drill-down yet. |
 | `placement` | yes | Where an item waits after a run ends: `workflow:outcome` to a stage id, or `workflow:*` for every completed run of the workflow no exact key takes, a run that returns no outcome (a gate that only records) included. |
 | `endings` | yes | Outcomes that end an item without a change: `workflow:outcome`, or `workflow:*` for every outcome `placement` does not take, to the label of the folded row. Use `{}` for none. |
 | `landed` | yes | `{ "stage": <id> }`: the stage an item whose change merged sits in. |
@@ -124,11 +124,48 @@ parse or validate shows on the Factory tab with its path and the error.
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
-| `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step is not reported; the step reads as its cleaned id. |
-| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to` and an optional `label`; an arrow into its own stage or an earlier one in `stages` order is a send-back, and a `back` flag an older file has is accepted and ignored), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
+| `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step names nothing a page shows; the coverage check reports it. |
+| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to`, an optional `label`, and `person: true` for a step a person takes, such as a replan, that no hand-off of the pack starts; an arrow into its own stage or an earlier one in `stages` order is a send-back, and a `back` flag an older file has is accepted and ignored), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
+A drill-down card and loop must name a workflow their own stage lists.
+
+## Coverage check
+
+The schema cannot see a pack's workflows, so a separate check compares a view file with them.
+It is a script of an Archon checkout, `bun run check:factory-view`, and it checks only the
+project files in that checkout's own `.archon/packs/` (`<pack key>.factory-view.json`), not
+another project's files or a pack's `.shared/factory-view.json`. It reads each pack's stage
+graph (what `archon pack graph <pack key> --json` prints) from two places:
+
+- the snapshot `<pack key>.pack-graph.json` committed beside the view file, which CI checks
+  against since it has no installed pack; a missing snapshot fails the check;
+- the installed pack, when the machine has one: the `plugins/` directory of the home
+  `ARCHON_FACTORY_LIVE_HOME` names, else of `ARCHON_HOME`. The view is then checked against the
+  installed pack, and a snapshot that differs from it fails the check, so a reinstall that
+  changes the pack is caught where it is installed. With neither variable set, the check says
+  it used the snapshots only. When the named home's `plugins/` does not hold the pack, the check
+  fails with the reason `archon pack graph` gives, rather than falling back to the snapshot:
+  install the pack there, or unset both variables to check against the snapshot.
+
+It reads the installed pack on a throwaway home holding a copy of that `plugins/` directory and
+nothing else, so the install is only read, and with no trigger files every arrow is one the
+pack declares. It reports, each with its path in the view file:
+
+- every real step of a workflow a stage lists that no drill-down card or loop covers, and every
+  step two of them cover (a loop group counts as a step);
+- every step a card, a loop, a stage's `nodes` or `steps` names that the workflow does not have,
+  and every listed workflow the pack does not have;
+- every hand-off between two stages that the pack declares (each of its bindings, whether or
+  not a trigger file on this machine installs it) that `map.arrows` does not declare, and
+  every declared arrow no such hand-off backs, unless it is `person: true`, joins two different
+  stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
+  own stage is a rerun only a hand-off starts, so it is always checked.
+
+After reinstalling the pack, refresh the snapshot from the installed pack with
+`bun run check:factory-view --write <pack key>`, then fix what the check reports in the view
+file and commit both.
 
 ## Example
 
