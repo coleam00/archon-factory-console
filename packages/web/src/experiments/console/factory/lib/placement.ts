@@ -1,3 +1,8 @@
+/**
+ * Where an item sits: the one placement the board, the map and the item page share (owner
+ * ruling 2 on #5), and which declared stage a step of a workflow counts in. An item's state
+ * pill is the board's (`itemPill` in `board.ts`).
+ */
 import type { FactoryItem } from '../../skills/factory';
 import { stagesOfWorkflow, stepInStage, type FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
@@ -22,8 +27,6 @@ export interface PlacementInput {
   runs: readonly PlacementRun[];
   /** Whether the item's change merged; null when it has none. */
   merged: boolean | 'unknown' | null;
-  /** Whether an open ask or paused wait on the item needs a person. */
-  needsYou: boolean;
 }
 
 /** What placement reads of each run beyond the item read's own: its declared workflow and running step. */
@@ -35,11 +38,7 @@ export type RunFacts = ReadonlyMap<string, { workflow: string | null; step: stri
  * view that places an item builds its input here, so they place it alike. The failed step
  * comes from the item's own `progress.runs`, which the board, map and item page all hold.
  */
-export function placementInput(
-  item: FactoryItem,
-  facts: RunFacts,
-  needsYou: boolean
-): PlacementInput {
+export function placementInput(item: FactoryItem, facts: RunFacts): PlacementInput {
   const failedAt = new Map((item.progress?.runs ?? []).map(run => [run.runId, run.failedStep]));
   return {
     runs: item.runs.map(run => {
@@ -53,7 +52,6 @@ export function placementInput(
       };
     }),
     merged: item.progress?.change?.merged ?? null,
-    needsYou,
   };
 }
 
@@ -70,17 +68,6 @@ export function pageRunFacts(progress: NonNullable<FactoryItem['progress']>): Ru
 
 /** Where an item sits: a stage's column, or ended without a change (DESIGN board rule 4). */
 export type ItemColumn = { stage: FactoryStage } | { ended: string };
-
-export type ItemState = 'running' | 'needs-you' | 'failed' | 'waiting' | 'landed';
-
-/** The state pill's words (DESIGN "A card"). */
-export const ITEM_STATE_LABEL: Record<ItemState, string> = {
-  running: 'Running',
-  'needs-you': 'Needs you',
-  failed: 'Failed',
-  waiting: 'Waiting',
-  landed: 'Landed',
-};
 
 /**
  * The stage of `workflow` that names `step` among its declared `nodes`; undefined when none
@@ -194,22 +181,11 @@ export function itemColumn(
   return stageOf(view.stages[0]);
 }
 
-/** The item's state pill. */
-export function itemState(input: PlacementInput): ItemState {
-  const runs = declaredRuns(input.runs);
-  if (runs.some(run => run.status === 'running')) return 'running';
-  if (input.needsYou) return 'needs-you';
-  if (input.merged === true) return 'landed';
-  const last = runs.filter(run => TERMINAL.has(run.status)).at(-1);
-  if (last !== undefined && last.status !== 'completed') return 'failed';
-  return 'waiting';
-}
-
 /**
  * Where an entry of the items read sits: the board and the map both place through here, so
  * a column and a card never name different stages. `previous` is the stage the item sat in
  * on the caller's last read. An item whose progress could not be read has no declared runs
- * here, so it sits in the first stage (rule 6). Placement does not read `needsYou`.
+ * here, so it sits in the first stage (rule 6).
  */
 export function pageItemColumn(
   view: Declaration,
@@ -217,7 +193,7 @@ export function pageItemColumn(
   previous?: string
 ): ItemColumn | null {
   const facts: RunFacts = item.progress === null ? new Map() : pageRunFacts(item.progress);
-  return itemColumn(view, placementInput(item, facts, false), previous);
+  return itemColumn(view, placementInput(item, facts), previous);
 }
 
 /** The stage a placement put an item in; undefined when it is off the board or unplaced. */

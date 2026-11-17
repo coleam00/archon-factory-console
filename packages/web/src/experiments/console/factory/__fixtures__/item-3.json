@@ -182,8 +182,31 @@
           "url": "https://github.com/coleam00/archon-factory-console/pull/14",
           "number": null,
           "merged": "unknown",
-          "mergedAt": null
-        }
+          "mergedAt": null,
+          "number": 14
+        },
+        "runs": [
+          {
+            "runId": "d6a33d87-0ac6-431e-a2f8-4fa33e91a1b2",
+            "workflow": "triage",
+            "failedStep": null
+          },
+          {
+            "runId": "7e1a2eb1-d114-497f-ac42-71b2d598fa2d",
+            "workflow": "plan",
+            "failedStep": null
+          },
+          {
+            "runId": "ab288319-6192-4645-8306-65622f0a966b",
+            "workflow": "deliver",
+            "failedStep": null
+          },
+          {
+            "runId": "80cc1489-d934-4cba-8979-de51c375bcf1",
+            "workflow": "deliver",
+            "failedStep": null
+          }
+        ]
       }
     },
     "runs": [

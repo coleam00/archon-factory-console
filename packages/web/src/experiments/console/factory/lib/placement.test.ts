@@ -13,7 +13,6 @@ import {
 } from './board.test-fixtures';
 import {
   itemColumn,
-  itemState,
   pageRunFacts,
   placementInput,
   stageOfStep,
@@ -34,7 +33,6 @@ const run = (
 const input = (runs: PlacementRun[], extra: Partial<PlacementInput> = {}): PlacementInput => ({
   runs,
   merged: null,
-  needsYou: false,
   ...extra,
 });
 const where = (column: ItemColumn | null): string | null =>
@@ -136,7 +134,7 @@ describe('where an item sits', () => {
   test('the captured items: item 1 merged, item 3 asked from build, item 6 building', () => {
     const fromDetail = (key: '1' | '3' | '6'): PlacementInput => {
       const detail = itemDetail(key);
-      return placementInput(detail.item, new Map(detail.runs.map(f => [f.runId, f])), false);
+      return placementInput(detail.item, new Map(detail.runs.map(f => [f.runId, f])));
     };
     expect(where(itemColumn(view, fromDetail('1')))).toBe('landed');
     expect(where(itemColumn(view, fromDetail('6')))).toBe('build');
@@ -150,8 +148,8 @@ describe('one placement input for every view of an item', () => {
     for (const key of ['1', '2', '3', '6'] as const) {
       const { item, runs } = itemDetail(key);
       if (item.progress === null) throw new Error(`fixture ${key} has progress`);
-      const page = placementInput(item, pageRunFacts(item.progress), false);
-      const detail = placementInput(item, new Map(runs.map(f => [f.runId, f])), false);
+      const page = placementInput(item, pageRunFacts(item.progress));
+      const detail = placementInput(item, new Map(runs.map(f => [f.runId, f])));
       // The detail knows every running run's step; the page only the latest's, which is the
       // one placement reads.
       expect(itemColumn(view, page)).toEqual(itemColumn(view, detail));
@@ -160,27 +158,10 @@ describe('one placement input for every view of an item', () => {
   });
 });
 
-describe('the state pill', () => {
-  test('running, then needs you, then landed, then failed, else waiting', () => {
-    const working = run('deliver', 'running', null, 'build__build');
-    expect(itemState(input([working], { needsYou: true }))).toBe('running');
-    expect(itemState(input([run('deliver', 'completed', 'ask')], { needsYou: true }))).toBe(
-      'needs-you'
-    );
-    expect(itemState(input([run('deliver', 'completed', 'ready')], { merged: true }))).toBe(
-      'landed'
-    );
-    expect(itemState(input([run('deliver', 'cancelled')]))).toBe('failed');
-    expect(itemState(input([run('deliver', 'failed'), run('deliver', 'completed', 'ready')]))).toBe(
-      'waiting'
-    );
-  });
-});
-
 /** Where the items read places `item`, as the board and the map build its input. */
 function placeOf(item: FactoryItem, previous?: string): string | null {
   const facts = item.progress === null ? new Map() : pageRunFacts(item.progress);
-  return where(itemColumn(VIEW, placementInput(item, facts, false), previous));
+  return where(itemColumn(VIEW, placementInput(item, facts), previous));
 }
 
 describe('placing items of the items read, first rule that matches', () => {
@@ -267,7 +248,7 @@ describe('placing items of the items read, first rule that matches', () => {
       endings: { ...endings, 'plan:halt': 'Stopped at planning' },
     };
     const at = (item: FactoryItem): string | null =>
-      where(itemColumn(renamed, placementInput(item, pageRunFacts(progressOf(item)), false)));
+      where(itemColumn(renamed, placementInput(item, pageRunFacts(progressOf(item)))));
     const unmerged = (outcome: string): FactoryItem => {
       const item = endLastRun(realItem('1'), 'completed', outcome);
       const progress = progressOf(item);

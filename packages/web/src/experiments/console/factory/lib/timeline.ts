@@ -1,6 +1,6 @@
 import type { FactoryItemDetail } from '../../skills/factory';
 import { stageOfWorkflow } from './placement';
-import { VERDICT_LABEL } from './board';
+import { VERDICT_LABEL, type RoundVerdict } from './board';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -21,21 +21,36 @@ export interface StartedText {
   runHref: string | null;
 }
 
+/**
+ * An outcome as a person reads it. Where the declaration says what an outcome means, its
+ * words (`mono` false); a pack's own token the declaration does not map stays as that
+ * identifier, drawn in mono (`mono` true). Console code never words a pack's tokens itself.
+ */
+export interface OutcomeWords {
+  text: string;
+  mono: boolean;
+}
+
+/** A step that recorded an outcome in a round, with that outcome as a person reads it. */
+export interface TimelineStep {
+  node: string;
+  outcome: OutcomeWords;
+  summary: string | null;
+}
+
 export interface TimelineGroup {
   /** The declared stage the steps belong to, as `stageOfWorkflow` places a step. */
   label: string;
-  steps: RoundStep[];
+  steps: TimelineStep[];
 }
 
 export interface TimelineRound {
   iteration: number;
   max: number | null;
-  /**
-   * The round's verdict in words: `returned`, `approved`, `needs a decision`, `in progress`,
-   * `stopped`.
-   */
+  /** The round's verdict, coloured as the board's round dots colour it. */
+  kind: RoundVerdict;
+  /** The verdict in the board's words (`VERDICT_LABEL`), so a round reads the same on both. */
   verdict: string;
-  returned: boolean;
   /** What the deciding step said, on a round that sent the item back; null otherwise. */
   returnedSummary: string | null;
   groups: TimelineGroup[];
@@ -49,8 +64,8 @@ export interface TimelineRow {
   stage: string | null;
   started: StartedText;
   status: ItemRun['status'];
-  /** The outcome in words: the recorded outcome as the pack names it, or what the run is doing. */
-  outcome: string;
+  /** How the run ended, or what it is doing (`runOutcome`). */
+  outcome: OutcomeWords;
   /** Null for a run that has not started executing. */
   durationMs: number | null;
   costUsd: number | null;
@@ -62,37 +77,51 @@ export interface TimelineRow {
 export const runHref = (projectId: string, runId: string): string =>
   `/console/p/${projectId}/r/${runId}`;
 
-function outcomeWord(run: ItemRun): string {
-  if (run.awaitingExecution !== null) return 'waiting to start';
+const words = (text: string): OutcomeWords => ({ text, mono: false });
+
+/**
+ * A completed run's outcome: where `placement` sent the item ("sent to Plan"), the label of
+ * the `endings` entry that closed it, else the pack's token as an identifier.
+ */
+function completedOutcome(view: Declaration, workflow: string | null, outcome: string | null) {
+  if (outcome === null) return words('completed');
+  if (workflow === null) return { text: outcome, mono: true };
+  const placed = view.placement[`${workflow}:${outcome}`];
+  const stage = view.stages.find(candidate => candidate.id === placed);
+  if (stage !== undefined) return words(`sent to ${stage.label}`);
+  const ending = view.endings[`${workflow}:${outcome}`] ?? view.endings[`${workflow}:*`];
+  return ending === undefined ? { text: outcome, mono: true } : words(ending);
+}
+
+/** How a run ended, or what it is doing; `workflow` as the view names it, null if it does not. */
+function runOutcome(view: Declaration, workflow: string | null, run: ItemRun): OutcomeWords {
+  if (run.awaitingExecution !== null) return words('waiting to start');
   switch (run.status) {
     case 'pending':
-      return 'waiting to start';
+      return words('waiting to start');
     case 'running':
-      return 'running';
     case 'paused':
-      return 'paused';
     case 'failed':
-      return 'failed';
     case 'cancelled':
-      return 'cancelled';
+      return words(run.status);
     case 'completed':
-      return run.outcome ?? 'completed';
+      return completedOutcome(view, workflow, run.outcome);
   }
 }
 
-function verdictWord(round: Round): string {
-  switch (round.verdict) {
-    case 'returned':
-      return 'returned';
-    case 'approved':
-    case 'undecided':
-      // The board's words, so a round reads the same on the card and on the timeline.
-      return VERDICT_LABEL[round.verdict];
-    case 'running':
-      return 'in progress';
-    case 'stopped':
-      return 'stopped';
-  }
+/**
+ * A step's outcome in a round: "returned" or "approved" where `returns` or `approves`
+ * declares that step and outcome, else the pack's token as an identifier.
+ */
+function stepOutcome(view: Declaration, workflow: string, step: RoundStep): OutcomeWords {
+  const declares = (points: Declaration['returns']): boolean =>
+    (points ?? []).some(
+      point =>
+        point.workflow === workflow && point.node === step.node && point.outcome === step.outcome
+    );
+  if (declares(view.returns)) return words(VERDICT_LABEL.returned);
+  if (declares(view.approves)) return words(VERDICT_LABEL.approved);
+  return { text: step.outcome, mono: true };
 }
 
 /** A round's steps grouped under the stage each belongs to, in the order they recorded. */
@@ -100,9 +129,14 @@ function groupSteps(view: Declaration, workflow: string, steps: readonly RoundSt
   const groups: TimelineGroup[] = [];
   for (const step of steps) {
     const label = stageOfWorkflow(view, workflow, step.node)?.label ?? workflow;
+    const entry = {
+      node: step.node,
+      outcome: stepOutcome(view, workflow, step),
+      summary: step.summary,
+    };
     const last = groups.at(-1);
-    if (last?.label === label) last.steps.push(step);
-    else groups.push({ label, steps: [step] });
+    if (last?.label === label) last.steps.push(entry);
+    else groups.push({ label, steps: [entry] });
   }
   return groups;
 }
@@ -116,8 +150,8 @@ function timelineRounds(
   return rounds.rounds.map(round => ({
     iteration: round.iteration,
     max: rounds.max,
-    verdict: verdictWord(round),
-    returned: round.verdict === 'returned',
+    kind: round.verdict,
+    verdict: VERDICT_LABEL[round.verdict],
     returnedSummary: round.verdict === 'returned' ? round.summary : null,
     groups: groupSteps(view, workflow, round.steps),
   }));
@@ -139,11 +173,10 @@ function startedText(projectId: string, row: Row, rows: readonly Row[]): Started
       const before = rows.find(other => other.runId === cause.runId);
       const href = runHref(projectId, cause.runId);
       if (before === undefined) return { text: 'After another run', mono: null, runHref: href };
-      return {
-        text: `After ${before.stage ?? before.workflow}: ${before.outcome}`,
-        mono: null,
-        runHref: href,
-      };
+      const after = `After ${before.stage ?? before.workflow}:`;
+      return before.outcome.mono
+        ? { text: after, mono: before.outcome.text, runHref: href }
+        : { text: `${after} ${before.outcome.text}`, mono: null, runHref: href };
     }
     case 'run_fired':
       return cause.node === null
@@ -179,7 +212,7 @@ export function buildTimeline(
       workflow: workflow ?? run.workflow,
       stage: workflow === null ? null : (stageOfWorkflow(view, workflow, liveStep)?.label ?? null),
       status: run.status,
-      outcome: outcomeWord(run),
+      outcome: runOutcome(view, workflow, run),
       durationMs: durationOf(run, now),
       costUsd: fact?.costUsd ?? null,
       liveStep,

@@ -12,8 +12,9 @@ import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
+import { itemPill } from './lib/board';
 import { itemAsks, type NeedsYouItem } from './lib/needs-you';
-import { itemColumn, itemState, placementInput, stageIdOf } from './lib/placement';
+import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { NeedsYouRow } from './NeedsYouList';
@@ -69,7 +70,7 @@ function ItemRead({
       ? undefined
       : itemColumn(
           view.declaration,
-          placementInput(data.item, new Map(data.runs.map(run => [run.runId, run])), false),
+          placementInput(data.item, new Map(data.runs.map(run => [run.runId, run]))),
           previous.current?.key === itemKey ? previous.current.stage : undefined
         );
   useEffect(() => {
@@ -82,14 +83,16 @@ function ItemRead({
   }
   const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
-  const placement = placementInput(
-    data.item,
-    new Map(data.runs.map(run => [run.runId, run])),
-    asks.length > 0
-  );
+  // The placement every view shares, and the board's pill, so the header says what the
+  // item's card says.
+  const landed = stageIdOf(column ?? null) === declaration.landed.stage;
   return (
     <>
-      <ItemHeader item={data.item} state={itemState(placement)} column={column ?? null} />
+      <ItemHeader
+        item={data.item}
+        pill={itemPill(data.item, landed).pill}
+        column={column ?? null}
+      />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
       <ItemLinks projectId={projectId} links={data.item.links} />

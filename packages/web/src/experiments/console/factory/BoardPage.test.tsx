@@ -210,6 +210,46 @@ describe('the Table view', () => {
   });
 });
 
+describe('a board opened from a number', () => {
+  test('?show=landed with the Table view: only landed rows; Show all brings back the rest', async () => {
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?show=landed&view=table`
+    );
+    try {
+      const keys = (): string[] =>
+        [...container.querySelectorAll('tbody tr')].map(
+          row => row.querySelector('td')?.textContent ?? ''
+        );
+      expect(keys()).toEqual(['7', '2', '1']);
+      expect(container.textContent).toContain('Showing: landed');
+      const clear = container.querySelector(
+        'button[aria-label="Show every item"]'
+      ) as HTMLButtonElement;
+      await act(async () => clear.click());
+      expect(keys()).toEqual(['5', '4', '6', '3', '8', '7', '2', '1']);
+      expect(container.textContent).not.toContain('Showing:');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('an unknown ?show= says so and filters nothing', async () => {
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?show=bogus`
+    );
+    try {
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'Unknown filter "bogus"'
+      );
+      expect(cardKeys(container)).toHaveLength(PAGE.items.length);
+    } finally {
+      await unmount();
+    }
+  });
+});
+
 test('the board reads every page, following next to the last', async () => {
   const seen: (string | undefined)[] = [];
   const items = await readAllFactoryItems(ID, async query => {

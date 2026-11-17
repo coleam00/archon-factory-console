@@ -1,24 +1,18 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { FactoryItem } from '../skills/factory';
-import { ITEM_STATE_LABEL, type ItemColumn, type ItemState } from './lib/placement';
+import { PillBadge } from './BoardCard';
+import type { Pill } from './lib/board';
+import type { ItemColumn } from './lib/placement';
 
-const PILL_CLASS: Record<ItemState, string> = {
-  running: 'bg-[color-mix(in_oklch,var(--running),transparent_80%)] text-[color:var(--running)]',
-  'needs-you': 'bg-warning/20 text-warning',
-  failed: 'bg-error/15 text-error',
-  waiting: 'bg-surface-elevated text-text-secondary',
-  landed: 'bg-success/15 text-success',
-};
-
-/** The item's key, title, state, column and change. */
+/** The item's key, title, state, column and change: the same pill its board card shows. */
 export function ItemHeader({
   item,
-  state,
+  pill,
   column,
 }: {
   item: FactoryItem;
-  state: ItemState;
-  /** Null when the item's position could not be derived. */
+  pill: Pill;
+  /** Where `placement.ts` puts the item; null when no declared stage holds it. */
   column: ItemColumn | null;
 }): ReactElement {
   const title = item.progress?.title ?? null;
@@ -31,11 +25,7 @@ export function ItemHeader({
         </h3>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
-        <span
-          className={`rounded-full px-2 py-0.5 text-console-11 font-semibold ${PILL_CLASS[state]}`}
-        >
-          {ITEM_STATE_LABEL[state]}
-        </span>
+        <PillBadge pill={pill} />
         <ColumnWords item={item} column={column} />
         <ChangeLink change={item.progress?.change ?? null} />
       </div>

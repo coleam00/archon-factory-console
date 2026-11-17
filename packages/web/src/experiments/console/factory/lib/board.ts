@@ -9,6 +9,7 @@
 import { formatDateTime } from '../../lib/format';
 import type { FactoryItemsPage } from '../../skills/factory';
 import { needsYou } from './needs-you';
+import { showsCard, type BoardShow } from './board-show';
 import { pageItemColumn, type ItemColumn } from './placement';
 import { factoryPath, type FactoryViewListed } from './views';
 
@@ -142,7 +143,7 @@ export function cardFields(
   const { key } = item.item;
   const progress = item.progress;
   const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
-  const { pill, stopLine } = stateOf(item, landed);
+  const { pill, stopLine } = itemPill(item, landed);
   const mergedAt = progress?.change?.mergedAt ?? null;
   return {
     key,
@@ -163,9 +164,10 @@ export function cardFields(
 /**
  * The state pill, first that holds: landed (in the landed column), needs you (an open
  * ask), running, failed (the last run failed or was cancelled), else waiting; and the one
- * line saying what an item that needs you asks, or what stopped a failed one.
+ * line saying what an item that needs you asks, or what stopped a failed one. The board's
+ * card and the item page's header both read it, so an item says the same in both.
  */
-function stateOf(item: FactoryItem, landed: boolean): Pick<BoardCard, 'pill' | 'stopLine'> {
+export function itemPill(item: FactoryItem, landed: boolean): Pick<BoardCard, 'pill' | 'stopLine'> {
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
   if (landed) return { pill: 'landed', stopLine: unread };
   const [ask] = needsYou(item.questions);
@@ -186,6 +188,8 @@ export interface PlacedCard {
 }
 
 export interface BoardModel {
+  /** The declaration's landed stage: the column an item whose change merged sits in. */
+  landedStage: string;
   columns: { stage: string; label: string; cards: PlacedCard[] }[];
   /**
    * The folded rows under the board: items an ending took off it, by label, and items
@@ -239,6 +243,7 @@ export function boardModel(
     } else columns.find(entry => entry.stage === column.stage.id)?.cards.push(placed);
   }
   return {
+    landedStage: view.landed.stage,
     columns,
     ended: [...ended].map(([label, cards]) => ({ label, cards })),
     positions,
@@ -246,19 +251,34 @@ export function boardModel(
 }
 
 /**
- * The board narrowed to the cards `query` finds by key or title. `positions` keeps every
- * item, so narrowing never reads as a card moving.
+ * The board narrowed to the cards `query` finds by key or title and, when given, to the
+ * cards `show` picks (the numbers strip's links). While `show` narrows it, the folded
+ * endings are hidden: no number counts them. `positions` keeps every item, so narrowing
+ * never reads as a card moving.
  */
-export function filterBoard(model: BoardModel, query: string): BoardModel {
-  if (query.trim() === '') return model;
+export function filterBoard(
+  model: BoardModel,
+  query: string,
+  show?: BoardShow,
+  now: Date = new Date()
+): BoardModel {
+  if (query.trim() === '' && show === undefined) return model;
+  const landed = model.landedStage;
   const keep = (cards: PlacedCard[]): PlacedCard[] =>
-    cards.filter(placed => cardMatches(placed.card, query));
+    cards.filter(
+      placed =>
+        cardMatches(placed.card, query) &&
+        (show === undefined || showsCard(show, placed, landed, now))
+    );
   return {
+    ...model,
     columns: model.columns.map(column => ({ ...column, cards: keep(column.cards) })),
-    ended: model.ended
-      .map(group => ({ ...group, cards: keep(group.cards) }))
-      .filter(group => group.cards.length > 0),
-    positions: model.positions,
+    ended:
+      show === undefined
+        ? model.ended
+            .map(group => ({ ...group, cards: keep(group.cards) }))
+            .filter(group => group.cards.length > 0)
+        : [],
   };
 }
 

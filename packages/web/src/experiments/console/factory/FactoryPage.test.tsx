@@ -11,6 +11,8 @@ import { FactoryPage } from './FactoryPage';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
+import type { FactoryItem } from './lib/board';
+import { PAGE, VIEW } from './lib/board.test-fixtures';
 import { askItem } from './needs-you.test-fixtures';
 
 const ID = 'cb-1';
@@ -66,6 +68,18 @@ const withView: FactoryViews = {
   errors: [],
 };
 const none: FactoryViews = { views: [], errors: [] };
+/** The declaration this repository ships, over the real items the board's fixtures hold. */
+const shipped: FactoryViews = {
+  views: [
+    {
+      pack: VIEW.pack,
+      source: 'project-file',
+      path: '/repo/.archon/packs/Wirasm.archon-software-factory.factory-view.json',
+      declaration: VIEW,
+    },
+  ],
+  errors: [],
+};
 
 /**
  * Every link marked as the current page, as `href label`, whatever its other attributes:
@@ -82,13 +96,14 @@ const currentLinks = (html: string): string[] =>
 function render(
   path: string | { pathname: string; state: unknown },
   listing: FactoryViews,
-  attention: AttentionQueue = quiet
+  attention: AttentionQueue = quiet,
+  items: FactoryItem[] = []
 ): string {
   set(K.factoryViews(ID), listing);
   set(K.factoryAttention(ID), attention);
   set(K.factoryItems(ID), []);
   set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
-  set(K.factoryItems(ID), []);
+  set(K.factoryItems(ID), items);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -148,6 +163,37 @@ describe('the Overview', () => {
     expect(needsYouLink(render(`/console/p/${ID}/factory`, withView, quiet))).toBe('Needs you');
   });
 
+  test('shows the summary only on the Overview; other pages show the title alone', () => {
+    const summary = 'Issues come in; changes go out.';
+    expect(render(`/console/p/${ID}/factory`, withView)).toContain(summary);
+    for (const path of ['/board', '/stages/checks', '/steps/deliver/rounds.fix']) {
+      const html = render(`/console/p/${ID}/factory${path}`, withView);
+      expect(html).toContain('Kit factory');
+      expect(html).not.toContain(summary);
+    }
+  });
+
+  test('the numbers strip counts the board, each number linking to the board it counts', () => {
+    const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
+    const tiles = [
+      ...html.matchAll(
+        /<a [^>]*href="([^"]*)"[^>]*><span[^>]*>([^<]*)<\/span><span[^>]*>([^<]*)</g
+      ),
+    ].map(([, href, value, label]) => `${value ?? ''} ${label ?? ''} → ${href ?? ''}`);
+    const board = `/console/p/${ID}/factory/board`;
+    expect(tiles).toEqual([
+      `5 in flight → ${board}?show=in-flight`,
+      `0 items need you → ${board}?show=needs-you`,
+      expect.stringMatching(new RegExp(`^\\d+ landed today → ${board}\\?show=landed-today$`)),
+      `3 of 8 done → ${board}?show=landed`,
+      expect.stringMatching(
+        new RegExp(` median from first run to landed → ${board}\\?show=landed$`)
+      ),
+    ]);
+    // Above the Needs-you list.
+    expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(html.indexOf('id="needs-you"'));
+  });
+
   test('lists what needs you on the Overview', () => {
     const html = render(`/console/p/${ID}/factory`, withView, asking);
     expect(html).toContain('Which base should the change target?');
@@ -199,6 +245,22 @@ describe('the stage page', () => {
     expect(html).toContain('Checks the change.');
     expect(html).toContain('up to 3 rounds');
     expect(html).toContain('>included<');
+    // Only the stage's own step stands out; the rest of deliver is dimmed.
+    expect([...html.matchAll(/<button[^>]*data-in-stage=""[^>]*>/g)]).toHaveLength(1);
+    expect(html).toMatch(/<button[^>]*title="rounds\.review__review"[^>]*data-in-stage=""/);
+    // And it looks different: the stage's step and another stage's idle step do not share
+    // their classes, whatever the classes are.
+    const buttons = [...html.matchAll(/<button[^>]*>/g)].map(([tag]) => tag);
+    const classOf = (tag: string | undefined): string | undefined =>
+      /class="([^"]*)"/.exec(tag ?? '')?.[1];
+    const own = buttons.find(tag => tag.includes('data-in-stage=""'));
+    const other = buttons.find(
+      tag =>
+        tag.includes('title=') && !tag.includes('data-in-stage') && !tag.includes('data-running')
+    );
+    expect(classOf(own)).toBeDefined();
+    expect(classOf(other)).toBeDefined();
+    expect(classOf(own)).not.toBe(classOf(other));
     for (const step of ['fix', 'base', 'review', 'tests', 'product', 'verdict'])
       expect(html).toContain(`>${step}</span>`);
     expect(html).toContain('Back to the overview');
