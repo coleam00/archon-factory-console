@@ -176,3 +176,13 @@ describe('the map and the board', () => {
     }
   });
 });
+
+test('a pending merge state marks the stage holding it and the landed stage, no other', () => {
+  const pending = itemWith('p', [run('deliver', 'completed', 'ready')], 'pending');
+  const live = stageLive(view, [realItem('6'), realItem('7'), pending], []);
+  const marked = [...live.stages].filter(([, entry]) => entry.pending).map(([stage]) => stage);
+  expect(marked).toEqual(['ready', view.landed.stage]);
+  const settled = itemWith('u', [run('deliver', 'completed', 'ready')], 'unknown');
+  const none = stageLive(view, [realItem('7'), settled], []);
+  expect([...none.stages.values()].some(entry => entry.pending)).toBe(false);
+});

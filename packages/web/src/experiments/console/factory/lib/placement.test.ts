@@ -242,8 +242,8 @@ describe('placing items of the items read, first rule that matches', () => {
     expect(placeOf(realItem('7'))).toBe('landed');
   });
 
-  test('3: ended ready, its change unmerged or its merge state unknown, is in Ready to land', () => {
-    for (const merged of [false, 'unknown'] as const) {
+  test('3: ended ready, its change unmerged or its merge state unknown or pending, is in Ready to land', () => {
+    for (const merged of [false, 'unknown', 'pending'] as const) {
       const item = realItem('1');
       const progress = progressOf(item);
       if (progress.change === null) throw new Error('item 1 has a change');

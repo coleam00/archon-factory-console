@@ -1,6 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { MergeUnknown, PillBadge, RoundDots } from './BoardCard';
+import { MergeState, PillBadge, RoundDots } from './BoardCard';
 import type { BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
@@ -124,7 +124,7 @@ function BoardRow({
             >
               {card.change.label}
             </a>
-            {card.change.mergeUnknown ? <MergeUnknown /> : null}
+            <MergeState state={card.change.mergeState} />
           </span>
         )
       )}

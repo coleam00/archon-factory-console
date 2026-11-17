@@ -6,6 +6,7 @@
  */
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueueItem } from '../../skills/runs';
+import { anyMergePending, stageCountPending } from './merge-pending';
 import { itemAsks } from './needs-you';
 import { pageItemColumn, stageIdOf } from './placement';
 import type { FactoryViewListed } from './views';
@@ -17,7 +18,15 @@ export interface StageLive {
   working: number;
   /** Those with an open ask or wait a person answers. */
   needYou: FactoryItem[];
+  /**
+   * Whether the count here waits on a merge answer (`stageCountPending`), as the board's
+   * column does: the card says it is checking rather than a count that may be wrong.
+   */
+  pending: boolean;
 }
+
+/** A stage nothing sits on. */
+export const EMPTY_STAGE_LIVE: StageLive = { items: [], working: 0, needYou: [], pending: false };
 
 /** Why an item is on no card: so the reader knows whether to fix the read or the view. */
 export type NotOnMapWhy =
@@ -53,7 +62,7 @@ export function stageLive(
 ): MapLive {
   const carded = new Set(view.map.cards.map(card => card.stage));
   const stages = new Map<string, StageLive>(
-    view.stages.map(stage => [stage.id, { items: [], working: 0, needYou: [] }])
+    view.stages.map(stage => [stage.id, { ...EMPTY_STAGE_LIVE, items: [], needYou: [] }])
   );
   const notOnMap: NotOnMap[] = [];
   const positions = new Map<string, string>();
@@ -75,5 +84,17 @@ export function stageLive(
     if (itemAsks(item, attention).length > 0) live.needYou.push(item);
     if (!carded.has(stage)) notOnMap.push({ item, why: { kind: 'no-card', stage } });
   }
+  markPending(view.landed.stage, items, stages);
   return { stages, notOnMap, positions };
+}
+
+/** Marks each stage whose count waits on a merge answer, as the board marks its columns. */
+function markPending(
+  landedStage: string,
+  items: readonly FactoryItem[],
+  stages: ReadonlyMap<string, StageLive>
+): void {
+  const anyPending = anyMergePending(items);
+  for (const [stage, live] of stages)
+    live.pending = stageCountPending(stage, landedStage, live.items, anyPending);
 }

@@ -2,7 +2,15 @@ import { describe, expect, test } from 'bun:test';
 import { askItem } from '../needs-you.test-fixtures';
 import type { FactoryItem } from '../../skills/factory';
 import { boardModel, filterBoard } from './board';
-import { endLastRun, keepRuns, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
+import {
+  endLastRun,
+  keepRuns,
+  PAGE,
+  progressOf,
+  readyWithMerge,
+  realItem,
+  VIEW,
+} from './board.test-fixtures';
 import { showsCard } from './board-show';
 import { factoryNumbers, median } from './numbers';
 
@@ -147,4 +155,15 @@ describe('the board under a number', () => {
 
 test('median of nothing is null', () => {
   expect(median([])).toBeNull();
+});
+
+test('a pending merge state holds the counts back; a settled unknown is counted as the board places it', () => {
+  expect(numbers([...PAGE.items, readyWithMerge('p', 'pending')], local(17, 12)).pending).toBe(
+    true
+  );
+  expect(numbers([...PAGE.items, readyWithMerge('u', 'unknown')], local(17, 12))).toMatchObject({
+    pending: false,
+    landed: 3,
+    total: 9,
+  });
 });

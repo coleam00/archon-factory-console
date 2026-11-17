@@ -6,7 +6,15 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { Board } from './BoardPage';
 import type { FactoryItem } from '../skills/factory';
-import { endLastRun, keepRuns, PAGE, realItem, VIEW } from './lib/board.test-fixtures';
+import {
+  endLastRun,
+  keepRuns,
+  PAGE,
+  readyWithMerge,
+  realItem,
+  VIEW,
+} from './lib/board.test-fixtures';
+import { cancelRereads } from './merge-reread';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -38,6 +46,7 @@ afterAll(async () => {
 
 const ID = 'cb-1';
 afterEach(() => {
+  cancelRereads();
   invalidate('factory-items');
 });
 
@@ -250,4 +259,37 @@ describe('a board opened from a number', () => {
       await unmount();
     }
   });
+});
+
+describe('while a merge state is pending', () => {
+  test('Ready to land and Landed say they are checking; the card says why', async () => {
+    const { container, unmount } = await mount([...PAGE.items, readyWithMerge('p', 'pending')]);
+    try {
+      const shown = headers(container);
+      expect(shown).toContain('Ready to land…checking');
+      expect(shown).toContain('Landed…checking');
+      expect(shown).toContain('Build4');
+      expect(container.querySelector('section[aria-label="Ready to land"]')?.textContent).toContain(
+        'checking merge state'
+      );
+    } finally {
+      await unmount();
+    }
+  });
+});
+
+test('a failed refresh says so and keeps the board it last read', async () => {
+  const { container, unmount } = await mount(PAGE.items);
+  try {
+    // The refresh fetches, which this file's fetch refuses.
+    await act(async () => invalidate(K.factoryItems(ID)));
+    for (let turn = 0; turn < 5 && container.querySelector('[role="status"]') === null; turn++)
+      await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      'Could not refresh: the board test fetched. Showing the last values read.'
+    );
+    expect(headers(container)).toContain('Landed3');
+  } finally {
+    await unmount();
+  }
 });
