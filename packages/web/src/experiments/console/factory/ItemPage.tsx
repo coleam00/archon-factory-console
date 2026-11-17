@@ -15,10 +15,12 @@ import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { itemPill } from './lib/board';
+import { mergePending } from './lib/merge-pending';
 import { itemAsks, type NeedsYouItem } from './lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { factoryPath, type FactoryViewListed } from './lib/views';
+import { scheduleReread } from './merge-reread';
 import { NeedsYouRow } from './NeedsYouRow';
 import { FactoryLoading } from './FactoryLoading';
 
@@ -40,9 +42,15 @@ function ItemBody({
 }): ReactElement {
   const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
   // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
-  const read = useFactoryRead<FactoryItemDetail>(K.factoryItem(projectId, key), within =>
+  const itemKey = K.factoryItem(projectId, key);
+  const read = useFactoryRead<FactoryItemDetail>(itemKey, within =>
     within(signal => skill.getFactoryItem({ codebaseId: projectId, key }, { signal }))
   );
+  // As `useFactoryItems`: read again while the server is still asking whether it merged.
+  const { data, error } = read;
+  useEffect(() => {
+    if (data !== undefined && mergePending(data.item)) scheduleReread(itemKey);
+  }, [data, error, itemKey]);
   return (
     <div className="flex flex-col gap-5">
       <BackLink to={factoryPath(projectId)} label="Back to the overview" />

@@ -4,6 +4,7 @@ import { askItem } from '../needs-you.test-fixtures';
 import { boardModel, cardFields, filterBoard, hiddenColumnsHint, movedKeys } from './board';
 import type { FactoryItem } from '../../skills/factory';
 import {
+  readyWithMerge,
   delivering,
   endLastRun,
   keepRuns,
@@ -142,10 +143,13 @@ describe('card fields, in order', () => {
     expect(card(realItem('7')).change).toEqual({
       href: 'https://github.com/coleam00/archon-factory-console/pull/13',
       label: 'PR #13',
-      mergeUnknown: false,
+      mergeState: null,
     });
     // The fixture's lookup for item 3 could not reach its pull request: the card says so.
-    expect(card(realItem('3')).change).toMatchObject({ label: 'the change', mergeUnknown: true });
+    expect(card(realItem('3')).change).toMatchObject({
+      label: 'the change',
+      mergeState: 'unknown',
+    });
     expect(card(realItem('6')).change).toBeNull();
   });
 
@@ -221,5 +225,31 @@ describe('the board', () => {
     expect(
       hiddenColumnsHint(columns, new Set(['order', 'triage', 'plan', 'build', 'checks', 'host']))
     ).toBe('Scroll for: Ready to land, Landed');
+  });
+});
+
+describe('a column waiting on a merge answer', () => {
+  const pendingColumns = (items: FactoryItem[], show?: Parameters<typeof filterBoard>[2]) =>
+    filterBoard(boardModel(VIEW, 'cb-1', items, new Map()), '', show)
+      .columns.filter(column => column.pending)
+      .map(column => column.stage);
+
+  test('the column holding a pending item and the landed column, no other', () => {
+    const items = [...PAGE.items, readyWithMerge('p', 'pending')];
+    expect(pendingColumns(items)).toEqual(['ready', VIEW.landed.stage]);
+    const card = boardModel(VIEW, 'cb-1', items, new Map())
+      .columns.flatMap(column => column.cards)
+      .find(placed => placed.card.key === 'p')?.card;
+    expect(card?.change?.mergeState).toBe('pending');
+  });
+
+  test('a board opened from a landed number keeps the landed column loading', () => {
+    const items = [...PAGE.items, readyWithMerge('p', 'pending')];
+    expect(pendingColumns(items, 'landed')).toContain(VIEW.landed.stage);
+    expect(pendingColumns(items, 'landed-today')).toContain(VIEW.landed.stage);
+  });
+
+  test('a settled unknown is counted where it sits', () => {
+    expect(pendingColumns([...PAGE.items, readyWithMerge('u', 'unknown')])).toEqual([]);
   });
 });

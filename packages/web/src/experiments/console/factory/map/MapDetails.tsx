@@ -54,7 +54,7 @@ export function MapDetails({
         </div>
         <p className="text-console-12 leading-relaxed text-text-secondary">{stage.blurb}</p>
         <section className="flex flex-col gap-1.5">
-          <h5 className={HEADING}>Items here · {live.items.length}</h5>
+          <h5 className={HEADING}>Items here · {live.pending ? 'checking…' : live.items.length}</h5>
           {live.items.length === 0 ? (
             <p className="text-console-12 text-text-tertiary">Nothing here now.</p>
           ) : (

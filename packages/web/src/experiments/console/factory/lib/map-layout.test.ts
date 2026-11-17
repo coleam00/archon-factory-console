@@ -295,11 +295,13 @@ describe('the shipped map', () => {
       'checks->build',
       'host->build',
       'checks->plan',
+      // Plan's answered asks start Plan again: a U on the lane under its card.
+      'plan->plan',
     ]);
     const intoBuild = layout.feedback.paths.filter(path => path.to === 'build');
     expect(new Set(intoBuild.map(path => path.d.split(' ').at(-2))).size).toBe(1);
     expect(labelOf('build')).toBe('returned');
-    expect(labelOf('plan')).toBe('replan');
+    expect(labelOf('plan')).toBe('replan, asks answered');
   });
 
   test('nothing enters a card, no line crosses another, and the bounds hold the lane labels', () => {

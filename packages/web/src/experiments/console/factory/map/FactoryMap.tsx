@@ -3,10 +3,11 @@ import { errorDetail } from '../../lib/http';
 import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
+import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
 import { rowsFor } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
-import { stageLive, type MapLive } from '../lib/map-live';
+import { EMPTY_STAGE_LIVE, stageLive, type MapLive } from '../lib/map-live';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
@@ -61,7 +62,12 @@ function MapBody({
       );
     return <FactoryLoading read={items} />;
   }
-  return <MapLiveCanvas {...inputs} items={items.data} />;
+  return (
+    <>
+      <StaleRead error={items.error} />
+      <MapLiveCanvas {...inputs} items={items.data} />
+    </>
+  );
 }
 
 /**
@@ -160,7 +166,7 @@ function MapCanvas({
             projectId={projectId}
             view={view}
             stage={selectedStage}
-            live={live.stages.get(selectedStage.id) ?? { items: [], working: 0, needYou: [] }}
+            live={live.stages.get(selectedStage.id) ?? EMPTY_STAGE_LIVE}
             onClose={() => setSelected(null)}
           />
         )}

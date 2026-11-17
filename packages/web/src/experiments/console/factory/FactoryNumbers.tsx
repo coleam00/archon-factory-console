@@ -9,6 +9,7 @@ import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
+import { StaleRead } from './StaleRead';
 
 /** "Landed today" turns over at midnight without a reload. */
 function useMinuteClock(): Date {
@@ -26,13 +27,16 @@ function useMinuteClock(): Date {
 
 interface Tile {
   show: BoardShow;
-  value: string;
+  /** Null while it waits on a merge answer: the tile says it is loading, never a wrong count. */
+  value: string | null;
   label: string;
 }
 
 function tiles(numbers: Numbers): Tile[] {
+  // Every number but "needs you" depends on which items landed (placement rule 2).
+  const merged = (value: string): string | null => (numbers.pending ? null : value);
   return [
-    { show: 'in-flight', value: numbers.inFlight.toString(), label: 'in flight' },
+    { show: 'in-flight', value: merged(numbers.inFlight.toString()), label: 'in flight' },
     {
       show: 'needs-you',
       value: numbers.needsYou.toString(),
@@ -40,15 +44,17 @@ function tiles(numbers: Numbers): Tile[] {
       // have several, so the words keep the two numbers from reading as a contradiction.
       label: numbers.needsYou === 1 ? 'item needs you' : 'items need you',
     },
-    { show: 'landed-today', value: numbers.landedToday.toString(), label: 'landed today' },
+    { show: 'landed-today', value: merged(numbers.landedToday.toString()), label: 'landed today' },
     {
       show: 'landed',
-      value: `${numbers.landed.toString()} of ${numbers.total.toString()}`,
+      value: merged(`${numbers.landed.toString()} of ${numbers.total.toString()}`),
       label: 'done',
     },
     {
       show: 'landed',
-      value: numbers.medianToLandMs === null ? 'none yet' : durationWords(numbers.medianToLandMs),
+      value: merged(
+        numbers.medianToLandMs === null ? 'none yet' : durationWords(numbers.medianToLandMs)
+      ),
       label: 'median from first run to landed',
     },
   ];
@@ -82,15 +88,18 @@ export function FactoryNumbers({
       </p>
     );
   return (
-    <ul aria-label="Numbers" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-      {(numbers === undefined ? undefined : tiles(numbers))?.map(tile => (
-        <NumberTile key={tile.label} projectId={projectId} tile={tile} />
-      )) ?? (
-        <li>
-          <FactoryLoading read={items} />
-        </li>
-      )}
-    </ul>
+    <div className="flex flex-col gap-1.5">
+      {numbers === undefined ? null : <StaleRead error={items.error} />}
+      <ul aria-label="Numbers" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {(numbers === undefined ? undefined : tiles(numbers))?.map(tile => (
+          <NumberTile key={tile.label} projectId={projectId} tile={tile} />
+        )) ?? (
+          <li>
+            <FactoryLoading read={items} />
+          </li>
+        )}
+      </ul>
+    </div>
   );
 }
 
@@ -101,7 +110,14 @@ function NumberTile({ projectId, tile }: { projectId: string; tile: Tile }): Rea
         to={factoryPath(projectId, `/board?show=${tile.show}`)}
         className="flex h-full flex-col gap-0.5 rounded-console-12 border border-border bg-surface px-3 py-2 transition-colors hover:border-border-bright"
       >
-        <span className="text-lg font-medium tabular-nums text-text-primary">{tile.value}</span>
+        <span className="text-lg font-medium tabular-nums text-text-primary">
+          {tile.value ?? (
+            <span title="Checking which changes merged">
+              <span aria-hidden="true">…</span>
+              <span className="sr-only">Loading</span>
+            </span>
+          )}
+        </span>
         <span className="text-console-12 text-text-secondary">{tile.label}</span>
       </Link>
     </li>

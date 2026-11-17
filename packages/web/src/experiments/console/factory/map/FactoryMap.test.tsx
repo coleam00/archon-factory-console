@@ -11,6 +11,7 @@ import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
 import { MAP_TEXT_PX } from '../lib/map-camera';
+import { cancelRereads } from '../merge-reread';
 import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
@@ -32,6 +33,7 @@ afterAll(async () => {
   }
 });
 afterEach(() => {
+  cancelRereads();
   invalidate('factory-items');
 });
 
@@ -256,7 +258,12 @@ test("the map draws the view file's arrows and no others: forward ones labelled,
       'merged',
     ]);
     const lane = [...container.querySelectorAll('g[data-lane="feedback"]')];
-    expect(lane.map(g => g.getAttribute('data-arrow'))).toEqual(['decl:7', 'decl:8', 'decl:9']);
+    expect(lane.map(g => g.getAttribute('data-arrow'))).toEqual([
+      'decl:7',
+      'decl:8',
+      'decl:9',
+      'decl:10',
+    ]);
     // Every arrow drawn is a declared one.
     expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
       shippedListed.declaration.map.arrows.length
@@ -264,7 +271,7 @@ test("the map draws the view file's arrows and no others: forward ones labelled,
     const labels = [...container.querySelectorAll('g[data-lane-label]')].map(
       g => `${g.getAttribute('data-lane-label') ?? ''}: ${g.textContent ?? ''}`
     );
-    expect(labels).toEqual(['build: returned', 'plan: replan']);
+    expect(labels).toEqual(['build: returned', 'plan: replan, asks answered']);
   } finally {
     await unmount();
   }
@@ -290,4 +297,46 @@ async function cardTopsAt(width: number): Promise<Set<string>> {
 test("the cards take one row in the Overview's 1100px row, and wrap to two in a phone's", async () => {
   expect((await cardTopsAt(1100)).size).toBe(1);
   expect((await cardTopsAt(358)).size).toBe(2);
+});
+
+test('while a merge state is pending, Ready to land and Landed say they are checking, not a count', async () => {
+  const pending = itemWith('p', [run('deliver', 'completed', 'ready')], 'pending');
+  const { container, unmount } = await mount([realItem('7'), realItem('5'), pending]);
+  try {
+    for (const stage of ['ready', 'landed']) {
+      expect(hereChip(container, stage)).toBeNull();
+      expect(
+        container.querySelector(`[data-stage="${stage}"] [data-chip="checking"]`)?.textContent
+      ).toBe('checking…');
+    }
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe(
+      'Landed: checking merge state'
+    );
+    expect(hereChip(container, 'build')).toContain('1');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a failed refresh says so and keeps the map it last read', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = Object.assign(
+    async (): Promise<Response> => {
+      throw new Error('the server is down');
+    },
+    { preconnect: originalFetch.preconnect }
+  );
+  const { container, unmount } = await mount();
+  try {
+    await act(async () => invalidate(K.factoryItems(ID)));
+    for (let turn = 0; turn < 5 && container.querySelector('[role="status"]') === null; turn++)
+      await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    expect(container.querySelector('[role="status"]')?.textContent).toContain(
+      'Could not refresh: the server is down. Showing the last values read.'
+    );
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+  } finally {
+    globalThis.fetch = originalFetch;
+    await unmount();
+  }
 });

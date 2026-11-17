@@ -52,8 +52,16 @@ export const factoryRoundVerdictSchema = z.enum([
 ]);
 export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
 
-/** Whether the change merged, as the change host reported it; `unknown` when it could not say. */
-export const factoryChangeMergedSchema = z.union([z.boolean(), z.literal('unknown')]);
+/**
+ * Whether the change merged, as the change host reported it: `unknown` when it could not
+ * say, `pending` while the server is still asking it (read again shortly; the answer is
+ * never cached).
+ */
+export const factoryChangeMergedSchema = z.union([
+  z.boolean(),
+  z.literal('unknown'),
+  z.literal('pending'),
+]);
 export type FactoryChangeMerged = z.infer<typeof factoryChangeMergedSchema>;
 
 export const factoryItemProgressSchema = z.object({

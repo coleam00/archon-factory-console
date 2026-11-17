@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router';
 import { errorDetail } from '../lib/http';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
+import { StaleRead } from './StaleRead';
 import { useFactoryItems } from './useFactoryItems';
 import { FactoryFrame } from './FactoryFrame';
 import {
@@ -160,10 +161,15 @@ function BoardBody({
       );
     return <FactoryLoading read={items} />;
   }
-  return table ? (
-    <BoardTable projectId={projectId} model={model} moved={moved} />
-  ) : (
-    <BoardPipeline projectId={projectId} model={model} moved={moved} />
+  return (
+    <>
+      <StaleRead error={items.error} />
+      {table ? (
+        <BoardTable projectId={projectId} model={model} moved={moved} />
+      ) : (
+        <BoardPipeline projectId={projectId} model={model} moved={moved} />
+      )}
+    </>
   );
 }
 

@@ -10,6 +10,7 @@ import { formatDateTime } from '../../lib/format';
 import type { FactoryItem } from '../../skills/factory';
 import { needsYou, ownerLostMessage } from './needs-you';
 import { showsCard, type BoardShow } from './board-show';
+import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, type ItemColumn } from './placement';
 import { runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
@@ -73,10 +74,11 @@ export interface BoardCard {
   run: (RunLine & { step: string | null; href: string }) | null;
   returned: { count: number; href: string } | null;
   /**
-   * The change, by its pull request number when known. `mergeUnknown` when the change host
-   * could not say whether it merged: the card says so rather than reading as unmerged.
+   * The change, by its pull request number when known. `mergeState` when the change host
+   * could not say whether it merged (`unknown`) or the server is still asking (`pending`):
+   * the card says so rather than reading as unmerged.
    */
-  change: { href: string; label: string; mergeUnknown: boolean } | null;
+  change: { href: string; label: string; mergeState: Extract<ChangeMerged, string> | null } | null;
   /** When the change merged, in local time; only in the landed column. */
   landedAt: string | null;
   /** What stopped a failed item, or what an item that needs you asks. */
@@ -125,7 +127,7 @@ function changeField(progress: Progress | null): BoardCard['change'] {
   return {
     href: change.url,
     label: change.number === null ? 'the change' : `PR #${change.number.toString()}`,
-    mergeUnknown: change.merged === 'unknown',
+    mergeState: typeof change.merged === 'string' ? change.merged : null,
   };
 }
 
@@ -209,7 +211,11 @@ export interface PlacedCard {
 export interface BoardModel {
   /** The declaration's landed stage: the column an item whose change merged sits in. */
   landedStage: string;
-  columns: { stage: string; label: string; cards: PlacedCard[] }[];
+  /**
+   * `pending` when the column's count waits on a merge answer (`stageCountPending`): its
+   * header shows loading rather than a count that may be wrong.
+   */
+  columns: { stage: string; label: string; cards: PlacedCard[]; pending: boolean }[];
   /**
    * The folded rows under the board: items an ending took off it, by label, and items
    * placement found no column for, under `UNPLACED_LABEL`.
@@ -249,6 +255,7 @@ export function boardModel(
     stage: stage.id,
     label: stage.label,
     cards: [] as PlacedCard[],
+    pending: false,
   }));
   const ended = new Map<string, PlacedCard[]>();
   const positions = new Map<string, string>();
@@ -260,6 +267,11 @@ export function boardModel(
       const label = column === null ? UNPLACED_LABEL : column.ended;
       ended.set(label, [...(ended.get(label) ?? []), placed]);
     } else columns.find(entry => entry.stage === column.stage.id)?.cards.push(placed);
+  }
+  const anyPending = anyMergePending(items);
+  for (const column of columns) {
+    const held = column.cards.map(placed => placed.item);
+    column.pending = stageCountPending(column.stage, view.landed.stage, held, anyPending);
   }
   return {
     landedStage: view.landed.stage,

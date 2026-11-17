@@ -86,7 +86,7 @@ export function MapCard({
 }
 
 function chipWords(live: StageLive): string {
-  const parts = [`${live.items.length.toString()} here`];
+  const parts = [live.pending ? 'checking merge state' : `${live.items.length.toString()} here`];
   if (live.working > 0) parts.push(`${live.working.toString()} being worked`);
   if (live.needYou.length > 0) parts.push(needYouWords(live.needYou.length));
   return parts.join(', ');
@@ -98,10 +98,19 @@ const needYouWords = (n: number): string => `${n.toString()} ${n === 1 ? 'needs'
 function Chips({ live }: { live: StageLive }): ReactElement | null {
   const here = live.items.length;
   const waiting = live.needYou.length;
-  if (here === 0 && waiting === 0) return null;
+  if (here === 0 && waiting === 0 && !live.pending) return null;
   return (
     <>
-      {here > 0 ? (
+      {live.pending ? (
+        // How many sit here waits on a merge answer: the count may be wrong until it lands.
+        <span
+          data-chip="checking"
+          title="Checking which changes merged"
+          className="rounded-full bg-surface-elevated px-2 text-console-15 text-text-tertiary"
+        >
+          checking…
+        </span>
+      ) : here > 0 ? (
         <span
           data-chip="here"
           className={`rounded-full px-2 text-console-15 font-medium ${

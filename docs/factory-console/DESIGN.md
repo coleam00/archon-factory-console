@@ -143,7 +143,8 @@ present itself without the console knowing it. Shape (validated with zod in
     "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
     "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // every arrow the
                 { "from": "checks", "to": "build", "label": "returned" },  // map draws; leftward
-                { "from": "checks", "to": "plan", "label": "replan" } ],  // ones send back
+                { "from": "checks", "to": "plan", "label": "replan",  // ones send back;
+                  "person": true } ],                // a person's step, no hand-off backs it
     "notes": [ { "text": "You answer asks here", "near": "needs-you" } ]
   }
 }
@@ -163,8 +164,16 @@ pack is later work. The pack's `discoveries` drain runs after deliver but moves 
 declaration names no stage for it: runs of a workflow no stage lists do not place an item.
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
-included; the map reads no other source (see The map). An arrow the pack stops making stays
-drawn until the view file changes; comparing the two is the coverage check's job (#28).
+included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
+two true to each other in this repository (#28). It reads the pack graph from the installed pack
+where this machine has one (failing when the snapshot of `archon pack graph` committed beside
+the view file differs from it), and from that snapshot in CI. It fails on a hand-off between two
+stages that the pack declares (every binding, installed by a trigger file on this machine or
+not; owner ruling of 2026-11-17) that the view does not declare, and on a declared arrow no
+such hand-off backs, unless it is marked `person: true` (a replan, a landing), joins two
+different stages of one workflow (its steps), or runs into Landed. An arrow back into its own stage is a rerun only
+a hand-off starts, so it is never exempt. The same check fails on a real step no drill-down card
+covers or two cover, and on a step or workflow the view names that the pack does not have.
 
 ## Data
 
@@ -211,7 +220,9 @@ What those reads do not carry comes from **one read-only route file**,
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The pull request is the one the run's forge records name, else the one on a branch
   the item's runs recorded whose URL is the change (an earlier run may have opened it). The
-  browser never calls GitHub.
+  browser never calls GitHub. A first lookup slower than the server's wait answers `pending`
+  for that read only (never cached); the console reads again every few seconds while any item
+  is pending. A lookup that failed answers `unknown` and is cached like any other answer.
 
 All derivation (column, card fields) is pure TypeScript in the web package, with unit tests,
 fed by these reads. Logic worth porting from Mission Control (`C:\Users\colem\OpenSource\factory-mission-control`,
@@ -223,7 +234,10 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 1. Title and the declaration's summary paragraph.
 2. **Numbers strip:** items in flight, needs you, landed today, landed in total ("N of M done"
-   where M excludes items closed by triage), median time from first run to landed.
+   where M excludes items closed by triage), median time from first run to landed. While any
+   item's merge state is pending, every number but needs you shows loading, never a count that
+   may be wrong. A refresh that fails says so above the last values read (as the map and the
+   board do).
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
    highlighted, the other options with what each does and costs, answered in place through
@@ -244,7 +258,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   text under the type floor; below that it pans. `col` and `row` on a card are accepted, so an
   older view file still loads, and ignored. A card shows the stage label, its blurb, and live
   chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
-  a person.
+  a person. Where a board column would show "…" for a pending merge state, the card says
+  "checking…" instead of how many are here.
 - The arrows are the view file's `map.arrows` and no others: the map does not read the pack
   graph, so the view file declares every hand-off, between workflows too, and every send-back.
   Forward arrows, labelled with the outcome that moves an item along, run side to side between
@@ -304,7 +319,9 @@ A card, in this order:
    (`/console/p/:projectId/r/:runId`). The step's engine id shows on hover.
 5. "returned ×N" when checks or the host sent it back, linking to the item page.
 6. The change: "PR #123" linking to it, when there is one. When the change host could not say
-   whether it merged, the card says "merge state unknown" rather than reading as unmerged.
+   whether it merged, the card says "merge state unknown" rather than reading as unmerged;
+   while the server is still asking, it says "checking merge state", and the column holding
+   it and the landed column show "…" instead of a count.
 7. In the landed column: when it landed, in local time.
 8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
 

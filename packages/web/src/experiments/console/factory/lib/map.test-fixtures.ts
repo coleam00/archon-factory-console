@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItem } from '../../skills/factory';
+import type { ChangeMerged } from './merge-pending';
 
 const seeded = (
   JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'map-items.json'), 'utf8')) as {
@@ -41,7 +42,7 @@ export const run = (
 export function itemWith(
   key: string,
   runs: readonly TestRun[],
-  merged: boolean | 'unknown' | null = null
+  merged: ChangeMerged | null = null
 ): FactoryItem {
   const base = realItem('6');
   const template = base.runs[0] as ItemRun;

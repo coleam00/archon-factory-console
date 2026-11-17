@@ -4,6 +4,7 @@
  * pill is the board's (`itemPill` in `board.ts`).
  */
 import type { FactoryItem } from '../../skills/factory';
+import type { ChangeMerged } from './merge-pending';
 import { stagesOfWorkflow, stepInStage, type FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
 
@@ -25,8 +26,12 @@ export interface PlacementRun {
 
 export interface PlacementInput {
   runs: readonly PlacementRun[];
-  /** Whether the item's change merged; null when it has none. */
-  merged: boolean | 'unknown' | null;
+  /**
+   * Whether the item's change merged; null when it has none. Only `true` places it in the
+   * landed column; a `pending` item sits where it would unmerged, and the views that count
+   * show it as loading (`merge-pending.ts`).
+   */
+  merged: ChangeMerged | null;
 }
 
 /** What placement reads of each run beyond the item read's own: its declared workflow and running step. */

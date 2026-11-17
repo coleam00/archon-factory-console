@@ -82,7 +82,7 @@ export function BoardPipeline({
               className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5 text-console-11 font-medium uppercase tracking-wider text-text-tertiary"
             >
               <span className="truncate">{column.label}</span>
-              <span className="tabular-nums">{column.cards.length}</span>
+              <ColumnCount column={column} />
             </h3>
             {column.cards.map(({ card }) => (
               <BoardCard
@@ -98,6 +98,18 @@ export function BoardPipeline({
       <EndedRows projectId={projectId} ended={model.ended} />
     </div>
   );
+}
+
+/** A column's count, or loading while it waits on a merge answer (`stageCountPending`). */
+function ColumnCount({ column }: { column: BoardModel['columns'][number] }): ReactElement {
+  if (column.pending)
+    return (
+      <span title="Checking which changes merged" className="tabular-nums">
+        <span aria-hidden="true">…</span>
+        <span className="sr-only">checking</span>
+      </span>
+    );
+  return <span className="tabular-nums">{column.cards.length}</span>;
 }
 
 /** "N closed by triage" and the like: folded, each item linking to its page. */
