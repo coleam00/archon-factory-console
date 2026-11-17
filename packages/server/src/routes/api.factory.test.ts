@@ -14,6 +14,7 @@ import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from '
 import {
   factoryItemDetailResponseSchema,
   factoryItemsPageResponseSchema,
+  factoryOverviewResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
 } from './schemas/factory.schemas';
@@ -135,6 +136,94 @@ describe('GET /api/factory/views', () => {
     const { app } = await factoryApp({});
     const response = await app.request('/api/factory/views?codebaseId=missing');
     expect(response.status).toBe(404);
+  });
+});
+
+describe('GET /api/factory/overview', () => {
+  const track = trackTempRoots();
+  const viewFile = '.archon/packs/acme.kit.factory-view.json';
+  const overviewFile = '.archon/packs/acme.kit.factory-overview.json';
+  const overview = {
+    version: 1,
+    pack: 'acme/kit',
+    title: 'How the kit works',
+    caption: 'Work comes in and lands.',
+    root: 'top',
+    views: {
+      top: {
+        cards: [
+          { id: 'a', title: 'A', text: 'In.', icon: 'inbox', kind: 'input', col: 1, row: 1 },
+          { id: 'b', title: 'B', text: 'Out.', icon: 'flag', kind: 'outcome', col: 2, row: 1 },
+        ],
+        edges: [
+          { from: 'a', to: 'b', kind: 'feeds' },
+          { from: 'b', to: 'a', kind: 'loops-back' },
+        ],
+      },
+    },
+  };
+
+  async function read(
+    files: Record<string, unknown>,
+    codebaseId = 'cb-1'
+  ): Promise<{ status: number; body: unknown; project: string }> {
+    const project = await projectWith(track, files);
+    const app = new OpenAPIHono();
+    registerFactoryRoutes(app, {
+      ...noItems,
+      codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
+    });
+    const response = await app.request(`/api/factory/overview?codebaseId=${codebaseId}`);
+    return { status: response.status, body: await response.json(), project };
+  }
+
+  test("the overview of the applying view's pack, from the project file", async () => {
+    const { status, body, project } = await read({
+      [viewFile]: declaration('acme/kit', 'Kit'),
+      [overviewFile]: overview,
+    });
+    expect(status).toBe(200);
+    const found = factoryOverviewResponseSchema.parse(body);
+    expect(found.errors).toEqual([]);
+    expect([found.overview?.pack, found.overview?.source, found.overview?.path]).toEqual([
+      'acme/kit',
+      'project-file',
+      join(project, '.archon', 'packs', 'acme.kit.factory-overview.json'),
+    ]);
+    expect(found.overview?.declaration.title).toBe('How the kit works');
+  });
+
+  test('null when the pack has no overview', async () => {
+    const { status, body } = await read({ [viewFile]: declaration('acme/kit', 'Kit') });
+    expect(status).toBe(200);
+    expect(factoryOverviewResponseSchema.parse(body)).toEqual({ overview: null, errors: [] });
+  });
+
+  test('a broken overview file is listed under errors with its path', async () => {
+    const { body, project } = await read({
+      [viewFile]: declaration('acme/kit', 'Kit'),
+      [overviewFile]: { ...overview, root: 'nope' },
+    });
+    const path = join(project, '.archon', 'packs', 'acme.kit.factory-overview.json');
+    expect(factoryOverviewResponseSchema.parse(body)).toEqual({
+      overview: null,
+      errors: [
+        { pack: 'acme.kit', source: 'project-file', path, error: expect.stringContaining('root') },
+      ],
+    });
+  });
+
+  test("another pack's overview is not this factory's", async () => {
+    const { body } = await read({
+      [viewFile]: declaration('acme/kit', 'Kit'),
+      '.archon/packs/other.kit.factory-overview.json': { ...overview, pack: 'other/kit' },
+    });
+    expect(factoryOverviewResponseSchema.parse(body)).toEqual({ overview: null, errors: [] });
+  });
+
+  test('404 for an unknown codebase, and when no factory view applies', async () => {
+    expect((await read({ [overviewFile]: overview }, 'missing')).status).toBe(404);
+    expect((await read({ [overviewFile]: overview })).status).toBe(404);
   });
 });
 
