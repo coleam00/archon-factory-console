@@ -1,0 +1,30 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { FactoryItemDetail } from '../skills/factory';
+import type { FactoryViewListed } from './lib/views';
+
+/**
+ * Real `GET /api/factory/item` responses (see each file's `note`): item 1 (one deliver run,
+ * two rounds), item 2 (three rounds), item 3 (two deliver runs, each ending in an ask, with
+ * the answers), item 6 (a deliver run running its build step).
+ */
+export function itemDetail(key: '1' | '2' | '3' | '6'): FactoryItemDetail {
+  const raw = JSON.parse(
+    readFileSync(join(import.meta.dir, '__fixtures__', `item-${key}.json`), 'utf8')
+  ) as { response: FactoryItemDetail };
+  return raw.response;
+}
+
+/** The declaration this repository ships for the pack the fixtures' runs come from. */
+export const shippedView: FactoryViewListed['declaration'] = JSON.parse(
+  readFileSync(
+    join(
+      import.meta.dir,
+      '../../../../../../.archon/packs/Wirasm.archon-software-factory.factory-view.json'
+    ),
+    'utf8'
+  )
+) as FactoryViewListed['declaration'];
+
+/** The project the fixtures' links name. */
+export const PROJECT = 'c9a89726701fe4be95346226c359a961';

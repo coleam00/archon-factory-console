@@ -1,5 +1,11 @@
 import { expect, test } from 'bun:test';
-import { watchAttentionStream, type AttentionEventSource } from './attention-stream';
+import { subscribeKey } from '../store/cache';
+import { K } from '../store/keys';
+import {
+  refreshOnAttentionChange,
+  watchAttentionStream,
+  type AttentionEventSource,
+} from './attention-stream';
 
 class FakeSource implements AttentionEventSource {
   onmessage: ((event: MessageEvent<string>) => void) | null = null;
@@ -64,4 +70,32 @@ test('a cursor error starts a fresh stream; stopping closes it and drops a pendi
   await settle();
   expect(sources[1]?.closed).toBe(true);
   expect(changes()).toBe(0);
+});
+
+test("an attention change refreshes the project's queue and item reads, not another project's", async () => {
+  const loads: string[] = [];
+  const keys = [
+    K.factoryAttention('p1'),
+    K.factoryItems('p1'),
+    K.factoryItem('p1', '6'),
+    K.factoryItem('p2', '6'),
+  ];
+  const unsubscribe = keys.map(key =>
+    subscribeKey(
+      key,
+      () => {},
+      async () => {
+        loads.push(key);
+        return key;
+      }
+    )
+  );
+  const loaded = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+  // Let the first loads settle, so the refresh below starts loads of its own.
+  await loaded();
+  loads.length = 0;
+  refreshOnAttentionChange('p1');
+  await loaded();
+  for (const stop of unsubscribe) stop();
+  expect(loads.sort()).toEqual(keys.slice(0, 3).sort());
 });

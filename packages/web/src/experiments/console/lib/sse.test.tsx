@@ -84,15 +84,18 @@ test('unlock refetches the persisted reply and updates the subscribed chat view'
   expect(TestEventSource.instances.at(-1)?.close).toHaveBeenCalledTimes(1);
 });
 
-test('a run or node change on the dashboard stream refetches the factory item pages', async () => {
-  const key = K.factoryItems('project-1');
+test('a run or node change on the dashboard stream refetches the factory item pages and item reads', async () => {
+  const pageKey = K.factoryItems('project-1');
+  const itemKey = K.factoryItem('project-1', '6');
   const loadItems = mock(async () => ['page']);
+  const loadItem = mock(async () => ['item']);
   const onRunChanged = (): void => {};
 
   function Board(): ReactElement {
     useDashboardSSE(onRunChanged);
-    const { data } = useEntity(key, loadItems);
-    return <div>{data?.join('')}</div>;
+    const page = useEntity(pageKey, loadItems);
+    const item = useEntity(itemKey, loadItem);
+    return <div>{[...(page.data ?? []), ...(item.data ?? [])].join('')}</div>;
   }
 
   const container = document.createElement('div');
@@ -100,17 +103,17 @@ test('a run or node change on the dashboard stream refetches the factory item pa
   const root = createRoot(container);
   try {
     await act(async () => root.render(<Board />));
-    expect(loadItems).toHaveBeenCalledTimes(1);
+    expect([loadItems, loadItem].map(load => load.mock.calls.length)).toEqual([1, 1]);
     const stream = TestEventSource.instances.at(-1);
     if (!stream) throw new Error('Dashboard stream was not opened');
     const send = (event: object): void => stream.onmessage?.({ data: JSON.stringify(event) });
 
     await act(async () => send({ type: 'heartbeat' }));
-    expect(loadItems).toHaveBeenCalledTimes(1);
+    expect([loadItems, loadItem].map(load => load.mock.calls.length)).toEqual([1, 1]);
     await act(async () => send({ type: 'workflow_status', runId: 'run-1' }));
-    expect(loadItems).toHaveBeenCalledTimes(2);
+    expect([loadItems, loadItem].map(load => load.mock.calls.length)).toEqual([2, 2]);
     await act(async () => send({ type: 'dag_node', runId: 'run-1' }));
-    expect(loadItems).toHaveBeenCalledTimes(3);
+    expect([loadItems, loadItem].map(load => load.mock.calls.length)).toEqual([3, 3]);
   } finally {
     await act(async () => root.unmount());
     container.remove();
