@@ -16,6 +16,8 @@ import {
 import { installedWorkflowName } from './workflow-source/installed-packs';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
+export { factoryPackKey } from './factory-pack-files';
+
 /** Whether a view's `pack` names an installed pack (`owner/name`) rather than a folder pack. */
 export function factoryPackIsInstalled(pack: string): boolean {
   return installedIdentity(pack) !== undefined;
