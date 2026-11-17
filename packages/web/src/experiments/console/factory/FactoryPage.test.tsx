@@ -72,7 +72,10 @@ const currentLinks = (html: string): string[] =>
       return `${href} ${(body ?? '').replace(/<[^>]*>/g, '')}`;
     });
 
-function render(path: string, listing: FactoryViews): string {
+function render(
+  path: string | { pathname: string; state: unknown },
+  listing: FactoryViews
+): string {
   set(K.factoryViews(ID), listing);
   set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
   return renderToStaticMarkup(
@@ -193,6 +196,18 @@ describe('the step page', () => {
     expect(html).toContain('Fix what the checks returned');
     expect(html).toContain('YAML');
     expect(html).toContain(`href="/console/p/${ID}/factory/stages/build"`);
+  });
+
+  test('a step opened from a stage leads back to that stage', () => {
+    const html = render(
+      {
+        pathname: `/console/p/${ID}/factory/steps/deliver/rounds.fix`,
+        state: { fromStage: 'checks' },
+      },
+      withView
+    );
+    expect(html).toContain(`href="/console/p/${ID}/factory/stages/checks"`);
+    expect(html).toContain('Back to Checks');
   });
 
   test('an included step leads back to the stage that works it', () => {

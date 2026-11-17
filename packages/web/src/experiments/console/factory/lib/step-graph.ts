@@ -14,7 +14,10 @@ export interface StepGraphNode {
   inStage: boolean;
 }
 
-export type StepGraphGroup = Pick<WorkflowGroup, 'id' | 'kind' | 'parent' | 'label' | 'maxRounds'>;
+export type StepGraphGroup = Pick<
+  WorkflowGroup,
+  'id' | 'kind' | 'parent' | 'label' | 'maxRounds' | 'when'
+>;
 
 /** Always between two steps: a dependency on a loop group is drawn to and from its steps. */
 export interface StepGraphEdge {
@@ -46,12 +49,13 @@ export function stepGraph(
       when: step.when,
       inStage: inStage(step.key),
     })),
-    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds }) => ({
+    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when }) => ({
       id,
       kind,
       parent,
       label,
       maxRounds,
+      when,
     })),
     edges: stepEdges(workflow),
   };

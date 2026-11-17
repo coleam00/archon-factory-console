@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
-import { useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { YamlPreview } from '../builder/components/YamlPreview';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
@@ -10,7 +10,12 @@ import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
-import { stagesOfWorkflow, stepInStage, type FactoryStage } from './lib/stage-steps';
+import {
+  stagesOfWorkflow,
+  stepInStage,
+  stepPageFromStage,
+  type FactoryStage,
+} from './lib/stage-steps';
 import { factoryPath } from './lib/views';
 
 type FactoryStep = FactoryWorkflow['steps'][number];
@@ -44,7 +49,10 @@ export function StepPage(): ReactElement {
   );
 }
 
-/** Back to the stage that works this step, else the first naming its workflow, else the overview. */
+/**
+ * Back to the stage the step was opened from; on a direct load, the stage that works this
+ * step, else the first naming its workflow, else the overview.
+ */
 function StepBackLink({
   projectId,
   stages,
@@ -54,7 +62,11 @@ function StepBackLink({
   stages: FactoryStage[];
   stepKey: string;
 }): ReactElement {
-  const stage = stages.find(candidate => stepInStage(candidate, stepKey)) ?? stages[0];
+  const fromStage = stepPageFromStage(useLocation().state);
+  const stage =
+    stages.find(candidate => candidate.id === fromStage) ??
+    stages.find(candidate => stepInStage(candidate, stepKey)) ??
+    stages[0];
   if (stage === undefined)
     return <BackLink to={factoryPath(projectId)} label="Back to the overview" />;
   return (

@@ -17,6 +17,9 @@ import { applyInputsMacro, resolveIncludeInputs } from './inputs-macro';
 import { rewriteNodeOutputRefs } from './output-refs';
 import { findUnpassedPackSettingReads, type ExecInputSource } from '../exec-input-validation';
 
+/** Joins an include's id to an included node's id: node `n` under include `i` becomes `i__n`. */
+export const INCLUDE_ID_SEPARATOR = '__';
+
 export interface ExpandedInclude {
   /** The child's nodes, deep-cloned, id-namespaced, edges + refs rewired. */
   namespaced: DagNode[];
@@ -188,7 +191,7 @@ function inlineScope(
   commandContents: ReadonlyMap<string, IncludeCommandContent>,
   includeId: string
 ): InlineScope {
-  const prefix = `${includeNode.id}__`;
+  const prefix = `${includeNode.id}${INCLUDE_ID_SEPARATOR}`;
   const childTopLevelIds = new Set(child.nodes.map(n => n.id));
   const parentDeps = includeNode.depends_on ?? [];
   const [firstEntryTriggerRule, ...remainingEntryTriggerRules] = child.nodes
@@ -279,7 +282,7 @@ function inlineChildNode(scope: InlineScope, cn: DagNode): DagNode {
 
 function namespaceBoundaryOwners(node: DagNode, includeId: string): void {
   for (const boundary of readComposedMeta(node)?.boundaries ?? []) {
-    boundary.boundary.includeId = `${includeId}__${boundary.boundary.includeId}`;
+    boundary.boundary.includeId = `${includeId}${INCLUDE_ID_SEPARATOR}${boundary.boundary.includeId}`;
   }
   if (isLoopGroupNode(node)) {
     for (const body of node.loop_group.nodes) {

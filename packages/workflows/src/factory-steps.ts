@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
 import { readComposedMeta } from './compiled-command';
+import { INCLUDE_ID_SEPARATOR } from './include/inline';
 import type { WorkflowDeps } from './deps';
 import { resolvedBodyNodes } from './graph-plan';
 import { loadCommandPrompt } from './load-command-prompt';
@@ -25,9 +26,6 @@ import type { WorkflowPack } from './schemas/pack-settings';
 import { readPackWorkflowFolders } from './workflow-discovery/pack-layout';
 import { listInstalledPacks, packDirectory } from './workflow-source/installed-packs';
 import type { WorkflowSourceRoots } from './workflow-source/roots';
-
-/** A composed id's include separator: an included workflow's node `n` under include `i` is `i__n`. */
-const INCLUDE_SEPARATOR = '__';
 
 export interface FactoryStepsContext {
   /** The project; owns config. */
@@ -104,7 +102,7 @@ class Outline {
   walk(nodes: readonly DagNode[], prefix: string, parent: string | null): void {
     for (const node of nodes) {
       const meta = readComposedMeta(node);
-      const segments = meta === undefined ? [node.id] : node.id.split(INCLUDE_SEPARATOR);
+      const segments = meta === undefined ? [node.id] : node.id.split(INCLUDE_ID_SEPARATOR);
       const id = segments.pop() ?? node.id;
       const group = this.openIncludes(segments, prefix, parent);
       if (meta !== undefined && group !== parent && group !== null)
@@ -145,7 +143,7 @@ class Outline {
     let group = parent;
     let path = '';
     for (const segment of segments) {
-      path = path === '' ? segment : `${path}${INCLUDE_SEPARATOR}${segment}`;
+      path = path === '' ? segment : `${path}${INCLUDE_ID_SEPARATOR}${segment}`;
       const groupId = prefix + path;
       if (!this.known.has(groupId)) {
         this.known.add(groupId);
@@ -193,7 +191,10 @@ function includeGroup(id: string, parent: string | null, segment: string): Facto
   };
 }
 
-/** An installed workflow is `owner/name:workflow`; inside its pack it is `workflow`. */
+/**
+ * An installed workflow is `owner/name:workflow` (`installedWorkflowName`); inside its pack
+ * it is `workflow`. A folder pack's workflow has no qualifier and passes through.
+ */
 function localWorkflowName(name: string): string {
   return name.slice(name.lastIndexOf(':') + 1);
 }

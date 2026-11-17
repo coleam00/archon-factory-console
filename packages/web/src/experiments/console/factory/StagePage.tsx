@@ -84,7 +84,7 @@ function StageWorkflow({
         </p>
       )}
       {graph !== undefined ? (
-        <StepGraph projectId={projectId} workflow={workflow} graph={graph} />
+        <StepGraph projectId={projectId} workflow={workflow} stageId={stage.id} graph={graph} />
       ) : read.error !== undefined ? (
         <p className="font-mono text-console-12 text-error">
           Could not load the steps: {read.error.message}

@@ -9,12 +9,15 @@ import {
   type LaidOutGroup,
   type LaidOutStep,
 } from './lib/step-graph-layout';
+import type { StepPageState } from './lib/stage-steps';
 import { factoryPath } from './lib/views';
 
 interface StepGraphProps {
   projectId: string;
   /** The workflow as the factory view names it; the step page's route takes this name. */
   workflow: string;
+  /** The stage drawing this graph; the step page leads back to it. */
+  stageId: string;
   graph: StepGraphData;
 }
 
@@ -23,7 +26,7 @@ interface StepGraphProps {
  * each loop group framed and labelled with its rounds and each included workflow framed in
  * dashes. A step another stage works is dimmed. Clicking a step opens its page.
  */
-export function StepGraph({ projectId, workflow, graph }: StepGraphProps): ReactElement {
+export function StepGraph({ projectId, workflow, stageId, graph }: StepGraphProps): ReactElement {
   const navigate = useNavigate();
   const laid = useMemo(() => layoutStepGraph(graph), [graph]);
   const size: CSSProperties = {
@@ -69,7 +72,8 @@ export function StepGraph({ projectId, workflow, graph }: StepGraphProps): React
                 factoryPath(
                   projectId,
                   `/steps/${encodeURIComponent(workflow)}/${encodeURIComponent(step.node.key)}`
-                )
+                ),
+                { state: { fromStage: stageId } satisfies StepPageState }
               );
             }}
           />
@@ -88,13 +92,21 @@ function GroupFrame({ group }: { group: LaidOutGroup }): ReactElement {
       }`}
       style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
     >
-      <div className="ml-1.5 mt-1 inline-flex items-baseline gap-1.5 rounded bg-surface px-1 text-console-11">
+      <div
+        className="ml-1.5 mt-1 inline-flex max-w-full items-baseline gap-1.5 rounded bg-surface px-1 text-console-11"
+        title={group.group.when === null ? undefined : `Runs when ${group.group.when}`}
+      >
         {loop ? (
           <>
-            <span className="font-medium text-text-secondary">
+            <span className="shrink-0 whitespace-nowrap font-medium text-text-secondary">
               up to {String(group.group.maxRounds ?? 1)} rounds
             </span>
-            <span className="font-mono text-text-tertiary">{group.group.label}</span>
+            <span className="shrink-0 font-mono text-text-tertiary">{group.group.label}</span>
+            {group.group.when === null ? null : (
+              <span className="min-w-0 truncate font-mono text-text-tertiary">
+                when {group.group.when}
+              </span>
+            )}
           </>
         ) : (
           <>

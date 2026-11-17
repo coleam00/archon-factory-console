@@ -35,6 +35,7 @@ describe('stepGraph on deliver', () => {
       parent: null,
       label: 'rounds',
       maxRounds: 3,
+      when: null,
     });
     expect(groupOf('rounds.fix')).toBe('rounds');
     expect(groupOf('rounds.base')).toBe('rounds');
@@ -67,11 +68,14 @@ describe('stepGraph on deliver', () => {
       expect([keys.has(edge.from), keys.has(edge.to)]).toEqual([true, true]);
   });
 
-  test('a step carries its when: condition', () => {
+  test('a step and a loop carry their when: condition', () => {
     const when = (key: string) => graph.nodes.find(node => node.key === key)?.when;
     expect(when('rounds.fix')).toContain('$LOOP_PREV.verdict__verdict.output.outcome');
     expect(when('exhausted')).toBe("$rounds.output.outcome == 'return'");
     expect(when('rounds.base')).toBeNull();
+    expect(graph.groups.find(group => group.id === 'hostrounds')?.when).toBe(
+      "$rounds.output.outcome == 'approve'"
+    );
   });
 
   test("only the Checks stage's steps are in it", () => {

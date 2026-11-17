@@ -12,6 +12,17 @@ export function stepInStage(stage: Pick<FactoryStage, 'nodes'>, stepKey: string)
   return stage.nodes.some(node => stepKey === node || stepKey.startsWith(`${node}.`));
 }
 
+/** What the stage page hands the step page, so its back link returns to that stage. */
+export interface StepPageState {
+  fromStage: string;
+}
+
+/** The stage a step page was opened from, when router state says. */
+export function stepPageFromStage(state: unknown): string | undefined {
+  if (typeof state !== 'object' || state === null || !('fromStage' in state)) return undefined;
+  return typeof state.fromStage === 'string' ? state.fromStage : undefined;
+}
+
 /** The stages that list `workflow`, in the view's order. */
 export function stagesOfWorkflow(
   stages: readonly FactoryStage[],
