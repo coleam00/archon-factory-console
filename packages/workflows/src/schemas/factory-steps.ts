@@ -30,6 +30,8 @@ export const factoryStepGroupSchema = z.object({
   maxRounds: z.number().int().nullable(),
   /** A loop's own `when:`, verbatim. */
   when: z.string().nullable(),
+  /** `when` in short, for a label read at a glance: `if rounds = approve`. */
+  whenLabel: z.string().nullable(),
   /** A loop: the step keys or group ids it waits on. Empty for an include. */
   dependsOn: z.array(z.string()),
 });
@@ -51,6 +53,12 @@ export const factoryStepSchema = z.object({
   model: z.array(z.string()).nullable(),
   /** Its `when:` condition as the engine runs it. */
   when: z.string().nullable(),
+  /**
+   * `when` in short, for a label read at a glance: each comparison as the step it reads,
+   * the operator and the value, such as `if verdict = return`. Null without a `when:`, or
+   * when the engine's parser does not take it (the full `when` still says it).
+   */
+  whenLabel: z.string().nullable(),
   /** The command file it runs, by name. */
   command: z.string().nullable(),
   /** The prompt it runs, as markdown. Null for a step that runs none. */

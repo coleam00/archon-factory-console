@@ -102,9 +102,9 @@ function GroupFrame({ group }: { group: LaidOutGroup }): ReactElement {
               up to {String(group.group.maxRounds ?? 1)} rounds
             </span>
             <span className="shrink-0 font-mono text-text-tertiary">{group.group.label}</span>
-            {group.group.when === null ? null : (
-              <span className="min-w-0 truncate font-mono text-text-tertiary">
-                when {group.group.when}
+            {group.group.condition === null ? null : (
+              <span className="min-w-0 truncate font-mono text-text-secondary">
+                {group.group.condition}
               </span>
             )}
           </>
@@ -160,9 +160,9 @@ function StepButton({ step, onOpen }: { step: LaidOutStep; onOpen: () => void })
         <span className="truncate font-mono text-console-13 font-semibold text-text-primary">
           {node.label}
         </span>
-        {node.when === null ? null : (
-          <span className="truncate font-mono text-console-11 text-text-tertiary">
-            when {node.when}
+        {node.condition === null ? null : (
+          <span className="truncate font-mono text-console-11 text-text-secondary">
+            {node.condition}
           </span>
         )}
       </span>

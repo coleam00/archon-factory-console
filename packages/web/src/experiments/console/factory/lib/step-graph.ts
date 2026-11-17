@@ -9,7 +9,10 @@ export interface StepGraphNode {
   kind: WorkflowStep['kind'];
   /** The innermost group it is drawn in. */
   group: string | null;
+  /** The full `when:`, for the tooltip. */
   when: string | null;
+  /** What the graph prints for `when`: its short form, else the full expression. */
+  condition: string | null;
   /** False for a step of the workflow that another stage works. */
   inStage: boolean;
 }
@@ -17,7 +20,7 @@ export interface StepGraphNode {
 export type StepGraphGroup = Pick<
   WorkflowGroup,
   'id' | 'kind' | 'parent' | 'label' | 'maxRounds' | 'when'
->;
+> & { condition: string | null };
 
 /** Always between two steps: a dependency on a loop group is drawn to and from its steps. */
 export interface StepGraphEdge {
@@ -47,18 +50,32 @@ export function stepGraph(
       kind: step.kind,
       group: step.group,
       when: step.when,
+      condition: conditionText(step),
       inStage: inStage(step.key),
     })),
-    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when }) => ({
+    groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when, whenLabel }) => ({
       id,
       kind,
       parent,
       label,
       maxRounds,
       when,
+      condition: conditionText({ when, whenLabel }),
     })),
     edges: stepEdges(workflow),
   };
+}
+
+/**
+ * The server's short form (`if verdict = return`), readable on a projected screen without
+ * hovering; the full expression when the engine's parser gave none.
+ */
+function conditionText({
+  when,
+  whenLabel,
+}: Pick<WorkflowStep, 'when' | 'whenLabel'>): string | null {
+  if (when === null) return null;
+  return whenLabel ?? `when ${when}`;
 }
 
 /** Each step's and each loop's waits, drawn between steps and without repeats. */

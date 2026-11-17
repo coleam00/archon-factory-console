@@ -11,6 +11,7 @@
       "includedFrom": "build",
       "model": ["@builder", "large"],
       "when": null,
+      "whenLabel": null,
       "prompt": "# Build one item",
       "promptError": null,
       "command": "build",
@@ -26,6 +27,7 @@
       "includedFrom": null,
       "model": ["@builder", "large"],
       "when": "$LOOP_PREV.verdict__verdict.output.outcome == 'return'",
+      "whenLabel": "if verdict = return",
       "prompt": "# Fix what the checks returned",
       "promptError": null,
       "command": "fix",
@@ -41,6 +43,7 @@
       "includedFrom": null,
       "model": null,
       "when": null,
+      "whenLabel": null,
       "prompt": null,
       "promptError": null,
       "command": null,
@@ -56,6 +59,7 @@
       "includedFrom": "review",
       "model": ["@reviewer", "large"],
       "when": null,
+      "whenLabel": null,
       "prompt": "# Review one change",
       "promptError": null,
       "command": "review",
@@ -71,6 +75,7 @@
       "includedFrom": "tests",
       "model": ["@test-checker", "large"],
       "when": null,
+      "whenLabel": null,
       "prompt": "# Check the tests of one change",
       "promptError": null,
       "command": "tests",
@@ -86,6 +91,7 @@
       "includedFrom": "product",
       "model": ["@product-reviewer", "large"],
       "when": null,
+      "whenLabel": null,
       "prompt": "# Review the change for the product's users",
       "promptError": null,
       "command": "product",
@@ -101,6 +107,7 @@
       "includedFrom": "verdict",
       "model": ["@verdict", "small"],
       "when": null,
+      "whenLabel": null,
       "prompt": "# Put the reports on one change together",
       "promptError": null,
       "command": "verdict",
@@ -116,6 +123,7 @@
       "includedFrom": null,
       "model": ["@judge", "medium"],
       "when": "$rounds.output.outcome == 'return'",
+      "whenLabel": "if rounds = return",
       "prompt": "# The rounds ran out: what should happen to this change?",
       "promptError": null,
       "command": "exhausted",
@@ -131,6 +139,7 @@
       "includedFrom": null,
       "model": ["@builder", "large"],
       "when": "$LOOP_PREV.host__host.output.outcome == 'return'",
+      "whenLabel": "if host = return",
       "prompt": "# Fix what the host returned",
       "promptError": null,
       "command": "fix-host",
@@ -146,6 +155,7 @@
       "includedFrom": "host",
       "model": ["@host", "medium"],
       "when": null,
+      "whenLabel": null,
       "prompt": "# Read what the host says about one change",
       "promptError": null,
       "command": "host",
@@ -161,6 +171,7 @@
       "includedFrom": null,
       "model": null,
       "when": null,
+      "whenLabel": null,
       "prompt": null,
       "promptError": null,
       "command": null,
@@ -176,6 +187,7 @@
       "label": "build",
       "maxRounds": null,
       "when": null,
+      "whenLabel": null,
       "dependsOn": []
     },
     {
@@ -185,6 +197,7 @@
       "label": "rounds",
       "maxRounds": 3,
       "when": null,
+      "whenLabel": null,
       "dependsOn": ["build__build"]
     },
     {
@@ -194,6 +207,7 @@
       "label": "review",
       "maxRounds": null,
       "when": null,
+      "whenLabel": null,
       "dependsOn": []
     },
     {
@@ -203,6 +217,7 @@
       "label": "tests",
       "maxRounds": null,
       "when": null,
+      "whenLabel": null,
       "dependsOn": []
     },
     {
@@ -212,6 +227,7 @@
       "label": "product",
       "maxRounds": null,
       "when": null,
+      "whenLabel": null,
       "dependsOn": []
     },
     {
@@ -221,6 +237,7 @@
       "label": "verdict",
       "maxRounds": null,
       "when": null,
+      "whenLabel": null,
       "dependsOn": []
     },
     {
@@ -230,6 +247,7 @@
       "label": "hostrounds",
       "maxRounds": 3,
       "when": "$rounds.output.outcome == 'approve'",
+      "whenLabel": "if rounds = approve",
       "dependsOn": ["rounds"]
     },
     {
@@ -239,6 +257,7 @@
       "label": "host",
       "maxRounds": null,
       "when": null,
+      "whenLabel": null,
       "dependsOn": []
     }
   ]

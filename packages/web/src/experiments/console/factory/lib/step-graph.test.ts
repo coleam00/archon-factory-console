@@ -36,6 +36,7 @@ describe('stepGraph on deliver', () => {
       label: 'rounds',
       maxRounds: 3,
       when: null,
+      condition: null,
     });
     expect(groupOf('rounds.fix')).toBe('rounds');
     expect(groupOf('rounds.base')).toBe('rounds');
@@ -66,6 +67,23 @@ describe('stepGraph on deliver', () => {
     const keys = new Set(graph.nodes.map(node => node.key));
     for (const edge of graph.edges)
       expect([keys.has(edge.from), keys.has(edge.to)]).toEqual([true, true]);
+  });
+
+  test("a step and a loop print their when: in short, from the server's short form", () => {
+    const condition = (key: string) => graph.nodes.find(node => node.key === key)?.condition;
+    expect(condition('rounds.fix')).toBe('if verdict = return');
+    expect(condition('exhausted')).toBe('if rounds = return');
+    expect(condition('rounds.base')).toBeNull();
+    expect(graph.groups.find(group => group.id === 'hostrounds')?.condition).toBe(
+      'if rounds = approve'
+    );
+  });
+
+  test('a when: with no short form prints in full', () => {
+    const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
+    if (fix === undefined) throw new Error('fixture has no rounds.fix');
+    const bare = stepGraph({ steps: [{ ...fix, whenLabel: null }], groups: [] }, () => true);
+    expect(bare.nodes[0]?.condition).toBe(`when ${fix.when ?? ''}`);
   });
 
   test('a step and a loop carry their when: condition', () => {

@@ -5,7 +5,7 @@ import { dirname, join } from 'path';
 import { providerRegistry } from '@archon/providers';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
-import { factoryWorkflowSteps } from './factory-steps';
+import { factoryWorkflowSteps, shortCondition } from './factory-steps';
 import { DEFAULT_WORKFLOW_SOURCE_CONFIG, liveSourceRoots } from './workflow-source';
 import { discoverWorkflows } from './workflow-discovery';
 
@@ -122,6 +122,7 @@ describe('factoryWorkflowSteps', () => {
     const fix = (await shipSteps()).steps.find(s => s.key === 'rounds.fix');
     expect(fix?.model).toEqual(['@builder', 'large']);
     expect(fix?.when).toBe("$odd__id.output == 'go'");
+    expect(fix?.whenLabel).toBe('if odd__id = go');
     expect(fix?.command).toBe('fix');
     expect(fix?.prompt).toBe(PACK['ship/commands/fix.md']);
     expect(fix?.promptError).toBeNull();
@@ -143,5 +144,26 @@ describe('factoryWorkflowSteps', () => {
     expect(steps.get('odd__id')?.yaml).toBe('id: odd__id\ndepends_on: [start]\nbash: echo top');
     expect(steps.get('result')?.prompt).toBeNull();
     expect(steps.get('result')?.yaml).toContain("script: console.log('{}')");
+  });
+});
+
+describe('shortCondition', () => {
+  const name = (nodeId: string): string => nodeId.split('__').at(-1) ?? nodeId;
+
+  test('names the step a comparison reads, its operator and value, and drops the field', () => {
+    expect(shortCondition("$LOOP_PREV.verdict__verdict.output.outcome == 'return'", name)).toBe(
+      'if verdict = return'
+    );
+    expect(shortCondition("$rounds.output.outcome == 'approve'", name)).toBe('if rounds = approve');
+  });
+
+  test('keeps and, or, inputs, other operators and an empty value', () => {
+    expect(
+      shortCondition("$a.output != '' && $INPUTS.mode == 'fast' || $b.output.score >= 80", name)
+    ).toBe('if a ≠ empty and mode = fast or b ≥ 80');
+  });
+
+  test('an expression the engine does not parse has no short form', () => {
+    expect(shortCondition('not a condition', name)).toBeNull();
   });
 });

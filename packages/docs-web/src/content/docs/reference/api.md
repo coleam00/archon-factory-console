@@ -622,7 +622,8 @@ could not be read or did not validate, with its `path`. An unknown `codebaseId` 
 view names (`workflow` as the view names it, such as `deliver`), from the definition runs
 execute. `steps[]` holds every step keyed as run events name it (a loop group's body step is
 `<loop>.<node>`, an included workflow's step `<include>__<node>`), with its kind, declared
-model, `when:`, the prompt it runs (inline, or its command file's text) and the YAML block
+model, `when:` (and `whenLabel`, its short form such as `if verdict = return`, built with
+the engine's `when:` parser), the prompt it runs (inline, or its command file's text) and the YAML block
 its author wrote, read from the pack's file. `groups[]` holds the loop groups (with their
 most rounds) and included workflows that frame the steps, outer before inner. A missing
 prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An unknown
