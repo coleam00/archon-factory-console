@@ -5,7 +5,8 @@
  * `itemTitle`); nothing here stores a position or names a pack's steps.
  *
  * The derivation is pure (`factoryRunFacts`, `factoryItemProgress`, `pageFactoryItems`);
- * `readFactoryItemsPage` reads the store once per page and feeds them. Whether a change
+ * `readFactoryItemsPage` reads the store once per page and feeds them, and `readFactoryItem`
+ * reads one item the same way, adding each run's timeline facts (`FactoryItemRun`). Whether a change
  * merged is the caller's lookup (`changeState`), since only the server reaches the forge.
  */
 import { z } from 'zod';
@@ -18,6 +19,8 @@ import type { JsonValue } from './output-ref';
 import { splitAttentionRead } from './schemas/attention-degraded';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
+import { startCauseSchema } from './schemas/resource-start';
+import { parseRunUsage } from './schemas/run-usage';
 import { isTerminalRunStatus } from './schemas/run-status';
 import type { WorkflowEventRow } from './schemas/workflow-event';
 import type { WorkflowRun } from './schemas/workflow-run';
@@ -28,6 +31,7 @@ import {
   type WorkflowEventType,
 } from './store/event-types';
 import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
+import { decidedIn, roundFacts, type DecisionPoint } from './factory-rounds';
 
 /**
  * How one round of the declared rounds loop ended, from declared data only: `returned` when
@@ -111,6 +115,24 @@ export const factoryItemProgressSchema = z.object({
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
+/**
+ * One round of the declared rounds loop on one run, with what its steps recorded. `outcome`
+ * and `summary` are the declared return or approval step's that decided the round; `steps` are the
+ * loop's steps that completed that round with a structured `outcome`, in recording order.
+ * `outcome` and `summary` are read by name from a step's structured output, as the workflow
+ * names them; a `summary` that is not a string is null.
+ */
+export const factoryRoundSchema = z.object({
+  iteration: z.number().int().positive(),
+  verdict: factoryRoundVerdictSchema,
+  outcome: z.string().nullable(),
+  summary: z.string().nullable(),
+  steps: z.array(
+    z.object({ node: z.string(), outcome: z.string(), summary: z.string().nullable() })
+  ),
+});
+export type FactoryRound = z.infer<typeof factoryRoundSchema>;
+
 export const factoryItemSchema = itemReadSchema.extend({
   /** Null when this item's progress could not be derived; the rest of the read stands. */
   progress: factoryItemProgressSchema.nullable(),
@@ -137,7 +159,7 @@ export interface FactoryRunFacts {
   /** The declared rounds loop's rounds on this run; null when the run is not of that workflow. */
   rounds: {
     max: number | null;
-    rounds: { iteration: number; verdict: FactoryRoundVerdict; outcome: string | null }[];
+    rounds: FactoryRound[];
   } | null;
   returnCount: number;
   /** The first step that failed, as the run's terminal record names it; null when none did. */
@@ -187,112 +209,6 @@ function deepestActiveStep(events: readonly WorkflowEventRow[]): string | null {
       a.localeCompare(b)
   );
   return deepest ?? null;
-}
-
-const loopRowSchema = z.object({
-  iteration: z.number().int().positive(),
-  maxIterations: z.number().int().positive().optional(),
-});
-
-/** The structured output's `outcome`, when the output is an object that has one. */
-function outputOutcome(output: unknown): unknown {
-  return typeof output === 'object' && output !== null && 'outcome' in output
-    ? output.outcome
-    : undefined;
-}
-
-type Outcomes = ReturnType<typeof buildNodeOutcomes>['nodes'];
-/** A declared return or approval: a step, and the outcome it records that decides. */
-type DecisionPoint = NonNullable<FactoryView['returns']>[number];
-/** The declared returns and approvals of one workflow. */
-interface DecisionPoints {
-  returns: readonly DecisionPoint[];
-  approves: readonly DecisionPoint[];
-}
-
-/** The entries in which `point`'s step recorded `point`'s outcome. */
-function decidedIn(outcomes: Outcomes, point: DecisionPoint): Outcomes {
-  return outcomes.filter(
-    entry => entry.node_id === point.node && outputOutcome(entry.output) === point.outcome
-  );
-}
-
-/** The loop's rounds as its own events record them: each started round's bound, and those that completed. */
-function loopRows(
-  loop: string,
-  events: readonly WorkflowEventRow[]
-): { started: Map<number, number | undefined>; completed: Set<number> } {
-  const started = new Map<number, number | undefined>();
-  const completed = new Set<number>();
-  for (const row of events) {
-    if (row.step_name !== loop) continue;
-    const parsed = loopRowSchema.safeParse(row.data);
-    if (!parsed.success) continue;
-    if (row.event_type === 'loop_iteration_started')
-      started.set(parsed.data.iteration, parsed.data.maxIterations);
-    else if (row.event_type === 'loop_iteration_completed') completed.add(parsed.data.iteration);
-  }
-  return { started, completed };
-}
-
-/** The rounds of `loop` an entry ran in. */
-function iterationsIn(entry: Outcomes[number], loop: string): number[] {
-  return entry.loop_group_path?.filter(frame => frame.groupId === loop).map(f => f.iteration) ?? [];
-}
-
-/**
- * What the loop's declared return and approval steps decided in each round. Outcomes are
- * in recording order, so the last one recorded in a round is that round's decision.
- */
-function roundDecisions(
-  loop: string,
-  points: readonly DecisionPoint[],
-  outcomes: Outcomes
-): Map<number, string> {
-  const nodes = new Set(points.map(point => point.node));
-  const decided = new Map<number, string>();
-  for (const entry of outcomes) {
-    const outcome = outputOutcome(entry.output);
-    if (!nodes.has(entry.node_id) || typeof outcome !== 'string') continue;
-    for (const iteration of iterationsIn(entry, loop)) decided.set(iteration, outcome);
-  }
-  return decided;
-}
-
-function roundFacts(
-  loop: string,
-  points: DecisionPoints,
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[],
-  outcomes: Outcomes
-): NonNullable<FactoryRunFacts['rounds']> {
-  const { started, completed } = loopRows(loop, events);
-  const inLoop = (list: readonly DecisionPoint[]): DecisionPoint[] =>
-    list.filter(point => point.node.startsWith(`${loop}.`));
-  const roundsDecided = (list: readonly DecisionPoint[]): Set<number> =>
-    new Set(
-      inLoop(list).flatMap(point =>
-        decidedIn(outcomes, point).flatMap(entry => iterationsIn(entry, loop))
-      )
-    );
-  const decided = roundDecisions(loop, inLoop([...points.returns, ...points.approves]), outcomes);
-  const returnedIn = roundsDecided(points.returns);
-  const approvedIn = roundsDecided(points.approves);
-  const unfinished = isTerminalRunStatus(run.status) ? ('stopped' as const) : ('running' as const);
-  const verdict = (iteration: number): FactoryRoundVerdict => {
-    if (returnedIn.has(iteration)) return 'returned';
-    if (approvedIn.has(iteration)) return 'approved';
-    // A round is approved only by a declared approval; one that completed without it needs a decision.
-    return completed.has(iteration) ? 'undecided' : unfinished;
-  };
-  const iterations = [...started.keys()].sort((a, b) => a - b);
-  const rounds = iterations.map(iteration => ({
-    iteration,
-    verdict: verdict(iteration),
-    outcome: decided.get(iteration) ?? null,
-  }));
-  const last = iterations.at(-1);
-  return { max: (last === undefined ? undefined : started.get(last)) ?? null, rounds };
 }
 
 function changeFacts(
@@ -405,7 +321,12 @@ export async function factoryItemProgress(
           runId: run.id,
           iteration: last.iteration,
           max: fact.rounds.max,
-          rounds: fact.rounds.rounds,
+          // The board's contract: each round's verdict and decision, not its steps.
+          rounds: fact.rounds.rounds.map(({ iteration, verdict, outcome }) => ({
+            iteration,
+            verdict,
+            outcome,
+          })),
         }
       : null;
   });
@@ -569,18 +490,22 @@ export class FactoryRunFactsMemo {
   }
 }
 
-export interface ReadFactoryItemsPageInput {
+/** What reading items for a view needs, whether a page of them or one. */
+export interface ReadFactoryItemsInput {
   view: FactoryView;
   pack: string;
   projectKey: string;
-  codebaseId: string;
-  query: FactoryItemsQuery;
-  /** The project's items with their latest activity, read only. */
-  listProjectItems: (projectKey: string) => Promise<FactoryListedItem[]>;
   changeState: FactoryChangeState;
   memo: FactoryRunFactsMemo;
   /** Called when one item's progress could not be derived; that item gets `progress: null`. */
   onProgressError: (itemId: string, error: unknown) => void;
+}
+
+export interface ReadFactoryItemsPageInput extends ReadFactoryItemsInput {
+  codebaseId: string;
+  query: FactoryItemsQuery;
+  /** The project's items with their latest activity, read only. */
+  listProjectItems: (projectKey: string) => Promise<FactoryListedItem[]>;
   now?: Date;
 }
 
@@ -589,7 +514,7 @@ type FoundItem = NonNullable<Awaited<ReturnType<typeof readItemRuns>>>;
 /** Facts for every declared run of `found`, loading events only for runs not memoised. */
 async function runFactsFor(
   source: ItemReadSource,
-  input: ReadFactoryItemsPageInput,
+  input: ReadFactoryItemsInput,
   found: readonly FoundItem[]
 ): Promise<Map<string, FactoryRunFacts>> {
   const { view, pack, memo } = input;
@@ -619,6 +544,27 @@ async function runFactsFor(
   return facts;
 }
 
+/**
+ * The factory reads of the items `readItemRuns` found, against one read of the attention
+ * queue, with the facts of their declared runs: the one path a page and a single item share.
+ */
+async function readFoundItems(
+  source: ItemReadSource,
+  input: ReadFactoryItemsInput,
+  found: readonly FoundItem[]
+): Promise<{ items: FactoryItem[]; facts: ReadonlyMap<string, FactoryRunFacts> }> {
+  // The one queue reader, read once for all of them.
+  const queue = splitAttentionRead(await listAttentionQueue(source));
+  const facts = await runFactsFor(source, input, found);
+  const items = await Promise.all(
+    found.map(async (item): Promise<FactoryItem> => {
+      const read = await assembleItemRead(source, item, queue);
+      return { ...read, progress: await itemProgress(source, input, item, facts) };
+    })
+  );
+  return { items, facts };
+}
+
 /** A page of the project's items, each its `ItemRead` plus `progress`. */
 export async function readFactoryItemsPage(
   source: ItemReadSource,
@@ -638,21 +584,78 @@ export async function readFactoryItemsPage(
     // An item deleted since the listing is no longer the project's.
     if (item !== null) found.push(item);
   }
-  // The one queue reader, read once for the page.
-  const queue = splitAttentionRead(await listAttentionQueue(source));
-  const facts = await runFactsFor(source, input, found);
-  const items = await Promise.all(
-    found.map(async (item): Promise<FactoryItem> => {
-      const read = await assembleItemRead(source, item, queue);
-      return { ...read, progress: await itemProgress(source, input, item, facts) };
-    })
-  );
+  const { items } = await readFoundItems(source, input, found);
   return { pack, items, next: page.next };
+}
+
+/**
+ * What one of an item's runs shows on its timeline beyond the item read's run: the workflow
+ * as the view declares it, its cost, its running step, and the declared rounds loop's rounds
+ * on it with each round's steps.
+ */
+export const factoryItemRunSchema = z.object({
+  runId: z.string(),
+  /** The workflow as the view declares it; null for a run of a workflow the view does not name. */
+  workflow: z.string().nullable(),
+  /**
+   * What started the run, as `item.runs[].cause` reads it; absent for a start by hand. The
+   * same value, repeated here because the API's generated types read a nullable union as
+   * `unknown`, and an optional one keeps its variants for the console.
+   */
+  cause: startCauseSchema.optional(),
+  /** The run's total cost as it recorded it; null until it records one. */
+  costUsd: z.number().nullable(),
+  /** The deepest running step while the run runs; null between steps and once it ended. */
+  step: z.string().nullable(),
+  /** Null when the run is not of the rounds loop's workflow, or its facts could not be read. */
+  rounds: z
+    .object({
+      max: z.number().int().positive().nullable(),
+      rounds: z.array(factoryRoundSchema),
+    })
+    .nullable(),
+});
+export type FactoryItemRun = z.infer<typeof factoryItemRunSchema>;
+
+export const factoryItemDetailSchema = z.object({
+  /** The pack whose view the progress was derived with. */
+  pack: z.string(),
+  item: factoryItemSchema,
+  /** One entry per run in `item.runs`, in the same order. */
+  runs: z.array(factoryItemRunSchema),
+});
+export type FactoryItemDetail = z.infer<typeof factoryItemDetailSchema>;
+
+/** The item `key` names, read as one entry of a page is, with each run's timeline facts. */
+export async function readFactoryItem(
+  source: ItemReadSource,
+  input: ReadFactoryItemsInput,
+  key: string
+): Promise<FactoryItemDetail | null> {
+  const found = await readItemRuns(source.store, input.projectKey, key);
+  if (found === null) return null;
+  const { items, facts } = await readFoundItems(source, input, [found]);
+  const [item] = items;
+  if (item === undefined) return null;
+  const causes = new Map(item.runs.map(run => [run.id, run.cause]));
+  const runs = found.runs.map((run): FactoryItemRun => {
+    const fact = facts.get(run.id);
+    const cause = causes.get(run.id) ?? null;
+    return {
+      runId: run.id,
+      workflow: declaredWorkflow(input.view, input.pack, run.workflow_name),
+      ...(cause === null ? {} : { cause }),
+      costUsd: parseRunUsage(run.metadata).costUsd ?? null,
+      step: run.status === 'running' ? (fact?.active ?? null) : null,
+      rounds: fact?.rounds ?? null,
+    };
+  });
+  return { pack: input.pack, item, runs };
 }
 
 async function itemProgress(
   source: ItemReadSource,
-  input: ReadFactoryItemsPageInput,
+  input: ReadFactoryItemsInput,
   item: FoundItem,
   facts: ReadonlyMap<string, FactoryRunFacts>
 ): Promise<FactoryItemProgress | null> {

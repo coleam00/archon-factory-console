@@ -11,7 +11,7 @@ import { RunDetailPage } from './routes/RunDetailPage';
 import { MetricsPage } from './routes/metrics/MetricsPage';
 import { BoardPage } from './factory/BoardPage';
 import { FactoryPage } from './factory/FactoryPage';
-import { FactoryPlaceholder } from './factory/FactoryPlaceholder';
+import { ItemPage } from './factory/ItemPage';
 import { StagePage } from './factory/StagePage';
 import { StepPage } from './factory/StepPage';
 import { ChatPage } from './routes/ChatPage';
@@ -129,10 +129,7 @@ export function ConsoleApp(): ReactElement {
             <Route path="p/:projectId/metrics/details" element={<MetricsPage view="details" />} />
             <Route path="p/:projectId/factory" element={<FactoryPage />} />
             <Route path="p/:projectId/factory/board" element={<BoardPage />} />
-            <Route
-              path="p/:projectId/factory/items/:key"
-              element={<FactoryPlaceholder page="item" />}
-            />
+            <Route path="p/:projectId/factory/items/:key" element={<ItemPage />} />
             <Route path="p/:projectId/factory/stages/:stage" element={<StagePage />} />
             <Route path="p/:projectId/factory/steps/:workflow/:node" element={<StepPage />} />
             <Route path="p/:projectId/r/:runId" element={<RunDetailPage />} />

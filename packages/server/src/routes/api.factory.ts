@@ -10,6 +10,7 @@ import {
   FACTORY_ITEMS_MAX_LIMIT,
   FactoryItemsQueryError,
   FactoryRunFactsMemo,
+  readFactoryItem,
   readFactoryItemsPage,
   type FactoryChangeState,
   type FactoryListedItem,
@@ -35,6 +36,7 @@ import {
   openApiRouteRegistrar,
 } from './api-route-kit';
 import {
+  factoryItemDetailResponseSchema,
   factoryItemsPageResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
@@ -126,6 +128,33 @@ const getFactoryWorkflowRoute = createRoute({
       description: 'OK',
     },
     404: jsonError('Codebase, view or workflow not found'),
+    500: jsonError('Server error'),
+  },
+});
+
+const factoryItemQuerySchema = z.object({
+  codebaseId: z.string().min(1).openapi({ description: 'The project the item belongs to.' }),
+  key: z
+    .string()
+    .min(1)
+    .openapi({ description: "The item's key in the project, as `GET /api/items` takes it." }),
+});
+
+const getFactoryItemRoute = createRoute({
+  method: 'get',
+  path: '/api/factory/item',
+  tags: ['Workflows'],
+  summary: 'One item with its progress and the timeline facts of each of its runs',
+  description:
+    "The item as one entry of `GET /api/factory/items` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, and each round of the declared rounds loop with the steps that recorded an outcome in it.",
+  request: { query: factoryItemQuerySchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: factoryItemDetailResponseSchema } },
+      description: 'OK',
+    },
+    400: jsonError('Invalid query'),
+    404: jsonError('Codebase not found, no factory view applies to it, or no such item'),
     500: jsonError('Server error'),
   },
 });
@@ -268,6 +297,37 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     } catch (error) {
       getLog().error({ err: error, codebaseId }, 'discover_factory_views_failed');
       return apiError(c, 500, 'Failed to discover factory views');
+    }
+  });
+
+  register(getFactoryItemRoute, async c => {
+    const { codebaseId, key } = getValidatedQuery(c, factoryItemQuerySchema);
+    const project = await deps.codebase(codebaseId);
+    if (project === null) return apiError(c, 404, 'Codebase not found');
+    try {
+      // The view the page route reads, so an item reads here as it does on the board.
+      const roots = await projectRoots(deps, project.cwd);
+      const [view] = (await applyingViews(deps, codebaseId, roots)).views;
+      if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
+      const detail = await readFactoryItem(
+        deps.itemsSource,
+        {
+          view: view.declaration,
+          pack: view.pack,
+          projectKey: project.projectKey,
+          changeState,
+          memo,
+          onProgressError: (itemId, error) => {
+            getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');
+          },
+        },
+        key
+      );
+      if (detail === null) return apiError(c, 404, 'No such item in this project');
+      return c.json(detail);
+    } catch (error) {
+      getLog().error({ err: error, codebaseId }, 'factory_item_read_failed');
+      return apiError(c, 500, 'Failed to read the factory item');
     }
   });
 

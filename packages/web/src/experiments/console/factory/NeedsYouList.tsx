@@ -15,9 +15,10 @@ import { needsYou, type NeedsYouItem } from './lib/needs-you';
 import { factoryPath } from './lib/views';
 
 /**
- * Answer a queue item by its ref, then refresh every `runs` key: the project's queue (the
- * answered item leaves it on that read) and the runs feed the answer moved on. A refusal
- * refreshes too: it usually means the item closed, so the stale row should go.
+ * Answer a queue item by its ref, then refresh every `runs` key (the project's queue, which
+ * the answered item leaves, and the runs feed the answer moved on) and every `factory-items`
+ * key (an item page lists the answer among its answers). A refusal refreshes too: it usually
+ * means the item closed, so the stale row should go.
  */
 export function answerByRef(ref: string): SubmitAnswer {
   return async (choose, text) => {
@@ -25,6 +26,7 @@ export function answerByRef(ref: string): SubmitAnswer {
       await skill.answerAttentionItem(ref, { choose, ...(text === undefined ? {} : { text }) });
     } finally {
       invalidate('runs');
+      invalidate('factory-items');
     }
   };
 }
@@ -89,7 +91,8 @@ function NeedsYouBody({
   );
 }
 
-function NeedsYouRow({
+/** One open ask or paused wait, answerable in place; the item page lists its own with this. */
+export function NeedsYouRow({
   projectId,
   item,
   queue,

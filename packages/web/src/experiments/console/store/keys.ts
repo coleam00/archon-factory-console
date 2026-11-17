@@ -29,6 +29,8 @@ export const K = {
     `factory-workflow:${projectId}:${workflow}`,
   // Every page of one project's items; the dashboard SSE invalidates the `factory-items` prefix.
   factoryItems: (projectId: string): string => `factory-items:${projectId}`,
+  // Under the same prefix, so the dashboard SSE refreshes one item's page too.
+  factoryItem: (projectId: string, key: string): string => `factory-items:${projectId}:item:${key}`,
   messages: (conversationId: string): string => `messages:${conversationId}`,
   conversations: (projectId: string): string => `conversations:${projectId}`,
   countsGlobal: 'counts:global' as const,

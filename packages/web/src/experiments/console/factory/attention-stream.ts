@@ -84,6 +84,16 @@ export function watchAttentionStream(
 }
 
 /**
+ * What an attention change refreshes: the project's queue, and its item reads (every page
+ * and item key under `factory-items:<projectId>`), whose questions and answers an ask
+ * opening or closing changes too. The dashboard SSE does not carry asks.
+ */
+export function refreshOnAttentionChange(projectId: string): void {
+  invalidate(K.factoryAttention(projectId));
+  invalidate(K.factoryItems(projectId));
+}
+
+/**
  * A project's attention queue, kept live. Mounted once per Factory page (by FactoryFrame),
  * so the sub-navigation count and the Needs-you list share one fetch and one stream.
  * The dashboard SSE's `invalidate('runs')` refreshes it too: the key sits under `runs:`.
@@ -96,13 +106,11 @@ export function useFactoryAttention(projectId: string): EntityView<AttentionQueu
       watchAttentionStream(
         `${SSE_BASE_URL}/api/runs/attention/stream?project=${encodeURIComponent(projectId)}`,
         () => {
-          invalidate(key);
-          // An ask opening or closing changes a card's pill and stop line on the board.
-          invalidate(K.factoryItems(projectId));
+          refreshOnAttentionChange(projectId);
         },
         url => new EventSource(url)
       ),
-    [projectId, key]
+    [projectId]
   );
   return view;
 }
