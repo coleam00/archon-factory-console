@@ -1,8 +1,9 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { VERDICT_TEXT_CLASS } from './BoardCard';
-import { formatCost, formatElapsed } from '../lib/format';
-import type { StartedText, TimelineRound, TimelineRow } from './lib/timeline';
+import { formatCost } from '../lib/format';
+import { durationWords } from './lib/duration';
+import type { OutcomeWords, StartedText, TimelineRound, TimelineRow } from './lib/timeline';
 
 /** Every run on the item in start order, each with its rounds of the declared loop. */
 export function ItemTimeline({ rows }: { rows: readonly TimelineRow[] }): ReactElement {
@@ -50,16 +51,15 @@ function TimelineEntry({ row }: { row: TimelineRow }): ReactElement {
             {row.liveStep === null ? row.workflow : `${row.workflow} · ${row.liveStep}`}
           </span>
         </Link>
-        <span
+        <Outcome
+          outcome={row.outcome}
           className={`text-console-12 font-medium ${OUTCOME_CLASS[row.status] ?? 'text-text-primary'}`}
-        >
-          {row.outcome}
-        </span>
+        />
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-console-12 text-text-tertiary">
         <Started started={row.started} />
         <span className="tabular-nums">
-          {row.durationMs === null ? 'not started' : formatElapsed(row.durationMs / 1000)}
+          {row.durationMs === null ? 'not started' : durationWords(row.durationMs)}
         </span>
         <span className="tabular-nums">{row.costUsd === null ? '-' : formatCost(row.costUsd)}</span>
       </div>
@@ -72,6 +72,17 @@ function TimelineEntry({ row }: { row: TimelineRow }): ReactElement {
       )}
     </li>
   );
+}
+
+/** An outcome in words, or the pack's own token in mono where the declaration does not word it. */
+function Outcome({
+  outcome,
+  className,
+}: {
+  outcome: OutcomeWords;
+  className: string;
+}): ReactElement {
+  return <span className={`${className} ${outcome.mono ? 'font-mono' : ''}`}>{outcome.text}</span>;
 }
 
 function Started({ started }: { started: StartedText }): ReactElement {
@@ -110,7 +121,11 @@ function RoundEntry({ round }: { round: TimelineRound }): ReactElement {
               className="break-all font-mono text-text-secondary"
               title={step.summary ?? undefined}
             >
-              {step.node} → {step.outcome}
+              {step.node} →{' '}
+              <Outcome
+                outcome={step.outcome}
+                className={step.outcome.mono ? '' : 'font-sans font-medium text-text-primary'}
+              />
             </span>
           ))}
         </p>

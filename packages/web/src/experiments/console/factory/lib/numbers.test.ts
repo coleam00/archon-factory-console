@@ -3,7 +3,7 @@ import { askItem } from '../needs-you.test-fixtures';
 import { boardModel, filterBoard, type FactoryItem } from './board';
 import { endLastRun, keepRuns, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
 import { showsCard } from './board-show';
-import { durationWords, factoryNumbers, median } from './numbers';
+import { factoryNumbers, median } from './numbers';
 
 /**
  * Every date here is built in local time, so the local-day boundary holds wherever the
@@ -144,16 +144,6 @@ describe('the board under a number', () => {
   });
 });
 
-describe('plain-words helpers', () => {
-  test('median of nothing is null', () => {
-    expect(median([])).toBeNull();
-  });
-
-  test('durations read at a glance', () => {
-    expect(durationWords(30_000)).toBe('under a minute');
-    expect(durationWords(40 * 60_000)).toBe('40 min');
-    expect(durationWords(5 * HOUR)).toBe('5 h');
-    expect(durationWords(52 * HOUR)).toBe('2 d 4 h');
-    expect(durationWords(48 * HOUR)).toBe('2 d');
-  });
+test('median of nothing is null', () => {
+  expect(median([])).toBeNull();
 });

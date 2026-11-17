@@ -4,7 +4,8 @@ import { errorDetail } from '../lib/http';
 import { useFactoryBoardItems } from './board-items';
 import { boardModel, type FactoryDeclaration } from './lib/board';
 import type { BoardShow } from './lib/board-show';
-import { durationWords, factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
+import { durationWords } from './lib/duration';
+import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
 
 /** "Landed today" turns over at midnight without a reload. */

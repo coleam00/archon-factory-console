@@ -60,18 +60,3 @@ export function factoryNumbers(model: BoardModel, now: Date): FactoryNumbers {
     medianToLandMs: median(times),
   };
 }
-
-/**
- * A duration in plain words at the grain a person reads it across a room: "under a
- * minute", "40 min", "5 h", "2 d 4 h".
- */
-export function durationWords(durationMs: number): string {
-  const minutes = Math.floor(Math.max(0, durationMs) / 60_000);
-  if (minutes < 1) return 'under a minute';
-  if (minutes < 60) return `${minutes.toString()} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours.toString()} h`;
-  const days = Math.floor(hours / 24);
-  const rest = hours % 24;
-  return rest === 0 ? `${days.toString()} d` : `${days.toString()} d ${rest.toString()} h`;
-}

@@ -29,7 +29,10 @@ it. Inside it:
   round it is on, the step running now, how often checks sent it back, and its pull request.
   A **Table** view lists the same fields as sortable columns.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
-  other items, and the rulings and answers given on it.
+  other items, and the rulings and answers given on it. The timeline words an outcome from the
+  declaration: a run outcome in `placement` reads as where it sent the item ("sent to Plan"),
+  one in `endings` as its label, and a step outcome in `returns` or `approves` as "returned" or
+  "approved". An outcome the declaration does not map shows as the pack's own name for it.
 - **Stage page**: what a stage does and the step graph of each workflow behind it. The
   stage's own steps stand out, steps another stage works are dimmed, and a step running for
   an item now glows.

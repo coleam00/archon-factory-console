@@ -4,6 +4,9 @@ import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
 import { buildTimeline, runHref, type TimelineRow } from './timeline';
 
 const NOW = Date.parse('2026-11-17T08:00:00Z');
+/** An outcome the declaration words, and a pack token it does not, drawn in mono. */
+const said = (text: string) => ({ text, mono: false });
+const token = (text: string) => ({ text, mono: true });
 const timeline = (detail: FactoryItemDetail, now = NOW): TimelineRow[] =>
   buildTimeline(shippedView, PROJECT, detail, now);
 
@@ -13,9 +16,10 @@ describe('the timeline of an item that landed', () => {
 
   test('one row per run, in start order, with its stage, workflow and outcome', () => {
     expect(rows.map(row => [row.stage, row.workflow, row.outcome])).toEqual([
-      ['Triage', 'triage', 'build'],
-      ['Plan', 'plan', 'planned'],
-      ['Build', 'deliver', 'ready'],
+      // Each outcome as the declaration's `placement` reads it: where it sent the item.
+      ['Triage', 'triage', said('sent to Plan')],
+      ['Plan', 'plan', said('sent to Build')],
+      ['Build', 'deliver', said('sent to Ready to land')],
     ]);
     expect(rows.map(row => row.runId)).toEqual(detail.item.runs.map(run => run.id));
     expect(rows[0]?.href).toBe(`/console/p/${PROJECT}/r/${detail.item.runs[0]?.id ?? ''}`);
@@ -25,8 +29,12 @@ describe('the timeline of an item that landed', () => {
     const [triage, plan] = detail.item.runs;
     expect(rows.map(row => row.started)).toEqual([
       { text: 'Started by a trigger', mono: 'fc-start-triage', runHref: null },
-      { text: 'After Triage: build', mono: null, runHref: runHref(PROJECT, triage?.id ?? '') },
-      { text: 'After Plan: planned', mono: null, runHref: runHref(PROJECT, plan?.id ?? '') },
+      {
+        text: 'After Triage: sent to Plan',
+        mono: null,
+        runHref: runHref(PROJECT, triage?.id ?? ''),
+      },
+      { text: 'After Plan: sent to Build', mono: null, runHref: runHref(PROJECT, plan?.id ?? '') },
     ]);
   });
 
@@ -68,19 +76,26 @@ describe('the timeline of a multi-round item', () => {
     const words = (iteration: number) =>
       rounds
         .find(round => round.iteration === iteration)
-        ?.groups.map(group => [group.label, group.steps.map(s => `${s.node} ${s.outcome}`)]);
+        ?.groups.map(group => [
+          group.label,
+          group.steps.map(
+            s => `${s.node} ${s.outcome.mono ? `\`${s.outcome.text}\`` : s.outcome.text}`
+          ),
+        ]);
+    // The view declares the verdict's return and approval; the checks' own outcomes it does
+    // not, so they stay the pack's tokens.
     expect(words(1)).toEqual([
       [
         'Checks',
         [
-          'rounds.tests__tests return',
-          'rounds.product__product approve',
-          'rounds.review__review approve',
-          'rounds.verdict__verdict return',
+          'rounds.tests__tests `return`',
+          'rounds.product__product `approve`',
+          'rounds.review__review `approve`',
+          'rounds.verdict__verdict returned',
         ],
       ],
     ]);
-    expect(words(2)?.[0]).toEqual(['Build', ['rounds.fix fixed']]);
+    expect(words(2)?.[0]).toEqual(['Build', ['rounds.fix `fixed`']]);
     expect(words(2)?.[1]?.[0]).toBe('Checks');
   });
 });
@@ -92,8 +107,8 @@ describe('the timeline of an item asked twice', () => {
   test('both deliver runs, each with its own rounds, ending in an ask', () => {
     const delivers = rows.filter(row => row.workflow === 'deliver');
     expect(delivers.map(row => [row.outcome, row.rounds.map(round => round.verdict)])).toEqual([
-      ['ask', ['returned', 'needs a decision']],
-      ['ask', ['returned', 'needs a decision']],
+      [said('sent to Build'), ['returned', 'needs a decision']],
+      [said('sent to Build'), ['returned', 'needs a decision']],
     ]);
     // The second was started again by a trigger, not after the first.
     expect(delivers[1]?.started).toEqual({
@@ -111,7 +126,7 @@ describe('a running run', () => {
 
   test('shows its live step, the stage that step is in, and runs until now', () => {
     expect(running?.status).toBe('running');
-    expect(running?.outcome).toBe('running');
+    expect(running?.outcome).toEqual(said('running'));
     expect(running?.liveStep).toBe('build__build');
     expect(running?.stage).toBe('Build');
     expect(running?.costUsd).toBeNull();
@@ -175,7 +190,51 @@ describe('how a run started', () => {
 
   test('a run not yet executing is waiting to start, with no duration', () => {
     const row = withCause(undefined, 'pending');
-    expect([row?.outcome, row?.durationMs]).toEqual(['waiting to start', null]);
+    expect([row?.outcome, row?.durationMs]).toEqual([said('waiting to start'), null]);
+  });
+
+  test("after a run whose outcome the view does not map: the pack's token, in mono", () => {
+    const [triage, plan, ...rest] = base.item.runs;
+    if (triage === undefined || plan === undefined) throw new Error('item 1 has runs');
+    const rows = buildTimeline(
+      { ...shippedView, endings: {} },
+      PROJECT,
+      { ...base, item: { ...base.item, runs: [{ ...triage, outcome: 'skip' }, plan, ...rest] } },
+      NOW
+    );
+    expect(rows[1]?.started).toEqual({
+      text: 'After Triage:',
+      mono: 'skip',
+      runHref: runHref(PROJECT, triage.id),
+    });
+  });
+});
+
+describe('an outcome the declaration says nothing about', () => {
+  test("stays the pack's token, drawn as an identifier", () => {
+    const detail = itemDetail('1');
+    const [triage, ...rest] = detail.item.runs;
+    if (triage === undefined) throw new Error('item 1 has runs');
+    // No `placement` and no `endings` entry for it.
+    const unmapped = { ...shippedView, endings: {} };
+    const rows = buildTimeline(
+      unmapped,
+      PROJECT,
+      { ...detail, item: { ...detail.item, runs: [{ ...triage, outcome: 'skip' }, ...rest] } },
+      NOW
+    );
+    expect(rows[0]?.outcome).toEqual(token('skip'));
+  });
+
+  test('an ending the declaration labels reads as that label', () => {
+    const detail = itemDetail('1');
+    const [triage, ...rest] = detail.item.runs;
+    if (triage === undefined) throw new Error('item 1 has runs');
+    const rows = timeline({
+      ...detail,
+      item: { ...detail.item, runs: [{ ...triage, outcome: 'skip' }, ...rest] },
+    });
+    expect(rows[0]?.outcome).toEqual(said(shippedView.endings['triage:*'] ?? ''));
   });
 });
 

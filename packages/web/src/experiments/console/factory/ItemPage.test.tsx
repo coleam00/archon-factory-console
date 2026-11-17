@@ -82,8 +82,9 @@ describe('the item page', () => {
     expect(html).toContain(pill('running', 'Running'));
     expect(words).toContain('deliver · build__build');
     expect(words).toContain('No change yet');
-    // Its duration runs to now; its cost shows as a dash until the run records one.
-    expect(words).toMatch(/After Plan: planned \S+ - /);
+    // Where the plan sent it, in the declaration's words; its duration runs to now, with its
+    // units; its cost shows as a dash until the run records one.
+    expect(words).toMatch(/After Plan: sent to Build \d+ (s|min|h|d)( \d+ (min|h))? - /);
   });
 
   test("lists only this item's asks from the live queue, answerable, and says it needs you", () => {
