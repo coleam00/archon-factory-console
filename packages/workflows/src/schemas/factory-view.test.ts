@@ -35,6 +35,39 @@ const minimal = (): FactoryView => ({
   },
 });
 
+type Drilldown = NonNullable<FactoryView['stages'][number]['drilldown']>;
+
+/** Build's story in two phases, the second repeated by its `rounds` loop. */
+const drilldown = (): Drilldown => ({
+  phases: [
+    {
+      label: 'Build',
+      cards: [
+        {
+          title: 'Write the change',
+          text: 'Writes the change and opens a draft pull request',
+          icon: 'pencil',
+          kind: 'agent',
+          covers: [{ workflow: 'build', steps: ['build__build'] }],
+        },
+      ],
+    },
+    {
+      label: 'Check',
+      cards: [
+        {
+          title: 'Code review',
+          text: 'Reads the change',
+          icon: 'search-code',
+          kind: 'check',
+          covers: [{ workflow: 'build', steps: ['rounds.review'] }],
+        },
+      ],
+    },
+  ],
+  loop: { label: 'Up to 3 rounds', from: 2, to: 2, workflow: 'build', step: 'rounds' },
+});
+
 /**
  * Where a rejected declaration fails, as dotted issue paths. The path is what a pack author
  * acts on; the message wording is not asserted.
@@ -73,13 +106,59 @@ describe('factoryViewSchema', () => {
     }
   });
 
-  test('an arrow may join stages of different workflows: the view file declares every arrow', () => {
+  test("a declared arrow may join any two stages, and may be marked as a person's step", () => {
     const view = minimal();
     view.map.arrows = [
       { from: 'plan', to: 'build', label: 'planned' },
-      { from: 'build', to: 'plan', label: 'replan', back: true },
+      { from: 'build', to: 'plan', label: 'replan', back: true, person: true },
+      { from: 'plan', to: 'plan', label: 'asks answered' },
     ];
-    expect(factoryViewSchema.safeParse(view).success).toBe(true);
+    expect(factoryViewSchema.safeParse(view).error?.issues ?? []).toEqual([]);
+  });
+
+  test('a stage takes a drill-down of phases, cards and a loop over its own workflow', () => {
+    const view = minimal();
+    view.stages[1] = { ...view.stages[1]!, drilldown: drilldown() };
+    const parsed = factoryViewSchema.safeParse(view);
+    expect(parsed.error?.issues ?? []).toEqual([]);
+    expect(parsed.data?.stages[1]?.drilldown?.phases.map(phase => phase.label)).toEqual([
+      'Build',
+      'Check',
+    ]);
+  });
+
+  test("a drill-down card covering a workflow its stage does not list is rejected at the cover's path", () => {
+    const view = minimal();
+    const steps = drilldown();
+    steps.phases[1]!.cards[0]!.covers.push({ workflow: 'plan', steps: ['plan'] });
+    view.stages[1] = { ...view.stages[1]!, drilldown: steps };
+    expect(issuePaths(view)).toEqual(['stages.1.drilldown.phases.1.cards.0.covers.1.workflow']);
+  });
+
+  test('a loop beyond the phases, or naming another workflow, is rejected', () => {
+    const view = minimal();
+    const steps = drilldown();
+    steps.loop = { label: 'Rounds', from: 2, to: 3, workflow: 'plan', step: 'rounds' };
+    view.stages[1] = { ...view.stages[1]!, drilldown: steps };
+    expect(issuePaths(view)).toEqual([
+      'stages.1.drilldown.loop.workflow',
+      'stages.1.drilldown.loop',
+    ]);
+  });
+
+  test('a drill-down card needs a kind it knows and at least one step', () => {
+    const view = minimal();
+    const steps = drilldown();
+    const first = steps.phases[0]!.cards[0]!;
+    steps.phases[0]!.cards = [
+      { ...first, kind: 'robot' as 'agent' },
+      { ...first, covers: [{ workflow: 'build', steps: [] }] },
+    ];
+    view.stages[1] = { ...view.stages[1]!, drilldown: steps };
+    expect(issuePaths(view)).toEqual([
+      'stages.1.drilldown.phases.0.cards.0.kind',
+      'stages.1.drilldown.phases.0.cards.1.covers.0.steps',
+    ]);
   });
 
   test('a stage declared twice is rejected', () => {

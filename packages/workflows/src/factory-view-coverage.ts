@@ -1,0 +1,293 @@
+/**
+ * Whether a factory view tells the truth about its pack: every real step of a workflow the
+ * view lists is covered by exactly one drill-down card (or loop), every step the view names
+ * is real, and the map's arrows between workflows are exactly the hand-offs the pack graph
+ * reports. The schema cannot see the pack's workflows; this check reads them as the pack
+ * graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
+ * `bun run check:factory-view` runs it over this repository's declarations.
+ */
+import { packWorkflowName, type PackGraph } from './pack-graph';
+import type { FactoryStage, FactoryView } from './schemas/factory-view';
+
+export type CoverageFindingKind =
+  | 'uncovered'
+  | 'covered-twice'
+  | 'unknown-step'
+  | 'unknown-workflow'
+  | 'undeclared-hand-off'
+  | 'unbacked-arrow'
+  | 'graph-incomplete';
+
+export interface CoverageFinding {
+  kind: CoverageFindingKind;
+  /** Where in the view to act, as a zod issue path. */
+  path: (string | number)[];
+  message: string;
+}
+
+type ViewPath = CoverageFinding['path'];
+type GraphStage = PackGraph['stages'][number];
+type GraphNode = GraphStage['nodes'][number];
+
+/** Each workflow the view lists, by its name in the view, to its stage in the graph. */
+function graphStagesOf(view: FactoryView, graph: PackGraph): Map<string, GraphStage> {
+  const names = graph.stages.map(stage => stage.name);
+  const found = new Map<string, GraphStage>();
+  for (const workflow of view.stages.flatMap(stage => stage.workflows)) {
+    // `packWorkflowName` owns how a pack's own name is qualified in an install.
+    const name = packWorkflowName(names, workflow);
+    const stage = graph.stages.find(entry => entry.name === name);
+    if (stage !== undefined) found.set(workflow, stage);
+  }
+  return found;
+}
+
+/** A step matches a stage `nodes` entry equal to it, or one it begins with followed by `.`. */
+const matchesEntry = (step: string, entry: string): boolean =>
+  step === entry || step.startsWith(`${entry}.`);
+
+const stagesListing = (view: FactoryView, workflow: string): FactoryStage[] =>
+  view.stages.filter(stage => stage.workflows.includes(workflow));
+
+/**
+ * The stage a step of `workflow` counts in: the one whose `nodes` name it, else the first
+ * without `nodes`, else the first; a null step (between steps) takes the fallbacks. The web
+ * console's `stageOfWorkflow` places a step by the same rule;
+ * `__fixtures__/factory-view-step-stages.json` holds the two to it.
+ */
+export function stageOfWorkflowStep(
+  view: FactoryView,
+  workflow: string,
+  step: string | null
+): FactoryStage | undefined {
+  const stages = stagesListing(view, workflow);
+  const named =
+    step === null
+      ? undefined
+      : stages.find(stage => stage.nodes?.some(entry => matchesEntry(step, entry)) === true);
+  return named ?? stages.find(stage => stage.nodes === undefined) ?? stages[0];
+}
+
+/** One step or loop a drill-down says it stands for, and where it says so. */
+interface Coverer {
+  workflow: string;
+  step: string;
+  path: ViewPath;
+  /** A drill-down's loop, which must name a loop group. */
+  loop: boolean;
+}
+
+function coverersOf(view: FactoryView): Coverer[] {
+  return view.stages.flatMap((stage, s) => {
+    const { drilldown } = stage;
+    if (drilldown === undefined) return [];
+    const at = ['stages', s, 'drilldown'];
+    const cards = drilldown.phases.flatMap((phase, p) =>
+      phase.cards.flatMap((card, c) =>
+        card.covers.flatMap((cover, k) =>
+          cover.steps.map(
+            (step, m): Coverer => ({
+              workflow: cover.workflow,
+              step,
+              path: [...at, 'phases', p, 'cards', c, 'covers', k, 'steps', m],
+              loop: false,
+            })
+          )
+        )
+      )
+    );
+    const { loop } = drilldown;
+    return loop === undefined
+      ? cards
+      : [
+          ...cards,
+          { workflow: loop.workflow, step: loop.step, path: [...at, 'loop', 'step'], loop: true },
+        ];
+  });
+}
+
+const stepKey = (workflow: string, step: string): string => `${workflow}/${step}`;
+
+/** A coverer naming no step of its workflow, or a loop naming a step that is no loop group. */
+function unknownCoverer(coverer: Coverer, graphStage: GraphStage): CoverageFinding | undefined {
+  const node = graphStage.nodes.find(entry => entry.id === coverer.step);
+  if (node !== undefined && (!coverer.loop || node.kind === 'loop_group')) return undefined;
+  return {
+    kind: 'unknown-step',
+    path: coverer.path,
+    message: `names ${coverer.loop ? 'loop group' : 'step'} "${coverer.step}", which workflow "${coverer.workflow}" does not have`,
+  };
+}
+
+/** Every real step covered once, none twice, and every coverer naming a real step. */
+function coverageFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  const findings: CoverageFinding[] = [];
+  const seen = new Map<string, Coverer>();
+  for (const coverer of coverersOf(view)) {
+    const graphStage = stages.get(coverer.workflow);
+    // A workflow the graph lacks is reported once, as unknown-workflow.
+    if (graphStage === undefined) continue;
+    const unknown = unknownCoverer(coverer, graphStage);
+    if (unknown !== undefined) {
+      findings.push(unknown);
+      continue;
+    }
+    const key = stepKey(coverer.workflow, coverer.step);
+    const first = seen.get(key);
+    if (first === undefined) seen.set(key, coverer);
+    else
+      findings.push({
+        kind: 'covered-twice',
+        path: coverer.path,
+        message: `covers step "${key}", which ${first.path.join('.')} already covers`,
+      });
+  }
+  const uncoveredSteps = [...stages].flatMap(([workflow, graphStage]) =>
+    graphStage.nodes
+      .filter(node => !seen.has(stepKey(workflow, node.id)))
+      .map(node => uncovered(view, workflow, node))
+  );
+  return [...findings, ...uncoveredSteps];
+}
+
+function uncovered(view: FactoryView, workflow: string, node: GraphNode): CoverageFinding {
+  const stage = stageOfWorkflowStep(view, workflow, node.id);
+  const index = stage === undefined ? -1 : view.stages.indexOf(stage);
+  return {
+    kind: 'uncovered',
+    path: ['stages', index, 'drilldown'],
+    message: `step "${stepKey(workflow, node.id)}" is covered by no card`,
+  };
+}
+
+/** Every step a stage's `nodes` or the `steps` names is a real step of its workflow. */
+function namedStepFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  const findings: CoverageFinding[] = [];
+  const unknown = (path: ViewPath, workflow: string, step: string): CoverageFinding => ({
+    kind: 'unknown-step',
+    path,
+    message: `names step "${step}", which workflow "${workflow}" does not have`,
+  });
+  view.stages.forEach((stage, s) => {
+    stage.nodes?.forEach((entry, n) => {
+      const real = stage.workflows.flatMap(w => stages.get(w)?.nodes ?? []);
+      if (!real.some(node => matchesEntry(node.id, entry)))
+        findings.push(unknown(['stages', s, 'nodes', n], stage.workflows.join(', '), entry));
+    });
+  });
+  for (const [workflow, names] of Object.entries(view.steps ?? {})) {
+    const graphStage = stages.get(workflow);
+    if (graphStage === undefined) continue;
+    for (const step of Object.keys(names))
+      if (!graphStage.nodes.some(node => node.id === step))
+        findings.push(unknown(['steps', workflow, step], workflow, step));
+  }
+  return findings;
+}
+
+/** A hand-off the pack graph reports, as the pair of stages the map joins with it. */
+interface HandOffPair {
+  from: string;
+  to: string;
+  /** The outcome that takes it, or `asks answered`. */
+  when: string;
+}
+
+/**
+ * Each graph arrow between two workflows the view lists, as the stages it joins: from the
+ * stage a run of its source ends on (whose `nodes` name the step it returns from, else where
+ * its workflow sits), to the stage its target starts on. An arrow into a workflow no stage
+ * lists (a drain that moves no item) is not between stages, so no arrow can declare it.
+ */
+function handOffPairs(view: FactoryView, graph: PackGraph): HandOffPair[] {
+  const workflowOf = new Map(
+    [...graphStagesOf(view, graph)].map(([workflow, stage]) => [stage.name, { workflow, stage }])
+  );
+  return graph.arrows.flatMap((arrow): HandOffPair[] => {
+    const source = workflowOf.get(arrow.from.stage);
+    const target = workflowOf.get(arrow.to);
+    if (source === undefined || target === undefined) return [];
+    const from = stageOfWorkflowStep(view, source.workflow, source.stage.returns);
+    const to = stageOfWorkflowStep(view, target.workflow, null);
+    if (from === undefined || to === undefined) return [];
+    const when = 'outcome' in arrow.from ? arrow.from.outcome : `asks ${arrow.from.settled}`;
+    return [{ from: from.id, to: to.id, when }];
+  });
+}
+
+/**
+ * The map's arrows against the graph's hand-offs, matched by ordered pair of stages, not by
+ * label: a declared host -> build arrow labelled "returned" backs deliver's asks-answered
+ * hand-off too, and a label is plain words for people. A declared arrow needs no hand-off
+ * when a person takes it, when it joins two different stages of one workflow (its steps), or
+ * when it runs into the landed stage from another. An arrow back into its own stage is a
+ * rerun only a hand-off starts (answered asks), so it is never exempt.
+ */
+function arrowFindings(view: FactoryView, graph: PackGraph): CoverageFinding[] {
+  const pair = (from: string, to: string): string => JSON.stringify([from, to]);
+  const pairs = handOffPairs(view, graph);
+  const backed = new Set(pairs.map(entry => pair(entry.from, entry.to)));
+  const declared = new Set(view.map.arrows.map(arrow => pair(arrow.from, arrow.to)));
+  const findings: CoverageFinding[] = pairs
+    .filter(entry => !declared.has(pair(entry.from, entry.to)))
+    .map(entry => ({
+      kind: 'undeclared-hand-off',
+      path: ['map', 'arrows'],
+      message: `the pack hands an item from "${entry.from}" to "${entry.to}" (${entry.when}); declare that arrow`,
+    }));
+  const workflowsOf = new Map(view.stages.map(stage => [stage.id, stage.workflows]));
+  const shareWorkflow = (from: string, to: string): boolean => {
+    const into = workflowsOf.get(to) ?? [];
+    return (workflowsOf.get(from) ?? []).some(workflow => into.includes(workflow));
+  };
+  const exempt = (arrow: FactoryView['map']['arrows'][number]): boolean =>
+    arrow.person === true ||
+    backed.has(pair(arrow.from, arrow.to)) ||
+    (arrow.from !== arrow.to &&
+      (arrow.to === view.landed.stage || shareWorkflow(arrow.from, arrow.to)));
+  view.map.arrows.forEach((arrow, index) => {
+    if (exempt(arrow)) return;
+    findings.push({
+      kind: 'unbacked-arrow',
+      path: ['map', 'arrows', index],
+      message: `joins "${arrow.from}" and "${arrow.to}", but no hand-off of the pack does; mark it "person": true if a person takes it`,
+    });
+  });
+  return findings;
+}
+
+/** Every way `view` disagrees with the pack's real workflows and hand-offs; empty when none. */
+export function factoryViewCoverage(view: FactoryView, graph: PackGraph): CoverageFinding[] {
+  const stages = graphStagesOf(view, graph);
+  const findings: CoverageFinding[] = [];
+  if (graph.discoveryErrors.length > 0)
+    findings.push({
+      kind: 'graph-incomplete',
+      path: [],
+      message: `${String(graph.discoveryErrors.length)} of the pack's workflows failed to load: ${graph.discoveryErrors.map(e => e.filename).join(', ')}`,
+    });
+  view.stages.forEach((stage, s) => {
+    stage.workflows.forEach((workflow, w) => {
+      if (!stages.has(workflow))
+        findings.push({
+          kind: 'unknown-workflow',
+          path: ['stages', s, 'workflows', w],
+          message: `names workflow "${workflow}", which pack "${graph.pack}" does not have`,
+        });
+    });
+  });
+  // Loop groups count as steps. Fan-out bodies (`graph.fanOutBlocks`) do not: a fan-out
+  // include is one node of its stage; this pack has none.
+  return [
+    ...findings,
+    ...coverageFindings(view, stages),
+    ...namedStepFindings(view, stages),
+    ...arrowFindings(view, graph),
+  ];
+}

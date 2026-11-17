@@ -33,6 +33,53 @@ const outcomeKeySchema = z
   .string()
   .regex(/^[A-Za-z0-9_.-]+:([A-Za-z0-9_.-]+|\*)$/, 'workflow:outcome or workflow:*');
 
+/** The real steps one card stands for: a workflow its stage lists, and step ids of it. */
+const coverSchema = z.strictObject({
+  workflow: workflowNameSchema,
+  steps: z.array(stepIdSchema).min(1),
+});
+
+/** One card of a drill-down: a plain-words box standing for some of a workflow's real steps. */
+const drilldownCardSchema = z.strictObject({
+  title: labelSchema,
+  /** One line, plain words: what the card does. */
+  text: z.string().min(1).max(160),
+  /** A Lucide icon name, as the console draws icons. */
+  icon: z.string().regex(/^[a-z][a-z0-9-]*$/, 'a Lucide icon name such as "git-pull-request"'),
+  /** Who does it: an agent, a check that approves or returns, a script, or you. */
+  kind: z.enum(['agent', 'check', 'script', 'you']),
+  /**
+   * The real steps the card stands for. `bun run check:factory-view` reads the pack's
+   * workflows and fails when a real step is covered by no card or by two.
+   */
+  covers: z.array(coverSchema).min(1),
+});
+
+/**
+ * A stage told as a few numbered phases (columns, numbered by position from 1), each holding
+ * a few cards, and at most one loop around the phases a loop group repeats.
+ */
+const drilldownSchema = z.strictObject({
+  phases: z
+    .array(
+      z.strictObject({ label: labelSchema, cards: z.array(drilldownCardSchema).min(1).max(6) })
+    )
+    .min(1),
+  /**
+   * The loop group `step` of `workflow` repeats phases `from` to `to` (1-based): one line
+   * drawn around them, labelled ("Up to 3 rounds"). The loop covers its group step.
+   */
+  loop: z
+    .strictObject({
+      label: labelSchema,
+      from: z.number().int().min(1),
+      to: z.number().int().min(1),
+      workflow: workflowNameSchema,
+      step: stepIdSchema,
+    })
+    .optional(),
+});
+
 const stageSchema = z.strictObject({
   id: stageIdSchema,
   label: labelSchema,
@@ -48,6 +95,8 @@ const stageSchema = z.strictObject({
    * `rounds` matches `rounds.fix`.
    */
   nodes: z.array(stepIdSchema).min(1).optional(),
+  /** What the stage does, step by step, in plain words, for a stage page to draw. */
+  drilldown: drilldownSchema.optional(),
 });
 
 /** A step of a workflow the view names, and the outcome it records that decides something. */
@@ -72,8 +121,10 @@ const mapSchema = z.strictObject({
   ),
   /**
    * Every arrow the map draws, and no others: the hand-offs between stages and the send-backs,
-   * curated by the view's author. The map reads no other source, so an arrow the pack stops
-   * making stays drawn until this file changes.
+   * curated by the view's author. The map reads no other source; `bun run check:factory-view`
+   * keeps the hand-offs equal to the pack graph's (`GET /api/packs/{pack}/graph`): each one the
+   * pack starts between two stages is declared, and each declared one the pack does not start
+   * is marked as a person's step.
    */
   arrows: z.array(
     z.strictObject({
@@ -87,6 +138,8 @@ const mapSchema = z.strictObject({
        * since a second statement of direction could only disagree with that order.
        */
       back: z.boolean().optional(),
+      /** A step a person takes (a replan, a landing), which no pack hand-off starts. */
+      person: z.boolean().optional(),
     })
   ),
   notes: z
@@ -140,7 +193,7 @@ const factoryViewShape = z.strictObject({
   /**
    * Display names for a workflow's steps, keyed by the step id as the engine records it
    * (`build__build`, `rounds.fix`, the bare loop id `rounds`). A step with no name here
-   * reads as its cleaned id. Nothing checks a key names a real step.
+   * reads as its cleaned id. `bun run check:factory-view` reports a key naming no real step.
    */
   steps: z.record(workflowNameSchema, z.record(stepIdSchema, labelSchema)).optional(),
   map: mapSchema,
@@ -203,12 +256,54 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   return issues;
 }
 
+/**
+ * A drill-down tells its own stage: each card covers, and its loop names, a workflow the
+ * stage lists, and the loop spans phases it has. Whether a step is real only the coverage
+ * check can say, from the pack's workflows.
+ */
+function drilldownIssues(view: FactoryViewShape): Issue[] {
+  const issues: Issue[] = [];
+  view.stages.forEach((stage, s) => {
+    const { drilldown } = stage;
+    if (drilldown === undefined) return;
+    const at = ['stages', s, 'drilldown'];
+    const own = (path: Issue['path'], workflow: string): void => {
+      if (!stage.workflows.includes(workflow))
+        issues.push({
+          path,
+          message: `names workflow "${workflow}", which stage "${stage.id}" does not list`,
+        });
+    };
+    drilldown.phases.forEach((phase, p) => {
+      phase.cards.forEach((card, c) => {
+        card.covers.forEach((cover, k) => {
+          own([...at, 'phases', p, 'cards', c, 'covers', k, 'workflow'], cover.workflow);
+        });
+      });
+    });
+    const { loop } = drilldown;
+    if (loop === undefined) return;
+    own([...at, 'loop', 'workflow'], loop.workflow);
+    if (loop.from > loop.to || loop.to > drilldown.phases.length)
+      issues.push({
+        path: [...at, 'loop'],
+        message: `spans phases ${String(loop.from)} to ${String(loop.to)}; the drill-down has phases 1 to ${String(drilldown.phases.length)}`,
+      });
+  });
+  return issues;
+}
+
 export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
-  for (const issue of [...stageReferenceIssues(view), ...workflowReferenceIssues(view)])
+  for (const issue of [
+    ...stageReferenceIssues(view),
+    ...workflowReferenceIssues(view),
+    ...drilldownIssues(view),
+  ])
     ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
 });
 export type FactoryView = z.infer<typeof factoryViewSchema>;
 export type FactoryStage = FactoryView['stages'][number];
+export type FactoryDrilldown = NonNullable<FactoryStage['drilldown']>;
 
 /** Where a view was found: a pack's own file, or the project's file for a pack. */
 export const factoryViewSourceSchema = z.enum([...workflowSourceSchema.options, 'project-file']);

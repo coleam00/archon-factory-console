@@ -48,6 +48,11 @@ jobs:
       # layout); this seeded test keeps the two copies giving the same verdict.
       - name: Factory overview geometry parity
         run: bun test ./scripts/overview-geometry-parity.test.ts
+      # The factory view's schema and coverage check. The coverage test shares the step-stage
+      # fixture with the web placement test, which keeps their two placement rules in agreement.
+      - name: Factory view schema and coverage
+        run: bun test src/schemas/factory-view src/factory-view-coverage.test.ts
+        working-directory: packages/workflows
       - name: Web build
         run: bun run build:web
 
