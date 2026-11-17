@@ -8,7 +8,9 @@ export function NeedsYouPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   return (
     <FactoryFrame section="needs-you">
-      {(_view, attention) => <NeedsYouList projectId={projectId} attention={attention} all />}
+      {(view, attention) => (
+        <NeedsYouList projectId={projectId} view={view.declaration} attention={attention} all />
+      )}
     </FactoryFrame>
   );
 }

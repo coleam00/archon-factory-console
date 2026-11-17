@@ -4,41 +4,70 @@ import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { useFactoryItems } from '../useFactoryItems';
+import { mapArrowsFromGraph, type MapGraph } from '../lib/map-graph';
 import { layoutMap } from '../lib/map-layout';
 import { stageLive, type MapLive } from '../lib/map-live';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
+import { MapGraphNotes } from './MapGraphNotes';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
+import { usePackGraph } from './usePackGraph';
 
 interface FactoryMapProps {
   projectId: string;
-  view: FactoryViewListed['declaration'];
+  view: FactoryViewListed;
   attention: EntityView<AttentionQueue>;
 }
 
-/** The Overview's map: the declared stages and hand-offs, with live chips from the items read. */
+/** What the map draws from: the declaration, the attention queue, and the pack graph read. */
+interface MapInputs {
+  projectId: string;
+  view: FactoryViewListed['declaration'];
+  attention: EntityView<AttentionQueue>;
+  /** Undefined until the pack graph is read, or when reading it failed (`graphError`). */
+  graph: MapGraph | undefined;
+  graphError: unknown;
+}
+
+/**
+ * The Overview's map: the declared stages and the hand-offs inside a workflow, the pack
+ * graph's hand-offs between workflows, and live chips from the items read.
+ */
 export function FactoryMap({ projectId, view, attention }: FactoryMapProps): ReactElement {
   const items = useFactoryItems(projectId);
+  const read = usePackGraph(projectId, view.packKey);
+  const graph = useMemo(
+    () =>
+      read.data === undefined
+        ? undefined
+        : mapArrowsFromGraph(view.declaration, view.runNames, read.data),
+    [read.data, view.declaration, view.runNames]
+  );
   return (
     <section aria-label="The map" className="flex flex-col gap-2.5">
       <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
         The map
       </h3>
-      <MapBody projectId={projectId} view={view} items={items} attention={attention} />
+      <MapBody
+        projectId={projectId}
+        view={view.declaration}
+        items={items}
+        attention={attention}
+        graph={graph}
+        graphError={read.error}
+      />
     </section>
   );
 }
 
 function MapBody({
-  projectId,
-  view,
   items,
-  attention,
-}: FactoryMapProps & { items: EntityView<FactoryItem[]> }): ReactNode {
+  ...inputs
+}: MapInputs & { items: EntityView<FactoryItem[]> }): ReactNode {
   if (items.data === undefined) {
     if (items.error !== undefined)
       return (
@@ -48,9 +77,7 @@ function MapBody({
       );
     return <p className="text-xs text-text-tertiary">Loading…</p>;
   }
-  return (
-    <MapLiveCanvas projectId={projectId} view={view} items={items.data} attention={attention} />
-  );
+  return <MapLiveCanvas {...inputs} items={items.data} />;
 }
 
 /**
@@ -58,11 +85,11 @@ function MapBody({
  * does, so a run on a step no stage names holds its card where the board holds its column.
  */
 function MapLiveCanvas({
-  projectId,
-  view,
   items,
   attention,
-}: FactoryMapProps & { items: FactoryItem[] }): ReactElement {
+  ...inputs
+}: MapInputs & { items: FactoryItem[] }): ReactElement {
+  const { view } = inputs;
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
   const queue = attention.data?.items;
   const live = useMemo(
@@ -72,19 +99,18 @@ function MapLiveCanvas({
   useEffect(() => {
     previous.current = live.positions;
   }, [live]);
-  return <MapCanvas projectId={projectId} view={view} live={live} />;
+  return <MapCanvas {...inputs} live={live} />;
 }
 
 function MapCanvas({
   projectId,
   view,
+  graph,
+  graphError,
   live,
-}: {
-  projectId: string;
-  view: FactoryViewListed['declaration'];
-  live: MapLive;
-}): ReactElement {
-  const { boxes, arrows, bounds } = useMemo(() => layoutMap(view.map), [view.map]);
+}: Omit<MapInputs, 'attention'> & { live: MapLive }): ReactElement {
+  const layout = useMemo(() => layoutMap(view.map, graph), [view.map, graph]);
+  const { boxes, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
   const stagePath = (stage: string): string =>
@@ -122,7 +148,7 @@ function MapCanvas({
               transformOrigin: '0 0',
             }}
           >
-            <MapArrows arrows={arrows} bounds={bounds} />
+            <MapArrows layout={layout} />
             {view.stages.map(stage => {
               const box = boxes.get(stage.id);
               const stageLiveEntry = live.stages.get(stage.id);
@@ -153,6 +179,7 @@ function MapCanvas({
         )}
       </div>
       <MapLegend stages={view.stages} />
+      <MapGraphNotes view={view} graph={graph} error={graphError} />
       <MapNotOnMap projectId={projectId} view={view} entries={live.notOnMap} />
     </div>
   );

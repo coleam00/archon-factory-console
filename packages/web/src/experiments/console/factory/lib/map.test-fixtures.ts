@@ -88,3 +88,35 @@ export function itemWithoutProgress(key: string): FactoryItem {
   const base = realItem('6');
   return { ...base, item: { ...base.item, id: `item-${key}`, key }, progress: null };
 }
+
+/*
+ * Synthetic: the live factory has not yet restarted a stage on settled asks. Each item's first
+ * run left asks; `settledAt` closes the set; `restarted` adds the run the settling started.
+ */
+export function settledItem(
+  key: string,
+  asking: TestRun,
+  settledAt: string,
+  restarted?: TestRun
+): FactoryItem {
+  const item = itemWith(key, restarted === undefined ? [asking] : [asking, restarted]);
+  const askingId = item.runs[0]?.id ?? '';
+  return {
+    ...item,
+    runs: item.runs.map((entry, index) =>
+      index === 1 ? { ...entry, cause: { kind: 'asks_settled', runId: askingId } } : entry
+    ),
+    answers: [
+      {
+        kind: 'asks_settled',
+        runId: askingId,
+        node: null,
+        occurrence: null,
+        at: settledAt,
+        via: null,
+        answered: 2,
+        withdrawn: 1,
+      },
+    ],
+  };
+}

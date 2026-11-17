@@ -119,7 +119,9 @@ function serializeUrl(
   }
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(options?.query ?? {})) {
-    if (value !== undefined) query.set(key, String(value));
+    // An array is a repeated parameter (`keys=a&keys=b`), as the server's array schemas read it.
+    if (Array.isArray(value)) for (const entry of value) query.append(key, String(entry));
+    else if (value !== undefined) query.set(key, String(value));
   }
   return query.size > 0 ? `${url}?${query.toString()}` : url;
 }

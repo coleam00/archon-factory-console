@@ -3,6 +3,9 @@ import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
 import type { AttentionQueue } from '../skills/runs';
+import { set } from '../store/cache';
+import { K } from '../store/keys';
+import { shippedView } from './item-detail.test-fixtures';
 import { NeedsYouList } from './NeedsYouList';
 import { askItem } from './needs-you.test-fixtures';
 
@@ -41,12 +44,15 @@ async function withList(queue: AttentionQueue, check: (root: HTMLElement) => Pro
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
+  // No item has settled asks: the list under the open asks stays empty.
+  set(K.factoryItems('cb-1'), []);
   try {
     await act(async () =>
       root.render(
         <MemoryRouter>
           <NeedsYouList
             projectId="cb-1"
+            view={shippedView}
             attention={{ data: queue, error: undefined, loading: false, refetch: () => {} }}
           />
         </MemoryRouter>

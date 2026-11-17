@@ -6,7 +6,7 @@
  * pack the project can run (`factory-pack-files.ts`). A file that cannot be read or does not
  * validate is listed under `errors` with its path; it never hides the others.
  */
-import { discoverPackFiles, installedIdentity } from './factory-pack-files';
+import { discoverPackFiles, factoryPackKey, installedIdentity } from './factory-pack-files';
 import {
   FACTORY_VIEW_FILE,
   FACTORY_VIEW_PROJECT_SUFFIX,
@@ -45,7 +45,17 @@ export async function discoverFactoryViews(
     },
     roots
   );
-  return { views: found, errors };
+  // Each view carries its pack key and run names, so the web never re-derives either.
+  const views = found.map(view => ({
+    ...view,
+    packKey: factoryPackKey(view.pack),
+    runNames: Object.fromEntries(
+      view.declaration.stages.flatMap(stage =>
+        stage.workflows.map(workflow => [workflow, factoryRunWorkflowName(view.pack, workflow)])
+      )
+    ),
+  }));
+  return { views, errors };
 }
 
 /** The run names, as runs record them, of every workflow a listed view's stages name. */

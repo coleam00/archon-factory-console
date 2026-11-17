@@ -112,6 +112,14 @@ describe('request serialization', () => {
     ).toBe('/api/artifacts/run%2F1/nested%2Fa%20b%25.md');
   });
 
+  test('repeats an array query value once per entry, each encoded', () => {
+    expect(
+      buildApiUrl('/api/factory/progress', 'get', {
+        query: { codebaseId: 'cb', keys: ['1', 'a,b'] },
+      })
+    ).toBe('/api/factory/progress?codebaseId=cb&keys=1&keys=a%2Cb');
+  });
+
   test('encodes JSON bodies and preserves headers, credentials and signal', async () => {
     const signal = new AbortController().signal;
     globalThis.fetch = ((_input: RequestInfo | URL, init?: RequestInit) => {

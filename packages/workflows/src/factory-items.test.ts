@@ -3,17 +3,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   factoryItemProgress,
-  factoryItemsPageSchema,
+  factoryProgressSchema,
   factoryRunFacts,
-  FactoryItemsQueryError,
   FactoryRunFactsMemo,
   factoryItemDetailSchema,
-  pageFactoryItems,
   readFactoryItem,
-  readFactoryItemsPage,
+  readFactoryProgress,
   type FactoryChangeState,
   type FactoryRound,
-  type FactoryListedItem,
+  titleOfItemText,
 } from './factory-items';
 import type { ItemReadSource } from './item-read';
 import { factoryViewSchema } from './schemas/factory-view';
@@ -400,48 +398,78 @@ describe("an item's progress", () => {
     expect(progress).toMatchObject({ running: null, round: null, returned: 0, change: null });
     expect(progress.title).toBe('The live-home guard and dev:console have tests');
   });
+
+  test('an item an order started: the title of the item text the order produced', async () => {
+    // The order run carries the work order (a source URL, no item); the triage run after it
+    // carries the item text the order stage produced, front matter first.
+    const order = withInputs(triage1, 'order-run', 'Wirasm/archon-software-factory:order', 0, {
+      key: '36',
+      source: 'https://github.com/coleam00/archon-factory-console/issues/36',
+    });
+    const triage = withInputs(triage1, 'triage-run', triage1.run.workflow_name, 60_000, {
+      item: ORDERED_ITEM,
+    });
+    const progress = await progressOf([order, triage]);
+    expect(progress.title).toBe('Items started by a work order show their title');
+  });
 });
 
-describe('paging items', () => {
-  const at = (id: string, activityAt: string): FactoryListedItem => ({
-    id,
-    key: id,
-    activityAt,
-  });
-  // SQLite records to the second, so `b` and `c` tie and fall back to id order.
-  const listed = [
-    at('a', '2026-11-16T10:00:00.000Z'),
-    at('c', '2026-11-16T12:00:00.000Z'),
-    at('b', '2026-11-16T12:00:00.000Z'),
-    at('d', '2026-11-16T11:00:00.000Z'),
-  ];
-  const now = new Date('2026-11-16T13:00:00.000Z');
+/** A copy of a fixture run with its own id, workflow and inputs, started `laterMs` after it. */
+function withInputs(
+  entry: { run: WorkflowRun; events: WorkflowEventRow[] },
+  id: string,
+  workflowName: string,
+  laterMs: number,
+  inputs: Record<string, string>
+): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  return {
+    run: {
+      ...entry.run,
+      id,
+      workflow_name: workflowName,
+      metadata: { inputs },
+      started_at: new Date(entry.run.started_at.getTime() + laterMs),
+    },
+    events: [],
+  };
+}
 
-  test('newest activity first, ties by id; next continues where the page ended', () => {
-    const first = pageFactoryItems(listed, { limit: 2 }, 'cb', now);
-    expect(first.items.map(item => item.id)).toEqual(['b', 'c']);
-    expect(first.next).not.toBeNull();
-    const second = pageFactoryItems(listed, { limit: 2, after: first.next! }, 'cb', now);
-    expect(second.items.map(item => item.id)).toEqual(['d', 'a']);
-    expect(second.next).toBeNull();
+/** The item text an order stage produced for a work order naming an issue, as the live copy holds it. */
+const ORDERED_ITEM = [
+  '---',
+  'id: 36',
+  'source: https://github.com/coleam00/archon-factory-console/issues/36',
+  '---',
+  '',
+  '# Items started by a work order show their title',
+  '',
+  'Since items start with a work order...',
+].join('\n');
+
+describe("an item text's title", () => {
+  test('an item an order made: the heading after its front matter', () => {
+    expect(titleOfItemText(ORDERED_ITEM)).toBe('Items started by a work order show their title');
+    expect(titleOfItemText(ORDERED_ITEM.replaceAll('\n', '\r\n'))).toBe(
+      'Items started by a work order show their title'
+    );
   });
 
-  test('since keeps items active at or after it, and the cursor carries it', () => {
-    const first = pageFactoryItems(listed, { since: '2h', limit: 1 }, 'cb', now);
-    expect(first.items.map(item => item.id)).toEqual(['b']);
-    const rest = pageFactoryItems(listed, { after: first.next! }, 'cb', now);
-    expect(rest.items.map(item => item.id)).toEqual(['c', 'd']);
+  test("a text-only order: the operator's first line", () => {
+    expect(titleOfItemText('Fix the board\n\nmore')).toBe('Fix the board');
   });
 
-  test('refuses a malformed cursor, one for another project, one beside since, and a bad since', () => {
-    const { next } = pageFactoryItems(listed, { limit: 1 }, 'cb', now);
-    const refusals = [
-      () => pageFactoryItems(listed, { after: 'not-a-cursor' }, 'cb', now),
-      () => pageFactoryItems(listed, { after: next! }, 'other', now),
-      () => pageFactoryItems(listed, { after: next!, since: '1d' }, 'cb', now),
-      () => pageFactoryItems(listed, { since: 'yesterday' }, 'cb', now),
-    ];
-    for (const refusal of refusals) expect(refusal).toThrow(FactoryItemsQueryError);
+  test('an item started the old way: the first line without its `#<n> `', () => {
+    expect(
+      titleOfItemText('#12 Stage and step pages show which items are on a step now\n\nbody')
+    ).toBe('Stage and step pages show which items are on a step now');
+  });
+
+  test('no title line: unterminated front matter, empty or blank text, a bare heading marker', () => {
+    expect(titleOfItemText('---\nid: 1\n')).toBeNull();
+    expect(titleOfItemText('')).toBeNull();
+    expect(titleOfItemText(' \n\t\n')).toBeNull();
+    expect(titleOfItemText('# \nbody')).toBeNull();
+    expect(titleOfItemText('---\nid: 1\n---\n\n')).toBeNull();
   });
 });
 
@@ -476,7 +504,7 @@ describe('the facts memo', () => {
   });
 });
 
-describe('reading a page', () => {
+describe('reading progress, and one item whole', () => {
   const item1: WorkflowItem = { id: 'item-1', projectKey: 'acme/web', key: '1' };
   const item2: WorkflowItem = { id: 'item-2', projectKey: 'acme/web', key: '2' };
   const own = (item: WorkflowItem, ...runs: { run: WorkflowRun }[]): WorkflowRun[] =>
@@ -531,66 +559,90 @@ describe('reading a page', () => {
     return source;
   }
 
-  const listing = async (): Promise<FactoryListedItem[]> => [
-    { id: item1.id, key: '1', activityAt: '2026-11-17T00:01:56.000Z' },
-    { id: item2.id, key: '2', activityAt: '2026-11-17T03:00:00.000Z' },
-  ];
+  const progressInput = (
+    memo: FactoryRunFactsMemo,
+    onProgressError: (id: string, error: unknown) => void
+  ) => ({
+    view,
+    pack: PACK,
+    projectKey: 'acme/web',
+    changeState: notMerged,
+    memo,
+    onProgressError,
+  });
 
-  test('reads the queue once, memoises ended runs, and shapes the page', async () => {
+  test('progress for each asked key, an unknown key left out; ended runs are memoised', async () => {
     const counts = { queue: 0, loaded: [] as string[][] };
-    const memo = new FactoryRunFactsMemo();
-    const input = {
-      view,
-      pack: PACK,
-      projectKey: 'acme/web',
-      codebaseId: 'cb',
-      query: {},
-      listProjectItems: listing,
-      changeState: notMerged,
-      memo,
-      onProgressError: (id: string, error: unknown) => {
-        throw new Error(`unexpected failure for ${id}: ${String(error)}`);
-      },
-    };
-    const page = factoryItemsPageSchema.parse(
-      await readFactoryItemsPage(pageSource(counts), input)
+    const input = progressInput(new FactoryRunFactsMemo(), (id, error) => {
+      throw new Error(`unexpected failure for ${id}: ${String(error)}`);
+    });
+    const read = factoryProgressSchema.parse(
+      await readFactoryProgress(pageSource(counts), input, ['2', '1', '404', '2'])
     );
-    expect(
-      page.items.map(entry => [entry.item.key, entry.progress?.running?.step ?? null])
-    ).toEqual([
-      ['2', 'rounds.review__review'],
-      ['1', null],
-    ]);
-    expect(page.items[1]?.progress?.change?.url).toBe(PR10);
-    expect(page.next).toBeNull();
-    expect(counts.queue).toBe(1);
-    await readFactoryItemsPage(pageSource(counts), input);
+    expect(read.pack).toBe(PACK);
+    expect(Object.keys(read.progress).sort()).toEqual(['1', '2']);
+    expect(read.progress['2']?.running?.step).toBe('rounds.review__review');
+    expect(read.progress['1']?.change?.url).toBe(PR10);
+    // Progress reads no item read, so not the attention queue either.
+    expect(counts.queue).toBe(0);
+    // Every declared run's events in one read.
+    expect(counts.loaded).toHaveLength(1);
+    await readFactoryProgress(pageSource(counts), input, ['1', '2']);
     // The second read loads only the running run; the ended ones were memoised.
     expect(counts.loaded.at(-1)).toEqual([deliver2Cut.run.id]);
   });
 
-  test("one item's facts failing gives it no progress and leaves the page", async () => {
-    const failed: string[] = [];
-    const page = await readFactoryItemsPage(
-      pageSource({ queue: 0, loaded: [] }, deliver2Cut.run.id),
-      {
-        view,
-        pack: PACK,
-        projectKey: 'acme/web',
-        codebaseId: 'cb',
-        query: {},
-        listProjectItems: listing,
-        changeState: notMerged,
-        memo: new FactoryRunFactsMemo(),
-        onProgressError: id => failed.push(id),
-      }
+  test("items' merge states are looked up together, not one after another", async () => {
+    // Item 3 is a second item whose deliver run recorded the same kind of change as item 1's.
+    const source = pageSource({ queue: 0, loaded: [] });
+    const reads = source.store.getItemRuns;
+    source.store.getItemRuns = async (projectKey, key) =>
+      key === '3'
+        ? {
+            item: { id: 'item-3', projectKey, key: '3' },
+            runs: [{ ...deliver1.run, id: 'run-3', item_id: 'item-3' }],
+            descendantIds: [],
+          }
+        : reads(projectKey, key);
+    const listEvents = source.store.listEventsForRuns;
+    source.store.listEventsForRuns = async (ids, types) => {
+      const read = await listEvents(ids, types);
+      if (ids.includes('run-3')) read.set('run-3', deliver1.events);
+      return read;
+    };
+    // Each lookup answers only once both are in flight: a read that waited on one first would hang.
+    let started = 0;
+    let release: () => void = () => {};
+    const both = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const changeState: FactoryChangeState = async () => {
+      started++;
+      if (started === 2) release();
+      await both;
+      return { merged: false, mergedAt: null, number: null };
+    };
+    const read = await readFactoryProgress(
+      source,
+      { ...progressInput(new FactoryRunFactsMemo(), () => {}), changeState },
+      ['1', '3']
     );
-    expect(page.items.map(entry => [entry.item.key, entry.progress === null])).toEqual([
-      ['2', true],
-      ['1', false],
-    ]);
+    expect(started).toBe(2);
+    expect(Object.keys(read.progress).sort()).toEqual(['1', '3']);
+  });
+
+  test("one item's facts failing gives it null progress and leaves the others", async () => {
+    const failed: string[] = [];
+    const read = await readFactoryProgress(
+      pageSource({ queue: 0, loaded: [] }, deliver2Cut.run.id),
+      progressInput(new FactoryRunFactsMemo(), id => failed.push(id)),
+      ['1', '2']
+    );
+    expect(read.progress['2']).toBeNull();
+    expect(read.progress['1']).not.toBeNull();
     expect(failed).toEqual([item2.id]);
   });
+
   const itemInput = (onProgressError: (id: string, error: unknown) => void) => ({
     view,
     pack: PACK,
@@ -603,7 +655,7 @@ describe('reading a page', () => {
     throw new Error(`unexpected failure for ${id}: ${String(error)}`);
   };
 
-  test("one item: its read and progress, as a page has them, plus each run's timeline facts", async () => {
+  test("one item: its read and progress, plus each run's timeline facts", async () => {
     const counts = { queue: 0, loaded: [] as string[][] };
     const detail = factoryItemDetailSchema.parse(
       await readFactoryItem(pageSource(counts), itemInput(unexpected), '1')

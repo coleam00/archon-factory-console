@@ -606,7 +606,7 @@ See the [metrics guide](/guides/metrics/).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
-| GET | `/api/factory/items` | A page of a project's items with each item's progress, as `FactoryItemsPage` |
+| GET | `/api/factory/progress` | The board progress of a project's items, by key, as `FactoryProgress` |
 | GET | `/api/factory/workflow` | One workflow a factory view names, as its steps and groups (`FactoryWorkflow`) |
 | GET | `/api/factory/item` | One item with its progress and each run's timeline facts, as `FactoryItemDetail` |
 
@@ -618,15 +618,17 @@ which replaces the pack's own. The schema is `factoryViewSchema` in
 `packages/workflows/src/schemas/factory-view.ts`.
 
 `codebaseId` is required. A view applies when the project ships its own file, or when the
-project has a run of a workflow the view names. `views[]` holds each with its pack, source
+project has a run of a workflow the view names. `views[]` holds each with its pack, `packKey`
+(the pack's folder key, the `{pack}` of `GET /api/packs/{pack}/graph`), `runNames` (each workflow
+a stage lists, as its runs record it and the pack graph names its stage), source
 (`project-file` or the pack's scope) and file `path`; `errors[]` holds every declaration that
 could not be read or did not validate, with its `path`. An unknown `codebaseId` returns
 **404**.
 
-`GET /api/factory/items?codebaseId=&since=&limit=&after=` pages the project's items, newest
-activity first (an item's latest run end, activity or start, else when it was created). Each
-entry is the item's read as `GET /api/items` returns it, plus `progress`, derived through the
-first view that applies (`pack` names it):
+The console reads a project's items from `GET /api/items/window`. `GET
+/api/factory/progress?codebaseId=&keys=` returns what the board needs of them that the item
+read does not carry: `progress` by item key, derived through the first view that applies
+(`pack` names it). Repeat `keys` once per item, up to 100 (one window page):
 
 - `running`: the latest-started running run of a workflow the view names, with the workflow as
   the view names it and its deepest running step; null when none runs.
@@ -651,13 +653,13 @@ first view that applies (`pack` names it):
 - `runs`: the item's runs of workflows the view names, in start order, each with the workflow
   as the view names it (a run records `owner/name:workflow`) and `failedStep`, the first step
   that failed, or null. Status, outcome and times are on the item read's `runs`, by id.
-- `title`: the first line of the view's `itemTitle` run input, without a leading `#<n> `.
+- `title`: the title line of the view's `itemTitle` run input: its first non-empty line after
+  any `---` front matter, without a leading `#<n> ` or markdown heading marker; null when no
+  run carries one.
 
-`progress` is null for an item whose runs could not be read into it; the rest of the page
-stands. `since` takes a duration back from now (`7d`) or an ISO date or time; `limit` is 1 to
-100, 50 by default; `next` is the cursor for `after`, which carries its own `since`. A
-malformed cursor, one from another project, one passed with `since`, or an unreadable `since`
-returns **400**. An unknown `codebaseId`, or a project no view applies to, returns **404**.
+An item's progress is null when its runs could not be read into it; the others stand. A
+key the project has no item under is left out. No `keys`, or more than 100, returns **400**. An
+unknown `codebaseId`, or a project no view applies to, returns **404**.
 
 `GET /api/factory/workflow?codebaseId=&workflow=` reads one workflow a stage of an applying
 view names (`workflow` as the view names it, such as `deliver`), from the definition runs
@@ -671,8 +673,8 @@ prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An 
 `codebaseId`, a workflow no applying view names, or one the project does not have returns
 **404**.
 
-`GET /api/factory/item?codebaseId=&key=` reads one item the way a page entry is read (`item`
-is a `FactoryItem`, through the same view, with the same merge cache), plus `runs`: one entry
+`GET /api/factory/item?codebaseId=&key=` reads one item, its read as `GET /api/items` returns
+it with its `progress` as above (through the same view, with the same merge cache), plus `runs`: one entry
 per run in `item.runs`, in the same order, with what the item page's timeline needs:
 
 - `workflow`: the workflow as the view names it; null for a run of a workflow it does not.

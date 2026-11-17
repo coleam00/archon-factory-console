@@ -1,13 +1,13 @@
 /**
- * A page of a project's items for a factory view: each item's engine read (`ItemRead`) plus
- * the progress the board needs and the item read does not carry. Progress is derived from
- * the engine's own records through the view's declaration (`rounds`, `returns`, `change`,
- * `itemTitle`); nothing here stores a position or names a pack's steps.
+ * What a factory view reads of a project's items beyond the engine's item read (`ItemRead`,
+ * as `GET /api/items/window` pages it): each item's progress on the board. Progress is
+ * derived from the engine's own records through the view's declaration (`rounds`,
+ * `returns`, `change`, `itemTitle`); nothing here stores a position or names a pack's steps.
  *
- * The derivation is pure (`factoryRunFacts`, `factoryItemProgress`, `pageFactoryItems`);
- * `readFactoryItemsPage` reads the store once per page and feeds them, and `readFactoryItem`
- * reads one item the same way, adding each run's timeline facts (`FactoryItemRun`). Whether a change
- * merged is the caller's lookup (`changeState`), since only the server reaches the forge.
+ * The derivation is pure (`factoryRunFacts`, `factoryItemProgress`); `readFactoryProgress`
+ * reads the store once for a set of items and feeds them, and `readFactoryItem` reads one
+ * item whole, adding each run's timeline facts (`FactoryItemRun`). Whether a change merged
+ * is the caller's lookup (`changeState`), since only the server reaches the forge.
  */
 import { z } from 'zod';
 import { factoryRunWorkflowName } from './factory-views';
@@ -19,7 +19,6 @@ import {
   type ItemReadSource,
 } from './item-read';
 import { resolveJsonPointer } from './json-pointer';
-import { MetricsQueryError, resolveMetricsWindow } from './metrics';
 import type { JsonValue } from './output-ref';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
@@ -58,7 +57,10 @@ export const factoryChangeMergedSchema = z.union([z.boolean(), z.literal('unknow
 export type FactoryChangeMerged = z.infer<typeof factoryChangeMergedSchema>;
 
 export const factoryItemProgressSchema = z.object({
-  /** The declared run input's first line, without a leading `#<n> `; null when no run carries it. */
+  /**
+   * The declared run input's title line, after any front matter, without a leading `#<n> ` or
+   * heading marker; null when no run carries one.
+   */
   title: z.string().nullable(),
   /** The latest-started running run of a declared workflow; null when none runs. */
   running: z
@@ -142,19 +144,6 @@ export const factoryItemSchema = itemReadSchema.extend({
   progress: factoryItemProgressSchema.nullable(),
 });
 export type FactoryItem = z.infer<typeof factoryItemSchema>;
-
-export const factoryItemsPageSchema = z.object({
-  /** The pack whose view the progress was derived with. */
-  pack: z.string(),
-  /** Newest activity first. */
-  items: z.array(factoryItemSchema),
-  /** Pass as `after` for the next page; null when there is none. */
-  next: z.string().nullable(),
-});
-export type FactoryItemsPage = z.infer<typeof factoryItemsPageSchema>;
-
-/** A query the caller sent that cannot be answered as asked: the caller's 400. */
-export class FactoryItemsQueryError extends Error {}
 
 /** What one run of a declared workflow contributes to its item's progress. */
 export interface FactoryRunFacts {
@@ -261,16 +250,39 @@ export function factoryRunFacts(
   };
 }
 
-/** The first line of the declared input, without a leading `#<n> `. */
+/** The title of the newest declared run whose declared input has one. */
 function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | null {
   if (view.itemTitle === undefined) return null;
   for (const run of [...runs].reverse()) {
     const value = readSubrunMetadata(run.metadata).inputs?.[view.itemTitle.input];
     if (typeof value !== 'string') continue;
-    const line = (value.split(/\r?\n/, 1)[0] ?? '').replace(/^#\d+ /, '').trim();
-    if (line !== '') return line;
+    const title = titleOfItemText(value);
+    if (title !== null) return title;
   }
   return null;
+}
+
+/**
+ * An item text's title line: the first non-empty line after any `---` front matter, without a
+ * leading `#<n> ` or markdown heading marker. An item an order made opens with front matter
+ * (`id`, `source`), then `# Title`; an older item opens with `#<n> Title`. Null when there is
+ * no such line, including an unterminated front matter, so the board never shows `---`.
+ */
+export function titleOfItemText(text: string): string | null {
+  let lines = text.split(/\r?\n/);
+  if (lines[0]?.trim() === '---') {
+    const close = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+    if (close === -1) return null;
+    lines = lines.slice(close + 1);
+  }
+  const line = lines.find(candidate => candidate.trim() !== '');
+  if (line === undefined) return null;
+  const title = line
+    .trim()
+    .replace(/^#\d+ /, '')
+    .replace(/^#{1,6}(\s+|$)/, '')
+    .trim();
+  return title === '' ? null : title;
 }
 
 /**
@@ -364,99 +376,8 @@ async function runBranches(
   return [...new Set(branches.filter((branch): branch is string => branch !== null))];
 }
 
-/** One of a project's items with its latest activity, as the project listing returns it. */
-export interface FactoryListedItem {
-  id: string;
-  key: string;
-  /** ISO time of the item's latest run activity, else when the item was created. */
-  activityAt: string;
-}
-
-export interface FactoryItemsQuery {
-  since?: string;
-  limit?: number;
-  after?: string;
-}
-
-export const FACTORY_ITEMS_DEFAULT_LIMIT = 50;
-export const FACTORY_ITEMS_MAX_LIMIT = 100;
-
-const cursorSchema = z.strictObject({
-  codebaseId: z.string(),
-  since: z.string().datetime().nullable(),
-  at: z.string().datetime(),
-  id: z.string(),
-});
-type Cursor = z.infer<typeof cursorSchema>;
-
-function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor)).toString('base64url');
-}
-
-function decodeCursor(after: string, codebaseId: string): Cursor {
-  let parsed: z.ZodSafeParseResult<Cursor>;
-  try {
-    parsed = cursorSchema.safeParse(JSON.parse(Buffer.from(after, 'base64url').toString('utf8')));
-  } catch {
-    throw new FactoryItemsQueryError('after is not a cursor this route returned');
-  }
-  if (!parsed.success)
-    throw new FactoryItemsQueryError('after is not a cursor this route returned');
-  if (parsed.data.codebaseId !== codebaseId)
-    throw new FactoryItemsQueryError('after is a cursor for another project');
-  return parsed.data;
-}
-
-function resolveSince(since: string | undefined, now: Date): string | null {
-  if (since === undefined) return null;
-  try {
-    return resolveMetricsWindow({ since }, now).since.toISOString();
-  } catch (error) {
-    if (error instanceof MetricsQueryError) throw new FactoryItemsQueryError(error.message);
-    throw error;
-  }
-}
-
 /**
- * One page of `listed`, newest activity first, ties by item id. `since` keeps items active
- * at or after it; `after` continues from a cursor `next` returned, which carries its own
- * `since` and refuses one passed beside it.
- */
-export function pageFactoryItems(
-  listed: readonly FactoryListedItem[],
-  query: FactoryItemsQuery,
-  codebaseId: string,
-  now: Date = new Date()
-): { items: FactoryListedItem[]; next: string | null } {
-  if (query.after !== undefined && query.since !== undefined)
-    throw new FactoryItemsQueryError('after carries its own since; pass one or the other');
-  const cursor = query.after === undefined ? null : decodeCursor(query.after, codebaseId);
-  const since = cursor === null ? resolveSince(query.since, now) : cursor.since;
-  const limit = query.limit ?? FACTORY_ITEMS_DEFAULT_LIMIT;
-  const at = (item: FactoryListedItem | Cursor): number =>
-    Date.parse('activityAt' in item ? item.activityAt : item.at);
-  const ordered = listed
-    .filter(item => since === null || at(item) >= Date.parse(since))
-    .sort((a, b) => at(b) - at(a) || a.id.localeCompare(b.id))
-    .filter(
-      item =>
-        cursor === null ||
-        at(item) < at(cursor) ||
-        (at(item) === at(cursor) && item.id.localeCompare(cursor.id) > 0)
-    );
-  const items = ordered.slice(0, limit);
-  const last = items.at(-1);
-  return {
-    items,
-    next:
-      ordered.length > limit && last !== undefined
-        ? encodeCursor({ codebaseId, since, at: last.activityAt, id: last.id })
-        : null,
-  };
-}
-
-/**
- * Facts of runs that ended, kept across page reads so a refetch loads events only for
+ * Facts of runs that ended, kept across reads so a refetch loads events only for
  * runs still going. Keyed by status and end time too, since a failed run can be resumed
  * and end again, and by the declaration parts the facts read, since a view is re-read on
  * every request and may have changed. Bounded; the oldest entry goes first.
@@ -494,7 +415,7 @@ export class FactoryRunFactsMemo {
   }
 }
 
-/** What reading items for a view needs, whether a page of them or one. */
+/** What reading items for a view needs, whether the progress of several or one item whole. */
 export interface ReadFactoryItemsInput {
   view: FactoryView;
   pack: string;
@@ -503,14 +424,6 @@ export interface ReadFactoryItemsInput {
   memo: FactoryRunFactsMemo;
   /** Called when one item's progress could not be derived; that item gets `progress: null`. */
   onProgressError: (itemId: string, error: unknown) => void;
-}
-
-export interface ReadFactoryItemsPageInput extends ReadFactoryItemsInput {
-  codebaseId: string;
-  query: FactoryItemsQuery;
-  /** The project's items with their latest activity, read only. */
-  listProjectItems: (projectKey: string) => Promise<FactoryListedItem[]>;
-  now?: Date;
 }
 
 type FoundItem = NonNullable<Awaited<ReturnType<typeof readItemRuns>>>;
@@ -550,7 +463,7 @@ async function runFactsFor(
 
 /**
  * The factory reads of the items `readItemRuns` found, against one read of the attention
- * queue, with the facts of their declared runs: the one path a page and a single item share.
+ * queue, with the facts of their declared runs.
  */
 async function readFoundItems(
   source: ItemReadSource,
@@ -571,27 +484,39 @@ async function readFoundItems(
   return { items: read.filter((item): item is FactoryItem => item !== null), facts };
 }
 
-/** A page of the project's items, each its `ItemRead` plus `progress`. */
-export async function readFactoryItemsPage(
+export const factoryProgressSchema = z.object({
+  /** The pack whose view the progress was derived with. */
+  pack: z.string(),
+  /**
+   * Each asked item's progress, by key; null when it could not be derived. A key the
+   * project has no item under is left out.
+   */
+  progress: z.record(z.string(), factoryItemProgressSchema.nullable()),
+});
+export type FactoryProgress = z.infer<typeof factoryProgressSchema>;
+
+/**
+ * The progress of the items `keys` name, reading their runs and the facts of their declared
+ * runs once for all of them. The item reads themselves are the engine's window's.
+ */
+export async function readFactoryProgress(
   source: ItemReadSource,
-  input: ReadFactoryItemsPageInput
-): Promise<FactoryItemsPage> {
-  const { pack, projectKey, codebaseId, query } = input;
-  const page = pageFactoryItems(
-    await input.listProjectItems(projectKey),
-    query,
-    codebaseId,
-    input.now
-  );
-  if (page.items.length === 0) return { pack, items: [], next: page.next };
+  input: ReadFactoryItemsInput,
+  keys: readonly string[]
+): Promise<FactoryProgress> {
   const found: FoundItem[] = [];
-  for (const listed of page.items) {
-    const item = await readItemRuns(source.store, projectKey, listed.key);
-    // An item deleted since the listing is no longer the project's.
+  for (const key of new Set(keys)) {
+    const item = await readItemRuns(source.store, input.projectKey, key);
     if (item !== null) found.push(item);
   }
-  const { items } = await readFoundItems(source, input, found);
-  return { pack, items, next: page.next };
+  const facts = await runFactsFor(source, input, found);
+  // Together: each may wait on the change host for a merge state no request has read yet.
+  const read = await Promise.all(
+    found.map(
+      async item => [item.item.key, await itemProgress(source, input, item, facts)] as const
+    )
+  );
+  return { pack: input.pack, progress: Object.fromEntries(read) };
 }
 
 /**
@@ -632,7 +557,7 @@ export const factoryItemDetailSchema = z.object({
 });
 export type FactoryItemDetail = z.infer<typeof factoryItemDetailSchema>;
 
-/** The item `key` names, read as one entry of a page is, with each run's timeline facts. */
+/** The item `key` names, its read and progress, with each run's timeline facts. */
 export async function readFactoryItem(
   source: ItemReadSource,
   input: ReadFactoryItemsInput,

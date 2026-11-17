@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link } from 'react-router';
 import { errorDetail } from '../lib/http';
-import { useFactoryBoardItems } from './board-items';
+import { useFactoryItems } from './useFactoryItems';
 import { boardModel, type FactoryDeclaration } from './lib/board';
 import type { BoardShow } from './lib/board-show';
 import { durationWords } from './lib/duration';
@@ -63,7 +63,7 @@ export function FactoryNumbers({
   projectId: string;
   view: FactoryDeclaration;
 }): ReactElement {
-  const items = useFactoryBoardItems(projectId);
+  const items = useFactoryItems(projectId);
   const now = useMinuteClock();
   const numbers = useMemo(
     () =>

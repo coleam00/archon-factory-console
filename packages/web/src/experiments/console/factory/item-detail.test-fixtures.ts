@@ -26,5 +26,22 @@ export const shippedView: FactoryViewListed['declaration'] = JSON.parse(
   )
 ) as FactoryViewListed['declaration'];
 
+/**
+ * The shipped declaration as `GET /api/factory/views` lists it: its pack key, and each
+ * workflow's run name as runs record it and the pack graph's stages carry it.
+ */
+export const shippedListed: FactoryViewListed = {
+  pack: shippedView.pack,
+  packKey: 'Wirasm.archon-software-factory',
+  runNames: Object.fromEntries(
+    shippedView.stages.flatMap(stage =>
+      stage.workflows.map(workflow => [workflow, `${shippedView.pack}:${workflow}`])
+    )
+  ),
+  source: 'project-file',
+  path: '/repo/.archon/packs/Wirasm.archon-software-factory.factory-view.json',
+  declaration: shippedView,
+};
+
 /** The project the fixtures' links name. */
 export const PROJECT = 'c9a89726701fe4be95346226c359a961';

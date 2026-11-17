@@ -2,8 +2,15 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "Software factory",
-  "summary": "GitHub issues come in as items. Triage decides whether each one is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A change that is ready waits for a person to land it. A person steps in only to answer the questions an item asks.",
+  "summary": "Work comes in as work orders. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A change that is ready passes a gate, then waits for a person to land it. A person steps in only to answer the questions an item asks.",
   "stages": [
+    {
+      "id": "order",
+      "label": "Order",
+      "blurb": "Takes a work order and makes it one item the factory can read.",
+      "group": "intake",
+      "workflows": ["order"]
+    },
     {
       "id": "triage",
       "label": "Triage",
@@ -52,7 +59,7 @@
     {
       "id": "ready",
       "label": "Ready to land",
-      "blurb": "The change is approved and waits for a person to land it.",
+      "blurb": "A gate checks the approved change, then it waits for a person to land it.",
       "group": "land",
       "workflows": ["landgate", "land"]
     },
@@ -65,6 +72,7 @@
     }
   ],
   "placement": {
+    "order:ready": "triage",
     "triage:build": "plan",
     "triage:narrow": "plan",
     "plan:planned": "build",
@@ -74,11 +82,13 @@
     "deliver:returned": "build",
     "deliver:replan": "plan",
     "deliver:ask": "build",
+    "landgate:*": "ready",
     "land:landed": "landed",
     "land:returned": "build",
     "land:ask": "ready"
   },
   "endings": {
+    "order:refused": "Refused at intake",
     "triage:*": "Closed by triage",
     "plan:stop": "Stopped at planning",
     "land:stop": "Stopped at landing"
@@ -94,24 +104,21 @@
   "itemTitle": { "input": "item" },
   "map": {
     "cards": [
-      { "stage": "triage", "col": 1, "row": 1 },
-      { "stage": "plan", "col": 2, "row": 1 },
-      { "stage": "build", "col": 3, "row": 1 },
-      { "stage": "checks", "col": 4, "row": 1 },
-      { "stage": "host", "col": 1, "row": 2 },
-      { "stage": "ready", "col": 2, "row": 2 },
-      { "stage": "landed", "col": 3, "row": 2 }
+      { "stage": "order", "col": 1, "row": 1 },
+      { "stage": "triage", "col": 2, "row": 1 },
+      { "stage": "plan", "col": 3, "row": 1 },
+      { "stage": "build", "col": 4, "row": 1 },
+      { "stage": "checks", "col": 1, "row": 2 },
+      { "stage": "host", "col": 2, "row": 2 },
+      { "stage": "ready", "col": 3, "row": 2 },
+      { "stage": "landed", "col": 4, "row": 2 }
     ],
     "arrows": [
-      { "from": "triage", "to": "plan", "label": "build" },
-      { "from": "plan", "to": "build", "label": "planned" },
       { "from": "build", "to": "checks", "label": "built" },
       { "from": "checks", "to": "host", "label": "approved" },
-      { "from": "host", "to": "ready", "label": "ready" },
-      { "from": "ready", "to": "landed", "label": "landed" },
+      { "from": "ready", "to": "landed", "label": "merged" },
       { "from": "checks", "to": "build", "label": "returned", "back": true },
-      { "from": "host", "to": "build", "label": "returned", "back": true },
-      { "from": "checks", "to": "plan", "label": "replan", "back": true }
+      { "from": "host", "to": "build", "label": "returned", "back": true }
     ],
     "notes": [{ "text": "You answer asks here", "near": "needs-you" }]
   }

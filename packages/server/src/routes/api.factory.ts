@@ -7,14 +7,12 @@
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { type ChangeMergeState, prRefFromAudits } from '@archon/adapters/forge-host';
 import {
-  FACTORY_ITEMS_MAX_LIMIT,
-  FactoryItemsQueryError,
   FactoryRunFactsMemo,
   readFactoryItem,
-  readFactoryItemsPage,
+  readFactoryProgress,
   type FactoryChangeState,
-  type FactoryListedItem,
 } from '@archon/workflows/factory-items';
+import { ITEM_WINDOW_MAX_LIMIT } from '@archon/workflows/item-window';
 import {
   discoverFactoryOverviews,
   factoryOverviewForPack,
@@ -41,8 +39,8 @@ import {
 } from './api-route-kit';
 import {
   factoryItemDetailResponseSchema,
-  factoryItemsPageResponseSchema,
   factoryOverviewResponseSchema,
+  factoryProgressResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
 } from './schemas/factory.schemas';
@@ -97,40 +95,30 @@ const getFactoryOverviewRoute = createRoute({
   },
 });
 
-const factoryItemsQuerySchema = z.object({
-  codebaseId: z.string().min(1).openapi({ description: 'The project whose items to page.' }),
-  since: z.string().min(1).optional().openapi({
-    description:
-      'Only items active at or after this: a duration back from now (40m, 24h, 7d, 2w) or an ISO date or time. Not with `after`, whose cursor carries its own.',
-  }),
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(FACTORY_ITEMS_MAX_LIMIT)
-    .optional()
-    .openapi({ description: 'Items per page; 50 when omitted.' }),
-  after: z
-    .string()
-    .min(1)
-    .optional()
-    .openapi({ description: 'The `next` cursor a previous page returned.' }),
+const factoryProgressQuerySchema = z.object({
+  codebaseId: z.string().min(1).openapi({ description: 'The project the items belong to.' }),
+  keys: z
+    .union([z.string().min(1), z.array(z.string().min(1)).min(1).max(ITEM_WINDOW_MAX_LIMIT)])
+    .openapi({
+      description:
+        "The items' keys, as `GET /api/items` takes them: repeat `keys` once per item, up to a page of `GET /api/items/window`.",
+    }),
 });
 
-const getFactoryItemsRoute = createRoute({
+const getFactoryProgressRoute = createRoute({
   method: 'get',
-  path: '/api/factory/items',
+  path: '/api/factory/progress',
   tags: ['Workflows'],
-  summary: "A page of a project's items with each item's progress",
+  summary: "The board progress of a project's items, by key",
   description:
-    "Newest activity first. Each entry is the item's read, as `GET /api/items` returns it, plus `progress` derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, and its change, with whether that merged as the change host reports it (cached on the server).",
-  request: { query: factoryItemsQuerySchema },
+    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, its title, and its change, with whether that merged as the change host reports it (cached on the server). A key the project has no item under is left out; an item whose progress could not be derived reads null.',
+  request: { query: factoryProgressQuerySchema },
   responses: {
     200: {
-      content: { 'application/json': { schema: factoryItemsPageResponseSchema } },
+      content: { 'application/json': { schema: factoryProgressResponseSchema } },
       description: 'OK',
     },
-    400: jsonError('Invalid since or cursor'),
+    400: jsonError('Invalid query'),
     404: jsonError('Codebase not found, or no factory view applies to it'),
     500: jsonError('Server error'),
   },
@@ -176,7 +164,7 @@ const getFactoryItemRoute = createRoute({
   tags: ['Workflows'],
   summary: 'One item with its progress and the timeline facts of each of its runs',
   description:
-    "The item as one entry of `GET /api/factory/items` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, and each round of the declared rounds loop with the steps that recorded an outcome in it.",
+    "The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, and each round of the declared rounds loop with the steps that recorded an outcome in it.",
   request: { query: factoryItemQuerySchema },
   responses: {
     200: {
@@ -203,11 +191,10 @@ export interface FactoryRouteDeps {
   /** Which of these run names (as runs record them) the codebase has any run of. */
   ranWorkflows: (codebaseId: string, names: readonly string[]) => Promise<ReadonlySet<string>>;
   itemsSource: ItemReadSource;
-  listProjectItems: (projectKey: string) => Promise<FactoryListedItem[]>;
   changeMergeState: ChangeMergeLookup;
   /** Workflow discovery for a project, as runs see it. */
   discoverWorkflows: (cwd: string) => Promise<WorkflowLoadResult>;
-  /** How long one page waits on a lookup no request has made yet; tests shorten it. */
+  /** How long one read waits on a lookup no request has made yet; tests shorten it. */
   changeStateWaitMs?: number;
   now?: () => number;
 }
@@ -215,7 +202,7 @@ export interface FactoryRouteDeps {
 /** How long a change that has not merged keeps its answer. A merge does not come undone. */
 const CHANGE_STATE_TTL_MS = 60_000;
 /**
- * A forge read retries temporary failures for about 7 s; a page answers before that and
+ * A forge read retries temporary failures for about 7 s; a read answers before that and
  * the lookup finishes into the cache for the next one.
  */
 const CHANGE_STATE_WAIT_MS = 4_000;
@@ -354,7 +341,7 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     const project = await deps.codebase(codebaseId);
     if (project === null) return apiError(c, 404, 'Codebase not found');
     try {
-      // The view the page route reads, so an item reads here as it does on the board.
+      // The view the progress route reads, so an item reads here as it does on the board.
       const roots = await projectRoots(deps, project.cwd);
       const [view] = (await applyingViews(deps, codebaseId, roots)).views;
       if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
@@ -380,8 +367,8 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     }
   });
 
-  register(getFactoryItemsRoute, async c => {
-    const { codebaseId, ...query } = getValidatedQuery(c, factoryItemsQuerySchema);
+  register(getFactoryProgressRoute, async c => {
+    const { codebaseId, keys } = getValidatedQuery(c, factoryProgressQuerySchema);
     const project = await deps.codebase(codebaseId);
     if (project === null) return apiError(c, 404, 'Codebase not found');
     try {
@@ -389,24 +376,24 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
       const roots = await projectRoots(deps, project.cwd);
       const [view] = (await applyingViews(deps, codebaseId, roots)).views;
       if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
-      const page = await readFactoryItemsPage(deps.itemsSource, {
-        view: view.declaration,
-        pack: view.pack,
-        projectKey: project.projectKey,
-        codebaseId,
-        query,
-        listProjectItems: deps.listProjectItems,
-        changeState,
-        memo,
-        onProgressError: (itemId, error) => {
-          getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');
+      const progress = await readFactoryProgress(
+        deps.itemsSource,
+        {
+          view: view.declaration,
+          pack: view.pack,
+          projectKey: project.projectKey,
+          changeState,
+          memo,
+          onProgressError: (itemId, error) => {
+            getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');
+          },
         },
-      });
-      return c.json(page);
+        typeof keys === 'string' ? [keys] : keys
+      );
+      return c.json(progress);
     } catch (error) {
-      if (error instanceof FactoryItemsQueryError) return apiError(c, 400, error.message);
-      getLog().error({ err: error, codebaseId }, 'factory_items_read_failed');
-      return apiError(c, 500, 'Failed to read the factory items');
+      getLog().error({ err: error, codebaseId }, 'factory_progress_read_failed');
+      return apiError(c, 500, 'Failed to read the factory progress');
     }
   });
 

@@ -5,7 +5,7 @@ import type { FactoryItemDetail, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { itemDetail, PROJECT, shippedView } from './item-detail.test-fixtures';
+import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { PILL_CLASS } from './BoardCard';
 import { ItemPage } from './ItemPage';
 import { itemPill } from './lib/board';
@@ -19,14 +19,7 @@ afterEach(() => {
 });
 
 const listing: FactoryViews = {
-  views: [
-    {
-      pack: 'Wirasm/archon-software-factory',
-      source: 'project-file',
-      path: '/repo/.archon/packs/Wirasm.archon-software-factory.factory-view.json',
-      declaration: shippedView,
-    },
-  ],
+  views: [shippedListed],
   errors: [],
 };
 const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
