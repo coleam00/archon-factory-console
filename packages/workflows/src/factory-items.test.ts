@@ -237,26 +237,40 @@ async function progressOf(
 
 describe("an item's progress", () => {
   test("the change lookup gets the declared runs' branches, newest first, once each", async () => {
-    const recorded: Record<string, string | null> = {
-      [triage1.run.id]: null,
-      [plan1.run.id]: 'shared',
-      [deliver1.run.id]: 'deliver-branch',
-    };
+    // The newest declared run has its own branch; two older declared runs share one, so it
+    // is read once. A newer run of a workflow the view does not declare has no facts and
+    // its branch is never offered.
     const later = {
       ...deliver1,
       run: { ...deliver1.run, id: 'later', started_at: new Date('2027-01-01') },
     };
-    recorded.later = 'shared';
+    const undeclared = {
+      ...deliver1.run,
+      id: 'undeclared',
+      workflow_name: 'someone/else:deliver',
+      started_at: new Date('2027-02-01'),
+    };
+    const recorded: Record<string, string | null> = {
+      [triage1.run.id]: null,
+      [plan1.run.id]: 'shared',
+      [deliver1.run.id]: 'shared',
+      later: 'later-branch',
+      undeclared: 'other',
+    };
+    const declared = [triage1, plan1, deliver1, later];
     const read: string[][] = [];
-    await progressOf(
-      [triage1, plan1, deliver1, later],
+    await factoryItemProgress(
+      view,
+      PACK,
+      [...declared.map(entry => entry.run), undeclared],
+      new Map(declared.map(entry => [entry.run.id, factsOf(entry)])),
       async (_url, _audits, branches) => {
         read.push([...(await branches())]);
         return { merged: false, mergedAt: null, number: null };
       },
       async run => recorded[run.id] ?? null
     );
-    expect(read).toEqual([['shared', 'deliver-branch']]);
+    expect(read).toEqual([['later-branch', 'shared']]);
   });
 
   test('item 1 after its deliver run: title, round 2 of 3, returned twice, its change', async () => {
