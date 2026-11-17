@@ -21,8 +21,11 @@ type WaitOption = AttentionWait['options'][number];
 /** Sends a chosen answer; throws the server's refusal. */
 export type SubmitAnswer = (choose: string[], text: string | undefined) => Promise<void>;
 
-/** True for a wait paused before answers existed; only `resume` continues it. */
-export function isLegacyAttention(attention: Attention): boolean {
+/**
+ * True for a wait paused before answers existed; only `resume` continues it. Takes the
+ * occurrence alone so a run's attention and a queue item's run share this one check.
+ */
+export function isLegacyAttention(attention: { occurrence: string }): boolean {
   return attention.occurrence.startsWith('legacy:');
 }
 
@@ -227,11 +230,15 @@ export function AttentionAnswerPanel({
 }): ReactElement | null {
   if (isLegacyAttention(attention)) return null;
   const submit: SubmitAnswer = async (choose, text) => {
-    if (!run.id.startsWith('demo-')) {
-      await skill.answerRun(run.id, attention.occurrence, choose, text);
+    try {
+      if (!run.id.startsWith('demo-')) {
+        await skill.answerRun(run.id, attention.occurrence, choose, text);
+      }
+    } finally {
+      // A refusal usually means the run moved on; refresh so the stale wait goes too.
+      invalidate('runs');
+      invalidate(K.run(run.id));
     }
-    invalidate('runs');
-    invalidate(K.run(run.id));
   };
   return <AttentionAnswerForm wait={attention} submit={submit} />;
 }

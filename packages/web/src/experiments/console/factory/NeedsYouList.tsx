@@ -1,6 +1,10 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { AttentionAnswerForm, type SubmitAnswer } from '../components/AttentionAnswerPanel';
+import {
+  AttentionAnswerForm,
+  isLegacyAttention,
+  type SubmitAnswer,
+} from '../components/AttentionAnswerPanel';
 import { ApprovalPanel } from '../components/ApprovalPanel';
 import { relativeTime } from '../lib/format';
 import { errorDetail } from '../lib/http';
@@ -12,12 +16,16 @@ import { factoryPath } from './lib/views';
 
 /**
  * Answer a queue item by its ref, then refresh every `runs` key: the project's queue (the
- * answered item leaves it on that read) and the runs feed the answer moved on.
+ * answered item leaves it on that read) and the runs feed the answer moved on. A refusal
+ * refreshes too: it usually means the item closed, so the stale row should go.
  */
 export function answerByRef(ref: string): SubmitAnswer {
   return async (choose, text) => {
-    await skill.answerAttentionItem(ref, { choose, ...(text === undefined ? {} : { text }) });
-    invalidate('runs');
+    try {
+      await skill.answerAttentionItem(ref, { choose, ...(text === undefined ? {} : { text }) });
+    } finally {
+      invalidate('runs');
+    }
   };
 }
 
@@ -142,7 +150,7 @@ function RowContent({
               {item.context}
             </p>
           )}
-          {item.run?.occurrence.startsWith('legacy:') === true ? (
+          {item.run !== undefined && isLegacyAttention(item.run) ? (
             <RunLink projectId={projectId} runId={item.run.id}>
               Paused before answers existed; resume it from the run
             </RunLink>

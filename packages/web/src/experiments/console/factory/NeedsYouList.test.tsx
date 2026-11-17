@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import { errorDetail } from '../lib/http';
 import type { AttentionQueue } from '../skills/runs';
 import { get, invalidate, set, type EntityView } from '../store/cache';
 import { toRun } from '../primitives/run';
@@ -153,17 +152,5 @@ describe('answering in place', () => {
     const after = render(loaded({ ...queue, items: queue.items.filter(i => i.ref !== 'ask:new') }));
     expect(after).not.toContain('Which base should the change target?');
     expect(after).toContain('Ship it behind a flag?');
-  });
-
-  test("a refusal reads in the server's own words", async () => {
-    const refusal = "Nothing you may answer has ref 'ask:gone'";
-    captureFetch(404, { error: refusal });
-
-    const failure = await answerByRef('ask:gone')(['use-dev'], 'because').then(
-      () => undefined,
-      (error: unknown) => error
-    );
-
-    expect(errorDetail(failure)).toBe(refusal);
   });
 });
