@@ -70,9 +70,21 @@ describe('requestJson errors', () => {
 });
 
 describe('errorDetail', () => {
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    (globalThis as { window?: unknown }).window = originalWindow;
+  });
+
   test('HttpError → parsed server message', () => {
     const err = new HttpError(403, '/api/workflows/foo', JSON.stringify({ error: 'denied' }));
     expect(errorDetail(err)).toBe('denied');
+  });
+
+  test('a refusal longer than the snippet reads in full', async () => {
+    const refusal = `Nothing you may answer has ref '${'x'.repeat(240)}'`;
+    respond(404, JSON.stringify({ error: refusal }));
+
+    expect(errorDetail(await caught())).toBe(refusal);
   });
 
   test('generic Error → message; non-Error → String()', () => {

@@ -301,3 +301,11 @@ export interface RunsAttention {
   runs: Run[];
   degraded: NonNullable<AttentionResponse['degraded']>;
 }
+
+/** One open item in the attention queue: an ask, a paused run's wait, or a run that cannot be read. */
+export type AttentionQueueItem = AttentionResponse['items'][number];
+
+/** A project's attention queue: its open items, the runs holding them, the runs that could not be read. */
+export interface AttentionQueue extends RunsAttention {
+  items: AttentionQueueItem[];
+}

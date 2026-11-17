@@ -46,3 +46,38 @@ jobs:
         run: bun run --cwd packages/server test
       - name: Web build
         run: bun run build:web
+
+  # The factory console's reads must work on Postgres as well as SQLite. Each test creates and
+  # drops its own scratch database; each file replaces the connection module, so each runs in
+  # its own process (as upstream's postgres job does).
+  postgres:
+    name: postgres
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Factory reads on Postgres
+        env:
+          ARCHON_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: |
+          shopt -s nullglob
+          for f in packages/core/src/db/factory-*.postgres.integration.test.ts packages/workflows/src/factory-*.postgres.integration.test.ts; do
+            printf '== %s\n' "$f"
+            bun test "$f" || exit 1
+          done

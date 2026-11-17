@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import { AttentionAnswerPanel } from './AttentionAnswerPanel';
+import { AttentionAnswerForm, AttentionAnswerPanel } from './AttentionAnswerPanel';
 import { RunActionBar } from './RunActionBar';
 import { toRun, type Run } from '../primitives/run';
 
@@ -38,10 +38,13 @@ test('a select wait is answered with the chosen option at its occurrence, never 
   let click: (() => void) | undefined;
   let resume: (() => void) | undefined;
   function Probe(): ReactElement | null {
+    // The panel is the run's wrapper around the form; render the form it returns.
     const panel = AttentionAnswerPanel({ run, attention });
-    click = buttonClick(panel, 'Use main');
+    if (!isValidElement<Parameters<typeof AttentionAnswerForm>[0]>(panel)) return null;
+    const form = AttentionAnswerForm(panel.props);
+    click = buttonClick(form, 'Use main');
     resume = buttonClick(RunActionBar({ run }), 'Resume');
-    return panel;
+    return form;
   }
   const html = renderToStaticMarkup(
     <MemoryRouter>
@@ -109,4 +112,37 @@ test('the recommendation and what each option does are shown before the choices'
   expect(html).toContain('Main has the fix.');
   expect(html).toContain('Rebases the branch onto main.');
   expect(html).toContain('Use main (recommended)');
+});
+
+test('the recommended option comes first, then the others with what each does and costs', () => {
+  const html = renderToStaticMarkup(
+    <AttentionAnswerForm
+      wait={{
+        form: 'select',
+        options: [
+          {
+            id: 'use-main',
+            label: 'Use main',
+            does: 'Rebases onto main.',
+            cost: 'Drops dev fixes.',
+          },
+          { id: 'use-dev', label: 'Use dev', does: 'Rebases onto dev.', cost: 'One more rebase.' },
+        ],
+        recommendation: { option: 'use-dev', why: 'Dev is the working base.' },
+      }}
+      submit={async () => {}}
+    />
+  );
+  const at = (text: string): number => {
+    const index = html.indexOf(text);
+    expect(index).toBeGreaterThanOrEqual(0);
+    return index;
+  };
+  expect(at('Recommended: Use dev')).toBeLessThan(at('Dev is the working base.'));
+  expect(at('Dev is the working base.')).toBeLessThan(at('Rebases onto dev.'));
+  expect(at('Cost: One more rebase.')).toBeLessThan(at('Use main'));
+  expect(at('Use main')).toBeLessThan(at('Rebases onto main.'));
+  expect(at('Rebases onto main.')).toBeLessThan(at('Cost: Drops dev fixes.'));
+  // The answer buttons follow the same order.
+  expect(at('Use dev (recommended)</button>')).toBeLessThan(at('>Use main</button>'));
 });

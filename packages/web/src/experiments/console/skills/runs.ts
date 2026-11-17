@@ -1,6 +1,11 @@
 import type { paths } from '@/lib/api.generated';
-import type { ListRunsOptions, RunsAttention } from '../primitives/run';
-export type { ListRunsOptions, RunsAttention } from '../primitives/run';
+import type { AttentionQueue, ListRunsOptions, RunsAttention } from '../primitives/run';
+export type {
+  AttentionQueue,
+  AttentionQueueItem,
+  ListRunsOptions,
+  RunsAttention,
+} from '../primitives/run';
 import { requestJson, buildApiUrl } from '../lib/http';
 import { toRun, type Run } from '../primitives/run';
 import { toRunEvent, type RunEvent, type RunNodeState } from '../primitives/event';
@@ -43,6 +48,27 @@ export async function listRunsNeedingAttention(): Promise<RunsAttention> {
   const res = await requestJson('/api/runs/attention', 'get');
   if (!('runs' in res)) throw new Error('Attention endpoint returned counts instead of runs');
   return { runs: res.runs.map(toRun), degraded: res.degraded ?? [] };
+}
+
+/** The open attention items of one project (a codebase id), with the runs holding them. */
+export async function listAttentionQueue(project: string): Promise<AttentionQueue> {
+  const res = await requestJson('/api/runs/attention', 'get', { query: { project } });
+  if (!('items' in res)) throw new Error('Attention endpoint returned counts instead of items');
+  return { items: res.items, runs: res.runs.map(toRun), degraded: res.degraded ?? [] };
+}
+
+type AnswerAttentionItemBody = components['schemas']['AnswerAttentionItemBody'];
+
+/**
+ * Answer an attention queue item by its ref: an ask no run holds, or a paused run's wait.
+ * The server decides who may answer and refuses a ref that is closed, moved or unknown.
+ */
+export async function answerAttentionItem(
+  ref: string,
+  answer: { choose: string[]; text?: string }
+): Promise<void> {
+  const body: AnswerAttentionItemBody = { ref, choose: answer.choose, text: answer.text };
+  await requestJson('/api/attention/answer', 'post', { body });
 }
 
 export async function listGlobalCounts(): Promise<RunCounts> {
