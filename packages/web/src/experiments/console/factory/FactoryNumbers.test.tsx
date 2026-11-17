@@ -7,7 +7,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FactoryNumbers } from './FactoryNumbers';
 import { PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
-import { cancelRereads } from './merge-reread';
+import { cancelRereads, MERGE_REREAD_MS, scheduleReread } from './merge-reread';
 
 // A failed read lands after the first render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -20,8 +20,10 @@ for (const [key, value] of Object.entries(globals)) {
 }
 const { createRoot } = await import('react-dom/client');
 const originalFetch = globalThis.fetch;
+let fetches = 0;
 globalThis.fetch = Object.assign(
   async (): Promise<Response> => {
+    fetches++;
     throw new Error('the server is down');
   },
   { preconnect: originalFetch.preconnect }
@@ -140,6 +142,28 @@ test('a failed refresh says so and keeps the last numbers', async () => {
       'Could not refresh: the server is down. Showing the last values read.'
     );
     expect(tile('done')).toBe('3 of 8done');
+  } finally {
+    await unmount();
+  }
+});
+
+test('while pending it reads again on its own, and keeps trying after a failed read', async () => {
+  const items = [...PAGE.items, readyWithMerge('p', 'pending')];
+  const { container, tile, unmount } = await mount('cb-reread', items);
+  try {
+    const before = fetches;
+    // Nothing invalidates the key here: only the hook's own re-read can fetch.
+    await act(async () => new Promise(resolve => setTimeout(resolve, MERGE_REREAD_MS + 100)));
+    await turns();
+    expect(fetches).toBeGreaterThan(before);
+    // The read failed: the pending values stay loading, and the note says why.
+    expect(tile('done')).toBe('…Loadingdone');
+    expect(container.querySelector('[role="status"]')?.textContent).toContain('Could not refresh');
+    // The failure scheduled the next re-read: a timer holds the key, so this one is a no-op.
+    const after = fetches;
+    scheduleReread(K.factoryItems('cb-reread'), 0);
+    await turns();
+    expect(fetches).toBe(after);
   } finally {
     await unmount();
   }
