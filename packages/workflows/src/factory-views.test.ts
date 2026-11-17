@@ -50,7 +50,7 @@ const view = (pack: string, title: string): FactoryView => ({
   placement: { 'deliver:ready': 'landed' },
   endings: {},
   landed: { stage: 'landed' },
-  map: { cards: [{ stage: 'build', col: 1, row: 1 }], arrows: [] },
+  map: { cards: [{ stage: 'build' }], arrows: [] },
 });
 
 async function write(path: string, content: unknown): Promise<void> {

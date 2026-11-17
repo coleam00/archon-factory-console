@@ -61,8 +61,13 @@ const mapSchema = z.strictObject({
   cards: z.array(
     z.strictObject({
       stage: stageIdSchema,
-      col: z.number().int().min(1),
-      row: z.number().int().min(1),
+      /*
+       * The map once placed cards on a grid. It now draws them in `stages` order, so a second
+       * order here could only disagree with that one; these are accepted, and ignored, so a
+       * view file written for the grid still loads.
+       */
+      col: z.number().int().min(1).optional(),
+      row: z.number().int().min(1).optional(),
     })
   ),
   /**
@@ -76,7 +81,7 @@ const mapSchema = z.strictObject({
       to: stageIdSchema,
       /** The outcome that moves an item along, in plain words. */
       label: labelSchema.optional(),
-      /** A return: routed below the row, in a lane of its own. */
+      /** A send-back: drawn in the map's one feedback lane under the stages. */
       back: z.boolean().optional(),
     })
   ),
@@ -158,13 +163,8 @@ function stageReferenceIssues(view: FactoryViewShape): Issue[] {
   };
   for (const [key, stage] of Object.entries(view.placement)) refer(['placement', key], stage);
   refer(['landed', 'stage'], view.landed.stage);
-  const cells = new Set<string>();
   view.map.cards.forEach((card, index) => {
     refer(['map', 'cards', index, 'stage'], card.stage);
-    const cell = `${String(card.col)},${String(card.row)}`;
-    if (cells.has(cell))
-      issues.push({ path: ['map', 'cards', index], message: `cell ${cell} holds another card` });
-    cells.add(cell);
   });
   view.map.arrows.forEach((arrow, index) => {
     refer(['map', 'arrows', index, 'from'], arrow.from);

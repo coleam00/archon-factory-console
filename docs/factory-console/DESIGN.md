@@ -138,7 +138,7 @@ present itself without the console knowing it. Shape (validated with zod in
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
-    "cards": [ { "stage": "build", "col": 4, "row": 1 } ],
+    "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
     "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // only inside one
                 { "from": "checks", "to": "build", "label": "returned", "back": true },  // workflow,
                 { "from": "ready", "to": "landed", "label": "merged" } ],  // or into landed
@@ -234,24 +234,33 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 ## The map
 
-- Cards laid out from `map.cards` on a grid, left to right in the order work flows. Each row
-  reads left to right; the author picks the grid, and four columns fill the Overview at 1440 px
-  at full size. A card shows the stage label, its blurb, and live chips: how many items are in
-  it now ("2 here", pulsing while a run works), how many wait on a person.
-- Arrows, labelled with the outcome that moves an item along. A hand-off from one workflow to
-  another comes from the pack graph read: it leaves the card a run of its stage ends on (the
-  stage whose `nodes` name the stage's returns node, else where its workflow sits) and enters
-  the card its workflow starts on. Arrows of one kind between the same two cards merge, their
-  outcomes joined. Solid: a trigger file in this install starts it. Dashed: the pack declares
-  it and nothing here starts it (all of them on `dev:console`, whose home has no trigger
-  files). Error colour, dashed: a trigger file starts it but the install's check refuses the
-  run, its problems as the title. Hand-offs inside one workflow, and the merge into Landed, come
-  from `map.arrows`. A return runs in a lane of the gap below its row.
-- An arrow back into its own card (a stage whose answered asks start it again) loops on the
-  card's outer edge: the top for the first row, the bottom for any other. On the same edge, the
-  outcomes of a stage that leaves no asks and that no arrow at all leaves end at a bar: they
-  start nothing. A start of a workflow with no card is listed under the map in one line. When
-  the graph cannot be read, the map draws the declared arrows and says why; when some of the
+- One card per stage `map.cards` lists, in `stages` order (the board's), in one row left to
+  right. The map wraps into two rows (the first half above) only where one row would draw its
+  text under the type floor; below that it pans. `col` and `row` on a card are accepted, so an
+  older view file still loads, and ignored. A card shows the stage label, its blurb, and live
+  chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
+  a person.
+- Forward arrows, labelled with the outcome that moves an item along, side to side between
+  cards next to each other. A hand-off from one workflow to another comes from the pack graph
+  read: it leaves the card a run of its stage ends on (the stage whose `nodes` name the
+  stage's returns node, else where its workflow sits) and enters the card its workflow starts
+  on. Arrows of one kind between the same two cards merge, their outcomes joined. Solid: a
+  trigger file in this install starts it. Dashed: the pack declares it and nothing here starts
+  it (all of them on `dev:console`, whose home has no trigger files). Error colour, dashed: a
+  trigger file starts it but the install's check refuses the run, its problems as the title.
+  Hand-offs inside one workflow, and the merge into Landed, come from `map.arrows`.
+- **One feedback lane** under the row carries every send-back: a declared return (`back:
+  true`), and a graph hand-off into its own card or an earlier one (answered asks starting a
+  stage again). Each send-back drops from its source to the lane, runs right to left along it,
+  and rises into its target; every send-back into one card shares one leg, labelled once with
+  all their outcomes, each outcome in its line's style. A stage started again by its own asks
+  is a short U on the lane under its card. Nothing in the lane crosses another line or a card.
+  In two rows the lane runs in the gap, below the forward hand-offs between the rows, which
+  cross it at right angles.
+- On a card's outer edge (the top of the first row, the bottom of the second) the outcomes of
+  a stage that leaves no asks and that no arrow at all leaves end at a bar: they start
+  nothing. A start of a workflow with no card is listed under the map in one line. When the
+  graph cannot be read, the map draws the declared arrows and says why; when some of the
   pack's workflows failed to load, it says the graph may be missing hand-offs.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
 - **Click** a card: the stage page, which draws each workflow's steps

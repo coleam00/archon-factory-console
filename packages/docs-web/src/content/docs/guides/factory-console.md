@@ -26,8 +26,10 @@ it. Inside it:
   **Open** a line to answer it in place, the recommended option first. The newest few show;
   **N more · show all** lists the rest. Paused runs' waits appear there too. Under the open
   asks, **Answered lately** lists the last asks an item settled and the stage that answer
-  started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the declared stages as cards on the
-  `map` grid, coloured by group, with the hand-offs between them. A hand-off from one
+  started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the stages `map.cards` lists, in
+  `stages` order in one row (two on a screen too narrow to read one), coloured by group, with
+  the hand-offs between them. Every send-back (a return, or a stage started again by answered
+  asks) runs in one feedback lane under the row, labelled once where it returns to. A hand-off from one
   workflow to another comes from the pack's stage graph for this install (`archon pack graph`):
   solid when a trigger file here starts it, dashed when the pack declares it and nothing here
   starts it, and in the error colour when the install refuses it. An outcome that starts
@@ -124,7 +126,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step is not reported; the step reads as its cleaned id. |
-| `map` | yes | The layout of the factory map: `cards` place each stage on a grid (`stage`, `col`, `row`, from 1), `arrows` join stages one workflow works, or run into the `landed` stage (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. A hand-off from one workflow to another is not declared: the map draws it from the pack's stage graph. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. An arrow between cards in different rows and columns, and every return, runs through the gap below the upper row, and a gap grows with the arrows it carries. Four columns fill a 1440px screen at full size; a wider grid fits smaller. |
+| `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` join stages one workflow works, or run into the `landed` stage (`from`, `to`, an optional `label` and `back: true` for a return), and optional `notes` sit near a stage or near `needs-you`. A hand-off from one workflow to another is not declared: the map draws it from the pack's stage graph. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back (`back: true`, or a graph hand-off into an earlier card or its own) runs in one feedback lane under the row. Eight cards fit one row of a 1440px screen; on a screen too narrow to read one row the map takes two. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
@@ -179,10 +181,10 @@ Every stage a field names must be declared in `stages`, and every workflow named
   "itemTitle": { "input": "item" },
   "map": {
     "cards": [
-      { "stage": "plan", "col": 1, "row": 1 },
-      { "stage": "build", "col": 2, "row": 1 },
-      { "stage": "review", "col": 3, "row": 1 },
-      { "stage": "landed", "col": 4, "row": 1 }
+      { "stage": "plan" },
+      { "stage": "build" },
+      { "stage": "review" },
+      { "stage": "landed" }
     ],
     "arrows": [
       { "from": "build", "to": "review" },

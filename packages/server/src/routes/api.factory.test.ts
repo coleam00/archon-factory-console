@@ -30,7 +30,7 @@ const declaration = (pack: string, title: string): Record<string, unknown> => ({
   placement: { 'deliver:ready': 'landed' },
   endings: {},
   landed: { stage: 'landed' },
-  map: { cards: [{ stage: 'build', col: 1, row: 1 }], arrows: [] },
+  map: { cards: [{ stage: 'build' }], arrows: [] },
 });
 
 async function projectWith(

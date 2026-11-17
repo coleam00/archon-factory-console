@@ -247,24 +247,29 @@ test('a later read on a step no stage names keeps the card where the last read p
 test('hand-offs between workflows come from the pack graph, solid where the install starts them', async () => {
   const { container, unmount } = await mount();
   try {
-    const drawn = [...container.querySelectorAll('g[data-arrow]')].map(
+    const drawn = [...container.querySelectorAll('g[data-arrow]:not([data-lane])')].map(
       g => `${g.textContent ?? ''} (${g.getAttribute('data-style') ?? ''})`
     );
-    // The declared hand-offs inside deliver and into Landed, then the graph's.
+    // The declared forward hand-offs inside deliver and into Landed, then the graph's.
     expect(drawn).toEqual([
       'built (solid)',
       'approved (solid)',
       'merged (solid)',
-      'returned (solid)',
-      'returned (solid)',
       'ready (solid)',
       // Stacked one outcome per line in the narrow gap between two cards.
       'build,narrow (solid)',
       'planned (solid)',
       'ready (solid)',
-      'asks answered (solid)',
-      'asks answered (solid)',
     ]);
+    // Every send-back is a line of the one feedback lane, labelled once where it returns to.
+    const lane = [...container.querySelectorAll('g[data-lane="feedback"]')];
+    expect(
+      lane.map(g => `${g.getAttribute('data-arrow') ?? ''} (${g.getAttribute('data-style') ?? ''})`)
+    ).toEqual(['decl:3 (solid)', 'decl:4 (solid)', 'graph:4 (solid)', 'graph:5 (solid)']);
+    const labels = [...container.querySelectorAll('g[data-lane-label]')].map(
+      g => `${g.getAttribute('data-lane-label') ?? ''}: ${g.textContent ?? ''}`
+    );
+    expect(labels).toEqual(['build: returned,asks answered', 'plan: asks answered']);
     // The outcomes that start nothing end at a bar on their card.
     expect(container.querySelector('g[data-ends="triage"]')?.textContent).toContain('decline');
     expect(container.querySelector('g[data-ends="order"]')?.textContent).toBe('refused');
@@ -285,8 +290,9 @@ test('an install that starts none of them draws every graph hand-off dashed, the
     const arrows = [...container.querySelectorAll('g[data-arrow]')];
     const graph = arrows.filter(g => g.getAttribute('data-arrow')?.startsWith('graph:'));
     const declared = arrows.filter(g => g.getAttribute('data-arrow')?.startsWith('decl:'));
-    // Five hand-offs between cards, and the loop on Plan.
+    // Four forward hand-offs between cards, and two send-backs in the feedback lane.
     expect(graph).toHaveLength(6);
+    expect(graph.filter(g => g.hasAttribute('data-lane'))).toHaveLength(2);
     expect(declared).toHaveLength(shippedListed.declaration.map.arrows.length);
     const dashed = (g: Element): boolean =>
       g.querySelector('path')?.hasAttribute('stroke-dasharray') ?? false;

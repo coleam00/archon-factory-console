@@ -42,7 +42,8 @@ function LineSwatch({ style }: { style: GraphArrowStyle }): ReactElement {
 
 /**
  * The colour groups the map draws, named in plain words in the order work reaches them, and
- * what its lines mean: a hand-off, one only declared, one refused, and an end.
+ * what its lines mean: a hand-off, one only declared, one refused, the feedback lane, and an
+ * end.
  */
 export function MapLegend({ stages }: { stages: readonly FactoryStage[] }): ReactElement {
   const shown = new Set(stages.map(stage => stage.group));
@@ -68,6 +69,17 @@ export function MapLegend({ stages }: { stages: readonly FactoryStage[] }): Reac
             {line.words}
           </li>
         ))}
+        <li className={ITEM}>
+          <svg aria-hidden="true" width="22" height="10" className="shrink-0">
+            <path
+              d="M19,1 V9 H3 V1"
+              fill="none"
+              stroke={ARROW_STROKE.solid.stroke}
+              strokeWidth={1.5}
+            />
+          </svg>
+          The line under the stages: what sends an item back, labelled where it returns to
+        </li>
         <li className={ITEM}>
           <svg aria-hidden="true" width="22" height="8" className="shrink-0">
             <path

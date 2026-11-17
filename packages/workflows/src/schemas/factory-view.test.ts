@@ -29,10 +29,7 @@ const minimal = (): FactoryView => ({
   endings: { 'plan:*': 'Stopped' },
   landed: { stage: 'landed' },
   map: {
-    cards: [
-      { stage: 'plan', col: 1, row: 1 },
-      { stage: 'build', col: 2, row: 1 },
-    ],
+    cards: [{ stage: 'plan' }, { stage: 'build' }],
     arrows: [{ from: 'build', to: 'landed', label: 'merged' }],
     notes: [{ text: 'You answer asks here', near: 'needs-you' }],
   },
@@ -135,11 +132,20 @@ describe('factoryViewSchema', () => {
     ]);
   });
 
-  test('two cards in one cell, and a note near nothing, are rejected', () => {
+  test('a card for an undeclared stage, and a note near nothing, are rejected', () => {
     const view = minimal();
-    view.map.cards[1] = { stage: 'build', col: 1, row: 1 };
+    view.map.cards[1] = { stage: 'nowhere' };
     view.map.notes = [{ text: 'Here', near: 'nowhere' }];
-    expect(issuePaths(view)).toEqual(['map.cards.1', 'map.notes.0.near']);
+    expect(issuePaths(view)).toEqual(['map.cards.1.stage', 'map.notes.0.near']);
+  });
+
+  test('a card written for the old grid still loads; its col and row are ignored', () => {
+    const view = minimal();
+    view.map.cards = [
+      { stage: 'plan', col: 1, row: 1 },
+      { stage: 'build', col: 1, row: 1 },
+    ];
+    expect(factoryViewSchema.safeParse(view).success).toBe(true);
   });
 
   test('an unknown field is rejected', () => {

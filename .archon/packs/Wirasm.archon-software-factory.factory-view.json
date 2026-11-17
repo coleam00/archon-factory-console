@@ -133,14 +133,14 @@
   },
   "map": {
     "cards": [
-      { "stage": "order", "col": 1, "row": 1 },
-      { "stage": "triage", "col": 2, "row": 1 },
-      { "stage": "plan", "col": 3, "row": 1 },
-      { "stage": "build", "col": 4, "row": 1 },
-      { "stage": "checks", "col": 1, "row": 2 },
-      { "stage": "host", "col": 2, "row": 2 },
-      { "stage": "ready", "col": 3, "row": 2 },
-      { "stage": "landed", "col": 4, "row": 2 }
+      { "stage": "order" },
+      { "stage": "triage" },
+      { "stage": "plan" },
+      { "stage": "build" },
+      { "stage": "checks" },
+      { "stage": "host" },
+      { "stage": "ready" },
+      { "stage": "landed" }
     ],
     "arrows": [
       { "from": "build", "to": "checks", "label": "built" },

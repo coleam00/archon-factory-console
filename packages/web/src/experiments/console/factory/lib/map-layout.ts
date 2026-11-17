@@ -1,48 +1,49 @@
 /**
- * Where the factory map draws its cards and arrows, in world units (px at zoom 1): cards on
- * the declaration's 1-based `map` grid; its declared arrows, and the pack graph's arrows
- * between workflows (`map-graph.ts`), routed alike: within a row from side to side, within a
- * column straight down, and every other arrow (every return, and a hand-off to another row
- * and column) in a lane of the gap below the upper of its two rows, so no arrow runs through
- * a card. Each gap grows with the lanes it carries. An arrow back into its own card, and the
- * outcomes that end on a card, are drawn on the card's outer edge (`map-stubs.ts`).
+ * Where the factory map draws its cards and arrows, in world units (px at zoom 1). The cards
+ * are the stages the declaration gives a `map` card, in `stages` order (the board's), in one
+ * row left to right; or in two, the first half above, when the frame is too narrow for one
+ * row at a readable size (`rowsFor` in map-camera.ts). The arrows are the declared ones and
+ * the pack graph's between workflows (`map-graph.ts`), in two kinds:
  *
- * Known limit: an arrow between rows more than one apart drops through the rows between.
+ * - A forward hand-off runs side to side between cards next to each other in a row. One that
+ *   skips cards runs in a lane off the row's outer edge; one between the two rows, in a lane
+ *   of the gap between them. Lanes are shared by arrows whose runs do not overlap.
+ * - Every send-back (a declared return, and a graph arrow into its own card or one earlier in
+ *   the order) is drawn in the one feedback lane (`map-feedback-lane.ts`): under the row, or in
+ *   the gap below the forward lanes there.
+ *
+ * The outcomes that end on a card are drawn on its outer edge (`map-stubs.ts`).
+ *
+ * Known limits: with two rows, a forward hand-off between the rows crosses the feedback lane,
+ * and a send-back leg from the upper row crosses the forward lanes, both at right angles. A
+ * lane that skips cards on a row's outer edge crosses the end line of a card it passes.
  */
 import type { GraphArrow, GraphArrowStyle, MapStub } from './map-graph';
-import { loopPath, stubPath, type LoopPath, type StubPath } from './map-stubs';
+import {
+  feedbackLane,
+  laneLabelRoom,
+  type LaneCard,
+  type LanePath,
+  type LaneLabel,
+  type SendBack,
+} from './map-feedback-lane';
+import { CARD_H, CARD_W, COL_PITCH, LANE, ROW_GAP } from './map-sizes';
+import { stubPath, type StubPath } from './map-stubs';
 import type { FactoryViewListed } from './views';
 
-type MapBlock = FactoryViewListed['declaration']['map'];
+export { CARD_H, CARD_W, COL_PITCH, LANE, ROW_GAP } from './map-sizes';
+
+type Declaration = FactoryViewListed['declaration'];
 
 /** An arrow to draw, declared or from the graph. A declared arrow is always `solid`. */
-interface Drawn {
+interface Drawn extends SendBack {
   /** Unique on the map: `decl:<index>` or `graph:<index>`. Two arrows may join one pair of cards. */
   id: string;
-  from: string;
-  to: string;
-  label: string | undefined;
-  /** Routed as a return: in a lane below the row, never side to side. */
+  /** A send-back: drawn in the feedback lane. */
   back: boolean;
   style: GraphArrowStyle;
-  problems: string[];
 }
 
-/*
- * Sized so a four-column row fits the Overview's frame (about 1100px wide at 1440x900) at
- * k = 1: 3 * COL_PITCH + CARD_W = 948, so titles draw at about 17px and blurbs, chips and
- * labels at about 15px, legible on a projected screen. A wider grid fits smaller, down to READABLE_K
- * (map-camera.ts); the declaration's author picks the grid. Taller cards cost nothing there,
- * since the fit is limited by width: they hold a whole blurb.
- */
-export const CARD_W = 180;
-export const CARD_H = 184;
-/** Room between columns for a forward arrow and its one-word label at 15px. */
-export const COL_PITCH = 256;
-/** The least room between rows, for a column arrow and its label. */
-export const ROW_GAP = 48;
-/** Vertical distance between lanes in a gap, and from the upper row to the first lane. */
-export const LANE = 26;
 /** Half the height a label takes, so bounds include labels drawn on a lane. */
 const LABEL_HALF = 10;
 
@@ -58,22 +59,25 @@ export interface Point {
   y: number;
 }
 
+/** A forward hand-off. */
 export interface ArrowPath extends Drawn {
   /** The SVG path, ending where the arrowhead points. */
   d: string;
   /** Where the label's centre goes. */
   labelAt: Point;
-  /** A lane arrow's lane in the gap below the upper of its rows, 0 nearest; else undefined. */
+  /** A lane arrow's lane, 0 nearest its row; undefined for one side to side. */
   lane: number | undefined;
 }
 
 export interface MapLayout {
   /** Each card's box, by stage id. A stage with no card has no box. */
   boxes: Map<string, Box>;
-  /** Every arrow between two cards: the declared ones in order, then the graph's. */
+  /** How many rows the cards take. */
+  rows: 1 | 2;
+  /** Every forward hand-off between two cards: the declared ones in order, then the graph's. */
   arrows: ArrowPath[];
-  /** Graph arrows back into the card they leave. */
-  loops: (LoopPath & Pick<Drawn, 'style' | 'problems'>)[];
+  /** Every send-back, in the one feedback lane, and one label per target. */
+  feedback: { paths: LanePath[]; labels: LaneLabel[] };
   /** Each card's ends: outcomes that start nothing. */
   stubs: StubPath[];
   /** The box holding every card, arrow and label; empty at the origin when there are no cards. */
@@ -88,9 +92,17 @@ export interface GraphLayer {
 
 interface Card {
   stage: string;
+  /** Its place in the map's order. */
+  pos: number;
+  row: 0 | 1;
   col: number;
-  row: number;
 }
+
+/**
+ * Where a forward lane runs: `above` the first row or `below` the second (a hand-off that
+ * skips cards in its row), or in the `gap` between the rows.
+ */
+type Region = 'above' | 'gap' | 'below';
 
 interface Placed {
   index: number;
@@ -99,182 +111,33 @@ interface Placed {
   b: Card;
 }
 
-/** A lane arrow: its gap (the row above it), its run between the card centres, and its lane. */
 interface Laned extends Placed {
-  gap: number;
+  region: Region;
   lo: number;
   hi: number;
 }
 
-const colX = (col: number): number => (col - 1) * COL_PITCH;
-const centreX = (box: Box): number => box.x + box.w / 2;
+const colX = (col: number): number => col * COL_PITCH;
 const centreY = (box: Box): number => box.y + box.h / 2;
 const bottom = (box: Box): number => box.y + box.h;
 
-/** Side to side within a row, straight down or up within a column; else it takes a lane. */
-const kindOf = (entry: Placed): 'side' | 'column' | 'lane' => {
-  if (entry.arrow.back) return 'lane';
-  if (entry.a.row === entry.b.row) return 'side';
-  return entry.a.col === entry.b.col ? 'column' : 'lane';
-};
-
-/**
- * A lane per arrow within one gap, shortest span first: an arrow takes the nearest lane no
- * arrow whose horizontal run overlaps its own already holds, so nested runs stack outward.
- */
-function assignLanes(laned: readonly Laned[]): Map<number, number> {
-  const lanes = new Map<number, number>();
-  const taken: { lo: number; hi: number; lane: number }[] = [];
-  const bySpan = [...laned].sort((p, q) => p.hi - p.lo - (q.hi - q.lo) || p.index - q.index);
-  for (const entry of bySpan) {
-    let lane = 0;
-    while (taken.some(t => t.lane === lane && t.lo <= entry.hi && entry.lo <= t.hi)) lane += 1;
-    taken.push({ lo: entry.lo, hi: entry.hi, lane });
-    lanes.set(entry.index, lane);
-  }
-  return lanes;
-}
-
-/** Each gap's lanes, run once per gap over that gap's arrows only. */
-function lanesByGap(laned: readonly Laned[]): Map<number, number> {
-  const lanes = new Map<number, number>();
-  for (const gap of new Set(laned.map(entry => entry.gap))) {
-    const inGap = laned.filter(entry => entry.gap === gap);
-    for (const [index, lane] of assignLanes(inGap)) lanes.set(index, lane);
-  }
-  return lanes;
-}
-
-/** Each row's top: a gap is ROW_GAP, or room for its lanes and one more, whichever is more. */
-function rowTops(
-  cards: readonly Card[],
-  laned: readonly Laned[],
-  lanes: ReadonlyMap<number, number>
-): number[] {
-  const rows = Math.max(0, ...cards.map(card => card.row));
-  const lanesIn = (row: number): number =>
-    Math.max(
-      0,
-      ...laned.filter(entry => entry.gap === row).map(entry => (lanes.get(entry.index) ?? 0) + 1)
-    );
-  const tops = [0];
-  for (let row = 1; row < rows; row += 1) {
-    tops.push((tops[row - 1] ?? 0) + CARD_H + Math.max(ROW_GAP, (lanesIn(row) + 1) * LANE));
-  }
-  return tops;
+/** The stages with a card, in `stages` order, one row or two. */
+function placeCards(view: Declaration, rows: 1 | 2): Card[] {
+  const carded = new Set(view.map.cards.map(card => card.stage));
+  const ordered = view.stages.filter(stage => carded.has(stage.id));
+  const perRow = rows === 1 ? ordered.length : Math.ceil(ordered.length / 2);
+  return ordered.map((stage, pos) => {
+    const row = pos < perRow ? 0 : 1;
+    return { stage: stage.id, pos, row, col: row === 0 ? pos : pos - perRow };
+  });
 }
 
 /**
- * Where each lane arrow meets a card edge: the upper card's bottom, the lower card's top, and
- * both bottoms for a return within a row. A card's attachments on an edge spread over the
- * middle half, off its exact centre (a column arrow's), those whose other end lies left on the
- * left. They are ordered by lane so lines do not cross: on a bottom edge the deeper lane runs
- * nearer the centre, on a top edge (where the deeper lane is nearer the card) nearer the corner.
- */
-function ports(
-  laned: readonly Laned[],
-  lanes: ReadonlyMap<number, number>,
-  boxes: ReadonlyMap<string, Box>
-): Map<string, number> {
-  const at = new Map<string, { key: string; other: number; lane: number }[]>();
-  const attach = (self: Card, other: Card, key: string, lane: number): void => {
-    const edge = self.row > other.row ? 'top' : 'bottom';
-    const list = at.get(`${self.stage}:${edge}`) ?? [];
-    list.push({ key, other: colX(other.col), lane });
-    at.set(`${self.stage}:${edge}`, list);
-  };
-  for (const entry of laned) {
-    const lane = lanes.get(entry.index) ?? 0;
-    attach(entry.a, entry.b, `${entry.index.toString()}:from`, lane);
-    attach(entry.b, entry.a, `${entry.index.toString()}:to`, lane);
-  }
-  const xs = new Map<string, number>();
-  for (const [where, list] of at) {
-    const [stage, edge] = where.split(':');
-    const box = stage === undefined ? undefined : boxes.get(stage);
-    if (box === undefined) continue;
-    // Left of centre runs outward-in, right of centre inward-out; a top edge reverses both.
-    const inward = edge === 'bottom' ? 1 : -1;
-    const left = list
-      .filter(entry => entry.other < box.x)
-      .sort((p, q) => inward * (p.lane - q.lane));
-    const right = list
-      .filter(entry => entry.other >= box.x)
-      .sort((p, q) => inward * (q.lane - p.lane));
-    const spread = (group: typeof list, start: number): void => {
-      const step = box.w / 4 / (group.length + 1);
-      group.forEach((entry, i) => xs.set(entry.key, start + step * (i + 1)));
-    };
-    spread(left, box.x + box.w / 4);
-    spread(right, box.x + box.w / 2);
-  }
-  return xs;
-}
-
-/** A side or column arrow: side to side in one row, edge to edge down or up one column. */
-function straightPath(a: Box, b: Box): { d: string; labelAt: Point } {
-  if (a.x === b.x) {
-    const down = b.y > a.y;
-    const y1 = down ? bottom(a) : a.y;
-    const y2 = down ? b.y : bottom(b);
-    const x = centreX(a);
-    return { d: `M${x},${y1} V${y2}`, labelAt: { x: x + 6, y: (y1 + y2) / 2 } };
-  }
-  const right = b.x > a.x;
-  const x1 = right ? a.x + a.w : a.x;
-  const x2 = right ? b.x : b.x + b.w;
-  const y = centreY(a);
-  return { d: `M${x1},${y} H${x2}`, labelAt: { x: (x1 + x2) / 2, y: y - 11 } };
-}
-
-/** A lane arrow: out of its edge, along its lane, into the other card's edge. */
-function lanePath(
-  entry: Laned,
-  a: Box,
-  b: Box,
-  lane: number,
-  xs: ReadonlyMap<string, number>
-): { d: string; labelAt: Point } {
-  const upper = entry.a.row <= entry.b.row ? a : b;
-  const y = bottom(upper) + LANE * (lane + 1);
-  const edge = (card: Card, other: Card, box: Box): number =>
-    card.row > other.row ? box.y : bottom(box);
-  const x1 = xs.get(`${entry.index.toString()}:from`) ?? centreX(a);
-  const x2 = xs.get(`${entry.index.toString()}:to`) ?? centreX(b);
-  return {
-    d: `M${x1},${edge(entry.a, entry.b, a)} V${y} H${x2} V${edge(entry.b, entry.a, b)}`,
-    labelAt: { x: (x1 + x2) / 2, y },
-  };
-}
-
-/** `extents` are what a loop or an end takes beyond its card, label included. */
-function boundsOf(
-  boxes: readonly Box[],
-  arrows: readonly ArrowPath[],
-  extents: readonly Box[]
-): Box {
-  if (boxes.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
-  const all = [...boxes, ...extents];
-  const left = Math.min(...all.map(box => box.x));
-  const right = Math.max(...all.map(box => box.x + box.w));
-  const top = Math.min(
-    ...all.map(box => box.y),
-    ...arrows.map(arrow => arrow.labelAt.y - LABEL_HALF)
-  );
-  const lowest = Math.max(...all.map(bottom), ...arrows.map(arrow => arrow.labelAt.y + LABEL_HALF));
-  return { x: left, y: top, w: right - left, h: lowest - top };
-}
-
-/** Before `b` in reading order: an earlier row, or the same row and an earlier column. */
-const readsBefore = (a: Card, b: Card): boolean =>
-  a.row < b.row || (a.row === b.row && a.col < b.col);
-
-/**
- * The declared arrows, then the graph's between two cards. A graph arrow routes as a return
- * when it reads backwards, its target earlier in reading order than its source.
+ * The declared arrows, then the graph's, between two cards. A graph arrow is a send-back when
+ * it runs into its own card or one earlier in the order.
  */
 function drawnArrows(
-  map: MapBlock,
+  map: Declaration['map'],
   cards: ReadonlyMap<string, Card>,
   graph: GraphLayer | undefined
 ): Drawn[] {
@@ -284,84 +147,210 @@ function drawnArrows(
       from: arrow.from,
       to: arrow.to,
       label: arrow.label,
-      back: arrow.back === true,
+      back: arrow.back === true || arrow.from === arrow.to,
       style: 'solid',
       problems: [],
     })
   );
-  const fromGraph = (graph?.arrows ?? []).flatMap((arrow, index): Drawn[] => {
-    const a = cards.get(arrow.from);
-    const b = cards.get(arrow.to);
-    if (a === undefined || b === undefined || arrow.from === arrow.to) return [];
-    return [{ ...arrow, id: `graph:${index.toString()}`, back: readsBefore(b, a) }];
-  });
-  return [...declared, ...fromGraph];
+  const fromGraph = (graph?.arrows ?? []).map(
+    (arrow, index): Drawn => ({
+      ...arrow,
+      id: `graph:${index.toString()}`,
+      back: (cards.get(arrow.to)?.pos ?? 0) <= (cards.get(arrow.from)?.pos ?? 0),
+    })
+  );
+  return [...declared, ...fromGraph].filter(arrow => cards.has(arrow.from) && cards.has(arrow.to));
 }
 
-/** The graph's arrows back into their own card, and its ends, on each card's outer edge. */
-function edgeMarks(
-  cards: ReadonlyMap<string, Card>,
-  boxes: ReadonlyMap<string, Box>,
-  graph: GraphLayer | undefined
-): Pick<MapLayout, 'loops' | 'stubs'> {
-  const at = (stage: string): { box: Box; row: number } | undefined => {
-    const box = boxes.get(stage);
-    const card = cards.get(stage);
-    return box === undefined || card === undefined ? undefined : { box, row: card.row };
-  };
-  const loops = (graph?.arrows ?? []).flatMap((arrow, index) => {
-    const where = arrow.from === arrow.to ? at(arrow.from) : undefined;
-    if (where === undefined) return [];
-    const id = `graph:${index.toString()}`;
-    const path = loopPath(id, arrow.from, arrow.label, where.box, where.row);
-    return [{ ...path, style: arrow.style, problems: arrow.problems }];
-  });
-  const stubs = (graph?.stubs ?? []).flatMap(stub => {
-    const where = at(stub.stage);
-    return where === undefined ? [] : [stubPath(stub.stage, stub.label, where.box, where.row)];
-  });
-  return { loops, stubs };
+/** Undefined for a forward hand-off side to side; else where its lane runs. */
+function regionOf(entry: Placed): Region | undefined {
+  if (entry.a.row !== entry.b.row) return 'gap';
+  if (Math.abs(entry.a.col - entry.b.col) === 1) return undefined;
+  return entry.a.row === 0 ? 'above' : 'below';
 }
 
 /**
- * The map's cards, arrows and bounds, laid out from its declared grid, with the pack graph's
- * arrows and ends once it has been read.
+ * A lane per arrow within one region, shortest span first: an arrow takes the nearest lane no
+ * arrow whose run overlaps its own already holds, so nested runs stack outward.
  */
-export function layoutMap(map: MapBlock, graph?: GraphLayer): MapLayout {
-  const cards = new Map(map.cards.map(card => [card.stage, card]));
-  const placed: Placed[] = drawnArrows(map, cards, graph).flatMap((arrow, index) => {
+function assignLanes(laned: readonly Laned[]): Map<number, number> {
+  const lanes = new Map<number, number>();
+  const taken: { region: Region; lo: number; hi: number; lane: number }[] = [];
+  const bySpan = [...laned].sort((p, q) => p.hi - p.lo - (q.hi - q.lo) || p.index - q.index);
+  for (const entry of bySpan) {
+    let lane = 0;
+    while (
+      taken.some(
+        t => t.region === entry.region && t.lane === lane && t.lo <= entry.hi && entry.lo <= t.hi
+      )
+    )
+      lane += 1;
+    taken.push({ region: entry.region, lo: entry.lo, hi: entry.hi, lane });
+    lanes.set(entry.index, lane);
+  }
+  return lanes;
+}
+
+/** How many lanes a region's arrows take. */
+const lanesIn = (laned: readonly Laned[], lanes: ReadonlyMap<number, number>, region: Region) =>
+  Math.max(0, ...laned.filter(e => e.region === region).map(e => (lanes.get(e.index) ?? 0) + 1));
+
+/** The edge of `self` a lane arrow in `region` meets: the lower row's top in the gap. */
+const edgeOf = (self: Card, region: Region): 'top' | 'bottom' =>
+  region === 'above' || (region === 'gap' && self.row === 1) ? 'top' : 'bottom';
+
+/** The y of a lane: off the row's outer edge, or down from the upper row into the gap. */
+function laneY(region: Region, lane: number, row2Top: number): number {
+  if (region === 'above') return -LANE * (lane + 1);
+  if (region === 'below') return row2Top + CARD_H + LANE * (lane + 1);
+  return CARD_H + LANE * (lane + 1);
+}
+
+/**
+ * Where each lane arrow meets a card edge, keyed `<index>:from` and `<index>:to`. A card's
+ * attachments on an edge spread over its middle half (the feedback lane's legs keep to the
+ * outer quarters), those whose other end lies left on the left, and in lane order so lines
+ * leaving one edge do not cross: where the deeper lane runs farther from the edge, nearer the
+ * centre; on the lower row's top edge, where it runs nearer, nearer the corner.
+ */
+function ports(laned: readonly Laned[], lanes: ReadonlyMap<number, number>): Map<string, number> {
+  const at = new Map<string, { key: string; self: Card; other: number; lane: number }[]>();
+  const attach = (self: Card, other: Card, region: Region, key: string, lane: number): void => {
+    const where = `${self.stage}:${edgeOf(self, region)}:${region}`;
+    const list = at.get(where) ?? [];
+    list.push({ key, self, other: colX(other.col), lane });
+    at.set(where, list);
+  };
+  for (const entry of laned) {
+    const lane = lanes.get(entry.index) ?? 0;
+    attach(entry.a, entry.b, entry.region, `${entry.index.toString()}:from`, lane);
+    attach(entry.b, entry.a, entry.region, `${entry.index.toString()}:to`, lane);
+  }
+  const xs = new Map<string, number>();
+  for (const [where, list] of at) {
+    const self = list[0]?.self;
+    if (self === undefined) continue;
+    const x = colX(self.col);
+    const inward = where.endsWith(':gap') && self.row === 1 ? -1 : 1;
+    const left = list.filter(e => e.other < x).sort((p, q) => inward * (p.lane - q.lane));
+    const right = list.filter(e => e.other >= x).sort((p, q) => inward * (q.lane - p.lane));
+    const spread = (group: typeof list, start: number): void => {
+      const step = CARD_W / 4 / (group.length + 1);
+      group.forEach((entry, i) => xs.set(entry.key, start + step * (i + 1)));
+    };
+    spread(left, x + CARD_W / 4);
+    spread(right, x + CARD_W / 2);
+  }
+  return xs;
+}
+
+/** Side to side in one row, between cards next to each other. */
+function sidePath(a: Box, b: Box): { d: string; labelAt: Point } {
+  const right = b.x > a.x;
+  const x1 = right ? a.x + a.w : a.x;
+  const x2 = right ? b.x : b.x + b.w;
+  const y = centreY(a);
+  return { d: `M${x1},${y} H${x2}`, labelAt: { x: (x1 + x2) / 2, y: y - 11 } };
+}
+
+/** The forward hand-offs that take a lane, and their lanes: these depend on columns only. */
+function laneForward(forward: readonly Placed[]): { laned: Laned[]; lanes: Map<number, number> } {
+  const laned = forward.flatMap((entry): Laned[] => {
+    const region = regionOf(entry);
+    if (region === undefined) return [];
+    const [lo, hi] = [entry.a.col, entry.b.col].sort((p, q) => p - q) as [number, number];
+    return [{ ...entry, region, lo: lo * COL_PITCH, hi: hi * COL_PITCH }];
+  });
+  return { laned, lanes: assignLanes(laned) };
+}
+
+/** The forward hand-offs: side to side, or out of an edge, along a lane, into an edge. */
+function forwardPaths(
+  forward: readonly Placed[],
+  { laned, lanes }: { laned: readonly Laned[]; lanes: ReadonlyMap<number, number> },
+  boxes: ReadonlyMap<string, Box>,
+  row2Top: number
+): ArrowPath[] {
+  const xs = ports(laned, lanes);
+  const regions = new Map(laned.map(entry => [entry.index, entry.region]));
+  const box = (card: Card): Box => boxes.get(card.stage) ?? { x: 0, y: 0, w: 0, h: 0 };
+  return forward.map((entry): ArrowPath => {
+    const region = regions.get(entry.index);
+    const lane = lanes.get(entry.index);
+    if (region === undefined || lane === undefined)
+      return { ...entry.arrow, lane: undefined, ...sidePath(box(entry.a), box(entry.b)) };
+    const y = laneY(region, lane, row2Top);
+    const edge = (card: Card): number =>
+      edgeOf(card, region) === 'top' ? box(card).y : bottom(box(card));
+    const x1 = xs.get(`${entry.index.toString()}:from`) ?? 0;
+    const x2 = xs.get(`${entry.index.toString()}:to`) ?? 0;
+    return {
+      ...entry.arrow,
+      lane,
+      d: `M${x1},${edge(entry.a)} V${y} H${x2} V${edge(entry.b)}`,
+      labelAt: { x: (x1 + x2) / 2, y },
+    };
+  });
+}
+
+function boundsOf(boxes: readonly Box[], arrows: readonly ArrowPath[], extents: readonly Box[]) {
+  if (boxes.length === 0) return { x: 0, y: 0, w: 0, h: 0 };
+  const all = [...boxes, ...extents];
+  const left = Math.min(...all.map(box => box.x));
+  const right = Math.max(...all.map(box => box.x + box.w));
+  const top = Math.min(...all.map(box => box.y), ...arrows.map(a => a.labelAt.y - LABEL_HALF));
+  const lowest = Math.max(...all.map(bottom), ...arrows.map(a => a.labelAt.y + LABEL_HALF));
+  return { x: left, y: top, w: right - left, h: lowest - top };
+}
+
+/**
+ * The map's cards, arrows and bounds in `rows` rows, with the pack graph's arrows and ends
+ * once it has been read.
+ */
+export function layoutMap(view: Declaration, graph?: GraphLayer, rows: 1 | 2 = 1): MapLayout {
+  const placed = placeCards(view, rows);
+  const cards = new Map(placed.map(card => [card.stage, card]));
+  const drawn = drawnArrows(view.map, cards, graph);
+  const sendBacks = drawn.filter(arrow => arrow.back);
+  const forward = drawn.flatMap((arrow, index): Placed[] => {
     const a = cards.get(arrow.from);
     const b = cards.get(arrow.to);
-    return a === undefined || b === undefined ? [] : [{ index, arrow, a, b }];
+    return arrow.back || a === undefined || b === undefined ? [] : [{ index, arrow, a, b }];
   });
-  const laned: Laned[] = placed
-    .filter(entry => kindOf(entry) === 'lane')
-    .map(entry => ({
-      ...entry,
-      gap: Math.min(entry.a.row, entry.b.row),
-      lo: Math.min(entry.a.col, entry.b.col) * COL_PITCH,
-      hi: Math.max(entry.a.col, entry.b.col) * COL_PITCH,
-    }));
-  const lanes = lanesByGap(laned);
-  const tops = rowTops(map.cards, laned, lanes);
+  const { laned, lanes } = laneForward(forward);
+  const feedbackY = CARD_H + LANE * (rows === 1 ? 1 : lanesIn(laned, lanes, 'gap') + 1);
+  const row2Top =
+    rows === 1 ? 0 : Math.max(CARD_H + ROW_GAP, feedbackY + laneLabelRoom(sendBacks) + LANE);
   const boxes = new Map(
-    map.cards.map(card => [
+    placed.map(card => [
       card.stage,
-      { x: colX(card.col), y: tops[card.row - 1] ?? 0, w: CARD_W, h: CARD_H },
+      { x: colX(card.col), y: card.row === 0 ? 0 : row2Top, w: CARD_W, h: CARD_H },
     ])
   );
-  const xs = ports(laned, lanes, boxes);
-  const box = (card: Card): Box => boxes.get(card.stage) ?? { x: 0, y: 0, w: 0, h: 0 };
-  const lanedAt = new Map(laned.map(entry => [entry.index, entry]));
-  const arrows = placed.map((entry): ArrowPath => {
-    const common = entry.arrow;
-    const lane = lanes.get(entry.index);
-    const inLane = lanedAt.get(entry.index);
-    if (lane === undefined || inLane === undefined)
-      return { ...common, lane: undefined, ...straightPath(box(entry.a), box(entry.b)) };
-    return { ...common, lane, ...lanePath(inLane, box(entry.a), box(entry.b), lane, xs) };
+  const arrows = forwardPaths(forward, { laned, lanes }, boxes, row2Top);
+  const laneCards = new Map(
+    placed.flatMap((card): [string, LaneCard][] => {
+      const box = boxes.get(card.stage);
+      if (box === undefined) return [];
+      const side = rows === 1 ? 'one' : card.row === 0 ? 'upper' : 'lower';
+      return [[card.stage, { box, side }]];
+    })
+  );
+  const lane = feedbackLane(laneCards, feedbackY, sendBacks);
+  const stubs = (graph?.stubs ?? []).flatMap(stub => {
+    const card = cards.get(stub.stage);
+    const box = boxes.get(stub.stage);
+    if (card === undefined || box === undefined) return [];
+    const clear = LANE * lanesIn(laned, lanes, card.row === 0 ? 'above' : 'below');
+    return [stubPath(stub.stage, stub.label, box, card.row + 1, clear)];
   });
-  const { loops, stubs } = edgeMarks(cards, boxes, graph);
-  const extents = [...loops, ...stubs].map(mark => mark.extent);
-  return { boxes, arrows, loops, stubs, bounds: boundsOf([...boxes.values()], arrows, extents) };
+  const extents = [...stubs.map(stub => stub.extent), ...(lane.extent ? [lane.extent] : [])];
+  return {
+    boxes,
+    rows,
+    arrows,
+    feedback: { paths: lane.paths, labels: lane.labels },
+    stubs,
+    bounds: boundsOf([...boxes.values()], arrows, extents),
+  };
 }

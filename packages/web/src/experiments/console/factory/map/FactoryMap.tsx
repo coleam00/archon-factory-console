@@ -5,6 +5,7 @@ import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { useFactoryItems } from '../useFactoryItems';
 import { mapArrowsFromGraph, type MapGraph } from '../lib/map-graph';
+import { rowsFor } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
 import { stageLive, type MapLive } from '../lib/map-live';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
@@ -15,6 +16,7 @@ import { MapGraphNotes } from './MapGraphNotes';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
+import { useRowWidth } from './useRowWidth';
 import { usePackGraph } from './usePackGraph';
 
 interface FactoryMapProps {
@@ -109,7 +111,14 @@ function MapCanvas({
   graphError,
   live,
 }: Omit<MapInputs, 'attention'> & { live: MapLive }): ReactElement {
-  const layout = useMemo(() => layoutMap(view.map, graph), [view.map, graph]);
+  // The row holding the frame and the details panel, so opening the panel does not re-wrap.
+  const row = useRowWidth();
+  const oneRow = useMemo(() => layoutMap(view, graph, 1), [view, graph]);
+  const rows = rowsFor(oneRow.bounds, row.width);
+  const layout = useMemo(
+    () => (rows === 1 ? oneRow : layoutMap(view, graph, 2)),
+    [rows, oneRow, view, graph]
+  );
   const { boxes, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
@@ -132,7 +141,7 @@ function MapCanvas({
   return (
     <div className="flex flex-col gap-2">
       {/* Side by side from md up; on a phone the details stack under the map. */}
-      <div className="flex flex-col gap-3 md:flex-row">
+      <div ref={row.ref} className="flex flex-col gap-3 md:flex-row">
         <div
           ref={camera.frameRef}
           style={{ height: camera.height }}

@@ -10888,8 +10888,8 @@ export interface components {
           map: {
             cards: {
               stage: string;
-              col: number;
-              row: number;
+              col?: number;
+              row?: number;
             }[];
             arrows: {
               from: string;

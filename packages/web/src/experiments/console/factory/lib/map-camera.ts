@@ -75,6 +75,15 @@ export function fittedHeight(bounds: Box, width: number, pad = FIT_PAD): number 
   return Math.max(MIN_FRAME_HEIGHT, Math.ceil(bounds.h * k + 2 * pad));
 }
 
+/**
+ * How many rows the map takes in a row `width` wide (the frame and the details panel beside
+ * it): one while the one-row map fits there at the readable scale, else two. A width not
+ * measured yet (0) takes one. Below the width that holds two rows the map pans.
+ */
+export function rowsFor(oneRow: Box, width: number, pad = FIT_PAD): 1 | 2 {
+  return width <= 0 || oneRow.w * READABLE_K + 2 * pad <= width ? 1 : 2;
+}
+
 /** Zoom by `factor` keeping the frame point `at` over the same world point. */
 export function zoomAt(camera: Camera, at: Point, factor: number): Camera {
   const k = clampK(camera.k * factor);
