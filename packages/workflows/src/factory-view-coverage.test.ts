@@ -296,7 +296,7 @@ describe('unlistedWorkflows', () => {
 });
 
 describe("this repository's declaration", () => {
-  test('covers every step and hand-off of the committed pack graph snapshot', () => {
+  test('covers every step and hand-off of the workflows its stages list, against the committed snapshot', () => {
     const packs = join(import.meta.dir, '..', '..', '..', '.archon', 'packs');
     const read = (file: string): unknown =>
       JSON.parse(readFileSync(join(packs, `Wirasm.archon-software-factory${file}`), 'utf8'));
