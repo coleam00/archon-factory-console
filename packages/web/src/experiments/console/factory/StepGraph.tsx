@@ -225,6 +225,8 @@ function StepButton({
   // The name in full, as the box may cut it, then the engine id.
   const title = [
     engineIdTitle(node.label, node.key),
+    // The box may cut its condition line too; the worded condition, then the expression.
+    ...(node.condition === null ? [] : [node.condition]),
     ...(node.when === null ? [] : [`Runs when ${node.when}`]),
     ...(glows ? [runningFor(onStep)] : []),
   ].join('\n');

@@ -184,7 +184,8 @@ describe('no raw step id where a person reads', () => {
   });
 
   test("the stage page's conditions name each step by the name the graph prints it by", () => {
-    const words = readable(render(`/console/p/${ID}/factory/stages/checks`));
+    const html = render(`/console/p/${ID}/factory/stages/checks`);
+    const words = readable(html);
     // A condition reads a step by its bare id ("if rounds = approve"), which neither id
     // shape catches, so every condition's subject is checked against the drawn names.
     const graph = stepGraph(
@@ -201,6 +202,8 @@ describe('no raw step id where a person reads', () => {
       'Verdict',
     ]);
     expect(subjects.every(subject => names.has(subject ?? ''))).toBe(true);
+    // A condition the step box cuts reads in full on hover.
+    expect(html).toContain('if Reads CI and PR reviews = return\nRuns when');
   });
 
   test('the step page names the step and shows its engine id, labelled', () => {
