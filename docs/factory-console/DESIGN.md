@@ -141,6 +141,10 @@ those land, this section adds **one read-only route file**, `packages/server/src
   iteration of the declared `rounds` loop, the returned count, the change URL from the declared
   pointer, and the title. Shape the page like #5815 (`{ items, next }`) so swapping to it later
   is a change of one skill.
+- `GET /api/factory/item?codebaseId=&key=` one item as a page entry reads it, plus what its
+  timeline needs per run and neither read carries: the declared workflow, the run's cost, its
+  running step, and each round of the declared `rounds` loop with the steps that recorded an
+  outcome in it and the deciding step's summary.
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The browser never calls GitHub.

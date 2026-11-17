@@ -605,6 +605,7 @@ See the [metrics guide](/guides/metrics/).
 | GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
 | GET | `/api/factory/items` | A page of a project's items with each item's progress, as `FactoryItemsPage` |
 | GET | `/api/factory/workflow` | One workflow a factory view names, as its steps and groups (`FactoryWorkflow`) |
+| GET | `/api/factory/item` | One item with its progress and each run's timeline facts, as `FactoryItemDetail` |
 
 A factory view is a JSON declaration that presents a workflow pack as a software factory in
 the console: its stages, where a finished run leaves an item, and a map. A pack ships one as
@@ -658,6 +659,26 @@ most rounds) and included workflows that frame the steps, outer before inner. A 
 prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An unknown
 `codebaseId`, a workflow no applying view names, or one the project does not have returns
 **404**.
+
+`GET /api/factory/item?codebaseId=&key=` reads one item the way a page entry is read (`item`
+is a `FactoryItem`, through the same view, with the same merge cache), plus `runs`: one entry
+per run in `item.runs`, in the same order, with what the item page's timeline needs:
+
+- `workflow`: the workflow as the view names it; null for a run of a workflow it does not.
+- `costUsd`: the run's total cost as it recorded it; null until it records one (a running
+  run records it at the end).
+- `step`: the deepest running step while the run runs; null between steps and once it ended.
+- `rounds`: on a run of the view's `rounds` workflow, its rounds with `max`, each round's
+  `verdict` and `outcome` as above, plus `summary`, the `summary` the step that decided the
+  round recorded, and `steps`: each step inside the loop that completed that round with a
+  structured `outcome`, as `{ node, outcome, summary }`, in recording order. `outcome` and
+  `summary` are read by those names from the step's structured output; a `summary` that is not
+  a string is null. `rounds` is null on any other run, or when the run's events could not be
+  read into it.
+
+`key` is a query parameter because item keys are free text. A missing `codebaseId` or `key`
+returns **400**; an unknown `codebaseId`, a project no view applies to, or no item with that
+key returns **404**.
 
 ---
 

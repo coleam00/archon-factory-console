@@ -11,6 +11,7 @@ import type { WorkflowItem, WorkflowRun } from '@archon/workflows/schemas/workfl
 import { discoverWorkflows } from '@archon/workflows/workflow-discovery';
 import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from './api.factory';
 import {
+  factoryItemDetailResponseSchema,
   factoryItemsPageResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
@@ -317,6 +318,37 @@ describe('GET /api/factory/items', () => {
     const none = await app.request('/api/factory/items?codebaseId=cb-1');
     expect(none.status).toBe(404);
     expect((await app.request('/api/factory/items?codebaseId=missing')).status).toBe(404);
+  });
+  test("one item: its read and progress, with each run's timeline facts", async () => {
+    const app = await itemsApp(withView);
+    const response = await app.request('/api/factory/item?codebaseId=cb-1&key=2');
+    expect(response.status).toBe(200);
+    const detail = factoryItemDetailResponseSchema.parse(await response.json());
+    expect(detail.pack).toBe('acme/kit');
+    expect(detail.item.item.key).toBe('2');
+    expect(detail.item.progress?.running?.step).toBe('build');
+    expect(detail.runs).toEqual([
+      { runId: 'run-b', workflow: 'deliver', costUsd: null, step: 'build', rounds: null },
+    ]);
+  });
+
+  test('the item route shares the merge cache with the page route', async () => {
+    const lookups: string[] = [];
+    const app = await itemsApp(withView, lookups);
+    await app.request('/api/factory/items?codebaseId=cb-1');
+    const response = await app.request('/api/factory/item?codebaseId=cb-1&key=1');
+    const detail = factoryItemDetailResponseSchema.parse(await response.json());
+    expect(detail.item.progress?.change?.merged).toBe(true);
+    expect(lookups).toEqual([CHANGE]);
+  });
+
+  test('a missing key is a 400; an unknown item, codebase or no applying view is a 404', async () => {
+    const app = await itemsApp(withView);
+    expect((await app.request('/api/factory/item?codebaseId=cb-1')).status).toBe(400);
+    expect((await app.request('/api/factory/item?codebaseId=cb-1&key=9')).status).toBe(404);
+    expect((await app.request('/api/factory/item?codebaseId=missing&key=1')).status).toBe(404);
+    const viewless = await itemsApp({});
+    expect((await viewless.request('/api/factory/item?codebaseId=cb-1&key=1')).status).toBe(404);
   });
 });
 
