@@ -109,7 +109,7 @@ function addEdges(view: OverviewView, random: Random): void {
   for (let tries = 0; tries < 1 + pick(6); tries++) {
     const from = ends[pick(ends.length)] as string;
     const to = ends[pick(ends.length)] as string;
-    const isLane = !lane && random() < 0.3 && from.startsWith('c') && to.startsWith('c');
+    const isLane: boolean = !lane && random() < 0.3 && from.startsWith('c') && to.startsWith('c');
     const key = `${[from, to].sort().join(' ')}${isLane ? ' lane' : ''}`;
     if (from === to || pairs.has(key)) continue;
     pairs.add(key);

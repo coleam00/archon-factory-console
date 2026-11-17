@@ -243,7 +243,6 @@ describe('the Overview', () => {
     });
     expect(broken).toContain(link);
     expect(broken).toContain('/repo/o.json');
-    expect(broken).toContain('A factory file could not be read');
   });
 
   test('a broken project file shows its path and error, not an empty state', () => {

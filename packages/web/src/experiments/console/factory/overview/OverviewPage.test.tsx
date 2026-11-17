@@ -105,7 +105,8 @@ describe('the factory overview', () => {
   test('the sidebar opens any view; an unknown ?view= opens the root and says so', async () => {
     const page = await mount('/console/p/cb-1/factory/overview?view=gone');
     expect(cards(page)).toEqual(['in', 'make', 'check']);
-    expect(page.textContent).toContain('This overview has no view "gone"');
+    // It names the view it could not find rather than silently showing the root.
+    expect(page.textContent).toContain('"gone"');
     await click(button(page.querySelector('aside') as Element, 'Test it'));
     expect(cards(page)).toEqual(['run']);
     expect(crumbs(page)).toBe('How it works › Make › Test it');

@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { Box } from '../lib/map-layout';
-import type { OverviewEdgePath } from '../lib/overview-layout';
+import { OVERVIEW_SMALL_TEXT, type OverviewEdgePath } from '../lib/overview-layout';
 
 const LINE = 'color-mix(in oklch, white, transparent 55%)';
 const LANE = 'var(--node-approval)';
@@ -75,7 +75,7 @@ export function OverviewEdges({
                 y={place.y}
                 textAnchor={place.anchor}
                 dominantBaseline="middle"
-                className="fill-text-secondary text-console-22"
+                className={`fill-text-secondary ${OVERVIEW_SMALL_TEXT}`}
                 stroke="var(--surface-inset)"
                 strokeWidth={8}
                 paintOrder="stroke"

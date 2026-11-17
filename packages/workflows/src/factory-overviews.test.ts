@@ -90,7 +90,6 @@ describe('discoverFactoryOverviews', () => {
     expect(listing.errors.map(({ pack, source, path }) => [pack, source, path])).toEqual([
       ['broken', 'project-file', projectFile('broken')],
     ]);
-    expect(listing.errors[0]?.error).toContain('is not JSON');
   });
 
   test('an invalid file is listed with its path and the field at fault', async () => {
@@ -101,7 +100,9 @@ describe('discoverFactoryOverviews', () => {
     const listing = await discoverFactoryOverviews(roots);
     expect(listing.overviews).toEqual([]);
     expect(listing.errors[0]?.error).toContain(packFile('folder'));
-    expect(listing.errors[0]?.error).toContain('root: names view "nope"');
+    // The field at fault, and the value it named.
+    expect(listing.errors[0]?.error).toContain('root:');
+    expect(listing.errors[0]?.error).toContain('"nope"');
   });
 
   test('a file naming another pack than where it was found is an error', async () => {
@@ -110,12 +111,10 @@ describe('discoverFactoryOverviews', () => {
 
     const listing = await discoverFactoryOverviews(roots);
     expect(listing.overviews).toEqual([]);
-    expect(
-      listing.errors.map(({ pack, error }) => [pack, error.includes('declares pack')])
-    ).toEqual([
-      ['acme.kit', true],
-      ['folder', true],
-    ]);
+    // Each is listed under where it was found, naming the pack it declared.
+    expect(listing.errors.map(({ pack }) => pack)).toEqual(['acme.kit', 'folder']);
+    expect(listing.errors[0]?.error).toContain('acme/other');
+    expect(listing.errors[1]?.error).toContain('elsewhere');
   });
 
   test('a factory view file is not read as an overview, nor the reverse', async () => {

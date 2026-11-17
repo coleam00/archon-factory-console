@@ -1,6 +1,6 @@
 import { useMemo, type ReactElement } from 'react';
 import { MIN_ZOOM } from '../lib/map-camera';
-import { layoutOverview, OVERVIEW_PAGE_MAX_H } from '../lib/overview-layout';
+import { layoutOverview, OVERVIEW_PAGE_MAX_H, OVERVIEW_SMALL_TEXT } from '../lib/overview-layout';
 import type { OverviewView } from '../lib/overview-nav';
 import { useMapCamera } from '../map/useMapCamera';
 import { OverviewCard } from './OverviewCard';
@@ -62,7 +62,9 @@ export function OverviewMap({
                 className="absolute rounded-console-16 border-2 border-dashed border-border-bright"
                 style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
               >
-                <span className="absolute -top-3.5 left-5 whitespace-nowrap bg-surface-inset px-2 text-console-22 font-medium uppercase leading-none tracking-wider text-text-tertiary">
+                <span
+                  className={`absolute -top-3.5 left-5 whitespace-nowrap bg-surface-inset px-2 ${OVERVIEW_SMALL_TEXT} font-medium uppercase leading-none tracking-wider text-text-tertiary`}
+                >
                   {group.label}
                 </span>
               </div>

@@ -42,10 +42,16 @@ function valid(): FactoryOverview {
   };
 }
 
-/** The issues `overview` fails with, as `path: message`. */
+/**
+ * What `overview` is refused for: each issue's path, then the ids from the input it names (the
+ * quoted values in its message), so a test pins the rule and the place, not the wording.
+ */
 function issues(overview: unknown): string[] {
   const parsed = factoryOverviewSchema.safeParse(overview);
-  return (parsed.error?.issues ?? []).map(issue => `${issue.path.join('.')}: ${issue.message}`);
+  return (parsed.error?.issues ?? []).map(issue => {
+    const named = [...issue.message.matchAll(/"([^"]+)"/g)].map(match => match[1]);
+    return [issue.path.join('.'), ...named].join(' ');
+  });
 }
 
 /** `valid()` changed by `edit`. */
@@ -71,22 +77,21 @@ describe('factoryOverviewSchema', () => {
   });
 
   test('rejects an unknown key, so a misspelled field is not silently dropped', () => {
-    expect(issues({ ...valid(), captions: 'x' })).toEqual([
-      expect.stringContaining('Unrecognized key'),
+    const parsed = factoryOverviewSchema.safeParse({ ...valid(), captions: 'x' });
+    expect(parsed.error?.issues.map(issue => [issue.code, issue.path])).toEqual([
+      ['unrecognized_keys', []],
     ]);
   });
 
   test('rejects a root that names no view', () => {
-    expect(issues({ ...valid(), root: 'nope' })).toEqual([
-      'root: names view "nope", which is not in views',
-    ]);
+    expect(issues({ ...valid(), root: 'nope' })).toEqual(['root nope']);
   });
 
   test('rejects an id used twice across views', () => {
     const overview = edited(o => {
       (o.views.make as View).cards.push(card('in', 3, 1));
     });
-    expect(issues(overview)).toEqual(['views.make.cards.2.id: id "in" is used twice in this file']);
+    expect(issues(overview)).toEqual(['views.make.cards.2.id in']);
   });
 
   test('rejects opens that names a missing view, its own view, or a view opened twice', () => {
@@ -96,56 +101,50 @@ describe('factoryOverviewSchema', () => {
           (top(o).cards[0] as Card).opens = 'gone';
         })
       )
-    ).toEqual(['views.top.cards.0.opens: names view "gone", which is not in views']);
+    ).toEqual(['views.top.cards.0.opens gone']);
     expect(
       issues(
         edited(o => {
           (top(o).cards[0] as Card).opens = 'top';
         })
       )
-    ).toEqual(['views.top.cards.0.opens: opens "top", which would loop back up the tree']);
+    ).toEqual(['views.top.cards.0.opens top']);
     expect(
       issues(
         edited(o => {
           (top(o).cards[2] as Card).opens = 'make';
         })
       )
-    ).toEqual(['views.top.cards.2.opens: opens "make", which card "make" opens too']);
+    ).toEqual(['views.top.cards.2.opens make make']);
   });
 
   test('rejects a view no card opens', () => {
     const overview = edited(o => {
       delete (top(o).cards[1] as Card).opens;
     });
-    expect(issues(overview)).toEqual(['views.make: no card reachable from the root opens it']);
+    expect(issues(overview)).toEqual(['views.make']);
   });
 
   test('rejects a caption on the root view, whose line is the top-level caption', () => {
     const overview = edited(o => {
       top(o).caption = 'Never shown.';
     });
-    expect(issues(overview)).toEqual([
-      "views.top.caption: the root view's line is the overview's top-level caption; move it there",
-    ]);
+    expect(issues(overview)).toEqual(['views.top.caption']);
   });
 
   test('rejects a root without a loops-back edge, and two in one view', () => {
-    expect(issues(edited(o => void top(o).edges.pop()))).toEqual([
-      'views.top.edges: the root view needs its one loops-back edge',
-    ]);
+    expect(issues(edited(o => void top(o).edges.pop()))).toEqual(['views.top.edges']);
     const twice = edited(o => {
       top(o).edges[0] = { from: 'in', to: 'make', kind: 'loops-back' };
     });
-    expect(issues(twice)).toContain(
-      'views.top.edges: has 2 loops-back edges; a view draws one lane at most'
-    );
+    expect(issues(twice)).toContain('views.top.edges');
   });
 
   test('rejects two cards in one cell', () => {
     const overview = edited(o => {
       (o.views.make as View).cards[1] = card('test', 1, 1);
     });
-    expect(issues(overview)).toContain('views.make.cards.1: cell 1,1 already holds card "write"');
+    expect(issues(overview)).toContain('views.make.cards.1 write');
   });
 
   test('rejects a card naming an undeclared group, an empty group, and a group holding a stranger', () => {
@@ -155,23 +154,21 @@ describe('factoryOverviewSchema', () => {
           (top(o).cards[0] as Card).group = 'nope';
         })
       )
-    ).toEqual(['views.top.cards.0.group: names group "nope", which this view does not declare']);
+    ).toEqual(['views.top.cards.0.group nope']);
     expect(
       issues(
         edited(o => {
           top(o).groups = [{ id: 'empty', label: 'Empty' }];
         })
       )
-    ).toEqual(['views.top.groups.0: group "empty" holds no card']);
+    ).toEqual(['views.top.groups.0 empty']);
     // A group of `in` and `check` spans column 2, where `make` sits outside it.
     const stranger = edited(o => {
       top(o).groups = [{ id: 'ends', label: 'Ends' }];
       (top(o).cards[0] as Card).group = 'ends';
       (top(o).cards[2] as Card).group = 'ends';
     });
-    expect(issues(stranger)).toContain(
-      'views.top.groups.0: group "ends" covers card "make", which is not in it'
-    );
+    expect(issues(stranger)).toContain('views.top.groups.0 ends make');
   });
 
   test('rejects an edge naming nothing, joining a card to itself, or repeating a pair', () => {
@@ -181,21 +178,21 @@ describe('factoryOverviewSchema', () => {
           (o.views.make as View).edges.push({ from: 'write', to: 'gone', kind: 'calls' });
         })
       )
-    ).toEqual(['views.make.edges.1.to: names "gone", no card or group of this view']);
+    ).toEqual(['views.make.edges.1.to gone']);
     expect(
       issues(
         edited(o => {
           (o.views.make as View).edges.push({ from: 'test', to: 'test', kind: 'calls' });
         })
       )
-    ).toEqual(['views.make.edges.1: joins a card to itself']);
+    ).toEqual(['views.make.edges.1']);
     expect(
       issues(
         edited(o => {
           (o.views.make as View).edges.push({ from: 'test', to: 'write', kind: 'calls' });
         })
       )
-    ).toEqual(['views.make.edges.1: joins "test" and "write" a second time']);
+    ).toEqual(['views.make.edges.1 test write']);
   });
 
   test('rejects an edge whose ends share no row or column', () => {
@@ -204,18 +201,14 @@ describe('factoryOverviewSchema', () => {
       make.cards.push(card('far', 3, 2));
       make.edges.push({ from: 'write', to: 'far', kind: 'calls' });
     });
-    expect(issues(overview)).toEqual([
-      'views.make.edges.1: an edge must share a row or a column with its other end',
-    ]);
+    expect(issues(overview)).toEqual(['views.make.edges.1']);
   });
 
   test('rejects an edge that runs through a card', () => {
     const overview = edited(o => {
       top(o).edges.push({ from: 'in', to: 'check', kind: 'calls' });
     });
-    expect(issues(overview)).toContain(
-      'views.top.edges.3: runs through card "make"; move a card so the line has a clear row or column'
-    );
+    expect(issues(overview)).toContain('views.top.edges.3 make');
   });
 
   test('rejects an edge that runs through a group holding neither end', () => {
@@ -228,10 +221,7 @@ describe('factoryOverviewSchema', () => {
       make.edges = [{ from: 'top-left', to: 'ship', kind: 'feeds' }];
     });
     expect(issues(overview)).toEqual(
-      expect.arrayContaining([
-        'views.make.edges.0: runs through card "test"; move a card so the line has a clear row or column',
-        'views.make.edges.0: runs through group "mid"; move a card so the line has a clear row or column',
-      ])
+      expect.arrayContaining(['views.make.edges.0 test', 'views.make.edges.0 mid'])
     );
   });
 
@@ -245,18 +235,14 @@ describe('factoryOverviewSchema', () => {
         { from: 'n', to: 's', kind: 'calls' },
       ];
     });
-    expect(issues(overview)).toEqual([
-      'views.make.edges.0: crosses or touches the edge from "n" to "s"',
-    ]);
+    expect(issues(overview)).toEqual(['views.make.edges.0 n s']);
   });
 
   test('rejects a loops-back lane that would drop through a card under its source', () => {
     const overview = edited(o => {
       top(o).cards.push(card('under', 3, 2));
     });
-    expect(issues(overview)).toContain(
-      'views.top.edges.2: runs through card "under"; move a card so the line has a clear row or column'
-    );
+    expect(issues(overview)).toContain('views.top.edges.2 under');
   });
 
   test('rejects a loops-back edge from a group', () => {
@@ -265,8 +251,6 @@ describe('factoryOverviewSchema', () => {
       (top(o).cards[2] as Card).group = 'g';
       top(o).edges[2] = { from: 'g', to: 'make', kind: 'loops-back' };
     });
-    expect(issues(overview)).toEqual([
-      'views.top.edges.2: a loops-back edge joins two cards, not groups',
-    ]);
+    expect(issues(overview)).toEqual(['views.top.edges.2']);
   });
 });

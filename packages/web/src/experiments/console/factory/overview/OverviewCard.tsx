@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 import type { Box } from '../lib/map-layout';
+import { OVERVIEW_SMALL_TEXT, OVERVIEW_TITLE_TEXT } from '../lib/overview-layout';
 import type { OverviewCard as Card } from '../lib/overview-nav';
 import { ICONS, KINDS } from './overview-kinds';
 
 /*
  * Sizes are world px on a canvas the camera scales (about 0.44 on the page at 1440x900, more
- * full screen): the title is OVERVIEW_TITLE_PX and everything else OVERVIEW_SMALLEST_PX
+ * full screen): the title is OVERVIEW_TITLE_TEXT and everything else OVERVIEW_SMALL_TEXT
  * (overview-layout.ts), held by its test to draw at 14 px and at the type floor fitted.
  */
 
@@ -31,19 +32,21 @@ export function OverviewCard({
         className="absolute inset-x-0 top-0 h-2"
         style={{ background: kind.color }}
       />
-      <span className="flex items-center gap-3 text-console-22 font-medium uppercase text-text-tertiary">
+      <span
+        className={`flex items-center gap-3 ${OVERVIEW_SMALL_TEXT} font-medium uppercase text-text-tertiary`}
+      >
         <Icon aria-hidden="true" className="size-8 shrink-0" style={{ color: kind.color }} />
         {kind.label}
         {card.opens === undefined ? null : (
-          <span aria-hidden="true" className="ml-auto text-console-22 text-text-secondary">
+          <span aria-hidden="true" className={`ml-auto ${OVERVIEW_SMALL_TEXT} text-text-secondary`}>
             ⤢
           </span>
         )}
       </span>
-      <span className="text-console-34 font-semibold leading-tight text-text-primary">
+      <span className={`${OVERVIEW_TITLE_TEXT} font-semibold leading-tight text-text-primary`}>
         {card.title}
       </span>
-      <span className="text-console-22 leading-snug text-text-secondary">{card.text}</span>
+      <span className={`${OVERVIEW_SMALL_TEXT} leading-snug text-text-secondary`}>{card.text}</span>
     </>
   );
   const frame =
