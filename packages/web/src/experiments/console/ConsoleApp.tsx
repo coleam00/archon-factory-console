@@ -9,6 +9,8 @@ import { BuilderConnected } from './builder/BuilderConnected';
 import { RunsPage } from './routes/RunsPage';
 import { RunDetailPage } from './routes/RunDetailPage';
 import { MetricsPage } from './routes/metrics/MetricsPage';
+import { FactoryPage } from './factory/FactoryPage';
+import { FactoryPlaceholder } from './factory/FactoryPlaceholder';
 import { ChatPage } from './routes/ChatPage';
 import { PreviewPage } from './routes/PreviewPage';
 import { SettingsPage } from './routes/SettingsPage';
@@ -122,6 +124,23 @@ export function ConsoleApp(): ReactElement {
             <Route path="p/:projectId/chat" element={<ChatPage />} />
             <Route path="p/:projectId/metrics" element={<MetricsPage />} />
             <Route path="p/:projectId/metrics/details" element={<MetricsPage view="details" />} />
+            <Route path="p/:projectId/factory" element={<FactoryPage />} />
+            <Route
+              path="p/:projectId/factory/board"
+              element={<FactoryPlaceholder page="board" />}
+            />
+            <Route
+              path="p/:projectId/factory/items/:key"
+              element={<FactoryPlaceholder page="item" />}
+            />
+            <Route
+              path="p/:projectId/factory/stages/:stage"
+              element={<FactoryPlaceholder page="stage" />}
+            />
+            <Route
+              path="p/:projectId/factory/steps/:workflow/:node"
+              element={<FactoryPlaceholder page="step" />}
+            />
             <Route path="p/:projectId/r/:runId" element={<RunDetailPage />} />
           </Routes>
         </main>

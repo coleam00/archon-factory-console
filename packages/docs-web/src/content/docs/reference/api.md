@@ -598,6 +598,27 @@ See the [metrics guide](/guides/metrics/).
 
 ---
 
+## Factory views
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
+
+A factory view is a JSON declaration that presents a workflow pack as a software factory in
+the console: its stages, where a finished run leaves an item, and a map. A pack ships one as
+`<pack>/.shared/factory-view.json`; a project can present a pack it cannot edit with
+`.archon/packs/<pack key>.factory-view.json` (the key is `owner.name` for an installed pack),
+which replaces the pack's own. The schema is `factoryViewSchema` in
+`packages/workflows/src/schemas/factory-view.ts`.
+
+`codebaseId` is required. A view applies when the project ships its own file, or when the
+project has a run of a workflow the view names. `views[]` holds each with its pack, source
+(`project-file` or the pack's scope) and file `path`; `errors[]` holds every declaration that
+could not be read or did not validate, with its `path`. An unknown `codebaseId` returns
+**404**.
+
+---
+
 ## Configuration
 
 | Method | Path | Description |

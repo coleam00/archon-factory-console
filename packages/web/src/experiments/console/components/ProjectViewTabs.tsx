@@ -1,7 +1,12 @@
 import type { ReactElement } from 'react';
 import { Link } from 'react-router';
+import { factoryTabShown } from '../factory/lib/views';
+import * as skill from '../skills';
+import type { FactoryViews } from '../skills/factory';
+import { useEntity } from '../store/cache';
+import { K } from '../store/keys';
 
-type ProjectView = 'runs' | 'chat' | 'metrics';
+type ProjectView = 'runs' | 'chat' | 'metrics' | 'factory';
 
 interface ProjectViewTabsProps {
   projectId: string;
@@ -13,16 +18,22 @@ const TABS: readonly { key: ProjectView; label: string; suffix: string }[] = [
   { key: 'chat', label: 'Chat', suffix: '/chat' },
   { key: 'metrics', label: 'Metrics', suffix: '/metrics' },
 ];
+const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as const;
 
 /**
- * Runs | Chat | Metrics tab control under a project. Active styling mirrors
- * FilterChips (brand-bar underline). Only meaningful when a project is scoped —
- * chat is project-scoped, so this is never rendered on the All-projects view.
+ * Runs | Chat | Metrics tab control under a project, then Factory when a factory view
+ * applies to the project. Active styling mirrors FilterChips (brand-bar underline). Only
+ * meaningful when a project is scoped — chat is project-scoped, so this is never rendered on
+ * the All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
+  const { data: factoryViews } = useEntity<FactoryViews>(K.factoryViews(projectId), () =>
+    skill.getFactoryViews({ codebaseId: projectId })
+  );
+  const tabs = factoryTabShown(factoryViews) ? [...TABS, FACTORY_TAB] : TABS;
   return (
     <div className="flex items-center gap-1">
-      {TABS.map(({ key, label, suffix }) => {
+      {tabs.map(({ key, label, suffix }) => {
         const isActive = key === active;
         return (
           <Link

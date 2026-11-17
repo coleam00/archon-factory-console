@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "pack": "Wirasm/archon-software-factory",
+  "title": "Software factory",
+  "summary": "GitHub issues come in as items. Triage decides whether each one is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A change that is ready waits for a person to land it. A person steps in only to answer the questions an item asks.",
+  "stages": [
+    {
+      "id": "triage",
+      "label": "Triage",
+      "blurb": "Reads a new item and decides whether it is worth building.",
+      "group": "intake",
+      "workflows": ["triage"]
+    },
+    {
+      "id": "plan",
+      "label": "Plan",
+      "blurb": "Works out how to build the item and writes the plan down.",
+      "group": "intake",
+      "workflows": ["plan"]
+    },
+    {
+      "id": "build",
+      "label": "Build",
+      "blurb": "Writes the change and opens a draft pull request, then fixes what comes back.",
+      "group": "build",
+      "workflows": ["deliver"],
+      "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"]
+    },
+    {
+      "id": "checks",
+      "label": "Checks",
+      "blurb": "A review, a test check and a product check read the change and approve it or send it back.",
+      "group": "check",
+      "workflows": ["deliver"],
+      "nodes": [
+        "rounds.base",
+        "rounds.review__review",
+        "rounds.tests__tests",
+        "rounds.product__product",
+        "rounds.verdict__verdict",
+        "exhausted"
+      ]
+    },
+    {
+      "id": "host",
+      "label": "CI and review",
+      "blurb": "Reads CI and the reviews on the pull request and sends back what they raise.",
+      "group": "check",
+      "workflows": ["deliver"],
+      "nodes": ["hostrounds.host__host", "result"]
+    },
+    {
+      "id": "ready",
+      "label": "Ready to land",
+      "blurb": "The change is approved and waits for a person to land it.",
+      "group": "land",
+      "workflows": ["landgate", "land"]
+    },
+    {
+      "id": "landed",
+      "label": "Landed",
+      "blurb": "The change is merged.",
+      "group": "land",
+      "workflows": []
+    }
+  ],
+  "placement": {
+    "triage:build": "plan",
+    "triage:narrow": "plan",
+    "plan:planned": "build",
+    "plan:ask": "plan",
+    "deliver:ready": "ready",
+    "deliver:waiting": "host",
+    "deliver:returned": "build",
+    "deliver:replan": "plan",
+    "deliver:ask": "build",
+    "land:landed": "landed",
+    "land:returned": "build",
+    "land:ask": "ready"
+  },
+  "endings": {
+    "triage:*": "Closed by triage",
+    "plan:stop": "Stopped at planning",
+    "land:stop": "Stopped at landing"
+  },
+  "landed": { "stage": "landed" },
+  "rounds": { "workflow": "deliver", "loop": "rounds" },
+  "returns": [
+    { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
+    { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" }
+  ],
+  "change": { "workflow": "deliver", "pointer": "/change" },
+  "itemTitle": { "input": "item" },
+  "map": {
+    "cards": [
+      { "stage": "triage", "col": 1, "row": 1 },
+      { "stage": "plan", "col": 2, "row": 1 },
+      { "stage": "build", "col": 3, "row": 1 },
+      { "stage": "checks", "col": 4, "row": 1 },
+      { "stage": "host", "col": 5, "row": 1 },
+      { "stage": "ready", "col": 6, "row": 1 },
+      { "stage": "landed", "col": 7, "row": 1 }
+    ],
+    "arrows": [
+      { "from": "triage", "to": "plan", "label": "build" },
+      { "from": "plan", "to": "build", "label": "planned" },
+      { "from": "build", "to": "checks", "label": "built" },
+      { "from": "checks", "to": "host", "label": "approved" },
+      { "from": "host", "to": "ready", "label": "ready" },
+      { "from": "ready", "to": "landed", "label": "landed" },
+      { "from": "checks", "to": "build", "label": "returned", "back": true },
+      { "from": "host", "to": "build", "label": "returned", "back": true },
+      { "from": "checks", "to": "plan", "label": "replan", "back": true }
+    ],
+    "notes": [{ "text": "You answer asks here", "near": "needs-you" }]
+  }
+}
