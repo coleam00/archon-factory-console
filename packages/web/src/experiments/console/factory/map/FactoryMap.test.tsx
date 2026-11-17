@@ -7,9 +7,7 @@ import type { EntityView } from '../../store/cache';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import type { FactoryItem } from '../../skills/factory';
-import type { PackGraph } from '../../skills/packs';
 import { shippedListed } from '../item-detail.test-fixtures';
-import { DECLARED_GRAPH, LIVE_GRAPH } from '../lib/pack-graph.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
 import { MAP_TEXT_PX } from '../lib/map-camera';
@@ -35,7 +33,6 @@ afterAll(async () => {
 });
 afterEach(() => {
   invalidate('factory-items');
-  invalidate('pack-graph');
 });
 
 const ID = 'cb-1';
@@ -58,11 +55,9 @@ function StagePage(): React.ReactElement {
 }
 
 async function mount(
-  read: FactoryItem[] = items,
-  graph: PackGraph | null = LIVE_GRAPH
+  read: FactoryItem[] = items
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
   set(K.factoryItems(ID), read);
-  if (graph !== null) set(K.packGraph(ID, shippedListed.packKey), graph);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -244,82 +239,55 @@ test('a later read on a step no stage names keeps the card where the last read p
   }
 });
 
-test('hand-offs between workflows come from the pack graph, solid where the install starts them', async () => {
+test("the map draws the view file's arrows and no others: forward ones labelled, send-backs in one lane", async () => {
   const { container, unmount } = await mount();
   try {
-    const drawn = [...container.querySelectorAll('g[data-arrow]')].map(
-      g => `${g.textContent ?? ''} (${g.getAttribute('data-style') ?? ''})`
+    const forward = [...container.querySelectorAll('g[data-arrow]:not([data-lane])')].map(
+      g => g.textContent
     );
-    // The declared hand-offs inside deliver and into Landed, then the graph's.
-    expect(drawn).toEqual([
-      'built (solid)',
-      'approved (solid)',
-      'merged (solid)',
-      'returned (solid)',
-      'returned (solid)',
-      'ready (solid)',
+    expect(forward).toEqual([
+      'ready',
       // Stacked one outcome per line in the narrow gap between two cards.
-      'build,narrow (solid)',
-      'planned (solid)',
-      'ready (solid)',
-      'asks answered (solid)',
-      'asks answered (solid)',
+      'build,narrow',
+      'planned',
+      'built',
+      'approved',
+      'ready',
+      'merged',
     ]);
-    // The outcomes that start nothing end at a bar on their card.
-    expect(container.querySelector('g[data-ends="triage"]')?.textContent).toContain('decline');
-    expect(container.querySelector('g[data-ends="order"]')?.textContent).toBe('refused');
-    expect(container.querySelector('g[data-ends="plan"]')).toBeNull();
-    // A start of a workflow with no card is named under the map.
-    expect(
-      container.querySelector('ul[aria-label="Starts not on the map"]')?.textContent
-    ).toContain('also starts discoveries, which has no card here');
-    expect(container.textContent).not.toContain('Wirasm/archon-software-factory:');
-  } finally {
-    await unmount();
-  }
-});
-
-test('an install that starts none of them draws every graph hand-off dashed, the declared ones solid', async () => {
-  const { container, unmount } = await mount(items, DECLARED_GRAPH);
-  try {
-    const arrows = [...container.querySelectorAll('g[data-arrow]')];
-    const graph = arrows.filter(g => g.getAttribute('data-arrow')?.startsWith('graph:'));
-    const declared = arrows.filter(g => g.getAttribute('data-arrow')?.startsWith('decl:'));
-    // Five hand-offs between cards, and the loop on Plan.
-    expect(graph).toHaveLength(6);
-    expect(declared).toHaveLength(shippedListed.declaration.map.arrows.length);
-    const dashed = (g: Element): boolean =>
-      g.querySelector('path')?.hasAttribute('stroke-dasharray') ?? false;
-    for (const g of graph) {
-      expect(g.getAttribute('data-style')).toBe('declared');
-      expect(dashed(g)).toBe(true);
-    }
-    for (const g of declared) {
-      expect(g.getAttribute('data-style')).toBe('solid');
-      expect(dashed(g)).toBe(false);
-    }
-  } finally {
-    await unmount();
-  }
-});
-
-test('a pack graph that cannot be read leaves the declared arrows and says why', async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = Object.assign(
-    async () => Response.json({ error: 'No workflow pack was found' }, { status: 404 }),
-    { preconnect: originalFetch.preconnect }
-  );
-  const { container, unmount } = await mount(items, null);
-  try {
-    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
-    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'No workflow pack was found'
-    );
+    const lane = [...container.querySelectorAll('g[data-lane="feedback"]')];
+    expect(lane.map(g => g.getAttribute('data-arrow'))).toEqual(['decl:7', 'decl:8', 'decl:9']);
+    // Every arrow drawn is a declared one.
     expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
       shippedListed.declaration.map.arrows.length
     );
+    const labels = [...container.querySelectorAll('g[data-lane-label]')].map(
+      g => `${g.getAttribute('data-lane-label') ?? ''}: ${g.textContent ?? ''}`
+    );
+    expect(labels).toEqual(['build: returned', 'plan: replan']);
   } finally {
     await unmount();
-    globalThis.fetch = originalFetch;
   }
+});
+
+/** The distinct tops of the cards when every element measures `width` wide. */
+async function cardTopsAt(width: number): Promise<Set<string>> {
+  const proto = dom.HTMLElement.prototype;
+  const original = Object.getOwnPropertyDescriptor(proto, 'clientWidth');
+  Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => width });
+  const { container, unmount } = await mount();
+  try {
+    return new Set(
+      [...container.querySelectorAll<HTMLElement>('[data-stage]')].map(el => el.style.top)
+    );
+  } finally {
+    await unmount();
+    if (original) Object.defineProperty(proto, 'clientWidth', original);
+    else Reflect.deleteProperty(proto, 'clientWidth');
+  }
+}
+
+test("the cards take one row in the Overview's 1100px row, and wrap to two in a phone's", async () => {
+  expect((await cardTopsAt(1100)).size).toBe(1);
+  expect((await cardTopsAt(358)).size).toBe(2);
 });

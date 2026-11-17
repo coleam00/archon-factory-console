@@ -50,12 +50,13 @@ export function MapCard({
           className="absolute inset-y-2.5 left-1.5 w-1 rounded-full"
           style={{ background: color }}
         />
-        <span className="truncate pr-5 text-console-17 font-medium text-text-primary">
+        {/* A card is narrow enough for eight in one row, so a title wraps rather than cuts. */}
+        <span className="line-clamp-2 pr-5 text-console-17 font-medium leading-snug text-text-primary">
           {stage.label}
         </span>
-        {/* The map's sizing comment (map-layout.ts) says what this draws at when fitted. The
+        {/* The map's sizing comment (map-sizes.ts) says what this draws at when fitted. The
             clamp only guards a blurb longer than any card holds; the panel shows it whole. */}
-        <span className="line-clamp-5 text-console-15 leading-snug text-text-secondary">
+        <span className="line-clamp-8 text-console-15 leading-snug text-text-secondary">
           {stage.blurb}
         </span>
         {notes.map(note => (

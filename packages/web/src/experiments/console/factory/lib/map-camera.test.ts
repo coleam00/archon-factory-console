@@ -9,6 +9,7 @@ import {
   MIN_ZOOM,
   READABLE_K,
   reveal,
+  rowsFor,
   TYPE_FLOOR_PX,
   zoomAt,
 } from './map-camera';
@@ -40,22 +41,32 @@ describe('the map camera', () => {
   });
 
   test("the shipped map's text opens at or above the type floor at every frame width", () => {
-    const { bounds } = layoutMap(shippedView.map);
-    // From a phone's frame up to a wide desktop's, with the height the frame takes there.
+    const oneRow = layoutMap(shippedView).bounds;
+    // From a phone's frame up to a wide desktop's, in the rows that width takes, with the
+    // height the frame takes there.
     for (let width = 0; width <= 2000; width += 50) {
+      const { bounds } = layoutMap(shippedView, rowsFor(oneRow, width));
       const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
       expect(MAP_TEXT_PX * k).toBeGreaterThanOrEqual(TYPE_FLOOR_PX);
     }
   });
 
-  test("the shipped map fits the Overview's frame at 1440x900 large enough to project", () => {
-    const { bounds } = layoutMap(shippedView.map);
+  test("the shipped map is one row in the Overview's frame at 1440x900, two on a phone", () => {
+    const { bounds } = layoutMap(shippedView);
     // The Overview's map frame measures 1100px wide in a 1440x900 window.
     const width = 1100;
+    expect(rowsFor(bounds, width)).toBe(1);
     const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
-    // Card titles are 17 world px, so 14.45px or more; blurbs and labels are MAP_TEXT_PX
-    // (15), so 12.75px or more.
-    expect(k).toBeGreaterThanOrEqual(0.85);
+    // Blurbs and labels are MAP_TEXT_PX (15) world px, so about 10px; titles about 11px.
+    expect(k).toBeGreaterThanOrEqual(0.65);
+    expect(rowsFor(bounds, 390)).toBe(2);
+  });
+
+  test('a row too narrow for one row at the readable scale takes two; one not measured, one', () => {
+    const row = { x: 0, y: 0, w: 1000, h: 200 };
+    expect(rowsFor(row, 1000 * READABLE_K + 48)).toBe(1);
+    expect(rowsFor(row, 1000 * READABLE_K + 47)).toBe(2);
+    expect(rowsFor(row, 0)).toBe(1);
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {

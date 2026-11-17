@@ -1,17 +1,9 @@
 import type { ReactElement } from 'react';
-import type { GraphArrowStyle } from '../lib/map-graph';
 import type { MapLayout, Point } from '../lib/map-layout';
-import { LINE_H } from '../lib/map-stubs';
+import { LINE_H } from '../lib/map-sizes';
 
-const LINE = 'color-mix(in oklch, white, transparent 70%)';
-const PROBLEM = 'var(--error)';
-
-/** Solid when the install starts it; dashed when only the pack declares it; error when refused. */
-export const ARROW_STROKE: Record<GraphArrowStyle, { stroke: string; dash: string | undefined }> = {
-  solid: { stroke: LINE, dash: undefined },
-  declared: { stroke: LINE, dash: '5 4' },
-  problem: { stroke: PROBLEM, dash: '5 4' },
-};
+/** The colour of every line on the map; the legend draws its swatches in it. */
+export const LINE = 'color-mix(in oklch, white, transparent 70%)';
 
 /** A label with a halo in the frame's colour, readable where it crosses a line. */
 function Label({ at, children }: { at: Point; children: string }): ReactElement {
@@ -57,23 +49,23 @@ function ArrowLabel({
   );
 }
 
-/** The trigger files' problems an arrow the install refuses has, as its hover title. */
-function Problems({ problems }: { problems: readonly string[] }): ReactElement | null {
-  return problems.length === 0 ? null : (
-    <title>{`This install refuses it: ${problems.join('; ')}`}</title>
+/** One line on the map, ending in an arrowhead. */
+function ArrowLine({ d }: { d: string }): ReactElement {
+  return (
+    <path d={d} fill="none" stroke={LINE} strokeWidth={1.5} markerEnd="url(#factory-map-head)" />
   );
 }
 
 /**
- * The map's hand-offs, each in its style; arrows back into their own card; and each card's
- * ends, a line off its outer edge to a bar, with the outcomes that end there.
+ * The map's forward hand-offs, each labelled; and the feedback lane, one path per send-back
+ * and one label per target.
  */
 export function MapArrows({
   layout,
 }: {
-  layout: Pick<MapLayout, 'arrows' | 'loops' | 'stubs' | 'bounds'>;
+  layout: Pick<MapLayout, 'arrows' | 'feedback' | 'bounds'>;
 }): ReactElement {
-  const { arrows, loops, stubs, bounds } = layout;
+  const { arrows, feedback, bounds } = layout;
   return (
     <svg
       aria-hidden="true"
@@ -82,39 +74,32 @@ export function MapArrows({
       viewBox={`${bounds.x.toString()} ${bounds.y.toString()} ${bounds.w.toString()} ${bounds.h.toString()}`}
     >
       <defs>
-        {(['solid', 'problem'] as const).map(style => (
-          <marker
-            key={style}
-            id={`factory-map-head-${style}`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path d="M0,0 L10,5 L0,10 z" fill={ARROW_STROKE[style].stroke} />
-          </marker>
-        ))}
+        <marker
+          id="factory-map-head"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        >
+          <path d="M0,0 L10,5 L0,10 z" fill={LINE} />
+        </marker>
       </defs>
-      {[...arrows, ...loops].map(arrow => (
-        <g key={arrow.id} data-arrow={arrow.id} data-style={arrow.style}>
-          <Problems problems={arrow.problems} />
-          <path
-            d={arrow.d}
-            fill="none"
-            stroke={ARROW_STROKE[arrow.style].stroke}
-            strokeWidth={1.5}
-            strokeDasharray={ARROW_STROKE[arrow.style].dash}
-            markerEnd={`url(#factory-map-head-${arrow.style === 'problem' ? 'problem' : 'solid'})`}
-          />
+      {arrows.map(arrow => (
+        <g key={arrow.id} data-arrow={arrow.id}>
+          <ArrowLine d={arrow.d} />
           {arrow.label === undefined ? null : <ArrowLabel arrow={arrow} />}
         </g>
       ))}
-      {stubs.map(stub => (
-        <g key={`ends:${stub.stage}`} data-ends={stub.stage}>
-          <path d={stub.d} fill="none" stroke={LINE} strokeWidth={1.5} />
-          {stub.lines.map(line => (
+      {feedback.paths.map(path => (
+        <g key={path.id} data-arrow={path.id} data-lane="feedback">
+          <ArrowLine d={path.d} />
+        </g>
+      ))}
+      {feedback.labels.map(label => (
+        <g key={label.stage} data-lane-label={label.stage}>
+          {label.lines.map(line => (
             <Label key={line.text} at={line.at}>
               {line.text}
             </Label>

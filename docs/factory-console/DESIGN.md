@@ -140,10 +140,10 @@ present itself without the console knowing it. Shape (validated with zod in
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
-    "cards": [ { "stage": "build", "col": 4, "row": 1 } ],
-    "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // only inside one
-                { "from": "checks", "to": "build", "label": "returned", "back": true },  // workflow,
-                { "from": "ready", "to": "landed", "label": "merged" } ],  // or into landed
+    "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
+    "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // every arrow the
+                { "from": "checks", "to": "build", "label": "returned" },  // map draws; leftward
+                { "from": "checks", "to": "plan", "label": "replan" } ],  // ones send back
     "notes": [ { "text": "You answer asks here", "near": "needs-you" } ]
   }
 }
@@ -162,9 +162,9 @@ This repository ships the declaration for `Wirasm/archon-software-factory` as th
 pack is later work. The pack's `discoveries` drain runs after deliver but moves no item, so the
 declaration names no stage for it: runs of a workflow no stage lists do not place an item.
 
-A declared map arrow joins stages one workflow works (its steps), or runs into the landed
-stage; the schema refuses any other. A hand-off from one workflow to another is the pack
-graph's (see The map), so the declaration cannot draw one the install does not have.
+`map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
+included; the map reads no other source (see The map). An arrow the pack stops making stays
+drawn until the view file changes; comparing the two is the coverage check's job (#28).
 
 ## Data
 
@@ -181,9 +181,10 @@ The items and the stage graph are the engine's own reads, which any API client u
   item's runs' end, or start while one runs), since a board column keeps the order it is given.
 - `GET /api/packs/{pack}/graph?codebaseId=` (#5848, what `archon pack graph` prints) gives the
   pack's stages, outcomes and the arrows between them, each active (a trigger file in this
-  install starts it) or only declared by the pack. The map draws its hand-offs between workflows
-  from it. `{pack}` is the pack's folder key (`Wirasm.archon-software-factory`), not
-  `owner/name`.
+  install starts it) or only declared by the pack. `{pack}` is the pack's folder key
+  (`Wirasm.archon-software-factory`), not `owner/name`. The map does not read it: it draws
+  only the view file's arrows (owner ruling of 2026-11-17 on #30); comparing the view file with
+  the graph is the coverage check's job (#28).
 
 What those reads do not carry comes from **one read-only route file**,
 `packages/server/src/routes/api.factory.ts`:
@@ -238,25 +239,24 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 ## The map
 
-- Cards laid out from `map.cards` on a grid, left to right in the order work flows. Each row
-  reads left to right; the author picks the grid, and four columns fill the Overview at 1440 px
-  at full size. A card shows the stage label, its blurb, and live chips: how many items are in
-  it now ("2 here", pulsing while a run works), how many wait on a person.
-- Arrows, labelled with the outcome that moves an item along. A hand-off from one workflow to
-  another comes from the pack graph read: it leaves the card a run of its stage ends on (the
-  stage whose `nodes` name the stage's returns node, else where its workflow sits) and enters
-  the card its workflow starts on. Arrows of one kind between the same two cards merge, their
-  outcomes joined. Solid: a trigger file in this install starts it. Dashed: the pack declares
-  it and nothing here starts it (all of them on `dev:console`, whose home has no trigger
-  files). Error colour, dashed: a trigger file starts it but the install's check refuses the
-  run, its problems as the title. Hand-offs inside one workflow, and the merge into Landed, come
-  from `map.arrows`. A return runs in a lane of the gap below its row.
-- An arrow back into its own card (a stage whose answered asks start it again) loops on the
-  card's outer edge: the top for the first row, the bottom for any other. On the same edge, the
-  outcomes of a stage that leaves no asks and that no arrow at all leaves end at a bar: they
-  start nothing. A start of a workflow with no card is listed under the map in one line. When
-  the graph cannot be read, the map draws the declared arrows and says why; when some of the
-  pack's workflows failed to load, it says the graph may be missing hand-offs.
+- One card per stage `map.cards` lists, in `stages` order (the board's), in one row left to
+  right. The map wraps into two rows (the first half above) only where one row would draw its
+  text under the type floor; below that it pans. `col` and `row` on a card are accepted, so an
+  older view file still loads, and ignored. A card shows the stage label, its blurb, and live
+  chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
+  a person.
+- The arrows are the view file's `map.arrows` and no others: the map does not read the pack
+  graph, so the view file declares every hand-off, between workflows too, and every send-back.
+  Forward arrows, labelled with the outcome that moves an item along, run side to side between
+  cards next to each other; one that skips cards runs in a lane off the row's outer edge.
+- **One feedback lane** under the row carries every send-back: an arrow into its own card or
+  an earlier one in `stages` order (a return, a replan). Direction comes from that order only;
+  an arrow's `back` flag is accepted, so an older view file loads, and ignored. Each send-back drops from its source to the lane, runs right to left along it, and
+  rises into its target; every send-back into one card shares one leg, labelled once with all
+  their outcomes. An arrow into its own card is a short U on the lane under it. In one row
+  nothing crosses: no line crosses another or a card. In two rows the lane runs in the gap
+  below the forward hand-offs between the rows; those hand-offs cross it, and the upper row's
+  send-back legs cross them, at right angles.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
 - **Click** a card: the stage page, which draws each workflow's steps
   as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
