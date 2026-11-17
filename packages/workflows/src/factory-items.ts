@@ -57,7 +57,10 @@ export const factoryChangeMergedSchema = z.union([z.boolean(), z.literal('unknow
 export type FactoryChangeMerged = z.infer<typeof factoryChangeMergedSchema>;
 
 export const factoryItemProgressSchema = z.object({
-  /** The declared run input's first line, without a leading `#<n> `; null when no run carries it. */
+  /**
+   * The declared run input's title line, after any front matter, without a leading `#<n> ` or
+   * heading marker; null when no run carries one.
+   */
   title: z.string().nullable(),
   /** The latest-started running run of a declared workflow; null when none runs. */
   running: z
@@ -247,16 +250,39 @@ export function factoryRunFacts(
   };
 }
 
-/** The first line of the declared input, without a leading `#<n> `. */
+/** The title of the newest declared run whose declared input has one. */
 function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | null {
   if (view.itemTitle === undefined) return null;
   for (const run of [...runs].reverse()) {
     const value = readSubrunMetadata(run.metadata).inputs?.[view.itemTitle.input];
     if (typeof value !== 'string') continue;
-    const line = (value.split(/\r?\n/, 1)[0] ?? '').replace(/^#\d+ /, '').trim();
-    if (line !== '') return line;
+    const title = titleOfItemText(value);
+    if (title !== null) return title;
   }
   return null;
+}
+
+/**
+ * An item text's title line: the first non-empty line after any `---` front matter, without a
+ * leading `#<n> ` or markdown heading marker. An item an order made opens with front matter
+ * (`id`, `source`), then `# Title`; an older item opens with `#<n> Title`. Null when there is
+ * no such line, including an unterminated front matter, so the board never shows `---`.
+ */
+export function titleOfItemText(text: string): string | null {
+  let lines = text.split(/\r?\n/);
+  if (lines[0]?.trim() === '---') {
+    const close = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+    if (close === -1) return null;
+    lines = lines.slice(close + 1);
+  }
+  const line = lines.find(candidate => candidate.trim() !== '');
+  if (line === undefined) return null;
+  const title = line
+    .trim()
+    .replace(/^#\d+ /, '')
+    .replace(/^#{1,6}\s+/, '')
+    .trim();
+  return title === '' ? null : title;
 }
 
 /**

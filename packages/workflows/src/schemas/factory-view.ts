@@ -126,7 +126,7 @@ const factoryViewShape = z.strictObject({
       pointer: z.string().regex(/^\//, 'a JSON pointer starting with /'),
     })
     .optional(),
-  /** The run input whose first line is the item's title. */
+  /** The run input whose title line (after any front matter) is the item's title. */
   itemTitle: z.strictObject({ input: z.string().min(1) }).optional(),
   map: mapSchema,
 });

@@ -11,6 +11,7 @@ import {
   readFactoryProgress,
   type FactoryChangeState,
   type FactoryRound,
+  titleOfItemText,
 } from './factory-items';
 import type { ItemReadSource } from './item-read';
 import { factoryViewSchema } from './schemas/factory-view';
@@ -396,6 +397,78 @@ describe("an item's progress", () => {
     const progress = await progressOf([triage1, plan1]);
     expect(progress).toMatchObject({ running: null, round: null, returned: 0, change: null });
     expect(progress.title).toBe('The live-home guard and dev:console have tests');
+  });
+
+  test('an item an order started: the title of the item text the order produced', async () => {
+    // The order run carries the work order (a source URL, no item); the triage run after it
+    // carries the item text the order stage produced, front matter first.
+    const order = withInputs(triage1, 'order-run', 'Wirasm/archon-software-factory:order', 0, {
+      key: '36',
+      source: 'https://github.com/coleam00/archon-factory-console/issues/36',
+    });
+    const triage = withInputs(triage1, 'triage-run', triage1.run.workflow_name, 60_000, {
+      item: ORDERED_ITEM,
+    });
+    const progress = await progressOf([order, triage]);
+    expect(progress.title).toBe('Items started by a work order show their title');
+  });
+});
+
+/** A copy of a fixture run with its own id, workflow and inputs, started `laterMs` after it. */
+function withInputs(
+  entry: { run: WorkflowRun; events: WorkflowEventRow[] },
+  id: string,
+  workflowName: string,
+  laterMs: number,
+  inputs: Record<string, string>
+): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  return {
+    run: {
+      ...entry.run,
+      id,
+      workflow_name: workflowName,
+      metadata: { inputs },
+      started_at: new Date(entry.run.started_at.getTime() + laterMs),
+    },
+    events: [],
+  };
+}
+
+/** The item text an order stage produced for a work order naming an issue, as the live copy holds it. */
+const ORDERED_ITEM = [
+  '---',
+  'id: 36',
+  'source: https://github.com/coleam00/archon-factory-console/issues/36',
+  '---',
+  '',
+  '# Items started by a work order show their title',
+  '',
+  'Since items start with a work order...',
+].join('\n');
+
+describe("an item text's title", () => {
+  test('an item an order made: the heading after its front matter', () => {
+    expect(titleOfItemText(ORDERED_ITEM)).toBe('Items started by a work order show their title');
+    expect(titleOfItemText(ORDERED_ITEM.replaceAll('\n', '\r\n'))).toBe(
+      'Items started by a work order show their title'
+    );
+  });
+
+  test("a text-only order: the operator's first line", () => {
+    expect(titleOfItemText('Fix the board\n\nmore')).toBe('Fix the board');
+  });
+
+  test('an item started the old way: the first line without its `#<n> `', () => {
+    expect(
+      titleOfItemText('#12 Stage and step pages show which items are on a step now\n\nbody')
+    ).toBe('Stage and step pages show which items are on a step now');
+  });
+
+  test('no title line: unterminated front matter, empty or blank text', () => {
+    expect(titleOfItemText('---\nid: 1\n')).toBeNull();
+    expect(titleOfItemText('')).toBeNull();
+    expect(titleOfItemText(' \n\t\n')).toBeNull();
+    expect(titleOfItemText('---\nid: 1\n---\n\n')).toBeNull();
   });
 });
 

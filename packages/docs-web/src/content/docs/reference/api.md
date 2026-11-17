@@ -653,7 +653,9 @@ read does not carry: `progress` by item key, derived through the first view that
 - `runs`: the item's runs of workflows the view names, in start order, each with the workflow
   as the view names it (a run records `owner/name:workflow`) and `failedStep`, the first step
   that failed, or null. Status, outcome and times are on the item read's `runs`, by id.
-- `title`: the first line of the view's `itemTitle` run input, without a leading `#<n> `.
+- `title`: the title line of the view's `itemTitle` run input: its first non-empty line after
+  any `---` front matter, without a leading `#<n> ` or markdown heading marker; null when no
+  run carries one.
 
 An item's progress is null when its runs could not be read into it; the others stand. A
 key the project has no item under is left out. No `keys`, or more than 100, returns **400**. An
