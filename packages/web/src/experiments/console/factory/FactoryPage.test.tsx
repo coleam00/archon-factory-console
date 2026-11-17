@@ -237,6 +237,9 @@ describe('the stage page', () => {
     expect(html).toContain('Checks the change.');
     expect(html).toContain('up to 3 rounds');
     expect(html).toContain('>included<');
+    // Only the stage's own step stands out; the rest of deliver is dimmed.
+    expect([...html.matchAll(/<button[^>]*data-in-stage=""[^>]*>/g)]).toHaveLength(1);
+    expect(html).toMatch(/<button[^>]*title="rounds\.review__review"[^>]*data-in-stage=""/);
     for (const step of ['fix', 'base', 'review', 'tests', 'product', 'verdict'])
       expect(html).toContain(`>${step}</span>`);
     expect(html).toContain('Back to the overview');

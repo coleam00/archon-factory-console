@@ -57,6 +57,9 @@ describe('the item page', () => {
     const html = render(itemDetail('3'));
     const words = text(html);
     expect(html).toContain(pill('waiting', 'Waiting'));
+    // The title alone: the summary is the Overview's.
+    expect(words).toContain(shippedView.title);
+    expect(html).not.toContain(shippedView.summary);
     expect(words).toContain('In Build');
     expect(words).toContain('PR #14');
     expect(words).toContain('merge state unknown');

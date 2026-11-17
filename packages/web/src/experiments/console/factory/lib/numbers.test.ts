@@ -30,16 +30,18 @@ function landed(key: string, start: Date, merged: Date | null): FactoryItem {
   return item;
 }
 
-/** A real item (6, waiting in Build) whose last run is now an open ask. */
+/** A copy of real item 6 (waiting in Build), keyed 6a, with an open ask. */
 function asking(): FactoryItem {
   const item = realItem('6');
-  item.questions = [askItem({ ref: 'ask:6', item: { ...item.item } })];
+  item.item = { ...item.item, key: '6a' };
+  item.questions = [askItem({ ref: 'ask:6a', item: { ...item.item } })];
   return item;
 }
 
-/** Item 6 closed by triage: its only run ended with an outcome placement does not take. */
+/** A copy of item 6, keyed 6t, closed by triage: its only run ended with an outcome placement does not take. */
 function closedByTriage(): FactoryItem {
-  return endLastRun(keepRuns(realItem('6'), 1), 'completed', 'skip');
+  const item = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'skip');
+  return { ...item, item: { ...item.item, key: '6t' } };
 }
 
 const numbers = (items: FactoryItem[], now: Date) =>
@@ -117,7 +119,7 @@ describe('the board under a number', () => {
     const shown = filterBoard(model, '', 'landed', now);
     expect(keys(shown)).toEqual(['1', '2', '7']);
     expect(shown.ended).toEqual([]);
-    expect(keys(filterBoard(model, '', 'needs-you', now))).toEqual(['6']);
+    expect(keys(filterBoard(model, '', 'needs-you', now))).toEqual(['6a']);
   });
 
   test('composes with the text filter', () => {
