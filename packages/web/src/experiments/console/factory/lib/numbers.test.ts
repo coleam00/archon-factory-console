@@ -60,12 +60,22 @@ describe('the numbers strip', () => {
   });
 
   test('landed today follows the local day: 23:59 yesterday is not, 00:01 today is', () => {
-    const items = [
-      landed('a', local(16, 20), local(16, 23, 59)),
-      landed('b', local(16, 20), local(17, 0, 1)),
-    ];
-    expect(numbers(items, local(17, 9))).toMatchObject({ landedToday: 1, landed: 2 });
-    expect(numbers(items, local(16, 23, 59)).landedToday).toBe(1);
+    // bun test runs in UTC, where a local day and a UTC day are the same and the test could
+    // not tell them apart. Only this test moves the zone: the median tests compare against
+    // the fixture's real UTC timestamps. Restored to 'UTC', not deleted: without TZ, bun
+    // falls back to the machine's zone.
+    const zone = process.env.TZ;
+    process.env.TZ = 'America/Chicago';
+    try {
+      const items = [
+        landed('a', local(16, 20), local(16, 23, 59)),
+        landed('b', local(16, 20), local(17, 0, 1)),
+      ];
+      expect(numbers(items, local(17, 9))).toMatchObject({ landedToday: 1, landed: 2 });
+      expect(numbers(items, local(16, 23, 59)).landedToday).toBe(1);
+    } finally {
+      process.env.TZ = zone ?? 'UTC';
+    }
   });
 
   test('median to land: odd and even counts, from the first declared run', () => {
