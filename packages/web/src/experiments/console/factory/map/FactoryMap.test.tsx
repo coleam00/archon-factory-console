@@ -15,7 +15,7 @@ import { askItem } from '../needs-you.test-fixtures';
 import { MAP_TEXT_PX } from '../lib/map-camera';
 import { FactoryMap } from './FactoryMap';
 
-// Selecting a card and opening its stage need clicks, which static markup cannot reach.
+// Opening a card's stage or its details needs clicks, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
 const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
 const descriptors = new Map(
@@ -88,13 +88,22 @@ async function mount(
   };
 }
 
-const card = (container: HTMLElement, stage: string): HTMLButtonElement => {
-  const button = container.querySelector<HTMLButtonElement>(`[data-stage="${stage}"] button`);
-  if (button === null) throw new Error(`No card for ${stage}`);
+/** The card itself: the link that fills it. */
+const card = (container: HTMLElement, stage: string): HTMLAnchorElement => {
+  const link = container.querySelector<HTMLAnchorElement>(`[data-stage="${stage}"] > a`);
+  if (link === null) throw new Error(`No card for ${stage}`);
+  return link;
+};
+/** The card's details button, beside its link. */
+const details = (container: HTMLElement, stage: string): HTMLButtonElement => {
+  const button = container.querySelector<HTMLButtonElement>(`[data-stage="${stage}"] > button`);
+  if (button === null) throw new Error(`No details button for ${stage}`);
   return button;
 };
+const stagePage = (container: HTMLElement): string | null | undefined =>
+  container.querySelector('[data-testid="stage-page"]')?.textContent;
 
-test('every card shows its chips; a click opens its details with the items there', async () => {
+test('every card shows its chips and links to its stage; its details button lists the items there', async () => {
   const { container, unmount } = await mount();
   try {
     expect(card(container, 'build').getAttribute('aria-label')).toBe(
@@ -112,13 +121,11 @@ test('every card shows its chips; a click opens its details with the items there
     expect(chip('checks', 'here')).toContain('1');
     expect(chip('checks', 'need-you')).toBeUndefined();
     expect(chip('plan', 'here')).toBeUndefined();
-    // The open icon leads to the stage page.
-    expect(container.querySelector('a[aria-label="Open Build"]')?.getAttribute('href')).toBe(
+    expect(card(container, 'build').getAttribute('href')).toBe(
       `/console/p/${ID}/factory/stages/build`
     );
 
-    // A keyboard click (detail 0) selects at once.
-    await act(async () => card(container, 'build').click());
+    await act(async () => details(container, 'build').click());
     const panel = container.querySelector('aside[aria-label="Build details"]');
     const links = [...(panel?.querySelectorAll('li a') ?? [])].map(link =>
       link.getAttribute('href')
@@ -135,22 +142,6 @@ test('every card shows its chips; a click opens its details with the items there
   }
 });
 
-/** A click with click count `detail`, at the screen point `at` (where the pointer was). */
-const clickOf = (target: Element, detail: number, at = { x: 0, y: 0 }): Promise<void> =>
-  act(async () => {
-    target.dispatchEvent(
-      new dom.MouseEvent('click', {
-        bubbles: true,
-        cancelable: true,
-        detail,
-        clientX: at.x,
-        clientY: at.y,
-      }) as unknown as Event
-    );
-  });
-const stagePage = (container: HTMLElement): string | null | undefined =>
-  container.querySelector('[data-testid="stage-page"]')?.textContent;
-
 test('no text the camera scales is smaller than MAP_TEXT_PX, which the readable scale assumes', async () => {
   const { container, unmount } = await mount();
   try {
@@ -166,73 +157,63 @@ test('no text the camera scales is smaller than MAP_TEXT_PX, which the readable 
   }
 });
 
-test('a double-click on a card opens its stage page', async () => {
+test('a click on a card opens its stage page', async () => {
   const { container, unmount } = await mount();
   try {
-    await clickOf(card(container, 'checks'), 1);
-    await clickOf(card(container, 'checks'), 2);
+    await act(async () => card(container, 'checks').click());
     expect(stagePage(container)).toBe('checks');
   } finally {
     await unmount();
   }
 });
 
-test("a double-click whose second click lands in the opened panel opens the first click's stage", async () => {
+test('the details button opens and closes the panel and never leaves the map', async () => {
   const { container, unmount } = await mount();
   try {
-    await clickOf(card(container, 'landed'), 1);
-    const itemLink = container.querySelector('aside[aria-label="Landed details"] li a');
-    if (itemLink === null) throw new Error('The panel did not open on the first click');
-    await clickOf(itemLink, 2);
-    expect(stagePage(container)).toBe('landed');
-  } finally {
-    await unmount();
-  }
-});
-
-test('a lone second click on a card, as a synthesised double-click sends, opens that card', async () => {
-  const { container, unmount } = await mount();
-  try {
-    await clickOf(card(container, 'plan'), 2);
-    expect(stagePage(container)).toBe('plan');
-  } finally {
-    await unmount();
-  }
-});
-
-test('a lone second click after an earlier single click elsewhere opens the card under it', async () => {
-  const { container, unmount } = await mount();
-  try {
-    await clickOf(card(container, 'plan'), 1, { x: 300, y: 500 });
-    await clickOf(card(container, 'build'), 2, { x: 450, y: 500 });
-    expect(stagePage(container)).toBe('build');
-  } finally {
-    await unmount();
-  }
-});
-
-test('a click, Escape, then a double-click elsewhere opens the card double-clicked', async () => {
-  const { container, unmount } = await mount();
-  try {
-    await clickOf(card(container, 'landed'), 1, { x: 1300, y: 500 });
-    await act(async () => {
-      window.dispatchEvent(new dom.KeyboardEvent('keydown', { key: 'Escape' }) as unknown as Event);
-    });
-    expect(container.querySelector('aside')).toBeNull();
-    await clickOf(card(container, 'checks'), 2, { x: 700, y: 500 });
-    expect(stagePage(container)).toBe('checks');
-  } finally {
-    await unmount();
-  }
-});
-
-test('two single clicks select, and never open a stage', async () => {
-  const { container, unmount } = await mount();
-  try {
-    await clickOf(card(container, 'landed'), 1);
-    await clickOf(card(container, 'build'), 1);
+    await act(async () => details(container, 'landed').click());
+    expect(container.querySelector('aside[aria-label="Landed details"]')).not.toBeNull();
+    expect(details(container, 'landed').getAttribute('aria-pressed')).toBe('true');
     expect(stagePage(container)).toBeUndefined();
-    expect(container.querySelector('aside[aria-label="Build details"]')).not.toBeNull();
+    await act(async () => details(container, 'landed').click());
+    expect(container.querySelector('aside')).toBeNull();
+    expect(stagePage(container)).toBeUndefined();
+  } finally {
+    await unmount();
+  }
+});
+
+test('a drag that ends on a card pans the map and does not open the card', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const target = card(container, 'build');
+    const layer = (): string | null | undefined =>
+      container.querySelector<HTMLElement>('[style*="scale("]')?.style.transform;
+    const before = layer();
+    const send = (event: Event): void => {
+      target.dispatchEvent(event);
+    };
+    const pointer = (type: string, init: Record<string, number>): Event =>
+      new dom.PointerEvent(type, { bubbles: true, cancelable: true, ...init }) as unknown as Event;
+    await act(async () => {
+      send(
+        pointer('pointerdown', { button: 0, buttons: 1, pointerId: 1, clientX: 100, clientY: 100 })
+      );
+      send(pointer('pointermove', { buttons: 1, pointerId: 1, clientX: 140, clientY: 100 }));
+      send(pointer('pointerup', { pointerId: 1, clientX: 140, clientY: 100 }));
+      send(
+        new dom.MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          detail: 1,
+        }) as unknown as Event
+      );
+    });
+    expect(stagePage(container)).toBeUndefined();
+    expect(layer()).not.toBe(before);
+    // The guard lasts one task: the next click opens the card.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await act(async () => card(container, 'build').click());
+    expect(stagePage(container)).toBe('build');
   } finally {
     await unmount();
   }

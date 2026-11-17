@@ -14,7 +14,7 @@ import { needsYou } from './lib/needs-you';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
-export type FactorySection = 'overview' | 'board' | null;
+export type FactorySection = 'overview' | 'board' | 'needs-you' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
@@ -128,7 +128,7 @@ function FactoryAbsent({
 const SECTIONS: readonly { key: Exclude<FactorySection, null>; label: string; rest: string }[] = [
   { key: 'overview', label: 'Overview', rest: '' },
   { key: 'board', label: 'Board', rest: '/board' },
-  // Needs you is a section of the Overview, not a page of its own, so it is never active.
+  { key: 'needs-you', label: 'Needs you', rest: '/needs-you' },
 ];
 
 function FactoryHeading({
@@ -162,60 +162,46 @@ function FactoryHeading({
             to={factoryPath(projectId, rest)}
             label={label}
             active={key === section}
+            count={key === 'needs-you' ? waiting : undefined}
           />
         ))}
-        <NeedsYouLink projectId={projectId} waiting={waiting} />
       </nav>
     </div>
   );
 }
 
-/** The Needs-you entry, with its count in the page's one loud colour while anything waits. */
-function NeedsYouLink({
-  projectId,
-  waiting,
-}: {
-  projectId: string;
-  waiting: number | undefined;
-}): ReactElement {
-  return (
-    <Link
-      to={factoryPath(projectId, '#needs-you')}
-      className="flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium text-text-tertiary transition-colors hover:text-text-primary"
-    >
-      Needs you
-      {waiting === undefined || waiting === 0 ? null : (
-        <span
-          aria-label={`${waiting.toString()} waiting`}
-          className="rounded-full bg-warning/20 px-1.5 text-console-11 font-semibold text-warning"
-        >
-          {waiting}
-        </span>
-      )}
-    </Link>
-  );
-}
-
+/** One sub-navigation entry; a count, while above zero, shows in the page's one loud colour. */
 function SectionLink({
   to,
   label,
   active,
+  count,
 }: {
   to: string;
   label: string;
   active: boolean;
+  /** How many wait on a person, for Needs you; undefined for the others and until it loads. */
+  count?: number;
 }): ReactElement {
   return (
     <Link
       to={to}
       aria-current={active ? 'page' : undefined}
-      className={`rounded px-2 py-1 text-console-12 font-medium transition-colors ${
+      className={`flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium transition-colors ${
         active
           ? 'bg-surface-elevated text-text-primary'
           : 'text-text-tertiary hover:text-text-primary'
       }`}
     >
       {label}
+      {count === undefined || count === 0 ? null : (
+        <span
+          aria-label={`${count.toString()} waiting`}
+          className="rounded-full bg-warning/20 px-1.5 text-console-11 font-semibold text-warning"
+        >
+          {count}
+        </span>
+      )}
     </Link>
   );
 }

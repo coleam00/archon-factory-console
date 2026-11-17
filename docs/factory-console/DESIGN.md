@@ -4,6 +4,32 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## Owner changes of 2026-11-17 (bind every later change; win over older text below)
+
+The section has **two separate things**, each with its own file:
+
+1. **The factory overview** (new, its own page). A hand-curated explainer of how the factory runs, for
+   presenting: not live, not exhaustive, never generated from workflow YAML. Its own file per pack
+   (`.archon/packs/<pack key>.factory-overview.json`, or `<pack>/.shared/factory-overview.json`), in the
+   format of Mission Control's `app/map/factory-map.json` (read-only reference at
+   `C:\Users\colem\OpenSource\factory-mission-control`): views (a root view and drill-downs), groups,
+   cards (title, one line of text, icon, kind), edges (feeds, calls, and exactly one "loops back" line
+   drawn as a single lane under the line, never crossing dotted lines). Interaction like Eric Tech's
+   skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
+   counts, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a full-screen
+   mode. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
+2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
+   map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
+   grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
+   card `covers` the real step ids it stands for) and display names for steps. A coverage check reads
+   the pack's real workflows and fails when a real step is covered by no card or by two. The live map
+   is one row of stages with one feedback lane underneath; clicking a stage opens it.
+
+**Step names, everywhere a person reads:** never a raw engine id such as `build__build` or
+`rounds.review__review`. One function gives a step's display name: the view file's name when it has
+one, else a cleaned id (a doubled include name collapses, a loop prefix becomes "round N", separators
+become spaces). The raw id appears only on hover and on the step page.
+
 ## What it is for
 
 A factory is Archon running a pack of stages over work items: an item comes in, stages work it,
@@ -58,12 +84,13 @@ documents through Neon live queries.
   |---|---|
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the Needs-you list, then the map |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
+  | `factory/needs-you` | Needs you: every open ask and paused wait on this project's items, answerable in place (the Overview shows the newest few) |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, the workflows behind it, each workflow's step graph |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
 
 - Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
-  count). Item, stage and step pages have a back link to where you came from.
+  count), each its own route. Item, stage and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
@@ -227,13 +254,13 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   the graph cannot be read, the map draws the declared arrows and says why; when some of the
   pack's workflows failed to load, it says the graph may be missing hand-offs.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
-- **Click** a card: a details panel beside the map with the blurb, the items in that stage
-  (linking to each item), and the workflows behind it with links to their steps.
-- **Double-click** (or the open icon) a card: the stage page, which draws each workflow's steps
+- **Click** a card: the stage page, which draws each workflow's steps
   as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
   now for any item glows, and above the graph each item running the workflow is named, linking
   to its item page. Clicking a step opens the step page.
+- Its **details** button: a panel beside the map with the blurb, the items in that stage
+  (linking to each item), and the workflows behind it with links to their steps.
 - A legend under the map names the colour groups and what each kind of line means, in plain
   words.
 

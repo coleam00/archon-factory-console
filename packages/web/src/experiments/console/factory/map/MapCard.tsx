@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { Box } from '../lib/map-layout';
@@ -12,16 +12,13 @@ interface MapCardProps {
   /** Stage notes the declaration places by this card. */
   notes: readonly string[];
   selected: boolean;
-  /** The stage page's path. */
+  /** The stage page's path, which a click on the card opens. */
   openTo: string;
-  /**
-   * A click; its `detail` counts the clicks of a double-click (0 from the keyboard). The map
-   * opens the stage on a double-click's second click.
-   */
-  onSelect: (stage: string, event: MouseEvent) => void;
+  /** The details button: the map shows or hides this stage's details panel. */
+  onDetails: (stage: string) => void;
 }
 
-/** One stage on the map: its colour, label, blurb and live chips, selectable and openable. */
+/** One stage on the map: its colour, label, blurb and live chips; a click opens its stage page. */
 export function MapCard({
   stage,
   box,
@@ -29,7 +26,7 @@ export function MapCard({
   notes,
   selected,
   openTo,
-  onSelect,
+  onDetails,
 }: MapCardProps): ReactElement {
   const color = GROUPS[stage.group].color;
   return (
@@ -38,11 +35,12 @@ export function MapCard({
       className="absolute"
       style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
     >
-      <button
-        type="button"
-        aria-pressed={selected}
+      <Link
+        to={openTo}
         aria-label={`${stage.label}: ${chipWords(live)}`}
-        onClick={(event: MouseEvent) => onSelect(stage.id, event)}
+        // A link is natively draggable: a pan that starts on the card would become a link drag
+        // the map never sees.
+        draggable={false}
         className={`relative flex size-full flex-col gap-1 overflow-hidden rounded-console-12 border bg-surface py-2.5 pl-4 pr-3 text-left transition-colors hover:bg-surface-elevated ${
           selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border'
         }`}
@@ -68,17 +66,20 @@ export function MapCard({
         <span className="mt-auto flex flex-wrap gap-1">
           <Chips live={live} />
         </span>
-      </button>
-      <Link
-        to={openTo}
-        aria-label={`Open ${stage.label}`}
-        title={`Open ${stage.label}`}
-        // A press on the link must not start a pan of the map under it.
+      </Link>
+      {/* Beside the card's link, not in it: a button inside a link is invalid. */}
+      <button
+        type="button"
+        aria-label={`${stage.label} details`}
+        aria-pressed={selected}
+        title="Details"
+        // A press on the button must not start a pan of the map under it.
         onPointerDown={event => event.stopPropagation()}
+        onClick={() => onDetails(stage.id)}
         className="absolute right-1.5 top-1.5 rounded px-1 text-console-15 text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
       >
-        ↗
-      </Link>
+        ⓘ
+      </button>
     </div>
   );
 }
