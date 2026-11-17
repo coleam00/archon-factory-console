@@ -5,8 +5,11 @@ import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
 import type { FactoryViews } from '../skills/factory';
-import { useEntity } from '../store/cache';
+import type { AttentionQueue } from '../skills/runs';
+import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
+import { useFactoryAttention } from './attention-stream';
+import { needsYou } from './lib/needs-you';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
@@ -14,8 +17,11 @@ export type FactorySection = 'overview' | 'board' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
-  /** The page body, drawn under the view's header once a view applies. */
-  children: (view: FactoryViewListed) => ReactNode;
+  /**
+   * The page body, drawn under the view's header once a view applies, with the project's
+   * attention queue: read once here, so the count and a page's list share one fetch and stream.
+   */
+  children: (view: FactoryViewListed, attention: EntityView<AttentionQueue>) => ReactNode;
 }
 
 /**
@@ -45,38 +51,62 @@ export function FactoryFrame({ section, children }: FactoryFrameProps): ReactEle
       </header>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
         <div className="flex max-w-5xl flex-col gap-5">
-          {view === undefined ? null : (
-            <FactoryHeading projectId={projectId} view={view} section={section} />
+          {view === undefined ? (
+            <>
+              <FactoryErrors errors={listing.data?.errors ?? []} />
+              <FactoryAbsent projectId={projectId} listing={listing.data} failed={listing.error} />
+            </>
+          ) : (
+            <FactoryViewed
+              projectId={projectId}
+              view={view}
+              section={section}
+              errors={listing.data?.errors ?? []}
+            >
+              {children}
+            </FactoryViewed>
           )}
-          <FactoryErrors errors={listing.data?.errors ?? []} />
-          <FactoryBody
-            projectId={projectId}
-            listing={listing.data}
-            failed={listing.error}
-            view={view}
-          >
-            {children}
-          </FactoryBody>
         </div>
       </div>
     </section>
   );
 }
 
-function FactoryBody({
+/** A project with a view: its heading, any declaration that failed, then the page. */
+function FactoryViewed({
+  projectId,
+  view,
+  section,
+  errors,
+  children,
+}: {
+  projectId: string;
+  view: FactoryViewListed;
+  section: FactorySection;
+  errors: FactoryViews['errors'];
+  children: FactoryFrameProps['children'];
+}): ReactElement {
+  const attention = useFactoryAttention(projectId);
+  const waiting = attention.data === undefined ? undefined : needsYou(attention.data.items).length;
+  return (
+    <>
+      <FactoryHeading projectId={projectId} view={view} section={section} waiting={waiting} />
+      <FactoryErrors errors={errors} />
+      {children(view, attention)}
+    </>
+  );
+}
+
+/** A project no view applies to, or whose views have not loaded. */
+function FactoryAbsent({
   projectId,
   listing,
   failed,
-  view,
-  children,
 }: {
   projectId: string;
   listing: FactoryViews | undefined;
   failed: Error | undefined;
-  view: FactoryViewListed | undefined;
-  children: FactoryFrameProps['children'];
 }): ReactNode {
-  if (view !== undefined) return children(view);
   if (failed !== undefined)
     return <EmptyState title="The factory view could not be loaded" hint={failed.message} />;
   if (listing === undefined) return <p className="text-xs text-text-tertiary">Loading…</p>;
@@ -108,10 +138,13 @@ function FactoryHeading({
   projectId,
   view,
   section,
+  waiting,
 }: {
   projectId: string;
   view: FactoryViewListed;
   section: FactorySection;
+  /** How many open asks and waits need a person; undefined until the queue loads. */
+  waiting: number | undefined;
 }): ReactElement {
   return (
     <div className="flex flex-col gap-3">
@@ -130,9 +163,35 @@ function FactoryHeading({
             active={key === section}
           />
         ))}
-        <SectionLink to={factoryPath(projectId, '#needs-you')} label="Needs you" active={false} />
+        <NeedsYouLink projectId={projectId} waiting={waiting} />
       </nav>
     </div>
+  );
+}
+
+/** The Needs-you entry, with its count in the page's one loud colour while anything waits. */
+function NeedsYouLink({
+  projectId,
+  waiting,
+}: {
+  projectId: string;
+  waiting: number | undefined;
+}): ReactElement {
+  return (
+    <Link
+      to={factoryPath(projectId, '#needs-you')}
+      className="flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium text-text-tertiary transition-colors hover:text-text-primary"
+    >
+      Needs you
+      {waiting === undefined || waiting === 0 ? null : (
+        <span
+          aria-label={`${waiting.toString()} waiting`}
+          className="rounded-full bg-warning/20 px-1.5 text-console-11 font-semibold text-warning"
+        >
+          {waiting}
+        </span>
+      )}
+    </Link>
   );
 }
 
