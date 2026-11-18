@@ -62,7 +62,7 @@ export function BoardColumn({
   return (
     <section
       aria-label={column.label}
-      className="flex flex-col gap-3 md:min-h-0 md:w-0 md:min-w-55 md:flex-1"
+      className="flex flex-col gap-3 md:min-h-0 md:w-0 md:min-w-52 md:flex-1"
     >
       <ColumnHeader
         id={column.id}

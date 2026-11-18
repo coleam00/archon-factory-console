@@ -120,7 +120,7 @@ function CardBox({
       </div>
       <Link
         to={itemPath(projectId, card.key)}
-        className="line-clamp-2 text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0"
+        className="line-clamp-3 text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0"
       >
         {card.title}
       </Link>

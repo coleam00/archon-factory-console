@@ -101,7 +101,8 @@ card's option tiles (rule 9).
 - Padding: 12 px (`p-3`); a drill-down card 16 px (`p-4`).
 - A 3 px top accent bar in the stage group's colour (rule 5), inside the radius.
 - Row 1: a 16 px icon and a kind label in the Label role ("AGENT · LARGE", as in 12-drill-build).
-- Then the title in the Card title role, at most 2 lines.
+- Then the title in the Card title role, at most 2 lines; on a board card at most 3 (owner,
+  2026-11-18: the board is where people find items, and a cut title costs a click).
 - Then at most two lines of text at `--text-console-13`, `--text-secondary` (`line-clamp-2`).
 - Live chips (rule 5's state colours) sit below the text.
 - Minimum width on the map and How it works: **176 px**. A card is wider than tall (height at most
@@ -116,7 +117,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Between cards in a list or a column: 12 px (`gap-3`).
 - Between canvas cards joined by a labelled line: 48 px, room for a label pill.
 - Between page sections: 24 px (`gap-6`). Page padding: 24 px (`p-6`).
-- Board columns: 12 px apart (`gap-3`), each at least 220 px wide.
+- Board columns: 12 px apart (`gap-3`), each at least 208 px wide (owner, 2026-11-18: five
+  columns fit beside the sidebar at 1440x900, 5 x 208 + 4 x 12 = 1088 of 1100 px; narrower
+  windows scroll sideways).
 
 ### 4. Lines
 
