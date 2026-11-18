@@ -75,7 +75,6 @@ function ItemRead({
   attention: EntityView<AttentionQueue>;
 }): ReactNode {
   const { data } = read;
-  const failed = readFailed(read.error);
   const orders = useWorkOrders(view.declaration, projectId);
   const order = orders.orders?.find(entry => entry.key === itemKey);
   // The stage the item sat in on the last read: a run on a step no stage names stays there,
@@ -92,17 +91,8 @@ function ItemRead({
   useEffect(() => {
     if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
   }, [column, itemKey]);
-  if (data === undefined) {
-    // A work order only a member's order run named has no item row: the item read answers
-    // 404, and the page is the order's, from the items read.
-    if (isNoSuchItem(failed)) {
-      if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
-      if (orders.orders === undefined && !orders.failed) return <FactoryLoading read={read} />;
-    }
-    if (failed !== undefined)
-      return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
-    return <FactoryLoading read={read} />;
-  }
+  if (data === undefined)
+    return <ItemUnread projectId={projectId} itemKey={itemKey} read={read} orders={orders} />;
   const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
   // The placement every view shares, and the board's pill, so the header says what the
@@ -128,6 +118,33 @@ function ItemRead({
       <Degraded degraded={data.item.degraded} />
     </>
   );
+}
+
+/**
+ * The page while the item read has no value: loading, or why it failed. A work order only a
+ * member's order run named has no item row, so the item read answers 404 and the page is the
+ * order's, from the items read.
+ */
+function ItemUnread({
+  projectId,
+  itemKey,
+  read,
+  orders,
+}: {
+  projectId: string;
+  itemKey: string;
+  read: EntityView<FactoryItemDetail>;
+  orders: ReturnType<typeof useWorkOrders>;
+}): ReactElement {
+  const failed = readFailed(read.error);
+  if (isNoSuchItem(failed)) {
+    const order = orders.orders?.find(entry => entry.key === itemKey);
+    if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
+    if (orders.orders === undefined && !orders.failed) return <FactoryLoading read={read} />;
+  }
+  if (failed !== undefined)
+    return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
+  return <FactoryLoading read={read} />;
 }
 
 function ItemAsks({
