@@ -145,6 +145,10 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // only (approved | returned | asked)
   "asked": ["plan:ask", "deliver:ask"],            // outcomes that stop to ask you
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
+  "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
+                                                   // where a result names the item's work order:
+                                                   // only runs that completed with `outcome`;
+                                                   // read only without a part_of link
   "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
     "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
@@ -191,8 +195,9 @@ The items and the stage graph are the engine's own reads, which any API client u
   (1970, so every item with a run shows) by its `after` cursor, which carries the window, 100
   items a page. The window lists an item once one of its own runs started, so an item whose
   first start is still queued for capacity, or that only a link or ruling created, is on no
-  board, map or number until its first run starts. Showing those needs the window to count
-  queued starts (an engine change), not a second reader here.
+  board, map or number until its first run starts; one linked `part_of` a work order counts
+  only in that order's "N of M landed" (as not started). Showing those needs the window to
+  count queued starts (an engine change), not a second reader here.
   The window pages by item id; the console sorts newest activity first (the latest of each
   item's runs' end, or start while one runs), since a board column keeps the order it is given.
 - `GET /api/packs/{pack}/graph?codebaseId=` (#5848, what `archon pack graph` prints) gives the
@@ -217,8 +222,14 @@ What those reads do not carry comes from **one read-only route file**,
   progress the board needs and `ItemRead` does not carry, by item key: the running run's id,
   workflow and deepest running step, the current loop iteration of the declared `rounds` loop,
   the returned count, the change URL from the declared pointer with its pull request number,
-  the title, and each declared run's workflow as the view names it with the step it failed at.
-  The web joins each window page with it: one reader, `factory/lib/factory-items-read.ts`.
+  the title, each declared run's workflow as the view names it with the step it failed at, and
+  `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
+  its declared outcome names (an empty value there means none; a refused run is never read). Beside `progress`, `members` lists for each asked key the
+  items with an active `part_of` link to it, so a member with no run yet counts. A key may name
+  an item with no runs (a work order). The web joins each window page with it: one reader,
+  `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
+  to that the window lacks (no run of its own, or no item row) in one more progress request per
+  100 keys, never one per item; a key that request leaves out has no item row.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
   timeline needs per run and neither read carries: the declared workflow, the run's cause, its
   cost, its running step, and each round of the declared `rounds` loop with the steps that
@@ -343,13 +354,31 @@ A card, in this order:
 
 Cards are compact (the board fits eight columns at 1440 px wide; below that the board scrolls
 sideways with a hint naming the hidden columns). A card opens the item page. **Table** view: one
-row per item with the same fields as columns, sortable. A filter box narrows by key or title.
+row per item with the same fields as columns, a Work order column among them, sortable. A filter
+box narrows by key, title or work order key.
+
+**Work orders** (read-only; the console records and ends no link). A work order is an item other
+items are `part_of`. An item's order is its newest active `part_of` link, else the order its
+newest run of the declared `partOf` workflow that completed with its declared outcome names (a
+refused order run never makes an item a member): a link wins over a result that
+disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no card in any
+column and counts in no number; its members count as the items they are. Above the Pipeline's
+columns, a **Work orders** strip has one row per order with a member on the board (one that
+has a run): its key (to its item
+page) and title (its own when it has one, else "Work order <key>"), "N of M landed" with a small bar, one
+dot per member in its pill's colour, and a toggle that lights its members on the board and dims
+the rest (`?order=<key>`). An order whose members have not started has no row yet: the order
+and its members show on its item page (`factory/items/<order key>`). A member's card says
+"part of <order>", which lights its order. An
+order's own column, stages and landing target are not built (owner ruling of 2026-11-17).
 
 When an item changes column, the card moves there within 5 s; a brief highlight shows it moved.
 
 ## The item page
 
-- Header: key, title, state pill, the change link, the column it is in.
+- Header: key, title, state pill, the change link, the column it is in. An item no run has
+  started yet (a member linked before its first run) says "Not started" instead of a state,
+  column and change.
 - **Asks** it waits on, answerable in place (the same answer form as Needs you, always open).
 - **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
   or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
@@ -358,7 +387,13 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
   `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run
   that stopped to ask (a declared `asked` outcome, or asks it left on the item) reads "asked
   you", with its questions on hover, not the stage it would send the item to.
-- **Links:** depends on, part of, duplicate of, from the engine's item links.
+- **Links:** depends on, part of, duplicate of, from the engine's item links. A member its order
+  run placed without a link says "Part of <order>, as its order run recorded". On a work order,
+  its members stand for their links: each with its title, state pill and where it sits, under
+  "Members: N of M landed". An order with no run of its own has no column or state; its header
+  says it is a work order, not worked by the factory itself, and without a title of its own it
+  reads "Work order <key>" (the key stays the mono label). An order only a result names has
+  no item row: its page is its key, that title and its members, from the items read.
 - **Rulings and answers** given on the item.
 
 ## Visual rules
@@ -384,8 +419,9 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 
 ## Later (not in the first slices, written down so they are not lost)
 
-1. **Work orders** as items with `part_of` links: a strip above the board grouping members, an
-   order's own column and landing target (`docs/shape.md` in the pack: hypothesis today).
+1. **Work orders' own column and landing target** (`docs/shape.md` in the pack: hypothesis
+   today). The strip, member chips and order pages are built (#47); an order's stages, landing
+   branch and any write from the console belong to the pack and engine.
 2. **Graph view of the board** (Rasmus's preference): items as a graph by links instead of
    columns, as a third view.
 3. **Pool of machines** (Rasmus's idea): one console observing several Archon daemons.

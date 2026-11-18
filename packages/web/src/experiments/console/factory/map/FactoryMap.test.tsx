@@ -61,7 +61,7 @@ function StagePage(): React.ReactElement {
 async function mount(
   read: FactoryItem[] | null = items
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
-  if (read !== null) set(K.factoryItems(ID), read);
+  if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -235,7 +235,7 @@ test('a later read on a step no stage names keeps the card where the last read p
   try {
     expect(hereChip(container, 'checks')).toContain('1');
     // Between rounds the run records only the bare loop group, which no stage names.
-    await act(async () => set(K.factoryItems(ID), [checking('rounds')]));
+    await act(async () => set(K.factoryItems(ID), { items: [checking('rounds')], members: {} }));
     expect(hereChip(container, 'checks')).toContain('1');
     expect(hereChip(container, 'build')).toBeNull();
   } finally {

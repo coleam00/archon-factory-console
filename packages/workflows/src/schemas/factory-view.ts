@@ -25,6 +25,8 @@ const workflowNameSchema = z.string().regex(/^[A-Za-z0-9_.-]+$/, 'a workflow nam
  * and a loop group's body node is `<group>.<node>`, as in `rounds.review__review`.
  */
 const stepIdSchema = z.string().regex(/^[A-Za-z0-9_.-]+$/, 'a step id');
+/** Where a value is in a run's result. */
+const jsonPointerSchema = z.string().regex(/^\//, 'a JSON pointer starting with /');
 /**
  * `workflow:outcome`, the completed outcome of a run of a workflow the view names, or
  * `workflow:*` for every completed run of it no exact key takes.
@@ -234,7 +236,21 @@ const factoryViewShape = z.strictObject({
   change: z
     .strictObject({
       workflow: workflowNameSchema,
-      pointer: z.string().regex(/^\//, 'a JSON pointer starting with /'),
+      pointer: jsonPointerSchema,
+    })
+    .optional(),
+  /**
+   * Where a run's result names the item's work order (an item key), as a JSON pointer: read
+   * when the item has no active `part_of` link, which wins when both exist. Only a run of
+   * `workflow` that completed with `outcome` (the one that accepts the item) counts; the
+   * newest such run decides, and an empty value there means none. A run that completed with
+   * any other outcome (a refusal) never makes the item a member.
+   */
+  partOf: z
+    .strictObject({
+      workflow: workflowNameSchema,
+      pointer: jsonPointerSchema,
+      outcome: z.string().min(1),
     })
     .optional(),
   /** The run input whose title line (after any front matter) is the item's title. */
@@ -301,6 +317,7 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
     refer(['approves', index, 'workflow'], entry.workflow);
   });
   if (view.change !== undefined) refer(['change', 'workflow'], view.change.workflow);
+  if (view.partOf !== undefined) refer(['partOf', 'workflow'], view.partOf.workflow);
   for (const workflow of Object.keys(view.steps ?? {})) refer(['steps', workflow], workflow);
   for (const workflow of Object.keys(view.verdicts ?? {})) refer(['verdicts', workflow], workflow);
   view.asked?.forEach((key, index) => {

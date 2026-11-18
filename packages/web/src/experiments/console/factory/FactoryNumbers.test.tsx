@@ -77,7 +77,7 @@ const turns = async (n = 5): Promise<void> => {
 
 /** The strip over `items`, read warm from the cache as the Overview reads it after the board. */
 async function mount(projectId: string, items: FactoryItem[]) {
-  set(K.factoryItems(projectId), items);
+  set(K.factoryItems(projectId), { items: items, members: {} });
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -146,7 +146,7 @@ test('while a merge state is pending, the counts it decides say loading, never z
     // Whether an item needs you does not wait on a merge answer.
     expect(tile('items need you')).toBe('0items need you');
     // The answer arrives: real numbers replace the loading ones.
-    await act(async () => set(K.factoryItems('cb-pending'), PAGE.items));
+    await act(async () => set(K.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
     expect(tile('done')).toBe('3 of 8done');
     expect(container.textContent).not.toContain('Loading');
   } finally {

@@ -98,6 +98,16 @@ function BoardRow({
         </Link>
       )}
       {cell(card.title, 'min-w-48 text-text-primary')}
+      {cell(
+        card.order === null ? null : (
+          <Link
+            to={itemPath(projectId, card.order)}
+            className="font-mono text-console-11 text-accent-bright hover:underline"
+          >
+            {card.order}
+          </Link>
+        )
+      )}
       {cell(row.column, 'whitespace-nowrap text-text-secondary')}
       {cell(<PillBadge pill={card.pill} />)}
       {cell(card.round === null ? null : <RoundDots round={card.round} />, 'whitespace-nowrap')}

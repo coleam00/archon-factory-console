@@ -50,8 +50,12 @@ afterEach(() => {
   invalidate('factory-items');
 });
 
-async function mount(items: FactoryItem[], path = `/console/p/${ID}/factory/board`) {
-  set(K.factoryItems(ID), items);
+async function mount(
+  items: FactoryItem[],
+  path = `/console/p/${ID}/factory/board`,
+  members: Record<string, string[]> = {}
+) {
+  set(K.factoryItems(ID), { items, members });
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -128,6 +132,60 @@ describe('the Pipeline view', () => {
     }
   });
 
+  test('a work order: its row above the columns, a chip on each member, members lit on demand', async () => {
+    // 5 and 2 are part of 48 by their order runs' results; 9 is linked and has no run yet.
+    // 4 is part of 8, an order with runs of its own.
+    const named: Record<string, string> = { '5': '48', '2': '48', '4': '8' };
+    const items = PAGE.items.map(item =>
+      item.item.key in named
+        ? { ...item, progress: { ...item.progress!, partOf: named[item.item.key]! } }
+        : item
+    );
+    const { container, unmount } = await mount(items, undefined, { '48': ['9'] });
+    try {
+      const strip = container.querySelector('section[aria-label="Work orders"]');
+      const row = strip?.querySelector('li[data-order="48"]');
+      expect(row?.textContent).toContain('1 of 3 landed');
+      // 48 has no title of its own: its key, then "Work order 48".
+      expect(row?.querySelector('a')?.textContent).toBe('48');
+      expect(row?.textContent).toContain('Work order 48');
+      expect(
+        [...(row?.querySelectorAll('[role="img"][title]') ?? [])].map(dot =>
+          dot.getAttribute('title')
+        )
+      ).toEqual(['5: Running', '2: Landed', '9: Waiting']);
+      // A run-less order's row is its key; one with runs shows its key and its own title.
+      expect(row?.querySelector('a')?.textContent).toBe('48');
+      const withRuns = strip?.querySelector('li[data-order="8"]');
+      expect(withRuns?.querySelector('a')?.textContent).toBe('8');
+      expect(withRuns?.textContent).toContain(realItem('8').progress!.title!);
+      const card = (key: string) =>
+        [...container.querySelectorAll('article')].find(
+          article => article.querySelector('.font-mono')?.textContent === key
+        );
+      expect(card('5')?.querySelector('a[href$="?order=48"]')?.textContent).toBe('part of 48');
+      expect(card('6')?.textContent).not.toContain('part of');
+      const toggle = row?.querySelector('button[aria-pressed]') as HTMLButtonElement;
+      await act(async () => toggle.click());
+      const dimmed = [...container.querySelectorAll('article[data-dimmed="true"]')];
+      expect(dimmed).toHaveLength(PAGE.items.length - 2);
+      expect(card('5')?.dataset.dimmed).toBeUndefined();
+      expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('no work order with a member on the board, no strip', async () => {
+    // 9 is linked to 48 and has no run yet: 48 has its page, nothing on the board to light.
+    const { container, unmount } = await mount(PAGE.items, undefined, { '48': ['9'] });
+    try {
+      expect(container.querySelector('section[aria-label="Work orders"]')).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
   test('an item an ending took off the board is in the folded row, linking to its page', async () => {
     const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now');
     const { container, unmount } = await mount([closed, realItem('7')]);
@@ -150,11 +208,11 @@ describe('the Pipeline view', () => {
         item.item.key === '6' ? { ...realItem('8'), item: item.item } : item
       );
       await act(async () => {
-        set(K.factoryItems(ID), moved);
+        set(K.factoryItems(ID), { items: moved, members: {} });
       });
       // A second read right after, as several node events bring while checks start.
       await act(async () => {
-        set(K.factoryItems(ID), structuredClone(moved));
+        set(K.factoryItems(ID), { items: structuredClone(moved), members: {} });
       });
       expect(container.querySelector('[data-moved="true"]')).not.toBeNull();
       await act(async () => {
@@ -176,7 +234,7 @@ describe('the Pipeline view', () => {
         item.item.key === '6' ? { ...delivering, item: item.item } : item
       );
       await act(async () => {
-        set(K.factoryItems(ID), moved);
+        set(K.factoryItems(ID), { items: moved, members: {} });
       });
       const marked = [...container.querySelectorAll('[data-moved="true"]')].map(
         card => card.querySelector('.font-mono')?.textContent
@@ -215,6 +273,30 @@ describe('the Table view', () => {
       expect(keys()).toEqual(['8', '7', '6', '5', '4', '3', '2', '1']);
       await act(async () => header('Returned').click());
       expect(keys()).toEqual(['5', '4', '6', '8', '7', '3', '2', '1']);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test("the Work order cell sits under its header and links to the order's page", async () => {
+    const items = PAGE.items.map(item =>
+      item.item.key === '5' ? { ...item, progress: { ...item.progress!, partOf: '48' } } : item
+    );
+    const { container, unmount } = await mount(items, `/console/p/${ID}/factory/board?view=table`);
+    try {
+      const column = [...container.querySelectorAll('thead th')].findIndex(th =>
+        th.textContent?.startsWith('Work order')
+      );
+      expect(column).toBeGreaterThan(-1);
+      const cell = (key: string) =>
+        [...container.querySelectorAll('tbody tr')]
+          .find(row => row.querySelector('td')?.textContent === key)
+          ?.querySelectorAll('td')[column];
+      expect(cell('5')?.textContent).toBe('48');
+      expect(cell('5')?.querySelector('a')?.getAttribute('href')).toBe(
+        `/console/p/${ID}/factory/items/48`
+      );
+      expect(cell('4')?.textContent).toBe('');
     } finally {
       await unmount();
     }

@@ -422,11 +422,13 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
           startedAt: '2026-11-16T10:00:00.000Z',
         },
         round: null,
+        partOf: null,
         returned: 0,
         change: null,
         runs: [{ runId: 'run-b', workflow: 'deliver', failedStep: null }],
       },
     });
+    expect(read.members).toEqual({ '2': [] });
     const one = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
     const single = factoryProgressResponseSchema.parse(await one.json());
     expect(Object.keys(single.progress)).toEqual(['1']);
