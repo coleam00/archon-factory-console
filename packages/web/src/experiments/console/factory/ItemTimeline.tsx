@@ -4,6 +4,7 @@ import { VERDICT_TEXT_CLASS } from './BoardCard';
 import { formatCost } from '../lib/format';
 import { durationWords } from './lib/duration';
 import type { OutcomeWords, StartedText, TimelineRound, TimelineRow } from './lib/timeline';
+import { ShadowRow } from './ShadowRow';
 
 /** Every run on the item in start order, each with its rounds of the declared loop. */
 export function ItemTimeline({ rows }: { rows: readonly TimelineRow[] }): ReactElement {
@@ -71,6 +72,16 @@ function TimelineEntry({ row }: { row: TimelineRow }): ReactElement {
         <ol className="mt-1 flex flex-col gap-1.5 border-l border-border pl-3">
           {row.rounds.map(round => (
             <RoundEntry key={round.iteration} round={round} />
+          ))}
+        </ol>
+      )}
+      {row.shadows.length === 0 ? null : (
+        <ol
+          aria-label="What its shadow steps would have done"
+          className="mt-1 flex flex-col gap-1.5"
+        >
+          {row.shadows.map(shadow => (
+            <ShadowRow key={shadow.key} shadow={shadow} />
           ))}
         </ol>
       )}

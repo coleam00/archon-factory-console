@@ -16,6 +16,7 @@ import {
 import type { FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
+import { stageHoldsShadow } from '../lib/shadows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
@@ -187,6 +188,7 @@ function MapCanvas({
                 key={card.id}
                 card={card}
                 stages={stagesOf(card.stages)}
+                shadow={stagesOf(card.stages).some(stage => stageHoldsShadow(stage, view))}
                 live={stage => liveOf(live, stage)}
                 selected={card.id === selected}
                 stagePath={stagePath}

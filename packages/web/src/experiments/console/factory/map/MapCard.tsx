@@ -5,6 +5,7 @@ import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { TONES } from '../tones';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
+import { ShadowBadge } from '../ShadowBadge';
 import { MapStageRow } from './MapStageRow';
 
 interface MapCardProps {
@@ -21,6 +22,8 @@ interface MapCardProps {
   stagePath: (stage: string) => string;
   /** The details button: the map shows or hides this card's details panel. */
   onDetails: (card: string) => void;
+  /** One of its stages holds a shadow step (`stageHoldsShadow`): the card carries the badge. */
+  shadow: boolean;
 }
 
 /** The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. */
@@ -40,6 +43,7 @@ export function MapCard({
   selected,
   stagePath,
   onDetails,
+  shadow,
 }: MapCardProps): ReactElement {
   const border = selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border';
   const [only] = stages;
@@ -50,7 +54,7 @@ export function MapCard({
         className="absolute inset-x-0 top-0 h-0.75"
         style={{ background: TONES[card.tone].color }}
       />
-      <KindRow card={card} />
+      <KindRow card={card} shadow={shadow} />
       {children}
     </>
   );
@@ -111,8 +115,8 @@ export function MapCard({
   );
 }
 
-/** Row 1: the group's icon and kind label (rule 2). */
-function KindRow({ card }: { card: PlacedCard }): ReactElement {
+/** Row 1: the group's icon and kind label (rule 2), and the shadow badge (rule 10). */
+function KindRow({ card, shadow }: { card: PlacedCard; shadow: boolean }): ReactElement {
   const { Icon, kind, color } = TONES[card.tone];
   return (
     <span className="flex h-4 items-center gap-1.5 pr-6">
@@ -120,6 +124,7 @@ function KindRow({ card }: { card: PlacedCard }): ReactElement {
       <span className="truncate text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         {kind}
       </span>
+      {shadow ? <ShadowBadge className="leading-3.5" /> : null}
     </span>
   );
 }

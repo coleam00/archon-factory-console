@@ -6,6 +6,7 @@ import { drilldownLive, type DrilldownLive, type FactoryDrilldown } from '../lib
 import type { ItemOnStep } from '../lib/items-on-step';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed } from '../lib/views';
+import { cardShadows, recentTally } from '../lib/shadows';
 import { RunningItemsFailure } from '../RunningItems';
 import { RUNNING_GLOW } from '../StepGraph';
 import { DrilldownCard } from './DrilldownCard';
@@ -19,6 +20,7 @@ interface Selected {
 }
 
 const NOTHING: readonly ItemOnStep[] = [];
+const NO_ITEMS: readonly FactoryItem[] = [];
 
 /*
  * Laid out in CSS, not on a canvas: at most a handful of phases fit the page at full size,
@@ -62,6 +64,7 @@ export function StageDrilldown({
       projectId={projectId}
       drilldown={drilldown}
       live={live}
+      items={items.data ?? NO_ITEMS}
       selected={selected}
       onSelect={card =>
         setSelected(selected?.phase === p && selected.card === card ? null : { phase: p, card })
@@ -113,6 +116,7 @@ function Phase({
   projectId,
   drilldown,
   live,
+  items,
   selected,
   onSelect,
   besideLoop,
@@ -122,6 +126,8 @@ function Phase({
   projectId: string;
   drilldown: FactoryDrilldown;
   live: DrilldownLive | undefined;
+  /** Every item read, for what a shadow step decided lately; empty before the first read. */
+  items: readonly FactoryItem[];
   selected: Selected | null;
   onSelect: (card: number) => void;
   /**
@@ -158,10 +164,27 @@ function Phase({
           onCard={live?.cards[index]?.[c] ?? NOTHING}
           selected={selected?.phase === index && selected.card === c}
           onSelect={() => onSelect(c)}
+          shadow={shadowOfCard(card, view, items)}
         />
       ))}
     </section>
   );
+}
+
+/** A card's shadow marking and its recent decisions; null when it covers no shadow step. */
+function shadowOfCard(
+  card: FactoryDrilldown['phases'][number]['cards'][number],
+  view: Declaration,
+  items: readonly FactoryItem[]
+): { lately: string[] } | null {
+  const shadows = cardShadows(card, view);
+  if (shadows.length === 0) return null;
+  return {
+    lately: shadows.flatMap(shadow => {
+      const tally = recentTally(items, shadow);
+      return tally === null ? [] : [tally];
+    }),
+  };
 }
 
 /**
