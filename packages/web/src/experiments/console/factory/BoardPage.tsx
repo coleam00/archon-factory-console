@@ -7,6 +7,7 @@ import { StaleRead } from './StaleRead';
 import { useFactoryItemsRead } from './useFactoryItems';
 import { WorkOrdersStrip } from './WorkOrdersStrip';
 import { FactoryFrame } from './FactoryFrame';
+import { FoundByTheFactory } from './FoundByTheFactory';
 import {
   boardModel,
   filterBoard,
@@ -159,6 +160,9 @@ export function Board({
         // answer to "is the board narrowed", not a second copy of that condition.
         filtered={shown !== all}
       />
+      {view.discoveries === undefined ? null : (
+        <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+      )}
     </div>
   );
 }

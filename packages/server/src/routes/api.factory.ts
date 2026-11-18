@@ -5,6 +5,7 @@
  * change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import type { Context } from 'hono';
 import {
   type ChangeLookup,
   type ChangeMergeState,
@@ -17,6 +18,10 @@ import {
   type FactoryChangeLookup,
   type FactoryChangeState,
 } from '@archon/workflows/factory-items';
+import {
+  readFactoryDiscoveries,
+  type DiscoveriesSource,
+} from '@archon/workflows/factory-discoveries';
 import { ITEM_WINDOW_MAX_LIMIT } from '@archon/workflows/item-window';
 import {
   discoverFactoryOverviews,
@@ -43,6 +48,7 @@ import {
   openApiRouteRegistrar,
 } from './api-route-kit';
 import {
+  factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
   factoryOverviewResponseSchema,
   factoryProgressResponseSchema,
@@ -96,6 +102,33 @@ const getFactoryOverviewRoute = createRoute({
       description: 'OK',
     },
     404: jsonError('Codebase not found, or no factory view applies to it'),
+    500: jsonError('Server error'),
+  },
+});
+
+const factoryDiscoveriesQuerySchema = z.object({
+  codebaseId: z
+    .string()
+    .min(1)
+    .openapi({ description: 'The project whose discoveries drains to read.' }),
+});
+
+const getFactoryDiscoveriesRoute = createRoute({
+  method: 'get',
+  path: '/api/factory/discoveries',
+  tags: ['Workflows'],
+  summary: "What a project's discoveries drains decided to file",
+  description:
+    "Every finding the completed runs of the workflow the first applying factory view's `discoveries` field names decided to file, newest first, with how many they held and dropped, read at the pointers that field declares. `shadow` says the drains only decide what they would file. A finding's `coveredBy` names an item on the project with the same title (case-insensitive), null while none has it. A drain whose result has no decisions at those pointers counts under `unreadable`.",
+  request: { query: factoryDiscoveriesQuerySchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: factoryDiscoveriesResponseSchema } },
+      description: 'OK',
+    },
+    404: jsonError(
+      'Codebase not found, no factory view applies to it, or it declares no discoveries'
+    ),
     500: jsonError('Server error'),
   },
 });
@@ -200,6 +233,8 @@ export interface FactoryRouteDeps {
   /** Which of these run names (as runs record them) the codebase has any run of. */
   ranWorkflows: (codebaseId: string, names: readonly string[]) => Promise<ReadonlySet<string>>;
   itemsSource: ItemReadSource;
+  /** Reads every item of a project for the discoveries route. */
+  discoveriesSource: DiscoveriesSource;
   changeMergeState: ChangeMergeLookup;
   /** Workflow discovery for a project, as runs see it. */
   discoverWorkflows: (cwd: string) => Promise<WorkflowLoadResult>;
@@ -331,6 +366,29 @@ async function applyingViews(
   return factoryViewsForProject(listing, ran);
 }
 
+/** The discoveries of the first applying view, as the Factory tab draws its pack. */
+async function discoveriesResponse(
+  c: Context,
+  deps: FactoryRouteDeps,
+  codebaseId: string,
+  project: { cwd: string; projectKey: string }
+): Promise<Response> {
+  const roots = await projectRoots(deps, project.cwd);
+  const [view] = (await applyingViews(deps, codebaseId, roots)).views;
+  if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
+  if (view.declaration.discoveries === undefined)
+    return apiError(c, 404, 'This factory view declares no discoveries');
+  const read = await readFactoryDiscoveries(deps.discoveriesSource, {
+    view: view.declaration,
+    pack: view.pack,
+    projectKey: project.projectKey,
+    onUnreadable: runId => {
+      getLog().warn({ codebaseId, runId }, 'factory_discoveries_unreadable');
+    },
+  });
+  return c.json(read);
+}
+
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
   const changeStates = changeStateCache(deps);
@@ -369,6 +427,18 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     } catch (error) {
       getLog().error({ err: error, codebaseId }, 'discover_factory_overview_failed');
       return apiError(c, 500, 'Failed to discover the factory overview');
+    }
+  });
+
+  register(getFactoryDiscoveriesRoute, async c => {
+    const { codebaseId } = getValidatedQuery(c, factoryDiscoveriesQuerySchema);
+    const project = await deps.codebase(codebaseId);
+    if (project === null) return apiError(c, 404, 'Codebase not found');
+    try {
+      return await discoveriesResponse(c, deps, codebaseId, project);
+    } catch (error) {
+      getLog().error({ err: error, codebaseId }, 'factory_discoveries_read_failed');
+      return apiError(c, 500, 'Failed to read what the discoveries drains decided');
     }
   });
 

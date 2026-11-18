@@ -3967,6 +3967,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/factory/discoveries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * What a project's discoveries drains decided to file
+     * @description Every finding the completed runs of the workflow the first applying factory view's `discoveries` field names decided to file, newest first, with how many they held and dropped, read at the pointers that field declares. `shadow` says the drains only decide what they would file. A finding's `coveredBy` names an item on the project with the same title (case-insensitive), null while none has it. A drain whose result has no decisions at those pointers counts under `unreadable`.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description The project whose discoveries drains to read. */
+          codebaseId: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FactoryDiscoveries'];
+          };
+        };
+        /** @description Codebase not found, no factory view applies to it, or it declares no discoveries */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/factory/item': {
     parameters: {
       query?: never;
@@ -11001,6 +11061,18 @@ export interface components {
             pointer: string;
             outcome: string;
           };
+          discoveries?: {
+            workflow: string;
+            shadow: boolean;
+            filed: string;
+            held: string;
+            dropped: string;
+            entry: {
+              title: string;
+              kind?: string;
+              verified?: string;
+            };
+          };
           itemTitle?: {
             input: string;
           };
@@ -11093,6 +11165,7 @@ export interface components {
                 /** @enum {string} */
                 kind: 'feeds' | 'calls' | 'loops-back';
                 label?: string;
+                shadow?: boolean;
               }[];
             };
           };
@@ -11104,6 +11177,26 @@ export interface components {
         source: 'project' | 'bundled' | 'global' | 'installed' | 'project-file';
         path: string;
         error: string;
+      }[];
+    };
+    FactoryDiscoveries: {
+      pack: string;
+      shadow: boolean;
+      unreadable: number;
+      held: number;
+      dropped: number;
+      findings: {
+        title: string;
+        kind: string | null;
+        verified: string | null;
+        from: {
+          key: string;
+          title: string | null;
+        };
+        /** Format: date-time */
+        decidedAt: string;
+        runId: string;
+        coveredBy: string | null;
       }[];
     };
     FactoryItemDetail: {

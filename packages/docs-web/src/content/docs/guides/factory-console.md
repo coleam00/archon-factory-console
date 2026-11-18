@@ -66,6 +66,15 @@ it. Inside it:
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
+  When the view declares `discoveries`, **Found by the factory** sits under the columns, in
+  both views and whatever the filter: how many findings the discoveries drains decided to file
+  that no item on the project carries yet (an item carries one when its title is the finding's,
+  ignoring case), with chips counting every finding they decided to file, held and dropped,
+  and how many are already on the board. **Show the findings** lists each: its kind, its title,
+  the item whose drain decided it and when, and how the drain verified it, on hover. While the
+  view marks the drains `shadow`, the panel carries a "shadow" badge and says the factory
+  decides what it would file and files nothing yet. The panel only reads: it files, starts
+  and dismisses nothing.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
   other items (on a work order, its members with their state and how many merged; an item no run
   has started yet says "Not started"), and the
@@ -101,8 +110,10 @@ question opening or closing.
 | merged today | Items whose change merged today, in the browser's local time |
 | N of M done | N items merged out of M on the board, however long ago. Items an `endings` outcome closed are not in M |
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
+| found by the factory | Findings the discoveries drains decided to file that no item carries yet; shown only when the view declares `discoveries` |
 
-Each number opens the board filtered to the items it counts.
+Each number opens the board filtered to the items it counts; **found by the factory** opens
+the board at its panel.
 
 ### Where an item sits
 
@@ -157,12 +168,14 @@ parse or validate shows on the Factory tab with its path and the error.
 | `asked` | no | Completed outcomes that stop to ask you: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one). A run that ended so reads "asked you" on the item page's timeline, as does any run that left asks on the item, with its questions on hover. `placement` still decides where the item waits. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `partOf` | no | `{ "workflow", "pointer", "outcome" }`: the JSON pointer to the item's work order (an item key) in that workflow's result, read only from runs that completed with `outcome` (the one that accepts the item), so a refused run never makes an item a member. Read only for an item with no active `part_of` link; the newest such run decides, and an empty value there means none. |
+| `discoveries` | no | `{ "workflow", "shadow", "filed", "held", "dropped", "entry": { "title", "kind", "verified" } }`: the workflow that drains what agents noticed outside their work, and where each of its completed runs' result lists what it decided, as JSON pointers: `filed`, `held` and `dropped` into the result (each a list), `entry` into each entry of `filed` (`title` required, `kind` and `verified` optional). Its runs place no item, so no stage need list it. `shadow: true` says the drains only decide what they would file: the board's panel words them "would file" and marks them shadow. A run whose result has no list at a declared pointer, or a filed entry with no title, counts as a drain that could not be read. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step names nothing a page shows; the coverage check reports it. |
 | `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to`, an optional `label`, and `person: true` for a step a person takes, such as a replan, that no hand-off of the pack starts; an arrow into its own stage or an earlier one in `stages` order is a send-back, and a `back` flag an older file has is accepted and ignored), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
-`placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
+`placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage;
+`discoveries` is the exception.
 With `columns`, every declared stage must be in exactly one column and the `landed` stage in
 one of its own: a stage in no column, a stage in two, a column naming a stage `stages` does
 not declare, and a column id used twice are each rejected at their path, and
@@ -196,14 +209,15 @@ pack declares. It reports, each with its path in the view file:
   step two of them cover (a loop group counts as a step);
 - every step a card, a loop, a stage's `nodes`, `steps` or `verdicts` names that the workflow
   does not have,
-  and every listed workflow the pack does not have;
+  and every listed workflow the pack does not have, the `discoveries` workflow included;
 - every hand-off between two stages that the pack declares (each of its bindings, whether or
   not a trigger file on this machine installs it) that `map.arrows` does not declare, and
   every declared arrow no such hand-off backs, unless it is `person: true`, joins two different
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
   own stage is a rerun only a hand-off starts, so it is always checked.
 
-It compares only the workflows the view's stages list, steps and hand-offs alike, and names
+It compares only the workflows the view's stages list, steps and hand-offs alike (of the
+`discoveries` workflow it checks only that the pack has it), and names
 the pack's other workflows on one informational line that is not a failure.
 
 After reinstalling the pack, refresh the snapshot from the installed pack with
@@ -263,6 +277,14 @@ file and commit both.
   "approves": [{ "workflow": "deliver", "node": "rounds.review", "outcome": "approve" }],
   "asked": ["deliver:ask"],
   "change": { "workflow": "deliver", "pointer": "/change" },
+  "discoveries": {
+    "workflow": "discoveries",
+    "shadow": true,
+    "filed": "/filed",
+    "held": "/held",
+    "dropped": "/dropped",
+    "entry": { "title": "/title", "kind": "/kind", "verified": "/verified" }
+  },
   "itemTitle": { "input": "item" },
   "map": {
     "cards": [
@@ -290,9 +312,11 @@ shows it under **How it works** (`factory/how-it-works`) when the pack the tab d
 
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
-number of cards (on a phone, a menu above the map), a breadcrumb leads back up, and **Full
-screen** draws the overview over the whole console until **Esc**. Drag to pan, scroll or use the
-buttons to zoom, and **Fit** to see a whole view.
+number of cards and one line saying what it shows (on a phone, a menu above the map), a
+breadcrumb leads back up, and **Full screen** draws the overview over the whole screen, the
+legend docked in its bottom-left corner, until **Esc**. Drag to pan, scroll or use the buttons
+to zoom, and **Fit** to see a whole view. A view opens at a zoom whose smallest text is at least
+12 px; a view wider than the screen at that zoom opens at its start and pans.
 
 The file is found as the view file is: the project's
 `.archon/packs/<pack key>.factory-overview.json` first, then the pack's own
@@ -302,15 +326,21 @@ field at fault on every Factory page.
 Lines are drawn straight, so a view validates only when its picture is clean:
 
 - A `feeds` or `calls` line joins two ends that share a row or a column, and runs along it.
-- A `loops-back` line joins two cards. It drops from the bottom of its source into a lane under
-  everything, runs along it, and rises into its target. A view has one at most, and the root
-  view exactly one.
+- A `loops-back` line sends work back. One from A to B in a view with a `calls` line from B to A
+  is the answer to that ask: it runs beside the ask, along the same row or column.
+- Every other `loops-back` line joins two cards in different columns. It drops from the bottom
+  of its source into a lane under everything, runs along its own track there, and rises into its
+  target, labelled where it rises. A view may have several; the root view has at least one.
+  Their spans (source to target) must nest or stay apart: a line whose span holds another runs
+  under it, and two lines whose spans overlap without one holding the other would cross.
 - No line may run through a card other than its ends, through a group that holds neither end,
   or into another line. Move a card to give a line a clear row or column.
+- Labels are not part of the check. Each label is drawn on a pill beside its line, and a pill
+  wider than the room its line has can cover a card or a line: keep the label of a short line
+  short, such as a send-back between neighbouring columns or an answer between neighbouring cards.
 
-A group stacked in one column, met only along rows, whose cards no line names, is drawn as
-parallel: its cards are as tall as their text, and a line into or out of the group branches to
-each card.
+A group stacked in one column, met only along rows, whose cards no `feeds` or `calls` line
+names, is drawn as parallel: a line into or out of the group branches to each card.
 
 ## Overview fields
 
@@ -321,7 +351,7 @@ each card.
 | `title` | yes | The overview's name: its heading, and the first entry of the breadcrumb. |
 | `caption` | yes | One paragraph in plain words, shown under the root view's map on the page. Full screen does not show it: whoever presents says it. |
 | `root` | yes | The id of the view the page opens on. |
-| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), and an optional `label`. Every view but the root is opened by exactly one card. |
+| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), an optional `label`, and optionally `shadow: true` for a line the pack would act on but does nothing about yet, which is drawn in the shadow style with "shadow" on its label. Every view but the root is opened by exactly one card. |
 
 The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
 `git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.
@@ -333,7 +363,7 @@ The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hamm
   "version": 1,
   "pack": "acme/factory",
   "title": "How the factory works",
-  "caption": "An issue comes in. Build writes the change, Review reads it, and a change Review approves lands. What Review finds goes back to Build.",
+  "caption": "An issue comes in. Build writes the change, Review reads it, and a change Review approves is merged. What Review finds goes back to Build, and your answer to a question restarts Build.",
   "root": "factory",
   "views": {
     "factory": {
@@ -341,14 +371,15 @@ The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hamm
         { "id": "issue", "title": "An issue", "text": "What someone wants built", "icon": "issue", "kind": "input", "col": 1, "row": 2 },
         { "id": "build", "title": "Build", "text": "Writes the change", "icon": "hammer", "kind": "stage", "col": 2, "row": 2, "opens": "build" },
         { "id": "review", "title": "Review", "text": "Reads the change", "icon": "eye", "kind": "check", "col": 3, "row": 2 },
-        { "id": "landed", "title": "Landed", "text": "The change is merged", "icon": "flag", "kind": "outcome", "col": 4, "row": 2 },
+        { "id": "merged", "title": "Merged", "text": "The change is in main", "icon": "flag", "kind": "outcome", "col": 4, "row": 2 },
         { "id": "you", "title": "You", "text": "Answer what it asks", "icon": "users", "kind": "person", "col": 2, "row": 1 }
       ],
       "edges": [
         { "from": "issue", "to": "build", "kind": "feeds" },
         { "from": "build", "to": "review", "kind": "feeds" },
-        { "from": "review", "to": "landed", "kind": "feeds" },
+        { "from": "review", "to": "merged", "kind": "feeds" },
         { "from": "build", "to": "you", "kind": "calls", "label": "asks" },
+        { "from": "you", "to": "build", "kind": "loops-back", "label": "your answer restarts it" },
         { "from": "review", "to": "build", "kind": "loops-back", "label": "sent back" }
       ]
     },

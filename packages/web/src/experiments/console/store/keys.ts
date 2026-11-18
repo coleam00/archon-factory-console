@@ -32,6 +32,8 @@ export const K = {
   factoryItems: (projectId: string): string => `factory-items:${projectId}`,
   // Under the same prefix, so the dashboard SSE refreshes one item's page too.
   factoryItem: (projectId: string, key: string): string => `factory-items:${projectId}:item:${key}`,
+  // Under the same prefix, so a drain that ends refreshes what the drains decided.
+  factoryDiscoveries: (projectId: string): string => `factory-items:${projectId}:discoveries`,
   messages: (conversationId: string): string => `messages:${conversationId}`,
   conversations: (projectId: string): string => `conversations:${projectId}`,
   countsGlobal: 'counts:global' as const,

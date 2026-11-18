@@ -6,12 +6,14 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import type { ChangeLookup, ChangeMergeState } from '@archon/adapters/forge-host';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
+import type { DiscoveriesSource } from '@archon/workflows/factory-discoveries';
 import type { ItemReadSource } from '@archon/workflows/item-read';
 import type { WorkflowEventRow } from '@archon/workflows/schemas/workflow-event';
 import type { WorkflowItem, WorkflowRun } from '@archon/workflows/schemas/workflow-run';
 import { discoverWorkflows } from '@archon/workflows/workflow-discovery';
 import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from './api.factory';
 import {
+  factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
   factoryOverviewResponseSchema,
   factoryProgressResponseSchema,
@@ -57,6 +59,7 @@ const noItems: FactoryRouteDeps = {
   }),
   ranWorkflows: async () => new Set(),
   itemsSource: {} as ItemReadSource,
+  discoveriesSource: {} as DiscoveriesSource,
   changeMergeState: async () => {
     throw new Error('no change is looked up here');
   },
@@ -233,6 +236,100 @@ describe('GET /api/factory/overview', () => {
   test('404 for an unknown codebase, and when no factory view applies', async () => {
     expect((await read({ [overviewFile]: overview }, 'missing')).status).toBe(404);
     expect((await read({ [overviewFile]: overview })).status).toBe(404);
+  });
+});
+
+describe('GET /api/factory/discoveries', () => {
+  const track = trackTempRoots();
+  const viewFile = '.archon/packs/acme.kit.factory-view.json';
+  const discoveries = {
+    workflow: 'discoveries',
+    shadow: true,
+    filed: '/filed',
+    held: '/held',
+    dropped: '/dropped',
+    entry: { title: '/title', kind: '/kind' },
+  };
+  // One item, one drain: no other source of the store is read.
+  const item: WorkflowItem = { id: 'i-1', projectKey: 'acme/web', key: '1' };
+  const drain = {
+    id: 'd-1',
+    workflow_name: 'acme/kit:discoveries',
+    status: 'completed',
+    metadata: {},
+    started_at: new Date('2026-11-17T10:00:00Z'),
+    completed_at: new Date('2026-11-17T10:05:00Z'),
+  } as unknown as WorkflowRun;
+  const drained: WorkflowEventRow = {
+    id: 'd-1-completed',
+    workflow_run_id: 'd-1',
+    event_type: 'workflow_completed',
+    step_index: null,
+    step_name: null,
+    data: {
+      terminal_record: {
+        run_id: 'd-1',
+        status: 'completed',
+        outcome: null,
+        completed_outcome: null,
+        error: null,
+        first_failed_node: null,
+        nodes: [],
+        returns: {
+          availability: 'available',
+          node_id: 'drain',
+          value: {
+            filed: [{ title: 'A finding', kind: 'defect' }],
+            held: [{ what: 'x', until: 'y' }],
+            dropped: [],
+          },
+        },
+        artifacts: { root: null, files: [], limitations: [] },
+      },
+    },
+    created_at: '2026-11-17T10:05:00Z',
+    event_order: 1,
+  };
+  const source = {
+    listItemsInWindow: async () => [item],
+    getItemRuns: async () => ({ item, runs: [drain], descendantIds: [] }),
+    listEventsForRuns: async () => new Map([['d-1', [drained]]]),
+  } as unknown as DiscoveriesSource;
+
+  async function request(
+    files: Record<string, unknown>
+  ): Promise<{ status: number; body: unknown }> {
+    const project = await projectWith(track, files);
+    const app = new OpenAPIHono();
+    registerFactoryRoutes(app, {
+      ...noItems,
+      codebase: async id =>
+        id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: null } : null,
+      discoveriesSource: source,
+    });
+    const response = await app.request('/api/factory/discoveries?codebaseId=cb-1');
+    return { status: response.status, body: await response.json() };
+  }
+
+  test('what the drains decided, at the pointers the view declares', async () => {
+    const { status, body } = await request({
+      [viewFile]: { ...declaration('acme/kit', 'Kit factory'), discoveries },
+    });
+    expect(status).toBe(200);
+    const read = factoryDiscoveriesResponseSchema.parse(body);
+    expect(read).toMatchObject({ pack: 'acme/kit', shadow: true, held: 1, dropped: 0 });
+    expect(read.findings.map(f => [f.title, f.kind, f.from.key, f.coveredBy])).toEqual([
+      ['A finding', 'defect', '1', null],
+    ]);
+  });
+
+  test('a view that declares no discoveries, and a project no view applies to, are 404', async () => {
+    const without = await request({ [viewFile]: declaration('acme/kit', 'Kit factory') });
+    expect(without).toEqual({
+      status: 404,
+      body: { error: 'This factory view declares no discoveries' },
+    });
+    expect((await request({})).status).toBe(404);
   });
 });
 

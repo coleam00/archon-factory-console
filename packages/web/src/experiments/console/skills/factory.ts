@@ -57,3 +57,13 @@ export async function getFactoryOverview(
 ): Promise<FactoryOverviewRead> {
   return requestJson('/api/factory/overview', 'get', { query: opts, signal: init.signal });
 }
+
+export type FactoryDiscoveries = components['schemas']['FactoryDiscoveries'];
+
+/** What the project's discoveries drains decided to file, held and dropped. */
+export async function getFactoryDiscoveries(
+  opts: QueryParams<'/api/factory/discoveries', 'get'>,
+  init: { signal?: AbortSignal } = {}
+): Promise<FactoryDiscoveries> {
+  return requestJson('/api/factory/discoveries', 'get', { query: opts, signal: init.signal });
+}

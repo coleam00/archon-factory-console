@@ -305,11 +305,16 @@ The section has **two separate things**, each with its own file:
    (`.archon/packs/<pack key>.factory-overview.json`, or `<pack>/.shared/factory-overview.json`), in the
    format of Mission Control's `app/map/factory-map.json` (read-only reference at
    `C:\Users\colem\OpenSource\factory-mission-control`): views (a root view and drill-downs), groups,
-   cards (title, one line of text, icon, kind), edges (feeds, calls, and exactly one "loops back" line
-   drawn as a single lane under the line, never crossing dotted lines). Interaction like Eric Tech's
+   cards (title, one line of text, icon, kind), edges (feeds, calls, and "loops back" lines: as many
+   as the factory has, nested in one lane under the line, each on its own track and labelled where it
+   rises into its target, never crossing a card or each other (the schema refuses a file whose lines
+   would; it does not measure labels, so the shipped file's test checks that its label pills meet
+   nothing, and a pack author keeps a short line's label short); an answer to an ask is drawn
+   beside the ask's line; a line the pack only would act on is marked `shadow`; changed by the owner's
+   audit of 2026-11-18, which asked for several labelled send-back lines). Interaction like Eric Tech's
    skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
-   counts, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a full-screen
-   mode. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
+   counts and its one line, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a
+   full-screen mode over the whole screen with the legend docked bottom-left. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
 2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
@@ -469,7 +474,9 @@ enable the factory for a project and its view appears.
 This repository ships the declaration for `Wirasm/archon-software-factory` as the project file
 `.archon/packs/Wirasm.archon-software-factory.factory-view.json`. Proposing it upstream into the
 pack is later work. The pack's `discoveries` drain runs after deliver but moves no item, so the
-declaration names no stage for it: runs of a workflow no stage lists do not place an item.
+declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
+`discoveries` field names the workflow instead, and where each completed drain's result lists
+what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -527,6 +534,11 @@ What those reads do not carry comes from **one read-only route file**,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
   to that the window lacks (no run of its own, or no item row) in one more progress request per
   100 keys, never one per item; a key that request leaves out has no item row.
+- `GET /api/factory/discoveries?codebaseId=` what the completed drains of the view's
+  `discoveries` workflow decided, read at its pointers: each finding they decided to file with
+  its kind, verified line, source item, time and the item whose title covers it (case-insensitive
+  exact, over every item on the project), and how many they held and dropped; 404 when the view
+  declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
   timeline needs per run and neither read carries: the declared workflow, the run's cause, its
   cost, its running step, and each round of the declared `rounds` loop with the steps that
@@ -559,6 +571,9 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    of its number, above its label; while any item's merge state is pending, every number but
    needs you shows the skeleton bar too, never a count that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
+   When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
+   drains decided to file that no item carries yet and links to the board's panel; it has its
+   own read, so it never holds up the other five.
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
    highlighted, the other options with what each does and costs, answered in place through

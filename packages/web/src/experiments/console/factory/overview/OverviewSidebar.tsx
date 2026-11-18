@@ -4,10 +4,14 @@ import type { ListedView } from '../lib/overview-nav';
 /** Two no-break spaces per level: an option draws no padding, and plain spaces collapse. */
 const INDENT = String.fromCharCode(160, 160);
 
+/** What a view shows, in one line: the root's own words, else its opener card's text. */
+const lineOf = (view: ListedView): string => view.line ?? 'The whole factory, start to end';
+
 /**
- * Every view of the overview with its card count, the open one marked, indented under the view
- * that opens it. It folds away to give the map the width. Below `md` it is a select above the
- * map instead, showing the open view, so the map starts in the first screen of a phone.
+ * Every view of the overview with its card count and its one line, the open one marked,
+ * indented under the view that opens it. It folds away to give the map the width. Below `md`
+ * it is a select above the map instead, showing the open view and its line, so the map starts
+ * in the first screen of a phone.
  */
 export function OverviewSidebar({
   views,
@@ -36,6 +40,9 @@ export function OverviewSidebar({
             </option>
           ))}
         </select>
+        <span className="text-console-12 text-text-tertiary">
+          {lineOf(views.find(view => view.id === current) ?? (views[0] as ListedView))}
+        </span>
       </label>
       <button
         type="button"
@@ -56,18 +63,23 @@ export function OverviewSidebar({
                 aria-current={view.id === current ? 'page' : undefined}
                 onClick={() => onOpen(view.id)}
                 style={{ paddingLeft: `${(0.5 + view.depth * 0.875).toString()}rem` }}
-                className={`flex w-full items-center justify-between gap-2 rounded py-1.5 pr-2 text-left text-console-13 transition-colors ${
+                className={`flex w-full flex-col gap-0.5 rounded py-1.5 pr-2 text-left transition-colors duration-150 ease-out ${
                   view.id === current
                     ? 'bg-surface-elevated text-text-primary'
                     : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
                 }`}
               >
-                <span className="truncate">{view.label}</span>
-                <span
-                  aria-label={`${view.cards.toString()} cards`}
-                  className="rounded-full bg-surface-inset px-1.5 text-console-11 text-text-tertiary"
-                >
-                  {view.cards}
+                <span className="flex w-full items-center justify-between gap-2 text-console-13">
+                  <span className="truncate">{view.label}</span>
+                  <span
+                    aria-label={`${view.cards.toString()} cards`}
+                    className="rounded-full bg-surface-inset px-1.5 text-console-12 text-text-tertiary"
+                  >
+                    {view.cards}
+                  </span>
+                </span>
+                <span data-line className="line-clamp-2 text-console-12 text-text-tertiary">
+                  {lineOf(view)}
                 </span>
               </button>
             </li>
