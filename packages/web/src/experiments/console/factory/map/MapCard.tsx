@@ -2,14 +2,17 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { Box } from '../lib/map-layout';
-import type { StageLive } from '../lib/map-live';
+import type { StageRead } from '../lib/map-live';
 import { GROUPS } from './MapLegend';
 
 interface MapCardProps {
   stage: FactoryStage;
   box: Box;
-  /** Null until the items are read: the card is drawn from the declaration and says "…". */
-  live: StageLive | null;
+  /**
+   * Before the items are read the card is drawn from the declaration and says "…", or shows
+   * no chip once the first read failed.
+   */
+  live: StageRead;
   /** Stage notes the declaration places by this card. */
   notes: readonly string[];
   selected: boolean;
@@ -86,8 +89,9 @@ export function MapCard({
   );
 }
 
-function chipWords(live: StageLive | null): string {
-  if (live === null) return 'loading';
+function chipWords(live: StageRead): string {
+  if (live === 'loading') return 'loading';
+  if (live === 'failed') return 'items could not be read';
   const parts = [live.pending ? 'checking merge state' : `${live.items.length.toString()} here`];
   if (live.working > 0) parts.push(`${live.working.toString()} being worked`);
   if (live.needYou.length > 0) parts.push(needYouWords(live.needYou.length));
@@ -97,8 +101,10 @@ function chipWords(live: StageLive | null): string {
 const needYouWords = (n: number): string => `${n.toString()} ${n === 1 ? 'needs' : 'need'} you`;
 
 /** "N here", in the running colour and pulsing while a run works one, and "N need you" in the page's one loud colour. */
-function Chips({ live }: { live: StageLive | null }): ReactElement | null {
-  if (live === null)
+function Chips({ live }: { live: StageRead }): ReactElement | null {
+  // A failed read draws no chip: the alert above the map says why, and nothing is loading.
+  if (live === 'failed') return null;
+  if (live === 'loading')
     // Not read yet: never "0 here", which would be a wrong count.
     return (
       <span

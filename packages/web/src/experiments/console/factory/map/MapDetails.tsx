@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryStage } from '../lib/stage-steps';
-import type { StageLive } from '../lib/map-live';
+import type { StageRead } from '../lib/map-live';
 import { runLine } from '../lib/step-label';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 
@@ -12,8 +12,8 @@ interface MapDetailsProps {
   projectId: string;
   view: Declaration;
   stage: FactoryStage;
-  /** Null until the items are read. */
-  live: StageLive | null;
+  /** Why there are no items yet, until they are read. */
+  live: StageRead;
   onClose: () => void;
 }
 
@@ -78,18 +78,23 @@ export function MapDetails({
   );
 }
 
-/** What sits in the stage now; "…" until the items are read, never "Nothing here now." early. */
+/**
+ * What sits in the stage now; "…" until the items are read, never "Nothing here now." early,
+ * and "Could not be read." once the first read failed (the alert above the map says why).
+ */
 function ItemsHere({
   projectId,
   view,
   stage,
   live,
 }: Omit<MapDetailsProps, 'onClose'>): ReactElement {
-  if (live === null)
+  if (typeof live === 'string')
     return (
       <section className="flex flex-col gap-1.5">
-        <h5 className={HEADING}>Items here · …</h5>
-        <p className="text-console-12 text-text-tertiary">Loading…</p>
+        <h5 className={HEADING}>Items here{live === 'loading' ? ' · …' : ''}</h5>
+        <p className="text-console-12 text-text-tertiary">
+          {live === 'loading' ? 'Loading…' : 'Could not be read.'}
+        </p>
       </section>
     );
   const waiting = new Set(live.needYou.map(item => item.item.id));

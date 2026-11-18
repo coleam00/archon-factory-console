@@ -420,7 +420,7 @@ test('before the items answer, every declared card and arrow is drawn and says "
   }
 });
 
-test('a first items read that fails says so over the map drawn from the declaration', async () => {
+test('a first items read that fails says so over the map drawn from the declaration, and no card claims to be loading', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = Object.assign(
     async (): Promise<Response> => {
@@ -431,11 +431,20 @@ test('a first items read that fails says so over the map drawn from the declarat
   const { container, unmount } = await mount(null);
   try {
     await settle(() => container.querySelector('[role="alert"]') !== null);
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      "The factory's items could not be loaded: the server is down"
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('the server is down');
+    // Nothing retries a failed read: the cards and the panel must not claim it is loading.
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe(
+      'Landed: items could not be read'
     );
-    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: loading');
-    expect(container.querySelector('[data-chip="here"]')).toBeNull();
+    expect(container.querySelectorAll('[data-stage]')).toHaveLength(
+      shippedListed.declaration.map.cards.length
+    );
+    expect(container.querySelector('[data-chip]')).toBeNull();
+    await act(async () => details(container, 'build').click());
+    const panel = container.querySelector('aside[aria-label="Build details"]');
+    expect(panel?.textContent).toContain('Could not be read.');
+    expect(panel?.textContent).not.toContain('Loading');
+    expect(panel?.textContent).not.toContain('Nothing here now.');
   } finally {
     globalThis.fetch = originalFetch;
     await unmount();

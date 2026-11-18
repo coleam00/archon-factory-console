@@ -7,7 +7,13 @@ import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
 import { rowsFor } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
-import { EMPTY_STAGE_LIVE, stageLive, type MapLive, type StageLive } from '../lib/map-live';
+import {
+  EMPTY_STAGE_LIVE,
+  stageLive,
+  type MapLive,
+  type StageRead,
+  type Unread,
+} from '../lib/map-live';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
@@ -57,7 +63,11 @@ function MapBody({
   return (
     <>
       <ItemsNotice items={items} />
-      <MapLiveCanvas {...inputs} items={items.data} />
+      <MapLiveCanvas
+        {...inputs}
+        items={items.data}
+        unread={readFailed(items.error) === undefined ? 'loading' : 'failed'}
+      />
     </>
   );
 }
@@ -80,36 +90,38 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
 
 /**
  * The map over the items, drawn from the declaration before they are read (`items` undefined:
- * every card says "…"). It keeps where each item sat on the last read, as the board does, so a
- * run on a step no stage names holds its card where the board holds its column.
+ * every card says "…", or that the read failed). It keeps where each item sat on the last
+ * read, as the board does, so a run on a step no stage names holds its card where the board
+ * holds its column.
  */
 function MapLiveCanvas({
   items,
+  unread,
   attention,
   ...inputs
-}: MapInputs & { items: FactoryItem[] | undefined }): ReactElement {
+}: MapInputs & { items: FactoryItem[] | undefined; unread: Unread }): ReactElement {
   const { view } = inputs;
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
   const queue = attention.data?.items;
   const live = useMemo(
-    () => (items === undefined ? null : stageLive(view, items, queue ?? [], previous.current)),
-    [view, items, queue]
+    () => (items === undefined ? unread : stageLive(view, items, queue ?? [], previous.current)),
+    [view, items, queue, unread]
   );
   useEffect(() => {
-    if (live !== null) previous.current = live.positions;
+    if (typeof live !== 'string') previous.current = live.positions;
   }, [live]);
   return <MapCanvas {...inputs} live={live} />;
 }
 
-/** One stage's chips: null while the items are not read yet, empty when nothing sits there. */
-const liveOf = (live: MapLive | null, stage: string): StageLive | null =>
-  live === null ? null : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
+/** One stage's chips, why there are none yet, or empty when nothing sits there. */
+const liveOf = (live: MapLive | Unread, stage: string): StageRead =>
+  typeof live === 'string' ? live : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
 
 function MapCanvas({
   projectId,
   view,
   live,
-}: Omit<MapInputs, 'attention'> & { live: MapLive | null }): ReactElement {
+}: Omit<MapInputs, 'attention'> & { live: MapLive | Unread }): ReactElement {
   // The row holding the frame and the details panel, so opening the panel does not re-wrap.
   const row = useRowWidth();
   const oneRow = useMemo(() => layoutMap(view, 1), [view]);
@@ -184,7 +196,11 @@ function MapCanvas({
         )}
       </div>
       <MapLegend stages={view.stages} />
-      <MapNotOnMap projectId={projectId} view={view} entries={live?.notOnMap ?? []} />
+      <MapNotOnMap
+        projectId={projectId}
+        view={view}
+        entries={typeof live === 'string' ? [] : live.notOnMap}
+      />
     </div>
   );
 }
