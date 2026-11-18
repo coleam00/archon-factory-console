@@ -160,6 +160,7 @@
         "rounds.review__review",
         "rounds.tests__tests",
         "rounds.product__product",
+        "rounds.checks",
         "rounds.verdict__verdict",
         "rounds.shown",
         "exhausted"
@@ -201,6 +202,13 @@
                 "icon": "monitor-check",
                 "kind": "check",
                 "covers": [{ "workflow": "deliver", "steps": ["rounds.product__product"] }]
+              },
+              {
+                "title": "Project checks (shadow)",
+                "text": "Runs the project's declared checks by script and records the result; nothing acts on it yet",
+                "icon": "shield-check",
+                "kind": "script",
+                "covers": [{ "workflow": "deliver", "steps": ["rounds.checks"] }]
               }
             ]
           },
@@ -399,6 +407,7 @@
       "rounds.review__review": "Code review",
       "rounds.tests__tests": "Test check",
       "rounds.product__product": "Product check",
+      "rounds.checks": "Project checks (shadow)",
       "rounds.verdict__verdict": "Verdict",
       "rounds.shown": "Posts the review",
       "exhausted": "Rounds ran out",

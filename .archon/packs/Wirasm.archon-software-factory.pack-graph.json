@@ -102,6 +102,16 @@
           "fanOut": null
         },
         {
+          "id": "rounds.checks",
+          "kind": "exec",
+          "dependsOn": [
+            "rounds.base"
+          ],
+          "loopGroup": "rounds",
+          "blocks": [],
+          "fanOut": null
+        },
+        {
           "id": "rounds.review__review",
           "kind": "agent",
           "dependsOn": [
@@ -167,7 +177,8 @@
           "id": "rounds.shown",
           "kind": "exec",
           "dependsOn": [
-            "rounds.verdict__verdict"
+            "rounds.verdict__verdict",
+            "rounds.checks"
           ],
           "loopGroup": "rounds",
           "blocks": [],
@@ -242,14 +253,34 @@
     },
     {
       "name": "Wirasm/archon-software-factory:discoveries",
-      "returns": "drain",
+      "returns": "result",
       "outcome": null,
       "asks": false,
       "nodes": [
         {
+          "id": "intake",
+          "kind": "exec",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
           "id": "drain",
           "kind": "agent",
-          "dependsOn": [],
+          "dependsOn": [
+            "intake"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "result",
+          "kind": "exec",
+          "dependsOn": [
+            "drain"
+          ],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -665,6 +696,45 @@
           "id": "review",
           "kind": "agent",
           "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        }
+      ]
+    },
+    {
+      "name": "Wirasm/archon-software-factory:split",
+      "returns": "orders",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "whole",
+            "startsNothing": true
+          },
+          {
+            "value": "split",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": [
+        {
+          "id": "cut",
+          "kind": "agent",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "orders",
+          "kind": "exec",
+          "dependsOn": [
+            "cut"
+          ],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null

@@ -4,6 +4,54 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## Owner changes of 2026-11-18 (bind every later change; win over everything below, 2026-11-17 included)
+
+From the owner's beauty review and the meeting with the pack's author (Rasmus) on 2026-11-18. The
+goal: this stops looking like a proof of concept. It is what the owner presents on 2026-12-02, and
+it goes to Archon `dev` as a draft PR for review, so everything stays generic (driven by the view
+file, no pack names in code) and reads well to someone who has never seen Archon.
+
+1. **"Merged", never "Landed", everywhere a person reads** (column, pill, numbers, timeline, How it
+   works, work order strips: "3 of 5 merged"). Engine and pack ids keep `land` (`landgate`,
+   `landed`); only the words a person reads change. An option id is never shown raw: a person reads
+   the option's label.
+2. **Needs you is Archon core, not a factory feature.** "The thing used the most, by me and by my
+   agent, is the attention queue. It needs to be front and center." It becomes a **project tab,
+   "Needs you", left of Runs, on every project** (factory or not): every open ask and paused wait
+   on the project's items, from any workflow, answerable in place, its count on the tab. The
+   Factory sub-navigation links to it with the same count; `factory/needs-you` redirects there.
+   The ask card is the one design used everywhere an ask is answered: question, context, option
+   tiles with what each does and costs, the recommended option first and marked, "Something else"
+   (free text), confirm in place.
+3. **The board card is the approval card.** An item with an open ask shows its question and the
+   recommended option on its board card, with a visible ping. Clicking it opens the full ask card
+   in a popover over the board, answered in place, without leaving the board.
+4. **Fewer board columns.** The view file groups stages into columns; the board draws one column
+   per group, not per stage. For this pack: **Intake** (order, triage) | **Plan & build** |
+   **Checks & review** (the check rounds, CI and PR reviews) | **Ready to merge** | **Merged**.
+   Each column scrolls on its own; the page never grows with the longest column. A card still
+   names its stage and step ("Checks · Code review · round 2"). Stage pages keep every stage.
+5. **Where the factory lives.** Factory-wide things (How it works, and later the pack's settings)
+   move to a **Factory** entry in the console's sidebar, next to Settings, one page per installed
+   pack. The project's Factory tab keeps the live parts: Overview, Board, item, stage and step
+   pages; its How it works link opens the sidebar page for its pack.
+6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
+   would do and do nothing (admit, split, the land gate's would-merge, discoveries filing, the
+   project's declared checks, order linking). Wherever one appears (map, board, stage page, item
+   timeline) it reads plainly as "would ..." with what it would have done, marked "shadow", never as
+   if it acted. Which steps are shadows is declared in the view file, not in code.
+7. **Send-backs and found work.** How it works draws several labelled lines going back (returned
+   by checks, sent back by CI or review, replan, answered asks restart a stage) and "unrelated finds
+   become new work" from the discoveries drain to intake, marked as a shadow while the pack only
+   decides what it would file.
+8. **Later, not now:** a read-only page of the pack's settings and policies (under the sidebar
+   Factory entry); reading engine-reported rounds and limits per item when the engine reports them
+   instead of deriving rounds from events.
+
+Not ours to build: forge views of issues and PRs (Thomas works on those in the existing UI), and a
+YAML-to-graph generator for the detailed authoring view (Rasmus has one). Our view and overview files
+stay the curated, simplified ones.
+
 ## Owner changes of 2026-11-17 (bind every later change; win over older text below)
 
 The section has **two separate things**, each with its own file:
