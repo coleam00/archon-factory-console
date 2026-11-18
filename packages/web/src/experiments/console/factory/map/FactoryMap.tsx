@@ -126,12 +126,20 @@ function MapCanvas({
   const { cards, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const selectedCard = cards.find(card => card.id === selected);
-  // By id, so the opening box keeps its identity until the busiest card changes.
+  // By id, so the opening box keeps its identity until the busiest card changes. A stage whose
+  // count waits on a merge answer counts as empty: its chip says "checking…", not a number, and
+  // opening on it would move the map again once the answer lands.
   const busiest =
     typeof live === 'string'
       ? undefined
-      : busiestCard(cards, stage => live.stages.get(stage)?.items.length ?? 0, view.landed.stage)
-          ?.id;
+      : busiestCard(
+          cards,
+          stage => {
+            const here = live.stages.get(stage);
+            return here === undefined || here.pending ? 0 : here.items.length;
+          },
+          view.landed.stage
+        )?.id;
   const open = useMemo(
     () => cards.find(card => card.id === busiest)?.box ?? null,
     [cards, busiest]

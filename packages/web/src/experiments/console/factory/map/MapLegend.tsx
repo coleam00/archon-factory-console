@@ -47,7 +47,8 @@ export function MapLegend({ tones }: { tones: readonly ColumnTone[] }): ReactEle
           </svg>
           Sends it back, labelled where it returns to
         </li>
-        <li className={ITEM}>
+        {/* No dot moves under reduced motion, so the legend does not say one does. */}
+        <li className={`${ITEM} motion-reduce:hidden`}>
           <span
             aria-hidden="true"
             className="inline-block size-2 rounded-full bg-[color:var(--running)]"

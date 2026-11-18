@@ -8,7 +8,7 @@
       "id": "order",
       "label": "Order",
       "blurb": "Takes a work order and makes it one item the factory can read.",
-      "short": "Turns a work order into an item",
+      "short": "Turns orders into items",
       "group": "intake",
       "workflows": ["order"],
       "drilldown": {
@@ -32,7 +32,7 @@
       "id": "triage",
       "label": "Triage",
       "blurb": "Reads a new item and decides whether it is worth building.",
-      "short": "Decides whether it is worth building",
+      "short": "Is it worth building?",
       "group": "intake",
       "workflows": ["triage"],
       "drilldown": {
@@ -89,7 +89,7 @@
       "id": "plan",
       "label": "Plan",
       "blurb": "Works out how to build the item and writes the plan down.",
-      "short": "Writes down how to build it",
+      "short": "Plans how to build it",
       "group": "intake",
       "workflows": ["plan"],
       "drilldown": {
@@ -113,7 +113,7 @@
       "id": "build",
       "label": "Build",
       "blurb": "Writes the change and opens a draft pull request, then fixes what comes back.",
-      "short": "Writes the change, opens a PR",
+      "short": "Writes the change and PR",
       "group": "build",
       "workflows": ["deliver"],
       "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"],
@@ -157,7 +157,7 @@
       "id": "checks",
       "label": "Checks",
       "blurb": "A review, a test check and a product check read the change and approve it or send it back.",
-      "short": "Review, tests and product check",
+      "short": "Review, tests, product",
       "group": "check",
       "workflows": ["deliver"],
       "nodes": [
@@ -313,7 +313,7 @@
       "id": "ready",
       "label": "Ready to merge",
       "blurb": "A gate checks the approved change, then it waits for a person to merge it.",
-      "short": "Gate, then a person merges",
+      "short": "Gated, waits for a merge",
       "group": "land",
       "workflows": ["landgate", "land"],
       "drilldown": {

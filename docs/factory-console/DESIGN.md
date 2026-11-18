@@ -410,8 +410,8 @@ present itself without the console knowing it. Shape (validated with zod in
   "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
   "stages": [                                      // map cards and stage pages, left to right
     { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
-      "short": "Turns a work order into an item",  // optional: the map card's one line,
-      "group": "intake", "workflows": ["order"] },   // about six words; else the blurb
+      "short": "Turns orders into items",  // optional: the map card's one line, at
+      "group": "intake", "workflows": ["order"] },   // most 24 characters; else the blurb
     {
       "id": "build",
       "label": "Build",
@@ -609,17 +609,21 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   the shipped file: Intake, Plan & build, Checks & review, Ready to merge, Merged. `col` and
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
-  fit the frame, the map pans sideways, opening with the busiest card centred: the one holding
-  the stage with the most items in flight, the leftmost on a tie. Merged items do not count
-  (the Merged stage keeps every change ever merged, so it would win every time); with nothing
-  in flight it opens on the row's start. When the items first answer, the map re-opens on the
-  busiest card unless the person has moved it; Fit returns there. The shipped map is about
+  fit the frame, the map pans sideways, opening on the busiest card: the one holding the stage
+  with the most items in flight, the leftmost on a tie. That card is centred as far as the row
+  allows; the row's edges never leave the frame's padding, so near either end of the row the
+  map opens clamped at that end (at 1440x900 the shipped map opens at its start, with Plan &
+  build in view). Merged items do not count (the Merged stage keeps every change ever merged,
+  so it would win every time), nor does a stage whose count still waits on a merge answer
+  (its chip says "checking…"); with nothing in flight it opens on the row's start. Whenever the
+  busiest card changes and the person has not moved the map, it re-opens there; Fit returns
+  there too. The shipped map is about
   1226 px wide with its padding, so it pans a little at 1440x900 and more on smaller screens.
 - **Cards in the card language** (rule 2), 184 px wide by 168 tall, every card one size so the
   lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
   label ("Intake", "Build", "Check", "Merge", "Merged"), then:
   - a card of one stage: the stage label (Card title role, two lines at most), its one short
-    line (the stage's `short`, about six words; without one, its blurb clamped to two lines),
+    line (the stage's `short`, at most 24 characters; without one, its blurb clamped to two lines),
     and its chips on the bottom row. The whole card opens the stage page.
   - a card of several stages: the column's label, then one row per stage, each opening its
     stage page: the stage label with its "here" chip, and under it its short line (or blurb,

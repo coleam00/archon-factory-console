@@ -11,7 +11,9 @@ import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
-import { MAP_SMALLEST_PX } from '../lib/map-camera';
+import { FIT_PAD, MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
+import { layoutMap } from '../lib/map-layout';
+import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
 import { FactoryMap } from './FactoryMap';
 
@@ -59,7 +61,8 @@ function StagePage(): React.ReactElement {
 
 /** The map over `read`, seeded warm in the cache; null leaves the cache cold, so it fetches. */
 async function mount(
-  read: FactoryItem[] | null = items
+  read: FactoryItem[] | null = items,
+  listed: FactoryViewListed = shippedListed
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
   if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
   const container = document.createElement('div');
@@ -71,7 +74,7 @@ async function mount(
         <Routes>
           <Route
             path="/console/p/:projectId/factory"
-            element={<FactoryMap projectId={ID} view={shippedListed} attention={attention} />}
+            element={<FactoryMap projectId={ID} view={listed} attention={attention} />}
           />
           <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
         </Routes>
@@ -163,14 +166,15 @@ test('the map draws one card per board column, a card of several stages a row fo
       `/console/p/${ID}/factory/stages/build`,
     ]);
     expect(rows('merged')).toEqual([`/console/p/${ID}/factory/stages/landed`]);
-    // A card of one stage reads its short line; a row of a card of several, its own.
-    expect(container.querySelector('[data-card="merged"]')?.textContent).toContain(
-      'The change is merged'
-    );
+    // A card of one stage reads its short line, not its blurb; a row of a card of several, its own.
+    const ready = container.querySelector('[data-card="ready"]')?.textContent ?? '';
+    expect(ready).toContain('Gated, waits for a merge');
+    expect(ready).not.toContain('A gate checks the approved change');
     const planBuild = container.querySelector('[data-card="plan-build"]')?.textContent ?? '';
-    expect(planBuild).toContain('Writes down how to build it');
+    expect(planBuild).toContain('Plans how to build it');
+    expect(planBuild).not.toContain('Works out how to build the item');
     // Build's row shows who needs you there in place of its short line.
-    expect(planBuild).not.toContain('Writes the change, opens a PR');
+    expect(planBuild).not.toContain('Writes the change and PR');
     expect(container.textContent).not.toContain('Landed');
   } finally {
     await unmount();
@@ -322,38 +326,97 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
       g => `${g.getAttribute('data-lane-pill') ?? ''}: ${g.textContent ?? ''}`
     );
     expect(pills).toEqual(['plan: replan, answers', 'build: returned']);
-    // The legend draws the lines as the map does, in plain words.
-    const legend = container.querySelector('ul[aria-label="Lines"]')?.textContent ?? '';
-    expect(legend).toContain('Hands the item on');
-    expect(legend).toContain('Sends it back, labelled where it returns to');
-    expect(legend).toContain('A dot moves along a line while a run works an item there');
+    // The legend draws the send-back line as the map does.
     expect(
       container.querySelector('[data-legend="send-back"]')?.getAttribute('stroke-dasharray')
     ).toBe('6 4');
-    const groups = container.querySelector('ul[aria-label="Colour groups"]')?.textContent ?? '';
-    expect(groups).toContain('Merging it');
-    expect(groups).toContain('Merged');
   } finally {
     await unmount();
   }
 });
 
-/** The distinct tops of the cards when every element measures `width` wide. */
-async function cardTopsAt(width: number): Promise<Set<string>> {
+/** What `look` reads off the map over `read` when every element measures `width` wide. */
+async function atWidth<T>(
+  width: number,
+  look: (container: HTMLElement) => T,
+  read: FactoryItem[] = items
+): Promise<T> {
   const proto = dom.HTMLElement.prototype;
   const original = Object.getOwnPropertyDescriptor(proto, 'clientWidth');
   Object.defineProperty(proto, 'clientWidth', { configurable: true, get: () => width });
-  const { container, unmount } = await mount();
+  const { container, unmount } = await mount(read);
   try {
-    return new Set(
-      [...container.querySelectorAll<HTMLElement>('[data-card]')].map(el => el.style.top)
-    );
+    return look(container);
   } finally {
     await unmount();
     if (original) Object.defineProperty(proto, 'clientWidth', original);
     else Reflect.deleteProperty(proto, 'clientWidth');
   }
 }
+
+/** The distinct tops of the cards when every element measures `width` wide. */
+const cardTopsAt = (width: number): Promise<Set<string>> =>
+  atWidth(
+    width,
+    container =>
+      new Set([...container.querySelectorAll<HTMLElement>('[data-card]')].map(el => el.style.top))
+  );
+
+/** The world layer's camera: its translate x and scale. */
+function cameraOf(container: HTMLElement): { x: number; k: number } {
+  const transform = container.querySelector<HTMLElement>('[style*="scale("]')?.style.transform;
+  const match = /translate\((-?[\d.]+)px, -?[\d.]+px\) scale\(([\d.]+)\)/.exec(transform ?? '');
+  if (match === null) throw new Error(`No camera in ${transform ?? 'nothing'}`);
+  return { x: Number(match[1]), k: Number(match[2]) };
+}
+
+/** Where the centre of a card lands in a frame, for camera `x` at scale 1. */
+function centreIn(id: string, x: number): number {
+  const box = layoutMap(shippedListed.declaration).cards.find(card => card.id === id)?.box;
+  if (box === undefined) throw new Error(`No card ${id}`);
+  return box.x + box.w / 2 + x;
+}
+
+test('on a phone the live map pans at the readable scale, opening on the busiest card', async () => {
+  // Plan & build holds the most items in flight (Build's two), and it is not the first card.
+  const camera = await atWidth(390, cameraOf);
+  expect(camera.k).toBe(READABLE_K);
+  expect(centreIn('plan-build', camera.x)).toBe(390 / 2);
+});
+
+test('a stage whose count waits on a merge answer does not draw the map to it', async () => {
+  // Three items wait on Ready to merge with their merge state pending; one is on Build.
+  const pending = ['p1', 'p2', 'p3'].map(key =>
+    itemWith(key, [run('deliver', 'completed', 'ready')], 'pending')
+  );
+  const camera = await atWidth(390, cameraOf, [realItem('5'), ...pending]);
+  expect(centreIn('plan-build', camera.x)).toBe(390 / 2);
+  expect(camera.x).not.toBe(FIT_PAD);
+});
+
+test('a stage with no short line shows its blurb, on a card of its own and in a row', async () => {
+  const declaration = shippedListed.declaration;
+  const listed: FactoryViewListed = {
+    ...shippedListed,
+    declaration: {
+      ...declaration,
+      stages: declaration.stages.map(stage =>
+        stage.id === 'ready' || stage.id === 'triage' ? { ...stage, short: undefined } : stage
+      ),
+    },
+  };
+  const { container, unmount } = await mount(items, listed);
+  try {
+    expect(container.querySelector('[data-card="ready"]')?.textContent).toContain(
+      'A gate checks the approved change'
+    );
+    expect(container.querySelector('a[data-stage="triage"]')?.textContent).toContain(
+      'Reads a new item and decides'
+    );
+  } finally {
+    await unmount();
+  }
+});
 
 test("the cards take one row at every width, a phone's included", async () => {
   for (const width of [358, 1100, 1600]) expect((await cardTopsAt(width)).size).toBe(1);

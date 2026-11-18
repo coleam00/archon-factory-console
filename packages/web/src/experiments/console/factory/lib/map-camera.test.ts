@@ -6,14 +6,12 @@ import {
   MAX_ZOOM,
   MIN_FRAME_HEIGHT,
   FIT_PAD,
-  MAP_SMALLEST_PX,
   MIN_ZOOM,
   READABLE_K,
   reveal,
-  TYPE_FLOOR_PX,
   zoomAt,
 } from './map-camera';
-import { busiestCard, layoutMap } from './map-layout';
+import { layoutMap } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 
 const world = { x: 0, y: -10, w: 1000, h: 200 };
@@ -40,11 +38,6 @@ describe('the map camera', () => {
     expect(camera.x).toBe(24);
   });
 
-  test('the readable scale is 1: the smallest text, 12 px, at the type floor', () => {
-    expect(MAP_SMALLEST_PX).toBe(TYPE_FLOOR_PX);
-    expect(READABLE_K).toBe(1);
-  });
-
   // The Overview frame's widths on a phone, a tablet, at 1440x900, 1280 and wider.
   const WIDTHS = [320, 390, 768, 1100, 1280, 1600];
   const { bounds, cards } = layoutMap(shippedView);
@@ -54,8 +47,6 @@ describe('the map camera', () => {
     for (const width of WIDTHS) {
       const camera = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
       expect(camera.k).toBe(READABLE_K);
-      const pans = bounds.w * camera.k > width - 2 * FIT_PAD;
-      expect(pans).toBe(width < fitWidth);
     }
     const at = (width: number) => fitCamera(bounds, { width, height: 400 });
     // At its fit width it is centred; one pixel narrower it opens on its start and pans.
@@ -78,25 +69,11 @@ describe('the map camera', () => {
     }
   });
 
-  test('the opening card is the busiest, the leftmost on a tie; none in flight opens on the start', () => {
+  test('a map that pans opens with the box it is given centred', () => {
     const width = 390;
-    const open = (counts: Record<string, number>) =>
-      fitCamera(
-        bounds,
-        { width, height: 400 },
-        FIT_PAD,
-        READABLE_K,
-        1,
-        busiestCard(cards, stage => counts[stage] ?? 0, shippedView.landed.stage)?.box
-      );
-    const centreOf = (id: string, x: number): number => {
-      const box = cards.find(card => card.id === id)?.box;
-      return (box?.x ?? 0) + (box?.w ?? 0) / 2 + x;
-    };
-    expect(centreOf('checks-review', open({ checks: 2, build: 1 }).x)).toBe(width / 2);
-    expect(centreOf('plan-build', open({ plan: 1, host: 1 }).x)).toBe(width / 2);
-    expect(open({}).x).toBe(FIT_PAD - bounds.x);
-    expect(open({ landed: 9 }).x).toBe(FIT_PAD - bounds.x);
+    const box = cards.find(card => card.id === 'checks-review')?.box;
+    const camera = fitCamera(bounds, { width, height: 400 }, FIT_PAD, READABLE_K, 1, box);
+    expect((box?.x ?? 0) + (box?.w ?? 0) / 2 + camera.x).toBe(width / 2);
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {

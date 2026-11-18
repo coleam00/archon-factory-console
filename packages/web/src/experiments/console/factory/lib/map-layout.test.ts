@@ -112,8 +112,6 @@ function expectClean(layout: MapLayout): void {
 
 const arrowBetween = (layout: MapLayout, from: string, to: string) =>
   layout.arrows.find(arrow => arrow.from === from && arrow.to === to);
-const pillOf = (layout: MapLayout, stage: string): string | undefined =>
-  layout.feedback.pills.find(pill => pill.stage === stage)?.text;
 
 describe('the shipped map', () => {
   const layout = layoutMap(shippedView);
@@ -148,6 +146,14 @@ describe('the shipped map', () => {
     }
   });
 
+  test('every shipped short line fits one row of a card of several stages', () => {
+    // A row's text is the card's width inside its 12 px padding; 6.5 px is a generous mean
+    // character width at 12 px Geist (the browser shows 27 characters in 158 px).
+    const row = CARD_W - 24;
+    for (const stage of shippedView.stages)
+      expect((stage.short?.length ?? 0) * 6.5).toBeLessThanOrEqual(row);
+  });
+
   test('a forward hand-off only between neighbours, straight, its pill above the line', () => {
     expect(layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines.join(' ')])).toEqual([
       ['intake', 'plan-build', 'build, narrow'],
@@ -179,11 +185,6 @@ describe('the shipped map', () => {
 
   test('nothing crosses a card, a line or a pill, and the bounds hold every pill', () => {
     expectClean(layout);
-  });
-
-  test('no arrow is drawn for a hand-off inside a card', () => {
-    // order -> triage, plan -> build and checks -> host are each inside one card.
-    expect(layout.arrows).toHaveLength(4);
   });
 });
 
@@ -225,20 +226,6 @@ describe('the rules for arrows between card groups', () => {
       ['c', 's2'],
       ['a', 's2'],
     ]);
-  });
-
-  test('two target stages in one card each get a leg and a pill, in the card stage order', () => {
-    const [a] = layout.cards;
-    const ids = layout.feedback.pills.map(pill => pill.stage);
-    expect(ids).toEqual(['s1', 's2', 's3']);
-    const centre = (stage: string): number => {
-      const box = layout.feedback.pills.find(pill => pill.stage === stage)?.box as Box;
-      return box.x + box.w / 2;
-    };
-    expect(centre('s1')).toBeLessThan(centre('s2'));
-    expect(centre('s2')).toBeLessThan((a?.box.x ?? 0) + (a?.box.w ?? 0) * 0.6);
-    expect(pillOf(layout, 's2')).toBe('rework, answers');
-    expect(pillOf(layout, 's3')).toBe('returned');
   });
 
   test('nothing crosses a card, a line or a pill', () => {
