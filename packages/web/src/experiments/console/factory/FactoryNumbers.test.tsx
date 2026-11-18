@@ -101,7 +101,7 @@ async function mount(projectId: string, items: FactoryItem[]) {
   };
 }
 
-test('before the items answer, the five tiles say "…" with their labels, never a count', async () => {
+test('before the reads answer, the five item tiles say "…" and the found tile a skeleton, never a count', async () => {
   // Held unanswered: the strip renders before its first read settles.
   const held = globalThis.fetch;
   globalThis.fetch = Object.assign(() => new Promise<Response>(() => undefined), {

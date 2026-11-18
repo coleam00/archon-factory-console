@@ -521,6 +521,11 @@ What those reads do not carry comes from **one read-only route file**,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
   to that the window lacks (no run of its own, or no item row) in one more progress request per
   100 keys, never one per item; a key that request leaves out has no item row.
+- `GET /api/factory/discoveries?codebaseId=` what the completed drains of the view's
+  `discoveries` workflow decided, read at its pointers: each finding they decided to file with
+  its kind, verified line, source item, time and the item whose title covers it (case-insensitive
+  exact, over every item on the project), and how many they held and dropped; 404 when the view
+  declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
   timeline needs per run and neither read carries: the declared workflow, the run's cause, its
   cost, its running step, and each round of the declared `rounds` loop with the steps that
