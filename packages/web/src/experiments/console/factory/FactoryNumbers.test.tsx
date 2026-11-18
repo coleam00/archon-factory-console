@@ -7,6 +7,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FactoryNumbers } from './FactoryNumbers';
 import { PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
+import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads, MERGE_REREAD_MS, scheduleReread } from './merge-reread';
 
 // A failed read lands after the first render, which static markup cannot reach.
@@ -124,6 +125,8 @@ test('before the items answer, the five tiles say "…" with their labels, never
       '…Loadinglanded today',
       '…Loadingdone',
       '…Loadingmedian from first run to landed',
+      // Its own read, drawn as a skeleton bar (Visual standard, rule 6).
+      'Loadingfound by the factory',
     ]);
     expect(container.querySelector('[aria-label="Numbers"] [title="Loading"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Numbers"]')?.textContent).not.toMatch(/\d/);
@@ -201,5 +204,42 @@ test('while pending it reads again on its own, and keeps trying after a failed r
     expect(fetches).toBe(after);
   } finally {
     await unmount();
+  }
+});
+
+test('a view that declares discoveries adds a tile linking to the board panel; one that does not, none', async () => {
+  set(K.factoryItems('cb-found'), { items: PAGE.items, members: {} });
+  set(K.factoryDiscoveries('cb-found'), DISCOVERIES);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const { discoveries: _declared, ...without } = VIEW;
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <FactoryNumbers projectId="cb-found" view={VIEW} />
+        </MemoryRouter>
+      )
+    );
+    const found = [...container.querySelectorAll('[aria-label="Numbers"] li')].at(-1);
+    // Two of the three findings: an item carries the third.
+    expect(found?.textContent).toBe('2found by the factory');
+    expect(found?.querySelector('a')?.getAttribute('href')).toBe(
+      '/console/p/cb-found/factory/board#found-by-the-factory'
+    );
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <FactoryNumbers projectId="cb-found" view={without} />
+        </MemoryRouter>
+      )
+    );
+    expect(container.querySelectorAll('[aria-label="Numbers"] li')).toHaveLength(5);
+    expect(container.textContent).not.toContain('found by the factory');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    invalidate(K.factoryDiscoveries('cb-found'));
   }
 });

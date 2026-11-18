@@ -14,6 +14,7 @@ import {
   realItem,
   VIEW,
 } from './lib/board.test-fixtures';
+import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
@@ -56,6 +57,8 @@ async function mount(
   members: Record<string, string[]> = {}
 ) {
   set(K.factoryItems(ID), { items, members });
+  // The view declares discoveries, so the board mounts the "Found by the factory" panel.
+  set(K.factoryDiscoveries(ID), DISCOVERIES);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);

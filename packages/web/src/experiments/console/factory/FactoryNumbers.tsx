@@ -10,6 +10,8 @@ import { factoryPath } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed, SlowReadError } from './lib/deadline';
 import { StaleRead } from './StaleRead';
+import { FOUND_BY_THE_FACTORY, openFindings } from './lib/discoveries';
+import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
 /** "Landed today" turns over at midnight without a reload. */
 function useMinuteClock(): Date {
@@ -98,10 +100,16 @@ export function FactoryNumbers({
   return (
     <div className="flex flex-col gap-1.5">
       {numbers === undefined ? null : <StaleRead error={items.error} />}
-      <ul aria-label="Numbers" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <ul
+        aria-label="Numbers"
+        className={`grid grid-cols-2 gap-2 ${
+          view.discoveries === undefined ? 'sm:grid-cols-5' : 'sm:grid-cols-3 lg:grid-cols-6'
+        }`}
+      >
         {tiles(numbers).map(tile => (
           <NumberTile key={tile.label} projectId={projectId} tile={tile} />
         ))}
+        {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
       </ul>
       {/* Before the first answer the tiles say "…"; a read past its deadline says so too. */}
       {numbers === undefined && items.error instanceof SlowReadError ? (
@@ -129,6 +137,41 @@ function NumberTile({ projectId, tile }: { projectId: string; tile: Tile }): Rea
           )}
         </span>
         <span className="text-console-12 text-text-secondary">{tile.label}</span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * "found by the factory": what the discoveries drains decided to file that no item carries
+ * yet, linking to the board's panel. Its own read, so it never holds up the other tiles; a
+ * read that failed reads as a dash, and the panel says why.
+ */
+function FoundTile({ projectId }: { projectId: string }): ReactElement {
+  const read = useFactoryDiscoveries(projectId);
+  const failed = read.data === undefined && readFailed(read.error) !== undefined;
+  return (
+    <li>
+      <Link
+        to={factoryPath(projectId, `/board#${FOUND_BY_THE_FACTORY}`)}
+        className="flex h-full flex-col gap-0.5 rounded-console-12 border border-border bg-surface px-3 py-2 transition-colors hover:border-border-bright"
+      >
+        <span className="text-console-22 font-semibold tabular-nums text-text-primary">
+          {read.data !== undefined ? (
+            openFindings(read.data).length
+          ) : failed ? (
+            <span title="Could not be read">–</span>
+          ) : (
+            <span className="inline-flex h-7 items-center">
+              <span
+                aria-hidden
+                className="h-5.5 w-12 rounded bg-surface-elevated motion-safe:animate-pulse"
+              />
+              <span className="sr-only">Loading</span>
+            </span>
+          )}
+        </span>
+        <span className="text-console-12 text-text-secondary">found by the factory</span>
       </Link>
     </li>
   );

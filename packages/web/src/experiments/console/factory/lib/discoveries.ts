@@ -1,0 +1,56 @@
+/**
+ * The words of the board's "Found by the factory" panel and the Overview's tile, from what
+ * the discoveries drains decided (`GET /api/factory/discoveries`). A finding an item on the
+ * project already carries (by title) is on the board, so only the others count.
+ */
+import type { FactoryDiscoveries } from '../../skills/factory';
+
+/** One finding a drain decided to file. */
+export type FactoryFinding = FactoryDiscoveries['findings'][number];
+
+/** The panel's id: the Overview's tile links to it. */
+export const FOUND_BY_THE_FACTORY = 'found-by-the-factory';
+
+/** The findings no item on the project carries yet. */
+export function openFindings(read: FactoryDiscoveries): FactoryFinding[] {
+  return read.findings.filter(finding => finding.coveredBy === null);
+}
+
+export interface FoundChip {
+  label: string;
+  count: number;
+}
+
+/**
+ * "would file N · held N · dropped N": every decision the drains made, a finding an item
+ * covers since included. A shadow drain files nothing, so it would file.
+ */
+export function foundChips(read: FactoryDiscoveries): FoundChip[] {
+  return [
+    { label: read.shadow ? 'would file' : 'filed', count: read.findings.length },
+    { label: 'held', count: read.held },
+    { label: 'dropped', count: read.dropped },
+  ];
+}
+
+/** The pack's kind in sentence case ("defect" reads "Defect"); null reads nothing. */
+export function kindLabel(kind: string | null): string | null {
+  if (kind === null || kind.trim() === '') return null;
+  const words = kind.trim().replace(/[-_]+/g, ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** When a drain decided, as "18 Nov, 13:10" in the reader's time zone. */
+export function decidedWhen(at: string, timeZone?: string): string {
+  const date = new Date(at);
+  const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone }).format(
+    date
+  );
+  const time = new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(date);
+  return `${day}, ${time}`;
+}
