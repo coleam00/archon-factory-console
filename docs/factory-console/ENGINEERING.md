@@ -51,7 +51,7 @@ bun run build:web
 ```
 
 CI (`.github/workflows/ci.yml`) runs that set on every push, and more: the core, workflows, cli,
-adapters, server and web suites on Linux (one runner per package, cli in three parts, one test
+adapters, server and web suites on Linux (one runner per package, cli split into parts, one test
 group at a time), and every test file that reads `ARCHON_TEST_PG_URL` against a Postgres it
 starts. A test file that fails there is rerun once by itself and the log says `RETRIED <file>`; a
 second failure fails CI. A pull request lists every file that needed a retry. A check need not
