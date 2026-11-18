@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import {
+  parseTestConcurrency,
   parseTestPart,
   partitionTestGroups,
   resolvePackageTestConcurrency,
@@ -28,7 +29,9 @@ import { runReportedGroup, writeCombinedReport, type TestReport } from './packag
  *
  * `ARCHON_TEST_PART=<index>/<count>` runs one of `count` parts of the package's groups, split
  * by the measured group times in `test-weights.json` (see `partitionTestGroups`). CI uses it to
- * spread one shard across runners. Each group ends with a
+ * spread one shard across runners. It applies when no file is named, so options such as the
+ * JUnit reporter still reach every group of the part. `ARCHON_TEST_CONCURRENCY` overrides the
+ * package's `testConcurrency`. Each group ends with a
  * `◀ <package> <first selector> <seconds>s` line, which `update-test-weights.ts` reads back
  * from a CI run to refresh the weights.
  */
@@ -48,7 +51,6 @@ const run = async (args: string[]): Promise<number> => {
 
 const requested = Bun.argv.slice(2);
 
-const part = requested.length === 0 ? parseTestPart(process.env.ARCHON_TEST_PART) : undefined;
 const packageName =
   typeof manifest === 'object' && manifest !== null && 'name' in manifest
     ? String(manifest.name)
@@ -58,14 +60,25 @@ const weights: Record<string, Record<string, number>> = await Bun.file(
 ).json();
 const request =
   requested.length > 0 ? resolveRequestedTestGroups(packageDir, manifest, requested) : undefined;
-const groups =
-  request?.groups ??
+const part =
+  request === undefined || !request.selectsFiles
+    ? parseTestPart(process.env.ARCHON_TEST_PART)
+    : undefined;
+const suitePart = (): string[][] =>
   partitionTestGroups(
     resolvePackageTestGroups(packageDir, manifest),
     weights[packageName] ?? {},
     part?.count ?? 1
   )[(part?.index ?? 1) - 1];
-const concurrency = resolvePackageTestConcurrency(manifest);
+const groups =
+  request === undefined
+    ? suitePart()
+    : part === undefined
+      ? request.groups
+      : suitePart().map(group => [...request.options, ...group]);
+const concurrency =
+  parseTestConcurrency(process.env.ARCHON_TEST_CONCURRENCY) ??
+  resolvePackageTestConcurrency(manifest);
 if (part !== undefined) {
   console.log(`Part ${String(part.index)}/${String(part.count)}: ${String(groups.length)} groups`);
 }

@@ -120,6 +120,20 @@ export function parseTestPart(value: string | undefined): TestPart | undefined {
 }
 
 /**
+ * Reads `ARCHON_TEST_CONCURRENCY`, which overrides a package's `testConcurrency`; unset means
+ * the manifest decides. CI sets it to 1 on a small runner, where groups running side by side
+ * starve each other's timing-bound tests.
+ */
+export function parseTestConcurrency(value: string | undefined): number | undefined {
+  if (value === undefined || value === '') return undefined;
+  const concurrency = /^\d+$/.test(value) ? Number(value) : Number.NaN;
+  if (!(concurrency >= 1)) {
+    throw new Error(`ARCHON_TEST_CONCURRENCY must be a positive integer: ${value}`);
+  }
+  return concurrency;
+}
+
+/**
  * Splits groups into `count` parts of about equal measured time, each part's groups slowest
  * first. Every group lands in exactly one part, so the parts together run the whole suite
  * whatever the weights say; stale or missing weights cost only balance. A group is weighed by

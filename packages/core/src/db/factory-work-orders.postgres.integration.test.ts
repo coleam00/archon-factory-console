@@ -7,7 +7,7 @@ import { describeFactoryWorkOrderReadConformance } from './factory-work-orders.c
 import { makeSqlConformanceHarness } from './workflow-store.conformance-harness';
 
 // A scratch database per test on the server ARCHON_TEST_PG_URL names, created and dropped
-// here (CI's postgres job runs every `factory-*.postgres.integration.test.ts`).
+// here (CI's postgres job runs every test file that reads ARCHON_TEST_PG_URL).
 const baseUrl = process.env.ARCHON_TEST_PG_URL;
 describe.skipIf(!baseUrl)('factory work orders on scratch PostgreSQL', () => {
   let admin: Pool;

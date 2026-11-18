@@ -41,7 +41,7 @@ The factory building this repository runs Archon from another checkout, on the h
 
 ## Proving a change
 
-The declared validate command is what CI runs:
+The declared validate command is the local check:
 
 ```
 bun run validate --only generated-files,type-check,lint,format
@@ -50,7 +50,13 @@ bun run --cwd packages/server test
 bun run build:web
 ```
 
-CI runs that full set on every push, so a check need not repeat it. A review or test check runs
+CI (`.github/workflows/ci.yml`) runs that set on every push, and more: the core, workflows, cli,
+adapters, server and web suites on Linux (one runner per package, cli split into parts, one test
+group at a time), and every test file that reads `ARCHON_TEST_PG_URL` against a Postgres it
+starts. A test file that fails there is rerun once by itself and the log says `RETRIED <file>`; a
+second failure fails CI. A pull request lists every file that needed a retry. A check need not
+repeat any of it, and need not run whole suites on Windows, where the container and symlink tests
+fail by design. A review or test check runs
 the tests of the packages the change touches (`bun test <dir>` inside the package), and only when
 it needs a comparison runs the same tests on the base. Running a whole package suite twice on
 Windows costs most of an hour and finds nothing CI does not.

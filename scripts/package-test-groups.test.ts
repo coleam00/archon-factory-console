@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import {
+  parseTestConcurrency,
   parseTestPart,
   partitionTestGroups,
   resolvePackageTestConcurrency,
@@ -97,6 +98,16 @@ test('a test part is <index>/<count> within range, and unset means the whole sui
   expect(parseTestPart('2/3')).toEqual({ index: 2, count: 3 });
   for (const value of ['0/2', '3/2', '1', '1/0', 'a/b', '1/2/3', ' 1/2']) {
     expect(() => parseTestPart(value)).toThrow('ARCHON_TEST_PART');
+  }
+});
+
+test('a concurrency override is a positive integer, and unset defers to the manifest', () => {
+  expect(parseTestConcurrency(undefined)).toBeUndefined();
+  expect(parseTestConcurrency('')).toBeUndefined();
+  expect(parseTestConcurrency('1')).toBe(1);
+  expect(parseTestConcurrency('3')).toBe(3);
+  for (const value of ['0', '-1', '1.5', 'one', ' 1', '2x']) {
+    expect(() => parseTestConcurrency(value)).toThrow('ARCHON_TEST_CONCURRENCY');
   }
 });
 
