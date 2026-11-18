@@ -1,15 +1,10 @@
 import type { ReactElement } from 'react';
-import { GROUPS } from './map/MapLegend';
 import { PILL_LABEL, type Pill } from './lib/board';
 import type { ColumnTone } from './lib/board-columns';
-
-/** A column's colour (Visual standard, rule 5): its group's, or the merged column's own. */
-export function toneColor(tone: ColumnTone): string {
-  return tone === 'merged' ? 'var(--success)' : GROUPS[tone].color;
-}
+import { toneColor } from './tones';
 
 /** A state chip: the state's colour as text on its soft background (rule 5). */
-const CHIP_CLASS: Record<Exclude<Pill, 'landed'>, string> = {
+export const CHIP_CLASS: Record<Exclude<Pill, 'landed'>, string> = {
   running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
   'needs-you': 'bg-[color:var(--warning-soft)] text-warning',
   failed: 'bg-[color:var(--error-soft)] text-error',

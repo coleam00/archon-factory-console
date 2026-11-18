@@ -11,7 +11,7 @@ import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
-import { MAP_TEXT_PX } from '../lib/map-camera';
+import { MAP_SMALLEST_PX } from '../lib/map-camera';
 import { cancelRereads } from '../merge-reread';
 import { FactoryMap } from './FactoryMap';
 
@@ -87,16 +87,16 @@ async function mount(
   };
 }
 
-/** The card itself: the link that fills it. */
+/** A stage's link: the card of a one-stage card, or its row in a card of several. */
 const card = (container: HTMLElement, stage: string): HTMLAnchorElement => {
-  const link = container.querySelector<HTMLAnchorElement>(`[data-stage="${stage}"] > a`);
+  const link = container.querySelector<HTMLAnchorElement>(`a[data-stage="${stage}"]`);
   if (link === null) throw new Error(`No card for ${stage}`);
   return link;
 };
-/** The card's details button, beside its link. */
-const details = (container: HTMLElement, stage: string): HTMLButtonElement => {
-  const button = container.querySelector<HTMLButtonElement>(`[data-stage="${stage}"] > button`);
-  if (button === null) throw new Error(`No details button for ${stage}`);
+/** A card's details button, beside its links. */
+const details = (container: HTMLElement, id: string): HTMLButtonElement => {
+  const button = container.querySelector<HTMLButtonElement>(`[data-card="${id}"] > button`);
+  if (button === null) throw new Error(`No details button for ${id}`);
   return button;
 };
 const stagePage = (container: HTMLElement): string | null | undefined =>
@@ -124,12 +124,14 @@ test('every card shows its chips and links to its stage; its details button list
       `/console/p/${ID}/factory/stages/build`
     );
 
-    await act(async () => details(container, 'build').click());
-    const panel = container.querySelector('aside[aria-label="Build details"]');
+    await act(async () => details(container, 'plan-build').click());
+    const panel = container.querySelector('aside[aria-label="Plan & build details"]');
+    // Each of the card's stages in turn: its workflows, and the items there.
     const links = [...(panel?.querySelectorAll('li a') ?? [])].map(link =>
       link.getAttribute('href')
     );
     expect(links).toEqual([
+      `/console/p/${ID}/factory/stages/plan`,
       `/console/p/${ID}/factory/items/5`,
       `/console/p/${ID}/factory/items/9`,
       `/console/p/${ID}/factory/stages/build`,
@@ -141,7 +143,64 @@ test('every card shows its chips and links to its stage; its details button list
   }
 });
 
-test('no text the camera scales is smaller than MAP_TEXT_PX, which the readable scale assumes', async () => {
+test('the map draws one card per board column, a card of several stages a row for each', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const cards = [...container.querySelectorAll<HTMLElement>('[data-card]')];
+    expect(cards.map(el => el.dataset.card)).toEqual([
+      'intake',
+      'plan-build',
+      'checks-review',
+      'ready',
+      'merged',
+    ]);
+    const rows = (id: string): (string | null)[] =>
+      [...container.querySelectorAll(`[data-card="${id}"] a[data-stage]`)].map(link =>
+        link.getAttribute('href')
+      );
+    expect(rows('plan-build')).toEqual([
+      `/console/p/${ID}/factory/stages/plan`,
+      `/console/p/${ID}/factory/stages/build`,
+    ]);
+    expect(rows('merged')).toEqual([`/console/p/${ID}/factory/stages/landed`]);
+    // A card of one stage reads its short line; a row of a card of several, its own.
+    expect(container.querySelector('[data-card="merged"]')?.textContent).toContain(
+      'The change is merged'
+    );
+    const planBuild = container.querySelector('[data-card="plan-build"]')?.textContent ?? '';
+    expect(planBuild).toContain('Writes down how to build it');
+    // Build's row shows who needs you there in place of its short line.
+    expect(planBuild).not.toContain('Writes the change, opens a PR');
+    expect(container.textContent).not.toContain('Landed');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a dot runs into a card a run works an item on, along the hand-off into it, and not under reduced motion', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const dots = [...container.querySelectorAll<HTMLElement>('[data-flow]')];
+    // Build and Checks each have an item a run works; nothing runs in the others.
+    expect(dots.map(el => el.dataset.flow)).toEqual(['plan-build', 'checks-review']);
+    for (const dot of dots) {
+      expect(dot.className).toContain('map-flow-dot');
+      expect(dot.className).toContain('motion-reduce:hidden');
+    }
+  } finally {
+    await unmount();
+  }
+  // The first card has no hand-off into it, so no dot, though a run works an item there.
+  const first = await mount([itemWith('t', [run('triage', 'running')])]);
+  try {
+    expect(hereChip(first.container, 'triage')).toContain('1');
+    expect(first.container.querySelector('[data-flow]')).toBeNull();
+  } finally {
+    await first.unmount();
+  }
+});
+
+test('no text the camera scales is under the type floor the readable scale assumes', async () => {
   const { container, unmount } = await mount();
   try {
     const layer = container.querySelector('[style*="scale("]');
@@ -150,7 +209,7 @@ test('no text the camera scales is smaller than MAP_TEXT_PX, which the readable 
       [...el.getAttribute('class')!.matchAll(/text-console-(\d+)/g)].map(m => Number(m[1]))
     );
     expect(sizes.length).toBeGreaterThan(0);
-    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(MAP_TEXT_PX);
+    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(MAP_SMALLEST_PX);
   } finally {
     await unmount();
   }
@@ -169,11 +228,11 @@ test('a click on a card opens its stage page', async () => {
 test('the details button opens and closes the panel and never leaves the map', async () => {
   const { container, unmount } = await mount();
   try {
-    await act(async () => details(container, 'landed').click());
+    await act(async () => details(container, 'merged').click());
     expect(container.querySelector('aside[aria-label="Merged details"]')).not.toBeNull();
-    expect(details(container, 'landed').getAttribute('aria-pressed')).toBe('true');
+    expect(details(container, 'merged').getAttribute('aria-pressed')).toBe('true');
     expect(stagePage(container)).toBeUndefined();
-    await act(async () => details(container, 'landed').click());
+    await act(async () => details(container, 'merged').click());
     expect(container.querySelector('aside')).toBeNull();
     expect(stagePage(container)).toBeUndefined();
   } finally {
@@ -243,37 +302,37 @@ test('a later read on a step no stage names keeps the card where the last read p
   }
 });
 
-test("the map draws the view file's arrows and no others: forward ones labelled, send-backs in one lane", async () => {
+test('the map draws hand-offs between neighbouring cards, labelled on pills, and send-backs in one dashed lane', async () => {
   const { container, unmount } = await mount();
   try {
-    const forward = [...container.querySelectorAll('g[data-arrow]:not([data-lane])')].map(
-      g => g.textContent
+    const forward = [...container.querySelectorAll('g[data-arrow]')].map(g => g.textContent);
+    // "build, narrow" stacks one outcome per line in one pill.
+    expect(forward).toEqual(['build,narrow', 'built', 'ready', 'merged']);
+    // Each is a declared arrow.
+    const declared = shippedListed.declaration.map.arrows.map((_, i) => `decl:${i.toString()}`);
+    for (const g of container.querySelectorAll('g[data-arrow]'))
+      expect(declared).toContain(g.getAttribute('data-arrow') ?? '');
+    const lane = [...container.querySelectorAll('path[data-lane="feedback"]')];
+    expect(lane.length).toBeGreaterThan(0);
+    for (const path of lane) {
+      expect(path.getAttribute('stroke-dasharray')).toBe('6 4');
+      expect(path.getAttribute('stroke')).toBe('var(--node-approval)');
+    }
+    const pills = [...container.querySelectorAll('g[data-lane-pill]')].map(
+      g => `${g.getAttribute('data-lane-pill') ?? ''}: ${g.textContent ?? ''}`
     );
-    expect(forward).toEqual([
-      'ready',
-      // Stacked one outcome per line in the narrow gap between two cards.
-      'build,narrow',
-      'planned',
-      'built',
-      'approved',
-      'ready',
-      'merged',
-    ]);
-    const lane = [...container.querySelectorAll('g[data-lane="feedback"]')];
-    expect(lane.map(g => g.getAttribute('data-arrow'))).toEqual([
-      'decl:7',
-      'decl:8',
-      'decl:9',
-      'decl:10',
-    ]);
-    // Every arrow drawn is a declared one.
-    expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
-      shippedListed.declaration.map.arrows.length
-    );
-    const labels = [...container.querySelectorAll('g[data-lane-label]')].map(
-      g => `${g.getAttribute('data-lane-label') ?? ''}: ${g.textContent ?? ''}`
-    );
-    expect(labels).toEqual(['build: returned', 'plan: replan, asks answered']);
+    expect(pills).toEqual(['plan: replan, answers', 'build: returned']);
+    // The legend draws the lines as the map does, in plain words.
+    const legend = container.querySelector('ul[aria-label="Lines"]')?.textContent ?? '';
+    expect(legend).toContain('Hands the item on');
+    expect(legend).toContain('Sends it back, labelled where it returns to');
+    expect(legend).toContain('A dot moves along a line while a run works an item there');
+    expect(
+      container.querySelector('[data-legend="send-back"]')?.getAttribute('stroke-dasharray')
+    ).toBe('6 4');
+    const groups = container.querySelector('ul[aria-label="Colour groups"]')?.textContent ?? '';
+    expect(groups).toContain('Merging it');
+    expect(groups).toContain('Merged');
   } finally {
     await unmount();
   }
@@ -287,7 +346,7 @@ async function cardTopsAt(width: number): Promise<Set<string>> {
   const { container, unmount } = await mount();
   try {
     return new Set(
-      [...container.querySelectorAll<HTMLElement>('[data-stage]')].map(el => el.style.top)
+      [...container.querySelectorAll<HTMLElement>('[data-card]')].map(el => el.style.top)
     );
   } finally {
     await unmount();
@@ -296,9 +355,8 @@ async function cardTopsAt(width: number): Promise<Set<string>> {
   }
 }
 
-test("the cards take one row in the Overview's 1100px row, and wrap to two in a phone's", async () => {
-  expect((await cardTopsAt(1100)).size).toBe(1);
-  expect((await cardTopsAt(358)).size).toBe(2);
+test("the cards take one row at every width, a phone's included", async () => {
+  for (const width of [358, 1100, 1600]) expect((await cardTopsAt(width)).size).toBe(1);
 });
 
 test('while a merge state is pending, Ready to merge and Merged say they are checking, not a count', async () => {
@@ -372,16 +430,16 @@ const settle = async (until: () => boolean): Promise<void> => {
     await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
 };
 
-test('before the items answer, every declared card and arrow is drawn and says "…", never a count', async () => {
+test('before the items answer, every declared card and arrow is drawn with skeleton chips, never a count', async () => {
   const server = holdItemsRead(items);
   const { container, unmount } = await mount(null);
   try {
     const stages = shippedListed.declaration.map.cards.map(entry => entry.stage);
     const drawn = [...container.querySelectorAll<HTMLElement>('[data-stage]')];
     expect(drawn.map(el => el.dataset.stage)).toEqual(stages);
-    expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
-      shippedListed.declaration.map.arrows.length
-    );
+    expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(4);
+    // A skeleton bar, never "…" (rule 6).
+    expect(container.querySelector('[style*="scale("]')?.textContent).not.toContain('…');
     for (const stage of stages) {
       expect(
         container.querySelector(`[data-stage="${stage}"] [data-chip="loading"]`)
@@ -395,9 +453,9 @@ test('before the items answer, every declared card and arrow is drawn and says "
     expect(container.querySelector('[role="status"]')).toBeNull();
 
     // A details panel opened while loading says so, not that the stage is empty.
-    await act(async () => details(container, 'build').click());
+    await act(async () => details(container, 'plan-build').click());
     const panel = (): Element | null =>
-      container.querySelector('aside[aria-label="Build details"]');
+      container.querySelector('aside[aria-label="Plan & build details"]');
     expect(panel()?.textContent).toContain('Items here · …');
     expect(panel()?.textContent).not.toContain('Nothing here now.');
 
@@ -413,7 +471,7 @@ test('before the items answer, every declared card and arrow is drawn and says "
     expect(after).toHaveLength(drawn.length);
     after.forEach((el, index) => expect(el).toBe(drawn[index]!));
     expect(panel()?.textContent).toContain('Items here · 2');
-    expect(details(container, 'build').getAttribute('aria-pressed')).toBe('true');
+    expect(details(container, 'plan-build').getAttribute('aria-pressed')).toBe('true');
   } finally {
     server.restore();
     await unmount();
@@ -440,8 +498,8 @@ test('a first items read that fails says so over the map drawn from the declarat
       shippedListed.declaration.map.cards.length
     );
     expect(container.querySelector('[data-chip]')).toBeNull();
-    await act(async () => details(container, 'build').click());
-    const panel = container.querySelector('aside[aria-label="Build details"]');
+    await act(async () => details(container, 'plan-build').click());
+    const panel = container.querySelector('aside[aria-label="Plan & build details"]');
     expect(panel?.textContent).toContain('Could not be read.');
     expect(panel?.textContent).not.toContain('Loading');
     expect(panel?.textContent).not.toContain('Nothing here now.');

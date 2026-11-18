@@ -41,7 +41,7 @@ describe('the feedback lane', () => {
     const legOf = new Map<string, number>();
     for (const path of lane.paths) {
       const [down, run, up] = segments(path.d);
-      expect(down?.x1).toBe(cards.get(path.from)?.box.x + CARD_W * 0.85);
+      expect(down?.x1).toBe((cards.get(path.from)?.box.x ?? Number.NaN) + CARD_W * 0.85);
       expect(down?.y1).toBe(CARD_H);
       expect(down?.y2).toBe(Y);
       expect(run !== undefined && horizontal(run)).toBe(true);

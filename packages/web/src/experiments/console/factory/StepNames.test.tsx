@@ -187,8 +187,8 @@ describe('no raw step id where a person reads', () => {
         <MapDetails
           projectId={ID}
           view={VIEW}
-          stage={checks}
-          live={live}
+          title="Checks & review"
+          stages={[{ stage: checks, live, notes: [] }]}
           onClose={() => undefined}
         />
       </MemoryRouter>

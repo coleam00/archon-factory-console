@@ -161,3 +161,32 @@
 .console-root .brand-bar-soft {
   background: var(--brand-gradient-soft);
 }
+
+/* The factory map's flow dot (factory/map/MapFlow.tsx): it runs along a hand-off into the card
+   a run works an item on, then fades as the card's running chip takes over. Off under reduced
+   motion, where the dot also carries `motion-reduce:hidden` (Visual standard, rule 7). */
+@keyframes map-flow {
+  0% {
+    offset-distance: 0%;
+    opacity: 1;
+  }
+  60% {
+    offset-distance: 100%;
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+.console-root .map-flow-dot {
+  offset-rotate: 0deg;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .console-root .map-flow-dot {
+    animation: map-flow 2.4s ease-out infinite;
+  }
+}
