@@ -53,6 +53,7 @@ function useScrollWhenLinked(ready: boolean): RefObject<HTMLElement | null> {
 export function FoundByTheFactory({
   projectId,
   above = true,
+  oneLine = false,
 }: {
   projectId: string;
   /**
@@ -60,20 +61,100 @@ export function FoundByTheFactory({
    * until its columns are drawn: scrolling earlier would leave the panel pushed down.
    */
   above?: boolean;
+  /**
+   * Start as one line (the count and "show the findings"), which opens the full panel in
+   * place: the board's columns keep the height at 1440x900. A page opened at the panel's
+   * hash (the Overview's tile) starts open, with its findings listed.
+   */
+  oneLine?: boolean;
 }): ReactElement {
   const read = useFactoryDiscoveries(projectId);
   const ref = useScrollWhenLinked(above && read.data !== undefined);
+  const linked = useLocation().hash === LINK_HASH;
+  const [expanded, setExpanded] = useState(!oneLine || linked);
+  // Listed when the person asked for the findings: from the one line or from the tile.
+  const [listed, setListed] = useState(oneLine && linked);
   return (
     <section
       ref={ref}
       id={FOUND_BY_THE_FACTORY}
       aria-labelledby={HEADING_ID}
-      className="relative mt-3 flex scroll-mt-6 flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-4"
+      className={`relative mt-3 flex scroll-mt-6 flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface ${expanded ? 'p-4' : 'px-4 py-3'}`}
     >
       {/* The shadow accent (Visual standard, rule 10): the drains did nothing. */}
       <span aria-hidden className="absolute inset-x-0 top-0 h-0.75 bg-[color:var(--node-opaque)]" />
-      <FoundBody projectId={projectId} read={read} />
+      {expanded ? (
+        <FoundBody projectId={projectId} read={read} listed={listed} />
+      ) : (
+        <FoundLine
+          read={read}
+          onOpen={() => {
+            setListed(true);
+            setExpanded(true);
+          }}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * The one-line panel: its name, the shadow badge, and "14 the factory would file · show the
+ * findings", or what its read says when there is nothing to show yet.
+ */
+function FoundLine({
+  read,
+  onOpen,
+}: {
+  read: ReturnType<typeof useFactoryDiscoveries>;
+  onOpen: () => void;
+}): ReactElement {
+  const { data } = read;
+  const failed = data === undefined ? readFailed(read.error) : undefined;
+  const findings = data === undefined ? [] : openFindings(data);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <h2 id={HEADING_ID} className="text-console-15 font-semibold text-text-primary">
+        Found by the factory
+      </h2>
+      {data?.shadow === true ? <ShadowBadge /> : null}
+      {data === undefined ? (
+        failed === undefined ? (
+          <FoundSkeleton read={read} />
+        ) : (
+          <p role="alert" className="text-console-13 text-error">
+            What the factory found could not be read: {errorDetail(failed)}
+          </p>
+        )
+      ) : findings.length === 0 ? (
+        <span className="text-console-13 text-text-secondary">
+          {data.shadow
+            ? 'Nothing the factory would file now'
+            : 'Nothing filed that is not on the board'}
+        </span>
+      ) : (
+        <span className="flex flex-wrap items-baseline gap-x-2">
+          <span
+            data-found-count
+            className="text-console-17 font-semibold tabular-nums text-text-primary"
+          >
+            {findings.length}
+          </span>
+          <span className="text-console-13 text-text-secondary">
+            {data.shadow ? 'the factory would file' : 'filed, not on the board yet'} ·
+          </span>
+          <button
+            type="button"
+            aria-expanded={false}
+            aria-controls={FOUND_BY_THE_FACTORY}
+            onClick={onOpen}
+            className="text-console-13 text-accent transition-colors duration-150 ease-out hover:text-text-primary"
+          >
+            show the findings
+          </button>
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -81,9 +162,12 @@ export function FoundByTheFactory({
 function FoundBody({
   projectId,
   read,
+  listed,
 }: {
   projectId: string;
   read: ReturnType<typeof useFactoryDiscoveries>;
+  /** Whether the findings start listed. */
+  listed: boolean;
 }): ReactElement {
   const { data } = read;
   if (data === undefined) {
@@ -105,7 +189,7 @@ function FoundBody({
     <>
       <Heading shadow={data.shadow} />
       <StaleRead error={read.error} />
-      <FoundPanel projectId={projectId} read={data} />
+      <FoundPanel projectId={projectId} read={data} listed={listed} />
     </>
   );
 }
@@ -117,11 +201,7 @@ function Heading({ shadow }: { shadow: boolean }): ReactElement {
         <h2 id={HEADING_ID} className="text-console-17 font-semibold text-text-primary">
           Found by the factory
         </h2>
-        {shadow ? (
-          <span className="rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)]">
-            shadow
-          </span>
-        ) : null}
+        {shadow ? <ShadowBadge /> : null}
       </div>
       {shadow ? (
         <p className="text-console-13 text-text-tertiary">
@@ -130,6 +210,15 @@ function Heading({ shadow }: { shadow: boolean }): ReactElement {
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Rule 10's shadow badge: the drains decide what they would file and file nothing. */
+function ShadowBadge(): ReactElement {
+  return (
+    <span className="rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)]">
+      shadow
+    </span>
   );
 }
 
@@ -155,11 +244,14 @@ function FoundSkeleton({ read }: { read: ReturnType<typeof useFactoryDiscoveries
 export function FoundPanel({
   projectId,
   read,
+  listed = false,
 }: {
   projectId: string;
   read: FactoryDiscoveries;
+  /** Whether the findings start listed. */
+  listed?: boolean;
 }): ReactElement {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(listed);
   const findings = openFindings(read);
   const covered = read.findings.length - findings.length;
   return (

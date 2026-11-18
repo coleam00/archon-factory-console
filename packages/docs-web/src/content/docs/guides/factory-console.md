@@ -74,7 +74,9 @@ it. Inside it:
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
   When the view declares `discoveries`, **Found by the factory** sits under the columns, in
-  both views and whatever the filter: how many findings the discoveries drains decided to file
+  both views and whatever the filter, as one line ("14 the factory would file · show the
+  findings", with its shadow badge) so the columns keep their height; "show the findings", or
+  the Overview's tile, opens the full panel in place: how many findings the discoveries drains decided to file
   that no item on the project carries yet (an item carries one when its title is the finding's,
   ignoring case), with chips counting every finding they decided to file, held and dropped,
   and how many are already on the board. **Show the findings** lists each: its kind, its title,

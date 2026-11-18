@@ -163,7 +163,7 @@ export function Board({
       {view.discoveries === undefined ? null : (
         // Never shrunk by the board's fill height: the panel's own lines and link stay whole.
         <div className="shrink-0">
-          <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+          <FoundByTheFactory projectId={projectId} above={shown !== undefined} oneLine />
         </div>
       )}
     </div>

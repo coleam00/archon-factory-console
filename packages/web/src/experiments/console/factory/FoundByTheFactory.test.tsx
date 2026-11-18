@@ -40,14 +40,14 @@ afterAll(async () => {
   }
 });
 
-async function mount(path = `/console/p/${ID}/factory/board`, above = true) {
+async function mount(path = `/console/p/${ID}/factory/board`, above = true, oneLine = false) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
     root.render(
       <MemoryRouter initialEntries={[path]}>
-        <FoundByTheFactory projectId={ID} above={above} />
+        <FoundByTheFactory projectId={ID} above={above} oneLine={oneLine} />
       </MemoryRouter>
     )
   );
@@ -166,5 +166,43 @@ test('opened at its hash, the panel scrolls into view once its read answers', as
     await linked.unmount();
     await plain.unmount();
     proto.scrollIntoView = original;
+  }
+});
+
+test('as one line: the count and "show the findings", which opens the full panel listed', async () => {
+  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  const { container, unmount } = await mount(undefined, true, true);
+  try {
+    expect(container.querySelector('h2')?.textContent).toBe('Found by the factory');
+    expect(container.textContent).toContain('shadow');
+    expect(container.querySelector('[data-found-count]')?.textContent).toBe('2');
+    expect(container.textContent).toContain('the factory would file');
+    // One line: no chips, no shadow sentence, no list yet.
+    expect(container.querySelector('ul[aria-label="What the drains decided"]')).toBeNull();
+    expect(container.textContent).not.toContain('files nothing yet');
+    const open = [...container.querySelectorAll('button')].find(
+      button => button.textContent === 'show the findings'
+    );
+    expect(open).toBeDefined();
+    await act(async () => open?.click());
+    expect(container.querySelector('ul[aria-label="What the drains decided"]')).not.toBeNull();
+    expect(container.querySelectorAll('#found-by-the-factory-list > li')).toHaveLength(2);
+  } finally {
+    await unmount();
+  }
+});
+
+test('as one line, opened from the Overview tile, it starts open with its findings listed', async () => {
+  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  const { container, unmount } = await mount(
+    `/console/p/${ID}/factory/board#found-by-the-factory`,
+    true,
+    true
+  );
+  try {
+    expect(container.textContent).toContain('files nothing yet');
+    expect(container.querySelectorAll('#found-by-the-factory-list > li')).toHaveLength(2);
+  } finally {
+    await unmount();
   }
 });
