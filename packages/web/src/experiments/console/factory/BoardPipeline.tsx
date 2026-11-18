@@ -46,10 +46,13 @@ export function BoardPipeline({
   projectId,
   model,
   moved,
+  lit = null,
 }: {
   projectId: string;
   model: BoardModel;
   moved: ReadonlySet<string>;
+  /** The keys of the work order `?order=` lights; every other card dims. Null when none. */
+  lit?: ReadonlySet<string> | null;
 }): ReactElement {
   const scroller = useRef<HTMLDivElement>(null);
   const shown = useShownColumns(
@@ -90,6 +93,7 @@ export function BoardPipeline({
                 projectId={projectId}
                 card={card}
                 moved={moved.has(card.key)}
+                dimmed={lit !== null && !lit.has(card.key)}
               />
             ))}
           </section>

@@ -198,15 +198,18 @@ describe('the Needs-you list', () => {
 
 describe('answered lately', () => {
   test('each settled set says the stage it started again, linking to that run, or that none has', () => {
-    set(K.factoryItems(ID), [
-      settledItem(
-        'p',
-        run('plan', 'completed', 'ask'),
-        '2026-11-17T10:00:00.000Z',
-        run('plan', 'running', null, 'plan')
-      ),
-      settledItem('w', run('deliver', 'completed', 'ask'), '2026-11-17T09:00:00.000Z'),
-    ]);
+    set(K.factoryItems(ID), {
+      items: [
+        settledItem(
+          'p',
+          run('plan', 'completed', 'ask'),
+          '2026-11-17T10:00:00.000Z',
+          run('plan', 'running', null, 'plan')
+        ),
+        settledItem('w', run('deliver', 'completed', 'ask'), '2026-11-17T09:00:00.000Z'),
+      ],
+      members: {},
+    });
     const html = render(loaded({ items: [], runs: [], degraded: [] }));
     expect(html).toContain('Answered lately');
     expect(html).toContain('2 answered, 1 withdrawn');
@@ -218,7 +221,7 @@ describe('answered lately', () => {
   });
 
   test('nothing settled: no list', () => {
-    set(K.factoryItems(ID), []);
+    set(K.factoryItems(ID), { items: [], members: {} });
     expect(render(loaded({ items: [], runs: [], degraded: [] }))).not.toContain('Answered lately');
   });
 });

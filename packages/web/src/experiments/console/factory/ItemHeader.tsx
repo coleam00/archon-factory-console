@@ -3,17 +3,24 @@ import type { FactoryItem } from '../skills/factory';
 import { PillBadge } from './BoardCard';
 import type { Pill } from './lib/board';
 import type { ItemColumn } from './lib/placement';
+import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 
 /** The item's key, title, state, column and change: the same pill its board card shows. */
 export function ItemHeader({
   item,
   pill,
   column,
+  workOrder = false,
 }: {
   item: FactoryItem;
   pill: Pill;
   /** Where `placement.ts` puts the item; null when no declared stage holds it. */
   column: ItemColumn | null;
+  /**
+   * A work order with no run of its own: it is in no column and has no state or change, so
+   * the header says what it is instead.
+   */
+  workOrder?: boolean;
 }): ReactElement {
   const title = item.progress?.title ?? null;
   return (
@@ -24,11 +31,15 @@ export function ItemHeader({
           {title ?? item.item.key}
         </h3>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
-        <PillBadge pill={pill} />
-        <ColumnWords item={item} column={column} />
-        <ChangeLink change={item.progress?.change ?? null} />
-      </div>
+      {workOrder ? (
+        <p className="text-console-12 text-text-secondary">{WORK_ORDER_WORDS}</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
+          <PillBadge pill={pill} />
+          <ColumnWords item={item} column={column} />
+          <ChangeLink change={item.progress?.change ?? null} />
+        </div>
+      )}
     </header>
   );
 }

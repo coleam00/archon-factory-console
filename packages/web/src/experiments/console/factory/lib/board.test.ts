@@ -14,6 +14,7 @@ import {
   realItem,
   VIEW,
 } from './board.test-fixtures';
+import { sortRows, tableRows } from './board-table';
 import { pageItemColumn } from './placement';
 
 const PROJECT = 'cb-1';
@@ -204,6 +205,27 @@ describe('the board', () => {
     expect(keys('3')).toEqual(['3']);
     expect(keys('  ')).toHaveLength(PAGE.items.length);
     expect(filterBoard(board, 'NEEDS YOU').positions.size).toBe(PAGE.items.length);
+  });
+
+  test('the filter finds the members of a work order by its key; the table sorts by it', () => {
+    // 5 is part of 48 by its order run's result; 3 by its order run's result too, of 60.
+    const items = PAGE.items.map(item =>
+      item.item.key === '5' || item.item.key === '3'
+        ? {
+            ...item,
+            progress: { ...progressOf(item), partOf: item.item.key === '5' ? '48' : '60' },
+          }
+        : item
+    );
+    const board = boardModel(VIEW, PROJECT, items, new Map());
+    const keys = (model: typeof board): string[] =>
+      model.columns.flatMap(column => column.cards.map(p => p.card.key));
+    expect(keys(filterBoard(board, '48'))).toEqual(['5']);
+    const sorted = sortRows(tableRows(board), { by: 'order', descending: true });
+    expect(sorted.slice(0, 2).map(row => [row.placed.card.key, row.placed.card.order])).toEqual([
+      ['3', '60'],
+      ['5', '48'],
+    ]);
   });
 
   test('a card that changed position moved; one new to the board did not', () => {

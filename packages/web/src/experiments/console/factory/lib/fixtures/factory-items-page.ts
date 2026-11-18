@@ -48,6 +48,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           startedAt: '2026-11-17T06:41:56.000Z',
         },
         round: null,
+        partOf: null,
         returned: 0,
         change: null,
         runs: [
@@ -113,6 +114,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
             },
           ],
         },
+        partOf: null,
         returned: 1,
         change: {
           url: 'https://github.com/coleam00/archon-factory-console/pull/16',
@@ -165,6 +167,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           startedAt: '2026-11-17T05:51:11.000Z',
         },
         round: null,
+        partOf: null,
         returned: 0,
         change: null,
         runs: [
@@ -223,6 +226,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
             },
           ],
         },
+        partOf: null,
         returned: 1,
         change: {
           url: 'https://github.com/coleam00/archon-factory-console/pull/17',

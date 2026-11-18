@@ -101,9 +101,9 @@ function render(
 ): string {
   set(K.factoryViews(ID), listing);
   set(K.factoryAttention(ID), attention);
-  set(K.factoryItems(ID), []);
+  set(K.factoryItems(ID), { items: [], members: {} });
   set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
-  set(K.factoryItems(ID), items);
+  set(K.factoryItems(ID), { items: items, members: {} });
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>

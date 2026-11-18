@@ -4,7 +4,8 @@ import { errorDetail } from '../lib/http';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
 import { StaleRead } from './StaleRead';
-import { useFactoryItems } from './useFactoryItems';
+import { useFactoryItemsRead } from './useFactoryItems';
+import { WorkOrdersStrip } from './WorkOrdersStrip';
 import { FactoryFrame } from './FactoryFrame';
 import {
   boardModel,
@@ -16,6 +17,7 @@ import {
 import { BOARD_SHOW_LABEL, parseBoardShow, type BoardShow } from './lib/board-show';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
+import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
 
 /** How long a card that changed column stays highlighted. */
 const MOVED_MS = 1500;
@@ -73,7 +75,8 @@ export function Board({
   projectId: string;
   view: FactoryDeclaration;
 }): ReactElement {
-  const items = useFactoryItems(projectId);
+  const read = useFactoryItemsRead(projectId);
+  const items = read.data?.items;
   const [params, setParams] = useSearchParams();
   const table = params.get(VIEW_PARAM) === TABLE_VIEW;
   const showParam = params.get(SHOW_PARAM);
@@ -83,11 +86,16 @@ export function Board({
   // it was, and the highlight compares against it.
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
   const all = useMemo(
+    () => (items === undefined ? undefined : boardModel(view, projectId, items, previous.current)),
+    [view, projectId, items]
+  );
+  // From the unfiltered board, so the filter box never changes an order's count.
+  const orders = useMemo(
     () =>
-      items.data === undefined
-        ? undefined
-        : boardModel(view, projectId, items.data, previous.current),
-    [view, projectId, items.data]
+      all === undefined || read.data === undefined
+        ? []
+        : workOrders(read.data.items, all, read.data.members),
+    [all, read.data]
   );
   const moved = useMovedCards(all?.positions, previous);
   const shown = useMemo(
@@ -117,8 +125,8 @@ export function Board({
           onChange={event => {
             setQuery(event.target.value);
           }}
-          placeholder="Filter by key or title"
-          aria-label="Filter by key or title"
+          placeholder="Filter by key, title or order"
+          aria-label="Filter by key, title or work order"
           className="w-56 rounded border border-border bg-surface-inset px-2.5 py-1 text-console-12 text-text-primary outline-none placeholder:text-text-tertiary focus:border-border-bright"
         />
         <div role="group" aria-label="Board view" className="flex items-center gap-1">
@@ -133,41 +141,62 @@ export function Board({
           }}
         />
       </div>
-      <BoardBody projectId={projectId} items={items} model={shown} table={table} moved={moved} />
+      <BoardBody
+        projectId={projectId}
+        read={read}
+        model={shown}
+        table={table}
+        moved={moved}
+        orders={orders}
+        lit={params.get(ORDER_PARAM)}
+      />
     </div>
   );
 }
 
 function BoardBody({
   projectId,
-  items,
+  read,
   model,
   table,
   moved,
+  orders,
+  lit,
 }: {
   projectId: string;
-  items: ReturnType<typeof useFactoryItems>;
+  read: ReturnType<typeof useFactoryItemsRead>;
   model: BoardModel | undefined;
   table: boolean;
   moved: ReadonlySet<string>;
+  orders: readonly WorkOrder[];
+  /** The work order `?order=` lights; null when none. */
+  lit: string | null;
 }): ReactElement {
   if (model === undefined) {
-    const failed = readFailed(items.error);
+    const failed = readFailed(read.error);
     if (failed !== undefined)
       return (
         <p role="alert" className="text-sm text-error">
           The board could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <FactoryLoading read={items} />;
+    return <FactoryLoading read={read} />;
   }
   return (
     <>
-      <StaleRead error={items.error} />
+      <StaleRead error={read.error} />
       {table ? (
         <BoardTable projectId={projectId} model={model} moved={moved} />
       ) : (
-        <BoardPipeline projectId={projectId} model={model} moved={moved} />
+        <>
+          <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
+          <BoardPipeline
+            projectId={projectId}
+            model={model}
+            moved={moved}
+            lit={highlightedKeys(orders.find(order => order.key === lit))}
+          />
+        </>
       )}
     </>
   );

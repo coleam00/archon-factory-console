@@ -45,7 +45,7 @@ async function withList(queue: AttentionQueue, check: (root: HTMLElement) => Pro
   document.body.append(container);
   const root = createRoot(container);
   // No item has settled asks: the list under the open asks stays empty.
-  set(K.factoryItems('cb-1'), []);
+  set(K.factoryItems('cb-1'), { items: [], members: {} });
   try {
     await act(async () =>
       root.render(

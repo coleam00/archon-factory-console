@@ -13,12 +13,14 @@ import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
+import { isNoSuchItem, useWorkOrders, WorkOrderOnly } from './ItemWorkOrder';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { itemPill } from './lib/board';
 import { mergePending } from './lib/merge-pending';
 import { itemAsks, type NeedsYouItem } from './lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
+import { membershipOf } from './lib/work-orders';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
 import { NeedsYouRow } from './NeedsYouRow';
@@ -74,6 +76,8 @@ function ItemRead({
 }): ReactNode {
   const { data } = read;
   const failed = readFailed(read.error);
+  const orders = useWorkOrders(view.declaration, projectId);
+  const order = orders.orders?.find(entry => entry.key === itemKey);
   // The stage the item sat in on the last read: a run on a step no stage names stays there,
   // as on the board and the map.
   const previous = useRef<{ key: string; stage: string | undefined } | null>(null);
@@ -89,6 +93,12 @@ function ItemRead({
     if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
   }, [column, itemKey]);
   if (data === undefined) {
+    // A work order only a member's order run named has no item row: the item read answers
+    // 404, and the page is the order's, from the items read.
+    if (isNoSuchItem(failed)) {
+      if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
+      if (orders.orders === undefined && !orders.failed) return <FactoryLoading read={read} />;
+    }
     if (failed !== undefined)
       return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
     return <FactoryLoading read={read} />;
@@ -104,10 +114,16 @@ function ItemRead({
         item={data.item}
         pill={itemPill(declaration, data.item, landed).pill}
         column={column ?? null}
+        workOrder={order !== undefined && data.item.runs.length === 0}
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
-      <ItemLinks projectId={projectId} links={data.item.links} />
+      <ItemLinks
+        projectId={projectId}
+        links={data.item.links}
+        membership={membershipOf(data.item)}
+        order={order}
+      />
       <ItemAnswers projectId={projectId} answers={data.item.answers} />
       <Degraded degraded={data.item.degraded} />
     </>

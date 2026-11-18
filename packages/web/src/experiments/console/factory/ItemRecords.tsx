@@ -6,20 +6,52 @@ import { describeAnswer, linkWords } from './lib/item-answers';
 import { runHref } from './lib/timeline';
 import { factoryPath } from './lib/views';
 import { SectionTitle } from './ItemTimeline';
+import { OrderMembers } from './ItemWorkOrder';
+import type { Membership, WorkOrder } from './lib/work-orders';
 
-/** The item's links to other items, from this item's side, each to that item's page. */
+/**
+ * The item's links to other items, from this item's side, each to that item's page. On a
+ * work order, its members with their state stand for its active incoming `part_of` links; on
+ * a member its order run placed without a link, a line names that order.
+ */
 export function ItemLinks({
   projectId,
-  links,
+  links: all,
+  membership = null,
+  order,
 }: {
   projectId: string;
   links: FactoryItem['links'];
+  membership?: Membership | null;
+  order?: WorkOrder;
 }): ReactElement {
+  const links =
+    order === undefined
+      ? all
+      : all.filter(
+          link => !(link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null)
+        );
+  const named = membership?.source === 'output' ? membership.order : null;
   return (
     <section className="flex flex-col gap-2.5">
       <SectionTitle>Links</SectionTitle>
+      {order === undefined ? null : <OrderMembers projectId={projectId} order={order} />}
+      {named === null ? null : (
+        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span className="text-text-secondary">Part of</span>
+          <Link
+            to={factoryPath(projectId, `/items/${encodeURIComponent(named)}`)}
+            className="font-mono text-console-12 text-accent-bright hover:underline"
+          >
+            {named}
+          </Link>
+          <span className="text-console-12 text-text-tertiary">as its order run recorded</span>
+        </p>
+      )}
       {links.length === 0 ? (
-        <p className="text-sm text-text-secondary">No links to other items.</p>
+        order !== undefined || named !== null ? null : (
+          <p className="text-sm text-text-secondary">No links to other items.</p>
+        )
       ) : (
         <ul className="flex flex-col gap-1">
           {links.map(link => (
