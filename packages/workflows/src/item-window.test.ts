@@ -153,7 +153,7 @@ describe('reading items over a window', () => {
     expect(a?.degraded).toEqual([{ type: 'degraded', reason: 'run_unreadable', runId: 'a1' }]);
   });
 
-  test("a page reads its items' queued and skipped starts once, and its runs' receipts once an item", async () => {
+  test("a page reads its items' queued and skipped starts once, and asks only for the receipts its runs started from", async () => {
     const wide = { since: '2026-10-01T00:00:00Z', until: '2027-01-01T00:00:00Z' };
     const withReceipt = source();
     const calls: { queued: string[][]; skipped: string[][]; receipts: string[][] } = {
