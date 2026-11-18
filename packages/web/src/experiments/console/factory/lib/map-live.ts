@@ -25,6 +25,15 @@ export interface StageLive {
   pending: boolean;
 }
 
+/**
+ * A stage before the items are read: `loading` while the first read is outstanding (a slow
+ * one included, which is retried), `failed` once it failed and nothing retries it.
+ */
+export type Unread = 'loading' | 'failed';
+
+/** What a card or details panel shows: the stage's chips, or why there are none yet. */
+export type StageRead = StageLive | Unread;
+
 /** A stage nothing sits on. */
 export const EMPTY_STAGE_LIVE: StageLive = { items: [], working: 0, needYou: [], pending: false };
 

@@ -10,6 +10,7 @@ import type { FactoryItem } from '../../skills/factory';
 import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../needs-you.test-fixtures';
+import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { MAP_TEXT_PX } from '../lib/map-camera';
 import { cancelRereads } from '../merge-reread';
 import { FactoryMap } from './FactoryMap';
@@ -56,10 +57,11 @@ function StagePage(): React.ReactElement {
   return <p data-testid="stage-page">{useParams().stage}</p>;
 }
 
+/** The map over `read`, seeded warm in the cache; null leaves the cache cold, so it fetches. */
 async function mount(
-  read: FactoryItem[] = items
+  read: FactoryItem[] | null = items
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
-  set(K.factoryItems(ID), read);
+  if (read !== null) set(K.factoryItems(ID), read);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -335,6 +337,114 @@ test('a failed refresh says so and keeps the map it last read', async () => {
       'Could not refresh: the server is down. Showing the last values read.'
     );
     expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+  } finally {
+    globalThis.fetch = originalFetch;
+    await unmount();
+  }
+});
+
+/** A server whose items read answers `items` only once `release` is called. */
+function holdItemsRead(answer: FactoryItem[]): { release: () => void; restore: () => void } {
+  const originalFetch = globalThis.fetch;
+  let release = (): void => undefined;
+  const gate = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  globalThis.fetch = Object.assign(
+    async (input: RequestInfo | URL): Promise<Response> => {
+      const url = String(input);
+      if (!isItemsRead(url)) return Response.json({ error: 'not in this test' }, { status: 404 });
+      await gate;
+      return itemsReadAnswer(answer)(url);
+    },
+    { preconnect: originalFetch.preconnect }
+  );
+  return {
+    release,
+    restore: () => {
+      globalThis.fetch = originalFetch;
+    },
+  };
+}
+
+const settle = async (until: () => boolean): Promise<void> => {
+  for (let turn = 0; turn < 20 && !until(); turn++)
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+};
+
+test('before the items answer, every declared card and arrow is drawn and says "…", never a count', async () => {
+  const server = holdItemsRead(items);
+  const { container, unmount } = await mount(null);
+  try {
+    const stages = shippedListed.declaration.map.cards.map(entry => entry.stage);
+    const drawn = [...container.querySelectorAll<HTMLElement>('[data-stage]')];
+    expect(drawn.map(el => el.dataset.stage)).toEqual(stages);
+    expect(container.querySelectorAll('g[data-arrow]')).toHaveLength(
+      shippedListed.declaration.map.arrows.length
+    );
+    for (const stage of stages) {
+      expect(
+        container.querySelector(`[data-stage="${stage}"] [data-chip="loading"]`)
+      ).not.toBeNull();
+      expect(card(container, stage).getAttribute('aria-label')).toMatch(/: loading$/);
+    }
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: loading');
+    expect(container.querySelector('[data-chip="here"]')).toBeNull();
+    expect(container.textContent).not.toContain('0 here');
+    // No page-level "Loading…": the cards carry it.
+    expect(container.querySelector('[role="status"]')).toBeNull();
+
+    // A details panel opened while loading says so, not that the stage is empty.
+    await act(async () => details(container, 'build').click());
+    const panel = (): Element | null =>
+      container.querySelector('aside[aria-label="Build details"]');
+    expect(panel()?.textContent).toContain('Items here · …');
+    expect(panel()?.textContent).not.toContain('Nothing here now.');
+
+    // The answer fills the chips in on the same cards, and the open panel stays open.
+    server.release();
+    await settle(() => container.querySelector('[data-chip="here"]') !== null);
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+    expect(card(container, 'build').getAttribute('aria-label')).toBe(
+      'Build: 2 here, 1 being worked, 1 needs you'
+    );
+    expect(container.querySelector('[data-chip="loading"]')).toBeNull();
+    const after = [...container.querySelectorAll<HTMLElement>('[data-stage]')];
+    expect(after).toHaveLength(drawn.length);
+    after.forEach((el, index) => expect(el).toBe(drawn[index]!));
+    expect(panel()?.textContent).toContain('Items here · 2');
+    expect(details(container, 'build').getAttribute('aria-pressed')).toBe('true');
+  } finally {
+    server.restore();
+    await unmount();
+  }
+});
+
+test('a first items read that fails says so over the map drawn from the declaration, and no card claims to be loading', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = Object.assign(
+    async (): Promise<Response> => {
+      throw new Error('the server is down');
+    },
+    { preconnect: originalFetch.preconnect }
+  );
+  const { container, unmount } = await mount(null);
+  try {
+    await settle(() => container.querySelector('[role="alert"]') !== null);
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('the server is down');
+    // Nothing retries a failed read: the cards and the panel must not claim it is loading.
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe(
+      'Landed: items could not be read'
+    );
+    expect(container.querySelectorAll('[data-stage]')).toHaveLength(
+      shippedListed.declaration.map.cards.length
+    );
+    expect(container.querySelector('[data-chip]')).toBeNull();
+    await act(async () => details(container, 'build').click());
+    const panel = container.querySelector('aside[aria-label="Build details"]');
+    expect(panel?.textContent).toContain('Could not be read.');
+    expect(panel?.textContent).not.toContain('Loading');
+    expect(panel?.textContent).not.toContain('Nothing here now.');
   } finally {
     globalThis.fetch = originalFetch;
     await unmount();
