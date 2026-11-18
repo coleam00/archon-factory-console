@@ -11087,6 +11087,7 @@ export interface components {
                 /** @enum {string} */
                 kind: 'feeds' | 'calls' | 'loops-back';
                 label?: string;
+                shadow?: boolean;
               }[];
             };
           };

@@ -1,57 +1,86 @@
 /**
  * Where the factory overview draws one view, in world units (px at zoom 1). It routes edges
- * by the rules the overview schema checks on the grid (`factory-overview-geometry.ts` in
- * `@archon/workflows`): a `feeds` or `calls` edge runs straight along the middle row (else
- * column) its two ends share, from side to facing side; the one `loops-back` edge drops from
- * the bottom of its source into a lane under every box, runs along it, and rises into the
- * bottom of its target. A file the server lists has passed those rules, so no edge drawn here
- * crosses. A parallel group (`parallelGroups`) also gets a fan on each side an edge meets it: a
- * bar along the frame and a stub to each member, drawn inside the group's pad, which no line
- * names a member to enter; `overview-layout.test.ts` checks the fans of the shipped file. Its
- * members draw at their content's height, centred on their rows, though edges route by the
- * full cell. The two copies of the rules cannot share a module (the web does not import
- * `@archon/workflows`); `scripts/overview-geometry-parity.test.ts` holds them in step on seeded
- * views, and `overview-layout.test.ts` checks this drawing of the shipped file.
+ * by the rules the overview schema checks on the grid (`factory-overview-geometry.ts` and
+ * `factory-overview-lanes.ts` in `@archon/workflows`): a `feeds` or `calls` edge runs straight
+ * along the middle row (else column) its two ends share, from side to facing side; a
+ * `loops-back` edge that replies to a `calls` edge runs beside it (`overview-lanes.ts`); every
+ * other `loops-back` edge drops from a port on its source's bottom into the lane under every
+ * box, runs along its own track, and rises into a port on its target's bottom. A file the
+ * server lists has passed those rules, so no edge drawn here crosses. Each label is a pill set
+ * off its line, which `overview-layout.test-fixtures.ts` checks meets nothing on the shipped file.
+ *
+ * A parallel group (`parallelGroups`) also gets a fan on each side an edge meets it: a bar
+ * along the frame and a stub to each member, drawn inside the group's pad, which no forward
+ * line names a member to enter; `overview-layout.test.ts` checks the fans of the shipped file.
+ * The two copies of the rules cannot share a module (the web does not import
+ * `@archon/workflows`); `scripts/overview-geometry-parity.test.ts` holds them in step on
+ * seeded views, and `overview-layout.test.ts` checks this drawing of the shipped file.
  */
 import type { Box, Point } from './map-layout';
+import { type LaneLine, type LaneRoute, laneRoutes, replies } from './overview-lanes';
 import type { OverviewView } from './overview-nav';
 
 /*
- * Sized for a projector: the root view of eight columns fits the page's map frame at 1440x900
- * with titles at OVERVIEW_TITLE_PX * k >= 14 px (the test measures it). A card is about six
- * title widths wide, so a two-word title wraps; the height holds three lines of title and of
- * text, and costs nothing, since the root's fit is limited by its width.
+ * Sized in the Visual standard's card language at zoom 1, the fitted view's least zoom: a
+ * card is 176 px wide and holds its accent, its icon and kind row, two lines of title and two
+ * of text. The gaps leave a label pill room between cards a labelled line joins.
  */
-export const OVERVIEW_CARD_W = 196;
-export const OVERVIEW_CARD_H = 336;
+export const OVERVIEW_CARD_W = 176;
+export const OVERVIEW_CARD_H = 136;
 export const OVERVIEW_GAP_X = 48;
 /** Room between rows for a column edge and its label. */
 export const OVERVIEW_GAP_Y = 56;
 /** How far a group's box reaches past its cards: under half of either gap, so it never touches a neighbour. */
-export const OVERVIEW_GROUP_PAD = 20;
-/** How far under the lowest box the loops-back lane runs. */
-export const OVERVIEW_LANE_BELOW = 64;
-/** The px a console type token names: `text-console-34` is 34 px (theme.css's scale). */
+export const OVERVIEW_GROUP_PAD = 16;
+/** How far under the lowest box the lane's first track runs, and how far apart its tracks are: room for a pill above each. */
+export const OVERVIEW_LANE_BELOW = 36;
+export const OVERVIEW_TRACK = 36;
+/** How far a reply and the ask it answers each move off the line they would share. */
+export const OVERVIEW_REPLY_OFFSET = 24;
+
+/** The px a console type token names: `text-console-15` is 15 px (theme.css's scale). */
 const tokenPx = (token: string): number => Number(token.slice('text-console-'.length));
-/**
- * The card title's type token. The card draws it and the fit test measures the px it names,
- * so the 14 px floor holds for whatever size the card draws.
- */
-export const OVERVIEW_TITLE_TEXT = 'text-console-34';
+/** A card's title, in the Visual standard's Card title role. */
+export const OVERVIEW_TITLE_TEXT = 'text-console-15';
 export const OVERVIEW_TITLE_PX = tokenPx(OVERVIEW_TITLE_TEXT);
-/**
- * The type token of every other text the overview draws (card text, kind words, group and line
- * labels); the fit test holds the px it names to the console's type floor drawn.
- */
-export const OVERVIEW_SMALL_TEXT = 'text-console-22';
+/** A card's line of text. */
+export const OVERVIEW_TEXT = 'text-console-13';
+/** The smallest text the overview draws: kind labels, group labels and line labels. */
+export const OVERVIEW_SMALL_TEXT = 'text-console-12';
 export const OVERVIEW_SMALLEST_PX = tokenPx(OVERVIEW_SMALL_TEXT);
+/** The Visual standard's type floor (rule 1): nothing a person reads is drawn under it. */
+export const OVERVIEW_TYPE_FLOOR_PX = 12;
 /**
- * The tallest the map frame grows on the page, so a tall drill-down fits in one screen at
- * 1440x900 instead of scrolling; full screen it fills the screen instead.
+ * The least zoom a fit opens at, so the smallest text draws at the floor; a view wider than
+ * its frame at this zoom pans. The most a fit enlarges a small view, to fill a large frame.
  */
-export const OVERVIEW_PAGE_MAX_H = 640;
-/** Half a label's height, so bounds include a label drawn on the lane. */
-const LABEL_HALF = 14;
+export const OVERVIEW_MIN_K = OVERVIEW_TYPE_FLOOR_PX / OVERVIEW_SMALLEST_PX;
+export const OVERVIEW_MAX_K = 1.5;
+/**
+ * Space kept between the fitted view and the frame's edge: on the page, and full screen, where
+ * the breadcrumb, the controls and the legend float over the frame's corners.
+ */
+export const OVERVIEW_FIT_PAD = 16;
+export const OVERVIEW_FULL_FIT_PAD = 64;
+/**
+ * The tallest the map frame grows on the page, so the root view's lane and its labels are in
+ * the first screen at 1440x900 under the console's header and the section's tabs; full screen
+ * it fills the screen instead.
+ */
+export const OVERVIEW_PAGE_MAX_H = 720;
+
+/** A label pill's height, and its width for `text`: 12 px text, 6 px padding, a shadow badge. */
+export const PILL_H = 20;
+export function pillWidth(text: string, shadow: boolean): number {
+  return Math.ceil(text.length * 7 + 14 + (shadow ? 60 : 0));
+}
+/** How far a pill sits off the line it labels. */
+const PILL_GAP = 6;
+
+/** Where a group's label sits: on its top border, inset from the left corner. */
+export function groupLabelBox(group: Box, label: string): Box {
+  return { x: group.x + 16, y: group.y - PILL_H / 2, w: label.length * 8.5 + 16, h: PILL_H };
+}
 
 type EdgeKind = OverviewView['edges'][number]['kind'];
 
@@ -60,11 +89,12 @@ export interface OverviewEdgePath {
   to: string;
   kind: EdgeKind;
   label: string | undefined;
+  /** A line that says what the pack would do and does nothing yet. */
+  shadow: boolean;
   /** From the source to the target. */
   points: Point[];
-  /** Where the label's centre sits, and on which side of the line. */
-  labelAt: Point;
-  labelSide: 'above' | 'right' | 'on';
+  /** The label's pill, set off the line; undefined without a label. */
+  pill: Box | undefined;
 }
 
 /**
@@ -82,13 +112,11 @@ export interface OverviewFan {
 }
 
 export interface OverviewLayout {
-  /** Every card's grid cell; a parallel group's members draw smaller, centred in it. */
+  /** Every card's grid cell. */
   cards: Map<string, Box>;
   groups: Map<string, Box>;
   edges: OverviewEdgePath[];
   bounds: Box;
-  /** The cards that draw at their content's height: the members of a parallel group. */
-  contentSized: Set<string>;
   fans: OverviewFan[];
 }
 
@@ -117,8 +145,10 @@ function spanBox(span: Span, pad: number): Box {
 const middle = (lo: number, hi: number): number => Math.floor((lo + hi) / 2);
 
 interface End {
+  id: string;
   span: Span;
   box: Box;
+  card: boolean;
 }
 
 /** Whether two ends share a cell: their boxes overlap. */
@@ -159,7 +189,7 @@ function endsOf(view: OverviewView): Map<string, End> {
   const ends = new Map<string, End>();
   for (const card of view.cards) {
     const span = { c0: card.col, c1: card.col, r0: card.row, r1: card.row };
-    ends.set(card.id, { span, box: spanBox(span, 0) });
+    ends.set(card.id, { id: card.id, span, box: spanBox(span, 0), card: true });
   }
   for (const group of view.groups ?? []) {
     const members = view.cards.filter(card => card.group === group.id);
@@ -170,51 +200,149 @@ function endsOf(view: OverviewView): Map<string, End> {
       r0: Math.min(...members.map(card => card.row)),
       r1: Math.max(...members.map(card => card.row)),
     };
-    ends.set(group.id, { span, box: spanBox(span, OVERVIEW_GROUP_PAD) });
+    ends.set(group.id, {
+      id: group.id,
+      span,
+      box: spanBox(span, OVERVIEW_GROUP_PAD),
+      card: false,
+    });
   }
   return ends;
 }
 
-const bottomCentre = (box: Box): Point => ({ x: box.x + box.w / 2, y: box.y + box.h });
+/** A straight line moved `by` across its own direction: a row's line down, a column's line right. */
+function shifted([a, b]: [Point, Point], by: number): [Point, Point] {
+  return a.y === b.y
+    ? [
+        { x: a.x, y: a.y + by },
+        { x: b.x, y: b.y + by },
+      ]
+    : [
+        { x: a.x + by, y: a.y },
+        { x: b.x + by, y: b.y },
+      ];
+}
+
+/**
+ * A straight line's pill: above a row's line, or below it for a reply (whose ask sits above);
+ * right of a column's line, or left of it for an ask a reply answers (whose reply sits right).
+ */
+function straightPill([a, b]: [Point, Point], w: number, role: 'reply' | 'asked' | 'plain'): Box {
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  if (a.y === b.y)
+    return {
+      x: mid.x - w / 2,
+      y: role === 'reply' ? mid.y + PILL_GAP : mid.y - PILL_GAP - PILL_H,
+      w,
+      h: PILL_H,
+    };
+  return {
+    x: role === 'asked' ? mid.x - PILL_GAP - w : mid.x + PILL_GAP,
+    y: mid.y - PILL_H / 2,
+    w,
+    h: PILL_H,
+  };
+}
+
+/**
+ * A lane line's pill: in the band above its own track, at the target's end, its near edge 8 px
+ * inside the target's riser. Only lines its span holds rise inside that span, and they are
+ * shallower, so their risers end above the band.
+ */
+function lanePill(points: readonly Point[], w: number): Box {
+  const from = points[1] as Point;
+  const to = points[2] as Point;
+  const x = to.x < from.x ? to.x + 8 : to.x - 8 - w;
+  return { x, y: to.y - OVERVIEW_TRACK / 2 - PILL_H / 2, w, h: PILL_H };
+}
+
+/** How the view's edges pair up: replies, the asks they answer, and the lane lines' routes. */
+interface Routing {
+  replies: Set<number>;
+  answered: Set<number>;
+  lanes: Map<number, LaneRoute>;
+}
+
+/** Whether a loops-back edge may be a lane line: two cards in different columns, as the schema says. */
+const laneable = (from: End, to: End): boolean =>
+  from.card && to.card && from.span.c0 !== to.span.c0;
+
+function routingOf(view: OverviewView, ends: Map<string, End>, laneTop: number): Routing {
+  const pair = replies(view.edges);
+  const lines: LaneLine[] = [];
+  const laneEnd = (end: End) => ({
+    id: end.id,
+    col: end.span.c0,
+    left: end.box.x,
+    width: end.box.w,
+    bottom: end.box.y + end.box.h,
+  });
+  view.edges.forEach((edge, index) => {
+    const from = ends.get(edge.from);
+    const to = ends.get(edge.to);
+    if (edge.kind !== 'loops-back' || pair.replies.has(index)) return;
+    if (from === undefined || to === undefined || !laneable(from, to)) return;
+    lines.push({ index, from: laneEnd(from), to: laneEnd(to) });
+  });
+  return { ...pair, lanes: laneRoutes(lines, laneTop, OVERVIEW_TRACK) };
+}
+
+/** Which side of a reply pair a straight edge is, if either. */
+function roleOf(index: number, routing: Routing): 'reply' | 'asked' | 'plain' {
+  if (routing.replies.has(index)) return 'reply';
+  return routing.answered.has(index) ? 'asked' : 'plain';
+}
+const OFFSET = { reply: OVERVIEW_REPLY_OFFSET, asked: -OVERVIEW_REPLY_OFFSET, plain: 0 };
+
+/** A straight edge's points, moved aside when it is half of a reply pair; undefined when refused. */
+function straightPoints(
+  edge: OverviewView['edges'][number],
+  from: End,
+  to: End,
+  role: 'reply' | 'asked' | 'plain'
+): [Point, Point] | undefined {
+  // A loops-back edge is straight only as a reply between two cards; the schema refuses the rest.
+  if (edge.kind === 'loops-back' && !(role === 'reply' && from.card && to.card)) return undefined;
+  const line = straight(from, to);
+  return line === undefined ? undefined : shifted(line, OFFSET[role]);
+}
 
 /** One edge's path, or undefined for one the schema would have refused. */
 function edgePath(
   edge: OverviewView['edges'][number],
+  index: number,
   ends: Map<string, End>,
-  laneY: number
+  routing: Routing
 ): OverviewEdgePath | undefined {
   const from = ends.get(edge.from);
   const to = ends.get(edge.to);
   if (from === undefined || to === undefined) return undefined;
-  const base = { from: edge.from, to: edge.to, kind: edge.kind, label: edge.label };
-  if (edge.kind === 'loops-back') {
-    const start = bottomCentre(from.box);
-    const end = bottomCentre(to.box);
-    return {
-      ...base,
-      points: [start, { x: start.x, y: laneY }, { x: end.x, y: laneY }, end],
-      labelAt: { x: (start.x + end.x) / 2, y: laneY },
-      labelSide: 'on',
-    };
-  }
-  const points = straight(from, to);
+  const shadow = edge.shadow === true;
+  const w = edge.label === undefined ? 0 : pillWidth(edge.label, shadow);
+  const base = { from: edge.from, to: edge.to, kind: edge.kind, label: edge.label, shadow };
+  const lane = routing.lanes.get(index);
+  if (lane !== undefined)
+    return { ...base, points: lane.points, pill: w > 0 ? lanePill(lane.points, w) : undefined };
+  const role = roleOf(index, routing);
+  const points = straightPoints(edge, from, to, role);
   if (points === undefined) return undefined;
-  const [a, b] = points;
-  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-  return { ...base, points, labelAt: mid, labelSide: a.y === b.y ? 'above' : 'right' };
+  return { ...base, points, pill: w > 0 ? straightPill(points, w, role) : undefined };
 }
 
 const rowCentre = (row: number): number => rowY(row) + OVERVIEW_CARD_H / 2;
 
 /**
  * The groups drawn as parallel: (a) two or more members, all in one column; (b) every edge that
- * names the group is a feeds or calls edge along a row; (c) no edge names a member. Rule (c) is
- * what lets a fan cross nothing: the only lines inside the group's pad are then its own edges,
- * which land on the frame's sides at a member's row (or between two), on the bar.
+ * names the group is a feeds or calls edge along a row; (c) no feeds or calls edge names a
+ * member. Rule (c) is what lets a fan cross nothing: the only lines inside the group's pad are
+ * then its own edges, which land on the frame's sides at a member's row (or between two), on
+ * the bar, and lane lines rising into a member's bottom at its middle, away from either side.
  */
 export function parallelGroups(view: OverviewView): Set<string> {
   const ends = endsOf(view);
-  const named = new Set(view.edges.flatMap(edge => [edge.from, edge.to]));
+  const named = new Set(
+    view.edges.filter(edge => edge.kind !== 'loops-back').flatMap(edge => [edge.from, edge.to])
+  );
   const parallel = new Set<string>();
   for (const group of view.groups ?? []) {
     const members = view.cards.filter(card => card.group === group.id);
@@ -273,6 +401,23 @@ function fansOf(view: OverviewView, parallel: Set<string>, ends: Map<string, End
   );
 }
 
+/** The box around every box, group label, line and pill of a view. */
+function boundsOf(boxes: Box[], edges: OverviewEdgePath[]): Box {
+  const all = [
+    ...boxes,
+    ...edges.flatMap(edge => [
+      ...(edge.pill === undefined ? [] : [edge.pill]),
+      ...edge.points.map(p => ({ x: p.x, y: p.y, w: 0, h: 0 })),
+    ]),
+  ];
+  const left = Math.min(...all.map(box => box.x));
+  const top = Math.min(...all.map(box => box.y));
+  const right = Math.max(...all.map(box => box.x + box.w));
+  // The deepest track's stroke and dashes reach a little under its centre line.
+  const bottom = Math.max(...all.map(box => box.y + box.h)) + 4;
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
 /** The layout of one view: its cards, groups and edges, and the box around all of them. */
 export function layoutOverview(view: OverviewView): OverviewLayout {
   const ends = endsOf(view);
@@ -284,29 +429,17 @@ export function layoutOverview(view: OverviewView): OverviewLayout {
   }
   const boxes = [...ends.values()].map(end => end.box);
   const lowest = Math.max(...boxes.map(box => box.y + box.h));
-  const laneY = lowest + OVERVIEW_LANE_BELOW;
-  const edges = view.edges.flatMap(edge => edgePath(edge, ends, laneY) ?? []);
-  const hasLane = edges.some(edge => edge.kind === 'loops-back');
-  const left = Math.min(...boxes.map(box => box.x));
-  // A group's label sits on its top border, half above it.
-  const top = Math.min(
-    ...view.cards.map(card => (cards.get(card.id) as Box).y),
-    ...[...groups.values()].map(box => box.y - LABEL_HALF)
-  );
-  const right = Math.max(...boxes.map(box => box.x + box.w));
-  const bottom = hasLane ? laneY + LABEL_HALF : lowest;
-  const parallel = parallelGroups(view);
-  const contentSized = new Set(
-    view.cards.flatMap(card =>
-      card.group !== undefined && parallel.has(card.group) ? [card.id] : []
-    )
-  );
+  const routing = routingOf(view, ends, lowest + OVERVIEW_LANE_BELOW);
+  const edges = view.edges.flatMap((edge, index) => edgePath(edge, index, ends, routing) ?? []);
+  const labels = (view.groups ?? []).flatMap(group => {
+    const box = groups.get(group.id);
+    return box === undefined ? [] : [groupLabelBox(box, group.label)];
+  });
   return {
     cards,
     groups,
     edges,
-    bounds: { x: left, y: top, w: right - left, h: bottom - top },
-    contentSized,
-    fans: fansOf(view, parallel, ends),
+    bounds: boundsOf([...boxes, ...labels], edges),
+    fans: fansOf(view, parallelGroups(view), ends),
   };
 }

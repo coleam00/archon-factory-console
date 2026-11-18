@@ -132,12 +132,69 @@ describe('factoryOverviewSchema', () => {
     expect(issues(overview)).toEqual(['views.top.caption']);
   });
 
-  test('rejects a root without a loops-back edge, and two in one view', () => {
+  test('rejects a root without a loops-back edge', () => {
     expect(issues(edited(o => void top(o).edges.pop()))).toEqual(['views.top.edges']);
-    const twice = edited(o => {
-      top(o).edges[0] = { from: 'in', to: 'make', kind: 'loops-back' };
+  });
+
+  test('accepts several loops-back lines whose spans nest, each on its own track', () => {
+    // `check` and `ship` both send work back to `make`; the longer line runs under the shorter.
+    const overview = edited(o => {
+      top(o).cards.push(card('ship', 4, 1));
+      top(o).edges.push(
+        { from: 'check', to: 'ship', kind: 'feeds' },
+        { from: 'ship', to: 'make', kind: 'loops-back', label: 'again' },
+        { from: 'make', to: 'in', kind: 'loops-back', shadow: true }
+      );
     });
-    expect(issues(twice)).toContain('views.top.edges');
+    expect(issues(overview)).toEqual([]);
+  });
+
+  test('rejects two loops-back lines whose spans interleave: one lane cannot hold both', () => {
+    // Columns 1 to 3 and 2 to 4 overlap without one holding the other, so they must cross.
+    const overview = edited(o => {
+      top(o).cards.push(card('ship', 4, 1));
+      top(o).edges[2] = { from: 'check', to: 'in', kind: 'loops-back' };
+      top(o).edges.push({ from: 'ship', to: 'make', kind: 'loops-back' });
+    });
+    expect(issues(overview)).toEqual(['views.top.edges.2 ship make']);
+  });
+
+  test('rejects a loops-back line between two cards in one column', () => {
+    const overview = edited(o => {
+      const make = o.views.make as View;
+      make.cards.push(card('below', 3, 2), card('above', 3, 1));
+      make.edges.push({ from: 'below', to: 'above', kind: 'loops-back' });
+    });
+    expect(issues(overview)).toEqual(['views.make.edges.1']);
+  });
+
+  test('accepts a reply to an ask, drawn beside it, and the same pair joined again refused', () => {
+    const asked = (o: FactoryOverview): View => {
+      const make = o.views.make as View;
+      make.cards.push(card('you', 1, 2));
+      make.edges.push(
+        { from: 'write', to: 'you', kind: 'calls', label: 'asks' },
+        { from: 'you', to: 'write', kind: 'loops-back', label: 'restarts it' }
+      );
+      return make;
+    };
+    expect(issues(edited(asked))).toEqual([]);
+    const twice = edited(o => {
+      asked(o).edges.push({ from: 'you', to: 'write', kind: 'loops-back' });
+    });
+    expect(issues(twice)).toEqual(['views.make.edges.3 you write']);
+  });
+
+  test('rejects a reply whose ask runs through a card, as the ask is', () => {
+    const overview = edited(o => {
+      const make = o.views.make as View;
+      make.cards.push(card('mid', 1, 2), card('you', 1, 3));
+      make.edges.push(
+        { from: 'write', to: 'you', kind: 'calls' },
+        { from: 'you', to: 'write', kind: 'loops-back' }
+      );
+    });
+    expect(issues(overview)).toEqual(['views.make.edges.1 mid', 'views.make.edges.2 mid']);
   });
 
   test('rejects two cards in one cell', () => {

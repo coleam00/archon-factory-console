@@ -1,14 +1,16 @@
 /**
  * The rules that keep a factory overview view's drawing clean, checked on the grid itself so a
  * console's sizes cannot change the verdict. A card fills the middle of its cell; a group's box
- * wraps its members' cells, a little wider than a card. Every edge is straight or, for the one
- * loops-back edge, three straight runs:
+ * wraps its members' cells, a little wider than a card. Every edge is straight or, for a lane
+ * line, three straight runs:
  *
  * - `feeds` and `calls` run along a row the two ends share (the middle row of the rows they
  *   share), side to side, or else along a column they share, top to bottom. Ends that share
  *   neither cannot be joined without a bend, so the view is rejected.
- * - `loops-back` drops from the bottom of its source card into a lane under every box of the
- *   view, runs along it, and rises into the bottom of its target card.
+ * - A `loops-back` edge that replies to a `calls` edge runs straight beside it, the two shifted
+ *   apart. Every other `loops-back` edge drops from a port on the bottom of its source card into
+ *   the lane under every box of the view, runs along its own track, and rises into a port on
+ *   the bottom of its target card (`factory-overview-lanes.ts` sets ports and tracks).
  *
  * A view validates only when no line runs through a card other than its two ends, through a
  * group that holds neither end, or into another line. A console that routes by these rules
@@ -16,6 +18,7 @@
  * so it keeps a copy of these rules; `scripts/overview-geometry-parity.test.ts` checks on seeded
  * views that the two give the same verdict. Change both together.
  */
+import { type LaneLine, laneRoutes, replies } from './factory-overview-lanes';
 
 export type Issue = { path: (string | number)[]; message: string };
 
@@ -43,8 +46,11 @@ interface Span {
 /** A card's half extent in its cell (cell pitch 1), and how far a group's box reaches past its cells' centres. */
 const CARD_HALF = 0.36;
 const GROUP_HALF = 0.43;
-/** How far under the lowest box the loops-back lane runs. */
+/** How far under the lowest box the lane's first track runs, and how far apart its tracks are. */
 const LANE_BELOW = 0.3;
+const TRACK = 0.15;
+/** How far a reply and the ask it answers each move off the line they would share. */
+const REPLY_OFFSET = 0.1;
 
 interface End {
   id: string;
@@ -179,17 +185,40 @@ function straightRun(a: End, b: End): Segment | string {
   return 'an edge must share a row or a column with its other end';
 }
 
-/** The loops-back edge's three runs, through the lane under every box of the view. */
-function laneRuns(a: End, b: End, ends: Map<string, End>): Segment[] | string {
+/** A run moved `by` across its own direction: a row's run down, a column's run right. */
+function shifted(run: Segment, by: number): Segment {
+  return run.top === run.bottom
+    ? { ...run, top: run.top + by, bottom: run.bottom + by }
+    : { ...run, left: run.left + by, right: run.right + by };
+}
+
+/** Why a loops-back edge cannot be a lane line, or undefined when it can. */
+function laneRefusal(a: End, b: End): string | undefined {
   if (!a.isCard || !b.isCard) return 'a loops-back edge joins two cards, not groups';
-  const lane = Math.max(...[...ends.values()].map(end => end.box.bottom)) + LANE_BELOW;
-  const ax = a.span.c0;
-  const bx = b.span.c0;
-  return [
-    segment(ax, a.box.bottom, ax, lane),
-    segment(ax, lane, bx, lane),
-    segment(bx, lane, bx, b.box.bottom),
-  ];
+  if (a.span.c0 === b.span.c0) return 'a loops-back edge joins cards in different columns';
+  return undefined;
+}
+
+const laneEnd = (end: End) => ({
+  id: end.id,
+  col: end.span.c0,
+  left: end.box.left,
+  width: end.box.right - end.box.left,
+  bottom: end.box.bottom,
+});
+
+/** The runs of every lane line the view can route, by edge index. */
+function laneRuns(lines: LaneLine[], ends: Map<string, End>): Map<number, Segment[]> {
+  const top = Math.max(...[...ends.values()].map(end => end.box.bottom)) + LANE_BELOW;
+  const runs = new Map<number, Segment[]>();
+  for (const [index, route] of laneRoutes(lines, top, TRACK)) {
+    const p = route.points;
+    runs.set(
+      index,
+      p.slice(1).map((q, i) => segment((p[i] as typeof q).x, (p[i] as typeof q).y, q.x, q.y))
+    );
+  }
+  return runs;
 }
 
 interface Line {
@@ -199,11 +228,19 @@ interface Line {
   runs: Segment[];
 }
 
-/** Each edge's runs, and the issues of edges that name nothing, repeat a pair, or cannot be drawn straight. */
+/** The pair key of an edge: a lane line or a reply may join a pair a straight edge joins. */
+function pairKey(edge: View['edges'][number], reply: boolean): string {
+  const kind = reply ? ' reply' : edge.kind === 'loops-back' ? ' lane' : '';
+  return `${[edge.from, edge.to].sort().join(' ')}${kind}`;
+}
+
+/** Each edge's runs, and the issues of edges that name nothing, repeat a pair, or cannot be drawn. */
 function linesOf(view: View, ends: Map<string, End>): { lines: Line[]; issues: Issue[] } {
-  const lines: Line[] = [];
+  const routed: { index: number; from: End; to: End; runs: Segment[] | 'lane' }[] = [];
   const issues: Issue[] = [];
   const pairs = new Set<string>();
+  const pair = replies(view.edges);
+  const lanes: LaneLine[] = [];
   view.edges.forEach((edge, index) => {
     const from = ends.get(edge.from);
     const to = ends.get(edge.to);
@@ -214,14 +251,31 @@ function linesOf(view: View, ends: Map<string, End>): { lines: Line[]; issues: I
       return fail(`names "${edge.from}", no card or group of this view`, ['from']);
     if (to === undefined) return fail(`names "${edge.to}", no card or group of this view`, ['to']);
     if (from === to) return fail('joins a card to itself');
-    // A lane may return along a pair a straight edge joins: the two never meet.
-    const pair = `${[edge.from, edge.to].sort().join(' ')}${edge.kind === 'loops-back' ? ' lane' : ''}`;
-    if (pairs.has(pair)) return fail(`joins "${edge.from}" and "${edge.to}" a second time`);
-    pairs.add(pair);
-    const runs = edge.kind === 'loops-back' ? laneRuns(from, to, ends) : straightRun(from, to);
-    if (typeof runs === 'string') return fail(runs);
-    lines.push({ index, from, to, runs: Array.isArray(runs) ? runs : [runs] });
+    const key = pairKey(edge, pair.replies.has(index));
+    if (pairs.has(key)) return fail(`joins "${edge.from}" and "${edge.to}" a second time`);
+    pairs.add(key);
+    if (edge.kind === 'loops-back' && !pair.replies.has(index)) {
+      const refused = laneRefusal(from, to);
+      if (refused !== undefined) return fail(refused);
+      lanes.push({ index, from: laneEnd(from), to: laneEnd(to) });
+      return void routed.push({ index, from, to, runs: 'lane' });
+    }
+    if (edge.kind === 'loops-back' && (!from.isCard || !to.isCard))
+      return fail('a loops-back edge joins two cards, not groups');
+    const run = straightRun(from, to);
+    if (typeof run === 'string') return fail(run);
+    const by = pair.replies.has(index)
+      ? REPLY_OFFSET
+      : pair.answered.has(index)
+        ? -REPLY_OFFSET
+        : 0;
+    routed.push({ index, from, to, runs: [shifted(run, by)] });
   });
+  const laneRunsOf = laneRuns(lanes, ends);
+  const lines = routed.map(line => ({
+    ...line,
+    runs: line.runs === 'lane' ? (laneRunsOf.get(line.index) as Segment[]) : line.runs,
+  }));
   return { lines, issues };
 }
 

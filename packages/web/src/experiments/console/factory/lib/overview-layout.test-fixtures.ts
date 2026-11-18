@@ -1,11 +1,14 @@
 /**
  * What is wrong with a view as `layoutOverview` draws it, in world px: an edge it could not
- * route, a line touching a card other than its ends or a group holding neither end, or two
- * lines touching. The shipped file's test and the schema conformance test
- * (`scripts/overview-geometry-parity.test.ts`) both judge a drawing by this one check.
+ * route, a line touching a card other than its ends or a group holding neither end, two lines
+ * touching, or a label pill touching anything (`pillFaults`). The shipped file's test and the
+ * schema conformance test (`scripts/overview-geometry-parity.test.ts`) both judge a drawing by
+ * this one check; the conformance test's views carry no labels, so pills, which only the web
+ * draws, never enter its verdict.
  */
 import type { Box, Point } from './map-layout';
 import {
+  groupLabelBox,
   layoutOverview,
   type OverviewEdgePath,
   type OverviewFan,
@@ -49,6 +52,41 @@ export function drawingFaults(view: OverviewView): string[] {
     for (const other of layout.edges.slice(i + 1))
       if (runs.some(run => segments(other).some(run2 => meets(run, run2))))
         faults.push(`${edge.from}->${edge.to} meets ${other.from}->${other.to}`);
+  });
+  return [...faults, ...pillFaults(view, layout)];
+}
+
+/**
+ * What the label pills touch: a card, a group's label, another pill, or any line, its own and
+ * the fans' included. A label never sits on a line (the Visual standard, rule 4).
+ */
+function pillFaults(view: OverviewView, layout: OverviewLayout): string[] {
+  const labels = (view.groups ?? []).flatMap(group => {
+    const box = layout.groups.get(group.id);
+    return box === undefined
+      ? []
+      : [[`${group.id} label`, groupLabelBox(box, group.label)] as const];
+  });
+  const obstacles: (readonly [string, Box])[] = [
+    ...layout.cards,
+    ...labels,
+    ...layout.edges.flatMap(edge =>
+      segments(edge).map(run => [`${edge.from}->${edge.to}`, run] as const)
+    ),
+    ...layout.fans.flatMap(fan => [
+      ...segments({ points: fan.bar }).map(run => [`${fan.group} bar`, run] as const),
+      ...fan.stubs.map(
+        s => [`${fan.group} stub`, segments({ points: [s.from, s.to] })[0] as Box] as const
+      ),
+    ]),
+  ];
+  const pills = layout.edges.flatMap(edge =>
+    edge.pill === undefined ? [] : [[`${edge.from}->${edge.to} label`, edge.pill] as const]
+  );
+  const faults: string[] = [];
+  pills.forEach(([name, pill], i) => {
+    for (const [other, box] of [...obstacles, ...pills.slice(i + 1)])
+      if (meets(pill, box)) faults.push(`${name} meets ${other}`);
   });
   return faults;
 }
