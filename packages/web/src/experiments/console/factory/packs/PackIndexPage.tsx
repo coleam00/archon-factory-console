@@ -56,7 +56,7 @@ function PackList({ listing }: { listing: FactoryPacksRead }): ReactElement {
       ) : (
         <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {listing.packs.map(pack => (
-            <li key={pack.key}>
+            <li key={pack.key} className="min-w-0">
               <PackCard pack={pack} />
             </li>
           ))}
