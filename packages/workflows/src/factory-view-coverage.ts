@@ -1,7 +1,7 @@
 /**
  * Whether a factory view tells the truth about its pack: every real step of a workflow the
  * view lists is covered by exactly one drill-down card (or loop), every step the view names
- * is real, and the map's arrows are exactly the hand-offs the pack graph reports between the
+ * (shadows included) is real, and the map's arrows are exactly the hand-offs the pack graph reports between the
  * workflows the view lists. A workflow no stage lists is not compared (`unlistedWorkflows`
  * names them). The schema cannot see the pack's workflows; this check reads them as the pack
  * graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
@@ -273,6 +273,32 @@ function arrowFindings(view: FactoryView, graph: PackGraph): CoverageFinding[] {
   return findings;
 }
 
+/**
+ * Every shadow names a real step of a real workflow. Resolved against every stage of the graph,
+ * not `graphStagesOf`, since a shadow may name the discoveries workflow, which no stage lists.
+ */
+function shadowFindings(view: FactoryView, graph: PackGraph): CoverageFinding[] {
+  const names = graph.stages.map(stage => stage.name);
+  const findings: CoverageFinding[] = [];
+  view.shadows?.forEach((shadow, index) => {
+    const name = packWorkflowName(names, shadow.workflow);
+    const graphStage = graph.stages.find(stage => stage.name === name);
+    if (graphStage === undefined)
+      findings.push({
+        kind: 'unknown-workflow',
+        path: ['shadows', index, 'workflow'],
+        message: `names workflow "${shadow.workflow}", which pack "${graph.pack}" does not have`,
+      });
+    else if (!graphStage.nodes.some(node => node.id === shadow.node))
+      findings.push({
+        kind: 'unknown-step',
+        path: ['shadows', index, 'node'],
+        message: `names step "${shadow.node}", which workflow "${shadow.workflow}" does not have`,
+      });
+  });
+  return findings;
+}
+
 /** Every way `view` disagrees with the pack's real workflows and hand-offs; empty when none. */
 export function factoryViewCoverage(view: FactoryView, graph: PackGraph): CoverageFinding[] {
   const stages = graphStagesOf(view, graph);
@@ -312,5 +338,6 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
     ...coverageFindings(view, stages),
     ...namedStepFindings(view, stages),
     ...arrowFindings(view, graph),
+    ...shadowFindings(view, graph),
   ];
 }

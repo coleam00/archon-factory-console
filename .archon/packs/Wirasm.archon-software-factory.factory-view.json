@@ -60,15 +60,15 @@
                 "covers": [{ "workflow": "triage", "steps": ["link__link"] }]
               },
               {
-                "title": "Would it start alone",
-                "text": "Measures whether it would start without you (measured only)",
+                "title": "Would it start on its own",
+                "text": "Decides whether it would start without you; nothing acts on it",
                 "icon": "ruler",
                 "kind": "agent",
                 "covers": [{ "workflow": "triage", "steps": ["admit"] }]
               },
               {
                 "title": "Would it be split",
-                "text": "Measures whether it would be split up (measured only)",
+                "text": "Decides whether it would split it up; nothing acts on it",
                 "icon": "scissors",
                 "kind": "agent",
                 "covers": [{ "workflow": "triage", "steps": ["split"] }]
@@ -209,8 +209,8 @@
                 "covers": [{ "workflow": "deliver", "steps": ["rounds.product__product"] }]
               },
               {
-                "title": "Project checks (shadow)",
-                "text": "Runs the project's declared checks by script and records the result; nothing acts on it yet",
+                "title": "Project checks",
+                "text": "Runs the project's declared checks and records the result; nothing acts on it",
                 "icon": "shield-check",
                 "kind": "script",
                 "covers": [{ "workflow": "deliver", "steps": ["rounds.checks"] }]
@@ -322,8 +322,8 @@
             "label": "Gate",
             "cards": [
               {
-                "title": "Land gate",
-                "text": "Says whether it could land without asking you (measured only)",
+                "title": "Merge gate",
+                "text": "Decides whether it would merge without asking you; nothing acts on it",
                 "icon": "shield-check",
                 "kind": "agent",
                 "covers": [{ "workflow": "landgate", "steps": ["gate"] }]
@@ -415,13 +415,63 @@
     "dropped": "/dropped",
     "entry": { "title": "/title", "kind": "/kind", "verified": "/verified" }
   },
+  "shadows": [
+    {
+      "workflow": "triage",
+      "node": "admit",
+      "label": "Would it start on its own",
+      "reads": "verdict",
+      "pointer": "/admit",
+      "why": "/why",
+      "words": { "auto": "would start on its own", "ask": "would ask you first" }
+    },
+    {
+      "workflow": "triage",
+      "node": "split",
+      "label": "Would it be split",
+      "reads": "verdict",
+      "pointer": "/split",
+      "why": "/why",
+      "words": { "whole": "would not split it", "split": "would split it" }
+    },
+    {
+      "workflow": "deliver",
+      "node": "rounds.checks",
+      "label": "Project checks",
+      "reads": "checks",
+      "results": "/results",
+      "entry": { "name": "/name", "passed": "/passed", "seconds": "/seconds", "tail": "/tail" }
+    },
+    {
+      "workflow": "landgate",
+      "node": "gate",
+      "label": "Would it merge on its own",
+      "reads": "verdict",
+      "pointer": "/land",
+      "why": "/why",
+      "words": { "auto": "would merge on its own", "ask": "would ask you first" }
+    },
+    {
+      "workflow": "discoveries",
+      "node": "result",
+      "label": "What it would file",
+      "reads": "lists",
+      "lists": [
+        { "pointer": "/filed", "words": "would file" },
+        { "pointer": "/folded", "words": "would fold into open items" },
+        { "pointer": "/held", "words": "would hold" },
+        { "pointer": "/dropped", "words": "would drop" }
+      ],
+      "why": "/summary"
+    }
+  ],
   "itemTitle": { "input": "item" },
   "steps": {
     "triage": {
       "judge__judge": "Decides whether to build",
       "link__link": "Links related items",
-      "admit": "Would it start on its own (measured only)",
-      "split": "Would it be split (measured only)",
+      "admit": "Would it start on its own",
+      "split": "Would it be split",
       "admitted": "Records the admit measurement"
     },
     "plan": {
@@ -435,7 +485,7 @@
       "rounds.review__review": "Code review",
       "rounds.tests__tests": "Test check",
       "rounds.product__product": "Product check",
-      "rounds.checks": "Project checks (shadow)",
+      "rounds.checks": "Project checks",
       "rounds.verdict__verdict": "Verdict",
       "rounds.shown": "Posts the review",
       "exhausted": "Rounds ran out",

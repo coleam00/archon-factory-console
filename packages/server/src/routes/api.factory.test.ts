@@ -360,6 +360,16 @@ describe('GET /api/factory/discoveries', () => {
     dropped: '/dropped',
     entry: { title: '/title', kind: '/kind' },
   };
+  // A shadow drain is declared a shadow step too; the two must agree.
+  const shadows = [
+    {
+      workflow: 'discoveries',
+      node: 'drain',
+      label: 'What it would file',
+      reads: 'lists',
+      lists: [{ pointer: '/filed', words: 'would file' }],
+    },
+  ];
   // One item, one drain: no other source of the store is read.
   const item: WorkflowItem = { id: 'i-1', projectKey: 'acme/web', key: '1' };
   const drain = {
@@ -423,7 +433,7 @@ describe('GET /api/factory/discoveries', () => {
 
   test('what the drains decided, at the pointers the view declares', async () => {
     const { status, body } = await request({
-      [viewFile]: { ...declaration('acme/kit', 'Kit factory'), discoveries },
+      [viewFile]: { ...declaration('acme/kit', 'Kit factory'), discoveries, shadows },
     });
     expect(status).toBe(200);
     const read = factoryDiscoveriesResponseSchema.parse(body);
@@ -646,6 +656,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
         returned: 0,
         change: null,
         runs: [{ runId: 'run-b', workflow: 'deliver', failedStep: null }],
+        shadows: [],
       },
     });
     expect(read.members).toEqual({ '2': [] });
@@ -712,7 +723,14 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
     expect(detail.item.item.key).toBe('2');
     expect(detail.item.progress?.running?.step).toBe('build');
     expect(detail.runs).toEqual([
-      { runId: 'run-b', workflow: 'deliver', costUsd: null, step: 'build', rounds: null },
+      {
+        runId: 'run-b',
+        workflow: 'deliver',
+        costUsd: null,
+        step: 'build',
+        rounds: null,
+        shadows: [],
+      },
     ]);
   });
 
