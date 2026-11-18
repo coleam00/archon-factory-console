@@ -105,8 +105,8 @@ function CardBox({
     <article
       data-moved={moved ? 'true' : undefined}
       data-dimmed={dimmed ? 'true' : undefined}
-      className={`relative flex flex-col gap-2 overflow-hidden rounded-console-12 border p-3 transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated ${
-        moved ? 'border-accent-bright bg-accent-soft' : 'border-border bg-surface'
+      className={`relative flex flex-col gap-2 overflow-hidden rounded-console-12 border p-3 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:border-border-bright hover:bg-surface-elevated ${
+        moved ? 'border-accent-bright bg-[color:var(--accent-soft)]' : 'border-border bg-surface'
       } ${dimmed ? 'opacity-40' : ''}`}
     >
       <span

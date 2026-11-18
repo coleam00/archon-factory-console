@@ -87,7 +87,7 @@ function BoardRow({
   return (
     <tr
       data-moved={moved ? 'true' : undefined}
-      className={`border-b border-border ${moved ? 'bg-accent-soft' : ''} motion-safe:transition-colors`}
+      className={`border-b border-border ${moved ? 'bg-[color:var(--accent-soft)]' : ''} motion-safe:transition-colors`}
     >
       {cell(
         <Link

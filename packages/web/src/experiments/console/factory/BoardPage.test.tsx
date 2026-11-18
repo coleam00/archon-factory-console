@@ -357,9 +357,10 @@ describe('while a merge state is pending', () => {
       expect(shown).toContain('Ready to mergechecking');
       expect(shown).toContain('Mergedchecking');
       expect(shown).toContain('Plan & build4');
-      expect(columnNamed(container, 'Ready to merge')?.textContent).toContain(
-        'checking merge state'
-      );
+      const ready = columnNamed(container, 'Ready to merge');
+      expect(ready?.textContent).toContain('checking merge state');
+      // No state chips while the count is not known: they would count what the skeleton hides.
+      expect(ready?.querySelectorAll('header li')).toHaveLength(0);
     } finally {
       await unmount();
     }
