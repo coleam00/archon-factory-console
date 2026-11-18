@@ -225,8 +225,9 @@ const factoryViewShape = z.strictObject({
     )
     .optional(),
   /**
-   * Completed outcomes that stop to ask you (`workflow:outcome` or `workflow:*`). A run that
-   * ended so reads "asked you"; `placement` still decides where the item waits.
+   * Completed outcomes that stop to ask you (`workflow:outcome`, or `workflow:*` for every
+   * outcome, not a run without one). A run that ended so reads "asked you"; `placement` still
+   * decides where the item waits.
    */
   asked: z.array(outcomeKeySchema).optional(),
   /** Where the change's URL is in a run's result, as a JSON pointer. */

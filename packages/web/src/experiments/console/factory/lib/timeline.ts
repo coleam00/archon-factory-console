@@ -116,11 +116,13 @@ function askedQuestions(detail: FactoryItemDetail, runId: string): string[] {
   return [...closed, ...open];
 }
 
-/** Whether `asked` declares this completed outcome, exactly or by `workflow:*`. */
+/**
+ * Whether `asked` declares this completed outcome, exactly or by `workflow:*`. As in
+ * `endings`, `*` takes every outcome, not a run that recorded none.
+ */
 const declaredAsked = (view: Declaration, workflow: string, outcome: string | null): boolean =>
-  (view.asked ?? []).some(
-    key => key === `${workflow}:*` || (outcome !== null && key === `${workflow}:${outcome}`)
-  );
+  outcome !== null &&
+  (view.asked ?? []).some(key => key === `${workflow}:*` || key === `${workflow}:${outcome}`);
 
 /**
  * A completed run's outcome: "asked you" when it stopped to ask (a declared `asked` outcome,

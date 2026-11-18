@@ -348,6 +348,19 @@ describe('a run that asked', () => {
     // Without the declaration it reads where `placement` sends it.
     const { asked: _asked, ...undeclared } = shippedView;
     expect(rowOf(noAsks, undeclared)?.outcome).toEqual(said('sent to Build'));
+    // `deliver:*` takes every outcome, but not a run that recorded none.
+    const anyOutcome = { ...shippedView, asked: ['deliver:*'] };
+    expect(rowOf(noAsks, anyOutcome)?.outcome).toEqual(said('asked you'));
+    const noOutcome = {
+      ...noAsks,
+      item: {
+        ...noAsks.item,
+        runs: noAsks.item.runs.map(run =>
+          run.id === deliver.id ? { ...run, outcome: null } : run
+        ),
+      },
+    };
+    expect(rowOf(noOutcome, anyOutcome)?.outcome).not.toEqual(said('asked you'));
   });
 
   test('reads "asked you" over its placement when it left asks on the item', () => {
