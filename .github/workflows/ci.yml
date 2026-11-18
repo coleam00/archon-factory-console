@@ -1,5 +1,7 @@
 # CI for the factory-console proof of concept. Upstream Archon's full CI (release, docs, e2e,
-# Postgres) is not run here; this covers what the console work can break.
+# Windows and macOS legs) is not run here; this covers what the console work can break: the
+# static checks and console parity tests in `check`, the suites of the packages the console
+# touches in `package-tests`, and every store test that runs on Postgres in `postgres`.
 name: ci
 on:
   pull_request:
@@ -40,10 +42,6 @@ jobs:
           bun x tsc --noEmit -p scripts/tsconfig.json
           bun x tsc --noEmit -p .archon/scripts/tsconfig.json
           bun x tsc --noEmit -p .archon/workflows/tsconfig.json
-      - name: Web tests
-        run: bun run --cwd packages/web test
-      - name: Server tests
-        run: bun run --cwd packages/server test
       # The factory overview's line rules exist twice (the schema in packages/workflows, the web
       # layout); this seeded test keeps the two copies giving the same verdict.
       - name: Factory overview geometry parity
@@ -56,13 +54,49 @@ jobs:
       - name: Web build
         run: bun run build:web
 
-  # The factory console's reads must work on Postgres as well as SQLite. Each test creates and
-  # drops its own scratch database; each file replaces the connection module, so each runs in
-  # its own process (as upstream's postgres job does).
+  # Each package's suite on its own runner. A private repository's runner has 7 GB and 2 vCPUs,
+  # and these suites together (about 2100 s of measured group time for core, workflows, cli and
+  # adapters alone, scripts/test-weights.json) do not fit one 45-minute job. Each package's
+  # `test` script owns its group splitting and concurrency (scripts/package-tests.ts), as
+  # upstream's CI did. The junit options put the runner in request mode, which runs every group
+  # even after one fails, and its combined report gives the leg's totals for the step summary.
+  package-tests:
+    name: tests (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      # Every leg must report: with fail-fast, one failing leg cancels the others and hides
+      # their results until the next round.
+      fail-fast: false
+      matrix:
+        package: [core, workflows, cli, adapters, server, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      # Script-node tests run Python through uv (upstream's test job installed it too).
+      - uses: astral-sh/setup-uv@v4
+      - run: bun install --frozen-lockfile
+      - name: Tests
+        run: bun run --cwd packages/${{ matrix.package }} test --reporter=junit --reporter-outfile="$RUNNER_TEMP/junit.xml"
+      - name: Test counts
+        if: always()
+        run: |
+          totals=$(grep -o '<testsuites[^>]*>' "$RUNNER_TEMP/junit.xml" || echo 'no report written')
+          printf '### %s\n\n`%s`\n' '${{ matrix.package }}' "$totals" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # The stores must work on Postgres as well as SQLite. This runs every test file that reads
+  # ARCHON_TEST_PG_URL, found by content rather than by name (not every such file is named
+  # `*.postgres.*`). Among them is the workflow-store conformance, which also carries the
+  # item/link and item-ask conformance harnesses. Each test creates and drops its own scratch
+  # database; each file replaces the connection module, so each runs in its own process through
+  # its package's runner (which applies the package's preload). These files skip without the
+  # URL, so a file that reports no executed test fails the job rather than passing green.
   postgres:
     name: postgres
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:17-alpine
@@ -81,12 +115,26 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - name: Factory reads on Postgres
+      - name: Stores on Postgres
         env:
           ARCHON_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: |
-          shopt -s nullglob
-          for f in packages/core/src/db/factory-*.postgres.integration.test.ts packages/workflows/src/factory-*.postgres.integration.test.ts; do
+          failed=0
+          i=0
+          files=$(git grep -l ARCHON_TEST_PG_URL -- 'packages/*.test.ts')
+          [ -n "$files" ] || { echo '::error::no test file reads ARCHON_TEST_PG_URL'; exit 1; }
+          for f in $files; do
+            pkg=${f#packages/}; pkg=${pkg%%/*}; rel=${f#packages/$pkg/}; i=$((i+1))
+            out="$RUNNER_TEMP/pg-$i.xml"
             printf '== %s\n' "$f"
-            bun test "$f" || exit 1
+            bun run --cwd "packages/$pkg" test "$rel" --reporter=junit --reporter-outfile="$out" || failed=1
+            totals=$(grep -o '<testsuites[^>]*>' "$out" || echo 'no report written')
+            printf -- '- `%s`: `%s`\n' "$f" "$totals" | tee -a "$GITHUB_STEP_SUMMARY"
+            tests=$(sed -nE 's/.* tests="([0-9]+)".*/\1/p' <<<"$totals")
+            skipped=$(sed -nE 's/.* skipped="([0-9]+)".*/\1/p' <<<"$totals")
+            if [ "${tests:-0}" -le "${skipped:-0}" ]; then
+              echo "::error file=$f::no test ran on Postgres"
+              failed=1
+            fi
           done
+          exit $failed
