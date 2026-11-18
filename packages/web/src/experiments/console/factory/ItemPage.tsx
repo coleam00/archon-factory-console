@@ -13,12 +13,14 @@ import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { ItemHeader } from './ItemHeader';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
+import { isNoSuchItem, useWorkOrders, WorkOrderOnly } from './ItemWorkOrder';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { itemPill } from './lib/board';
 import { mergePending } from './lib/merge-pending';
 import { itemAsks, type NeedsYouItem } from './lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
+import { membershipOf } from './lib/work-orders';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
 import { NeedsYouRow } from './NeedsYouRow';
@@ -73,7 +75,12 @@ function ItemRead({
   attention: EntityView<AttentionQueue>;
 }): ReactNode {
   const { data } = read;
-  const failed = readFailed(read.error);
+  const orders = useWorkOrders(
+    view.declaration,
+    projectId,
+    data === undefined ? undefined : { key: itemKey, members: incomingMembers(data.item) }
+  );
+  const order = orders.orders?.find(entry => entry.key === itemKey);
   // The stage the item sat in on the last read: a run on a step no stage names stays there,
   // as on the board and the map.
   const previous = useRef<{ key: string; stage: string | undefined } | null>(null);
@@ -88,11 +95,8 @@ function ItemRead({
   useEffect(() => {
     if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
   }, [column, itemKey]);
-  if (data === undefined) {
-    if (failed !== undefined)
-      return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
-    return <FactoryLoading read={read} />;
-  }
+  if (data === undefined)
+    return <ItemUnread projectId={projectId} itemKey={itemKey} read={read} orders={orders} />;
   const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
   // The placement every view shares, and the board's pill, so the header says what the
@@ -104,14 +108,57 @@ function ItemRead({
         item={data.item}
         pill={itemPill(declaration, data.item, landed).pill}
         column={column ?? null}
+        workOrder={
+          data.item.runs.length === 0 &&
+          (order !== undefined || incomingMembers(data.item).length > 0)
+        }
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
-      <ItemLinks projectId={projectId} links={data.item.links} />
+      <ItemLinks
+        projectId={projectId}
+        links={data.item.links}
+        membership={membershipOf(data.item)}
+        order={order}
+      />
       <ItemAnswers projectId={projectId} answers={data.item.answers} />
       <Degraded degraded={data.item.degraded} />
     </>
   );
+}
+
+/** The keys of the items an active `part_of` link joins to this one: its members, by its own read. */
+function incomingMembers(item: FactoryItemDetail['item']): string[] {
+  return item.links
+    .filter(link => link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null)
+    .map(link => link.other.key);
+}
+
+/**
+ * The page while the item read has no value: loading, or why it failed. A work order only a
+ * member's order run named has no item row, so the item read answers 404 and the page is the
+ * order's, from the items read.
+ */
+function ItemUnread({
+  projectId,
+  itemKey,
+  read,
+  orders,
+}: {
+  projectId: string;
+  itemKey: string;
+  read: EntityView<FactoryItemDetail>;
+  orders: ReturnType<typeof useWorkOrders>;
+}): ReactElement {
+  const failed = readFailed(read.error);
+  if (isNoSuchItem(failed)) {
+    const order = orders.orders?.find(entry => entry.key === itemKey);
+    if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
+    if (orders.orders === undefined && !orders.failed) return <FactoryLoading read={read} />;
+  }
+  if (failed !== undefined)
+    return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
+  return <FactoryLoading read={read} />;
 }
 
 function ItemAsks({

@@ -10,6 +10,7 @@ import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.t
 import { PILL_CLASS } from './BoardCard';
 import { itemPill } from './lib/board';
 import { askItem } from './needs-you.test-fixtures';
+import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 
 afterEach(() => {
   invalidate('factory-views');
@@ -141,5 +142,163 @@ describe('the item page', () => {
     expect(words).toContain('Depends on 4');
     expect(words).toContain('Has part 9 ended');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/4"`);
+  });
+});
+
+describe('work orders on the item page', () => {
+  const act = { at: '2026-11-17T00:00:00.000Z', via: 'cli' as const, by: null, fromRun: null };
+  type Item = FactoryItemDetail['item'];
+  const partOf = (item: Item, order: string): Item => ({
+    ...item,
+    links: [
+      {
+        id: `link-${item.item.key}`,
+        kind: 'part_of',
+        direction: 'outgoing',
+        other: { id: `item-${order}`, projectKey: item.item.projectKey, key: order },
+        ...act,
+        ended: null,
+      },
+    ],
+  });
+  /** The board's items read: `items`, and the members of each order it read. */
+  const itemsRead = (items: Item[], members: Record<string, string[]> = {}): void => {
+    set(K.factoryItems(PROJECT), { items, members });
+  };
+
+  test('a member its order run placed, with no link: Part of the order it named', () => {
+    const detail = itemDetail('3');
+    const item = { ...detail.item, progress: { ...detail.item.progress!, partOf: '48' } };
+    itemsRead([item]);
+    const html = render({ ...detail, item });
+    expect(text(html)).toContain('Part of 48 as its order run recorded');
+    expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/48"`);
+    expect(text(html)).not.toContain('No links to other items.');
+  });
+
+  test('an order with runs of its own: its members, with their state, and how many landed', () => {
+    const base = itemDetail('1');
+    // 3's link stands as the member; 9's, whose newer link names another order, stays a link.
+    const incoming = (key: string) => ({
+      id: `link-${key}`,
+      kind: 'part_of' as const,
+      direction: 'incoming' as const,
+      other: { id: `item-${key}`, projectKey: base.item.item.projectKey, key },
+      ...act,
+      ended: null,
+    });
+    const order = { ...base, item: { ...base.item, links: [incoming('3'), incoming('9')] } };
+    itemsRead([order.item, partOf(itemDetail('3').item, '1')], { '1': ['3'] });
+    const words = text(render(order));
+    expect(words).toContain('Members: 0 of 1 landed');
+    expect(words).toContain('Has part 9');
+    expect(words).not.toContain('Has part 3');
+    expect(words).toMatch(/3 [^<]*Waiting Build/);
+    // Its own column and state still show: it is worked by the factory.
+    expect(words).not.toContain(WORK_ORDER_WORDS);
+  });
+
+  test('an order with no run of its own: no column or state, its members', () => {
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-48', key: '48' },
+        runs: [],
+        questions: [],
+        answers: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+      },
+    };
+    itemsRead([partOf(itemDetail('3').item, '48')], { '48': ['3'] });
+    const html = render(detail);
+    const words = text(html);
+    expect(words).toContain(WORK_ORDER_WORDS);
+    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
+    expect(text(header)).toBe(` 48 Work order 48 ${WORK_ORDER_WORDS} `);
+    expect(words).toContain('Members: 0 of 1 landed');
+  });
+
+  test('a member with no run yet: Not started, no state, column or change', () => {
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...partOf({ ...base.item, item: { ...base.item.item, id: 'item-58', key: '58' } }, '48'),
+        runs: [],
+        questions: [],
+        answers: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+      },
+    };
+    itemsRead([]);
+    const html = render(detail);
+    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
+    expect(text(header)).toBe(' 58 58 Not started ');
+    expect(text(html)).toContain('Part of 48');
+  });
+
+  test('an order whose members have not started: its members from its own links, N of M landed', () => {
+    const base = itemDetail('1');
+    const incoming = (key: string) => ({
+      id: `link-${key}`,
+      kind: 'part_of' as const,
+      direction: 'incoming' as const,
+      other: { id: `item-${key}`, projectKey: base.item.item.projectKey, key },
+      ...act,
+      ended: null,
+    });
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-48', key: '48' },
+        runs: [],
+        questions: [],
+        answers: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+        links: [incoming('9'), incoming('10'), { ...incoming('11'), ended: act }],
+      },
+    };
+    // No item on the board names 48, so the items read never asked about it.
+    itemsRead([itemDetail('3').item], {});
+    const words = text(render(detail));
+    expect(words).toContain(WORK_ORDER_WORDS);
+    expect(words).toContain('Members: 0 of 2 landed');
+    expect(words.match(/Not started/g)).toHaveLength(2);
+    // The live links stand as the members; an ended one is no member and stays a raw link.
+    expect(words).not.toContain('Has part 9');
+    expect(words).toContain('Has part 11 ended');
+  });
+
+  test('an order with no run of its own says so from its own links, before the items read', () => {
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-48', key: '48' },
+        runs: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+        links: [
+          {
+            id: 'link-3',
+            kind: 'part_of',
+            direction: 'incoming',
+            other: { id: 'item-3', projectKey: base.item.item.projectKey, key: '3' },
+            ...act,
+            ended: null,
+          },
+        ],
+      },
+    };
+    const words = text(render(detail));
+    expect(words).toContain(WORK_ORDER_WORDS);
+    expect(words).not.toContain('In Order');
   });
 });

@@ -96,7 +96,7 @@ function render(path: string, detail?: FactoryItemDetail, views = listing): stri
   set(K.factoryViews(ID), views);
   set(K.factoryAttention(ID), quiet);
   set(K.factoryWorkflow(ID, 'deliver'), DELIVER);
-  set(K.factoryItems(ID), ITEMS);
+  set(K.factoryItems(ID), { items: ITEMS, members: {} });
   if (detail !== undefined) set(K.factoryItem(ID, detail.item.item.key), detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>

@@ -4,6 +4,7 @@ import { PILL_LABEL, type BoardModel, type Pill, type PlacedCard } from './board
 export const TABLE_COLUMNS = [
   { id: 'key', label: 'Item' },
   { id: 'title', label: 'Title' },
+  { id: 'order', label: 'Work order' },
   { id: 'column', label: 'Column' },
   { id: 'state', label: 'State' },
   { id: 'round', label: 'Round' },
@@ -71,6 +72,8 @@ function sortValue(row: TableRow, by: TableColumnId): number | string {
       return card.landedAt === null ? '' : (item.progress?.change?.mergedAt ?? '');
     case 'stop':
       return card.stopLine ?? '';
+    case 'order':
+      return card.order ?? '';
   }
 }
 

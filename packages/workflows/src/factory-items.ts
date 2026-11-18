@@ -26,7 +26,7 @@ import { startCauseSchema } from './schemas/resource-start';
 import { parseRunUsage } from './schemas/run-usage';
 import { isTerminalRunStatus } from './schemas/run-status';
 import type { WorkflowEventRow } from './schemas/workflow-event';
-import type { WorkflowRun } from './schemas/workflow-run';
+import { displayedRunOutcome, type WorkflowRun } from './schemas/workflow-run';
 import {
   foldActiveNodeIds,
   NODE_STATE_EVENT_TYPES,
@@ -101,6 +101,13 @@ export const factoryItemProgressSchema = z.object({
       ),
     })
     .nullable(),
+  /**
+   * The work order (an item key) the latest run of the declared `partOf` workflow that
+   * completed with the declared outcome names at its pointer, as written; null when there is
+   * no such run or it names none there.
+   * An item's active `part_of` link wins over this; the reader decides.
+   */
+  partOf: z.string().nullable(),
   /** How many times a declared return point sent the item back, across all its runs. */
   returned: z.number().int().nonnegative(),
   /** The change at the declared result pointer of the latest run that has one. */
@@ -167,6 +174,11 @@ export interface FactoryRunFacts {
   failedStep: string | null;
   /** The change at the declared pointer, with the run's forge audit rows; null when none. */
   change: { url: string; audits: unknown[] } | null;
+  /**
+   * The work order at the declared `partOf` pointer, trimmed; null when the run is not of that
+   * workflow, did not complete with a result, or names none there (empty or not a string).
+   */
+  partOf: string | null;
 }
 
 /** The event types `factoryRunFacts` reads. */
@@ -227,6 +239,21 @@ function changeFacts(
   return { url, audits };
 }
 
+/** The trimmed, non-empty string at `pointer` in a completed run's result; else null. */
+function partOfFact(
+  pointer: string,
+  run: WorkflowRun,
+  events: readonly WorkflowEventRow[]
+): string | null {
+  if (run.status !== 'completed') return null;
+  const record = getTerminalRecord(run.status, events);
+  if (record?.returns.availability !== 'available') return null;
+  const value = resolveJsonPointer(record.returns.value as JsonValue, pointer);
+  if (typeof value !== 'string') return null;
+  const order = value.trim();
+  return order === '' ? null : order;
+}
+
 /**
  * What one run of a workflow `view` declares contributes to its item's progress, from the
  * run's events (`FACTORY_RUN_FACT_EVENT_TYPES`, in append order).
@@ -254,6 +281,10 @@ export function factoryRunFacts(
     change:
       view.change !== undefined && view.change.workflow === workflow
         ? changeFacts(view.change.pointer, run, events)
+        : null,
+    partOf:
+      view.partOf !== undefined && view.partOf.workflow === workflow
+        ? partOfFact(view.partOf.pointer, run, events)
         : null,
   };
 }
@@ -359,6 +390,7 @@ export async function factoryItemProgress(
     title: itemTitle(view, runs),
     running,
     round,
+    partOf: workOrderOf(view, pack, declared, facts),
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change:
       found === null
@@ -373,6 +405,31 @@ export async function factoryItemProgress(
       failedStep: facts.get(run.id)?.failedStep ?? null,
     })),
   };
+}
+
+/**
+ * The work order the newest run of the declared `partOf` workflow that completed with the
+ * declared outcome names. A run that completed with another outcome (a refusal) is not read.
+ * Not `latest()`: an empty value on the newest such run means the item is in no order now,
+ * not that an older run's order still holds.
+ */
+function workOrderOf(
+  view: FactoryView,
+  pack: string,
+  declared: readonly WorkflowRun[],
+  facts: ReadonlyMap<string, FactoryRunFacts>
+): string | null {
+  if (view.partOf === undefined) return null;
+  const { workflow, outcome } = view.partOf;
+  const newest = [...declared]
+    .reverse()
+    .find(
+      run =>
+        run.status === 'completed' &&
+        displayedRunOutcome(run) === outcome &&
+        declaredWorkflow(view, pack, run.workflow_name) === workflow
+    );
+  return newest === undefined ? null : (facts.get(newest.id)?.partOf ?? null);
 }
 
 /** The distinct branches `runs` recorded, newest-started first. */
@@ -403,6 +460,7 @@ export class FactoryRunFactsMemo {
       returns: view.returns,
       approves: view.approves,
       change: view.change,
+      partOf: view.partOf,
     };
     return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;
   }
@@ -505,6 +563,13 @@ export const factoryProgressSchema = z.object({
    * project has no item under is left out.
    */
   progress: z.record(z.string(), factoryItemProgressSchema.nullable()),
+  /**
+   * For each asked item, by key, the keys of the items with an active `part_of` link to it
+   * (its work order's members), in recording order; an item with none has an empty list. Apart
+   * from `progress`, so an item whose progress could not be derived still lists its members,
+   * and read for an item with no runs too. A key the project has no item under is left out.
+   */
+  members: z.record(z.string(), z.array(z.string())),
 });
 export type FactoryProgress = z.infer<typeof factoryProgressSchema>;
 
@@ -529,7 +594,27 @@ export async function readFactoryProgress(
       async item => [item.item.key, await itemProgress(source, input, item, facts)] as const
     )
   );
-  return { pack: input.pack, progress: Object.fromEntries(read) };
+  const members = await Promise.all(
+    found.map(async item => [item.item.key, await memberKeys(source, item.item.id)] as const)
+  );
+  return {
+    pack: input.pack,
+    progress: Object.fromEntries(read),
+    members: Object.fromEntries(members),
+  };
+}
+
+/** The keys of the items with an active `part_of` link to the item `itemId`, in recording order. */
+async function memberKeys(source: ItemReadSource, itemId: string): Promise<string[]> {
+  const keys: string[] = [];
+  for (const link of await source.store.listItemLinks(itemId)) {
+    // A link row that does not read has no kind to go by. The order's own item read lists
+    // it under `degraded`, which its item page shows; here it is no member.
+    if ('type' in link) continue;
+    if (link.kind === 'part_of' && link.ended === null && link.to.id === itemId)
+      keys.push(link.from.key);
+  }
+  return keys;
 }
 
 /**

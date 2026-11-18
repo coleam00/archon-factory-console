@@ -25,7 +25,16 @@ const at = (item: FactoryItem, key: string, end: string): FactoryItem => ({
   runs: item.runs.map(run => ({ ...run, startedAt: end, completedAt: end })),
 });
 
-function reads(pages: ItemWindow[], failProgress = false) {
+/**
+ * The fakes the walk reads through. `rows` are the keys the project has an item row under
+ * beyond the captured page's (a work order with no run); `links` the members linked to each.
+ */
+function reads(
+  pages: ItemWindow[],
+  failProgress = false,
+  rows: readonly string[] = [],
+  links: Record<string, string[]> = {}
+) {
   const windowCalls: Parameters<FactoryItemsReads['listWindow']>[0][] = [];
   const progressCalls: Parameters<FactoryItemsReads['getProgress']>[0][] = [];
   const all = new Map(captured.map(item => [item.item.key, item.progress]));
@@ -38,11 +47,16 @@ function reads(pages: ItemWindow[], failProgress = false) {
       progressCalls.push(opts);
       if (failProgress) throw new Error('progress failed');
       const keys = typeof opts.keys === 'string' ? [opts.keys] : opts.keys;
+      const known = (key: string): boolean =>
+        all.has(key) ||
+        rows.includes(key) ||
+        pages.some(p => p.items.some(i => i.item.key === key));
       return {
         pack: 'p',
         progress: Object.fromEntries(
           keys.flatMap((k: string) => (all.has(k) ? [[k, all.get(k) ?? null]] : []))
         ),
+        members: Object.fromEntries(keys.filter(known).map((k: string) => [k, links[k] ?? []])),
       };
     }),
   };
@@ -52,7 +66,7 @@ function reads(pages: ItemWindow[], failProgress = false) {
 test('walks the window from far back, then by its cursor alone, joining each page with its progress', async () => {
   const [first, second] = captured;
   const { deps, windowCalls, progressCalls } = reads([page([first!], 'c1'), page([second!], null)]);
-  const items = await readEveryFactoryItem('cb-1', deps, within);
+  const { items } = await readEveryFactoryItem('cb-1', deps, within);
   expect(windowCalls).toEqual([
     { project: 'cb-1', since: '1970-01-01T00:00:00Z', limit: 100 },
     { project: 'cb-1', after: 'c1', limit: 100 },
@@ -69,7 +83,7 @@ test('walks the window from far back, then by its cursor alone, joining each pag
 test('a key the progress read left out reads as progress null', async () => {
   const stranger = at(captured[0]!, 'stranger', '2026-11-17T00:00:00.000Z');
   const { deps } = reads([page([stranger], null)]);
-  const [item] = await readEveryFactoryItem('cb-1', deps, within);
+  const [item] = (await readEveryFactoryItem('cb-1', deps, within)).items;
   expect(item?.progress).toBeNull();
 });
 
@@ -85,13 +99,13 @@ test('newest activity first, ties by item id, whatever order the window pages in
       null
     ),
   ]);
-  const items = await readEveryFactoryItem('cb-1', deps, within);
+  const { items } = await readEveryFactoryItem('cb-1', deps, within);
   expect(items.map(item => item.item.key)).toEqual(['new', 'a', 'b', 'old']);
 });
 
 test('an empty project asks for no progress', async () => {
   const { deps, progressCalls } = reads([page([], null)]);
-  expect(await readEveryFactoryItem('cb-1', deps, within)).toEqual([]);
+  expect(await readEveryFactoryItem('cb-1', deps, within)).toEqual({ items: [], members: {} });
   expect(progressCalls).toEqual([]);
 });
 
@@ -130,4 +144,65 @@ test('a progress read that never answers fails the walk at its deadline, and is 
   jest.advanceTimersByTime(FACTORY_READ_DEADLINE_MS);
   expect(await walk).toBeInstanceOf(SlowReadError);
   expect(progressSignal?.aborted).toBe(true);
+});
+
+/** `item` renamed `key`, part of `order` by an active link, or by its order run's result. */
+const member = (key: string, order: string, by: 'link' | 'output'): FactoryItem => {
+  const base = at(captured[0]!, key, '2026-11-17T00:00:00.000Z');
+  const link = {
+    id: `link-${key}`,
+    kind: 'part_of' as const,
+    direction: 'outgoing' as const,
+    other: { id: `id-${order}`, projectKey: base.item.projectKey, key: order },
+    at: '2026-11-17T00:00:00.000Z',
+    via: 'cli' as const,
+    by: null,
+    fromRun: null,
+    ended: null,
+  };
+  return by === 'link' ? { ...base, links: [link] } : base;
+};
+
+test('orders the window lacks are read after the walk, together, never one request each', async () => {
+  // 48 has an item row and no run; 60 is named only by a result and has no row at all.
+  const { deps, progressCalls } = reads(
+    [
+      page(
+        [member('49', '48', 'link'), member('50', '48', 'link'), member('52', '60', 'output')],
+        null
+      ),
+    ],
+    false,
+    ['48'],
+    { '48': ['49', '50', '51'] }
+  );
+  const byOutput: FactoryItemsReads = {
+    ...deps,
+    getProgress: async (opts, init) => {
+      const answer = await deps.getProgress(opts, init);
+      const keys = typeof opts.keys === 'string' ? [opts.keys] : opts.keys;
+      // 52's order run named 60; 50's named 61, which its link to 48 overrides.
+      const progress = { ...answer.progress };
+      const named = { '50': '61', '52': '60' } as const;
+      for (const [key, partOf] of Object.entries(named))
+        if (keys.includes(key)) progress[key] = { ...captured[0]!.progress!, partOf };
+      return { ...answer, progress };
+    },
+  };
+  const read = await readEveryFactoryItem('cb-1', byOutput, within);
+  expect(progressCalls.map(call => call.keys)).toEqual([
+    ['49', '50', '52'],
+    ['48', '60'],
+  ]);
+  // 51 is linked and has no run: it is no item, and counts as 48's member.
+  expect(read.items.map(item => item.item.key).sort()).toEqual(['49', '50', '52']);
+  expect(read.members['48']).toEqual(['49', '50', '51']);
+  // An order with no item row is absent from the members map.
+  expect('60' in read.members).toBe(false);
+});
+
+test('no order named, no read after the walk', async () => {
+  const { deps, progressCalls } = reads([page([captured[0]!], null)]);
+  await readEveryFactoryItem('cb-1', deps, within);
+  expect(progressCalls).toHaveLength(1);
 });

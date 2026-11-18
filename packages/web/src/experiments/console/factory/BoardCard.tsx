@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { statusDotClass, statusTextClass } from '../lib/run-status';
 import {
   itemPath,
@@ -9,6 +9,7 @@ import {
   type RoundVerdict,
 } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
+import { orderSearch } from './lib/work-orders';
 
 /**
  * State colours: the console's status colours, with Needs you the one loud one. The board's
@@ -84,18 +85,22 @@ export function BoardCard({
   projectId,
   card,
   moved,
+  dimmed = false,
 }: {
   projectId: string;
   card: BoardCardFields;
   /** The card just changed column: a brief highlight shows it. */
   moved: boolean;
+  /** Another work order is lit on the board (`?order=`) and this card is not in it. */
+  dimmed?: boolean;
 }): ReactElement {
   return (
     <article
       data-moved={moved ? 'true' : undefined}
+      data-dimmed={dimmed ? 'true' : undefined}
       className={`relative flex flex-col gap-1 rounded border bg-surface-elevated px-2.5 py-2 hover:border-border-bright ${
         moved ? 'border-accent-bright ring-1 ring-accent-bright' : 'border-border'
-      } motion-safe:transition-colors`}
+      } ${dimmed ? 'opacity-40' : ''} motion-safe:transition`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="truncate font-mono text-console-11 text-text-tertiary">{card.key}</span>
@@ -107,6 +112,7 @@ export function BoardCard({
       >
         {card.title}
       </Link>
+      {card.order === null ? null : <OrderChip order={card.order} />}
       {card.round === null ? null : <RoundDots round={card.round} />}
       {card.run === null ? null : <RunLink run={card.run} />}
       <CardLinks card={card} />
@@ -145,6 +151,21 @@ function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactEl
           {index < run.parts.length - 1 ? ' ·' : ''}
         </span>
       ))}
+    </Link>
+  );
+}
+
+/** "part of 48": lights the item's work order on the board, keeping the board's view. */
+function OrderChip({ order }: { order: string }): ReactElement {
+  const [params] = useSearchParams();
+  return (
+    <Link
+      to={{ search: orderSearch(params, order) }}
+      replace
+      title={`Light work order ${order} on the board`}
+      className={`${INNER_LINK} self-start rounded bg-surface-hover px-1.5 py-0.5 text-console-10 text-text-secondary`}
+    >
+      part of <span className="font-mono">{order}</span>
     </Link>
   );
 }

@@ -14,6 +14,7 @@ import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-p
 import { pageItemColumn, type ItemColumn } from './placement';
 import { runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
+import { membershipOf } from './work-orders';
 
 export type FactoryDeclaration = FactoryViewListed['declaration'];
 type Progress = NonNullable<FactoryItem['progress']>;
@@ -83,6 +84,8 @@ export interface BoardCard {
   landedAt: string | null;
   /** What stopped a failed item, or what an item that needs you asks. */
   stopLine: string | null;
+  /** The key of the work order the item is part of (`membershipOf`); null when none. */
+  order: string | null;
 }
 
 /** The item page's path. */
@@ -175,6 +178,7 @@ export function cardFields(
     change: changeField(progress),
     landedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
     stopLine,
+    order: membershipOf(item)?.order ?? null,
   };
 }
 
@@ -234,11 +238,16 @@ export function positionOf(column: ItemColumn | null): string {
   return 'ended' in column ? `ended:${column.ended}` : column.stage.id;
 }
 
-/** Whether `query` finds the card by key or title, ignoring case. An empty query finds all. */
+/**
+ * Whether `query` finds the card by key, title or the key of its work order, ignoring case.
+ * An empty query finds all.
+ */
 export function cardMatches(card: BoardCard, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (needle === '') return true;
-  return card.key.toLowerCase().includes(needle) || card.title.toLowerCase().includes(needle);
+  return [card.key, card.title, card.order ?? ''].some(field =>
+    field.toLowerCase().includes(needle)
+  );
 }
 
 /**
@@ -282,7 +291,7 @@ export function boardModel(
 }
 
 /**
- * The board narrowed to the cards `query` finds by key or title and, when given, to the
+ * The board narrowed to the cards `query` finds by key, title or work order and, when given, to the
  * cards `show` picks (the numbers strip's links). While `show` narrows it, the folded
  * endings are hidden: no number counts them. `positions` keeps every item, so narrowing
  * never reads as a card moving.

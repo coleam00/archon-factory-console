@@ -378,6 +378,7 @@
   },
   "asked": ["plan:ask", "deliver:ask", "land:ask"],
   "change": { "workflow": "deliver", "pointer": "/change" },
+  "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
   "itemTitle": { "input": "item" },
   "steps": {
     "triage": {
