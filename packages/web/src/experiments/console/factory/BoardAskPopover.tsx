@@ -15,6 +15,13 @@ import type { AttentionQueue } from '../skills/runs';
 import { popoverPlace } from './lib/board-ask';
 import type { BoardAsks, OpenAsk } from './useBoardAsks';
 
+// console-token-exception md:max-h-[calc(100vh-32px)] -- beside a card the popover keeps 16 px from the window's top and bottom, as popoverPlace places it.
+const TALLEST = 'md:max-h-[calc(100vh-32px)]';
+// console-token-exception md:w-[480px] -- Visual standard rule 9: the ask card is 480 px wide in the board popover.
+const WIDTH = 'md:w-[480px]';
+/** From md up, a box beside the card; under md, a sheet from the bottom that leaves the board's top in view. */
+const SHELL = `console-root fixed z-50 flex flex-col gap-3 overflow-y-auto rounded-console-16 border border-border-bright bg-surface-elevated p-3 text-text-primary shadow-lg max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[85vh] max-md:rounded-b-none ${TALLEST}`;
+
 /** Tailwind's md breakpoint: from here the popover sits beside its card; under it, a sheet. */
 const WIDE = '(min-width: 48rem)';
 
@@ -164,11 +171,9 @@ function Popover({
       aria-modal="false"
       aria-label={`Asks on ${open.key}`}
       style={place == null ? undefined : { top: place.top, left: place.left }}
-      // console-token-exception max-h-[85vh] max-h-[calc(100vh-32px)] -- a sheet keeps the board's top in view; beside a card the popover keeps 16 px from the window's edges (popoverPlace).
-      className={`console-root fixed z-50 flex flex-col gap-3 overflow-y-auto rounded-console-16 border border-border-bright bg-surface-elevated p-3 text-text-primary shadow-lg max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[85vh] max-md:rounded-b-none md:max-h-[calc(100vh-32px)] ${place === undefined ? 'invisible' : ''}`}
+      className={`${SHELL} ${place === undefined ? 'invisible' : ''}`}
     >
-      {/* console-token-exception md:w-[480px] -- Visual standard rule 9: the ask card is 480 px wide in the board popover. */}
-      <div className="flex w-full flex-col gap-3 md:w-[480px]">
+      <div className={`flex w-full flex-col gap-3 ${WIDTH}`}>
         <AskGroup
           projectId={projectId}
           subject={naming.subject(first)}
