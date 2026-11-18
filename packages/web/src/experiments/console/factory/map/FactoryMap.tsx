@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { errorDetail } from '../../lib/http';
 import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
@@ -7,7 +7,7 @@ import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
 import { rowsFor } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
-import { EMPTY_STAGE_LIVE, stageLive, type MapLive } from '../lib/map-live';
+import { EMPTY_STAGE_LIVE, stageLive, type MapLive, type StageLive } from '../lib/map-live';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
@@ -17,7 +17,7 @@ import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
 import { useRowWidth } from './useRowWidth';
 import { FactoryLoading } from '../FactoryLoading';
-import { readFailed } from '../lib/deadline';
+import { readFailed, SlowReadError } from '../lib/deadline';
 
 interface FactoryMapProps {
   projectId: string;
@@ -51,52 +51,65 @@ export function FactoryMap({ projectId, view, attention }: FactoryMapProps): Rea
 function MapBody({
   items,
   ...inputs
-}: MapInputs & { items: EntityView<FactoryItem[]> }): ReactNode {
-  if (items.data === undefined) {
-    const failed = readFailed(items.error);
-    if (failed !== undefined)
-      return (
-        <p role="alert" className="text-sm text-error">
-          The factory's items could not be loaded: {errorDetail(failed)}
-        </p>
-      );
-    return <FactoryLoading read={items} />;
-  }
+}: MapInputs & { items: EntityView<FactoryItem[]> }): ReactElement {
+  // One shape in every state: a notice above one canvas, so the items answering fills the
+  // chips in on the cards already drawn rather than mounting a new map.
   return (
     <>
-      <StaleRead error={items.error} />
+      <ItemsNotice items={items} />
       <MapLiveCanvas {...inputs} items={items.data} />
     </>
   );
 }
 
 /**
- * The map over loaded items. It keeps where each item sat on the last read, as the board
- * does, so a run on a step no stage names holds its card where the board holds its column.
+ * What the map says above itself about the items read. Before the first answer the cards say
+ * "…" themselves, so there is no page-level "Loading…"; a read past its deadline says so.
+ */
+function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElement | null {
+  if (items.data !== undefined) return <StaleRead error={items.error} />;
+  const failed = readFailed(items.error);
+  if (failed !== undefined)
+    return (
+      <p role="alert" className="text-sm text-error">
+        The factory's items could not be loaded: {errorDetail(failed)}
+      </p>
+    );
+  return items.error instanceof SlowReadError ? <FactoryLoading read={items} /> : null;
+}
+
+/**
+ * The map over the items, drawn from the declaration before they are read (`items` undefined:
+ * every card says "…"). It keeps where each item sat on the last read, as the board does, so a
+ * run on a step no stage names holds its card where the board holds its column.
  */
 function MapLiveCanvas({
   items,
   attention,
   ...inputs
-}: MapInputs & { items: FactoryItem[] }): ReactElement {
+}: MapInputs & { items: FactoryItem[] | undefined }): ReactElement {
   const { view } = inputs;
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
   const queue = attention.data?.items;
   const live = useMemo(
-    () => stageLive(view, items, queue ?? [], previous.current),
+    () => (items === undefined ? null : stageLive(view, items, queue ?? [], previous.current)),
     [view, items, queue]
   );
   useEffect(() => {
-    previous.current = live.positions;
+    if (live !== null) previous.current = live.positions;
   }, [live]);
   return <MapCanvas {...inputs} live={live} />;
 }
+
+/** One stage's chips: null while the items are not read yet, empty when nothing sits there. */
+const liveOf = (live: MapLive | null, stage: string): StageLive | null =>
+  live === null ? null : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
 
 function MapCanvas({
   projectId,
   view,
   live,
-}: Omit<MapInputs, 'attention'> & { live: MapLive }): ReactElement {
+}: Omit<MapInputs, 'attention'> & { live: MapLive | null }): ReactElement {
   // The row holding the frame and the details panel, so opening the panel does not re-wrap.
   const row = useRowWidth();
   const oneRow = useMemo(() => layoutMap(view, 1), [view]);
@@ -143,14 +156,13 @@ function MapCanvas({
             <MapArrows layout={layout} />
             {view.stages.map(stage => {
               const box = boxes.get(stage.id);
-              const stageLiveEntry = live.stages.get(stage.id);
-              if (box === undefined || stageLiveEntry === undefined) return null;
+              if (box === undefined) return null;
               return (
                 <MapCard
                   key={stage.id}
                   stage={stage}
                   box={box}
-                  live={stageLiveEntry}
+                  live={liveOf(live, stage.id)}
                   notes={stageNotes(stage.id)}
                   selected={stage.id === selected}
                   openTo={stagePath(stage.id)}
@@ -166,13 +178,13 @@ function MapCanvas({
             projectId={projectId}
             view={view}
             stage={selectedStage}
-            live={live.stages.get(selectedStage.id) ?? EMPTY_STAGE_LIVE}
+            live={liveOf(live, selectedStage.id)}
             onClose={() => setSelected(null)}
           />
         )}
       </div>
       <MapLegend stages={view.stages} />
-      <MapNotOnMap projectId={projectId} view={view} entries={live.notOnMap} />
+      <MapNotOnMap projectId={projectId} view={view} entries={live?.notOnMap ?? []} />
     </div>
   );
 }

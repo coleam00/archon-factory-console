@@ -100,6 +100,40 @@ async function mount(projectId: string, items: FactoryItem[]) {
   };
 }
 
+test('before the items answer, the five tiles say "…" with their labels, never a count', async () => {
+  // Held unanswered: the strip renders before its first read settles.
+  const held = globalThis.fetch;
+  globalThis.fetch = Object.assign(() => new Promise<Response>(() => undefined), {
+    preconnect: originalFetch.preconnect,
+  });
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <FactoryNumbers projectId="cb-unread" view={VIEW} />
+        </MemoryRouter>
+      )
+    );
+    const tiles = [...container.querySelectorAll('[aria-label="Numbers"] li')];
+    expect(tiles.map(li => li.textContent)).toEqual([
+      '…Loadingin flight',
+      '…Loadingitems need you',
+      '…Loadinglanded today',
+      '…Loadingdone',
+      '…Loadingmedian from first run to landed',
+    ]);
+    expect(container.querySelector('[aria-label="Numbers"] [title="Loading"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Numbers"]')?.textContent).not.toMatch(/\d/);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    globalThis.fetch = held;
+  }
+});
+
 test('while a merge state is pending, the counts it decides say loading, never zeros', async () => {
   // The cold-load wire value: the server still asking the host whether item 1's change merged.
   const items = [...PAGE.items, readyWithMerge('p', 'pending')];
@@ -108,6 +142,7 @@ test('while a merge state is pending, the counts it decides say loading, never z
     for (const label of ['in flight', 'landed today', 'done', 'median from first run to landed'])
       expect(tile(label)).toBe(`…Loading${label}`);
     expect(container.textContent).not.toMatch(/\d+ of \d+/);
+    expect(container.querySelector('[title="Loading"]')).toBeNull();
     // Whether an item needs you does not wait on a merge answer.
     expect(tile('items need you')).toBe('0items need you');
     // The answer arrives: real numbers replace the loading ones.

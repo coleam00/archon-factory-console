@@ -12,7 +12,8 @@ interface MapDetailsProps {
   projectId: string;
   view: Declaration;
   stage: FactoryStage;
-  live: StageLive;
+  /** Null until the items are read. */
+  live: StageLive | null;
   onClose: () => void;
 }
 
@@ -30,7 +31,6 @@ export function MapDetails({
   onClose,
 }: MapDetailsProps): ReactElement {
   const stagePath = factoryPath(projectId, `/stages/${encodeURIComponent(stage.id)}`);
-  const waiting = new Set(live.needYou.map(item => item.item.id));
   return (
     <aside
       aria-label={`${stage.label} details`}
@@ -53,25 +53,7 @@ export function MapDetails({
           </button>
         </div>
         <p className="text-console-12 leading-relaxed text-text-secondary">{stage.blurb}</p>
-        <section className="flex flex-col gap-1.5">
-          <h5 className={HEADING}>Items here · {live.pending ? 'checking…' : live.items.length}</h5>
-          {live.items.length === 0 ? (
-            <p className="text-console-12 text-text-tertiary">Nothing here now.</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {live.items.map(item => (
-                <ItemRow
-                  key={item.item.id}
-                  projectId={projectId}
-                  view={view}
-                  stage={stage}
-                  item={item}
-                  needsYou={waiting.has(item.item.id)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
+        <ItemsHere projectId={projectId} view={view} stage={stage} live={live} />
         <section className="flex flex-col gap-1.5">
           <h5 className={HEADING}>Workflows</h5>
           {stage.workflows.length === 0 ? (
@@ -93,6 +75,44 @@ export function MapDetails({
         </section>
       </div>
     </aside>
+  );
+}
+
+/** What sits in the stage now; "…" until the items are read, never "Nothing here now." early. */
+function ItemsHere({
+  projectId,
+  view,
+  stage,
+  live,
+}: Omit<MapDetailsProps, 'onClose'>): ReactElement {
+  if (live === null)
+    return (
+      <section className="flex flex-col gap-1.5">
+        <h5 className={HEADING}>Items here · …</h5>
+        <p className="text-console-12 text-text-tertiary">Loading…</p>
+      </section>
+    );
+  const waiting = new Set(live.needYou.map(item => item.item.id));
+  return (
+    <section className="flex flex-col gap-1.5">
+      <h5 className={HEADING}>Items here · {live.pending ? 'checking…' : live.items.length}</h5>
+      {live.items.length === 0 ? (
+        <p className="text-console-12 text-text-tertiary">Nothing here now.</p>
+      ) : (
+        <ul className="flex flex-col gap-1">
+          {live.items.map(item => (
+            <ItemRow
+              key={item.item.id}
+              projectId={projectId}
+              view={view}
+              stage={stage}
+              item={item}
+              needsYou={waiting.has(item.item.id)}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

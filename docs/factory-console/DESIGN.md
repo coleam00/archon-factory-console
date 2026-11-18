@@ -236,9 +236,9 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 1. Title and the declaration's summary paragraph.
 2. **Numbers strip:** items in flight, needs you, landed today, landed in total ("N of M done"
-   where M excludes items closed by triage), median time from first run to landed. While any
-   item's merge state is pending, every number but needs you shows loading, never a count that
-   may be wrong. A refresh that fails says so above the last values read (as the map and the
+   where M excludes items closed by triage), median time from first run to landed. Until the
+   items read first answers, each tile shows "…" under its label; while any item's merge state
+   is pending, every number but needs you shows loading, never a count that may be wrong. A refresh that fails says so above the last values read (as the map and the
    board do).
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
@@ -261,7 +261,9 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   older view file still loads, and ignored. A card shows the stage label, its blurb, and live
   chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
   a person. Where a board column would show "…" for a pending merge state, the card says
-  "checking…" instead of how many are here.
+  "checking…" instead of how many are here. The cards and arrows are drawn from the view file
+  as soon as it is read: until the items read answers each card's chip is "…" (never
+  "0 here"), and the chips fill in on the same cards when it does.
 - The arrows are the view file's `map.arrows` and no others: the map does not read the pack
   graph, so the view file declares every hand-off, between workflows too, and every send-back.
   Forward arrows, labelled with the outcome that moves an item along, run side to side between

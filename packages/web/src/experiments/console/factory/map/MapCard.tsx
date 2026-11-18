@@ -8,7 +8,8 @@ import { GROUPS } from './MapLegend';
 interface MapCardProps {
   stage: FactoryStage;
   box: Box;
-  live: StageLive;
+  /** Null until the items are read: the card is drawn from the declaration and says "…". */
+  live: StageLive | null;
   /** Stage notes the declaration places by this card. */
   notes: readonly string[];
   selected: boolean;
@@ -85,7 +86,8 @@ export function MapCard({
   );
 }
 
-function chipWords(live: StageLive): string {
+function chipWords(live: StageLive | null): string {
+  if (live === null) return 'loading';
   const parts = [live.pending ? 'checking merge state' : `${live.items.length.toString()} here`];
   if (live.working > 0) parts.push(`${live.working.toString()} being worked`);
   if (live.needYou.length > 0) parts.push(needYouWords(live.needYou.length));
@@ -95,7 +97,19 @@ function chipWords(live: StageLive): string {
 const needYouWords = (n: number): string => `${n.toString()} ${n === 1 ? 'needs' : 'need'} you`;
 
 /** "N here", in the running colour and pulsing while a run works one, and "N need you" in the page's one loud colour. */
-function Chips({ live }: { live: StageLive }): ReactElement | null {
+function Chips({ live }: { live: StageLive | null }): ReactElement | null {
+  if (live === null)
+    // Not read yet: never "0 here", which would be a wrong count.
+    return (
+      <span
+        data-chip="loading"
+        title="Loading"
+        className="rounded-full bg-surface-elevated px-2 text-console-15 text-text-tertiary"
+      >
+        <span aria-hidden="true">…</span>
+        <span className="sr-only">Loading</span>
+      </span>
+    );
   const here = live.items.length;
   const waiting = live.needYou.length;
   if (here === 0 && waiting === 0 && !live.pending) return null;
