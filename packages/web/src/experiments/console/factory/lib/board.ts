@@ -8,7 +8,8 @@
  */
 import { formatDateTime } from '../../lib/format';
 import type { FactoryItem } from '../../skills/factory';
-import { needsYou, ownerLostMessage } from '../../lib/needs-you';
+import { askQuestion } from '../../lib/ask-card';
+import { needsYou } from '../../lib/needs-you';
 import { showsCard, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
@@ -145,18 +146,6 @@ function changeField(progress: Progress | null): BoardCard['change'] {
   };
 }
 
-/** What the newest open question asks, in the words the queue gives it. */
-function askLine(question: ReturnType<typeof needsYou>[number]): string {
-  switch (question.kind) {
-    case 'unreadable':
-      return 'A paused run could not be read.';
-    case 'owner_lost':
-      return ownerLostMessage(question);
-    default:
-      return question.message;
-  }
-}
-
 function failedLine(view: FactoryDeclaration, run: DeclaredRun): string {
   if (run.status === 'cancelled') return `${run.workflow} was cancelled`;
   return run.failedStep === null
@@ -208,7 +197,7 @@ export function itemPill(
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
   if (landed) return { pill: 'landed', stopLine: unread };
   const [ask] = needsYou(item.questions);
-  if (ask !== undefined) return { pill: 'needs-you', stopLine: unread ?? askLine(ask) };
+  if (ask !== undefined) return { pill: 'needs-you', stopLine: unread ?? askQuestion(ask) };
   if (item.progress?.running != null) return { pill: 'running', stopLine: null };
   const last = declaredRuns(item).at(-1);
   if (last !== undefined && ENDED_STATUSES.has(last.status))

@@ -5,6 +5,7 @@
  * Visual standard rule 9), so every rule here mirrors its owner rather than inventing one.
  */
 import type { AttentionQueueItem } from '../skills/runs';
+import type { NeedsYouItem } from './needs-you';
 
 /**
  * What the card needs of an attention wait, from the queue's shape: a run's attention is
@@ -161,4 +162,54 @@ export function groupBySubject<T extends Groupable>(entries: readonly T[]): AskS
 export function shortWorkflow(workflow: string): string {
   const colon = workflow.lastIndexOf(':');
   return colon < 0 ? workflow : workflow.slice(colon + 1);
+}
+
+/**
+ * What an ask asks, as its heading: the wait's own message, or what happened to a paused run
+ * the console cannot answer. The ask card, the board card's face and the board's stop line
+ * all read this, so an ask reads the same wherever it shows.
+ */
+export function askQuestion(ask: NeedsYouItem): string {
+  switch (ask.kind) {
+    case 'unreadable':
+      return 'This paused run could not be read';
+    case 'owner_lost':
+      return 'A run lost its owner';
+    default:
+      return ask.message;
+  }
+}
+
+/** The one choice a short form of an ask shows (the compact card, a board card's face). */
+export interface AskTile {
+  label: string;
+  /** The recommendation's reason, else what the option does; for a hover title. */
+  detail?: string;
+  recommended: boolean;
+}
+
+/** The recommended option, else the first; words for an ask that has no option to show. */
+export function askTile(ask: NeedsYouItem): AskTile {
+  switch (ask.kind) {
+    case 'attention': {
+      const first = tileOrder(ask)[0];
+      if (ask.form === 'message' || first === undefined)
+        return { label: 'Answer in words', recommended: false };
+      const recommended = first.id === ask.recommendation?.option;
+      const detail =
+        recommended && ask.recommendation !== undefined
+          ? recommendationWhy(ask.recommendation)
+          : first.does;
+      return {
+        label: optionLabel(ask, first),
+        ...(detail === undefined ? {} : { detail }),
+        recommended,
+      };
+    }
+    case 'awaiting_response':
+      return { label: 'A gate waits for your decision', recommended: false };
+    case 'owner_lost':
+    case 'unreadable':
+      return { label: 'Resume or abandon it on the run', recommended: false };
+  }
 }

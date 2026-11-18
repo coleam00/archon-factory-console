@@ -43,8 +43,9 @@ describe('asks settled lately, and the stage each started again', () => {
   test('newest first; each joined to the run whose cause names the asking run', () => {
     const listed = recentlySettled(shippedView, [waiting, plan, deliver]);
     expect(
-      listed.map(({ itemKey, answered, withdrawn, at, restart }) => ({
+      listed.map(({ itemKey, runId, answered, withdrawn, at, restart }) => ({
         itemKey,
+        runId,
         answered,
         withdrawn,
         at,
@@ -53,6 +54,7 @@ describe('asks settled lately, and the stage each started again', () => {
     ).toEqual([
       {
         itemKey: 'd',
+        runId: 'run-d-0',
         answered: 2,
         withdrawn: 1,
         at: '2026-11-17T11:00:00.000Z',
@@ -61,12 +63,20 @@ describe('asks settled lately, and the stage each started again', () => {
       },
       {
         itemKey: 'p',
+        runId: 'run-p-0',
         answered: 2,
         withdrawn: 1,
         at: '2026-11-17T10:00:00.000Z',
         restart: { runId: 'run-p-1', status: 'running', label: 'Plan' },
       },
-      { itemKey: 'w', answered: 2, withdrawn: 1, at: '2026-11-17T09:00:00.000Z', restart: null },
+      {
+        itemKey: 'w',
+        runId: 'run-w-0',
+        answered: 2,
+        withdrawn: 1,
+        at: '2026-11-17T09:00:00.000Z',
+        restart: null,
+      },
     ]);
   });
 
