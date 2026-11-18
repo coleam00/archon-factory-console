@@ -367,6 +367,16 @@
     { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" }
   ],
   "approves": [{ "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" }],
+  "verdicts": {
+    "deliver": {
+      "rounds.review__review": { "approve": "approved", "return": "returned", "ask": "asked" },
+      "rounds.tests__tests": { "sound": "approved", "return": "returned", "ask": "asked" },
+      "rounds.product__product": { "approve": "approved", "return": "returned", "ask": "asked" },
+      "rounds.verdict__verdict": { "ask": "asked" },
+      "rounds.shown": { "approve": "approved", "return": "returned", "ask": "asked" }
+    }
+  },
+  "asked": ["plan:ask", "deliver:ask", "land:ask"],
   "change": { "workflow": "deliver", "pointer": "/change" },
   "itemTitle": { "input": "item" },
   "steps": {

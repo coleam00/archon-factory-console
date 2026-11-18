@@ -206,6 +206,35 @@ describe('factoryViewSchema', () => {
     ]);
   });
 
+  test('verdicts and asked are accepted for a listed workflow and rejected for one no stage lists', () => {
+    const verdicts = { build: { 'rounds.review': { approve: 'approved', ask: 'asked' } } };
+    expect(
+      factoryViewSchema.safeParse({ ...minimal(), verdicts, asked: ['build:ask', 'plan:*'] })
+        .success
+    ).toBe(true);
+    expect(
+      issuePaths({
+        ...minimal(),
+        verdicts: { deliver: { review: { return: 'returned' } } },
+        asked: ['deliver:ask'],
+      })
+    ).toEqual(['verdicts.deliver', 'asked.0']);
+  });
+
+  test('a verdict meaning outside the closed set is rejected', () => {
+    const verdicts = { build: { 'rounds.tests': { sound: 'passed' } } };
+    expect(issuePaths({ ...minimal(), verdicts })).toEqual(['verdicts.build.rounds.tests.sound']);
+  });
+
+  test('a verdicts entry restating a declared return or approval is rejected at its path', () => {
+    const view = {
+      ...minimal(),
+      returns: [{ workflow: 'build', node: 'rounds.verdict', outcome: 'return' }],
+      verdicts: { build: { 'rounds.verdict': { return: 'returned', ask: 'asked' } } },
+    };
+    expect(issuePaths(view)).toEqual(['verdicts.build.rounds.verdict.return']);
+  });
+
   test('a card for an undeclared stage, and a note near nothing, are rejected', () => {
     const view = minimal();
     view.map.cards[1] = { stage: 'nowhere' };

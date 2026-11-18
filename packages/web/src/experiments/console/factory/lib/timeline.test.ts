@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
+import { askItem, gateItem } from '../needs-you.test-fixtures';
 import { buildTimeline, runHref, type TimelineRow } from './timeline';
 
 const NOW = Date.parse('2026-11-17T08:00:00Z');
@@ -88,15 +89,15 @@ describe('the timeline of a multi-round item', () => {
             s => `${s.node} ${s.outcome.mono ? `\`${s.outcome.text}\`` : s.outcome.text}`
           ),
         ]);
-    // The view declares the verdict's return and approval; the checks' own outcomes it does
-    // not, so they stay the pack's tokens.
+    // The verdict reads through `returns` and `approves`, the checks through `verdicts`, in
+    // the board's words. The builder's `fixed` no entry means, so it stays the pack's token.
     expect(words(1)).toEqual([
       [
         'Checks',
         [
-          'rounds.tests__tests `return`',
-          'rounds.product__product `approve`',
-          'rounds.review__review `approve`',
+          'rounds.tests__tests returned',
+          'rounds.product__product approved',
+          'rounds.review__review approved',
           'rounds.verdict__verdict returned',
         ],
       ],
@@ -113,9 +114,14 @@ describe('the timeline of an item asked twice', () => {
   test('both deliver runs, each with its own rounds, ending in an ask', () => {
     const delivers = rows.filter(row => row.workflow === 'deliver');
     expect(delivers.map(row => [row.outcome, row.rounds.map(round => round.verdict)])).toEqual([
-      [said('sent to Build'), ['returned', 'needs a decision']],
-      [said('sent to Build'), ['returned', 'needs a decision']],
+      [said('asked you'), ['returned', 'needs a decision']],
+      [said('asked you'), ['returned', 'needs a decision']],
     ]);
+    // Each with the question it left, answered since, for the hover.
+    const question = (runId: string | undefined) =>
+      detail.item.answers.flatMap(a => (a.kind === 'ask' && a.runId === runId ? [a.question] : []));
+    expect(delivers.map(row => row.asked)).toEqual(delivers.map(row => question(row.runId)));
+    expect(delivers.map(row => row.asked.length)).toEqual([1, 1]);
     // The second was started again by a trigger, not after the first.
     expect(delivers[1]?.started).toEqual({
       text: 'Started by a trigger',
@@ -322,5 +328,100 @@ describe('round steps in a stage that names no steps', () => {
       .flatMap(row => row.rounds)
       .flatMap(round => round.groups.map(group => group.label));
     expect(new Set(labels)).toEqual(new Set(['Build']));
+  });
+});
+
+describe('a run that asked', () => {
+  const detail = itemDetail('3');
+  const deliver = detail.item.runs.find(run => run.outcome === 'ask');
+  if (deliver === undefined) throw new Error('item 3 has a deliver run that asked');
+  const rowOf = (changed: FactoryItemDetail, view = shippedView) =>
+    buildTimeline(view, PROJECT, changed, NOW).find(row => row.runId === deliver.id);
+  const withItem = (item: Partial<FactoryItemDetail['item']>): FactoryItemDetail => ({
+    ...detail,
+    item: { ...detail.item, ...item },
+  });
+  const noAsks = withItem({ answers: [], questions: [] });
+
+  test('reads "asked you" from a declared `asked` outcome, with no asks recorded', () => {
+    expect([rowOf(noAsks)?.outcome, rowOf(noAsks)?.asked]).toEqual([said('asked you'), []]);
+    // Without the declaration it reads where `placement` sends it.
+    const { asked: _asked, ...undeclared } = shippedView;
+    expect(rowOf(noAsks, undeclared)?.outcome).toEqual(said('sent to Build'));
+    // `deliver:*` takes every outcome, but not a run that recorded none.
+    const anyOutcome = { ...shippedView, asked: ['deliver:*'] };
+    expect(rowOf(noAsks, anyOutcome)?.outcome).toEqual(said('asked you'));
+    const noOutcome = {
+      ...noAsks,
+      item: {
+        ...noAsks.item,
+        runs: noAsks.item.runs.map(run =>
+          run.id === deliver.id ? { ...run, outcome: null } : run
+        ),
+      },
+    };
+    expect(rowOf(noOutcome, anyOutcome)?.outcome).not.toEqual(said('asked you'));
+  });
+
+  test('reads "asked you" over its placement when it left asks on the item', () => {
+    const returned = withItem({
+      runs: detail.item.runs.map(run =>
+        run.id === deliver.id ? { ...run, outcome: 'returned' } : run
+      ),
+    });
+    const row = rowOf(returned);
+    expect(row?.outcome).toEqual(said('asked you'));
+    expect(row?.asked).toHaveLength(1);
+  });
+
+  test("an open ask counts by the run it was asked in, not a gate's own question", () => {
+    const placed = noAsks.item.runs.map(run =>
+      run.id === deliver.id ? { ...run, outcome: 'returned' } : run
+    );
+    const message = 'Merge it now?';
+    const asked = askItem({ message, askedIn: { runId: deliver.id, workflow: 'deliver' } });
+    const gate = askItem({ message, run: { ...gateItem().run, id: deliver.id } });
+    const withQuestion = (question: typeof asked) =>
+      rowOf({ ...noAsks, item: { ...noAsks.item, runs: placed, questions: [question] } });
+    expect([withQuestion(asked)?.outcome, withQuestion(asked)?.asked]).toEqual([
+      said('asked you'),
+      [message],
+    ]);
+    expect([withQuestion(gate)?.outcome, withQuestion(gate)?.asked]).toEqual([
+      said('sent to Build'),
+      [],
+    ]);
+  });
+
+  test('a run still running reads as running, whatever it later ends with', () => {
+    const running = withItem({
+      runs: detail.item.runs.map(run =>
+        run.id === deliver.id ? { ...run, status: 'running' as const, completedAt: null } : run
+      ),
+    });
+    expect(rowOf(running)?.outcome).toEqual(said('running'));
+  });
+});
+
+describe('a check outcome no `verdicts` entry means', () => {
+  test("stays the pack's token, as does one of a step `verdicts` does not name", () => {
+    const detail = itemDetail('2');
+    const deliver = detail.runs.find(run => run.workflow === 'deliver');
+    const round = deliver?.rounds?.rounds[0];
+    if (deliver === undefined || round === undefined) throw new Error('item 2 has rounds');
+    const steps = [
+      { node: 'rounds.review__review', outcome: 'replan', summary: null },
+      { node: 'rounds.verdict__verdict', outcome: 'ask', summary: null },
+      { node: 'rounds.base', outcome: 'ask', summary: null },
+    ];
+    const changed: FactoryItemDetail = {
+      ...detail,
+      runs: detail.runs.map(run =>
+        run === deliver ? { ...run, rounds: { max: 3, rounds: [{ ...round, steps }] } } : run
+      ),
+    };
+    const row = timeline(changed).find(entry => entry.runId === deliver.runId);
+    const outcomes = row?.rounds[0]?.groups.flatMap(group => group.steps.map(s => s.outcome));
+    expect(outcomes).toEqual([token('replan'), said('asked you'), token('ask')]);
   });
 });
