@@ -49,7 +49,7 @@ export const factoryDiscoveriesSchema = z.object({
   shadow: z.boolean(),
   /** Completed drains read, `unreadable` ones included. */
   drains: z.number().int().nonnegative(),
-  /** Drains whose result had no decisions at the declared pointers; counted, not shown. */
+  /** Drains whose result had no decisions at the declared pointers; their findings are missing. */
   unreadable: z.number().int().nonnegative(),
   held: z.number().int().nonnegative(),
   dropped: z.number().int().nonnegative(),
