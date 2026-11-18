@@ -50,13 +50,18 @@ interface Drag {
   moved: boolean;
 }
 
-/** How a camera fits its drawing: the padding kept round it, and the least and most scale. */
+/**
+ * How a camera fits its drawing: the padding kept round it, the least and most scale, and a
+ * band at the frame's bottom a fit leaves clear (for a panel docked over it), which panning
+ * may still use.
+ */
 export interface Fitting {
   pad: number;
   minK: number;
   maxK: number;
+  reserveBottom: number;
 }
-const LIVE_FITTING: Fitting = { pad: FIT_PAD, minK: READABLE_K, maxK: 1 };
+const LIVE_FITTING: Fitting = { pad: FIT_PAD, minK: READABLE_K, maxK: 1, reserveBottom: 0 };
 
 const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el.clientHeight });
 
@@ -75,7 +80,15 @@ export function useMapCamera(
   focus: Box | null,
   fitting: Fitting = LIVE_FITTING
 ): MapCamera {
-  const { pad, minK, maxK } = fitting;
+  const { pad, minK, maxK, reserveBottom } = fitting;
+  /** The part of the frame a fit fills. */
+  const fitFrame = useCallback(
+    (el: HTMLElement): Frame => ({
+      width: el.clientWidth,
+      height: Math.max(0, el.clientHeight - reserveBottom),
+    }),
+    [reserveBottom]
+  );
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, k: 1 });
   const [height, setHeight] = useState(MIN_FRAME_HEIGHT);
@@ -97,8 +110,8 @@ export function useMapCamera(
     setHeight(fittedHeight(bounds, row.clientWidth, pad, minK, maxK));
     const target = focused.current;
     if (target !== null) put(reveal(current.current, target, frameOf(el)));
-    else if (!moved.current) put(fitCamera(bounds, frameOf(el), pad, minK, maxK));
-  }, [bounds, pad, minK, maxK, put]);
+    else if (!moved.current) put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));
+  }, [bounds, pad, minK, maxK, fitFrame, put]);
 
   useEffect(() => {
     focused.current = focus;
@@ -148,7 +161,7 @@ export function useMapCamera(
     const el = frameRef.current;
     if (el === null) return;
     moved.current = false;
-    put(fitCamera(bounds, frameOf(el), pad, minK, maxK));
+    put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {

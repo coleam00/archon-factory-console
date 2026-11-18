@@ -55,7 +55,7 @@ export function OverviewCard({
     </>
   );
   const frame =
-    'absolute flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-3 pt-4 text-left';
+    'absolute flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-3 text-left';
   const style = { left: box.x, top: box.y, width: box.w, height: box.h };
   if (card.opens === undefined)
     return (

@@ -272,9 +272,11 @@ shows it under **How it works** (`factory/how-it-works`) when the pack the tab d
 
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
-number of cards (on a phone, a menu above the map), a breadcrumb leads back up, and **Full
-screen** draws the overview over the whole console until **Esc**. Drag to pan, scroll or use the
-buttons to zoom, and **Fit** to see a whole view.
+number of cards and one line saying what it shows (on a phone, a menu above the map), a
+breadcrumb leads back up, and **Full screen** draws the overview over the whole screen, the
+legend docked in its bottom-left corner, until **Esc**. Drag to pan, scroll or use the buttons
+to zoom, and **Fit** to see a whole view. A view opens at a zoom whose smallest text is at least
+12 px; a view wider than the screen at that zoom opens at its start and pans.
 
 The file is found as the view file is: the project's
 `.archon/packs/<pack key>.factory-overview.json` first, then the pack's own
@@ -284,15 +286,18 @@ field at fault on every Factory page.
 Lines are drawn straight, so a view validates only when its picture is clean:
 
 - A `feeds` or `calls` line joins two ends that share a row or a column, and runs along it.
-- A `loops-back` line joins two cards. It drops from the bottom of its source into a lane under
-  everything, runs along it, and rises into its target. A view has one at most, and the root
-  view exactly one.
+- A `loops-back` line sends work back. One from A to B in a view with a `calls` line from B to A
+  is the answer to that ask: it runs beside the ask, along the same row or column.
+- Every other `loops-back` line joins two cards in different columns. It drops from the bottom
+  of its source into a lane under everything, runs along its own track there, and rises into its
+  target, labelled where it rises. A view may have several; the root view has at least one.
+  Their spans (source to target) must nest or stay apart: a line whose span holds another runs
+  under it, and two lines whose spans overlap without one holding the other would cross.
 - No line may run through a card other than its ends, through a group that holds neither end,
   or into another line. Move a card to give a line a clear row or column.
 
-A group stacked in one column, met only along rows, whose cards no line names, is drawn as
-parallel: its cards are as tall as their text, and a line into or out of the group branches to
-each card.
+A group stacked in one column, met only along rows, whose cards no `feeds` or `calls` line
+names, is drawn as parallel: a line into or out of the group branches to each card.
 
 ## Overview fields
 
@@ -303,7 +308,7 @@ each card.
 | `title` | yes | The overview's name: its heading, and the first entry of the breadcrumb. |
 | `caption` | yes | One paragraph in plain words, shown under the root view's map on the page. Full screen does not show it: whoever presents says it. |
 | `root` | yes | The id of the view the page opens on. |
-| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), and an optional `label`. Every view but the root is opened by exactly one card. |
+| `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), an optional `label`, and optionally `shadow: true` for a line the pack would act on but does nothing about yet, which is drawn in the shadow style with "shadow" on its label. Every view but the root is opened by exactly one card. |
 
 The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
 `git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.
@@ -315,7 +320,7 @@ The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hamm
   "version": 1,
   "pack": "acme/factory",
   "title": "How the factory works",
-  "caption": "An issue comes in. Build writes the change, Review reads it, and a change Review approves lands. What Review finds goes back to Build.",
+  "caption": "An issue comes in. Build writes the change, Review reads it, and a change Review approves is merged. What Review finds goes back to Build, and your answer to a question restarts Build.",
   "root": "factory",
   "views": {
     "factory": {
@@ -323,14 +328,15 @@ The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hamm
         { "id": "issue", "title": "An issue", "text": "What someone wants built", "icon": "issue", "kind": "input", "col": 1, "row": 2 },
         { "id": "build", "title": "Build", "text": "Writes the change", "icon": "hammer", "kind": "stage", "col": 2, "row": 2, "opens": "build" },
         { "id": "review", "title": "Review", "text": "Reads the change", "icon": "eye", "kind": "check", "col": 3, "row": 2 },
-        { "id": "landed", "title": "Landed", "text": "The change is merged", "icon": "flag", "kind": "outcome", "col": 4, "row": 2 },
+        { "id": "merged", "title": "Merged", "text": "The change is in main", "icon": "flag", "kind": "outcome", "col": 4, "row": 2 },
         { "id": "you", "title": "You", "text": "Answer what it asks", "icon": "users", "kind": "person", "col": 2, "row": 1 }
       ],
       "edges": [
         { "from": "issue", "to": "build", "kind": "feeds" },
         { "from": "build", "to": "review", "kind": "feeds" },
-        { "from": "review", "to": "landed", "kind": "feeds" },
+        { "from": "review", "to": "merged", "kind": "feeds" },
         { "from": "build", "to": "you", "kind": "calls", "label": "asks" },
+        { "from": "you", "to": "build", "kind": "loops-back", "label": "your answer restarts it" },
         { "from": "review", "to": "build", "kind": "loops-back", "label": "sent back" }
       ]
     },

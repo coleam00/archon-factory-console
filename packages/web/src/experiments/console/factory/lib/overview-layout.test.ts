@@ -9,6 +9,7 @@ import {
   OVERVIEW_CARD_W,
   OVERVIEW_FIT_PAD,
   OVERVIEW_FULL_FIT_PAD,
+  OVERVIEW_FULL_LEGEND_H,
   OVERVIEW_GROUP_PAD,
   OVERVIEW_MAX_K,
   OVERVIEW_MIN_K,
@@ -38,12 +39,13 @@ const shipped = JSON.parse(
 /*
  * The map frame at 1440x900, measured in a browser on `bun run dev:console`: on the page it is
  * PAGE_WIDTH wide (the Factory section's wide body, less the views sidebar) and at most
- * OVERVIEW_PAGE_MAX_H tall; full screen it is the whole screen. PROJECTOR is a 1920x1080
- * screen full screen. Change these when the frame's surroundings change.
+ * OVERVIEW_PAGE_MAX_H tall; full screen it is the whole screen, of which a fit fills all but
+ * the legend's band. PROJECTOR is a 1920x1080 screen full screen. Change these when the
+ * frame's surroundings change.
  */
-const PAGE_WIDTH = 890;
-const FULL: Frame = { width: 1440, height: 900 };
-const PROJECTOR: Frame = { width: 1920, height: 1080 };
+const PAGE_WIDTH = 892;
+const FULL: Frame = { width: 1440, height: 900 - OVERVIEW_FULL_LEGEND_H };
+const PROJECTOR: Frame = { width: 1920, height: 1080 - OVERVIEW_FULL_LEGEND_H };
 const TITLE_FLOOR_PX = 14;
 
 const views = Object.entries(shipped.views);

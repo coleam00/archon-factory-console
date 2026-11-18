@@ -22,19 +22,21 @@ import type { OverviewView } from './overview-nav';
 
 /*
  * Sized in the Visual standard's card language at zoom 1, the fitted view's least zoom: a
- * card is 176 px wide and holds its accent, its icon and kind row, two lines of title and two
- * of text. The gaps leave a label pill room between cards a labelled line joins.
+ * card is 176 px wide and holds its accent, its icon and kind row, a title and two lines of
+ * text (or two of title and one of text). The gaps leave a label pill room between cards a
+ * labelled line joins. Rows and tracks are as tight as that allows, so the root view, three
+ * rows and three tracks deep, is whole in height in the page's frame at 1440x900.
  */
 export const OVERVIEW_CARD_W = 176;
-export const OVERVIEW_CARD_H = 136;
+export const OVERVIEW_CARD_H = 120;
 export const OVERVIEW_GAP_X = 48;
 /** Room between rows for a column edge and its label. */
-export const OVERVIEW_GAP_Y = 56;
+export const OVERVIEW_GAP_Y = 48;
 /** How far a group's box reaches past its cards: under half of either gap, so it never touches a neighbour. */
 export const OVERVIEW_GROUP_PAD = 16;
 /** How far under the lowest box the lane's first track runs, and how far apart its tracks are: room for a pill above each. */
-export const OVERVIEW_LANE_BELOW = 36;
-export const OVERVIEW_TRACK = 36;
+export const OVERVIEW_LANE_BELOW = 32;
+export const OVERVIEW_TRACK = 32;
 /** How far a reply and the ask it answers each move off the line they would share. */
 export const OVERVIEW_REPLY_OFFSET = 24;
 
@@ -62,12 +64,14 @@ export const OVERVIEW_MAX_K = 1.5;
  */
 export const OVERVIEW_FIT_PAD = 16;
 export const OVERVIEW_FULL_FIT_PAD = 64;
+/** Full screen, the band at the bottom a fit leaves clear for the legend docked over it. */
+export const OVERVIEW_FULL_LEGEND_H = 96;
 /**
  * The tallest the map frame grows on the page, so the root view's lane and its labels are in
  * the first screen at 1440x900 under the console's header and the section's tabs; full screen
  * it fills the screen instead.
  */
-export const OVERVIEW_PAGE_MAX_H = 720;
+export const OVERVIEW_PAGE_MAX_H = 640;
 
 /** A label pill's height, and its width for `text`: 12 px text, 6 px padding, a shadow badge. */
 export const PILL_H = 20;
