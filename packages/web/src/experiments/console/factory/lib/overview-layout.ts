@@ -4,8 +4,12 @@
  * `@archon/workflows`): a `feeds` or `calls` edge runs straight along the middle row (else
  * column) its two ends share, from side to facing side; the one `loops-back` edge drops from
  * the bottom of its source into a lane under every box, runs along it, and rises into the
- * bottom of its target. A file the server lists has passed those rules, so nothing drawn here
- * crosses. The two copies of the rules cannot share a module (the web does not import
+ * bottom of its target. A file the server lists has passed those rules, so no edge drawn here
+ * crosses. A parallel group (`parallelGroups`) also gets a fan on each side an edge meets it: a
+ * bar along the frame and a stub to each member, drawn inside the group's pad, which no line
+ * names a member to enter; `overview-layout.test.ts` checks the fans of the shipped file. Its
+ * members draw at their content's height, centred on their rows, though edges route by the
+ * full cell. The two copies of the rules cannot share a module (the web does not import
  * `@archon/workflows`); `scripts/overview-geometry-parity.test.ts` holds them in step on seeded
  * views, and `overview-layout.test.ts` checks this drawing of the shipped file.
  */
@@ -63,11 +67,29 @@ export interface OverviewEdgePath {
   labelSide: 'above' | 'right' | 'on';
 }
 
+/**
+ * Where a parallel group's edge branches to its members: a bar on the frame's side, spanning the
+ * members' row centres, and a stub along each member's row between the bar and the card. Into
+ * the group, the stubs run bar to card and carry the arrowheads; out of it, card to bar.
+ */
+export interface OverviewFan {
+  group: string;
+  kind: Exclude<EdgeKind, 'loops-back'>;
+  side: 'left' | 'right';
+  into: boolean;
+  bar: [Point, Point];
+  stubs: { card: string; from: Point; to: Point }[];
+}
+
 export interface OverviewLayout {
+  /** Every card's grid cell; a parallel group's members draw smaller, centred in it. */
   cards: Map<string, Box>;
   groups: Map<string, Box>;
   edges: OverviewEdgePath[];
   bounds: Box;
+  /** The cards that draw at their content's height: the members of a parallel group. */
+  contentSized: Set<string>;
+  fans: OverviewFan[];
 }
 
 interface Span {
@@ -182,6 +204,75 @@ function edgePath(
   return { ...base, points, labelAt: mid, labelSide: a.y === b.y ? 'above' : 'right' };
 }
 
+const rowCentre = (row: number): number => rowY(row) + OVERVIEW_CARD_H / 2;
+
+/**
+ * The groups drawn as parallel: (a) two or more members, all in one column; (b) every edge that
+ * names the group is a feeds or calls edge along a row; (c) no edge names a member. Rule (c) is
+ * what lets a fan cross nothing: the only lines inside the group's pad are then its own edges,
+ * which land on the frame's sides at a member's row (or between two), on the bar.
+ */
+export function parallelGroups(view: OverviewView): Set<string> {
+  const ends = endsOf(view);
+  const named = new Set(view.edges.flatMap(edge => [edge.from, edge.to]));
+  const parallel = new Set<string>();
+  for (const group of view.groups ?? []) {
+    const members = view.cards.filter(card => card.group === group.id);
+    const end = ends.get(group.id);
+    if (end === undefined || members.length < 2 || end.span.c0 !== end.span.c1) continue;
+    if (members.some(card => named.has(card.id))) continue;
+    const alongRow = view.edges
+      .filter(edge => edge.from === group.id || edge.to === group.id)
+      .every(edge => {
+        const other = ends.get(edge.from === group.id ? edge.to : edge.from);
+        if (edge.kind === 'loops-back' || other === undefined) return false;
+        const points = straight(end, other);
+        return points !== undefined && points[0].y === points[1].y;
+      });
+    if (alongRow) parallel.add(group.id);
+  }
+  return parallel;
+}
+
+/** The fan where `edge` meets the parallel group `group`, on the side of the frame it meets. */
+function fanOf(
+  view: OverviewView,
+  edge: OverviewView['edges'][number],
+  group: string,
+  ends: Map<string, End>
+): OverviewFan | undefined {
+  const into = edge.to === group;
+  const end = ends.get(group);
+  const other = ends.get(into ? edge.from : edge.to);
+  if (edge.kind === 'loops-back' || end === undefined || other === undefined) return undefined;
+  const side = other.box.x < end.box.x ? 'left' : 'right';
+  const frameX = side === 'left' ? end.box.x : end.box.x + end.box.w;
+  const cardX = side === 'left' ? frameX + OVERVIEW_GROUP_PAD : frameX - OVERVIEW_GROUP_PAD;
+  const stubs = view.cards
+    .filter(card => card.group === group)
+    .map(card => {
+      const atFrame = { x: frameX, y: rowCentre(card.row) };
+      const atCard = { x: cardX, y: rowCentre(card.row) };
+      return into
+        ? { card: card.id, from: atFrame, to: atCard }
+        : { card: card.id, from: atCard, to: atFrame };
+    });
+  const bar: [Point, Point] = [
+    { x: frameX, y: rowCentre(end.span.r0) },
+    { x: frameX, y: rowCentre(end.span.r1) },
+  ];
+  return { group, kind: edge.kind, side, into, bar, stubs };
+}
+
+/** One fan for each end of an edge that is a parallel group. */
+function fansOf(view: OverviewView, parallel: Set<string>, ends: Map<string, End>): OverviewFan[] {
+  return view.edges.flatMap(edge =>
+    [edge.from, edge.to]
+      .filter(id => parallel.has(id))
+      .flatMap(group => fanOf(view, edge, group, ends) ?? [])
+  );
+}
+
 /** The layout of one view: its cards, groups and edges, and the box around all of them. */
 export function layoutOverview(view: OverviewView): OverviewLayout {
   const ends = endsOf(view);
@@ -204,5 +295,18 @@ export function layoutOverview(view: OverviewView): OverviewLayout {
   );
   const right = Math.max(...boxes.map(box => box.x + box.w));
   const bottom = hasLane ? laneY + LABEL_HALF : lowest;
-  return { cards, groups, edges, bounds: { x: left, y: top, w: right - left, h: bottom - top } };
+  const parallel = parallelGroups(view);
+  const contentSized = new Set(
+    view.cards.flatMap(card =>
+      card.group !== undefined && parallel.has(card.group) ? [card.id] : []
+    )
+  );
+  return {
+    cards,
+    groups,
+    edges,
+    bounds: { x: left, y: top, w: right - left, h: bottom - top },
+    contentSized,
+    fans: fansOf(view, parallel, ends),
+  };
 }

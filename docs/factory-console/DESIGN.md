@@ -139,6 +139,11 @@ present itself without the console knowing it. Shape (validated with zod in
   "approves": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" } ],
                                                    // a round is approved only by a declared
                                                    // approval; with neither, it needs a decision
+  "verdicts": { "deliver": { "rounds.tests__tests": { "sound": "approved", "return": "returned",
+                                                      "ask": "asked" } } },
+                                                   // what other steps' outcomes mean, for words
+                                                   // only (approved | returned | asked)
+  "asked": ["plan:ask", "deliver:ask"],            // outcomes that stop to ask you
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "partOf": { "workflow": "order", "pointer": "/part_of" },     // where a result names the item's
                                                    // work order; read only without a part_of link
@@ -245,10 +250,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 1. Title and the declaration's summary paragraph.
 2. **Numbers strip:** items in flight, needs you, landed today, landed in total ("N of M done"
-   where M excludes items closed by triage), median time from first run to landed. While any
-   item's merge state is pending, every number but needs you shows loading, never a count that
-   may be wrong. A refresh that fails says so above the last values read (as the map and the
-   board do).
+   where M excludes items closed by triage), median time from first run to landed. Until the
+   items read first answers, each tile shows "…" in place of its number, above its label; while
+   any item's merge state is pending, every number but needs you shows loading, never a count
+   that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
+   refresh that fails says so above the last values read (as the map and the board do).
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
    highlighted, the other options with what each does and costs, answered in place through
@@ -270,7 +276,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   older view file still loads, and ignored. A card shows the stage label, its blurb, and live
   chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
   a person. Where a board column would show "…" for a pending merge state, the card says
-  "checking…" instead of how many are here.
+  "checking…" instead of how many are here. The cards and arrows are drawn from the view file
+  as soon as it is read: until the items read answers each card's chip is "…" (never
+  "0 here"), and the chips fill in on the same cards when it does. If that first read fails,
+  an alert above the map says so and the cards stay drawn with no chip, their details saying
+  the items could not be read rather than loading.
 - The arrows are the view file's `map.arrows` and no others: the map does not read the pack
   graph, so the view file declares every hand-off, between workflows too, and every send-back.
   Forward arrows, labelled with the outcome that moves an item along, run side to side between
@@ -367,7 +377,11 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 - **Asks** it waits on, answerable in place (the same answer form as Needs you, always open).
 - **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
   or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
-  round with each check's verdict and what was returned. Each row links to its run.
+  round with each check's verdict and what was returned. Each row links to its run. A check's
+  verdict reads in the board's words where the view declares its meaning (`returns`, `approves`,
+  `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run
+  that stopped to ask (a declared `asked` outcome, or asks it left on the item) reads "asked
+  you", with its questions on hover, not the stage it would send the item to.
 - **Links:** depends on, part of, duplicate of, from the engine's item links. A member its order
   run placed without a link says "Part of <order>, as its order run recorded". On a work order,
   its members stand for their links: each with its title, state pill and where it sits, under

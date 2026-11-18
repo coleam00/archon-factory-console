@@ -10978,6 +10978,14 @@ export interface components {
             node: string;
             outcome: string;
           }[];
+          verdicts?: {
+            [key: string]: {
+              [key: string]: {
+                [key: string]: 'approved' | 'returned' | 'asked';
+              };
+            };
+          };
+          asked?: string[];
           change?: {
             workflow: string;
             pointer: string;

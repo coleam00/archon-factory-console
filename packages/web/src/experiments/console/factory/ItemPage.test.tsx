@@ -44,6 +44,15 @@ const pill = (state: keyof typeof PILL_CLASS, words: string): string =>
 /** The page's visible words, tags dropped. */
 const text = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
+/** Text as React escapes it inside an attribute value. */
+const attribute = (value: string): string =>
+  value
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#x27;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+
 describe('the item page', () => {
   test('item 3: header, its two deliver runs, and the asks it was answered', () => {
     const html = render(itemDetail('3'));
@@ -66,6 +75,11 @@ describe('the item page', () => {
       expect(html).toMatch(
         new RegExp(`href="/console/p/${PROJECT}/r/${run.id}"[^>]*><span class="font-medium">`)
       );
+    // Each deliver run that asked reads "asked you", with the question it left on hover.
+    const asks = itemDetail('3').item.answers.filter(answer => answer.kind === 'ask');
+    expect(asks).toHaveLength(2);
+    for (const ask of asks)
+      expect(html).toContain(`title="${attribute(ask.question)}">asked you</span>`);
   });
 
   test('item 6 runs: its live step, the Running pill, a cost not recorded yet', () => {

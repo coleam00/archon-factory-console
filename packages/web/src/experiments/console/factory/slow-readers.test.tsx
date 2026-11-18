@@ -5,6 +5,10 @@ import { MemoryRouter } from 'react-router';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import { invalidate } from '../store/cache';
 import { AnsweredLately } from './AnsweredLately';
+import { SLOW_READ_NOTICE } from './FactoryLoading';
+import { FactoryMap } from './map/FactoryMap';
+import type { AttentionQueue } from '../skills/runs';
+import type { EntityView } from '../store/cache';
 import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
 import { run, settledItem } from './lib/map.test-fixtures';
 import { shippedListed, shippedView } from './item-detail.test-fixtures';
@@ -108,5 +112,49 @@ test('Answered lately shows when the items read answers after the first deadline
     expect(page.text).toContain('#p');
   } finally {
     await page.done();
+  }
+});
+
+test('the map draws its cards while the items read misses its first deadline, and says the read is slow', async () => {
+  jest.useFakeTimers();
+  // Never answers within this test: the first deadline passes and the retry is still waiting.
+  globalThis.fetch = Object.assign(
+    (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('aborted', 'AbortError'));
+        });
+      }),
+    { preconnect: originalFetch.preconnect }
+  );
+  const attention: EntityView<AttentionQueue> = {
+    data: { items: [], runs: [], degraded: [] },
+    error: undefined,
+    loading: false,
+    refetch: () => undefined,
+  };
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <MemoryRouter>
+        <FactoryMap projectId={ID} view={shippedListed} attention={attention} />
+      </MemoryRouter>
+    )
+  );
+  try {
+    for (let second = 0; second < 9; second += 1)
+      await act(async () => {
+        jest.advanceTimersByTime(1_000);
+      });
+    expect(container.querySelectorAll('[data-stage]')).toHaveLength(
+      shippedListed.declaration.map.cards.length
+    );
+    expect(container.querySelector('[data-chip="here"]')).toBeNull();
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(SLOW_READ_NOTICE);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
   }
 });
