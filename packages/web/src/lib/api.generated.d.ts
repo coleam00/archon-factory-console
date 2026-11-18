@@ -10955,6 +10955,12 @@ export interface components {
               };
             };
           }[];
+          columns?: {
+            id: string;
+            label: string;
+            blurb: string;
+            stages: string[];
+          }[];
           placement: {
             [key: string]: string;
           };

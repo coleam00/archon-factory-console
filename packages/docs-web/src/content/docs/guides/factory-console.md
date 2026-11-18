@@ -42,24 +42,32 @@ it. Inside it:
 - **Needs you**: its own page, reached from the sub-navigation, which shows how many wait.
   Every open question and paused wait on this project's items, all of them, each answerable
   in place as on the Overview.
-- **Board**: one column per declared stage, each item one card in the column of the stage it
-  is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
-  round it is on, the stage and step running now ("Checks · Code review · round 2"), how often
-  checks sent it back, its pull request, and the work order it is part of.
-  A **Table** view lists the same fields as sortable columns. The filter box finds an item by
+- **Board**: one column per declared `columns` entry (one per stage when the view declares
+  none), each item one card in the column holding the stage it is in. The board fills the
+  screen and each column scrolls on its own under a header with its label, its `blurb`, its
+  count and a chip per state ("running 2", "needs you 1"). A card names its stage, or the
+  stage and step running now ("Checks · Code review · round 2"), and shows the item's state
+  (Running, Needs you, Failed, Waiting, Merged), the round it is on, how often checks sent it
+  back, its pull request, and the work order it is part of. The column holding the `landed`
+  stage lists the items merged in the last 7 days (local time), newest first, with "N earlier
+  · show all" opening the Table filtered to every merged item; its cards are compact (key,
+  title, pull request, when it merged). On a phone the columns stack and each shows its first
+  three cards, with "show all N" for the rest.
+  A **Table** view lists the same fields as sortable columns, the stage and the board column
+  among them. The filter box finds an item by
   key, title or the key of its work order.
   A **work order** is an item other items are `part_of`. An item's order is its active `part_of`
   link (`archon workflow link --item <member> --kind part_of --to <order>`), else the order its
   latest run of the `partOf` workflow that completed with its declared outcome named (a refused
   run never makes it a member); a link wins. Above the columns, one row
-  per order with a member on the board names it (its own title, else "Work order <key>"), says how many of its members landed, shows each member's
+  per order with a member on the board names it (its own title, else "Work order <key>"), says how many of its members merged ("3 of 5 merged"), shows each member's
   state as a dot, and lights its members on the board on demand; a member's "part of" chip does
   the same. A row appears once one of the order's members has a run; until then the order and its
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
-  other items (on a work order, its members with their state and how many landed; an item no run
+  other items (on a work order, its members with their state and how many merged; an item no run
   has started yet says "Not started"), and the
   rulings and answers given on it. The timeline words an outcome from the
   declaration: a run that ended in an `asked` outcome, or that left asks on the item, reads
@@ -90,9 +98,9 @@ question opening or closing.
 |---|---|
 | in flight | Items on the board outside the landed stage |
 | items need you | Items with an open question |
-| landed today | Items whose change merged today, in the browser's local time |
-| N of M done | N items landed out of M on the board. Items an `endings` outcome closed are not in M |
-| median from first run to landed | Over landed items, the median time from an item's first run of a workflow the view names to its change merging |
+| merged today | Items whose change merged today, in the browser's local time |
+| N of M done | N items merged out of M on the board, however long ago. Items an `endings` outcome closed are not in M |
+| median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
 
 Each number opens the board filtered to the items it counts.
 
@@ -137,7 +145,8 @@ parse or validate shows on the Factory tab with its path and the error.
 | `pack` | yes | The pack the view draws: `owner/name` when installed, else its folder name. |
 | `title` | yes | The factory's name, at the top of every Factory page. |
 | `summary` | yes | One paragraph in plain words: what goes in, what comes out, where people step in. Shown on the Overview. |
-| `stages` | yes | The board's columns, left to right. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Landed), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. A stage may carry a `drilldown`: what it does step by step, as numbered `phases` (each a `label` and one to six `cards`), and an optional `loop` (`label`, `from` and `to` phase numbers, and the loop group's `workflow` and `step`) around the phases a loop group repeats. A card has a `title`, one line of `text`, an `icon` (one of `inbox`, `scale`, `link`, `ruler`, `scissors`, `database`, `clipboard-list`, `pencil`, `wrench`, `git-branch`, `search-code`, `flask-conical`, `monitor-check`, `gavel`, `message-square`, `circle-alert`, `git-pull-request`, `flag`, `send`, `shield-check` or `git-merge`), a `kind` (`agent`, `check`, `script` or `you`), and `covers`: the real steps it stands for, as `{ "workflow", "steps" }` for a workflow its stage lists. The stage page draws it: the phases as numbered columns of cards, the loop as one labelled frame around its phases, and a card glows while an item is on a step it covers. Clicking a card lists its real steps; "Show the real steps" draws each workflow's step graph below. A stage without a drill-down shows the graphs. |
+| `stages` | yes | The stages an item moves through, left to right: the map's cards, the stage pages, and the board's columns when `columns` is absent. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Merged), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. A stage may carry a `drilldown`: what it does step by step, as numbered `phases` (each a `label` and one to six `cards`), and an optional `loop` (`label`, `from` and `to` phase numbers, and the loop group's `workflow` and `step`) around the phases a loop group repeats. A card has a `title`, one line of `text`, an `icon` (one of `inbox`, `scale`, `link`, `ruler`, `scissors`, `database`, `clipboard-list`, `pencil`, `wrench`, `git-branch`, `search-code`, `flask-conical`, `monitor-check`, `gavel`, `message-square`, `circle-alert`, `git-pull-request`, `flag`, `send`, `shield-check` or `git-merge`), a `kind` (`agent`, `check`, `script` or `you`), and `covers`: the real steps it stands for, as `{ "workflow", "steps" }` for a workflow its stage lists. The stage page draws it: the phases as numbered columns of cards, the loop as one labelled frame around its phases, and a card glows while an item is on a step it covers. Clicking a card lists its real steps; "Show the real steps" draws each workflow's step graph below. A stage without a drill-down shows the graphs. |
+| `columns` | no | The board's columns, left to right, each a group of stages: `{ "id", "label", "blurb", "stages": [<stage id>, ...] }`. The `blurb` is the header's one-line subtitle; name the column's stages in it. Every declared stage is in exactly one column, and the `landed` stage in a column of its own. Placement still decides an item's stage; the board puts its card in the column holding that stage, and the card names the stage. A column takes the colour of the `group` of its last stage, the one an item leaves it from; the `landed` stage's column takes the merged colour. Without `columns`, the board draws one column per stage. |
 | `placement` | yes | Where an item waits after a run ends: `workflow:outcome` to a stage id, or `workflow:*` for every completed run of the workflow no exact key takes, a run that returns no outcome (a gate that only records) included. |
 | `endings` | yes | Outcomes that end an item without a change: `workflow:outcome`, or `workflow:*` for every outcome `placement` does not take, to the label of the folded row. Use `{}` for none. |
 | `landed` | yes | `{ "stage": <id> }`: the stage an item whose change merged sits in. |
@@ -154,6 +163,10 @@ parse or validate shows on the Factory tab with its path and the error.
 
 Every stage a field names must be declared in `stages`, and every workflow named in
 `placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
+With `columns`, every declared stage must be in exactly one column and the `landed` stage in
+one of its own: a stage in no column, a stage in two, a column naming a stage `stages` does
+not declare, and a column id used twice are each rejected at their path, and
+`bun run check:factory-view` reports them as schema findings.
 A drill-down card and loop must name a workflow their own stage lists.
 
 ## Coverage check
@@ -231,11 +244,16 @@ file and commit both.
     },
     {
       "id": "landed",
-      "label": "Landed",
+      "label": "Merged",
       "blurb": "The change merged.",
       "group": "land",
       "workflows": []
     }
+  ],
+  "columns": [
+    { "id": "work", "label": "Plan & build", "blurb": "Plan, build", "stages": ["plan", "build"] },
+    { "id": "review", "label": "Review", "blurb": "Review", "stages": ["review"] },
+    { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
   ],
   "placement": { "plan:planned": "build", "deliver:ready": "review" },
   "endings": { "plan:declined": "Declined at planning" },

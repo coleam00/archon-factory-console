@@ -340,11 +340,23 @@
     },
     {
       "id": "landed",
-      "label": "Landed",
+      "label": "Merged",
       "blurb": "The change is merged.",
       "group": "land",
       "workflows": []
     }
+  ],
+  "columns": [
+    { "id": "intake", "label": "Intake", "blurb": "Order, triage", "stages": ["order", "triage"] },
+    { "id": "plan-build", "label": "Plan & build", "blurb": "Plan, build", "stages": ["plan", "build"] },
+    {
+      "id": "checks-review",
+      "label": "Checks & review",
+      "blurb": "Check rounds, CI and PR reviews",
+      "stages": ["checks", "host"]
+    },
+    { "id": "ready", "label": "Ready to merge", "blurb": "Gate, then a person merges", "stages": ["ready"] },
+    { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
   ],
   "placement": {
     "order:ready": "triage",

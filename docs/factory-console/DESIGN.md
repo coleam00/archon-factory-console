@@ -397,7 +397,7 @@ present itself without the console knowing it. Shape (validated with zod in
   "pack": "Wirasm/archon-software-factory",       // the pack this view draws
   "title": "Software factory",
   "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
-  "stages": [                                      // map cards and board columns, left to right
+  "stages": [                                      // map cards and stage pages, left to right
     { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
       "group": "intake", "workflows": ["order"] },
     {
@@ -411,6 +411,11 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // an included node is <include>__<node>)
     }
   ],
+  "columns": [                                     // the board's columns, left to right: each a
+    { "id": "plan-build", "label": "Plan & build", // group of stages, every stage in exactly
+      "blurb": "Plan, build", "stages": ["plan", "build"] },  // one, the landed stage alone;
+    { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
+  ],                                               // absent: one column per stage
   "placement": {                                    // where an idle item sits after a run ended
     "order:ready": "triage",
     "triage:build": "plan", "triage:narrow": "plan",
@@ -606,7 +611,9 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 ## The board
 
-Columns are the declaration's stages in order, then the Merged column. Placement of one item,
+Columns are the declaration's `columns` in order, each a group of stages (without them, one
+column per stage), the Merged column among them; a card sits in the column holding its stage.
+Placement of one item,
 first rule that matches. The board, the map and the item page all place through one function
 (`factory/lib/placement.ts`), so they never disagree:
 
@@ -643,7 +650,8 @@ A card, in this order:
    whether it merged, the card says "merge state unknown" rather than reading as unmerged;
    while the server is still asking, it says "checking merge state", and the column holding
    it and the Merged column show a skeleton bar (Visual standard, rule 6) instead of a count.
-7. In the Merged column: when it merged, in local time.
+7. In the Merged column (the items merged in the last 7 local calendar days, newest first, then
+   "N earlier · show all" opening the Table filtered to merged): when it merged, in local time.
 8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
 
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
