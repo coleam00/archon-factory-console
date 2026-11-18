@@ -9,8 +9,6 @@ import type { SettledAsks } from './answered';
 
 /** What a board card shows for an item's open asks: the first one, and how many there are. */
 export interface BoardAskFace {
-  /** The first ask's ref: the one the face names. */
-  ref: string;
   question: string;
   tile: AskTile;
   /** The line Needs you shows for it: "Recommended: <label>" when it recommends one. */
@@ -27,7 +25,6 @@ export function boardAskFace(asks: readonly NeedsYouItem[]): BoardAskFace | null
   if (first === undefined) return null;
   const tile = askTile(first);
   return {
-    ref: first.ref,
     question: askQuestion(first),
     tile,
     line: tile.recommended ? `Recommended: ${tile.label}` : tile.label,

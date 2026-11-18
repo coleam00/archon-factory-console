@@ -98,10 +98,7 @@ function Ping(): ReactElement {
   );
 }
 
-/**
- * The Table's "Stopped by or asks" cell: the answer given from the board while it stands,
- * else the stop line, with an Answer button opening the same popover the card's face does.
- */
+/** The Table's "Stopped by or asks" cell: the answer given from the board while it stands, else the stop line. */
 export function RowAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): ReactNode {
   const answered = asks.answeredLine(card.key);
   if (answered !== null)
@@ -110,23 +107,29 @@ export function RowAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): Re
         {answered}
       </span>
     );
+  return card.stopLine;
+}
+
+/**
+ * The Answer button a Table row that needs you shows beside its state pill, opening the same
+ * popover the card's face does. It sits in the State cell, not with the question in the last
+ * column, so it is in view without scrolling the Table sideways.
+ */
+export function RowAnswer({ card, asks }: { card: BoardCard; asks: BoardAsks }): ReactNode {
   const askable = card.pill === 'needs-you' && (asks.asksOf(card.key)?.length ?? 0) > 0;
-  if (!askable) return card.stopLine;
+  if (!askable || asks.answeredLine(card.key) !== null) return null;
   return (
-    <span className="flex flex-wrap items-baseline gap-2">
-      <button
-        type="button"
-        data-ask-trigger={card.key}
-        aria-haspopup="dialog"
-        aria-expanded={asks.open?.key === card.key}
-        onClick={event => {
-          asks.openFor(card.key, event.currentTarget);
-        }}
-        className="rounded-console-12 border border-border px-2 py-0.5 text-console-12 font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated"
-      >
-        Answer
-      </button>
-      {card.stopLine}
-    </span>
+    <button
+      type="button"
+      data-ask-trigger={card.key}
+      aria-haspopup="dialog"
+      aria-expanded={asks.open?.key === card.key}
+      onClick={event => {
+        asks.openFor(card.key, event.currentTarget);
+      }}
+      className="rounded-console-12 border border-border px-2 py-0.5 text-console-12 font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated"
+    >
+      Answer
+    </button>
   );
 }

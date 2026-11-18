@@ -189,6 +189,17 @@ describe("a board card's ask", () => {
       await unmount();
     }
   });
+
+  test('an ask only the item read lists, not the queue Needs you reads: no face', async () => {
+    const item = realItem('6');
+    const ask = askOn(item);
+    const { container, unmount } = await mount([asking(item, [ask])], queueOf([]));
+    try {
+      expect(card(container, '6').querySelector('button[data-ask-trigger]')).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
 });
 
 describe('the ask popover', () => {
@@ -271,6 +282,8 @@ describe('the ask popover', () => {
       const row = container.querySelector<HTMLElement>('tr[data-card="3"]');
       const answer = row?.querySelector<HTMLButtonElement>('button[data-ask-trigger]');
       expect(answer?.textContent).toBe('Answer');
+      // Beside the state pill, not in the last column, which a 1440 px window cuts off.
+      expect(answer?.closest('td')?.textContent).toContain('Needs you');
       await click(answer!);
       expect(dialog()?.getAttribute('aria-label')).toBe('Asks on 3');
       expect(dialog()?.textContent).toContain('Split the item?');
@@ -321,6 +334,45 @@ describe('answering from the board', () => {
       await unmount();
     }
   });
+
+  for (const view of ['', '?view=table'] as const)
+    test(`a restart that fails shows what stopped it, not the answer (${view || 'Pipeline'})`, async () => {
+      serveAnswers();
+      const { container, unmount } = await mount([asking(waiting, [ask])], queueOf([ask]), view);
+      const holder = (): HTMLElement => {
+        const found = container.querySelector<HTMLElement>(`[data-card="6"]`);
+        if (found === null) throw new Error('No card or row 6');
+        return found;
+      };
+      try {
+        await click(holder().querySelector<HTMLButtonElement>('button[data-ask-trigger]')!);
+        await click(dialogButton('Use dev'));
+        await click(dialogButton('Confirm'));
+        const started = settledItem(
+          '6',
+          run('plan', 'completed', 'ask'),
+          '2026-11-18T11:00:00.000Z',
+          run('plan', 'running', null, 'plan')
+        );
+        await act(async () => set(K.factoryItems(ID), { items: [started], members: {} }));
+        expect(holder().textContent).toContain('Answered · Plan started again');
+
+        // The restarted plan run fails in the same stage: the card does not move.
+        const failed = settledItem(
+          '6',
+          run('plan', 'completed', 'ask'),
+          '2026-11-18T11:00:00.000Z',
+          run('plan', 'failed', null, 'plan')
+        );
+        await act(async () => set(K.factoryItems(ID), { items: [failed], members: {} }));
+        expect(holder().textContent).toContain('Failed');
+        expect(holder().textContent).not.toContain('Answered');
+        expect(holder().textContent).toMatch(/failed/);
+      } finally {
+        serveAnswers();
+        await unmount();
+      }
+    });
 
   test('one of several: the popover stays open with the rest, and the card is not held', async () => {
     serveAnswers();

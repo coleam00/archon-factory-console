@@ -713,8 +713,9 @@ A card, in this order:
    Esc or a press outside closes it; focus returns to the card unless the press landed on
    another control. Answering one of several keeps it open on the rest; answering the last
    closes it, and the card reads "Answered: <label>", then "Answered · <stage> started again"
-   once the items read records the run the settled asks started, until a read moves the card
-   or the item asks something new. A merged card keeps its compact form and no face.
+   once the items read records the run the settled asks started, until a read moves the card,
+   the item asks something new, or the card has its own stop line to show (the restarted run
+   failed). A merged card keeps its compact form and no face.
 
 A merged card, in the Merged column, is compact: its key and pill, its title, then the change
 and when it merged, in local time; no stage line, order chip, rounds or returned count. The
@@ -728,7 +729,7 @@ A card is as wide as its column, and columns follow the Visual standard (rules 3
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
 columns. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item with the same fields as columns, a Work order, a Column and a Stage column among
-them, sortable; a row that needs you has an Answer button opening the same popover. A filter
+them, sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
 box narrows by key, title or work order key.
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other

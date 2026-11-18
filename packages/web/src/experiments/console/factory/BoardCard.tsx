@@ -46,7 +46,7 @@ export const VERDICT_TEXT_CLASS: Record<RoundVerdict, string> = {
 export function PillBadge({ pill }: { pill: Pill }): ReactElement {
   return (
     <span
-      className={`shrink-0 rounded-full px-2 py-0.5 text-console-12 font-medium ${PILL_CLASS[pill]}`}
+      className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium ${PILL_CLASS[pill]}`}
     >
       {PILL_LABEL[pill]}
     </span>

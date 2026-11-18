@@ -98,9 +98,15 @@ export function useBoardAsks({
     [asks]
   );
   const stands = useCallback(
-    (key: string, entry: HeldAnswer): boolean =>
-      answerStands(entry, all?.positions.get(key), asks?.get(key) ?? []),
-    [all, asks]
+    (key: string, entry: HeldAnswer): boolean => {
+      // Once the card has its own line to say (the restart failed, or its progress could not
+      // be read), the answer gives way to it: the card never reads as healthy over a stop.
+      // While it still needs you, its stop line is the ask just answered, so the answer wins.
+      const card = cards.get(key)?.card;
+      if (card !== undefined && card.pill !== 'needs-you' && card.stopLine !== null) return false;
+      return answerStands(entry, all?.positions.get(key), asks?.get(key) ?? []);
+    },
+    [all, asks, cards]
   );
   // An answer that no longer stands goes, so a card that moves back later does not show it again.
   useEffect(() => {

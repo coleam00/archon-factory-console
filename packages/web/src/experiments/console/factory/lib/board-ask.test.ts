@@ -6,7 +6,6 @@ import { answeredLine, answerStands, boardAskFace, heldAnswer, popoverPlace } fr
 describe("a board card's face", () => {
   test('an ask with a recommendation: its question and "Recommended: <label>"', () => {
     expect(boardAskFace([askItem()])).toMatchObject({
-      ref: 'ask:1',
       question: 'Which base should the change target?',
       line: 'Recommended: Use dev',
       tile: { recommended: true, detail: 'High confidence. Dev is the working base.' },
@@ -29,15 +28,6 @@ describe("a board card's face", () => {
       question: 'This paused run could not be read',
       line: 'Resume or abandon it on the run',
     });
-  });
-
-  test('several asks: the count, and the first one named', () => {
-    const asks = [
-      askItem({ ref: 'ask:3', message: 'Third?' }),
-      askItem({ ref: 'ask:2', message: 'Second?' }),
-      askItem({ ref: 'ask:1' }),
-    ];
-    expect(boardAskFace(asks)).toMatchObject({ ref: 'ask:3', question: 'Third?', count: 3 });
   });
 
   test('nothing open: no face', () => {

@@ -4,7 +4,7 @@ import { MergeState, PillBadge, RoundDots } from './BoardCard';
 import type { BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
-import { RowAsk } from './BoardAskFace';
+import { RowAnswer, RowAsk } from './BoardAskFace';
 import type { BoardAsks } from './useBoardAsks';
 import {
   sortRows,
@@ -118,7 +118,12 @@ function BoardRow({
       )}
       {cell(row.column, 'whitespace-nowrap text-text-secondary')}
       {cell(row.stage, 'whitespace-nowrap text-text-secondary')}
-      {cell(<PillBadge pill={card.pill} />)}
+      {cell(
+        <span className="flex flex-wrap items-center gap-2">
+          <PillBadge pill={card.pill} />
+          <RowAnswer card={card} asks={asks} />
+        </span>
+      )}
       {cell(card.round === null ? null : <RoundDots round={card.round} />, 'whitespace-nowrap')}
       {cell(
         card.run === null ? null : (
