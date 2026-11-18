@@ -14,7 +14,9 @@ a landed change, a question for a person, or a clean stop) can present itself in
 console as a factory. The pack's author writes a *factory view*: a JSON declaration that names
 the pack's stages, the workflows and steps that work each one, and which outcomes move an item
 where. The console reads it beside the engine's own records. It never names a pack's stages,
-workflows or steps in its own code.
+workflows or steps in its own code. The section's visual standard (type, cards, lines,
+states, words) is written in the repository's design document:
+[Visual standard](https://github.com/coleam00/archon-factory-console/blob/main/docs/factory-console/DESIGN.md#visual-standard-owner-2026-11-18).
 
 ## What the tab shows
 

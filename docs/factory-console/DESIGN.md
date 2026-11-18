@@ -52,6 +52,247 @@ Not ours to build: forge views of issues and PRs (Thomas works on those in the e
 YAML-to-graph generator for the detailed authoring view (Rasmus has one). Our view and overview files
 stay the curated, simplified ones.
 
+## Visual standard (owner, 2026-11-18)
+
+From the owner's beauty audit of 2026-11-18 (every Factory page at 1440x900 on a copy of the live
+database): the section works but reads as a proof of concept. This standard binds every later
+change that shows something and every check of one, and wins over every section below it. Where
+it and "Owner changes of 2026-11-18" differ, the owner changes win. "The type floor" anywhere on
+this page means rule 1's 12 px.
+
+Tokens are named by CSS variable, with the Tailwind utility in brackets where one exists. They
+live in two files: `packages/web/src/index.css` (`@theme inline`: `--text-console-*`,
+`--radius-console-*`, `--tracking-console-*`; `:root`: `--node-command`, `--node-prompt`,
+`--node-bash`, `--node-loop`, `--node-approval`, `--node-wait`) and
+`packages/web/src/experiments/console/theme.css` (`.console-root`: surfaces, borders, text, accent,
+status colours, `--node-script`, `--node-cancel`, `--node-opaque`). Where no token exists yet, a
+rule names the Tailwind utility or the value instead; the list closing this section names those
+gaps.
+
+### 1. Type scale
+
+Geist for everything a person reads; Geist Mono for workflow, step and key names.
+
+| Role | Token | Weight, colour, tracking |
+|---|---|---|
+| Page title | `--text-console-22` (`text-console-22`) | semibold, `--text-primary`, `--tracking-console-heading` |
+| Section heading | `--text-console-17` | semibold, `--text-primary` |
+| Card title | `--text-console-15` | semibold, `--text-primary` |
+| Body | `--text-console-14` | regular, `--text-secondary` |
+| Meta | `--text-console-13` | regular, `--text-tertiary` |
+| Label | `--text-console-12` | medium, uppercase, `--tracking-console-label`, `--text-tertiary` |
+| Number tile figure | `--text-console-22` | semibold, `tabular-nums` |
+
+- **Floor: nothing a person reads is under 12 px on screen at 1440x900.** `--text-console-9`,
+  `--text-console-10` and `--text-console-11` are not used for anything a person reads. Their
+  existing uses are fixed by the redesign items, not by this one.
+- The floor holds on the map and the How it works canvas at their fitted zoom. The opening zoom
+  and the Fit button never scale below the zoom at which the smallest canvas text renders at
+  12 px; with canvas text at 12 px or more, that zoom is 1.0. Where the drawing does not fit at
+  that zoom, the canvas pans. A person may still zoom out by hand.
+
+### 2. Cards
+
+One card language for the map, How it works, the board, stage drill-downs, Needs you and the ask
+card's option tiles (rule 9).
+
+- Box: `--radius-console-12` (`rounded-console-12`), 1 px `--border`, `--surface` background.
+  Hover: `--border-bright` border, `--surface-elevated` background.
+- Padding: 12 px (`p-3`); a drill-down card 16 px (`p-4`).
+- A 3 px top accent bar in the stage group's colour (rule 5), inside the radius.
+- Row 1: a 16 px icon and a kind label in the Label role ("AGENT · LARGE", as in 12-drill-build).
+- Then the title in the Card title role, at most 2 lines.
+- Then at most two lines of text at `--text-console-13`, `--text-secondary` (`line-clamp-2`).
+- Live chips (rule 5's state colours) sit below the text.
+- Minimum width on the map and How it works: **176 px**. A card is wider than tall (height at most
+  its width; aim for 176-240 px wide by 120-176 px tall with every row present). A board card
+  is as wide as its column.
+
+### 3. Spacing
+
+One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
+
+- Inside a card: 8 px between rows (`gap-2`).
+- Between cards in a list or a column: 12 px (`gap-3`).
+- Between canvas cards joined by a labelled line: 48 px, room for a label pill.
+- Between page sections: 24 px (`gap-6`). Page padding: 24 px (`p-6`).
+- Board columns: 12 px apart (`gap-3`), each at least 220 px wide.
+
+### 4. Lines
+
+- Stroke 1.5 px; 2 px when hovered or when the line belongs to the selected card. Bends have an
+  8 px corner radius.
+- Arrowheads: a 6 px filled triangle in the line's colour.
+- Labels: `--text-console-12` on a pill (`--surface-inset` background, 1 px `--border`,
+  `rounded-full`, 6 px by 2 px padding). A label never sits on a line.
+- Forward lines: solid, `--text-tertiary`.
+- Send-back lines: dashed `6 4`, all in one colour, `--node-approval` (the colour the How it works
+  lane already uses).
+- Asks: dotted `2 3`, `--text-tertiary`.
+- No line crosses a card or a label. Where The map allows two-row crossings, a line crosses
+  another line only at a right angle.
+
+### 5. Colour
+
+- Group colours: intake `--node-prompt`, build `--node-wait`, check `--node-approval`, land
+  `--node-script` (today's `factory/map/MapLegend.tsx`).
+- Board columns (owner change 4): Intake takes intake's colour, Plan & build build's, Checks &
+  review check's, Ready to merge land's, and Merged `--success`.
+- A group colour appears only as the accent bar, the icon and the legend swatch: never a fill or a
+  text colour. The one exception is the send-back line (rule 4), drawn in `--node-approval`; the
+  legend tells it apart by showing it as a dashed line, not a swatch.
+- State colours:
+  - running: `--running` on `--running-soft`
+  - needs you: `--warning` on `--warning-soft`
+  - failed: `--error` on `--error-soft`
+  - merged, done: `--success` on `--success-soft`
+  - waiting: `--text-tertiary` on `--surface-inset`
+  - shadow: `--node-opaque` (rule 10)
+- A state pill or chip is the state's colour as text on its soft background.
+- **"Needs you" is the one loud colour.** A card's Needs you state pill is the only filled pill
+  (`--warning` background, semibold `--surface-inset` text), and only needs-you has the ping
+  (rule 7). Chips that count needs-you (a column header, a map card) stay soft like the others.
+- The brand gradient only where the console already uses it (the active tab bar).
+- Components never write raw hex or oklch: they use `var(--token)` or the token's Tailwind colour
+  utility.
+
+### 6. States
+
+- **Loading** shows skeleton shapes of the final layout, never the word "Loading" or "…". A block
+  is `--surface-elevated` with `rounded-console-12` at the final card's size; a text line is a
+  12 px bar at 60% or 40% width; a number tile shows a 22 px by 48 px bar. Skeletons pulse
+  (`motion-safe:animate-pulse`).
+- **Empty** shows a 20 px icon in `--text-tertiary`, one sentence at `--text-console-14`,
+  `--text-secondary` saying what will appear here, and the most useful link at
+  `--text-console-13` (for example "Answered lately").
+- **Errors** keep today's wording rules: the alert says what could not be read, and what is
+  already drawn stays drawn.
+
+### 7. Motion
+
+- State changes: 150 ms, ease-out (`transition-colors duration-150 ease-out`).
+- Running: `animate-pulse` on the running chip's dot only.
+- Card moved: an `--accent-soft` background held for 1.5 s, then fading over 300 ms.
+- Needs-you ping: `animate-ping` on an 8 px `--warning` dot.
+- Every animation sits behind `motion-safe:` and is off under `prefers-reduced-motion`. There the
+  moved highlight still shows for 1.5 s, statically, with no fade.
+
+### 8. Words
+
+- **"Merged" replaces "Landed"** everywhere a person reads: the column, the pill, "merged today",
+  the map card, How it works, the item page, "N of M merged". Engine and pack ids keep `land`
+  (`landgate`, `landed`).
+- **An option id is never shown raw.** A person reads the option's `label` when it has one, else
+  the id in sentence case with hyphens as spaces ("send-back-once-more" reads "Send back once
+  more"). The one exception is the reserved `other` option (label "Other"), which reads
+  "Something else" (rule 9).
+- Plain words, never raw enum values: "returned", "needs you", "round 2 of 3".
+
+### 9. The ask card and the column header
+
+**The ask card** (owner change 2), the one design wherever an ask is answered: the Needs you tab,
+the Overview, the item page and the board popover.
+
+- Box: `--radius-console-16` (`rounded-console-16`), 1 px `--border`, `--surface` background,
+  20 px padding (`p-5`), 12 px between rows (`gap-3`). At most 760 px wide in a page; 480 px wide
+  in the board popover.
+- Header row in the Meta role: the item key in mono, the stage, and the age on the right.
+- Question: `--text-console-17`, semibold, at most 2 lines.
+- Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
+  ClampedSummary pattern).
+- Option tiles: a wrapping row, 8 px apart (`gap-2`), one tile per option the ask carries, in
+  its declared order. Each tile is at least 176 px wide, `--radius-console-12`, 1 px `--border`,
+  `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs
+  (the option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
+  clamped to 2 lines.
+- An ask with a `recommendation` moves the recommended tile first: `--accent-muted` border,
+  `--accent-soft` background, and a "Recommended" badge at `--text-console-12` in `--accent`.
+  Under its text, one line at `--text-console-13`, `--text-secondary` gives the recommendation's
+  `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
+  without a recommendation keeps its declared order and marks no tile.
+- "Something else" is the ask's reserved `other` option, not a tile the card adds: it is drawn
+  only when the ask carries that option (an ask declared `other: true`; the engine appends it
+  last). Its tile reads "Something else" with "Write your own answer" under it, with a dashed
+  `--border-bright` border. Choosing it opens a textarea in place (`--text-console-14`, 3 rows).
+- Choosing a tile does not send. A confirm row appears under the tiles: "Answer: <label>", a
+  Confirm button and a Cancel button. Once sent, the card reads "Answered: <label>" in place.
+- **The card draws an answer; it does not define one.** Which choices an ask offers, how many
+  may be chosen, which need text, and what is refused belong to the ask and its owners: for an
+  attention ask, its declared `form`, `options`, `other` and `recommendation`, checked by
+  `attentionAnswerProblem` (`packages/workflows/src/schemas/run-wait.ts`) and answered today by
+  `AttentionAnswerPanel`; for a paused gate (kind `awaiting_response`), the decisions the gate
+  declares and the flow `ApprovalPanel` gives them. The card sends and accepts exactly what those
+  owners do, and draws it in the anatomy above (every choice still goes through the confirm row):
+  - a choice is a tile, labelled by rule 8 (or by the label its owner gives it, such as
+    `ApprovalPanel`'s "Continue" and "Accept & complete");
+  - a choice that takes several picks toggles its tiles: a chosen tile takes the recommended
+    tile's `--accent-muted` border and `--accent-soft` background, with a check icon, and the
+    confirm row lists the chosen labels ("Answer: <label>, <label>");
+  - an answer in words, or a choice whose owner takes text with it (required or optional, as
+    `ApprovalPanel`'s comment on approve and its reason on every other decision), opens the textarea in place
+    (`--text-console-14`, 3 rows) above the confirm row, and an ask answered only in words has no
+    tiles and opens with the textarea;
+  - Confirm is enabled exactly when the owner would accept the answer.
+- A paused run the console cannot answer here (kind `owner_lost` or `unreadable`) has no tiles:
+  the context says what happened, and the confirm row is replaced by a link to the run, where it
+  is resumed or abandoned.
+- Under 520 px wide (the popover, a 390 px phone) the tiles stack full width.
+- The Needs you tab's heading reads "N things need you", in the Page title role.
+- On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines, the
+  line Needs you shows for it at `--text-console-12` ("Recommended: <label>" when the ask
+  recommends one), and the ping.
+
+**The column header** (owner change 4), one per board column:
+
+- A 3 px top bar in the column's colour (rule 5).
+- Label: `--text-console-15`, semibold.
+- Subtitle: `--text-console-12`, `--text-tertiary`, one line, truncated, naming the column's stages
+  ("order, triage"). The Merged column's subtitle is "last 7 days".
+- Count: `--text-console-22`, `tabular-nums`; a skeleton bar while it is not known (rule 6).
+- State chips: `--text-console-12`, `rounded-full`, `px-2 py-0.5`, the state's soft background
+  with the state's colour as text ("running 2", "needs you 1"). Only a state with a count above 0
+  has a chip.
+- Each column's body scrolls on its own.
+- Empty-column placeholder: dashed 1 px `--border`, `--radius-console-12`, 96 px tall, holding
+  rule 6's empty state ("Nothing in <column label> now").
+
+### 10. Shadows
+
+Owner change 6: a shadow step says what it would do and does nothing, and reads that way.
+
+- It carries a "shadow" badge: `--text-console-12`, dashed 1 px `--node-opaque` border,
+  `--node-opaque` text, no fill.
+- Its line reads "Would <what it would have done>" at `--text-console-13`, `--text-tertiary`.
+- On a card the accent bar is `--node-opaque`, not the group colour. A shadow line is drawn in its
+  kind's dash (rule 4) in `--node-opaque`, with "shadow" on its label pill.
+- Never `--running`, `--success`, `--warning` or `--error` on anything a shadow did: it did
+  nothing.
+
+### 11. References
+
+Read-only, outside this repository. Take layout and anatomy from them, never sizes: their canvas
+text is under the type floor. Where they differ from the rules above, the rules win (12-drill-build
+puts a card's accent on its left edge; ours is the top bar of rule 2).
+
+- `C:\Users\colem\OpenSource\factory-mission-control\docs\design\v3\refs\01-attention.png`: the
+  "N things need you" heading; the option-tile row with the recommended tile first and marked;
+  "Something else / Write your own answer".
+- `...\v3\refs\20-board-pipeline.png`: the column header with label, subtitle, big count and
+  state chips; "Merged, last 7 days"; the work order strip with "N of M merged" and its bar.
+- `...\v2\refs\01-home-map.png`: the one-line map with the inputs on the left, labelled loops in
+  lanes off the line ("fixes", "unrelated problems become new work"), the controls bar and the
+  legend.
+- `...\v2\refs\12-drill-build.png`: the kind label row above a card's title; labelled branch
+  lines; a loop drawn as one labelled dashed line ("another round (max 2)"); a dotted line down to
+  the card that asks you.
+
+**Layout.** At 1440x900 the Overview shows Needs you and the top of the map in the first screen.
+At 390x844 columns stack and the map pans.
+
+**No token yet.** Spacing, motion (duration, easing), line stroke and dash, skeleton colour and
+icon size have no console token; the rules above name the Tailwind utility or the value. A later
+change may add a token when it first needs one, in the files named above.
+
 ## Owner changes of 2026-11-17 (bind every later change; win over older text below)
 
 The section has **two separate things**, each with its own file:
@@ -230,7 +471,7 @@ the view file differs from it), and from that snapshot in CI. It fails on a hand
 stages that the pack declares (every binding, installed by a trigger file on this machine or
 not; owner ruling of 2026-11-17) that the view does not declare, and on a declared arrow no
 such hand-off backs, unless it is marked `person: true` (a replan, a landing), joins two
-different stages of one workflow (its steps), or runs into Landed. An arrow back into its own stage is a rerun only
+different stages of one workflow (its steps), or runs into the Merged column (the `landed` stage). An arrow back into its own stage is a rerun only
 a hand-off starts, so it is never exempt. The same check fails on a real step no drill-down card
 covers or two cover, and on a step or workflow the view names that the pack does not have.
 
@@ -244,7 +485,7 @@ The items and the stage graph are the engine's own reads, which any API client u
   items a page. The window lists an item once one of its own runs started, so an item whose
   first start is still queued for capacity, or that only a link or ruling created, is on no
   board, map or number until its first run starts; one linked `part_of` a work order counts
-  only in that order's "N of M landed" (as not started). Showing those needs the window to
+  only in that order's "N of M merged" (as not started). Showing those needs the window to
   count queued starts (an engine change), not a second reader here.
   The window pages by item id; the console sorts newest activity first (the latest of each
   item's runs' end, or start while one runs), since a board column keeps the order it is given.
@@ -304,11 +545,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## Overview page
 
 1. Title and the declaration's summary paragraph.
-2. **Numbers strip:** items in flight, needs you, landed today, landed in total ("N of M done"
-   where M excludes items closed by triage), median time from first run to landed. Until the
-   items read first answers, each tile shows "…" in place of its number, above its label; while
-   any item's merge state is pending, every number but needs you shows loading, never a count
-   that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
+2. **Numbers strip:** items in flight, needs you, merged today, merged in total ("N of M done"
+   where M excludes items closed by triage), median time from first run to merged. Until the
+   items read first answers, each tile shows a skeleton bar (Visual standard, rule 6) in place
+   of its number, above its label; while any item's merge state is pending, every number but
+   needs you shows the skeleton bar too, never a count that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
@@ -330,12 +571,12 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
   text under the type floor; below that it pans. `col` and `row` on a card are accepted, so an
   older view file still loads, and ignored. A card shows the stage label, its blurb, and live
   chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
-  a person. Where a board column would show "…" for a pending merge state, the card says
-  "checking…" instead of how many are here. The cards and arrows are drawn from the view file
-  as soon as it is read: until the items read answers each card's chip is "…" (never
-  "0 here"), and the chips fill in on the same cards when it does. If that first read fails,
+  a person. Where a board column would show a skeleton bar for a pending merge state, the card says
+  "checking merge state" instead of how many are here. The cards and arrows are drawn from the view file
+  as soon as it is read: until the items read answers each card's chip is a skeleton bar (Visual standard, rule 6;
+  never "0 here"), and the chips fill in on the same cards when it does. If that first read fails,
   an alert above the map says so and the cards stay drawn with no chip, their details saying
-  the items could not be read rather than loading.
+  the items could not be read rather than showing a skeleton.
 - The arrows are the view file's `map.arrows` and no others: the map does not read the pack
   graph, so the view file declares every hand-off, between workflows too, and every send-back.
   Forward arrows, labelled with the outcome that moves an item along, run side to side between
@@ -365,7 +606,7 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 ## The board
 
-Columns are the declaration's stages in order, then the landed column. Placement of one item,
+Columns are the declaration's stages in order, then the Merged column. Placement of one item,
 first rule that matches. The board, the map and the item page all place through one function
 (`factory/lib/placement.ts`), so they never disagree:
 
@@ -376,7 +617,7 @@ first rule that matches. The board, the map and the item page all place through 
    so a card does not hop; else the workflow's first stage. A view opened while a run is
    between named steps has no last read, so for that moment it can show the workflow's first
    stage where a view open longer still holds the item.
-2. Its change **merged**: the landed column.
+2. Its change **merged**: the Merged column.
 3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
    also places a run that returns no outcome, such as the pack's `landgate`): that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
@@ -390,7 +631,7 @@ A card, in this order:
 1. Item key and title (title from the declared run input's title line: the first non-empty line
    after any `---` front matter, without a leading `#<n> ` or heading marker; else the key).
 2. State pill: **Running** (a run works it now), **Needs you** (it has an open ask), **Failed**,
-   **Waiting** (queued or idle between stages), **Landed**.
+   **Waiting** (queued or idle between stages), **Merged**.
 3. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),
    returned (a declared return), needs a decision (neither: an ask or a replan), running.
@@ -401,12 +642,13 @@ A card, in this order:
 6. The change: "PR #123" linking to it, when there is one. When the change host could not say
    whether it merged, the card says "merge state unknown" rather than reading as unmerged;
    while the server is still asking, it says "checking merge state", and the column holding
-   it and the landed column show "…" instead of a count.
-7. In the landed column: when it landed, in local time.
+   it and the Merged column show a skeleton bar (Visual standard, rule 6) instead of a count.
+7. In the Merged column: when it merged, in local time.
 8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
 
-Cards are compact (the board fits eight columns at 1440 px wide; below that the board scrolls
-sideways with a hint naming the hidden columns). A card opens the item page. **Table** view: one
+A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
+the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
+columns. A card opens the item page. **Table** view: one
 row per item with the same fields as columns, a Work order column among them, sortable. A filter
 box narrows by key, title or work order key.
 
@@ -418,7 +660,7 @@ disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no 
 column and counts in no number; its members count as the items they are. Above the Pipeline's
 columns, a **Work orders** strip has one row per order with a member on the board (one that
 has a run): its key (to its item
-page) and title (its own when it has one, else "Work order <key>"), "N of M landed" with a small bar, one
+page) and title (its own when it has one, else "Work order <key>"), "N of M merged" with a small bar, one
 dot per member in its pill's colour, and a toggle that lights its members on the board and dims
 the rest (`?order=<key>`). An order whose members have not started has no row yet: the order
 and its members show on its item page (`factory/items/<order key>`). A member's card says
@@ -443,23 +685,11 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 - **Links:** depends on, part of, duplicate of, from the engine's item links. A member its order
   run placed without a link says "Part of <order>, as its order run recorded". On a work order,
   its members stand for their links: each with its title, state pill and where it sits, under
-  "Members: N of M landed". An order with no run of its own has no column or state; its header
+  "Members: N of M merged". An order with no run of its own has no column or state; its header
   says it is a work order, not worked by the factory itself, and without a title of its own it
   reads "Work order <key>" (the key stays the mono label). An order only a result names has
   no item row: its page is its key, that title and its members, from the items read.
 - **Rulings and answers** given on the item.
-
-## Visual rules
-
-- The console's surfaces, borders and text tokens. The brand gradient only where the console
-  already uses it (active tab bar).
-- One colour per stage group on the map (intake, build, check, land), taken from the console's
-  existing `--node-*` or status tokens. State colours are the console's status colours: running,
-  needs you, failed, done. "Needs you" is the one loud colour on the page.
-- Mono (Geist Mono) for workflow, step and key names; Geist for everything a person reads.
-- Plain words: "returned", "needs you", "landed", "round 2 of 3", never raw enum values.
-- At 1440x900 the Overview shows the Needs-you list and the top of the map in the first screen.
-  Phone width: columns stack, map pans.
 
 ## Testing
 
@@ -468,7 +698,8 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 - Each route has a server test in the existing harness style.
 - Every change that shows something is checked in a browser before it is called done:
   `bun run build:web && bun run dev:console`, then drive it with `agent-browser` at 1440x900 and
-  at phone width, and describe what you saw in the pull request.
+  at 390x844 against the Visual standard. The pull request describes what you saw and says which
+  of the standard's rules (by number) it touched.
 
 ## Later (not in the first slices, written down so they are not lost)
 
