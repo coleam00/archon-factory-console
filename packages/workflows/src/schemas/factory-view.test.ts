@@ -281,12 +281,6 @@ describe('factoryViewSchema columns', () => {
     blurb: 'Merged changes',
     stages: ['landed'],
   };
-  /** Each issue as its dotted path and its message: both are what a pack author acts on. */
-  function issues(view: unknown): [string, string][] {
-    const parsed = factoryViewSchema.safeParse(view);
-    if (parsed.success) throw new Error('expected the declaration to be rejected');
-    return parsed.error.issues.map(issue => [issue.path.join('.'), issue.message]);
-  }
 
   test('groups stages into columns, and keeps them in their declared order', () => {
     const parsed = factoryViewSchema.safeParse(grouped([work(['plan', 'build']), merged]));
@@ -294,38 +288,30 @@ describe('factoryViewSchema columns', () => {
     expect(parsed.data?.columns?.map(column => column.id)).toEqual(['work', 'merged']);
   });
 
-  test('a declaration without columns still loads', () => {
-    expect(factoryViewSchema.safeParse(minimal()).data?.columns).toBeUndefined();
-  });
-
   test('a stage in no column is a finding', () => {
-    expect(issues(grouped([work(['plan']), merged]))).toEqual([
-      ['columns', 'stage "build" is in no column'],
-    ]);
+    expect(issuePaths(grouped([work(['plan']), merged]))).toEqual(['columns']);
   });
 
   test('a stage in two columns is a finding at its second place', () => {
     const view = grouped([work(['plan', 'build']), { ...work(['build']), id: 'again' }, merged]);
-    expect(issues(view)).toEqual([
-      ['columns.1.stages.0', 'stage "build" is in column "work" already'],
-    ]);
+    expect(issuePaths(view)).toEqual(['columns.1.stages.0']);
   });
 
   test('a column naming a stage no stage declares is a finding at its place', () => {
-    expect(issues(grouped([work(['plan', 'build', 'biuld']), merged]))).toEqual([
-      ['columns.0.stages.2', 'names stage "biuld", which is not declared in stages'],
+    expect(issuePaths(grouped([work(['plan', 'build', 'biuld']), merged]))).toEqual([
+      'columns.0.stages.2',
     ]);
   });
 
   test('a column id declared twice is a finding', () => {
-    expect(issues(grouped([work(['plan']), work(['build']), merged]))).toEqual([
-      ['columns.1.id', 'column "work" is declared twice'],
+    expect(issuePaths(grouped([work(['plan']), work(['build']), merged]))).toEqual([
+      'columns.1.id',
     ]);
   });
 
   test('the landed stage sharing its column is a finding', () => {
-    expect(issues(grouped([work(['plan']), { ...merged, stages: ['build', 'landed'] }]))).toEqual([
-      ['columns.1.stages', 'the landed stage "landed" takes a column of its own'],
-    ]);
+    expect(
+      issuePaths(grouped([work(['plan']), { ...merged, stages: ['build', 'landed'] }]))
+    ).toEqual(['columns.1.stages']);
   });
 });

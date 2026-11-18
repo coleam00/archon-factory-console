@@ -301,7 +301,7 @@ test("the cards take one row in the Overview's 1100px row, and wrap to two in a 
   expect((await cardTopsAt(358)).size).toBe(2);
 });
 
-test('while a merge state is pending, Ready to land and Merged say they are checking, not a count', async () => {
+test('while a merge state is pending, Ready to merge and Merged say they are checking, not a count', async () => {
   const pending = itemWith('p', [run('deliver', 'completed', 'ready')], 'pending');
   const { container, unmount } = await mount([realItem('7'), realItem('5'), pending]);
   try {

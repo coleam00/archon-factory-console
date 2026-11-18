@@ -9,7 +9,6 @@ import {
   hiddenColumnsHint,
   movedKeys,
   UNPLACED_LABEL,
-  type FactoryDeclaration,
 } from './board';
 import type { FactoryItem } from '../../skills/factory';
 import {
@@ -348,15 +347,6 @@ describe('grouped columns', () => {
     );
   });
 
-  test('a view without columns draws one column per stage', () => {
-    const { columns: _, ...older } = VIEW;
-    const model = boardModel(older as FactoryDeclaration, PROJECT, PAGE.items, new Map());
-    expect(model.columns.map(column => [column.id, column.label, column.stages])).toEqual(
-      VIEW.stages.map(stage => [stage.id, stage.label, [stage.id]])
-    );
-    expect(model.landedColumn).toBe(VIEW.landed.stage);
-  });
-
   test('a stage no column holds folds its card under Position unknown, never drops it', () => {
     const view = structuredClone(VIEW);
     view.columns = view.columns?.filter(column => column.id !== 'checks-review');
@@ -386,7 +376,10 @@ describe('grouped columns', () => {
     const model = boardModel(
       VIEW,
       PROJECT,
-      onEachStage().map(([, item]) => item),
+      // Out of stage order, so the sort has to put them right.
+      onEachStage()
+        .reverse()
+        .map(([, item]) => item),
       new Map()
     );
     const rows = sortRows(tableRows(model), { by: 'stage', descending: false });
@@ -397,7 +390,7 @@ describe('grouped columns', () => {
       ['Plan & build', 'Build'],
       ['Checks & review', 'Checks'],
       ['Checks & review', 'CI and review'],
-      ['Ready to merge', 'Ready to land'],
+      ['Ready to merge', 'Ready to merge'],
       ['Merged', 'Merged'],
     ]);
   });

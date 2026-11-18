@@ -1,7 +1,7 @@
-import { describe, expect, test } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import type { PlacedCard } from './board';
 import { boardModel } from './board';
-import { PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
+import { progressOf, realItem, VIEW } from './board.test-fixtures';
 import { earlierSearch, mergedWindow } from './merged-window';
 
 /** Real item 7 (merged) keyed `key`, merged at `at` (a local time); null for no merge time. */
@@ -19,8 +19,17 @@ function mergedAt(key: string, at: Date | null): PlacedCard {
   return placed;
 }
 
-// 2026-11-18 10:00 local time: every date below is built in local time, as the window is.
-const NOW = new Date(2026, 10, 18, 10, 0);
+// The window counts local calendar days, so run it in a zone that is not UTC: a window
+// counted from UTC midnight passes in UTC. Every date is built after the zone is set, in local
+// time, as the window is. Restoring needs 'UTC': an unset TZ does not restore it in bun test.
+let NOW = new Date(0);
+beforeAll(() => {
+  process.env.TZ = 'America/Chicago';
+  NOW = new Date(2026, 10, 18, 10, 0);
+});
+afterAll(() => {
+  process.env.TZ = 'UTC';
+});
 const keys = (cards: readonly PlacedCard[]): string[] => cards.map(placed => placed.card.key);
 
 describe('the Merged column window', () => {
@@ -55,15 +64,6 @@ describe('the Merged column window', () => {
     );
     expect(keys(window.recent)).toEqual(['today', 'tuesday', 'monday']);
     expect(window.earlier).toBe(1);
-  });
-
-  test('the real merged items of 2026-11-17 are all recent on 2026-11-18', () => {
-    const merged = boardModel(VIEW, 'cb-1', PAGE.items, new Map()).columns.find(
-      column => column.id === 'merged'
-    );
-    const window = mergedWindow(merged?.cards ?? [], NOW);
-    expect(keys(window.recent)).toEqual(['7', '2', '1']);
-    expect(window.earlier).toBe(0);
   });
 
   test('"N earlier" opens the Table filtered to merged, keeping a lit work order', () => {

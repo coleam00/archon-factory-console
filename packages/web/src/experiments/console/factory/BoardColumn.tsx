@@ -10,10 +10,12 @@ import { earlierSearch, MERGED_DAYS } from './lib/merged-window';
 const PHONE_CARDS = 3;
 
 /**
- * Whether the element has more content below what it shows: its bottom fade shows then. Where
- * there is no `ResizeObserver` (a server render, a test DOM), it follows scrolling only.
+ * Whether the element has more content below what it shows: its bottom fade shows then. It
+ * measures again on scroll, on a resize, and whenever `content` (the shown cards' keys)
+ * changes, so a filter or a refresh that changes the cards never leaves a stale fade. Where
+ * there is no `ResizeObserver` (a server render, a test DOM), a resize alone is not seen.
  */
-function useMoreBelow(ref: RefObject<HTMLElement | null>): boolean {
+function useMoreBelow(ref: RefObject<HTMLElement | null>, content: string): boolean {
   const [more, setMore] = useState(false);
   useEffect(() => {
     const element = ref.current;
@@ -30,7 +32,7 @@ function useMoreBelow(ref: RefObject<HTMLElement | null>): boolean {
       element.removeEventListener('scroll', update);
       observer?.disconnect();
     };
-  }, [ref]);
+  }, [ref, content]);
   return more;
 }
 
@@ -55,9 +57,12 @@ export function BoardColumn({
   lit: ReadonlySet<string> | null;
 }): ReactElement {
   const body = useRef<HTMLDivElement>(null);
-  const more = useMoreBelow(body);
   const [expanded, setExpanded] = useState(false);
   const cards = merged?.recent ?? column.cards;
+  const more = useMoreBelow(
+    body,
+    [String(expanded), ...cards.map(placed => placed.card.key)].join(' ')
+  );
   const hidden = expanded ? 0 : Math.max(0, cards.length - PHONE_CARDS);
   return (
     <section
@@ -78,7 +83,12 @@ export function BoardColumn({
           data-column-body={column.id}
           className="flex flex-col gap-3 md:min-h-0 md:flex-1 md:overflow-y-auto"
         >
-          {cards.length === 0 ? <EmptyColumn label={column.label} /> : null}
+          {cards.length > 0 ? null : column.pending ? (
+            // Not known yet: rule 6's loading shape, never an empty state that may be false.
+            <CardSkeletons />
+          ) : (
+            <EmptyColumn label={column.label} />
+          )}
           {cards.map(({ card }, index) => {
             const props = {
               projectId,
@@ -132,6 +142,27 @@ function EarlierLink({ earlier }: { earlier: number }): ReactElement {
     >
       {earlier} earlier · show all
     </Link>
+  );
+}
+
+/** Rule 6's loading state for a column whose cards wait on a merge answer: two card shapes. */
+function CardSkeletons(): ReactElement {
+  return (
+    <div
+      data-skeleton="true"
+      aria-label="Checking which changes merged"
+      className="flex flex-col gap-3"
+    >
+      {[0, 1].map(index => (
+        <div
+          key={index}
+          className="flex h-28 shrink-0 flex-col gap-2 rounded-console-12 bg-surface-elevated p-3 motion-safe:animate-pulse"
+        >
+          <span className="h-3 w-2/5 rounded bg-surface-hover" />
+          <span className="h-3 w-3/5 rounded bg-surface-hover" />
+        </div>
+      ))}
+    </div>
   );
 }
 

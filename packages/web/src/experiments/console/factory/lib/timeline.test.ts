@@ -20,7 +20,7 @@ describe('the timeline of an item that landed', () => {
       // Each outcome as the declaration's `placement` reads it: where it sent the item.
       ['Triage', 'triage', said('sent to Plan')],
       ['Plan', 'plan', said('sent to Build')],
-      ['Build', 'deliver', said('sent to Ready to land')],
+      ['Build', 'deliver', said('sent to Ready to merge')],
     ]);
     expect(rows.map(row => row.runId)).toEqual(detail.item.runs.map(run => run.id));
     expect(rows[0]?.href).toBe(`/console/p/${PROJECT}/r/${detail.item.runs[0]?.id ?? ''}`);
@@ -307,7 +307,7 @@ describe('a gate that records no outcome', () => {
       },
       NOW
     );
-    expect(rows.at(-1)?.outcome).toEqual(said('sent to Ready to land'));
+    expect(rows.at(-1)?.outcome).toEqual(said('sent to Ready to merge'));
   });
 });
 

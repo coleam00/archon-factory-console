@@ -365,6 +365,18 @@ describe('while a merge state is pending', () => {
       await unmount();
     }
   });
+
+  test('an empty column whose count is not known shows card skeletons, not "Nothing in"', async () => {
+    // Nothing merged is read yet and one change waits on its answer: Merged may gain it.
+    const { container, unmount } = await mount([realItem('6'), readyWithMerge('p', 'pending')]);
+    try {
+      const merged = columnNamed(container, 'Merged');
+      expect(merged?.querySelector('[data-skeleton]')).not.toBeNull();
+      expect(merged?.textContent).not.toContain('Nothing in');
+    } finally {
+      await unmount();
+    }
+  });
 });
 
 test('a failed refresh says so and keeps the board it last read', async () => {
@@ -463,6 +475,69 @@ describe('the column headers and the Merged column', () => {
       expect(folded()).toBe(0);
     } finally {
       await unmount();
+    }
+  });
+});
+
+/** Type `query` into the board's filter box, as a keystroke does. */
+async function filterTo(container: HTMLElement, query: string): Promise<void> {
+  const input = container.querySelector('input[type="search"]') as HTMLInputElement;
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set;
+    setter?.call(input, query);
+    input.dispatchEvent(new dom.Event('input', { bubbles: true }) as unknown as Event);
+  });
+}
+
+describe('a column body', () => {
+  test('a waiting card names the stage it waits in', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const card = [
+        ...(columnNamed(container, 'Plan & build')?.querySelectorAll('article') ?? []),
+      ].find(article => article.querySelector('.font-mono')?.textContent === '6');
+      expect(card?.textContent).toContain('Build');
+      expect(card?.querySelector('a[href*="/r/"]')).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('the bottom fade follows the cards a filter leaves, not only scrolling', async () => {
+    // happy-dom lays nothing out: a column body is 250 px tall, 100 px per child.
+    const proto = dom.HTMLElement.prototype as unknown as HTMLElement;
+    const saved = ['scrollHeight', 'clientHeight'].map(
+      key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+    );
+    const sized = (value: (body: HTMLElement) => number) => ({
+      configurable: true,
+      get(this: HTMLElement): number {
+        return this.dataset.columnBody === undefined ? 0 : value(this);
+      },
+    });
+    Object.defineProperty(
+      proto,
+      'scrollHeight',
+      sized(body => body.children.length * 100)
+    );
+    Object.defineProperty(
+      proto,
+      'clientHeight',
+      sized(() => 250)
+    );
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const fade = () => columnNamed(container, 'Merged')?.querySelector('[data-fade]');
+      expect(fade()).not.toBeNull();
+      await filterTo(container, '7');
+      expect(fade()).toBeNull();
+      await filterTo(container, '');
+      expect(fade()).not.toBeNull();
+    } finally {
+      await unmount();
+      for (const [key, descriptor] of saved)
+        if (descriptor) Object.defineProperty(proto, key, descriptor);
+        else Reflect.deleteProperty(proto, key);
     }
   });
 });
