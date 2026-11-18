@@ -1,12 +1,14 @@
 import { Inbox } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
+import { readFailed } from '../../factory/lib/deadline';
 import { readEveryItem } from '../../factory/lib/factory-items-read';
 import { recentlySettled, type SettledAsks } from '../../factory/lib/answered';
 import { factoryPath, type FactoryViewListed } from '../../factory/lib/views';
 import { useFactoryItems } from '../../factory/useFactoryItems';
 import { useFactoryRead } from '../../factory/useFactoryRead';
 import { relativeTime } from '../../lib/format';
+import { errorDetail } from '../../lib/http';
 import { listItemWindow, type ItemRead } from '../../skills/items';
 import { K } from '../../store/keys';
 import { AnsweredCard } from './AnsweredCard';
@@ -47,6 +49,7 @@ function AnsweredFromFactory({
       projectId={projectId}
       empty={empty}
       settled={settled}
+      failed={readFailed(items.error)}
       href={entry => factoryPath(projectId, `/items/${encodeURIComponent(entry.itemKey)}`)}
     />
   );
@@ -63,6 +66,7 @@ function AnsweredFromWindow({ projectId, empty }: AnsweredProps): ReactElement {
       projectId={projectId}
       empty={empty}
       settled={settled}
+      failed={readFailed(items.error)}
       href={entry =>
         entry.restart === null ? undefined : `/console/p/${projectId}/r/${entry.restart.runId}`
       }
@@ -76,52 +80,119 @@ function lastAsked(settled: readonly SettledAsks[]): string | undefined {
   return times.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
 }
 
+/**
+ * The answered sets, under the open asks or as the empty state. While the history is unread
+ * the empty state shows skeletons where "Last asked" and the cards go, never the sentence for
+ * a project nothing ever asked; a history read that failed says so in an alert.
+ */
 function AnsweredSection({
   projectId,
   empty,
   settled,
+  failed,
   href,
 }: AnsweredProps & {
+  /** Undefined while the history is unread, or when its read failed. */
   settled: SettledAsks[] | undefined;
+  failed: Error | undefined;
   href: (entry: SettledAsks) => string | undefined;
 }): ReactNode {
+  const alert =
+    settled === undefined && failed !== undefined ? <HistoryFailed failed={failed} /> : null;
   const cards =
     settled === undefined || settled.length === 0 ? null : (
-      <div className="flex flex-col gap-3">
-        {settled.map(entry => (
-          <AnsweredCard
-            key={`${entry.itemKey}:${entry.at}`}
-            projectId={projectId}
-            entry={entry}
-            href={href(entry)}
-          />
-        ))}
-      </div>
-    );
-  if (empty) {
-    const asked = settled === undefined ? undefined : lastAsked(settled);
-    return (
-      <section aria-label="Nothing needs you" className="flex flex-col gap-6">
-        <div className="flex flex-col items-start gap-2">
-          <Inbox aria-hidden className="size-5 text-text-tertiary" />
-          <p className="text-console-14 text-text-secondary">Nothing needs you right now.</p>
-          <p className="text-console-13 text-text-tertiary">
-            {asked === undefined
-              ? 'A question a run asks, or a run paused for your decision, appears here to answer.'
-              : `Last asked ${relativeTime(asked)}`}
-          </p>
-          <Link
-            to={`/console/p/${projectId}`}
-            className="text-console-13 text-accent-bright hover:underline"
-          >
-            See this project's runs
-          </Link>
+      <AnsweredHeading>
+        <div className="flex flex-col gap-3">
+          {settled.map(entry => (
+            <AnsweredCard
+              key={`${entry.itemKey}:${entry.at}`}
+              projectId={projectId}
+              entry={entry}
+              href={href(entry)}
+            />
+          ))}
         </div>
-        {cards === null ? null : <AnsweredHeading>{cards}</AnsweredHeading>}
-      </section>
+      </AnsweredHeading>
     );
-  }
-  return cards === null ? null : <AnsweredHeading>{cards}</AnsweredHeading>;
+  if (!empty) return alert ?? cards;
+  return (
+    <section aria-label="Nothing needs you" className="flex flex-col gap-6">
+      <NothingNeedsYou
+        projectId={projectId}
+        settled={settled}
+        loading={settled === undefined && failed === undefined}
+      />
+      {alert}
+      {settled === undefined && failed === undefined ? <AnsweredSkeletons /> : null}
+      {cards}
+    </section>
+  );
+}
+
+/** A history read that failed: what could not be read, in the server's words. */
+function HistoryFailed({ failed }: { failed: Error }): ReactElement {
+  return (
+    <p role="alert" className="text-console-13 text-error">
+      What was answered lately could not be loaded: {errorDetail(failed)}
+    </p>
+  );
+}
+
+/**
+ * Rule 6's empty state: the icon, the sentence, then when something was last asked, or what
+ * appears here when nothing ever was; a skeleton bar while the history is unread.
+ */
+function NothingNeedsYou({
+  projectId,
+  settled,
+  loading,
+}: {
+  projectId: string;
+  settled: SettledAsks[] | undefined;
+  loading: boolean;
+}): ReactElement {
+  const asked = settled === undefined ? undefined : lastAsked(settled);
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Inbox aria-hidden className="size-5 text-text-tertiary" />
+      <p className="text-console-14 text-text-secondary">Nothing needs you right now.</p>
+      {settled === undefined ? null : (
+        <p className="text-console-13 text-text-tertiary">
+          {asked === undefined
+            ? 'A question a run asks, or a run paused for your decision, appears here to answer.'
+            : `Last asked ${relativeTime(asked)}`}
+        </p>
+      )}
+      {loading ? (
+        <div
+          aria-hidden
+          className="h-3 w-2/5 rounded bg-surface-elevated motion-safe:animate-pulse"
+        />
+      ) : null}
+      <Link
+        to={`/console/p/${projectId}`}
+        className="text-console-13 text-accent-bright hover:underline"
+      >
+        See this project's runs
+      </Link>
+    </div>
+  );
+}
+
+/** Skeletons of the three answered cards to come (Visual standard rule 6). */
+function AnsweredSkeletons(): ReactElement {
+  return (
+    <div role="status" className="flex flex-col gap-3">
+      <span className="sr-only">Loading what was answered lately</span>
+      {[0, 1, 2].map(index => (
+        <div
+          key={index}
+          aria-hidden
+          className="h-32 w-full max-w-3xl rounded-console-16 bg-surface-elevated motion-safe:animate-pulse"
+        />
+      ))}
+    </div>
+  );
 }
 
 function AnsweredHeading({ children }: { children: ReactNode }): ReactElement {
