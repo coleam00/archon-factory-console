@@ -17,7 +17,7 @@ export interface AskTile {
 
 // console-token-exception min-w-[176px] -- Visual standard rule 9: an option tile is at least 176 px wide.
 const TILE = 'min-w-[176px]';
-const BASE = `${TILE} flex flex-1 flex-col items-start gap-1 rounded-console-12 border p-3 text-left transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50`;
+const BASE = `${TILE} group flex flex-1 flex-col items-start gap-1 rounded-console-12 border p-3 text-left transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50`;
 const MARKED = 'border-accent-muted bg-[color:var(--accent-soft)]';
 const PLAIN = 'border-border bg-surface hover:border-border-bright hover:bg-surface-elevated';
 const OTHER = 'border-dashed border-border-bright bg-surface hover:bg-surface-elevated';
@@ -73,9 +73,15 @@ export function AskTiles({
   );
 }
 
-/** A tile's words: its label (with the badge or the check), then what it does and costs. */
+/**
+ * A tile's words: its label (with the badge or the check), then what it does and costs. At rest
+ * those clamp to 2 lines (rule 9); a chosen tile shows them whole, and so does a tile with
+ * keyboard focus, so the operator reads what an option costs before Confirm, on touch or
+ * keyboard as well as by hover.
+ */
 function TileBody({ tile, picked }: { tile: AskTile; picked: boolean }): ReactElement {
   const does = tile.other ? 'Write your own answer' : tile.does;
+  const clamp = picked ? '' : 'line-clamp-2 group-focus-visible:line-clamp-none';
   return (
     <>
       <span className="flex w-full items-start justify-between gap-2">
@@ -86,10 +92,10 @@ function TileBody({ tile, picked }: { tile: AskTile; picked: boolean }): ReactEl
         <span className="text-console-12 font-medium text-accent">Recommended</span>
       ) : null}
       {does === undefined ? null : (
-        <span className="line-clamp-2 text-console-13 text-text-secondary">{does}</span>
+        <span className={`${clamp} text-console-13 text-text-secondary`}>{does}</span>
       )}
       {tile.cost === undefined ? null : (
-        <span className="line-clamp-2 text-console-13 text-text-secondary">Cost: {tile.cost}</span>
+        <span className={`${clamp} text-console-13 text-text-secondary`}>Cost: {tile.cost}</span>
       )}
     </>
   );

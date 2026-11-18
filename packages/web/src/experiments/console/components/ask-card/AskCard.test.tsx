@@ -124,6 +124,33 @@ test('a tile sends nothing; it shows Answer: <label>, Cancel clears it, Confirm 
   }
 });
 
+test('a chosen tile shows what its option does and costs whole, not only in a tooltip', async () => {
+  serve();
+  const long =
+    'The merged change contradicts DESIGN.md on a member page and can list a refused order as members.';
+  const ask = askItem({
+    ref: 'ask:1',
+    options: [
+      { id: 'use-main', label: 'Use main', does: 'Rebases onto main.', cost: long },
+      { id: 'use-dev', label: 'Use dev', does: 'Rebases onto dev.', cost: 'One more rebase.' },
+    ],
+  });
+  const card = await mount([ask]);
+  try {
+    const costLine = (): HTMLElement | undefined =>
+      [...card.button('Use main').querySelectorAll('span')].find(span =>
+        span.textContent?.startsWith('Cost:')
+      );
+    // At rest it clamps to 2 lines; chosen, the cost is text in full, unclamped.
+    expect(costLine()?.className).toContain('line-clamp-2');
+    await card.click('Use main');
+    expect(costLine()?.textContent).toBe(`Cost: ${long}`);
+    expect(costLine()?.className).not.toContain('line-clamp');
+  } finally {
+    await card.unmount();
+  }
+});
+
 test('once answered the card says so in place, then folds away after 5 s', async () => {
   serve();
   const ask = askItem({ ref: 'ask:1' });
