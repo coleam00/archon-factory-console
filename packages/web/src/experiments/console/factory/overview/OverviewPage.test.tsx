@@ -30,7 +30,7 @@ afterEach(async () => {
   unmount = undefined;
 });
 
-async function mount(at = '/console/p/cb-1/factory/overview'): Promise<HTMLElement> {
+async function mount(at = '/console/p/cb-1/factory/how-it-works'): Promise<HTMLElement> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -39,7 +39,7 @@ async function mount(at = '/console/p/cb-1/factory/overview'): Promise<HTMLEleme
       <MemoryRouter initialEntries={[at]}>
         <Routes>
           <Route
-            path="/console/p/:projectId/factory/overview"
+            path="/console/p/:projectId/factory/how-it-works"
             element={<OverviewBody overview={OVERVIEW} />}
           />
         </Routes>
@@ -103,13 +103,33 @@ describe('the factory overview', () => {
   });
 
   test('the sidebar opens any view; an unknown ?view= opens the root and says so', async () => {
-    const page = await mount('/console/p/cb-1/factory/overview?view=gone');
+    const page = await mount('/console/p/cb-1/factory/how-it-works?view=gone');
     expect(cards(page)).toEqual(['in', 'make', 'check']);
     // It names the view it could not find rather than silently showing the root.
     expect(page.textContent).toContain('"gone"');
     await click(button(page.querySelector('aside') as Element, 'Test it'));
     expect(cards(page)).toEqual(['run']);
     expect(crumbs(page)).toBe('How it works › Make › Test it');
+  });
+
+  test('on a phone the views are a select showing the open view, and choosing one opens it', async () => {
+    const page = await mount();
+    const select = page.querySelector('aside select') as HTMLSelectElement;
+    expect(select.value).toBe('top');
+    const nb = (n: number): string => String.fromCharCode(160).repeat(n);
+    expect([...select.options].map(o => o.textContent)).toEqual([
+      'How it works (3)',
+      `${nb(2)}Make (2)`,
+      `${nb(4)}Test it (1)`,
+      `${nb(2)}Check (1)`,
+    ]);
+    await act(async () => {
+      select.value = 'check';
+      select.dispatchEvent(new dom.Event('change', { bubbles: true }) as unknown as Event);
+    });
+    expect(cards(page)).toEqual(['read']);
+    expect(crumbs(page)).toBe('How it works › Check');
+    expect((page.querySelector('aside select') as HTMLSelectElement).value).toBe('check');
   });
 
   test('full screen draws over the console until Exit or Esc', async () => {

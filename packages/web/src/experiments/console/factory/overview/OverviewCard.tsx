@@ -12,15 +12,19 @@ import { ICONS, KINDS } from './overview-kinds';
 
 /**
  * One card: its kind's colour along the top, its icon and kind, its title and line of text. A
- * card that opens a view is a button marked ⤢.
+ * card that opens a view is a button marked ⤢. It fills its grid cell, or with `fit="content"`
+ * (a parallel group's member) is as tall as its text, centred on the cell's middle row, where
+ * every line into or out of it lands.
  */
 export function OverviewCard({
   card,
   box,
+  fit,
   onOpen,
 }: {
   card: Card;
   box: Box;
+  fit: 'cell' | 'content';
   onOpen: (view: string) => void;
 }): ReactElement {
   const kind = KINDS[card.kind];
@@ -51,7 +55,16 @@ export function OverviewCard({
   );
   const frame =
     'absolute flex flex-col gap-3 overflow-hidden rounded-console-16 border-2 bg-surface px-5 pb-5 pt-6 text-left';
-  const style = { left: box.x, top: box.y, width: box.w, height: box.h };
+  const style =
+    fit === 'cell'
+      ? { left: box.x, top: box.y, width: box.w, height: box.h }
+      : {
+          left: box.x,
+          top: box.y + box.h / 2,
+          width: box.w,
+          maxHeight: box.h,
+          transform: 'translateY(-50%)',
+        };
   if (card.opens === undefined)
     return (
       <div data-card={card.id} className={`${frame} border-border`} style={style}>
