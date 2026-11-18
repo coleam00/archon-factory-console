@@ -112,6 +112,8 @@ const stageSchema = z.strictObject({
   label: labelSchema,
   /** One plain-words line: what this stage does to an item. */
   blurb: z.string().min(1).max(300),
+  /** About six words for the map card; absent, the map clamps the blurb to two lines. */
+  short: z.string().min(1).max(60).optional(),
   /** The colour group the map draws the stage in. */
   group: z.enum(['intake', 'build', 'check', 'land']),
   /** The pack entrypoints whose runs count here. Empty for a stage no run works, like Landed. */
