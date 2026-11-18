@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { testTimeout, trackTempRoots } from '@archon/paths/test-utils';
@@ -33,9 +33,11 @@ test('a suite that errored while loading names its file', () => {
   });
 });
 
-test("the runner's group error is explained by a failing file in that group, and not otherwise", () => {
-  const groupError = (selectors: string): string =>
-    runnerErrorReport('Bun exited 1', selectors).suites;
+const groupError = (selectors: string): string =>
+  runnerErrorReport('Bun exited 1', selectors).suites;
+
+test("a failed group's files that left no suite are rerun too, beside its failing file", () => {
+  // Bun writes no suite for b.test.ts when it throws while loading; only the group error names it.
   expect(
     failedTestFiles(
       report(
@@ -43,10 +45,17 @@ test("the runner's group error is explained by a failing file in that group, and
         groupError('./src/a.test.ts ./src/b.test.ts')
       )
     )
-  ).toEqual({ files: ['src/a.test.ts'], unattributed: 0 });
+  ).toEqual({ files: ['src/a.test.ts', 'src/b.test.ts'], unattributed: 0 });
+});
+
+test('a failed group whose files all reported and passed leaves its failure unattributed', () => {
   expect(
     failedTestFiles(
-      report(suite('src/a.test.ts', failing('src/a.test.ts')), groupError('./src/b.test.ts'))
+      report(
+        suite('src/a.test.ts', failing('src/a.test.ts')),
+        suite('src/b.test.ts', passing('src/b.test.ts')),
+        groupError('./src/b.test.ts')
+      )
     )
   ).toEqual({ files: ['src/a.test.ts'], unattributed: 1 });
 });
@@ -69,7 +78,14 @@ async function retry(root: string): Promise<{ code: number; stdout: string }> {
   return { code, stdout };
 }
 
-function fixture(body: string): string {
+const passingFile = `test('passes', () => {});`;
+const failingFile = `test('fails', () => expect(1).toBe(2));`;
+
+/**
+ * A package whose `test` script is the real runner, holding `files` (name to test body) under
+ * src, and a report of the failed leg written by `reportXml`.
+ */
+function fixture(files: Record<string, string>, reportXml: string): string {
   const root = track(mkdtempSync(join(tmpdir(), 'retry-files-')));
   mkdirSync(join(root, 'src'));
   writeFileSync(
@@ -80,25 +96,26 @@ function fixture(body: string): string {
       },
     })
   );
-  writeFileSync(
-    join(root, 'src', 'flaky.test.ts'),
-    `import { test, expect } from 'bun:test';\nimport { existsSync, writeFileSync } from 'node:fs';\n${body}`
-  );
-  writeFileSync(
-    join(root, 'r.xml'),
-    report(suite('src/flaky.test.ts', failing('src/flaky.test.ts')))
-  );
+  for (const [name, body] of Object.entries(files)) {
+    writeFileSync(
+      join(root, 'src', `${name}.test.ts`),
+      `import { test, expect } from 'bun:test';\n${body}`
+    );
+  }
+  writeFileSync(join(root, 'r.xml'), reportXml);
   return root;
 }
+const flakyFailed = report(suite('src/flaky.test.ts', failing('src/flaky.test.ts')));
 
 test(
-  'a file that passes on its rerun passes the leg and says RETRIED',
+  'a file that passes on its rerun passes the leg and says RETRIED, rerunning only that file',
   async () => {
-    const root = fixture(`test('once', () => expect(existsSync('seen')).toBe(true));`);
-    writeFileSync(join(root, 'seen'), '');
+    // other.test.ts always fails and the report does not name it: a rerun of more than the
+    // named file would fail the leg.
+    const root = fixture({ flaky: passingFile, other: failingFile }, flakyFailed);
     const result = await retry(root);
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain(`RETRIED ${root}/src/flaky.test.ts: passed on rerun`);
+    expect(result.stdout).toContain(`RETRIED ${root}/src/flaky.test.ts`);
   },
   testTimeout(10000)
 );
@@ -106,22 +123,43 @@ test(
 test(
   'a file that fails again fails the leg',
   async () => {
-    const root = fixture(`test('always', () => expect(1).toBe(2));`);
-    const result = await retry(root);
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain('failed again');
+    const root = fixture({ flaky: failingFile }, flakyFailed);
+    expect((await retry(root)).code).toBe(1);
   },
   testTimeout(10000)
 );
 
-test('a report whose failure names no file fails without a rerun', async () => {
-  const root = track(mkdtempSync(join(tmpdir(), 'retry-files-')));
-  writeFileSync(
-    join(root, 'r.xml'),
-    report(runnerErrorReport('Bun exited 1', './src/a.test.ts').suites)
-  );
-  const result = await retry(root);
-  expect(result.code).toBe(1);
-  expect(result.stdout).not.toContain('RETRIED');
-  expect(readFileSync(join(root, 'r.xml'), 'utf8')).toContain('runner');
-});
+test(
+  'a file that never loaded beside a flaky file in its group is rerun and fails the leg',
+  async () => {
+    const root = fixture(
+      { flaky: passingFile, broken: `throw new Error('cannot load');` },
+      report(
+        suite('src/flaky.test.ts', failing('src/flaky.test.ts')),
+        groupError('./src/flaky.test.ts ./src/broken.test.ts')
+      )
+    );
+    const result = await retry(root);
+    expect(result.code).toBe(1);
+    expect(result.stdout).toContain(`RETRIED ${root}/src/broken.test.ts`);
+  },
+  testTimeout(10000)
+);
+
+test(
+  'an unattributed failure fails the leg without a rerun, even when another file would pass',
+  async () => {
+    const root = fixture(
+      { flaky: passingFile, other: passingFile },
+      report(
+        suite('src/flaky.test.ts', failing('src/flaky.test.ts')),
+        suite('src/other.test.ts', passing('src/other.test.ts')),
+        groupError('./src/other.test.ts')
+      )
+    );
+    const result = await retry(root);
+    expect(result.code).toBe(1);
+    expect(result.stdout).not.toContain('RETRIED');
+  },
+  testTimeout(10000)
+);

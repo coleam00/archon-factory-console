@@ -14,14 +14,19 @@ import { RUNNER_SUITE } from './package-test-reports';
  * it misses now and then. A rerun of the one file separates that from a real failure without
  * touching the test code. Each rerun prints `RETRIED <file>` to the log and, in Actions, the job
  * summary, so a retry is never silent. Failures are read from the JUnit report, never from test
- * output text. A failure the report ties to no file (a group's process crashing between tests)
- * cannot be rerun alone, so it fails the leg.
+ * output text. Bun writes no suite for a file that throws while loading; the runner's error for
+ * that file's group names it, so a file a failed group names with no suite in the report is
+ * rerun alone too. A failure the report ties to no file it can rerun (a failed group whose files
+ * all reported and all passed) fails the leg without a rerun.
  */
 
 export interface FailedFiles {
-  /** Files with a failing or erroring test, or an erroring suite, in report order. */
+  /**
+   * Files to rerun, in report order: those with a failing or erroring test or suite, then those
+   * a failed group names that left no suite in the report.
+   */
   files: string[];
-  /** Failures and errors the report counts that belong to no file. */
+  /** Failures, errors and failed groups that leave no file to rerun. */
   unattributed: number;
 }
 
@@ -34,6 +39,8 @@ interface Open {
 
 export function failedTestFiles(xml: string): FailedFiles {
   const files = new Set<string>();
+  // Every file the report has a suite for, failing or not.
+  const reported = new Set<string>();
   // The selectors of each group whose process exited non-zero (the runner's own suite).
   const failedGroups: string[][] = [];
   let unattributed = 0;
@@ -45,8 +52,9 @@ export function failedTestFiles(xml: string): FailedFiles {
       return typeof value === 'string' ? value : undefined;
     };
     const file = attr('file')?.replaceAll('\\', '/');
-    if (tag.name === 'testsuite' && file !== undefined && Number(attr('errors') ?? 0) > 0) {
-      files.add(file);
+    if (tag.name === 'testsuite' && file !== undefined) {
+      reported.add(file);
+      if (Number(attr('errors') ?? 0) > 0) files.add(file);
     }
     if (tag.name === 'failure' || tag.name === 'error') {
       const innermost = (matches: (element: Open) => boolean): Open | undefined =>
@@ -70,12 +78,17 @@ export function failedTestFiles(xml: string): FailedFiles {
     open.pop();
   });
   parser.write(xml).close();
-  // A group's non-zero exit is explained when one of its files failed; rerunning that file
-  // reruns the cause. A group exit with no failing file in it has no file to rerun.
-  const selects = (selector: string, file: string): boolean =>
-    file.includes(selector.replace(/^\.\//, ''));
+  // A failed group is accounted for by its files that failed and by its files that never
+  // reported (a file that threw while loading); each of those is rerun alone. One failing file
+  // does not account for a silent sibling. A failed group with neither has no file to rerun.
+  const bare = (selector: string): string => selector.replace(/^\.\//, '');
   for (const group of failedGroups) {
-    if (![...files].some(file => group.some(selector => selects(selector, file)))) unattributed++;
+    for (const selector of group) {
+      if (![...reported].some(file => file.includes(bare(selector)))) files.add(bare(selector));
+    }
+    if (![...files].some(file => group.some(selector => file.includes(bare(selector))))) {
+      unattributed++;
+    }
   }
   return { files: [...files], unattributed };
 }
@@ -94,7 +107,7 @@ async function main(): Promise<number> {
   const failed = failedTestFiles(readFileSync(reportArg, 'utf8'));
   if (failed.unattributed > 0 || failed.files.length === 0) {
     console.error(
-      `::error::${String(failed.unattributed)} failure(s) in ${reportArg} name no test file, so they cannot be rerun alone`
+      `::error::The leg failed, but ${reportArg} leaves ${String(failed.unattributed || 'its')} failure(s) with no test file to rerun alone; see the test output above`
     );
     return 1;
   }
