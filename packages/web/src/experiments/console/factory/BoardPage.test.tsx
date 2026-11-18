@@ -110,6 +110,14 @@ describe('Found by the factory', () => {
         'section[aria-labelledby="found-by-the-factory-heading"]'
       );
       expect(panel?.querySelector('h2')?.textContent).toBe('Found by the factory');
+      // On the board it is one line (owner ruling), so the columns keep their height: the
+      // full panel's chips are not drawn until "show the findings" opens it.
+      expect(
+        [...(panel?.querySelectorAll('button') ?? [])].some(
+          button => button.textContent === 'show the findings'
+        )
+      ).toBe(true);
+      expect(panel?.querySelector('ul[aria-label="What the drains decided"]')).toBeNull();
       const lastColumn = [...container.querySelectorAll('header[data-column]')].at(-1);
       expect(lastColumn).toBeDefined();
       // After every column in document order: under the board, not above it.
