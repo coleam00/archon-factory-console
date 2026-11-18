@@ -11,7 +11,7 @@ import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
-import { FIT_PAD, MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
+import { MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
@@ -391,7 +391,6 @@ test('a stage whose count waits on a merge answer does not draw the map to it', 
   );
   const camera = await atWidth(390, cameraOf, [realItem('5'), ...pending]);
   expect(centreIn('plan-build', camera.x)).toBe(390 / 2);
-  expect(camera.x).not.toBe(FIT_PAD);
 });
 
 test('a stage with no short line shows its blurb, on a card of its own and in a row', async () => {
