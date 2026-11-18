@@ -174,8 +174,10 @@ function CardSkeletons(): ReactElement {
  * by a filter or, for Merged, by the 7-day window, and only then is the column itself empty.
  */
 export function emptySentence(label: string, filtered: boolean, earlier: number): string {
+  // Older merges first: under a filter they are matches, listed by "N earlier" below.
+  if (earlier > 0)
+    return filtered ? 'No match merged in the last 7 days' : 'Nothing merged in the last 7 days';
   if (filtered) return 'No card here matches the filter';
-  if (earlier > 0) return 'Nothing merged in the last 7 days';
   return `Nothing in ${label} now`;
 }
 

@@ -481,6 +481,35 @@ describe('the column headers and the Merged column', () => {
     }
   });
 
+  test('the filter box counts as a filter: a column it empties says no card matches', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      await filterTo(container, 'needs you');
+      const column = columnNamed(container, 'Plan & build')?.textContent ?? '';
+      expect(column).toContain('No card here matches the filter');
+      expect(column).not.toContain('Nothing in');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a filtered Merged column whose matches all merged earlier points to them', async () => {
+    const { container, unmount } = await mount([
+      mergedOn('old', new Date(2026, 10, 8, 9)),
+      mergedOn('older', new Date(2026, 9, 1)),
+      realItem('7'),
+    ]);
+    try {
+      await filterTo(container, 'old');
+      const merged = columnNamed(container, 'Merged')?.textContent ?? '';
+      expect(merged).toContain('No match merged in the last 7 days');
+      expect(merged).not.toContain('No card here matches');
+      expect(merged).toContain('2 earlier');
+    } finally {
+      await unmount();
+    }
+  });
+
   test('a Merged column with only older merges says none in the last 7 days', async () => {
     const { container, unmount } = await mount([
       mergedOn('old', new Date(2026, 10, 8, 9)),

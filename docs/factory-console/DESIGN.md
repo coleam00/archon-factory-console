@@ -665,7 +665,8 @@ and when it merged, in local time; no stage line, order chip, rounds or returned
 Merged column lists the items merged in the last 7 local calendar days, newest first, then
 "N earlier · show all" opening the Table filtered to merged. A column with no card to show says why: "No card here
 matches the filter" under the filter box or `?show=`, "Nothing merged in the last 7 days" for
-a Merged column holding only older merges, else rule 9's "Nothing in <column> now".
+a Merged column holding only older merges ("No match merged in the last 7 days" when the filter
+matches only older merges), else rule 9's "Nothing in <column> now".
 
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden

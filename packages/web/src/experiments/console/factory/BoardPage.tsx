@@ -155,7 +155,9 @@ export function Board({
         orders={orders}
         lit={params.get(ORDER_PARAM)}
         now={now ?? new Date()}
-        filtered={query.trim() !== '' || show !== undefined}
+        // filterBoard returns its input unchanged when nothing narrows it, so this is its own
+        // answer to "is the board narrowed", not a second copy of that condition.
+        filtered={shown !== all}
       />
     </div>
   );
