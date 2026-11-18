@@ -131,6 +131,12 @@ const decisionPointSchema = z.strictObject({
   outcome: z.string().min(1),
 });
 
+/**
+ * What a step's outcome means to a person, so a console can word it in its own words. The set
+ * is closed: a console words each meaning, and never a pack's token.
+ */
+export const factoryVerdictMeaningSchema = z.enum(['approved', 'returned', 'asked']);
+
 const mapSchema = z.strictObject({
   cards: z.array(
     z.strictObject({
@@ -206,6 +212,24 @@ const factoryViewShape = z.strictObject({
    * declared approval needs a decision; nothing is read as approved unless declared here.
    */
   approves: z.array(decisionPointSchema).optional(),
+  /**
+   * What other steps' outcomes mean, so a console words them: by workflow, step id and
+   * outcome. It decides nothing: only `returns` and `approves` decide a round, and an entry
+   * restating one of theirs is refused, so the two cannot disagree. An outcome no entry
+   * means stays the pack's token.
+   */
+  verdicts: z
+    .record(
+      workflowNameSchema,
+      z.record(stepIdSchema, z.record(z.string().min(1), factoryVerdictMeaningSchema))
+    )
+    .optional(),
+  /**
+   * Completed outcomes that stop to ask you (`workflow:outcome`, or `workflow:*` for every
+   * outcome, not a run without one). A run that ended so reads "asked you"; `placement` still
+   * decides where the item waits.
+   */
+  asked: z.array(outcomeKeySchema).optional(),
   /** Where the change's URL is in a run's result, as a JSON pointer. */
   change: z
     .strictObject({
@@ -278,6 +302,29 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   });
   if (view.change !== undefined) refer(['change', 'workflow'], view.change.workflow);
   for (const workflow of Object.keys(view.steps ?? {})) refer(['steps', workflow], workflow);
+  for (const workflow of Object.keys(view.verdicts ?? {})) refer(['verdicts', workflow], workflow);
+  view.asked?.forEach((key, index) => {
+    refer(['asked', index], workflowOf(key));
+  });
+  return issues;
+}
+
+/** A `verdicts` entry may not restate a declared return or approval. */
+function verdictOverlapIssues(view: FactoryViewShape): Issue[] {
+  const decided = new Set(
+    [...(view.returns ?? []), ...(view.approves ?? [])].map(point =>
+      JSON.stringify([point.workflow, point.node, point.outcome])
+    )
+  );
+  const issues: Issue[] = [];
+  for (const [workflow, steps] of Object.entries(view.verdicts ?? {}))
+    for (const [node, outcomes] of Object.entries(steps))
+      for (const outcome of Object.keys(outcomes))
+        if (decided.has(JSON.stringify([workflow, node, outcome])))
+          issues.push({
+            path: ['verdicts', workflow, node, outcome],
+            message: 'is declared in returns or approves already',
+          });
   return issues;
 }
 
@@ -322,6 +369,7 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
   for (const issue of [
     ...stageReferenceIssues(view),
     ...workflowReferenceIssues(view),
+    ...verdictOverlapIssues(view),
     ...drilldownIssues(view),
   ])
     ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });

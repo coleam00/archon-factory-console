@@ -5,6 +5,8 @@ import { stepLabel } from './step-label';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
+/** What a declared step outcome means (`verdicts`); the console words each one. */
+type VerdictMeaning = NonNullable<Declaration['verdicts']>[string][string][string];
 type ItemRun = FactoryItemDetail['item']['runs'][number];
 type RunFacts = FactoryItemDetail['runs'][number];
 type Round = NonNullable<RunFacts['rounds']>['rounds'][number];
@@ -72,6 +74,8 @@ export interface TimelineRow {
   status: ItemRun['status'];
   /** How the run ended, or what it is doing (`runOutcome`). */
   outcome: OutcomeWords;
+  /** The questions this run left on the item, for the hover of an outcome that reads "asked you". */
+  asked: string[];
   /** Null for a run that has not started executing. */
   durationMs: number | null;
   costUsd: number | null;
@@ -87,11 +91,52 @@ export const runHref = (projectId: string, runId: string): string =>
 
 const words = (text: string): OutcomeWords => ({ text, mono: false });
 
+/** The timeline's words for a run that stopped to ask, and for a step outcome meaning `asked`. */
+const ASKED_YOU = 'asked you';
+
+/** Each declared meaning in the board's round-dot words, and "asked you" for an ask. */
+const MEANING_WORDS: Record<VerdictMeaning, string> = {
+  approved: VERDICT_LABEL.approved,
+  returned: VERDICT_LABEL.returned,
+  asked: ASKED_YOU,
+};
+
 /**
- * A completed run's outcome: where `placement` sent the item ("sent to Plan"), the label of
- * the `endings` entry that closed it, else the pack's token as an identifier.
+ * The questions a run left on the item: its answered or withdrawn asks, then its open ones.
+ * An open question counts only by `askedIn`; a gate's own question names its run in `run`,
+ * and that is not an ask the run left.
  */
-function completedOutcome(view: Declaration, workflow: string | null, outcome: string | null) {
+function askedQuestions(detail: FactoryItemDetail, runId: string): string[] {
+  const closed = detail.item.answers.flatMap(answer =>
+    answer.kind === 'ask' && answer.runId === runId ? [answer.question] : []
+  );
+  const open = detail.item.questions.flatMap(question =>
+    question.kind === 'attention' && question.askedIn?.runId === runId ? [question.message] : []
+  );
+  return [...closed, ...open];
+}
+
+/**
+ * Whether `asked` declares this completed outcome, exactly or by `workflow:*`. As in
+ * `endings`, `*` takes every outcome, not a run that recorded none.
+ */
+const declaredAsked = (view: Declaration, workflow: string, outcome: string | null): boolean =>
+  outcome !== null &&
+  (view.asked ?? []).some(key => key === `${workflow}:*` || key === `${workflow}:${outcome}`);
+
+/**
+ * A completed run's outcome: "asked you" when it stopped to ask (a declared `asked` outcome,
+ * or asks it left on the item), else where `placement` sent the item ("sent to Plan"), the
+ * label of the `endings` entry that closed it, else the pack's token as an identifier.
+ */
+function completedOutcome(
+  view: Declaration,
+  workflow: string | null,
+  outcome: string | null,
+  asked: readonly string[]
+) {
+  if (asked.length > 0 || (workflow !== null && declaredAsked(view, workflow, outcome)))
+    return words(ASKED_YOU);
   const stage = workflow === null ? undefined : placedStage(view, workflow, outcome);
   if (stage !== undefined) return words(`sent to ${stage.label}`);
   if (outcome === null) return words('completed');
@@ -101,7 +146,12 @@ function completedOutcome(view: Declaration, workflow: string | null, outcome: s
 }
 
 /** How a run ended, or what it is doing; `workflow` as the view names it, null if it does not. */
-function runOutcome(view: Declaration, workflow: string | null, run: ItemRun): OutcomeWords {
+function runOutcome(
+  view: Declaration,
+  workflow: string | null,
+  run: ItemRun,
+  asked: readonly string[]
+): OutcomeWords {
   if (run.awaitingExecution !== null) return words('waiting to start');
   switch (run.status) {
     case 'pending':
@@ -112,13 +162,14 @@ function runOutcome(view: Declaration, workflow: string | null, run: ItemRun): O
     case 'cancelled':
       return words(run.status);
     case 'completed':
-      return completedOutcome(view, workflow, run.outcome);
+      return completedOutcome(view, workflow, run.outcome, asked);
   }
 }
 
 /**
  * A step's outcome in a round: "returned" or "approved" where `returns` or `approves`
- * declares that step and outcome, else the pack's token as an identifier.
+ * declares that step and outcome, its meaning's words where `verdicts` does, else the pack's
+ * token as an identifier.
  */
 function stepOutcome(view: Declaration, workflow: string, step: RoundStep): OutcomeWords {
   const declares = (points: Declaration['returns']): boolean =>
@@ -128,7 +179,8 @@ function stepOutcome(view: Declaration, workflow: string, step: RoundStep): Outc
     );
   if (declares(view.returns)) return words(VERDICT_LABEL.returned);
   if (declares(view.approves)) return words(VERDICT_LABEL.approved);
-  return { text: step.outcome, mono: true };
+  const meaning = view.verdicts?.[workflow]?.[step.node]?.[step.outcome];
+  return meaning === undefined ? { text: step.outcome, mono: true } : words(MEANING_WORDS[meaning]);
 }
 
 /** A round's steps grouped under the stage each belongs to, in the order they recorded. */
@@ -230,13 +282,15 @@ export function buildTimeline(
     const workflow = fact?.workflow ?? null;
     const liveStep = run.status === 'running' ? (fact?.step ?? null) : null;
     const iteration = fact?.rounds?.rounds.at(-1)?.iteration;
+    const asked = askedQuestions(detail, run.id);
     return {
       runId: run.id,
       href: runHref(projectId, run.id),
       workflow: workflow ?? run.workflow,
       stage: workflow === null ? null : (stageOfWorkflow(view, workflow, liveStep)?.label ?? null),
       status: run.status,
-      outcome: runOutcome(view, workflow, run),
+      outcome: runOutcome(view, workflow, run, asked),
+      asked,
       durationMs: durationOf(run, now),
       costUsd: fact?.costUsd ?? null,
       liveStep,

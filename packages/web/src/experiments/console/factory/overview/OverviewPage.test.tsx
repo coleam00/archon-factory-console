@@ -112,6 +112,26 @@ describe('the factory overview', () => {
     expect(crumbs(page)).toBe('How it works › Make › Test it');
   });
 
+  test('on a phone the views are a select showing the open view, and choosing one opens it', async () => {
+    const page = await mount();
+    const select = page.querySelector('aside select') as HTMLSelectElement;
+    expect(select.value).toBe('top');
+    const nb = (n: number): string => String.fromCharCode(160).repeat(n);
+    expect([...select.options].map(o => o.textContent)).toEqual([
+      'How it works (3)',
+      `${nb(2)}Make (2)`,
+      `${nb(4)}Test it (1)`,
+      `${nb(2)}Check (1)`,
+    ]);
+    await act(async () => {
+      select.value = 'check';
+      select.dispatchEvent(new dom.Event('change', { bubbles: true }) as unknown as Event);
+    });
+    expect(cards(page)).toEqual(['read']);
+    expect(crumbs(page)).toBe('How it works › Check');
+    expect((page.querySelector('aside select') as HTMLSelectElement).value).toBe('check');
+  });
+
   test('full screen draws over the console until Exit or Esc', async () => {
     const page = await mount();
     await click(button(page, 'Full screen'));

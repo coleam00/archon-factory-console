@@ -19,7 +19,7 @@ interface OverviewMapProps {
 
 /**
  * One view of the overview on a pannable, zoomable canvas: its groups as dashed boxes, its
- * edges, then its cards. It opens fitted; the page keys it by view, so every view opens fitted.
+ * edges and fans, then its cards. It opens fitted; the page keys it by view, so every view opens fitted.
  * The fit may go under the live map's readable floor: the overview's layout test holds its
  * titles to 14 px fitted instead.
  */
@@ -30,7 +30,10 @@ export function OverviewMap({
   onUp,
   onToggleFullScreen,
 }: OverviewMapProps): ReactElement {
-  const { cards, groups, edges, bounds } = useMemo(() => layoutOverview(view), [view]);
+  const { cards, groups, edges, bounds, fans, contentSized } = useMemo(
+    () => layoutOverview(view),
+    [view]
+  );
   const camera = useMapCamera(bounds, null, MIN_ZOOM);
   const { k, x, y } = camera.camera;
   return (
@@ -70,11 +73,19 @@ export function OverviewMap({
               </div>
             );
           })}
-          <OverviewEdges edges={edges} bounds={bounds} />
+          <OverviewEdges edges={edges} fans={fans} bounds={bounds} />
           {view.cards.map(card => {
             const box = cards.get(card.id);
             if (box === undefined) return null;
-            return <OverviewCard key={card.id} card={card} box={box} onOpen={onOpen} />;
+            return (
+              <OverviewCard
+                key={card.id}
+                card={card}
+                box={box}
+                fit={contentSized.has(card.id) ? 'content' : 'cell'}
+                onOpen={onOpen}
+              />
+            );
           })}
         </div>
       </div>
