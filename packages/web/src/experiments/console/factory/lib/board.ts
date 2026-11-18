@@ -8,7 +8,7 @@
  */
 import { formatDateTime } from '../../lib/format';
 import type { FactoryItem } from '../../skills/factory';
-import { needsYou, ownerLostMessage } from './needs-you';
+import { needsYou, ownerLostMessage } from '../../lib/needs-you';
 import { showsCard, type BoardShow } from './board-show';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, type ItemColumn } from './placement';

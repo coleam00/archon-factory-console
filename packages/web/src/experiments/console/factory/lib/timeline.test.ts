@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
-import { askItem, gateItem } from '../needs-you.test-fixtures';
+import { askItem, gateItem } from '../../lib/needs-you.test-fixtures';
 import { buildTimeline, runHref, type TimelineRow } from './timeline';
 
 const NOW = Date.parse('2026-11-17T08:00:00Z');

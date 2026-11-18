@@ -1,6 +1,9 @@
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useParams } from 'react-router';
+import { AskGroup } from '../components/ask-card/AskGroup';
+import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
 import { EmptyState } from '../components/EmptyState';
+import { askNaming } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
 import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
@@ -17,13 +20,12 @@ import { isNoSuchItem, useWorkOrders, WorkOrderOnly } from './ItemWorkOrder';
 import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { itemPill } from './lib/board';
 import { mergePending } from './lib/merge-pending';
-import { itemAsks, type NeedsYouItem } from './lib/needs-you';
+import { itemAsks, type NeedsYouItem } from '../lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { buildTimeline } from './lib/timeline';
 import { membershipOf } from './lib/work-orders';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
-import { NeedsYouRow } from './NeedsYouRow';
 import { FactoryLoading } from './FactoryLoading';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
@@ -113,7 +115,7 @@ function ItemRead({
           (order !== undefined || incomingMembers(data.item).length > 0)
         }
       />
-      <ItemAsks projectId={projectId} asks={asks} attention={attention} />
+      <ItemAsks projectId={projectId} view={view} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
       <ItemLinks
         projectId={projectId}
@@ -161,17 +163,22 @@ function ItemUnread({
   return <FactoryLoading read={read} />;
 }
 
+/** The item's open asks, each as the ask card Needs you draws, always open; the page names the item. */
 function ItemAsks({
   projectId,
+  view,
   asks,
   attention,
 }: {
   projectId: string;
+  view: FactoryViewListed;
   asks: NeedsYouItem[];
   attention: EntityView<AttentionQueue>;
 }): ReactElement {
   const queue = attention.data;
   const failed = readFailed(attention.error);
+  // Held here, not in the group: the item's last ask answered would otherwise unmount it.
+  const hold = useAnsweredHold(asks);
   return (
     <section className="flex flex-col gap-2.5">
       <SectionTitle>Asks</SectionTitle>
@@ -183,14 +190,16 @@ function ItemAsks({
             What waits on you could not be loaded: {errorDetail(failed)}
           </p>
         )
-      ) : asks.length === 0 ? (
+      ) : hold.asks.length === 0 ? (
         <p className="text-sm text-text-secondary">Nothing on this item is waiting on you.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {asks.map(ask => (
-            <NeedsYouRow key={ask.ref} projectId={projectId} item={ask} queue={queue} />
-          ))}
-        </ul>
+        <AskGroup
+          projectId={projectId}
+          asks={hold.asks}
+          hold={hold}
+          queue={queue}
+          where={askNaming(projectId, view).where}
+        />
       )}
     </section>
   );

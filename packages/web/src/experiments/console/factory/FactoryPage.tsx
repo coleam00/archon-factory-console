@@ -1,9 +1,10 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
+import { needsYouCount } from '../lib/needs-you';
 import { FactoryFrame } from './FactoryFrame';
 import { FactoryNumbers } from './FactoryNumbers';
 import { FactoryMap } from './map/FactoryMap';
-import { NeedsYouList } from './NeedsYouList';
+import { OverviewAsks } from './OverviewAsks';
 
 /** `/console/p/:projectId/factory`: what this factory does, its numbers, what needs a person, then the map. */
 export function FactoryPage(): ReactElement {
@@ -13,8 +14,12 @@ export function FactoryPage(): ReactElement {
     <FactoryFrame section="overview" wide>
       {(view, attention) => (
         <>
-          <FactoryNumbers projectId={projectId} view={view.declaration} />
-          <NeedsYouList projectId={projectId} view={view.declaration} attention={attention} />
+          <FactoryNumbers
+            projectId={projectId}
+            view={view.declaration}
+            waiting={attention.data === undefined ? undefined : needsYouCount(attention.data)}
+          />
+          <OverviewAsks projectId={projectId} view={view} attention={attention} />
           <FactoryMap projectId={projectId} view={view} attention={attention} />
         </>
       )}

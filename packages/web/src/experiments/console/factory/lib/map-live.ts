@@ -7,7 +7,7 @@
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueueItem } from '../../skills/runs';
 import { anyMergePending, stageCountPending } from './merge-pending';
-import { itemAsks } from './needs-you';
+import { itemAsks } from '../../lib/needs-you';
 import { pageItemColumn, stageIdOf } from './placement';
 import type { FactoryViewListed } from './views';
 

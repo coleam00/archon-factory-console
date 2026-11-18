@@ -28,6 +28,42 @@ function activityOf(item: ItemRead): number {
   return Math.max(0, ...item.runs.map(run => Date.parse(run.completedAt ?? run.startedAt)));
 }
 
+/**
+ * Every non-empty page of a project's items window, in order: the window from before any
+ * run, paged by its cursor. Each request has its own deadline.
+ */
+async function* windowPages(
+  codebaseId: string,
+  listWindow: FactoryItemsReads['listWindow'],
+  within: WithinDeadline
+): AsyncGenerator<ItemRead[]> {
+  let after: string | null = null;
+  do {
+    const query: Parameters<FactoryItemsReads['listWindow']>[0] =
+      after === null
+        ? { project: codebaseId, since: EVERY_ITEM_SINCE, limit: PAGE_LIMIT }
+        : { project: codebaseId, after, limit: PAGE_LIMIT };
+    const page: ItemWindow = await within(signal => listWindow(query, { signal }));
+    if (page.items.length > 0) yield page.items;
+    after = page.next;
+  } while (after !== null);
+}
+
+/**
+ * Every item of a project as the engine reads it, with no factory view: the window alone,
+ * never the factory progress read (which answers 404 where no view applies). Needs you reads
+ * it for its Answered lately on such a project. Newest activity first, ties by item id.
+ */
+export async function readEveryItem(
+  codebaseId: string,
+  listWindow: FactoryItemsReads['listWindow'],
+  within: WithinDeadline
+): Promise<ItemRead[]> {
+  const items: ItemRead[] = [];
+  for await (const page of windowPages(codebaseId, listWindow, within)) items.push(...page);
+  return items.sort((a, b) => activityOf(b) - activityOf(a) || a.item.id.localeCompare(b.item.id));
+}
+
 /** What `K.factoryItems(projectId)` holds for every Factory page. */
 export interface FactoryItemsRead {
   /** Every item with a run, newest activity first, ties by item id. */
@@ -59,22 +95,13 @@ export async function readEveryFactoryItem(
 ): Promise<FactoryItemsRead> {
   const items: FactoryItem[] = [];
   const members: Record<string, string[]> = {};
-  let after: string | null = null;
-  do {
-    const query: Parameters<FactoryItemsReads['listWindow']>[0] =
-      after === null
-        ? { project: codebaseId, since: EVERY_ITEM_SINCE, limit: PAGE_LIMIT }
-        : { project: codebaseId, after, limit: PAGE_LIMIT };
-    const page: ItemWindow = await within(signal => reads.listWindow(query, { signal }));
-    if (page.items.length > 0) {
-      const keys = page.items.map(read => read.item.key);
-      const read = await within(signal => reads.getProgress({ codebaseId, keys }, { signal }));
-      for (const item of page.items)
-        items.push({ ...item, progress: read.progress[item.item.key] ?? null });
-      Object.assign(members, read.members);
-    }
-    after = page.next;
-  } while (after !== null);
+  for await (const page of windowPages(codebaseId, reads.listWindow, within)) {
+    const keys = page.map(read => read.item.key);
+    const read = await within(signal => reads.getProgress({ codebaseId, keys }, { signal }));
+    for (const item of page)
+      items.push({ ...item, progress: read.progress[item.item.key] ?? null });
+    Object.assign(members, read.members);
+  }
   const outside = [...namedOrders(items)].filter(key => !(key in members));
   for (let start = 0; start < outside.length; start += PAGE_LIMIT) {
     const keys = outside.slice(start, start + PAGE_LIMIT);

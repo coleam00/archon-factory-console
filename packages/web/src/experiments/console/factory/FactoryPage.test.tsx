@@ -1,17 +1,16 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter, Route, Routes } from 'react-router';
-import { ProjectViewTabs } from '../components/ProjectViewTabs';
+import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryOverviewRead, FactoryViews, FactoryWorkflow } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRoutes } from './routes';
+import { projectRoutes } from '../routes/project-routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from '../skills/factory';
 import { PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
-import { askItem } from './needs-you.test-fixtures';
+import { askItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
 import { OVERVIEW } from './lib/overview.test-fixtures';
 
 const ID = 'cb-1';
@@ -100,27 +99,22 @@ function render(
   items: FactoryItem[] = []
 ): string {
   set(K.factoryViews(ID), listing);
-  set(K.factoryAttention(ID), attention);
+  set(K.projectAttention(ID), attention);
   set(K.factoryItems(ID), { items: [], members: {} });
   set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
   set(K.factoryItems(ID), { items: items, members: {} });
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        {factoryRoutes('/console/')}
-        <Route
-          path="/console/p/:projectId"
-          element={<ProjectViewTabs projectId={ID} active="runs" />}
-        />
-      </Routes>
+      <Routes>{projectRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }
 
 describe('the Factory tab', () => {
   test('follows Metrics when a view applies to the project', () => {
-    const html = render(`/console/p/${ID}`, withView);
-    expect(html.match(/>(Runs|Chat|Metrics|Factory)</g)).toEqual([
+    const html = render(`/console/p/${ID}/needs-you`, withView);
+    expect(html.match(/>(Needs you|Runs|Chat|Metrics|Factory)</g)).toEqual([
+      '>Needs you<',
       '>Runs<',
       '>Chat<',
       '>Metrics<',
@@ -130,7 +124,7 @@ describe('the Factory tab', () => {
   });
 
   test('is absent when no view applies', () => {
-    expect(render(`/console/p/${ID}`, none)).not.toContain('Factory');
+    expect(render(`/console/p/${ID}/needs-you`, none)).not.toContain('Factory');
   });
 });
 
@@ -144,19 +138,40 @@ describe('the Overview', () => {
       `/console/p/${ID}/factory Overview`,
     ]);
     expect(html).toContain(`href="/console/p/${ID}/factory/board"`);
-    expect(html).toContain(`href="/console/p/${ID}/factory/needs-you"`);
+    // Needs you is the project's tab; the sub-navigation (and the numbers' tile) link there.
+    expect(html).not.toContain(`href="/console/p/${ID}/factory/needs-you"`);
+    expect(html.split(`href="/console/p/${ID}/needs-you"`)).toHaveLength(4);
   });
 
   test('the sub-navigation counts what needs you, on every Factory page', () => {
-    const needsYouLink = (html: string): string | undefined =>
-      /<a [^>]*href="[^"]*\/factory\/needs-you"[^>]*>(.*?)<\/a>/.exec(html)?.[1];
-    expect(needsYouLink(render(`/console/p/${ID}/factory`, withView, asking))).toContain(
-      'aria-label="1 waiting"'
-    );
-    expect(needsYouLink(render(`/console/p/${ID}/factory/board`, withView, asking))).toContain(
-      '>1</span>'
-    );
-    expect(needsYouLink(render(`/console/p/${ID}/factory`, withView, quiet))).toBe('Needs you');
+    // The project tab and the sub-navigation entry: one count, the same on both.
+    const needsYouLinks = (html: string): string[] =>
+      [...html.matchAll(/<a [^>]*href="[^"]*\/p\/cb-1\/needs-you"[^>]*>(Needs you.*?)<\/a>/g)].map(
+        ([, body]) => (body ?? '').replace(/<span aria-hidden="true"[^>]*><\/span>/, '')
+      );
+    for (const page of ['', '/board']) {
+      const links = needsYouLinks(render(`/console/p/${ID}/factory${page}`, withView, asking));
+      expect(links).toHaveLength(2);
+      for (const link of links) expect(link).toContain('aria-label="1 waiting"');
+    }
+    expect(needsYouLinks(render(`/console/p/${ID}/factory`, withView, quiet))).toEqual([
+      'Needs you',
+      'Needs you',
+    ]);
+  });
+
+  test('the tab, the sub-navigation and the Overview number read one count: asks and waits', () => {
+    // Two asks on one item (#7) and a usage limit: 2 asks and waits, 3 queue items, 1 item.
+    const queue: AttentionQueue = {
+      items: [askItem({ ref: 'ask:a' }), askItem({ ref: 'ask:b' }), usageLimitItem()],
+      runs: [],
+      degraded: [],
+    };
+    const html = render(`/console/p/${ID}/factory`, withView, queue);
+    const badges = [...html.matchAll(/aria-label="(\d+) waiting"/g)].map(match => match[1]);
+    expect(badges).toEqual(['2', '2']);
+    const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
+    expect(strip.replace(/<[^>]*>/g, '')).toContain('2need you');
   });
 
   test('shows the summary only on the Overview; other pages show the title alone', () => {
@@ -174,7 +189,7 @@ describe('the Overview', () => {
     // The strip alone: the map's cards below are links drawn the same way.
     const strip = html.slice(
       html.indexOf('aria-label="Numbers"'),
-      html.indexOf('aria-label="Needs you"')
+      html.indexOf('aria-label="The map"')
     );
     const tiles = [
       ...strip.matchAll(
@@ -184,23 +199,26 @@ describe('the Overview', () => {
     const board = `/console/p/${ID}/factory/board`;
     expect(tiles).toEqual([
       `5 in flight → ${board}?show=in-flight`,
-      `0 items need you → ${board}?show=needs-you`,
+      `0 need you → /console/p/${ID}/needs-you`,
       expect.stringMatching(new RegExp(`^\\d+ landed today → ${board}\\?show=landed-today$`)),
       `3 of 8 done → ${board}?show=landed`,
       expect.stringMatching(
         new RegExp(` median from first run to landed → ${board}\\?show=landed$`)
       ),
     ]);
-    // Above the Needs-you list.
-    expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(
-      html.indexOf('aria-label="Needs you"')
-    );
+    // Above the map.
+    expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(html.indexOf('aria-label="The map"'));
   });
 
-  test('lists what needs you on the Overview', () => {
+  test('lists what needs you on the Overview: the question and the recommended tile, opening on Needs you', () => {
     const html = render(`/console/p/${ID}/factory`, withView, asking);
     expect(html).toContain('Which base should the change target?');
-    expect(html).toContain('Recommended: Use dev');
+    expect(html).toContain('Use dev');
+    expect(html).toContain('>Recommended<');
+    expect(html).toContain('High confidence. Dev is the working base.');
+    expect(html).toContain(`href="/console/p/${ID}/needs-you?ask=ask%3A1"`);
+    // Compact: no answer is sent from the Overview.
+    expect(html).not.toContain('aria-pressed');
   });
 
   test('the map follows what needs you', () => {
@@ -268,29 +286,27 @@ const sixAsks: AttentionQueue = {
   runs: [],
   degraded: [],
 };
-/** How many Needs-you lines are drawn: each closed line is one collapsed toggle. */
-const lines = (html: string): number => html.split('aria-expanded="false"').length - 1;
+/** How many ask cards are drawn. */
+const cards = (html: string): number => html.split('data-ask=').length - 1;
 
-describe('the Needs-you page', () => {
-  test('sits under Needs you in the sub-navigation, with its count', () => {
-    const html = render(`/console/p/${ID}/factory/needs-you`, withView, sixAsks);
-    const current = currentLinks(html);
-    expect(current[0]).toBe(`/console/p/${ID}/factory Factory`);
-    expect(current[1]).toStartWith(`/console/p/${ID}/factory/needs-you Needs you`);
-    expect(current).toHaveLength(2);
+describe('Needs you', () => {
+  test('is the project tab, its count on it; the Factory frame is not around it', () => {
+    const html = render(`/console/p/${ID}/needs-you`, withView, sixAsks);
+    expect(currentLinks(html)).toEqual([`/console/p/${ID}/needs-you Needs you6`]);
     expect(html).toContain('aria-label="6 waiting"');
+    expect(html).toContain('6 things need you');
+    expect(html).not.toContain('Issues come in; changes go out.');
   });
 
-  test('lists every line, where the Overview shows the newest four', () => {
-    const page = render(`/console/p/${ID}/factory/needs-you`, withView, sixAsks);
-    expect(lines(page)).toBe(6);
+  test('lists every ask, where the Overview shows the newest three and says how many more', () => {
+    const page = render(`/console/p/${ID}/needs-you`, withView, sixAsks);
+    expect(cards(page)).toBe(6);
     for (let i = 0; i < 6; i++) expect(page).toContain(`Question ${i.toString()}?`);
-    expect(page).not.toContain('show all');
-    expect(page).not.toContain('Issues come in; changes go out.');
 
     const overview = render(`/console/p/${ID}/factory`, withView, sixAsks);
-    expect(lines(overview)).toBe(4);
-    expect(overview).toContain('2 more · show all 6');
+    expect(cards(overview)).toBe(3);
+    for (const i of [5, 4, 3]) expect(overview).toContain(`Question ${i.toString()}?`);
+    expect(overview).toContain('3 more on Needs you');
   });
 });
 
@@ -416,8 +432,9 @@ describe('Factory routes', () => {
     const start = html.indexOf('aria-label="Factory pages"');
     expect(start).toBeGreaterThan(-1);
     const links = html.slice(start, html.indexOf('</nav>', start));
-    for (const rest of ['', '/board', '/needs-you', '/how-it-works'])
+    for (const rest of ['', '/board', '/how-it-works'])
       expect(links).toContain(`href="/console/p/${ID}/factory${rest}"`);
+    expect(links).toContain(`href="/console/p/${ID}/needs-you"`);
   });
 
   test('an unknown stage or item keeps its own page and message', () => {

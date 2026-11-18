@@ -1,12 +1,19 @@
 import { useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 
 /**
- * The factory's summary paragraph. Below `md` it shows three lines and a More toggle, so the
- * numbers and Needs you start in a phone's first screen; at `md` and up it is never clamped.
- * The toggle shows only when it does something: while expanded, or when the clamped text
- * overflows, measured on mount and on every resize.
+ * A paragraph clamped to three lines with a More toggle: the factory's summary, clamped below
+ * `md` so the numbers and Needs you start in a phone's first screen (never clamped at `md` and
+ * up), and an ask's context, clamped at every width (`always`). The toggle shows only when it
+ * does something: while expanded, or when the clamped text overflows, measured on mount and
+ * on every resize.
  */
-export function ClampedSummary({ text }: { text: string }): ReactElement {
+export function ClampedSummary({
+  text,
+  always = false,
+}: {
+  text: string;
+  always?: boolean;
+}): ReactElement {
   const ref = useRef<HTMLParagraphElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -25,8 +32,8 @@ export function ClampedSummary({ text }: { text: string }): ReactElement {
       <p
         ref={ref}
         className={`text-sm leading-relaxed text-text-secondary ${
-          expanded ? '' : 'line-clamp-3 md:line-clamp-none'
-        }`}
+          always ? 'whitespace-pre-line' : ''
+        } ${expanded ? '' : always ? 'line-clamp-3' : 'line-clamp-3 md:line-clamp-none'}`}
       >
         {text}
       </p>
@@ -35,7 +42,7 @@ export function ClampedSummary({ text }: { text: string }): ReactElement {
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
-          className="rounded text-console-12 font-medium text-text-tertiary hover:text-text-primary md:hidden"
+          className={`rounded text-console-12 font-medium text-text-tertiary hover:text-text-primary ${always ? '' : 'md:hidden'}`}
         >
           {expanded ? 'Less' : 'More'}
         </button>

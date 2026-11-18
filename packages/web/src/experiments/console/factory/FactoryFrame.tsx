@@ -2,7 +2,8 @@ import type { ReactElement, ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
 import { ProjectHeader } from '../components/ProjectHeader';
-import { ProjectViewTabs } from '../components/ProjectViewTabs';
+import { useProjectAttention } from '../components/ProjectAttention';
+import { ProjectViewTabs, WaitingBadge } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
 import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
@@ -13,14 +14,13 @@ import { ClampedSummary } from './ClampedSummary';
 import { useFactoryRead } from './useFactoryRead';
 import { useFactoryViews } from './useFactoryViews';
 import { readFailed, SlowReadError } from './lib/deadline';
-import { needsYou } from './lib/needs-you';
+import { needsYouCount, needsYouPath } from '../lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
-import { useSectionAttention } from './section-attention';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
-export type FactorySection = 'overview' | 'board' | 'needs-you' | 'how-it-works' | null;
+export type FactorySection = 'overview' | 'board' | 'how-it-works' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
@@ -28,8 +28,8 @@ interface FactoryFrameProps {
   wide?: boolean;
   /**
    * The page body, drawn under the view's header once a view applies, with the project's
-   * attention queue: the section's one read (`useSectionAttention`), so the count and a page's
-   * list share one fetch and stream.
+   * attention queue: the project's one read (`useProjectAttention`), so the count and a page's
+   * cards share one fetch and stream.
    */
   children: (view: FactoryViewListed, attention: EntityView<AttentionQueue>) => ReactNode;
 }
@@ -94,8 +94,8 @@ function FactoryViewed({
   errors: FactoryViews['errors'];
   children: FactoryFrameProps['children'];
 }): ReactElement {
-  const attention = useSectionAttention();
-  const waiting = attention.data === undefined ? undefined : needsYou(attention.data.items).length;
+  const attention = useProjectAttention();
+  const waiting = attention.data === undefined ? undefined : needsYouCount(attention.data);
   // Read here, where a view applies: the route answers 404 for a project without one.
   const overview = useFactoryRead<FactoryOverviewRead>(K.factoryOverview(projectId), within =>
     within(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
@@ -153,7 +153,6 @@ const SECTIONS: readonly {
 }[] = [
   { key: 'overview', label: 'Overview', rest: '' },
   { key: 'board', label: 'Board', rest: '/board' },
-  { key: 'needs-you', label: 'Needs you', rest: '/needs-you' },
 ];
 
 function FactoryHeading({
@@ -190,9 +189,15 @@ function FactoryHeading({
             to={factoryPath(projectId, rest)}
             label={label}
             active={key === section}
-            count={key === 'needs-you' ? waiting : undefined}
           />
         ))}
+        {/* Needs you is a project tab, not a Factory page; the link takes its count along. */}
+        <SectionLink
+          to={needsYouPath(projectId)}
+          label="Needs you"
+          active={false}
+          count={waiting}
+        />
         {hasOverview ? (
           <SectionLink
             to={factoryPath(projectId, '/how-it-works')}
@@ -205,7 +210,7 @@ function FactoryHeading({
   );
 }
 
-/** One sub-navigation entry; a count, while above zero, shows in the page's one loud colour. */
+/** One sub-navigation entry; a count, while above zero, shows as the soft needs-you chip. */
 function SectionLink({
   to,
   label,
@@ -229,14 +234,7 @@ function SectionLink({
       }`}
     >
       {label}
-      {count === undefined || count === 0 ? null : (
-        <span
-          aria-label={`${count.toString()} waiting`}
-          className="rounded-full bg-warning/20 px-1.5 text-console-11 font-semibold text-warning"
-        >
-          {count}
-        </span>
-      )}
+      {count === undefined || count === 0 ? null : <WaitingBadge count={count} />}
     </Link>
   );
 }
