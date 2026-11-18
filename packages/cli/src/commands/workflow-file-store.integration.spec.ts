@@ -580,8 +580,8 @@ test('pause, approve in another process, and resume without any SQL connection',
   expect(existsSync(join(f.home, 'archon.db'))).toBe(false);
 }, 60000);
 // Skipped in factory-console CI: intermittent on the private 2-vCPU runner (passed on the run
-// before); its waits on concurrent CLI children are timing-bound. Unchanged since fork
-// 715c5cfba; see #62.
+// before); its waits on concurrent CLI children are timing-bound. Unchanged by console
+// commits since fork 715c5cfba; see #62.
 test.skipIf(process.env.CI === 'true')(
   'a hand start waits while its resource is full and --no-wait refuses it',
   async () => {
@@ -682,7 +682,7 @@ test('a hand start is checked against its own declared capacity, then the defaul
 // handler can fail the pending run. There the wait ends like any abrupt kill.
 // Skipped in factory-console CI: upstream's fixed 3 s sleep before SIGINT assumes the child has
 // reached its resource wait; on the private 2-vCPU runner it had not, so the output lacked the
-// wait line. Unchanged since fork 715c5cfba; see #62.
+// wait line. Unchanged by console commits since fork 715c5cfba; see #62.
 test.skipIf(process.platform === 'win32' || process.env.CI === 'true')(
   'interrupting a hand start that waits for its resource leaves no pending run or request',
   async () => {

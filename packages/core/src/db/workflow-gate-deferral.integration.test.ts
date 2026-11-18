@@ -361,9 +361,11 @@ describe('per-run gate deferral — real SQLite', () => {
     expect(snapshot.completedNodeOutputs.has('group')).toBe(false);
   });
 
-  // Skipped in factory-console CI: intermittent on the private 2-vCPU runner, where the resumed
-  // run ended failed instead of completed (passed on the run before). Unchanged since fork
-  // 715c5cfba; see #62.
+  // Skipped in factory-console CI: an upstream pause/resume race. On the private 2-vCPU runner
+  // the pause found no matching row (db.workflow_run_pause_no_match), the wait node 'action'
+  // was recorded failed, and the next resume replayed that failure
+  // (dag.node_prior_failure_replayed), so the run ended failed (passed on other runs). No
+  // console commit touches the DAG, pause or resume code; see #62.
   test.skipIf(process.env.CI === 'true')(
     'an approval defers behind a same-run wait and presents once after cold resume',
     async () => {

@@ -416,9 +416,11 @@ export function describeSqlItemAskConformance(makeHarness: () => Promise<Harness
     }
   });
 
-  // Skipped in factory-console CI: upstream's watch polls a bounded 2 s for its lines and on
-  // the private 2-vCPU runner it intermittently saw 2 terminal lines, not 3 (passed on the run
-  // before). Unchanged by console commits since fork 715c5cfba; see #62.
+  // Skipped in factory-console CI: upstream's final terminal-line assertion runs right after
+  // the third resolved line with no wait for the third terminal line, so it races the watch's
+  // poll; on the private 2-vCPU runner the Postgres copy saw 2, not 3 (passed on other runs).
+  // Shared by both harnesses, so the SQLite copy skips in CI too. Unchanged by console commits
+  // since fork 715c5cfba; see #62.
   test.skipIf(process.env.CI === 'true')(
     'a watch sees an ask open and close, and says why from the stored row',
     async () => {

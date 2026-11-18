@@ -121,7 +121,7 @@ jobs:
         run: |
           failed=0
           i=0
-          files=$(git grep -l ARCHON_TEST_PG_URL -- 'packages/*.test.ts')
+          files=$(git grep -l ARCHON_TEST_PG_URL -- 'packages/*.test.ts' 'packages/*.spec.ts')
           [ -n "$files" ] || { echo '::error::no test file reads ARCHON_TEST_PG_URL'; exit 1; }
           for f in $files; do
             pkg=${f#packages/}; pkg=${pkg%%/*}; rel=${f#packages/$pkg/}; i=$((i+1))
