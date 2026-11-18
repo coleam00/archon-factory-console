@@ -10,6 +10,8 @@ import {
 } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
 import { orderSearch } from './lib/work-orders';
+import { CardAsk } from './BoardAskFace';
+import type { BoardAsks } from './useBoardAsks';
 
 /**
  * State colours (Visual standard, rule 5): each state's colour as text on its soft
@@ -103,6 +105,7 @@ function CardBox({
 }: CardProps & { children: ReactNode }): ReactElement {
   return (
     <article
+      data-card={card.key}
       data-moved={moved ? 'true' : undefined}
       data-dimmed={dimmed ? 'true' : undefined}
       className={`relative flex flex-col gap-2 overflow-hidden rounded-console-12 border p-3 motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:border-border-bright hover:bg-surface-elevated ${
@@ -133,7 +136,7 @@ function CardBox({
  * One item on the board, its fields in DESIGN.md's order. Its stage line is what runs now,
  * else the stage it waits in, so a card names its stage inside a column that groups several.
  */
-export function BoardCard(props: CardProps): ReactElement {
+export function BoardCard(props: CardProps & { asks: BoardAsks }): ReactElement {
   const { card } = props;
   return (
     <CardBox {...props}>
@@ -145,13 +148,7 @@ export function BoardCard(props: CardProps): ReactElement {
       {card.order === null ? null : <OrderChip order={card.order} />}
       {card.round === null ? null : <RoundDots round={card.round} />}
       <CardLinks card={card} />
-      {card.stopLine === null ? null : (
-        <p
-          className={`line-clamp-2 text-console-13 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
-        >
-          {card.stopLine}
-        </p>
-      )}
+      <CardAsk card={card} asks={props.asks} />
     </CardBox>
   );
 }

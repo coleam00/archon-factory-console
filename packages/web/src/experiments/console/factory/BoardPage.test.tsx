@@ -47,6 +47,13 @@ afterAll(async () => {
 });
 
 const ID = 'cb-1';
+// Nothing waits on a person: the ask face has its own tests (BoardAsks.test.tsx).
+const QUIET = {
+  data: { items: [], runs: [], degraded: [] },
+  error: undefined,
+  loading: false,
+  refetch: () => undefined,
+};
 // The Merged column lists the last 7 local days; the fixtures merged on 2026-11-17.
 const NOW = new Date(2026, 10, 18, 12, 0);
 afterEach(() => {
@@ -71,7 +78,7 @@ async function mount(
         <Routes>
           <Route
             path="/console/p/:projectId/factory/board"
-            element={<Board projectId={ID} view={VIEW} now={NOW} />}
+            element={<Board projectId={ID} view={VIEW} attention={QUIET} now={NOW} />}
           />
         </Routes>
       </MemoryRouter>

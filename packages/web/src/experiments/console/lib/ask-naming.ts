@@ -20,7 +20,7 @@ export interface AskNaming {
  */
 export function askNaming(
   projectId: string,
-  view: FactoryViewListed | undefined,
+  view: Pick<FactoryViewListed, 'declaration'> | undefined,
   titles: ReadonlyMap<string, string> = new Map()
 ): AskNaming {
   const runHref = (ask: NeedsYouItem): string | undefined => {

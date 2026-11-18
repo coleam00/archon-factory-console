@@ -4,6 +4,8 @@ import { MergeState, PillBadge, RoundDots } from './BoardCard';
 import type { BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
+import { RowAsk } from './BoardAskFace';
+import type { BoardAsks } from './useBoardAsks';
 import {
   sortRows,
   TABLE_COLUMNS,
@@ -18,10 +20,12 @@ export function BoardTable({
   projectId,
   model,
   moved,
+  asks,
 }: {
   projectId: string;
   model: BoardModel;
   moved: ReadonlySet<string>;
+  asks: BoardAsks;
 }): ReactElement {
   const [sort, setSort] = useState<TableSort>({ by: 'column', descending: false });
   const rows = sortRows(tableRows(model), sort);
@@ -63,6 +67,7 @@ export function BoardTable({
               projectId={projectId}
               row={row}
               moved={moved.has(row.placed.card.key)}
+              asks={asks}
             />
           ))}
         </tbody>
@@ -75,10 +80,12 @@ function BoardRow({
   projectId,
   row,
   moved,
+  asks,
 }: {
   projectId: string;
   row: TableRow;
   moved: boolean;
+  asks: BoardAsks;
 }): ReactElement {
   const { card } = row.placed;
   const cell = (content: ReactNode, className = ''): ReactElement => (
@@ -86,6 +93,7 @@ function BoardRow({
   );
   return (
     <tr
+      data-card={card.key}
       data-moved={moved ? 'true' : undefined}
       className={`border-b border-border ${moved ? 'bg-[color:var(--accent-soft)]' : ''} motion-safe:transition-colors`}
     >
@@ -145,7 +153,7 @@ function BoardRow({
       )}
       {cell(card.mergedAt, 'whitespace-nowrap text-text-tertiary')}
       {cell(
-        card.stopLine,
+        <RowAsk card={card} asks={asks} />,
         card.pill === 'failed' ? 'min-w-48 text-error' : 'min-w-48 text-warning'
       )}
     </tr>

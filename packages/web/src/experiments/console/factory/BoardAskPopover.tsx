@@ -1,0 +1,186 @@
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type RefObject,
+} from 'react';
+import { createPortal } from 'react-dom';
+import { AskGroup } from '../components/ask-card/AskGroup';
+import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
+import type { AskNaming } from '../lib/ask-naming';
+import type { NeedsYouItem } from '../lib/needs-you';
+import type { AttentionQueue } from '../skills/runs';
+import { popoverPlace } from './lib/board-ask';
+import type { BoardAsks, OpenAsk } from './useBoardAsks';
+
+/** Tailwind's md breakpoint: from here the popover sits beside its card; under it, a sheet. */
+const WIDE = '(min-width: 48rem)';
+
+/**
+ * Where the popover sits, measured from the card holding `trigger` (the Table's row button
+ * when there is no card) and the popover's own size: again on a resize, on any scroll, and
+ * when its content changes size. Null under md, where the sheet's classes place it; undefined
+ * until first measured, while it stays hidden.
+ */
+function usePlace(
+  box: RefObject<HTMLDivElement | null>,
+  trigger: HTMLElement
+): { top: number; left: number } | null | undefined {
+  const [place, setPlace] = useState<{ top: number; left: number } | null | undefined>();
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (element === null) return;
+    const update = (): void => {
+      if (typeof window.matchMedia === 'function' && !window.matchMedia(WIDE).matches) {
+        setPlace(null);
+        return;
+      }
+      const anchor = (trigger.closest('[data-card]') ?? trigger).getBoundingClientRect();
+      const next = popoverPlace(
+        anchor,
+        { width: element.offsetWidth, height: element.offsetHeight },
+        { width: window.innerWidth, height: window.innerHeight }
+      );
+      setPlace(current =>
+        current?.top === next.top && current.left === next.left ? current : next
+      );
+    };
+    update();
+    window.addEventListener('resize', update);
+    // Capture: the column bodies and the board's row scroll on their own, and do not bubble.
+    window.addEventListener('scroll', update, true);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(element);
+    return (): void => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+      observer?.disconnect();
+    };
+  }, [box, trigger]);
+  return place;
+}
+
+/**
+ * Closes on Esc and on a press outside the popover and its trigger. Esc is caught before it
+ * reaches the card: the answer forms stop key events from leaving them, as a card can sit
+ * inside another clickable one.
+ */
+function useDismiss(
+  box: RefObject<HTMLDivElement | null>,
+  trigger: HTMLElement,
+  close: () => void
+): void {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      close();
+    };
+    const onPress = (event: PointerEvent): void => {
+      const path = event.composedPath();
+      if (path.includes(trigger) || (box.current !== null && path.includes(box.current))) return;
+      close();
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPress);
+    return (): void => {
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('pointerdown', onPress);
+    };
+  }, [box, trigger, close]);
+}
+
+/**
+ * The open ask's popover over the board (owner change 3): the item's asks as the ask cards
+ * Needs you draws, from the same queue entries (`itemAsks`), answered in place. From md up it
+ * sits beside the card that opened it; under md it is a sheet from the bottom. Nothing when no
+ * popover is open, or the item has no open ask to draw.
+ */
+export function BoardAskPopover({
+  projectId,
+  board,
+  queue,
+  naming,
+}: {
+  projectId: string;
+  board: BoardAsks;
+  queue: AttentionQueue | undefined;
+  naming: AskNaming;
+}): ReactElement | null {
+  const { open } = board;
+  const asks = open === null ? null : board.asksOf(open.key);
+  if (open === null || queue === undefined || asks === null || asks.length === 0) return null;
+  return (
+    <Popover
+      key={open.key}
+      projectId={projectId}
+      open={open}
+      asks={asks}
+      queue={queue}
+      naming={naming}
+      board={board}
+    />
+  );
+}
+
+function Popover({
+  projectId,
+  open,
+  asks,
+  queue,
+  naming,
+  board,
+}: {
+  projectId: string;
+  open: OpenAsk;
+  asks: NeedsYouItem[];
+  queue: AttentionQueue;
+  naming: AskNaming;
+  board: BoardAsks;
+}): ReactElement | null {
+  const box = useRef<HTMLDivElement>(null);
+  // Held here, so an answered card shows its answer while the item's other asks stay open.
+  const hold = useAnsweredHold(asks);
+  const place = usePlace(box, open.trigger);
+  useDismiss(box, open.trigger, board.close);
+  useEffect(() => {
+    box.current?.querySelector<HTMLElement>('[data-ask]')?.focus({ preventScroll: true });
+  }, []);
+  const first = hold.asks[0];
+  if (first === undefined) return null;
+  const onAnswered = (ask: NeedsYouItem, label: string): void => {
+    hold.onAnswered(ask, label);
+    // The queue may not have dropped the asks answered here yet: they count as answered.
+    const more = asks.some(entry => entry.ref !== ask.ref && !hold.answered.has(entry.ref));
+    // Answering the item's last open ask ends the popover; the card says what was answered.
+    if (!more) board.settle(open.key, ask, label);
+  };
+  return createPortal(
+    <div
+      ref={box}
+      role="dialog"
+      aria-modal="false"
+      aria-label={`Asks on ${open.key}`}
+      style={place == null ? undefined : { top: place.top, left: place.left }}
+      // console-token-exception max-h-[85vh] max-h-[calc(100vh-32px)] -- a sheet keeps the board's top in view; beside a card the popover keeps 16 px from the window's edges (popoverPlace).
+      className={`console-root fixed z-50 flex flex-col gap-3 overflow-y-auto rounded-console-16 border border-border-bright bg-surface-elevated p-3 text-text-primary shadow-lg max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[85vh] max-md:rounded-b-none md:max-h-[calc(100vh-32px)] ${place === undefined ? 'invisible' : ''}`}
+    >
+      {/* console-token-exception md:w-[480px] -- Visual standard rule 9: the ask card is 480 px wide in the board popover. */}
+      <div className="flex w-full flex-col gap-3 md:w-[480px]">
+        <AskGroup
+          projectId={projectId}
+          subject={naming.subject(first)}
+          asks={hold.asks}
+          hold={{ ...hold, onAnswered }}
+          queue={queue}
+          where={naming.where}
+        />
+        {/* A later preview (a prototype of the change) goes here, under the options. */}
+        <div data-preview-slot="" />
+      </div>
+    </div>,
+    document.body
+  );
+}

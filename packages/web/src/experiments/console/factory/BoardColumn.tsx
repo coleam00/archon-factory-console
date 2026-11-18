@@ -5,6 +5,7 @@ import { BoardCard, MergedCard } from './BoardCard';
 import { ColumnHeader, toneColor } from './ColumnHeader';
 import { columnChips, type BoardColumn as BoardColumnModel, type PlacedCard } from './lib/board';
 import { earlierSearch, MERGED_DAYS } from './lib/merged-window';
+import type { BoardAsks } from './useBoardAsks';
 
 /** How many cards a stacked column (a phone) shows before "show all N". */
 const PHONE_CARDS = 3;
@@ -49,6 +50,7 @@ export function BoardColumn({
   filtered,
   moved,
   lit,
+  asks,
 }: {
   projectId: string;
   column: BoardColumnModel;
@@ -58,6 +60,7 @@ export function BoardColumn({
   merged?: { recent: PlacedCard[]; earlier: number };
   moved: ReadonlySet<string>;
   lit: ReadonlySet<string> | null;
+  asks: BoardAsks;
 }): ReactElement {
   const body = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -104,7 +107,11 @@ export function BoardColumn({
             const folded = !expanded && index >= PHONE_CARDS ? 'max-md:hidden' : '';
             return (
               <div key={card.key} className={folded}>
-                {card.pill === 'landed' ? <MergedCard {...props} /> : <BoardCard {...props} />}
+                {card.pill === 'landed' ? (
+                  <MergedCard {...props} />
+                ) : (
+                  <BoardCard {...props} asks={asks} />
+                )}
               </div>
             );
           })}

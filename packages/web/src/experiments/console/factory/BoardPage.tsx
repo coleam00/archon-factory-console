@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+import { askNaming, itemTitles } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
+import type { AttentionQueue } from '../skills/runs';
+import type { EntityView } from '../store/cache';
+import { BoardAskPopover } from './BoardAskPopover';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
 import { StaleRead } from './StaleRead';
@@ -26,6 +30,7 @@ import {
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
+import { useBoardAsks, type BoardAsks } from './useBoardAsks';
 
 /** How long a card that changed stage stays highlighted. */
 const MOVED_MS = 1500;
@@ -35,7 +40,9 @@ export function BoardPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   return (
     <FactoryFrame section="board" wide fill>
-      {view => <Board projectId={projectId} view={view.declaration} />}
+      {(view, attention) => (
+        <Board projectId={projectId} view={view.declaration} attention={attention} />
+      )}
     </FactoryFrame>
   );
 }
@@ -74,10 +81,13 @@ function useMovedCards(
 export function Board({
   projectId,
   view,
+  attention,
   now,
 }: {
   projectId: string;
   view: FactoryDeclaration;
+  /** The project's attention queue, the one read Needs you draws: each card's asks come from it. */
+  attention: EntityView<AttentionQueue>;
   /** The time the Merged column's window counts back from; the clock at render when absent. */
   now?: Date;
 }): ReactElement {
@@ -108,6 +118,11 @@ export function Board({
     () => (all === undefined ? undefined : filterBoard(all, query, show)),
     [all, query, show]
   );
+  const asks = useBoardAsks({ all, shown, queue: attention.data, declaration: view });
+  const naming = useMemo(
+    () => askNaming(projectId, { declaration: view }, itemTitles(items)),
+    [projectId, view, items]
+  );
   const setParam = (name: string, value: string | null): void => {
     setParams(
       current => {
@@ -120,6 +135,8 @@ export function Board({
     );
   };
   const showView = (next: 'pipeline' | 'table'): void => {
+    // Its trigger is in the view being left.
+    asks.close();
     setParam(VIEW_PARAM, next === 'table' ? TABLE_VIEW : null);
   };
   return (
@@ -159,7 +176,9 @@ export function Board({
         // filterBoard returns its input unchanged when nothing narrows it, so this is its own
         // answer to "is the board narrowed", not a second copy of that condition.
         filtered={shown !== all}
+        asks={asks}
       />
+      <BoardAskPopover projectId={projectId} board={asks} queue={attention.data} naming={naming} />
       {view.discoveries === undefined ? null : (
         // Never shrunk by the board's fill height: the panel's own lines and link stay whole.
         <div className="shrink-0">
@@ -180,6 +199,7 @@ function BoardBody({
   lit,
   now,
   filtered,
+  asks,
 }: {
   projectId: string;
   read: ReturnType<typeof useFactoryItemsRead>;
@@ -191,6 +211,7 @@ function BoardBody({
   lit: string | null;
   now: Date;
   filtered: boolean;
+  asks: BoardAsks;
 }): ReactElement {
   if (model === undefined) {
     const failed = readFailed(read.error);
@@ -206,7 +227,7 @@ function BoardBody({
     <>
       <StaleRead error={read.error} />
       {table ? (
-        <BoardTable projectId={projectId} model={model} moved={moved} />
+        <BoardTable projectId={projectId} model={model} moved={moved} asks={asks} />
       ) : (
         <>
           <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
@@ -217,6 +238,7 @@ function BoardBody({
             lit={highlightedKeys(orders.find(order => order.key === lit))}
             now={now}
             filtered={filtered}
+            asks={asks}
           />
         </>
       )}
