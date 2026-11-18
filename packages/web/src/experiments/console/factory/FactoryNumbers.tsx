@@ -11,7 +11,7 @@ import { FactoryLoading } from './FactoryLoading';
 import { readFailed, SlowReadError } from './lib/deadline';
 import { StaleRead } from './StaleRead';
 
-/** "Landed today" turns over at midnight without a reload. */
+/** "Merged today" turns over at midnight without a reload. */
 function useMinuteClock(): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -54,7 +54,7 @@ function tiles(numbers: Numbers | undefined): Tile[] {
       // have several, so the words keep the two numbers from reading as a contradiction.
       label: numbers?.needsYou === 1 ? 'item needs you' : 'items need you',
     },
-    { show: 'landed-today', ...merged(n => n.landedToday.toString()), label: 'landed today' },
+    { show: 'landed-today', ...merged(n => n.landedToday.toString()), label: 'merged today' },
     {
       show: 'landed',
       ...merged(n => `${n.landed.toString()} of ${n.total.toString()}`),
@@ -63,7 +63,7 @@ function tiles(numbers: Numbers | undefined): Tile[] {
     {
       show: 'landed',
       ...merged(n => (n.medianToLandMs === null ? 'none yet' : durationWords(n.medianToLandMs))),
-      label: 'median from first run to landed',
+      label: 'median from first run to merged',
     },
   ];
 }

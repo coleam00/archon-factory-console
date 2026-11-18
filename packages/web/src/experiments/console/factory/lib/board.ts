@@ -10,6 +10,7 @@ import { formatDateTime } from '../../lib/format';
 import type { FactoryItem } from '../../skills/factory';
 import { needsYou, ownerLostMessage } from './needs-you';
 import { showsCard, type BoardShow } from './board-show';
+import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, type ItemColumn } from './placement';
 import { runLine, stepLabel, type RunLine } from './step-label';
@@ -47,7 +48,7 @@ export const PILL_LABEL: Record<Pill, string> = {
   'needs-you': 'Needs you',
   failed: 'Failed',
   waiting: 'Waiting',
-  landed: 'Landed',
+  landed: 'Merged',
 };
 
 /** Plain words for each verdict a round can have; a new verdict fails the type-check here. */
@@ -73,6 +74,11 @@ export interface BoardCard {
    * the hover title only.
    */
   run: (RunLine & { step: string | null; href: string }) | null;
+  /**
+   * The label of the stage the item sits in, so a card names it inside a column that groups
+   * several; null for a merged card, whose column says it, and for an item in no stage.
+   */
+  stage: string | null;
   returned: { count: number; href: string } | null;
   /**
    * The change, by its pull request number when known. `mergeState` when the change host
@@ -85,8 +91,8 @@ export interface BoardCard {
     label: string;
     mergeState: Extract<ChangeMerged, string> | null;
   } | null;
-  /** When the change merged, in local time; only in the landed column. */
-  landedAt: string | null;
+  /** When the change merged, in local time; only in the landed stage. */
+  mergedAt: string | null;
   /** What stopped a failed item, or what an item that needs you asks. */
   stopLine: string | null;
   /** The key of the work order the item is part of (`membershipOf`); null when none. */
@@ -176,12 +182,13 @@ export function cardFields(
     pill,
     round: roundField(progress),
     run: runField(view, projectId, progress, column),
+    stage: !landed && column !== null && 'stage' in column ? column.stage.label : null,
     returned:
       progress !== null && progress.returned > 0
         ? { count: progress.returned, href: itemPath(projectId, key) }
         : null,
     change: changeField(progress),
-    landedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
+    mergedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
     stopLine,
     order: membershipOf(item)?.order ?? null,
   };
@@ -217,27 +224,38 @@ export interface PlacedCard {
   card: BoardCard;
 }
 
+/**
+ * A board column: a group of stages (`board-columns.ts`) and the cards placed on them.
+ * `pending` when its count waits on a merge answer (`stageCountPending`) for any of its
+ * stages: its header shows loading rather than a count that may be wrong.
+ */
+export interface BoardColumn extends BoardColumnDecl {
+  cards: PlacedCard[];
+  pending: boolean;
+}
+
 export interface BoardModel {
-  /** The declaration's landed stage: the column an item whose change merged sits in. */
+  /** The declaration's landed stage: the stage an item whose change merged sits in. */
   landedStage: string;
-  /**
-   * `pending` when the column's count waits on a merge answer (`stageCountPending`): its
-   * header shows loading rather than a count that may be wrong.
-   */
-  columns: { stage: string; label: string; cards: PlacedCard[]; pending: boolean }[];
+  /** The id of the column holding the landed stage: the Merged column. */
+  landedColumn: string;
+  columns: BoardColumn[];
   /**
    * The folded rows under the board: items an ending took off it, by label, and items
    * placement found no column for, under `UNPLACED_LABEL`.
    */
   ended: { label: string; cards: PlacedCard[] }[];
-  /** Where every item sits, filter or not: a column id, or `ended:<label>`. */
+  /**
+   * Where every item sits, filter or not: a stage id (not its column's: placement holds a run
+   * between named steps in the stage it read last), or `ended:<label>`.
+   */
   positions: Map<string, string>;
 }
 
 /** The folded row of items placement found no column for; the item page says the same. */
 export const UNPLACED_LABEL = 'Position unknown';
 
-/** Where an item sits, as one comparable string: a column id, or `ended:<label>`. */
+/** Where an item sits, as one comparable string: a stage id, or `ended:<label>`. */
 export function positionOf(column: ItemColumn | null): string {
   if (column === null) return `ended:${UNPLACED_LABEL}`;
   return 'ended' in column ? `ended:${column.ended}` : column.stage.id;
@@ -256,8 +274,9 @@ export function cardMatches(card: BoardCard, query: string): boolean {
 }
 
 /**
- * The board for these items. Columns are the declared stages in order, the landed stage
- * among them. `previous` holds each item's position on the last read.
+ * The board for these items. Columns are the declared columns in order (one per stage when
+ * the view declares none), the landed stage's among them; a card goes to the column holding
+ * its stage. `previous` holds each item's position on the last read.
  */
 export function boardModel(
   view: FactoryDeclaration,
@@ -265,30 +284,42 @@ export function boardModel(
   items: readonly FactoryItem[],
   previous: ReadonlyMap<string, string>
 ): BoardModel {
-  const columns = view.stages.map(stage => ({
-    stage: stage.id,
-    label: stage.label,
-    cards: [] as PlacedCard[],
+  const columns: BoardColumn[] = boardColumns(view).map(column => ({
+    ...column,
+    cards: [],
     pending: false,
   }));
+  const byStage = new Map(
+    columns.flatMap(column => column.stages.map(stage => [stage, column] as const))
+  );
   const ended = new Map<string, PlacedCard[]>();
+  const fold = (label: string, placed: PlacedCard): void => {
+    ended.set(label, [...(ended.get(label) ?? []), placed]);
+  };
   const positions = new Map<string, string>();
   for (const item of items) {
     const column = pageItemColumn(view, item, previous.get(item.item.key));
     positions.set(item.item.key, positionOf(column));
     const placed = { item, column, card: cardFields(view, projectId, item, column) };
-    if (column === null || 'ended' in column) {
-      const label = column === null ? UNPLACED_LABEL : column.ended;
-      ended.set(label, [...(ended.get(label) ?? []), placed]);
-    } else columns.find(entry => entry.stage === column.stage.id)?.cards.push(placed);
+    const stage = stageIdOf(placed);
+    const holder = stage === null ? undefined : byStage.get(stage);
+    // The schema puts every stage in one column; a stage in none still folds, never drops.
+    if (holder !== undefined) holder.cards.push(placed);
+    else fold(column !== null && 'ended' in column ? column.ended : UNPLACED_LABEL, placed);
   }
   const anyPending = anyMergePending(items);
-  for (const column of columns) {
-    const held = column.cards.map(placed => placed.item);
-    column.pending = stageCountPending(column.stage, view.landed.stage, held, anyPending);
-  }
+  for (const column of columns)
+    column.pending = column.stages.some(stage =>
+      stageCountPending(
+        stage,
+        view.landed.stage,
+        column.cards.flatMap(placed => (stageIdOf(placed) === stage ? [placed.item] : [])),
+        anyPending
+      )
+    );
   return {
     landedStage: view.landed.stage,
+    landedColumn: byStage.get(view.landed.stage)?.id ?? view.landed.stage,
     columns,
     ended: [...ended].map(([label, cards]) => ({ label, cards })),
     positions,
@@ -327,6 +358,26 @@ export function filterBoard(
   };
 }
 
+/** The stage a placed card sits in; null for one an ending folded away or none holds. */
+export function stageIdOf(placed: Pick<PlacedCard, 'column'>): string | null {
+  const { column } = placed;
+  return column !== null && 'stage' in column ? column.stage.id : null;
+}
+
+type ChipPill = Exclude<Pill, 'landed'>;
+const CHIP_PILLS: readonly ChipPill[] = ['running', 'needs-you', 'failed', 'waiting'];
+
+/**
+ * A column header's state chips: how many of its cards run, need you, failed or wait, in
+ * that order, each only while above 0. Merged cards get none: the count says it.
+ */
+export function columnChips(cards: readonly PlacedCard[]): { pill: ChipPill; count: number }[] {
+  return CHIP_PILLS.map(pill => ({
+    pill,
+    count: cards.filter(placed => placed.card.pill === pill).length,
+  })).filter(chip => chip.count > 0);
+}
+
 /** The items whose position changed between two reads; an item new on the board did not move. */
 export function movedKeys(
   before: ReadonlyMap<string, string>,
@@ -339,9 +390,9 @@ export function movedKeys(
 
 /** The hint for columns scrolled out of view, naming them; null when every column shows. */
 export function hiddenColumnsHint(
-  columns: readonly { stage: string; label: string }[],
+  columns: readonly { id: string; label: string }[],
   visible: ReadonlySet<string>
 ): string | null {
-  const hidden = columns.filter(column => !visible.has(column.stage)).map(column => column.label);
+  const hidden = columns.filter(column => !visible.has(column.id)).map(column => column.label);
   return hidden.length === 0 ? null : `Scroll for: ${hidden.join(', ')}`;
 }

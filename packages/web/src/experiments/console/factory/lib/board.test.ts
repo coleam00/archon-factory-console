@@ -1,7 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { formatDateTime } from '../../lib/format';
 import { askItem } from '../needs-you.test-fixtures';
-import { boardModel, cardFields, filterBoard, hiddenColumnsHint, movedKeys } from './board';
+import {
+  boardModel,
+  cardFields,
+  columnChips,
+  filterBoard,
+  hiddenColumnsHint,
+  movedKeys,
+  UNPLACED_LABEL,
+  type FactoryDeclaration,
+} from './board';
 import type { FactoryItem } from '../../skills/factory';
 import {
   readyWithMerge,
@@ -22,10 +31,10 @@ const card = (item: FactoryItem, previous?: string) =>
   cardFields(VIEW, PROJECT, item, pageItemColumn(VIEW, item, previous));
 
 describe('cards of placed items', () => {
-  test('a running item says its round; a land run still running keeps it out of Landed', () => {
+  test('a running item says its round; a land run still running keeps it out of Merged', () => {
     expect(card(delivering('rounds.review__review')).round?.text).toBe('round 2 of 3');
     const item = landRunning();
-    expect(card(item)).toMatchObject({ pill: 'running', landedAt: null });
+    expect(card(item)).toMatchObject({ pill: 'running', mergedAt: null });
   });
 
   test('a failed deliver after a completed plan is marked failed, with the step it failed at', () => {
@@ -70,7 +79,7 @@ describe('card fields, in order', () => {
     expect(card(endLastRun(realItem('5'), 'failed', null)).pill).toBe('failed');
   });
 
-  test('2: an item in Landed through a placement, its merge state not known, is landed', () => {
+  test('2: an item in Merged through a placement, its merge state not known, is landed', () => {
     const item = endLastRun(realItem('6'), 'completed', 'landed');
     item.runs[item.runs.length - 1] = { ...item.runs.at(-1)!, workflow: 'land' };
     const progress = progressOf(item);
@@ -80,7 +89,7 @@ describe('card fields, in order', () => {
         index === all.length - 1 ? { ...run, workflow: 'land' } : run
       ),
     };
-    expect(card(item)).toMatchObject({ pill: 'landed', landedAt: null });
+    expect(card(item)).toMatchObject({ pill: 'landed', mergedAt: null });
   });
 
   test('3: the round, with a dot per round in plain words', () => {
@@ -119,7 +128,7 @@ describe('card fields, in order', () => {
   test('4: on a step no stage names, the run line names the column the card holds', () => {
     const item = delivering('rounds.shown');
     const model = boardModel(VIEW, PROJECT, [item], new Map([[item.item.key, 'checks']]));
-    const checks = model.columns.find(column => column.stage === 'checks');
+    const checks = model.columns.find(column => column.id === 'checks-review');
     expect(checks?.cards.map(placed => placed.card.run?.text)).toEqual([
       'Checks · Posts the review · round 2',
     ]);
@@ -162,10 +171,18 @@ describe('card fields, in order', () => {
     expect(card(item).change).toEqual({ href: null, label: 'the change', mergeState: 'pending' });
   });
 
-  test('7: in Landed, when it landed in local time', () => {
+  test('7: in Merged, when it merged in local time', () => {
     const item = realItem('7');
-    expect(card(item).landedAt).toBe(formatDateTime('2026-11-17T04:30:22Z'));
-    expect(card(realItem('3')).landedAt).toBeNull();
+    expect(card(item).mergedAt).toBe(formatDateTime('2026-11-17T04:30:22Z'));
+    expect(card(realItem('3')).mergedAt).toBeNull();
+  });
+
+  test('a card names the stage it waits in; a running one its stage and step; a merged one none', () => {
+    expect(card(keepRuns(realItem('6'), 2)).stage).toBe('Build');
+    const running = card(delivering('rounds.review__review'));
+    expect(running.stage).toBe('Checks');
+    expect(running.run?.text).toBe('Checks · Code review · round 2');
+    expect(card(realItem('7'))).toMatchObject({ pill: 'landed', stage: null });
   });
 
   test('8: what an item that needs you asks, what stopped a failed one', () => {
@@ -178,7 +195,7 @@ describe('card fields, in order', () => {
 });
 
 describe('the board', () => {
-  test('columns are the declared stages in order, landed among them, with the folded endings', () => {
+  test('columns are the declared columns in order, Merged among them, with the folded endings', () => {
     const ended = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now');
     const model = boardModel(
       VIEW,
@@ -187,15 +204,13 @@ describe('the board', () => {
       new Map()
     );
     expect(model.columns.map(column => [column.label, column.cards.length])).toEqual([
-      ['Order', 0],
-      ['Triage', 0],
-      ['Plan', 0],
-      ['Build', 3],
-      ['Checks', 1],
-      ['CI and review', 0],
-      ['Ready to land', 0],
-      ['Landed', 3],
+      ['Intake', 0],
+      ['Plan & build', 3],
+      ['Checks & review', 1],
+      ['Ready to merge', 0],
+      ['Merged', 3],
     ]);
+    expect(model.landedColumn).toBe('merged');
     expect(model.ended).toEqual([
       {
         label: 'Closed by triage',
@@ -251,10 +266,10 @@ describe('the board', () => {
 
   test('the hint names the columns scrolled out of view', () => {
     const columns = boardModel(VIEW, PROJECT, [], new Map()).columns;
-    expect(hiddenColumnsHint(columns, new Set(columns.map(c => c.stage)))).toBeNull();
-    expect(
-      hiddenColumnsHint(columns, new Set(['order', 'triage', 'plan', 'build', 'checks', 'host']))
-    ).toBe('Scroll for: Ready to land, Landed');
+    expect(hiddenColumnsHint(columns, new Set(columns.map(c => c.id)))).toBeNull();
+    expect(hiddenColumnsHint(columns, new Set(['intake', 'plan-build', 'checks-review']))).toBe(
+      'Scroll for: Ready to merge, Merged'
+    );
   });
 });
 
@@ -262,11 +277,11 @@ describe('a column waiting on a merge answer', () => {
   const pendingColumns = (items: FactoryItem[], show?: Parameters<typeof filterBoard>[2]) =>
     filterBoard(boardModel(VIEW, 'cb-1', items, new Map()), '', show)
       .columns.filter(column => column.pending)
-      .map(column => column.stage);
+      .map(column => column.id);
 
   test('the column holding a pending item and the landed column, no other', () => {
     const items = [...PAGE.items, readyWithMerge('p', 'pending')];
-    expect(pendingColumns(items)).toEqual(['ready', VIEW.landed.stage]);
+    expect(pendingColumns(items)).toEqual(['ready', 'merged']);
     const card = boardModel(VIEW, 'cb-1', items, new Map())
       .columns.flatMap(column => column.cards)
       .find(placed => placed.card.key === 'p')?.card;
@@ -275,11 +290,115 @@ describe('a column waiting on a merge answer', () => {
 
   test('a board opened from a landed number keeps the landed column loading', () => {
     const items = [...PAGE.items, readyWithMerge('p', 'pending')];
-    expect(pendingColumns(items, 'landed')).toContain(VIEW.landed.stage);
-    expect(pendingColumns(items, 'landed-today')).toContain(VIEW.landed.stage);
+    expect(pendingColumns(items, 'landed')).toContain('merged');
+    expect(pendingColumns(items, 'landed-today')).toContain('merged');
   });
 
   test('a settled unknown is counted where it sits', () => {
     expect(pendingColumns([...PAGE.items, readyWithMerge('u', 'unknown')])).toEqual([]);
+  });
+});
+
+describe('grouped columns', () => {
+  /** One item on each stage of the shipped declaration, by the stage it should sit in. */
+  const onEachStage = (): [string, FactoryItem][] => {
+    const triaged = keepRuns(realItem('6'), 1);
+    const at = (key: string, item: FactoryItem): FactoryItem => ({
+      ...item,
+      item: { ...item.item, key },
+    });
+    return [
+      ['order', at('o', keepRuns(realItem('6'), 0))],
+      ['triage', at('t', endLastRun(triaged, 'failed', null))],
+      ['plan', at('p', endLastRun(triaged, 'completed', 'build'))],
+      ['build', at('b', delivering('build__build'))],
+      ['checks', at('c', delivering('rounds.review__review'))],
+      ['host', at('h', delivering('hostrounds.host__host'))],
+      ['ready', at('r', endLastRun(realItem('3'), 'completed', 'ready'))],
+      ['landed', at('m', realItem('7'))],
+    ];
+  };
+  const columnOf = (model: ReturnType<typeof boardModel>, key: string): string | undefined =>
+    model.columns.find(column => column.cards.some(placed => placed.card.key === key))?.id;
+
+  test('an item on each stage sits in the column holding that stage', () => {
+    const cases = onEachStage();
+    const model = boardModel(
+      VIEW,
+      PROJECT,
+      cases.map(([, item]) => item),
+      new Map()
+    );
+    const expected: Record<string, string> = {
+      order: 'intake',
+      triage: 'intake',
+      plan: 'plan-build',
+      build: 'plan-build',
+      checks: 'checks-review',
+      host: 'checks-review',
+      ready: 'ready',
+      landed: 'merged',
+    };
+    // Positions stay stage ids: placement holds a run between named steps by its stage.
+    expect(cases.map(([stage, item]) => [stage, model.positions.get(item.item.key)])).toEqual(
+      cases.map(([stage]) => [stage, stage])
+    );
+    expect(cases.map(([stage, item]) => [stage, columnOf(model, item.item.key)])).toEqual(
+      cases.map(([stage]) => [stage, expected[stage]])
+    );
+  });
+
+  test('a view without columns draws one column per stage', () => {
+    const { columns: _, ...older } = VIEW;
+    const model = boardModel(older as FactoryDeclaration, PROJECT, PAGE.items, new Map());
+    expect(model.columns.map(column => [column.id, column.label, column.stages])).toEqual(
+      VIEW.stages.map(stage => [stage.id, stage.label, [stage.id]])
+    );
+    expect(model.landedColumn).toBe(VIEW.landed.stage);
+  });
+
+  test('a stage no column holds folds its card under Position unknown, never drops it', () => {
+    const view = structuredClone(VIEW);
+    view.columns = view.columns?.filter(column => column.id !== 'checks-review');
+    const model = boardModel(view, PROJECT, [delivering('rounds.review__review')], new Map());
+    expect(model.ended.map(group => [group.label, group.cards.map(p => p.card.key)])).toEqual([
+      [UNPLACED_LABEL, ['8']],
+    ]);
+  });
+
+  test("a column's chips count its cards by state, only states above 0", () => {
+    const asking = { ...realItem('6'), questions: [askItem()] };
+    const model = boardModel(
+      VIEW,
+      PROJECT,
+      [delivering('build__build'), realItem('5'), asking, keepRuns(realItem('3'), 2)],
+      new Map()
+    );
+    const work = model.columns.find(column => column.id === 'plan-build');
+    expect(columnChips(work?.cards ?? [])).toEqual([
+      { pill: 'running', count: 2 },
+      { pill: 'needs-you', count: 1 },
+      { pill: 'waiting', count: 1 },
+    ]);
+  });
+
+  test('the table names the stage beside the column, and sorts by stage within a column', () => {
+    const model = boardModel(
+      VIEW,
+      PROJECT,
+      onEachStage().map(([, item]) => item),
+      new Map()
+    );
+    const rows = sortRows(tableRows(model), { by: 'stage', descending: false });
+    expect(rows.map(row => [row.column, row.stage])).toEqual([
+      ['Intake', 'Order'],
+      ['Intake', 'Triage'],
+      ['Plan & build', 'Plan'],
+      ['Plan & build', 'Build'],
+      ['Checks & review', 'Checks'],
+      ['Checks & review', 'CI and review'],
+      ['Ready to merge', 'Ready to land'],
+      ['Merged', 'Merged'],
+    ]);
   });
 });

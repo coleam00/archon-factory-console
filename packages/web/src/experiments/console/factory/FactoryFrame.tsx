@@ -27,6 +27,12 @@ interface FactoryFrameProps {
   /** Let the page use the full width, as the board's columns need; others keep a reading width. */
   wide?: boolean;
   /**
+   * From md up, give the page the height left under the sub-navigation, so its own parts
+   * scroll instead of the page (the board's columns). The frame still scrolls when a window
+   * is too short for the page's minimum height. Below md the page scrolls as others do.
+   */
+  fill?: boolean;
+  /**
    * The page body, drawn under the view's header once a view applies, with the project's
    * attention queue: the section's one read (`useSectionAttention`), so the count and a page's
    * list share one fetch and stream.
@@ -39,7 +45,12 @@ interface FactoryFrameProps {
  * summary and sub-navigation, any declaration that failed, and the page. A project no view
  * applies to gets an empty state instead.
  */
-export function FactoryFrame({ section, wide = false, children }: FactoryFrameProps): ReactElement {
+export function FactoryFrame({
+  section,
+  wide = false,
+  fill = false,
+  children,
+}: FactoryFrameProps): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const project = useFactoryRead<Project>(K.project(projectId), within =>
     within(signal => skill.getProject(projectId, { signal }))
@@ -57,8 +68,12 @@ export function FactoryFrame({ section, wide = false, children }: FactoryFramePr
       >
         <ProjectViewTabs projectId={projectId} active="factory" />
       </ProjectHeader>
-      <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
-        <div className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'}`}>
+      <div
+        className={`flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5 ${fill ? 'md:flex md:min-h-0 md:flex-col' : ''}`}
+      >
+        <div
+          className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'} ${fill ? 'md:min-h-0 md:flex-1' : ''}`}
+        >
           {view === undefined ? (
             <>
               <FactoryErrors errors={listing.data?.errors ?? []} />

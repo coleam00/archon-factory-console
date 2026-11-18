@@ -12,15 +12,16 @@ import { engineIdTitle } from './lib/step-label';
 import { orderSearch } from './lib/work-orders';
 
 /**
- * State colours: the console's status colours, with Needs you the one loud one. The board's
- * card and table and the item page's header all draw the pill from here.
+ * State colours (Visual standard, rule 5): each state's colour as text on its soft
+ * background, with Needs you the one filled, loud pill. The board's card and table and the
+ * item page's header all draw the pill from here.
  */
 export const PILL_CLASS: Record<Pill, string> = {
-  running: `bg-surface-hover ${statusTextClass.running}`,
-  'needs-you': 'bg-warning/20 font-semibold text-warning',
-  failed: 'bg-error/15 text-error',
-  waiting: 'bg-surface-hover text-text-secondary',
-  landed: 'bg-success/15 text-success',
+  running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
+  'needs-you': 'bg-warning font-semibold text-surface-inset',
+  failed: 'bg-[color:var(--error-soft)] text-error',
+  waiting: 'bg-surface-inset text-text-tertiary',
+  landed: 'bg-[color:var(--success-soft)] text-success',
 };
 
 /** A round's verdict colour, as a dot on the card and as its words on the item's timeline. */
@@ -43,7 +44,7 @@ export const VERDICT_TEXT_CLASS: Record<RoundVerdict, string> = {
 export function PillBadge({ pill }: { pill: Pill }): ReactElement {
   return (
     <span
-      className={`shrink-0 rounded px-1.5 py-0.5 text-console-10 font-medium ${PILL_CLASS[pill]}`}
+      className={`shrink-0 rounded-full px-2 py-0.5 text-console-12 font-medium ${PILL_CLASS[pill]}`}
     >
       {PILL_LABEL[pill]}
     </span>
@@ -56,7 +57,7 @@ export function RoundDots({
   round: NonNullable<BoardCardFields['round']>;
 }): ReactElement {
   return (
-    <span className="flex items-center gap-1.5 text-console-11 text-text-secondary">
+    <span className="flex items-center gap-1.5 text-console-12 text-text-secondary">
       {round.text}
       <span className="flex items-center gap-0.5">
         {round.dots.map(dot => (
@@ -76,57 +77,95 @@ export function RoundDots({
 /** A link inside the card, above the card-wide link to the item page. */
 const INNER_LINK = 'relative z-10 hover:underline';
 
+interface CardProps {
+  projectId: string;
+  card: BoardCardFields;
+  /** The card just changed stage: a brief highlight shows it. */
+  moved: boolean;
+  /** Another work order is lit on the board (`?order=`) and this card is not in it. */
+  dimmed?: boolean;
+  /** Its column's colour, drawn as the bar on its top edge (Visual standard, rule 2). */
+  accent: string;
+}
+
 /**
- * One item on the board, its fields in DESIGN.md's order. The title's link stretches over
- * the card, so the whole card opens the item page while the run, returned and change links
- * sit above it: no link nests in another.
+ * The card's box (Visual standard, rule 2): the item's key and pill, then its title, whose
+ * link stretches over the card. The whole card opens the item page while the links inside
+ * sit above that link, so no link nests in another.
  */
-export function BoardCard({
+function CardBox({
   projectId,
   card,
   moved,
   dimmed = false,
-}: {
-  projectId: string;
-  card: BoardCardFields;
-  /** The card just changed column: a brief highlight shows it. */
-  moved: boolean;
-  /** Another work order is lit on the board (`?order=`) and this card is not in it. */
-  dimmed?: boolean;
-}): ReactElement {
+  accent,
+  children,
+}: CardProps & { children: ReactNode }): ReactElement {
   return (
     <article
       data-moved={moved ? 'true' : undefined}
       data-dimmed={dimmed ? 'true' : undefined}
-      className={`relative flex flex-col gap-1 rounded border bg-surface-elevated px-2.5 py-2 hover:border-border-bright ${
-        moved ? 'border-accent-bright ring-1 ring-accent-bright' : 'border-border'
-      } ${dimmed ? 'opacity-40' : ''} motion-safe:transition`}
+      className={`relative flex flex-col gap-2 overflow-hidden rounded-console-12 border p-3 transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated ${
+        moved ? 'border-accent-bright bg-accent-soft' : 'border-border bg-surface'
+      } ${dimmed ? 'opacity-40' : ''}`}
     >
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-0.75"
+        style={{ background: accent }}
+      />
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-console-11 text-text-tertiary">{card.key}</span>
+        <span className="truncate font-mono text-console-12 text-text-tertiary">{card.key}</span>
         <PillBadge pill={card.pill} />
       </div>
       <Link
         to={itemPath(projectId, card.key)}
-        className="line-clamp-3 text-console-12 font-medium leading-snug text-text-primary after:absolute after:inset-0"
+        className="line-clamp-2 text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0"
       >
         {card.title}
       </Link>
+      {children}
+    </article>
+  );
+}
+
+/**
+ * One item on the board, its fields in DESIGN.md's order. Its stage line is what runs now,
+ * else the stage it waits in, so a card names its stage inside a column that groups several.
+ */
+export function BoardCard(props: CardProps): ReactElement {
+  const { card } = props;
+  return (
+    <CardBox {...props}>
+      {card.run !== null ? (
+        <RunLink run={card.run} />
+      ) : card.stage === null ? null : (
+        <span className="text-console-13 text-text-secondary">{card.stage}</span>
+      )}
       {card.order === null ? null : <OrderChip order={card.order} />}
       {card.round === null ? null : <RoundDots round={card.round} />}
-      {card.run === null ? null : <RunLink run={card.run} />}
       <CardLinks card={card} />
-      {card.landedAt === null ? null : (
-        <span className="text-console-11 text-text-tertiary">Landed {card.landedAt}</span>
-      )}
       {card.stopLine === null ? null : (
         <p
-          className={`line-clamp-2 text-console-11 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
+          className={`line-clamp-2 text-console-13 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
         >
           {card.stopLine}
         </p>
       )}
-    </article>
+    </CardBox>
+  );
+}
+
+/** A merged item, compact: its key, title, pull request and when it merged. */
+export function MergedCard(props: CardProps): ReactElement {
+  const { card } = props;
+  return (
+    <CardBox {...props}>
+      <span className="flex flex-wrap items-center gap-x-2 text-console-13 text-text-tertiary">
+        {card.change === null ? null : <ChangeLink change={card.change} />}
+        {card.mergedAt === null ? null : <span>Merged {card.mergedAt}</span>}
+      </span>
+    </CardBox>
   );
 }
 
@@ -140,7 +179,7 @@ function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactEl
       to={run.href}
       title={engineIdTitle(run.text, run.step)}
       aria-label={run.text}
-      className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 text-console-11 ${statusTextClass.running}`}
+      className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 text-console-13 ${statusTextClass.running}`}
     >
       {run.parts.map((part, index) => (
         <span
@@ -163,7 +202,7 @@ function OrderChip({ order }: { order: string }): ReactElement {
       to={{ search: orderSearch(params, order) }}
       replace
       title={`Light work order ${order} on the board`}
-      className={`${INNER_LINK} self-start rounded bg-surface-hover px-1.5 py-0.5 text-console-10 text-text-secondary`}
+      className={`${INNER_LINK} self-start rounded-full bg-surface-inset px-2 py-0.5 text-console-12 text-text-secondary`}
     >
       part of <span className="font-mono">{order}</span>
     </Link>
@@ -199,27 +238,31 @@ export function MergeState({
   );
 }
 
+/** The change: its pull request, linking out once its URL is known. */
+function ChangeLink({ change }: { change: NonNullable<BoardCardFields['change']> }): ReactElement {
+  if (change.href === null) return <span className="text-text-secondary">{change.label}</span>;
+  return (
+    <a
+      href={change.href}
+      target="_blank"
+      rel="noreferrer"
+      className={`${INNER_LINK} text-accent-bright`}
+    >
+      {change.label}
+    </a>
+  );
+}
+
 function CardLinks({ card }: { card: BoardCardFields }): ReactNode {
   if (card.returned === null && card.change === null) return null;
   return (
-    <span className="flex flex-wrap items-center gap-x-2 text-console-11">
+    <span className="flex flex-wrap items-center gap-x-2 text-console-13">
       {card.returned === null ? null : (
         <Link to={card.returned.href} className={`${INNER_LINK} text-text-secondary`}>
           returned ×{card.returned.count}
         </Link>
       )}
-      {card.change === null ? null : card.change.href === null ? (
-        <span className="text-text-secondary">{card.change.label}</span>
-      ) : (
-        <a
-          href={card.change.href}
-          target="_blank"
-          rel="noreferrer"
-          className={`${INNER_LINK} text-accent-bright`}
-        >
-          {card.change.label}
-        </a>
-      )}
+      {card.change === null ? null : <ChangeLink change={card.change} />}
       <MergeState state={card.change?.mergeState ?? null} />
     </span>
   );

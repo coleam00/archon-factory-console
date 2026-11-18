@@ -6,12 +6,13 @@ export const TABLE_COLUMNS = [
   { id: 'title', label: 'Title' },
   { id: 'order', label: 'Work order' },
   { id: 'column', label: 'Column' },
+  { id: 'stage', label: 'Stage' },
   { id: 'state', label: 'State' },
   { id: 'round', label: 'Round' },
   { id: 'run', label: 'Running step' },
   { id: 'returned', label: 'Returned' },
   { id: 'change', label: 'Change' },
-  { id: 'landed', label: 'Landed' },
+  { id: 'merged', label: 'Merged' },
   { id: 'stop', label: 'Stopped by or asks' },
 ] as const;
 export type TableColumnId = (typeof TABLE_COLUMNS)[number]['id'];
@@ -22,6 +23,10 @@ export interface TableRow {
   column: string;
   /** Left to right on the board; folded items after every column. */
   columnOrder: number;
+  /** The label of the stage it sits in; null for a folded item, which is in none. */
+  stage: string | null;
+  /** The stage's place on the board: columns left to right, then stages within one. */
+  stageOrder: number;
 }
 
 export interface TableSort {
@@ -31,14 +36,26 @@ export interface TableSort {
 
 /** Every row the board shows, columns first in board order, then the folded endings. */
 export function tableRows(model: BoardModel): TableRow[] {
+  const stages = model.columns.flatMap(column => column.stages);
   const placed = model.columns.flatMap((column, order) =>
-    column.cards.map(card => ({ placed: card, column: column.label, columnOrder: order }))
+    column.cards.map(card => {
+      const stage = card.column !== null && 'stage' in card.column ? card.column.stage : null;
+      return {
+        placed: card,
+        column: column.label,
+        columnOrder: order,
+        stage: stage?.label ?? null,
+        stageOrder: stage === null ? stages.length : stages.indexOf(stage.id),
+      };
+    })
   );
   const ended = model.ended.flatMap(group =>
     group.cards.map(card => ({
       placed: card,
       column: group.label,
       columnOrder: model.columns.length,
+      stage: null,
+      stageOrder: stages.length,
     }))
   );
   return [...placed, ...ended];
@@ -57,6 +74,8 @@ function sortValue(row: TableRow, by: TableColumnId): number | string {
       return card.title;
     case 'column':
       return row.columnOrder;
+    case 'stage':
+      return row.stageOrder;
     case 'state':
       return PILL_ORDER.indexOf(card.pill);
     case 'round':
@@ -67,9 +86,9 @@ function sortValue(row: TableRow, by: TableColumnId): number | string {
       return card.returned?.count ?? 0;
     case 'change':
       return item.progress?.change?.number ?? 0;
-    case 'landed':
-      // ISO times sort as text; only a landed card shows one.
-      return card.landedAt === null ? '' : (item.progress?.change?.mergedAt ?? '');
+    case 'merged':
+      // ISO times sort as text; only a merged card shows one.
+      return card.mergedAt === null ? '' : (item.progress?.change?.mergedAt ?? '');
     case 'stop':
       return card.stopLine ?? '';
     case 'order':

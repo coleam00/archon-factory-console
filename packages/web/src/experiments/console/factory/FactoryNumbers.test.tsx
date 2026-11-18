@@ -121,9 +121,9 @@ test('before the items answer, the five tiles say "…" with their labels, never
     expect(tiles.map(li => li.textContent)).toEqual([
       '…Loadingin flight',
       '…Loadingitems need you',
-      '…Loadinglanded today',
+      '…Loadingmerged today',
       '…Loadingdone',
-      '…Loadingmedian from first run to landed',
+      '…Loadingmedian from first run to merged',
     ]);
     expect(container.querySelector('[aria-label="Numbers"] [title="Loading"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Numbers"]')?.textContent).not.toMatch(/\d/);
@@ -139,7 +139,7 @@ test('while a merge state is pending, the counts it decides say loading, never z
   const items = [...PAGE.items, readyWithMerge('p', 'pending')];
   const { container, tile, unmount } = await mount('cb-pending', items);
   try {
-    for (const label of ['in flight', 'landed today', 'done', 'median from first run to landed'])
+    for (const label of ['in flight', 'merged today', 'done', 'median from first run to merged'])
       expect(tile(label)).toBe(`…Loading${label}`);
     expect(container.textContent).not.toMatch(/\d+ of \d+/);
     expect(container.querySelector('[title="Loading"]')).toBeNull();

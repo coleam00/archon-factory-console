@@ -29,10 +29,10 @@ export function BoardTable({
     setSort(current => ({ by, descending: current.by === by ? !current.descending : false }));
   };
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left text-console-12">
-        <thead>
-          <tr className="border-b border-border text-console-11 uppercase tracking-wider text-text-tertiary">
+    <div className="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
+      <table className="w-full text-left text-console-13">
+        <thead className="sticky top-0 z-10 bg-background">
+          <tr className="border-b border-border text-console-12 uppercase tracking-wider text-text-tertiary">
             {TABLE_COLUMNS.map(column => (
               <th
                 key={column.id}
@@ -92,7 +92,7 @@ function BoardRow({
       {cell(
         <Link
           to={itemPath(projectId, card.key)}
-          className="font-mono text-console-11 text-accent-bright hover:underline"
+          className="font-mono text-console-12 text-accent-bright hover:underline"
         >
           {card.key}
         </Link>
@@ -102,13 +102,14 @@ function BoardRow({
         card.order === null ? null : (
           <Link
             to={itemPath(projectId, card.order)}
-            className="font-mono text-console-11 text-accent-bright hover:underline"
+            className="font-mono text-console-12 text-accent-bright hover:underline"
           >
             {card.order}
           </Link>
         )
       )}
       {cell(row.column, 'whitespace-nowrap text-text-secondary')}
+      {cell(row.stage, 'whitespace-nowrap text-text-secondary')}
       {cell(<PillBadge pill={card.pill} />)}
       {cell(card.round === null ? null : <RoundDots round={card.round} />, 'whitespace-nowrap')}
       {cell(
@@ -116,7 +117,7 @@ function BoardRow({
           <Link
             to={card.run.href}
             title={engineIdTitle(card.run.text, card.run.step)}
-            className="text-console-11 hover:underline"
+            className="hover:underline"
           >
             {card.run.text}
           </Link>
@@ -142,7 +143,7 @@ function BoardRow({
           </span>
         )
       )}
-      {cell(card.landedAt, 'whitespace-nowrap text-text-tertiary')}
+      {cell(card.mergedAt, 'whitespace-nowrap text-text-tertiary')}
       {cell(
         card.stopLine,
         card.pill === 'failed' ? 'min-w-48 text-error' : 'min-w-48 text-warning'

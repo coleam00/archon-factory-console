@@ -15,7 +15,7 @@ const PILL_DOT_CLASS: Record<Pill, string> = {
 
 /**
  * The work orders with a member on the board, one compact row each, above the Pipeline's
- * columns: the order, how many of its members landed, each member's state, and a toggle
+ * columns: the order, how many of its members merged, each member's state, and a toggle
  * that lights its members on the board. Nothing when no item is part of an order.
  */
 export function WorkOrdersStrip({
@@ -32,11 +32,12 @@ export function WorkOrdersStrip({
   const shown = orders.filter(order => order.members.some(member => member.where !== NOT_STARTED));
   if (shown.length === 0) return null;
   return (
-    <section aria-label="Work orders" className="flex flex-col gap-1.5">
-      <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
+    <section aria-label="Work orders" className="flex shrink-0 flex-col gap-1.5">
+      <h3 className="text-console-12 font-medium uppercase tracking-wider text-text-tertiary">
         Work orders
       </h3>
-      <ul className="flex flex-col gap-1.5">
+      {/* Capped, so a long list of orders never takes the columns' height. */}
+      <ul className="flex max-h-32 flex-col gap-1.5 overflow-y-auto">
         {shown.map(order => (
           <WorkOrderRow
             key={order.key}
@@ -61,7 +62,7 @@ function WorkOrderRow({
 }): ReactElement {
   const [, setParams] = useSearchParams();
   const total = order.members.length;
-  const landedWords = `${order.landed.toString()} of ${total.toString()} landed`;
+  const landedWords = `${order.landed.toString()} of ${total.toString()} merged`;
   return (
     <li
       data-order={order.key}
@@ -71,7 +72,7 @@ function WorkOrderRow({
     >
       <Link
         to={itemPath(projectId, order.key)}
-        className="font-mono text-console-11 text-accent-bright hover:underline"
+        className="font-mono text-console-12 text-accent-bright hover:underline"
       >
         {order.key}
       </Link>
@@ -111,7 +112,7 @@ function WorkOrderRow({
             replace: true,
           });
         }}
-        className="ml-auto whitespace-nowrap rounded px-2 py-0.5 text-console-11 font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+        className="ml-auto whitespace-nowrap rounded px-2 py-0.5 text-console-12 font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
       >
         {lit ? 'Clear highlight' : 'Highlight members'}
       </button>

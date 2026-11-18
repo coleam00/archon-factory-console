@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
 import { Link } from 'react-router';
-import { BoardCard } from './BoardCard';
+import { BoardColumn } from './BoardColumn';
 import { hiddenColumnsHint, itemPath, type BoardModel } from './lib/board';
+import { mergedWindow } from './lib/merged-window';
 
 /**
  * The columns whose header shows inside the scroller. Every column counts as shown until
@@ -9,10 +10,10 @@ import { hiddenColumnsHint, itemPath, type BoardModel } from './lib/board';
  */
 function useShownColumns(
   scroller: RefObject<HTMLDivElement | null>,
-  stages: readonly string[]
+  columns: readonly string[]
 ): ReadonlySet<string> {
-  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set(stages));
-  const key = stages.join('\n');
+  const [shown, setShown] = useState<ReadonlySet<string>>(() => new Set(columns));
+  const key = columns.join('\n');
   useEffect(() => {
     const root = scroller.current;
     if (root === null || typeof IntersectionObserver === 'undefined') return;
@@ -21,16 +22,16 @@ function useShownColumns(
         setShown(current => {
           const next = new Set(current);
           for (const entry of entries) {
-            const stage = (entry.target as HTMLElement).dataset.stage ?? '';
-            if (entry.isIntersecting) next.add(stage);
-            else next.delete(stage);
+            const column = (entry.target as HTMLElement).dataset.column ?? '';
+            if (entry.isIntersecting) next.add(column);
+            else next.delete(column);
           }
           return next;
         });
       },
       { root, threshold: 0.9 }
     );
-    for (const header of root.querySelectorAll('[data-stage]')) observer.observe(header);
+    for (const header of root.querySelectorAll('[data-column]')) observer.observe(header);
     return (): void => {
       observer.disconnect();
     };
@@ -39,32 +40,36 @@ function useShownColumns(
 }
 
 /**
- * Pipeline view: one column per declared stage, left to right (top to bottom on a phone),
- * then the folded endings.
+ * Pipeline view: one column per declared column, left to right (top to bottom on a phone),
+ * then the folded endings. From md up the row takes the height it is given and each column
+ * scrolls on its own; the Merged column lists the recent window (`mergedWindow`).
  */
 export function BoardPipeline({
   projectId,
   model,
   moved,
   lit = null,
+  now,
 }: {
   projectId: string;
   model: BoardModel;
   moved: ReadonlySet<string>;
   /** The keys of the work order `?order=` lights; every other card dims. Null when none. */
   lit?: ReadonlySet<string> | null;
+  /** The time the Merged column's window counts back from. */
+  now: Date;
 }): ReactElement {
   const scroller = useRef<HTMLDivElement>(null);
   const shown = useShownColumns(
     scroller,
-    model.columns.map(column => column.stage)
+    model.columns.map(column => column.id)
   );
   const hint = hiddenColumnsHint(model.columns, shown);
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
       {hint === null ? null : (
         // Only where the columns sit side by side: on a phone they stack and none is hidden.
-        <p className="hidden text-console-11 text-text-tertiary md:block" aria-live="polite">
+        <p className="hidden text-console-12 text-text-tertiary md:block" aria-live="polite">
           {hint} →
         </p>
       )}
@@ -72,48 +77,22 @@ export function BoardPipeline({
           the row scrolls sideways when they do not fit. */}
       <div
         ref={scroller}
-        className="flex flex-col gap-4 pb-2 md:flex-row md:gap-2 md:overflow-x-auto"
+        className="flex flex-col gap-6 md:min-h-80 md:flex-1 md:flex-row md:gap-3 md:overflow-x-auto"
       >
         {model.columns.map(column => (
-          <section
-            key={column.stage}
-            aria-label={column.label}
-            className="flex flex-col gap-2 md:w-0 md:min-w-32 md:flex-1"
-          >
-            <h3
-              data-stage={column.stage}
-              className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5 text-console-11 font-medium uppercase tracking-wider text-text-tertiary"
-            >
-              <span className="truncate">{column.label}</span>
-              <ColumnCount column={column} />
-            </h3>
-            {column.cards.map(({ card }) => (
-              <BoardCard
-                key={card.key}
-                projectId={projectId}
-                card={card}
-                moved={moved.has(card.key)}
-                dimmed={lit !== null && !lit.has(card.key)}
-              />
-            ))}
-          </section>
+          <BoardColumn
+            key={column.id}
+            projectId={projectId}
+            column={column}
+            merged={column.id === model.landedColumn ? mergedWindow(column.cards, now) : undefined}
+            moved={moved}
+            lit={lit}
+          />
         ))}
       </div>
       <EndedRows projectId={projectId} ended={model.ended} />
     </div>
   );
-}
-
-/** A column's count, or loading while it waits on a merge answer (`stageCountPending`). */
-function ColumnCount({ column }: { column: BoardModel['columns'][number] }): ReactElement {
-  if (column.pending)
-    return (
-      <span title="Checking which changes merged" className="tabular-nums">
-        <span aria-hidden="true">…</span>
-        <span className="sr-only">checking</span>
-      </span>
-    );
-  return <span className="tabular-nums">{column.cards.length}</span>;
 }
 
 /** "N closed by triage" and the like: folded, each item linking to its page. */
@@ -126,21 +105,21 @@ function EndedRows({
 }): ReactElement | null {
   if (ended.length === 0) return null;
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex shrink-0 flex-wrap gap-2">
       {ended.map(group => (
         <details
           key={group.label}
-          className="rounded border border-border bg-surface px-3 py-2 text-console-12"
+          className="rounded-console-12 border border-border bg-surface px-3 py-2 text-console-13 md:max-w-md"
         >
           <summary className="cursor-pointer text-text-secondary">
             {group.cards.length} {group.label.toLowerCase()}
           </summary>
-          <ul className="mt-2 flex flex-col gap-1">
+          <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto">
             {group.cards.map(({ card }) => (
               <li key={card.key} className="flex gap-2">
                 <Link
                   to={itemPath(projectId, card.key)}
-                  className="font-mono text-console-11 text-accent-bright hover:underline"
+                  className="font-mono text-console-12 text-accent-bright hover:underline"
                 >
                   {card.key}
                 </Link>
