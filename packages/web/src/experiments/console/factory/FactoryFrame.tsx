@@ -9,6 +9,7 @@ import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
+import { ClampedSummary } from './ClampedSummary';
 import { useFactoryRead } from './useFactoryRead';
 import { useFactoryViews } from './useFactoryViews';
 import { readFailed, SlowReadError } from './lib/deadline';
@@ -177,11 +178,7 @@ function FactoryHeading({
         <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
         {/* The summary introduces the factory once, on the Overview; the other pages need
             their first screen for the board, the item or the graph. */}
-        {section === 'overview' ? (
-          <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">
-            {view.declaration.summary}
-          </p>
-        ) : null}
+        {section === 'overview' ? <ClampedSummary text={view.declaration.summary} /> : null}
       </div>
       <nav aria-label="Factory" className="flex items-center gap-1">
         {SECTIONS.map(({ key, label, rest }) => (

@@ -11,12 +11,14 @@ import {
 } from './map-camera';
 import {
   layoutOverview,
+  OVERVIEW_GROUP_PAD,
   OVERVIEW_PAGE_MAX_H,
   OVERVIEW_SMALLEST_PX,
   OVERVIEW_TITLE_PX,
   type OverviewEdgePath,
+  parallelGroups,
 } from './overview-layout';
-import { drawingFaults } from './overview-layout.test-fixtures';
+import { drawingFaults, fanFaults } from './overview-layout.test-fixtures';
 import type { OverviewDeclaration, OverviewView } from './overview-nav';
 
 /** The overview this repository ships, as the server lists it. */
@@ -87,6 +89,119 @@ describe('the shipped overview, drawn', () => {
         expect(OVERVIEW_TITLE_PX * k).toBeGreaterThanOrEqual(TITLE_FLOOR_PX);
         expect(OVERVIEW_SMALLEST_PX * k).toBeGreaterThanOrEqual(TYPE_FLOOR_PX);
       }
+    }
+  );
+});
+
+/** A small view: a card, a group of `members` in column 2, a card after it, joined by `edges`. */
+function grouped(
+  members: { id: string; col: number; row: number }[],
+  edges: OverviewView['edges']
+): OverviewView {
+  const card = (id: string, col: number, row: number, group?: string) => ({
+    id,
+    title: id,
+    text: id,
+    icon: 'flag' as const,
+    kind: 'check' as const,
+    col,
+    row,
+    ...(group === undefined ? {} : { group }),
+  });
+  return {
+    cards: [
+      card('before', 1, 2),
+      ...members.map(m => card(m.id, m.col, m.row, 'g')),
+      card('after', 4, 2),
+    ],
+    groups: [{ id: 'g', label: 'G' }],
+    edges,
+  } as OverviewView;
+}
+
+const THREE = [
+  { id: 'a', col: 2, row: 1 },
+  { id: 'b', col: 2, row: 2 },
+  { id: 'c', col: 2, row: 3 },
+];
+const THROUGH: OverviewView['edges'] = [
+  { from: 'before', to: 'g', kind: 'feeds' },
+  { from: 'g', to: 'after', kind: 'feeds' },
+];
+
+describe('parallel groups', () => {
+  test('the shipped file has two: the root inputs and the three checks', () => {
+    const found = views.flatMap(([, view]) => [...parallelGroups(view)]);
+    expect(found.sort()).toEqual(['checks-three', 'inputs']);
+  });
+
+  test('a group stacked in one column, met only along rows, is parallel', () => {
+    expect([...parallelGroups(grouped(THREE, THROUGH))]).toEqual(['g']);
+  });
+
+  test('a group across two columns is not', () => {
+    const wide = [
+      { id: 'a', col: 2, row: 2 },
+      { id: 'b', col: 3, row: 2 },
+    ];
+    expect(parallelGroups(grouped(wide, THROUGH)).size).toBe(0);
+  });
+
+  test('a group one of whose members a line names is not', () => {
+    const edges = [...THROUGH, { from: 'a', to: 'after', kind: 'calls' as const }];
+    expect(parallelGroups(grouped(THREE, edges)).size).toBe(0);
+  });
+
+  test('a group met along a column is not', () => {
+    const view = grouped(THREE, [{ from: 'g', to: 'below', kind: 'feeds' }]);
+    view.cards.push({
+      ...(view.cards[0] as OverviewView['cards'][number]),
+      id: 'below',
+      col: 2,
+      row: 4,
+    });
+    expect(parallelGroups(view).size).toBe(0);
+  });
+
+  test('a line between two parallel groups fans at both ends', () => {
+    const view = grouped(THREE, [{ from: 'g', to: 'h', kind: 'feeds' }]);
+    view.groups?.push({ id: 'h', label: 'H' });
+    for (const row of [1, 2, 3])
+      view.cards.push({
+        ...(view.cards[0] as OverviewView['cards'][number]),
+        id: `h${row}`,
+        col: 3,
+        row,
+        group: 'h',
+      });
+    const layout = layoutOverview(view);
+    expect(layout.fans.map(f => [f.group, f.side, f.into])).toEqual([
+      ['g', 'right', false],
+      ['h', 'left', true],
+    ]);
+    expect(fanFaults(view)).toEqual([]);
+  });
+
+  test('the checks drill-down fans into and out of each of its three checks', () => {
+    const layout = layoutOverview(shipped.views.checks as OverviewView);
+    expect(layout.fans.map(f => [f.group, f.side, f.into, f.stubs.length])).toEqual([
+      ['checks-three', 'left', true, 3],
+      ['checks-three', 'right', false, 3],
+    ]);
+    expect([...layout.contentSized].sort()).toEqual([
+      'checks-product',
+      'checks-review',
+      'checks-tests',
+    ]);
+    for (const fan of layout.fans)
+      for (const stub of fan.stubs)
+        expect(Math.abs(stub.to.x - stub.from.x)).toBe(OVERVIEW_GROUP_PAD);
+  });
+
+  test.each(views)(
+    'view %s: a stub meets only its own card and the edge it branches at that edge end, a bar no card and only that edge',
+    (_, view) => {
+      expect(fanFaults(view)).toEqual([]);
     }
   );
 });

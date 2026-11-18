@@ -21,9 +21,10 @@ workflows or steps in its own code.
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
 it. Inside it:
 
-- **Overview**: the view's title and summary, then a strip of numbers, then **Needs you**:
-  every open question an item is waiting on, one line each with its recommended option.
-  **Open** a line to answer it in place, the recommended option first. The newest few show;
+- **Overview**: the view's title and summary (on a phone, its first three lines and **More**),
+  then a strip of numbers, then **Needs you**: every open question an item is waiting on, one
+  line each with its recommended option. **Open** a line to answer it in place, the
+  recommended option first. The newest few show;
   **N more · show all** lists the rest. Paused runs' waits appear there too. Under the open
   asks, **Answered lately** lists the last asks an item settled and the stage that answer
   started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the stages `map.cards` lists, in
@@ -248,9 +249,9 @@ shows it under **How it works** (`factory/how-it-works`) when the pack the tab d
 
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
-number of cards, a breadcrumb leads back up, and **Full screen** draws the overview over the
-whole console until **Esc**. Drag to pan, scroll or use the buttons to zoom, and **Fit** to see
-a whole view.
+number of cards (on a phone, a menu above the map), a breadcrumb leads back up, and **Full
+screen** draws the overview over the whole console until **Esc**. Drag to pan, scroll or use the
+buttons to zoom, and **Fit** to see a whole view.
 
 The file is found as the view file is: the project's
 `.archon/packs/<pack key>.factory-overview.json` first, then the pack's own
@@ -265,6 +266,10 @@ Lines are drawn straight, so a view validates only when its picture is clean:
   view exactly one.
 - No line may run through a card other than its ends, through a group that holds neither end,
   or into another line. Move a card to give a line a clear row or column.
+
+A group stacked in one column, met only along rows, whose cards no line names, is drawn as
+parallel: its cards are as tall as their text, and a line into or out of the group branches to
+each card.
 
 ## Overview fields
 
