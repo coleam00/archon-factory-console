@@ -5,6 +5,7 @@
  * change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
+import { isAbsolute } from 'node:path';
 import type { Context } from 'hono';
 import {
   type ChangeLookup,
@@ -25,7 +26,8 @@ import {
 import { ITEM_WINDOW_MAX_LIMIT } from '@archon/workflows/item-window';
 import {
   discoverFactoryOverviews,
-  factoryOverviewForPack,
+  resolveFactoryPacks,
+  type FactoryPackProject,
 } from '@archon/workflows/factory-overviews';
 import {
   discoverFactoryViews,
@@ -37,6 +39,7 @@ import {
 import { factoryWorkflowSteps } from '@archon/workflows/factory-steps';
 import type { WorkflowConfig } from '@archon/workflows/deps';
 import type { ItemReadSource } from '@archon/workflows/item-read';
+import type { FactoryPacks } from '@archon/workflows/schemas/factory-overview';
 import type { FactoryViewsListing } from '@archon/workflows/schemas/factory-view';
 import type { WorkflowLoadResult } from '@archon/workflows/schemas/workflow';
 import { liveSourceRoots, workflowSourceConfigFrom } from '@archon/workflows/workflow-source';
@@ -50,7 +53,7 @@ import {
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
-  factoryOverviewResponseSchema,
+  factoryPacksResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
@@ -81,27 +84,18 @@ const getFactoryViewsRoute = createRoute({
   },
 });
 
-const factoryOverviewQuerySchema = z.object({
-  codebaseId: z
-    .string()
-    .min(1)
-    .openapi({ description: 'The project whose factory overview to read.' }),
-});
-
-const getFactoryOverviewRoute = createRoute({
+const getFactoryPacksRoute = createRoute({
   method: 'get',
-  path: '/api/factory/overview',
+  path: '/api/factory/packs',
   tags: ['Workflows'],
-  summary: "The factory overview of the pack a project's factory view draws",
+  summary: 'Every pack with a factory overview, and the projects that run it',
   description:
-    "The hand-written explainer of how the factory runs, for the pack of the first factory view that applies to the project: the project's `.archon/packs/<pack key>.factory-overview.json`, else the pack's own `.shared/factory-overview.json`. `overview` is null when the pack has none. Files that could not be read or did not validate are listed under `errors` with their file.",
-  request: { query: factoryOverviewQuerySchema },
+    "The hand-written explainers of how each pack's factory runs, across the install: the pack's own `.shared/factory-overview.json` first, else the first project (by name) shipping `.archon/packs/<pack key>.factory-overview.json`, named in `readFrom`. A pack whose files are all broken is listed with a null `overview` and its `errors`. `projects` are the projects a factory view of the pack applies to. A project that could not be read is listed under `unreadProjects`; the other packs still list.",
   responses: {
     200: {
-      content: { 'application/json': { schema: factoryOverviewResponseSchema } },
+      content: { 'application/json': { schema: factoryPacksResponseSchema } },
       description: 'OK',
     },
-    404: jsonError('Codebase not found, or no factory view applies to it'),
     500: jsonError('Server error'),
   },
 });
@@ -229,6 +223,8 @@ export interface FactoryRouteDeps {
   codebase: (
     id: string
   ) => Promise<{ cwd: string; projectKey: string; remote: string | null } | null>;
+  /** Every registered codebase, for the reads that span the install. */
+  codebases: () => Promise<readonly { id: string; name: string; cwd: string }[]>;
   loadConfig: (cwd: string) => Promise<WorkflowConfig>;
   /** Which of these run names (as runs record them) the codebase has any run of. */
   ranWorkflows: (codebaseId: string, names: readonly string[]) => Promise<ReadonlySet<string>>;
@@ -389,6 +385,29 @@ async function discoveriesResponse(
   return c.json(read);
 }
 
+/**
+ * Every pack with an overview across the install: the home scopes read once with no
+ * project, then each registered project's own files and applying views.
+ */
+async function factoryPacks(deps: FactoryRouteDeps): Promise<FactoryPacks> {
+  const home = await discoverFactoryOverviews(liveSourceRoots(null));
+  const projects = await Promise.all(
+    (await deps.codebases()).map(async ({ id, name, cwd }): Promise<FactoryPackProject> => {
+      try {
+        if (!isAbsolute(cwd)) throw new Error(`its checkout path "${cwd}" is not absolute`);
+        const roots = await projectRoots(deps, cwd);
+        const listing = await discoverFactoryOverviews(roots);
+        const views = (await applyingViews(deps, id, roots)).views;
+        return { codebaseId: id, name, listing, viewPacks: views.map(view => view.pack) };
+      } catch (error) {
+        getLog().warn({ err: error, codebaseId: id }, 'factory_pack_project_unreadable');
+        return { codebaseId: id, name, error: (error as Error).message };
+      }
+    })
+  );
+  return resolveFactoryPacks({ home, projects });
+}
+
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
   const changeStates = changeStateCache(deps);
@@ -411,22 +430,15 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     }
   });
 
-  register(getFactoryOverviewRoute, async c => {
-    const { codebaseId } = getValidatedQuery(c, factoryOverviewQuerySchema);
-    const project = await deps.codebase(codebaseId);
-    if (project === null) return apiError(c, 404, 'Codebase not found');
+  register(getFactoryPacksRoute, async c => {
     try {
-      // The pack the Factory tab draws, so the overview explains the factory the tab shows.
-      const roots = await projectRoots(deps, project.cwd);
-      const [view] = (await applyingViews(deps, codebaseId, roots)).views;
-      if (view === undefined) return apiError(c, 404, 'No factory view applies to this project');
-      const found = factoryOverviewForPack(await discoverFactoryOverviews(roots), view.pack);
-      for (const { pack, path, error } of found.errors)
-        getLog().warn({ codebaseId, pack, path, error }, 'factory_overview_invalid');
-      return c.json(found);
+      const packs = await factoryPacks(deps);
+      for (const { pack, path, error } of [...packs.errors, ...packs.packs.flatMap(p => p.errors)])
+        getLog().warn({ pack, path, error }, 'factory_overview_invalid');
+      return c.json(packs);
     } catch (error) {
-      getLog().error({ err: error, codebaseId }, 'discover_factory_overview_failed');
-      return apiError(c, 500, 'Failed to discover the factory overview');
+      getLog().error({ err: error }, 'discover_factory_packs_failed');
+      return apiError(c, 500, 'Failed to discover the factory packs');
     }
   });
 

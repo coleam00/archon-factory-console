@@ -2,10 +2,12 @@
  * Moving around a factory overview: the trail from the root to an open view, and every view
  * in the order the sidebar lists them.
  */
-import type { FactoryOverviewRead } from '../../skills/factory';
+import type { FactoryPacksRead } from '../../skills/factory';
 
 /** The overview file's contents, as the server listed it. */
-export type OverviewDeclaration = NonNullable<FactoryOverviewRead['overview']>['declaration'];
+export type OverviewDeclaration = NonNullable<
+  FactoryPacksRead['packs'][number]['overview']
+>['declaration'];
 export type OverviewView = OverviewDeclaration['views'][string];
 export type OverviewCard = OverviewView['cards'][number];
 
@@ -90,14 +92,15 @@ export function openView(
 }
 
 /**
- * Whether the Factory sub-navigation offers How it works: the pack has an overview file, or a
- * broken one, or the read failed. A failed read shows the entry so its page can say why;
- * hiding it would be silent. Unread or read as none, there is nothing to show.
+ * Whether the Factory sub-navigation offers How it works for the pack keyed `packKey`: the
+ * packs listing names it (it has an overview file, or a broken one), or the read failed. A
+ * failed read shows the entry so the pack page can say why; hiding it would be silent.
+ * Unread, or not listed, there is nothing to show.
  */
-export function howItWorksShown(read: {
-  data: FactoryOverviewRead | undefined;
-  error: Error | undefined;
-}): boolean {
+export function howItWorksShown(
+  read: { data: FactoryPacksRead | undefined; error: Error | undefined },
+  packKey: string
+): boolean {
   if (read.error !== undefined) return true;
-  return read.data !== undefined && (read.data.overview !== null || read.data.errors.length > 0);
+  return read.data?.packs.some(pack => pack.key === packKey) ?? false;
 }

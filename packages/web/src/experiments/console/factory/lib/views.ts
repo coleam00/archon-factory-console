@@ -1,7 +1,10 @@
-import type { FactoryViews } from '../../skills/factory';
+import type { FactoryPacksRead, FactoryViews } from '../../skills/factory';
 
 /** One view the server listed, with where it was found. */
 export type FactoryViewListed = FactoryViews['views'][number];
+
+/** One pack with a factory overview file, as the server listed it. */
+export type FactoryPackListed = FactoryPacksRead['packs'][number];
 
 /**
  * Whether a project gets the Factory tab: a view applies, or the project's own view file is
@@ -25,4 +28,9 @@ export function currentView(listing: FactoryViews | undefined): FactoryViewListe
 /** The Factory section's paths under one project. */
 export function factoryPath(projectId: string, rest = ''): string {
   return `/console/p/${projectId}/factory${rest}`;
+}
+
+/** A pack's Factory pages in the console's sidebar, by the pack's key (`owner.name` when installed). */
+export function factoryPackPath(packKey: string, rest = '/how-it-works'): string {
+  return `/console/factory/${encodeURIComponent(packKey)}${rest}`;
 }

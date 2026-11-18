@@ -151,6 +151,14 @@ export function registerApiRoutes(
             remote: codebase.repository_url,
           };
     },
+    // Every registration as stored: the read lists one whose checkout path is invalid as
+    // unreadable rather than failing every pack.
+    codebases: async () =>
+      (await codebaseDb.listCodebaseClaims()).map(({ id, name, default_cwd }) => ({
+        id,
+        name,
+        cwd: default_cwd,
+      })),
     loadConfig,
     ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
     itemsSource: attentionQueueSource(createWorkflowStore(), createWorkflowHostStore().isolation),

@@ -246,9 +246,33 @@ export const factoryOverviewsListingSchema = z.object({
 });
 export type FactoryOverviewsListing = z.infer<typeof factoryOverviewsListingSchema>;
 
-/** One pack's overview, or null when it has none, and the errors of the files that would give it. */
-export const factoryOverviewForPackSchema = z.object({
-  overview: factoryOverviewsListingSchema.shape.overviews.element.nullable(),
+const listedOverviewSchema = factoryOverviewsListingSchema.shape.overviews.element;
+const projectRefSchema = z.object({ codebaseId: z.string(), name: z.string() });
+
+/**
+ * Every pack with a factory overview file, valid or broken, for the console's Factory pages:
+ * the pack's own file first, else the first project (by name) that ships one.
+ */
+export const factoryPacksSchema = z.object({
+  packs: z.array(
+    z.object({
+      /** The pack: `owner/name` when installed, else its folder name; its key when only a broken project file names it. */
+      pack: z.string(),
+      /** The pack's key (`owner.name` when installed): its page's URL segment. */
+      key: z.string(),
+      /** The overview shown, or null when every file for the pack is broken. */
+      overview: listedOverviewSchema.nullable(),
+      /** The project whose file `overview` was read from; null for the pack's own file. */
+      readFrom: projectRefSchema.nullable(),
+      /** The projects a factory view of this pack applies to, by name. */
+      projects: z.array(projectRefSchema),
+      /** Overview files for this pack that could not be read or did not validate. */
+      errors: factoryOverviewsListingSchema.shape.errors,
+    })
+  ),
+  /** Scope roots that could not be read: they name no pack. */
   errors: factoryOverviewsListingSchema.shape.errors,
+  /** Projects whose files or views could not be read; the other packs still list. */
+  unreadProjects: z.array(projectRefSchema.extend({ error: z.string() })),
 });
-export type FactoryOverviewForPack = z.infer<typeof factoryOverviewForPackSchema>;
+export type FactoryPacks = z.infer<typeof factoryPacksSchema>;

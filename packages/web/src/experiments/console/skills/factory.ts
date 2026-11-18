@@ -48,14 +48,13 @@ export async function getFactoryItem(
   return requestJson('/api/factory/item', 'get', { query: opts, signal: init.signal });
 }
 
-export type FactoryOverviewRead = components['schemas']['FactoryOverview'];
+export type FactoryPacksRead = components['schemas']['FactoryPacks'];
 
-/** The hand-written overview of the pack the project's factory view draws, or null when it has none. */
-export async function getFactoryOverview(
-  opts: QueryParams<'/api/factory/overview', 'get'>,
+/** Every pack with a factory overview file, which overview its page shows, and the projects that run it. */
+export async function getFactoryPacks(
   init: { signal?: AbortSignal } = {}
-): Promise<FactoryOverviewRead> {
-  return requestJson('/api/factory/overview', 'get', { query: opts, signal: init.signal });
+): Promise<FactoryPacksRead> {
+  return requestJson('/api/factory/packs', 'get', { signal: init.signal });
 }
 
 export type FactoryDiscoveries = components['schemas']['FactoryDiscoveries'];

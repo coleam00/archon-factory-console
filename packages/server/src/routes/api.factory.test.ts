@@ -4,7 +4,8 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import type { ChangeLookup, ChangeMergeState } from '@archon/adapters/forge-host';
-import { trackTempRoots } from '@archon/paths/test-utils';
+import { getHomeWorkflowsPath } from '@archon/paths';
+import { removeTempTree, trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
 import type { DiscoveriesSource } from '@archon/workflows/factory-discoveries';
 import type { ItemReadSource } from '@archon/workflows/item-read';
@@ -15,7 +16,7 @@ import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from '
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
-  factoryOverviewResponseSchema,
+  factoryPacksResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
   factoryWorkflowSchema,
@@ -52,6 +53,7 @@ async function projectWith(
 /** Deps for a project with no items; each test replaces what it reads. */
 const noItems: FactoryRouteDeps = {
   codebase: async () => null,
+  codebases: async () => [],
   loadConfig: async () => ({
     assistant: undefined,
     commands: {},
@@ -150,14 +152,14 @@ describe('GET /api/factory/views', () => {
   });
 });
 
-describe('GET /api/factory/overview', () => {
+describe('GET /api/factory/packs', () => {
   const track = trackTempRoots();
   const viewFile = '.archon/packs/acme.kit.factory-view.json';
   const overviewFile = '.archon/packs/acme.kit.factory-overview.json';
-  const overview = {
+  const overview = (pack: string, title: string): Record<string, unknown> => ({
     version: 1,
-    pack: 'acme/kit',
-    title: 'How the kit works',
+    pack,
+    title,
     caption: 'Work comes in and lands.',
     root: 'top',
     views: {
@@ -172,70 +174,102 @@ describe('GET /api/factory/overview', () => {
         ],
       },
     },
-  };
+  });
 
   async function read(
-    files: Record<string, unknown>,
-    codebaseId = 'cb-1'
-  ): Promise<{ status: number; body: unknown; project: string }> {
-    const project = await projectWith(track, files);
+    projects: { id: string; name: string; files: Record<string, unknown>; config?: 'throws' }[]
+  ): Promise<{ status: number; body: unknown; cwds: Map<string, string> }> {
+    const cwds = new Map<string, string>();
+    for (const project of projects) cwds.set(project.id, await projectWith(track, project.files));
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
-      codebase: async id =>
-        id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: null } : null,
+      codebases: async () =>
+        projects.map(({ id, name }) => ({ id, name, cwd: cwds.get(id) ?? '' })),
+      loadConfig: async cwd => {
+        if (projects.find(p => cwds.get(p.id) === cwd)?.config === 'throws')
+          throw new Error('config is broken');
+        return noItems.loadConfig(cwd);
+      },
     });
-    const response = await app.request(`/api/factory/overview?codebaseId=${codebaseId}`);
-    return { status: response.status, body: await response.json(), project };
+    const response = await app.request('/api/factory/packs');
+    return { status: response.status, body: await response.json(), cwds };
   }
 
-  test("the overview of the applying view's pack, from the project file", async () => {
-    const { status, body, project } = await read({
-      [viewFile]: declaration('acme/kit', 'Kit'),
-      [overviewFile]: overview,
-    });
-    expect(status).toBe(200);
-    const found = factoryOverviewResponseSchema.parse(body);
-    expect(found.errors).toEqual([]);
-    expect([found.overview?.pack, found.overview?.source, found.overview?.path]).toEqual([
-      'acme/kit',
-      'project-file',
-      join(project, '.archon', 'packs', 'acme.kit.factory-overview.json'),
+  test("the pack's own file wins, with no project named", async () => {
+    // A global folder pack: the scratch home every test process starts with.
+    const own = join(getHomeWorkflowsPath(), 'kit', '.shared', 'factory-overview.json');
+    await mkdir(join(own, '..'), { recursive: true });
+    await writeFile(own, JSON.stringify(overview('kit', "The pack's own")));
+    try {
+      const { status, body } = await read([
+        {
+          id: 'cb-1',
+          name: 'web',
+          files: { '.archon/packs/kit.factory-overview.json': overview('kit', 'Project') },
+        },
+      ]);
+      expect(status).toBe(200);
+      const [pack] = factoryPacksResponseSchema.parse(body).packs;
+      expect([pack?.key, pack?.overview?.declaration.title, pack?.overview?.path]).toEqual([
+        'kit',
+        "The pack's own",
+        own,
+      ]);
+      expect(pack?.readFrom).toBeNull();
+    } finally {
+      await removeTempTree(join(getHomeWorkflowsPath(), 'kit'));
+    }
+  });
+
+  test('a project file is read from the first project by name, and the projects listed', async () => {
+    const { body, cwds } = await read([
+      {
+        id: 'cb-2',
+        name: 'zeta',
+        files: {
+          [viewFile]: declaration('acme/kit', 'Kit'),
+          [overviewFile]: overview('acme/kit', 'Zeta'),
+        },
+      },
+      {
+        id: 'cb-1',
+        name: 'alpha',
+        files: {
+          [viewFile]: declaration('acme/kit', 'Kit'),
+          [overviewFile]: overview('acme/kit', 'Alpha'),
+        },
+      },
     ]);
-    expect(found.overview?.declaration.title).toBe('How the kit works');
+    const packs = factoryPacksResponseSchema.parse(body);
+    expect(packs.packs).toHaveLength(1);
+    const [pack] = packs.packs;
+    expect([pack?.pack, pack?.key, pack?.overview?.declaration.title]).toEqual([
+      'acme/kit',
+      'acme.kit',
+      'Alpha',
+    ]);
+    expect(pack?.overview?.path).toBe(
+      join(cwds.get('cb-1') ?? '', '.archon', 'packs', 'acme.kit.factory-overview.json')
+    );
+    expect(pack?.readFrom).toEqual({ codebaseId: 'cb-1', name: 'alpha' });
+    expect(pack?.projects).toEqual([
+      { codebaseId: 'cb-1', name: 'alpha' },
+      { codebaseId: 'cb-2', name: 'zeta' },
+    ]);
   });
 
-  test('null when the pack has no overview', async () => {
-    const { status, body } = await read({ [viewFile]: declaration('acme/kit', 'Kit') });
+  test('a project that cannot be read is listed, and the other packs remain', async () => {
+    const { status, body } = await read([
+      { id: 'cb-1', name: 'broken', files: {}, config: 'throws' },
+      { id: 'cb-2', name: 'web', files: { [overviewFile]: overview('acme/kit', 'Kit') } },
+    ]);
     expect(status).toBe(200);
-    expect(factoryOverviewResponseSchema.parse(body)).toEqual({ overview: null, errors: [] });
-  });
-
-  test('a broken overview file is listed under errors with its path', async () => {
-    const { body, project } = await read({
-      [viewFile]: declaration('acme/kit', 'Kit'),
-      [overviewFile]: { ...overview, root: 'nope' },
-    });
-    const path = join(project, '.archon', 'packs', 'acme.kit.factory-overview.json');
-    expect(factoryOverviewResponseSchema.parse(body)).toEqual({
-      overview: null,
-      errors: [
-        { pack: 'acme.kit', source: 'project-file', path, error: expect.stringContaining('root') },
-      ],
-    });
-  });
-
-  test("another pack's overview is not this factory's", async () => {
-    const { body } = await read({
-      [viewFile]: declaration('acme/kit', 'Kit'),
-      '.archon/packs/other.kit.factory-overview.json': { ...overview, pack: 'other/kit' },
-    });
-    expect(factoryOverviewResponseSchema.parse(body)).toEqual({ overview: null, errors: [] });
-  });
-
-  test('404 for an unknown codebase, and when no factory view applies', async () => {
-    expect((await read({ [overviewFile]: overview }, 'missing')).status).toBe(404);
-    expect((await read({ [overviewFile]: overview })).status).toBe(404);
+    const packs = factoryPacksResponseSchema.parse(body);
+    expect(packs.packs.map(p => p.readFrom?.name)).toEqual(['web']);
+    expect(packs.unreadProjects).toEqual([
+      { codebaseId: 'cb-1', name: 'broken', error: 'config is broken' },
+    ]);
   });
 });
 

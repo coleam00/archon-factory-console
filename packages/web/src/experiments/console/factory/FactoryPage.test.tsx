@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryOverviewRead, FactoryViews, FactoryWorkflow } from '../skills/factory';
+import type { FactoryPacksRead, FactoryViews, FactoryWorkflow } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
@@ -11,13 +11,12 @@ import type { FactoryItem } from '../skills/factory';
 import { PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { askItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
-import { OVERVIEW } from './lib/overview.test-fixtures';
 
 const ID = 'cb-1';
 
 afterEach(() => {
   invalidate('factory-views');
-  invalidate('factory-overview');
+  invalidate(K.factoryPacks);
   invalidate('factory-workflow');
   invalidate('project');
   invalidate('runs');
@@ -228,31 +227,29 @@ describe('the Overview', () => {
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
   });
 
-  test('the sub-navigation shows How it works only when the pack has an overview file, or a broken one', () => {
-    const link = `href="/console/p/${ID}/factory/how-it-works"`;
-    const withOverview = (read: FactoryOverviewRead | undefined): string => {
-      if (read !== undefined) set(K.factoryOverview(ID), read);
+  test("the sub-navigation's How it works opens the sidebar page, when the packs list the view's pack", () => {
+    const link = 'href="/console/factory/acme.kit/how-it-works"';
+    const withPacks = (packs: FactoryPacksRead['packs']): string => {
+      set(K.factoryPacks, { packs, errors: [], unreadProjects: [] });
       return render(`/console/p/${ID}/factory`, withView);
     };
-    // Unread, and read as none: no entry.
-    expect(withOverview(undefined)).not.toContain(link);
-    expect(withOverview({ overview: null, errors: [] })).not.toContain(link);
-    const overview = {
-      pack: 'acme/kit',
-      source: 'project-file' as const,
-      path: '/repo/.archon/packs/acme.kit.factory-overview.json',
-      declaration: OVERVIEW,
-    };
-    expect(withOverview({ overview, errors: [] })).toContain(link);
-    // A broken file shows the entry and its error, with the view files' errors.
-    const broken = withOverview({
+    const listed = (key: string) => ({
+      pack: key,
+      key,
       overview: null,
-      errors: [
-        { pack: 'acme.kit', source: 'project-file', path: '/repo/o.json', error: 'bad root' },
-      ],
+      readFrom: null,
+      projects: [],
+      errors: [],
     });
-    expect(broken).toContain(link);
-    expect(broken).toContain('/repo/o.json');
+    // Another pack's listing: no entry, so the view's key is the one asked about.
+    expect(withPacks([listed('other.kit')])).not.toContain('How it works');
+    const html = withPacks([listed('acme.kit')]);
+    expect(html).toContain(link);
+    // It explains the pack, so it is never this project's current page.
+    expect(currentLinks(html)).toEqual([
+      `/console/p/${ID}/factory Factory`,
+      `/console/p/${ID}/factory Overview`,
+    ]);
   });
 
   test('a broken project file shows its path and error, not an empty state', () => {
@@ -404,26 +401,6 @@ describe('the step page', () => {
 });
 
 describe('Factory routes', () => {
-  const overviewRead: FactoryOverviewRead = {
-    overview: {
-      pack: 'acme/kit',
-      source: 'project-file',
-      path: '/repo/.archon/packs/acme.kit.factory-overview.json',
-      declaration: OVERVIEW,
-    },
-    errors: [],
-  };
-
-  test('How it works lives at /factory/how-it-works, its tab current', () => {
-    set(K.factoryOverview(ID), overviewRead);
-    const html = render(`/console/p/${ID}/factory/how-it-works`, withView);
-    expect(html).toContain('Work comes in, is made, and is checked.');
-    expect(currentLinks(html)).toEqual([
-      `/console/p/${ID}/factory Factory`,
-      `/console/p/${ID}/factory/how-it-works How it works`,
-    ]);
-  });
-
   test('an unknown path stays in the section, says so, and links every page', () => {
     const html = render(`/console/p/${ID}/factory/how-it-work`, withView);
     expect(html).toContain('No page here');
