@@ -10,19 +10,27 @@ import { useFactoryItemsRead } from './useFactoryItems';
 /**
  * The project's work orders, from the items read every Factory page shares (no request of its
  * own): `orders` is undefined until that read lands, `failed` once it failed without a value.
+ * `own` is the open item's key and the keys its own read links to it as `part_of`: the items
+ * read asks only about orders an item on the board names, so an order whose members have not
+ * started is known from its own read.
  */
 export function useWorkOrders(
   view: FactoryDeclaration,
-  projectId: string
+  projectId: string,
+  own?: { key: string; members: readonly string[] }
 ): { orders: WorkOrder[] | undefined; failed: boolean } {
   const { data, error } = useFactoryItemsRead(projectId);
-  const orders = useMemo(
-    () =>
-      data === undefined
-        ? undefined
-        : workOrders(data.items, boardModel(view, projectId, data.items, new Map()), data.members),
-    [view, projectId, data]
-  );
+  const ownKey = own?.key;
+  // A string, so a new array of the same keys on each render does not re-derive.
+  const ownMembers = own === undefined ? undefined : JSON.stringify(own.members);
+  const orders = useMemo(() => {
+    if (data === undefined) return undefined;
+    const members =
+      ownKey === undefined || ownMembers === undefined || ownKey in data.members
+        ? data.members
+        : { ...data.members, [ownKey]: JSON.parse(ownMembers) as string[] };
+    return workOrders(data.items, boardModel(view, projectId, data.items, new Map()), members);
+  }, [view, projectId, data, ownKey, ownMembers]);
   return { orders, failed: data === undefined && readFailed(error) !== undefined };
 }
 

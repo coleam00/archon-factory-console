@@ -75,7 +75,11 @@ function ItemRead({
   attention: EntityView<AttentionQueue>;
 }): ReactNode {
   const { data } = read;
-  const orders = useWorkOrders(view.declaration, projectId);
+  const orders = useWorkOrders(
+    view.declaration,
+    projectId,
+    data === undefined ? undefined : { key: itemKey, members: incomingMembers(data.item) }
+  );
   const order = orders.orders?.find(entry => entry.key === itemKey);
   // The stage the item sat in on the last read: a run on a step no stage names stays there,
   // as on the board and the map.
@@ -104,7 +108,10 @@ function ItemRead({
         item={data.item}
         pill={itemPill(declaration, data.item, landed).pill}
         column={column ?? null}
-        workOrder={data.item.runs.length === 0 && (order !== undefined || hasMembers(data.item))}
+        workOrder={
+          data.item.runs.length === 0 &&
+          (order !== undefined || incomingMembers(data.item).length > 0)
+        }
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
@@ -120,14 +127,11 @@ function ItemRead({
   );
 }
 
-/**
- * Whether an active `part_of` link names the item: then it is a work order, known from its own
- * read before the items read lands.
- */
-function hasMembers(item: FactoryItemDetail['item']): boolean {
-  return item.links.some(
-    link => link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null
-  );
+/** The keys of the items an active `part_of` link joins to this one: its members, by its own read. */
+function incomingMembers(item: FactoryItemDetail['item']): string[] {
+  return item.links
+    .filter(link => link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null)
+    .map(link => link.other.key);
 }
 
 /**

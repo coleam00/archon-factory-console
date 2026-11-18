@@ -207,6 +207,39 @@ describe('work orders on the item page', () => {
     expect(words).toContain('Members: 0 of 1 landed');
   });
 
+  test('an order whose members have not started: its members from its own links, N of M landed', () => {
+    const base = itemDetail('1');
+    const incoming = (key: string) => ({
+      id: `link-${key}`,
+      kind: 'part_of' as const,
+      direction: 'incoming' as const,
+      other: { id: `item-${key}`, projectKey: base.item.item.projectKey, key },
+      ...act,
+      ended: null,
+    });
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-48', key: '48' },
+        runs: [],
+        questions: [],
+        answers: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+        links: [incoming('9'), incoming('10')],
+      },
+    };
+    // No item on the board names 48, so the items read never asked about it.
+    itemsRead([itemDetail('3').item], {});
+    const words = text(render(detail));
+    expect(words).toContain(WORK_ORDER_WORDS);
+    expect(words).toContain('Members: 0 of 2 landed');
+    expect(words.match(/Not started/g)).toHaveLength(2);
+    // The links stand as the members, not repeated as raw links.
+    expect(words).not.toContain('Has part');
+  });
+
   test('an order with no run of its own says so from its own links, before the items read', () => {
     const base = itemDetail('1');
     const detail: FactoryItemDetail = {
