@@ -7,7 +7,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
-import { factoryRoutes } from './routes';
+import { projectRoutes } from '../routes/project-routes';
 
 // The item read must fail with a 404 for this page, which only a mounted read reaches.
 const dom = new Window({ url: 'http://localhost' });
@@ -68,7 +68,7 @@ function member(order: string): Item {
 
 async function mount(key: string, items: Item[]): Promise<string> {
   set(K.factoryViews(PROJECT), { views: [shippedListed], errors: [] });
-  set(K.factoryAttention(PROJECT), { items: [], runs: [], degraded: [] });
+  set(K.projectAttention(PROJECT), { items: [], runs: [], degraded: [] });
   set(K.factoryItems(PROJECT), { items, members: {} });
   const container = document.createElement('div');
   document.body.append(container);
@@ -76,7 +76,7 @@ async function mount(key: string, items: Item[]): Promise<string> {
   await act(async () =>
     root.render(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/${key}`]}>
-        <Routes>{factoryRoutes('/console/')}</Routes>
+        <Routes>{projectRoutes('/console/')}</Routes>
       </MemoryRouter>
     )
   );

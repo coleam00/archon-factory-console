@@ -1,22 +1,24 @@
 import { useState, type MouseEvent, type KeyboardEvent, type ReactElement } from 'react';
+import {
+  answerProblem,
+  isOtherOption,
+  optionLabel,
+  pickOption,
+  recommendationWhy,
+  recommendedLabel,
+  takesText,
+  tileOrder,
+  type AttentionWait,
+} from '../lib/ask-card';
 import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
-import type { AttentionQueueItem } from '../skills/runs';
 import { invalidate } from '../store/cache';
 import { K } from '../store/keys';
 import type { Run } from '../primitives/run';
+import { AskConfirm, type ConfirmDraft } from './ask-card/AskConfirm';
+import { AskTiles, type AskTile } from './ask-card/AskTiles';
 
 type Attention = Extract<NonNullable<Run['attention']>, { kind: 'attention' }>;
-
-/**
- * What the form needs of an attention wait, from the queue's shape: a run's attention is
- * assignable to it (its options only lack the optional `cost`), so both callers share it.
- */
-export type AttentionWait = Pick<
-  Extract<AttentionQueueItem, { kind: 'attention' }>,
-  'form' | 'options' | 'other' | 'recommendation'
->;
-type WaitOption = AttentionWait['options'][number];
 
 /** Sends a chosen answer; throws the server's refusal. */
 export type SubmitAnswer = (choose: string[], text: string | undefined) => Promise<void>;
@@ -30,191 +32,134 @@ export function isLegacyAttention(attention: { occurrence: string }): boolean {
 }
 
 /**
- * The reserved option of a wait declared with `other: true` is answered with text. The
- * engine adds it after the declared options, so the flag names it without its id. Read
- * it from the wait's own order, never from the recommended-first display order.
+ * Answer a queue item by its ref, then refresh every `runs` key (the project's queue, which
+ * the answered item leaves, and the runs feed the answer moved on) and every `factory-items`
+ * key (an item page lists the answer among its answers). A refusal refreshes too: it usually
+ * means the item closed, so the stale card should go.
  */
-function needsText(wait: AttentionWait, optionId: string, text: string): boolean {
-  return wait.other === true && optionId === wait.options.at(-1)?.id && text.trim() === '';
+export function answerByRef(ref: string): SubmitAnswer {
+  return async (choose, text) => {
+    try {
+      await skill.answerAttentionItem(ref, { choose, ...(text === undefined ? {} : { text }) });
+    } finally {
+      invalidate('runs');
+      invalidate('factory-items');
+    }
+  };
 }
 
-function textPlaceholder(wait: AttentionWait): string {
-  if (wait.form === 'message') return 'Your answer';
-  return wait.other === true ? 'Optional text; required for Other' : 'Optional text';
+function tilesOf(wait: AttentionWait): AskTile[] {
+  return tileOrder(wait).map(option => ({
+    id: option.id,
+    label: optionLabel(wait, option),
+    ...(option.does === undefined ? {} : { does: option.does }),
+    ...(option.cost === undefined ? {} : { cost: option.cost }),
+    recommended: option.id === wait.recommendation?.option,
+    other: isOtherOption(wait, option.id),
+  }));
 }
 
-/** The options to show: the recommended one first, the rest in their declared order. */
-function displayOrder(wait: AttentionWait): WaitOption[] {
-  const recommended = wait.options.find(option => option.id === wait.recommendation?.option);
-  if (recommended === undefined) return wait.options;
-  return [recommended, ...wait.options.filter(option => option !== recommended)];
+/** What the confirm row asks for, given the picks so far. */
+function draftOf(
+  wait: AttentionWait,
+  tiles: readonly AskTile[],
+  picks: readonly string[]
+): ConfirmDraft {
+  const labels = picks.map(id => tiles.find(tile => tile.id === id)?.label ?? id);
+  if (wait.form === 'message') return { labels, text: 'optional', placeholder: 'Your answer' };
+  if (takesText(wait, picks))
+    return { labels, text: 'required', placeholder: 'Say what to do instead' };
+  return { labels, text: 'optional', placeholder: 'Optional note with your answer' };
 }
-
-export const optionName = (option: Pick<WaitOption, 'id' | 'label'>): string =>
-  option.label ?? option.id;
 
 /**
- * Answer a paused attention wait in its declared form: free text for a message, one
- * option for approval and select, one or more for multi_select. The recommended option
- * comes first and is highlighted with why; every option shows what it does and costs.
- * `submit` sends the answer; a refusal shows in the server's own words.
+ * Answer a paused attention wait in its declared form, as the ask card draws it (DESIGN.md,
+ * Visual standard rule 9): one tile per option, the recommended one first and marked with
+ * why; choosing a tile (or several, for multi_select) opens the confirm row, and Confirm
+ * sends. An answer only in words has no tiles and opens with the textarea. Confirm is enabled
+ * exactly when the engine would accept the answer (`answerProblem`). `submit` sends; a
+ * refusal shows in the server's own words. `onAnswered` hears the chosen words once sent.
  */
 export function AttentionAnswerForm({
   wait,
   submit,
+  onAnswered,
 }: {
   wait: AttentionWait;
   submit: SubmitAnswer;
+  onAnswered?: (label: string) => void;
 }): ReactElement {
+  const [picks, setPicks] = useState<string[]>([]);
   const [text, setText] = useState('');
-  const [chosen, setChosen] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tiles = tilesOf(wait);
+  const draft = draftOf(wait, tiles, picks);
+  const open = wait.form === 'message' || picks.length > 0;
 
-  const answer = async (choose: string[]): Promise<void> => {
+  const reset = (): void => {
+    setPicks([]);
+    setText('');
+    setError(null);
+  };
+  const confirm = async (): Promise<void> => {
     setBusy(true);
     setError(null);
     try {
       const trimmed = text.trim();
-      await submit(choose, trimmed.length > 0 ? trimmed : undefined);
-      setText('');
-      setChosen([]);
+      await submit(picks, trimmed.length > 0 ? trimmed : undefined);
+      reset();
+      onAnswered?.(draft.labels.length > 0 ? draft.labels.join(', ') : 'in words');
     } catch (e: unknown) {
       setError(errorDetail(e));
     } finally {
       setBusy(false);
     }
   };
+  // The card can sit inside a clickable run card; a choice made here must not open the run.
   const stopPropagation = (e: MouseEvent | KeyboardEvent): void => {
     e.stopPropagation();
   };
-  const button =
-    'rounded bg-warning/15 px-2 py-1 text-console-12 font-semibold text-warning hover:bg-warning/25 disabled:opacity-50';
-  const ordered = displayOrder(wait);
-  const recommendedId = wait.recommendation?.option;
-
   return (
-    <div
-      className="mt-2 flex flex-col gap-2 rounded border border-warning/30 bg-warning/[0.06] p-3"
-      onClick={stopPropagation}
-      onKeyDown={stopPropagation}
-    >
-      <WaitOptions wait={wait} ordered={ordered} />
-      {wait.form === 'multi_select' ? (
-        <div className="flex flex-wrap gap-3 text-console-12">
-          {ordered.map(option => (
-            <label key={option.id} className="flex items-center gap-1">
-              <input
-                type="checkbox"
-                checked={chosen.includes(option.id)}
-                onChange={event => {
-                  setChosen(
-                    event.target.checked
-                      ? [...chosen, option.id]
-                      : chosen.filter(id => id !== option.id)
-                  );
-                }}
-              />
-              {optionName(option)}
-            </label>
-          ))}
-        </div>
+    <div className="flex flex-col gap-3" onClick={stopPropagation} onKeyDown={stopPropagation}>
+      {wait.form === 'message' ? null : (
+        <AskTiles
+          tiles={tiles}
+          picks={picks}
+          disabled={busy}
+          onPick={id => {
+            setPicks(pickOption(wait, picks, id));
+            setError(null);
+          }}
+        />
+      )}
+      <RecommendationWhy wait={wait} />
+      {open ? (
+        <AskConfirm
+          draft={draft}
+          value={text}
+          onChange={setText}
+          accepted={answerProblem(wait, { choose: picks, text }) === undefined}
+          busy={busy}
+          error={error}
+          onConfirm={() => void confirm()}
+          {...(wait.form === 'message' ? {} : { onCancel: reset })}
+        />
       ) : null}
-      <textarea
-        value={text}
-        onChange={event => {
-          setText(event.target.value);
-        }}
-        placeholder={textPlaceholder(wait)}
-        rows={2}
-        className="rounded border border-border bg-surface px-2 py-1 text-console-12 text-text-primary"
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        {wait.form === 'message' || wait.form === 'multi_select' ? (
-          <button
-            type="button"
-            disabled={busy || (wait.form === 'multi_select' && chosen.length === 0)}
-            onClick={() => void answer(chosen)}
-            className={button}
-          >
-            {busy ? 'Answering…' : 'Answer'}
-          </button>
-        ) : (
-          ordered.map(option => (
-            <button
-              key={option.id}
-              type="button"
-              disabled={busy || needsText(wait, option.id, text)}
-              onClick={() => void answer([option.id])}
-              className={recommendedId === option.id ? `${button} ring-1 ring-warning` : button}
-            >
-              {`${optionName(option)}${recommendedId === option.id ? ' (recommended)' : ''}`}
-            </button>
-          ))
-        )}
-        {error !== null ? (
-          <span role="alert" className="text-console-12 text-error">
-            {error}
-          </span>
-        ) : null}
-      </div>
     </div>
   );
 }
 
-/** The recommendation, highlighted with why, then every other option that says what it does or costs. */
-function WaitOptions({
-  wait,
-  ordered,
-}: {
-  wait: AttentionWait;
-  ordered: WaitOption[];
-}): ReactElement | null {
+/** One line under the tiles: why the recommended option, naming it when no tile carries it. */
+function RecommendationWhy({ wait }: { wait: AttentionWait }): ReactElement | null {
   const { recommendation } = wait;
-  const recommended = ordered.find(option => option.id === recommendation?.option);
-  const others = ordered.filter(
-    option => option !== recommended && (option.does !== undefined || option.cost !== undefined)
-  );
-  if (recommendation === undefined && others.length === 0) return null;
+  if (recommendation === undefined) return null;
+  const matched = wait.options.some(option => option.id === recommendation.option);
   return (
-    <div className="flex flex-col gap-1.5">
-      {recommendation !== undefined ? (
-        <div className="flex flex-col gap-0.5 rounded border border-warning/50 bg-warning/10 px-2.5 py-2 text-console-12">
-          <p className="text-text-primary">
-            <span className="font-semibold">
-              Recommended:{' '}
-              {recommended === undefined ? recommendation.option : optionName(recommended)}
-            </span>
-            {recommendation.confidence !== undefined
-              ? ` (${recommendation.confidence} confidence)`
-              : ''}
-            . {recommendation.why}
-          </p>
-          {recommended === undefined ? null : <OptionEffects option={recommended} />}
-        </div>
-      ) : null}
-      {others.length > 0 ? (
-        <ul className="flex flex-col gap-1 text-console-12 text-text-secondary">
-          {others.map(option => (
-            <li key={option.id}>
-              <span className="font-semibold text-text-primary">{optionName(option)}</span>
-              <OptionEffects option={option} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-function OptionEffects({ option }: { option: WaitOption }): ReactElement {
-  return (
-    <span className="block text-text-secondary">
-      {option.does ?? ''}
-      {option.cost !== undefined ? (
-        <span className="block text-text-tertiary">Cost: {option.cost}</span>
-      ) : null}
-    </span>
+    <p className="text-console-13 text-text-secondary">
+      {matched ? '' : `Recommended: ${recommendedLabel(wait) ?? ''}. `}
+      {recommendationWhy(recommendation)}
+    </p>
   );
 }
 
@@ -241,5 +186,9 @@ export function AttentionAnswerPanel({
       invalidate(K.run(run.id));
     }
   };
-  return <AttentionAnswerForm wait={attention} submit={submit} />;
+  return (
+    <div className="@container mt-2">
+      <AttentionAnswerForm wait={attention} submit={submit} />
+    </div>
+  );
 }

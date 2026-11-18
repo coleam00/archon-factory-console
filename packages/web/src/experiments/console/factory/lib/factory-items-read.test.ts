@@ -2,7 +2,7 @@ import { afterEach, expect, jest, mock, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemWindow } from '../../skills/items';
 import { deadlineOf, FACTORY_READ_DEADLINE_MS, SlowReadError } from './deadline';
-import { readEveryFactoryItem, type FactoryItemsReads } from './factory-items-read';
+import { readEveryFactoryItem, readEveryItem, type FactoryItemsReads } from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
@@ -205,4 +205,16 @@ test('no order named, no read after the walk', async () => {
   const { deps, progressCalls } = reads([page([captured[0]!], null)]);
   await readEveryFactoryItem('cb-1', deps, within);
   expect(progressCalls).toHaveLength(1);
+});
+
+test('with no factory view it walks the window alone, never the progress read, newest first', async () => {
+  const [first, second] = captured;
+  const older = at(first!, 'old', '2026-11-10T00:00:00.000Z');
+  const newer = at(second!, 'new', '2026-11-12T00:00:00.000Z');
+  const { deps, windowCalls, progressCalls } = reads([page([older], 'c1'), page([newer], null)]);
+  const items = await readEveryItem('cb-1', deps.listWindow, within);
+  expect(items.map(item => item.item.key)).toEqual(['new', 'old']);
+  expect(items[0]).not.toHaveProperty('progress');
+  expect(windowCalls).toHaveLength(2);
+  expect(progressCalls).toEqual([]);
 });

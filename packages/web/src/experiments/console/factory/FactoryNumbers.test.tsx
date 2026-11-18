@@ -19,6 +19,8 @@ for (const [key, value] of Object.entries(globals)) {
   Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 }
 const { createRoot } = await import('react-dom/client');
+/** The project's asks and waits, as the Overview hands them down. */
+const WAITING = 2;
 const originalFetch = globalThis.fetch;
 let fetches = 0;
 globalThis.fetch = Object.assign(
@@ -52,7 +54,7 @@ test('a failed read says so, and never shows zeros', async () => {
   await act(async () =>
     root.render(
       <MemoryRouter>
-        <FactoryNumbers projectId="cb-failing" view={VIEW} />
+        <FactoryNumbers projectId="cb-failing" view={VIEW} waiting={WAITING} />
       </MemoryRouter>
     )
   );
@@ -84,7 +86,7 @@ async function mount(projectId: string, items: FactoryItem[]) {
   await act(async () =>
     root.render(
       <MemoryRouter>
-        <FactoryNumbers projectId={projectId} view={VIEW} />
+        <FactoryNumbers projectId={projectId} view={VIEW} waiting={WAITING} />
       </MemoryRouter>
     )
   );
@@ -113,14 +115,14 @@ test('before the items answer, the five tiles say "…" with their labels, never
     await act(async () =>
       root.render(
         <MemoryRouter>
-          <FactoryNumbers projectId="cb-unread" view={VIEW} />
+          <FactoryNumbers projectId="cb-unread" view={VIEW} waiting={undefined} />
         </MemoryRouter>
       )
     );
     const tiles = [...container.querySelectorAll('[aria-label="Numbers"] li')];
     expect(tiles.map(li => li.textContent)).toEqual([
       '…Loadingin flight',
-      '…Loadingitems need you',
+      '…Loadingneed you',
       '…Loadinglanded today',
       '…Loadingdone',
       '…Loadingmedian from first run to landed',
@@ -143,8 +145,8 @@ test('while a merge state is pending, the counts it decides say loading, never z
       expect(tile(label)).toBe(`…Loading${label}`);
     expect(container.textContent).not.toMatch(/\d+ of \d+/);
     expect(container.querySelector('[title="Loading"]')).toBeNull();
-    // Whether an item needs you does not wait on a merge answer.
-    expect(tile('items need you')).toBe('0items need you');
+    // The asks and waits that need you do not wait on a merge answer: the queue counts them.
+    expect(tile('need you')).toBe('2need you');
     // The answer arrives: real numbers replace the loading ones.
     await act(async () => set(K.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
     expect(tile('done')).toBe('3 of 8done');

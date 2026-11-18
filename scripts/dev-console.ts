@@ -1,6 +1,6 @@
 /**
  * Start the Archon server on a throwaway home, to look at the console without touching a
- * real Archon install: `bun run dev:console [--port 3190] [--fresh]`.
+ * real Archon install: `bun run dev:console [--port 3190] [--fresh] [--reopen-asks]`.
  *
  * - The home is `.console-home/` in this checkout (gitignored), so the server uses SQLite
  *   there and never reads ~/.archon/.env or a DATABASE_URL.
@@ -11,16 +11,21 @@
  *   projects point at this checkout, so the console reads this branch's `.archon/` files.
  * - The live home's installed packs (`plugins/`) are copied in once too, so the console can
  *   draw their workflows' steps, prompts and YAML. `--fresh` copies them again.
+ * - `--reopen-asks` reopens the newest wholly answered set of asks per item and workflow on the
+ *   copy (`console-reopen-asks.ts`), so Needs you shows real asks; without it, and with
+ *   `--fresh`, the copy shows what the live factory has open.
  * - It serves the built web UI (`bun run build:web` first) on the given port, default 3190.
  */
 import { Database } from 'bun:sqlite';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
+import { reopenAnsweredAsks } from './console-reopen-asks';
 
 const args = process.argv.slice(2);
 const portArg = args.indexOf('--port');
 const port = portArg >= 0 ? Number(args[portArg + 1]) : 3190;
 const fresh = args.includes('--fresh');
+const reopenAsks = args.includes('--reopen-asks');
 
 const root = resolve(import.meta.dir, '..');
 const home = join(root, '.console-home');
@@ -49,6 +54,18 @@ if (live && !existsSync(db)) {
     copy.close();
     console.log(`Seeded ${db} from a read-only copy of the live factory database.`);
   }
+}
+
+// Only ever the throwaway copy: the database under this checkout's `.console-home/`, never the
+// live home's.
+if (reopenAsks && existsSync(db)) {
+  const inside = relative(home, db);
+  if (inside.startsWith('..') || (live !== undefined && resolve(db) === resolve(live, 'archon.db')))
+    throw new Error(`--reopen-asks refuses ${db}: it is not the console's throwaway copy`);
+  const copy = new Database(db);
+  const reopened = reopenAnsweredAsks(copy);
+  copy.close();
+  console.log(`Reopened ${reopened.toString()} answered asks on the copy for Needs you.`);
 }
 
 // The installed packs, so the console can draw their workflows' steps and prompts. Copied

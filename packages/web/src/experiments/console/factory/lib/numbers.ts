@@ -1,6 +1,7 @@
 /**
  * The Overview's numbers strip (DESIGN.md, "Overview page"), from the board's model. Each
- * count is the number of cards the board shows under that number's filter.
+ * count is the number of cards the board shows under that number's filter. The strip's
+ * "need you" tile is not here: it counts the attention queue (`needsYouCount`).
  */
 import { ensureUtc } from '../../lib/format';
 import { filterBoard, type BoardModel, type PlacedCard } from './board';
@@ -8,7 +9,6 @@ import type { BoardShow } from './board-show';
 
 export interface FactoryNumbers {
   inFlight: number;
-  needsYou: number;
   landedToday: number;
   /** N of "N of M done". */
   landed: number;
@@ -18,7 +18,7 @@ export interface FactoryNumbers {
   medianToLandMs: number | null;
   /**
    * Whether the counts placement's merge rule decides wait on a merge answer: some column
-   * of the board shows loading. Every number but "needs you" is then not shown.
+   * of the board shows loading. Every number here is then not shown.
    */
   pending: boolean;
 }
@@ -58,7 +58,6 @@ export function factoryNumbers(model: BoardModel, now: Date): FactoryNumbers {
     .flatMap(placed => timeToLand(placed) ?? []);
   return {
     inFlight: cardCount(shown('in-flight')),
-    needsYou: cardCount(shown('needs-you')),
     landedToday: cardCount(shown('landed-today')),
     landed: cardCount(landed),
     total: cardCount(model),

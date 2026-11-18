@@ -20,16 +20,25 @@ states, words) is written in the repository's design document:
 
 ## What the tab shows
 
+Every project, factory or not, has a **Needs you** tab, left of Runs, with how many asks and
+paused waits need a person on it. It lists every open question and paused wait on the
+project's items and runs, from any workflow, grouped under their item, each as an ask card:
+the question, its context, and one tile per option saying what it does and costs, the
+recommended option first and marked, with why. Choosing a tile does not send: a confirm row
+says "Answer: <option>", and **Confirm** answers it in place; the card then says what it was
+answered with for a few seconds. Under the open asks, **Answered lately** lists the last asks
+an item settled and the stage (or, on a project without a factory, the workflow) that answer
+started again, linking to that run, or that no run started from those answers (a run started
+by hand after them is not one). With nothing open, the tab says so, when something was last
+asked, and shows the newest answered.
+
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
 it. Inside it:
 
 - **Overview**: the view's title and summary (on a phone, its first three lines and **More**),
-  then a strip of numbers, then **Needs you**: every open question an item is waiting on, one
-  line each with its recommended option. **Open** a line to answer it in place, the
-  recommended option first. The newest few show;
-  **N more · show all** lists the rest. Paused runs' waits appear there too. Under the open
-  asks, **Answered lately** lists the last asks an item settled and the stage that answer
-  started again, linking to that run, or that no run started from those answers (a run started by hand after them is not one). Then **the map**: the stages `map.cards` lists, in
+  then a strip of numbers (its **need you** number is the Needs you tab's count), then the
+  newest three asks as compact cards, the question and the recommended option, each with
+  **Open**, which answers it on the Needs you tab, and how many more wait there. Then **the map**: the stages `map.cards` lists, in
   `stages` order in one row (two on a screen too narrow to read one), coloured by group, with
   the arrows `map.arrows` declares and no others. A forward hand-off runs between two cards;
   every send-back (an arrow into an earlier stage: a return, a replan) runs in one feedback lane under the row,
@@ -39,9 +48,7 @@ it. Inside it:
   screen, it stops at the smallest readable size, so drag, zoom out or close the details to
   see the rest. Click a card for its stage page; its details button (ⓘ) shows its items and
   workflows beside the map.
-- **Needs you**: its own page, reached from the sub-navigation, which shows how many wait.
-  Every open question and paused wait on this project's items, all of them, each answerable
-  in place as on the Overview.
+- **Needs you**: the sub-navigation links to the project's Needs you tab, with the same count.
 - **Board**: one column per declared stage, each item one card in the column of the stage it
   is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
   round it is on, the stage and step running now ("Checks · Code review · round 2"), how often

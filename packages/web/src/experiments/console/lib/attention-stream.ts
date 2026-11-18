@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import type { components } from '@/lib/api.generated';
-import { SSE_BASE_URL } from '../lib/http';
-import { followWhilePageShown, type PageEvents } from '../lib/page-stream';
+import { SSE_BASE_URL } from './http';
+import { followWhilePageShown, type PageEvents } from './page-stream';
 import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
-import { useFactoryRead } from './useFactoryRead';
+import { useFactoryRead } from '../factory/useFactoryRead';
 
 type StreamLineType = components['schemas']['AttentionStreamLine']['type'];
 
@@ -98,22 +98,24 @@ function followAttentionStream(
 
 /**
  * What an attention change refreshes: the project's queue, and its item reads (every page
- * and item key under `factory-items:<projectId>`), whose questions and answers an ask
- * opening or closing changes too. The dashboard SSE does not carry asks.
+ * and item key under `factory-items:<projectId>`, read with or without a factory view),
+ * whose questions and answers an ask opening or closing changes too. The dashboard SSE
+ * does not carry asks.
  */
 export function refreshOnAttentionChange(projectId: string): void {
-  invalidate(K.factoryAttention(projectId));
+  invalidate(K.projectAttention(projectId));
   invalidate(K.factoryItems(projectId));
 }
 
 /**
- * A project's attention queue, kept live. Mounted once for the whole Factory section (by
- * `FactorySectionLayout`), so every page's sub-navigation count and Needs-you list share one
- * fetch and one stream, which stays open across the section's pages.
- * The dashboard SSE's `invalidate('runs')` refreshes it too: the key sits under `runs:`.
+ * A project's attention queue, kept live. Mounted once for every page of a project (by
+ * `ProjectAttentionLayout`), so the Needs you tab's count, the Factory sub-navigation, the
+ * Needs you page and the Overview share one fetch and one stream, which stays open across
+ * the project's pages. The dashboard SSE's `invalidate('runs')` refreshes it too: the key
+ * sits under `runs:`.
  */
-export function useFactoryAttention(projectId: string): EntityView<AttentionQueue> {
-  const key = K.factoryAttention(projectId);
+export function useProjectAttentionRead(projectId: string): EntityView<AttentionQueue> {
+  const key = K.projectAttention(projectId);
   const view = useFactoryRead<AttentionQueue>(key, within =>
     within(signal => skill.listAttentionQueue(projectId, { signal }))
   );
