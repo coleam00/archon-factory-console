@@ -161,7 +161,10 @@ export function Board({
         filtered={shown !== all}
       />
       {view.discoveries === undefined ? null : (
-        <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+        // Never shrunk by the board's fill height: the panel's own lines and link stay whole.
+        <div className="shrink-0">
+          <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+        </div>
       )}
     </div>
   );

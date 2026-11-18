@@ -110,7 +110,7 @@ describe('Found by the factory', () => {
         'section[aria-labelledby="found-by-the-factory-heading"]'
       );
       expect(panel?.querySelector('h2')?.textContent).toBe('Found by the factory');
-      const lastColumn = [...container.querySelectorAll('h3[data-stage]')].at(-1);
+      const lastColumn = [...container.querySelectorAll('header[data-column]')].at(-1);
       expect(lastColumn).toBeDefined();
       // After every column in document order: under the board, not above it.
       expect(

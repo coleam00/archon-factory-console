@@ -69,7 +69,10 @@ export function BoardPipeline({
   );
   const hint = hiddenColumnsHint(model.columns, shown);
   return (
-    <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
+    // The minimum sits on this box, not the row inside it: what the board draws under it (the
+    // Found by the factory panel) then follows the columns and the frame scrolls, rather than
+    // the row overflowing a shrunken box and the panel drawing over the cards.
+    <div className="flex flex-col gap-3 md:min-h-80 md:flex-1">
       {hint === null ? null : (
         // Only where the columns sit side by side: on a phone they stack and none is hidden.
         <p className="hidden text-console-12 text-text-tertiary md:block" aria-live="polite">
@@ -80,7 +83,7 @@ export function BoardPipeline({
           the row scrolls sideways when they do not fit. */}
       <div
         ref={scroller}
-        className="flex flex-col gap-6 md:min-h-80 md:flex-1 md:flex-row md:gap-3 md:overflow-x-auto"
+        className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:flex-row md:gap-3 md:overflow-x-auto"
       >
         {model.columns.map(column => (
           <BoardColumn
