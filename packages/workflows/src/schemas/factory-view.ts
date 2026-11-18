@@ -253,6 +253,27 @@ const factoryViewShape = z.strictObject({
       outcome: z.string().min(1),
     })
     .optional(),
+  /**
+   * Where the result of each completed run of `workflow` (a drain of what agents noticed
+   * outside their scope) lists what it decided, as JSON pointers: `filed`, `held` and
+   * `dropped` into the result, `entry` into each entry of `filed`. Its runs place no item, so
+   * no stage need list it; `bun run check:factory-view` checks the pack has it. `shadow`: the
+   * drain only decides what it would file and files nothing, so a console words it "would file".
+   */
+  discoveries: z
+    .strictObject({
+      workflow: workflowNameSchema,
+      shadow: z.boolean(),
+      filed: jsonPointerSchema,
+      held: jsonPointerSchema,
+      dropped: jsonPointerSchema,
+      entry: z.strictObject({
+        title: jsonPointerSchema,
+        kind: jsonPointerSchema.optional(),
+        verified: jsonPointerSchema.optional(),
+      }),
+    })
+    .optional(),
   /** The run input whose title line (after any front matter) is the item's title. */
   itemTitle: z.strictObject({ input: z.string().min(1) }).optional(),
   /**
@@ -318,6 +339,7 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   });
   if (view.change !== undefined) refer(['change', 'workflow'], view.change.workflow);
   if (view.partOf !== undefined) refer(['partOf', 'workflow'], view.partOf.workflow);
+  // Not `discoveries`: its runs place no item, so it is the one workflow no stage need list.
   for (const workflow of Object.keys(view.steps ?? {})) refer(['steps', workflow], workflow);
   for (const workflow of Object.keys(view.verdicts ?? {})) refer(['verdicts', workflow], workflow);
   view.asked?.forEach((key, index) => {

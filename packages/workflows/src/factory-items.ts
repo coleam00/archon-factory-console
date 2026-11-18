@@ -304,7 +304,7 @@ export function factoryRunFacts(
 }
 
 /** The title of the newest declared run whose declared input has one. */
-function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | null {
+export function itemTitle(view: FactoryView, runs: readonly WorkflowRun[]): string | null {
   if (view.itemTitle === undefined) return null;
   for (const run of [...runs].reverse()) {
     const value = readSubrunMetadata(run.metadata).inputs?.[view.itemTitle.input];

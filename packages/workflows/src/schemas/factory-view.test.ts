@@ -207,6 +207,24 @@ describe('factoryViewSchema', () => {
     ).toEqual(['partOf.workflow']);
   });
 
+  test('discoveries may name a workflow no stage lists; its pointers and keys are checked', () => {
+    const discoveries = {
+      workflow: 'discoveries',
+      shadow: true,
+      filed: '/filed',
+      held: '/held',
+      dropped: '/dropped',
+      entry: { title: '/title', kind: '/kind', verified: '/verified' },
+    };
+    expect(factoryViewSchema.safeParse({ ...minimal(), discoveries }).success).toBe(true);
+    expect(
+      issuePaths({ ...minimal(), discoveries: { ...discoveries, entry: { title: 'title' } } })
+    ).toEqual(['discoveries.entry.title']);
+    expect(
+      issuePaths({ ...minimal(), discoveries: { ...discoveries, folded: '/folded' } })
+    ).toEqual(['discoveries']);
+  });
+
   test('step names are accepted for a listed workflow and rejected for one no stage lists', () => {
     const steps = { build: { build__build: 'Writes the change' } };
     expect(factoryViewSchema.safeParse({ ...minimal(), steps }).success).toBe(true);
