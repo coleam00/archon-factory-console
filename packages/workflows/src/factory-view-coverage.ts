@@ -173,7 +173,7 @@ function uncovered(view: FactoryView, workflow: string, node: GraphNode): Covera
   };
 }
 
-/** Every step a stage's `nodes` or the `steps` names is a real step of its workflow. */
+/** Every step a stage's `nodes`, the `steps` or the `verdicts` names is a real step of its workflow. */
 function namedStepFindings(
   view: FactoryView,
   stages: ReadonlyMap<string, GraphStage>
@@ -191,13 +191,14 @@ function namedStepFindings(
         findings.push(unknown(['stages', s, 'nodes', n], stage.workflows.join(', '), entry));
     });
   });
-  for (const [workflow, names] of Object.entries(view.steps ?? {})) {
-    const graphStage = stages.get(workflow);
-    if (graphStage === undefined) continue;
-    for (const step of Object.keys(names))
-      if (!graphStage.nodes.some(node => node.id === step))
-        findings.push(unknown(['steps', workflow, step], workflow, step));
-  }
+  for (const key of ['steps', 'verdicts'] as const)
+    for (const [workflow, byStep] of Object.entries(view[key] ?? {})) {
+      const graphStage = stages.get(workflow);
+      if (graphStage === undefined) continue;
+      for (const step of Object.keys(byStep))
+        if (!graphStage.nodes.some(node => node.id === step))
+          findings.push(unknown([key, workflow, step], workflow, step));
+    }
   return findings;
 }
 

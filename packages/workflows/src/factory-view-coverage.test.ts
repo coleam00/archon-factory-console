@@ -180,13 +180,15 @@ describe('factoryViewCoverage', () => {
     ]);
   });
 
-  test('a step name or a stage node naming no real step is reported', () => {
+  test('a step name, a verdicts step or a stage node naming no real step is reported', () => {
     const view = clean();
     view.steps = { deliver: { build__biuld: 'Writes the change' } };
+    view.verdicts = { deliver: { 'rounds.reveiw__review': { approve: 'approved' } } };
     view.stages[2]!.nodes = ['result', 'reslut'];
     expect(findings(view)).toEqual([
       ['unknown-step', 'stages.2.nodes.1'],
       ['unknown-step', 'steps.deliver.build__biuld'],
+      ['unknown-step', 'verdicts.deliver.rounds.reveiw__review'],
     ]);
   });
 

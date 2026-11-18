@@ -46,9 +46,12 @@ it. Inside it:
   A **Table** view lists the same fields as sortable columns.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
   other items, and the rulings and answers given on it. The timeline words an outcome from the
-  declaration: a run outcome in `placement` reads as where it sent the item ("sent to Plan"),
-  one in `endings` as its label, and a step outcome in `returns` or `approves` as "returned" or
-  "approved". An outcome the declaration does not map shows as the pack's own name for it.
+  declaration: a run that ended in an `asked` outcome, or that left asks on the item, reads
+  "asked you" (its questions on hover); otherwise a run outcome in `placement` reads as where it
+  sent the item ("sent to Plan"), and one in `endings` as its label. A step outcome in `returns`
+  or `approves` reads "returned" or "approved", and one in `verdicts` as its meaning's words
+  ("approved", "returned", "asked you"). An outcome the declaration does not map shows as the
+  pack's own name for it.
 - **Stage page**: what a stage does, told as its drill-down when the view gives one: numbered
   phases of plain cards, a card glowing and naming the items on its steps now, and a click on a
   card listing the real steps it stands for, each linking to its step page. "Show the real
@@ -125,6 +128,8 @@ parse or validate shows on the Factory tab with its path and the error.
 | `rounds` | no | `{ "workflow", "loop" }`: the loop whose iterations the board counts as rounds ("round 2 of 3"). |
 | `returns` | no | Steps whose outcome sends an item back: each `{ "workflow", "node", "outcome" }`. The board counts them as "returned ×N" and colours that round returned. |
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
+| `verdicts` | no | What other steps' outcomes mean, so the item page's timeline words them: `{ "<workflow>": { "<step id>": { "<outcome>": "approved" } } }`, each meaning one of `approved`, `returned` or `asked`. A check's outcome then reads "approved", "returned" or "asked you", the words the board's round dots use. It decides nothing: only `returns` and `approves` decide a round, and an entry that restates one of theirs is rejected. An outcome no entry means reads as the pack's own token, in mono. The coverage check reports a step the workflow does not have. |
+| `asked` | no | Completed outcomes that stop to ask you: `workflow:outcome`, or `workflow:*`. A run that ended so reads "asked you" on the item page's timeline, as does any run that left asks on the item, with its questions on hover. `placement` still decides where the item waits. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step names nothing a page shows; the coverage check reports it. |
@@ -159,7 +164,8 @@ pack declares. It reports, each with its path in the view file:
 
 - every real step of a workflow a stage lists that no drill-down card or loop covers, and every
   step two of them cover (a loop group counts as a step);
-- every step a card, a loop, a stage's `nodes` or `steps` names that the workflow does not have,
+- every step a card, a loop, a stage's `nodes`, `steps` or `verdicts` names that the workflow
+  does not have,
   and every listed workflow the pack does not have;
 - every hand-off between two stages that the pack declares (each of its bindings, whether or
   not a trigger file on this machine installs it) that `map.arrows` does not declare, and
@@ -220,6 +226,7 @@ file and commit both.
   "rounds": { "workflow": "deliver", "loop": "rounds" },
   "returns": [{ "workflow": "deliver", "node": "rounds.review", "outcome": "return" }],
   "approves": [{ "workflow": "deliver", "node": "rounds.review", "outcome": "approve" }],
+  "asked": ["deliver:ask"],
   "change": { "workflow": "deliver", "pointer": "/change" },
   "itemTitle": { "input": "item" },
   "map": {

@@ -137,6 +137,11 @@ present itself without the console knowing it. Shape (validated with zod in
   "approves": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" } ],
                                                    // a round is approved only by a declared
                                                    // approval; with neither, it needs a decision
+  "verdicts": { "deliver": { "rounds.tests__tests": { "sound": "approved", "return": "returned",
+                                                      "ask": "asked" } } },
+                                                   // what other steps' outcomes mean, for words
+                                                   // only (approved | returned | asked)
+  "asked": ["plan:ask", "deliver:ask"],            // outcomes that stop to ask you
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
   "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
@@ -341,7 +346,11 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 - **Asks** it waits on, answerable in place (the same answer form as Needs you, always open).
 - **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
   or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
-  round with each check's verdict and what was returned. Each row links to its run.
+  round with each check's verdict and what was returned. Each row links to its run. A check's
+  verdict reads in the board's words where the view declares its meaning (`returns`, `approves`,
+  `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run
+  that stopped to ask (a declared `asked` outcome, or asks it left on the item) reads "asked
+  you", with its questions on hover, not the stage it would send the item to.
 - **Links:** depends on, part of, duplicate of, from the engine's item links.
 - **Rulings and answers** given on the item.
 

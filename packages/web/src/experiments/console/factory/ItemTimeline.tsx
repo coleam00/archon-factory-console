@@ -57,6 +57,7 @@ function TimelineEntry({ row }: { row: TimelineRow }): ReactElement {
         <Outcome
           outcome={row.outcome}
           className={`text-console-12 font-medium ${OUTCOME_CLASS[row.status] ?? 'text-text-primary'}`}
+          title={row.asked.length === 0 ? undefined : row.asked.join('\n')}
         />
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-console-12 text-text-tertiary">
@@ -81,11 +82,18 @@ function TimelineEntry({ row }: { row: TimelineRow }): ReactElement {
 function Outcome({
   outcome,
   className,
+  title,
 }: {
   outcome: OutcomeWords;
   className: string;
+  /** The hover text: the questions a run that asked left on the item. */
+  title?: string;
 }): ReactElement {
-  return <span className={`${className} ${outcome.mono ? 'font-mono' : ''}`}>{outcome.text}</span>;
+  return (
+    <span className={`${className} ${outcome.mono ? 'font-mono' : ''}`} title={title}>
+      {outcome.text}
+    </span>
+  );
 }
 
 function Started({ started }: { started: StartedText }): ReactElement {
