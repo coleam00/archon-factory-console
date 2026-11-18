@@ -744,7 +744,10 @@ A card, in this order:
    works it: its stage, the running step's name and the round when the step is of the declared
    rounds loop, "Checks · Code review · round 2", linking to the run in the console
    (`/console/p/:projectId/r/:runId`); the step's engine id shows on hover. Otherwise the label
-   of the stage it waits in ("Plan", "CI and review").
+   of the stage it waits in ("Plan", "CI and review"). Under it, on an item no run works, the
+   shadow line (rule 10): the badge and what the newest decision of a verdict shadow its stage's
+   workflows declare would do ("would ask you first"), its why on hover. For this pack only Ready
+   to merge shows one, from the land gate (#80).
 4. "part of <order>" when the item is a member of a work order (see Work orders).
 5. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),
