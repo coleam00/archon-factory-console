@@ -105,7 +105,8 @@ card's option tiles (rule 9).
 - Then at most two lines of text at `--text-console-13`, `--text-secondary` (`line-clamp-2`).
 - Live chips (rule 5's state colours) sit below the text.
 - Minimum width on the map and How it works: **176 px**. A card is wider than tall (height at most
-  its width; aim for 176-240 px wide by 96-128 px tall). A board card is as wide as its column.
+  its width; aim for 176-240 px wide by 120-176 px tall with every row present). A board card
+  is as wide as its column.
 
 ### 3. Spacing
 
@@ -198,20 +199,41 @@ the Overview, the item page and the board popover.
 - Question: `--text-console-17`, semibold, at most 2 lines.
 - Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
   ClampedSummary pattern).
-- Option tiles: a wrapping row, 8 px apart (`gap-2`). Each tile is at least 176 px wide,
-  `--radius-console-12`, 1 px `--border`, `p-3`, holding the label (rule 8) at
-  `--text-console-14` semibold, then what it does and costs at `--text-console-13`,
-  `--text-secondary`, clamped to 2 lines.
-- The recommended tile is always first: `--accent-muted` border, `--accent-soft` background, and a
-  "Recommended" badge at `--text-console-12` in `--accent`.
-- "Something else" is always the last tile: dashed `--border-bright` border, "Write your own
-  answer" under it. Choosing it opens a textarea in place (`--text-console-14`, 3 rows).
+- Option tiles: a wrapping row, 8 px apart (`gap-2`), one tile per option the ask carries, in
+  its declared order. Each tile is at least 176 px wide, `--radius-console-12`, 1 px `--border`,
+  `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs
+  (the option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
+  clamped to 2 lines.
+- An ask with a `recommendation` moves the recommended tile first: `--accent-muted` border,
+  `--accent-soft` background, and a "Recommended" badge at `--text-console-12` in `--accent`.
+  Under its text, one line at `--text-console-13`, `--text-secondary` gives the recommendation's
+  `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
+  without a recommendation keeps its declared order and marks no tile.
+- "Something else" is the ask's reserved `other` option, not a tile the card adds. Only an ask
+  declared `other: true` carries it (the engine appends it last); its tile reads "Something else"
+  with "Write your own answer" under it, with a dashed `--border-bright` border. Choosing it opens
+  a textarea in place (`--text-console-14`, 3 rows), and Confirm stays disabled until it holds
+  text. An ask without `other: true` has no such tile.
 - Choosing a tile does not send. A confirm row appears under the tiles: "Answer: <label>", a
   Confirm button and a Cancel button. Once sent, the card reads "Answered: <label>" in place.
+- The card's forms, from the ask's `form` (and its kind in the Needs you list):
+  - `select`: the tiles above, one chosen.
+  - `multi_select`: tiles toggle (a chosen tile takes the recommended tile's `--accent-muted`
+    border and `--accent-soft` background, with a check icon); the confirm row lists the chosen
+    labels ("Answer: <label>, <label>") and Confirm needs at least one. No recommendation.
+  - `message`: no tiles; the textarea, open from the start, and the confirm row ("Answer" with
+    Confirm and Cancel). No recommendation.
+  - `approval`, and a paused approval gate (kind `awaiting_response`): two tiles, Approve then
+    Reject (rule 8's labels for `approve` and `reject`), the recommended one first and marked as
+    above when the ask recommends one.
+  - A paused run the console cannot answer here (kind `owner_lost` or `unreadable`): no tiles;
+    the context says what happened, and the confirm row is replaced by a link to the run, where
+    it is resumed or abandoned.
 - Under 520 px wide (the popover, a 390 px phone) the tiles stack full width.
 - The Needs you tab's heading reads "N things need you", in the Page title role.
-- On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines,
-  "Recommended: <label>" at `--text-console-12`, and the ping.
+- On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines, the
+  line Needs you shows for it at `--text-console-12` ("Recommended: <label>" when the ask
+  recommends one), and the ping.
 
 **The column header** (owner change 4), one per board column:
 
@@ -669,9 +691,8 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 - Each route has a server test in the existing harness style.
 - Every change that shows something is checked in a browser before it is called done:
   `bun run build:web && bun run dev:console`, then drive it with `agent-browser` at 1440x900 and
-  at 390x844, and describe what you saw in the pull request.
-- Every change that shows something is checked at 1440x900 and 390x844 against the Visual
-  standard, and the pull request says which of its rules (by number) it touched.
+  at 390x844 against the Visual standard. The pull request describes what you saw and says which
+  of the standard's rules (by number) it touched.
 
 ## Later (not in the first slices, written down so they are not lost)
 
