@@ -16,7 +16,7 @@ import { readItemRuns } from './item-read';
 import { resolveJsonPointer } from './json-pointer';
 import type { JsonValue } from './output-ref';
 import type { FactoryView } from './schemas/factory-view';
-import type { WorkflowRun } from './schemas/workflow-run';
+import type { WorkflowItem, WorkflowRun } from './schemas/workflow-run';
 import type { IWorkflowStore } from './store';
 import { getTerminalRecord } from './terminal-record';
 
@@ -136,7 +136,32 @@ interface Drain {
   itemKey: string;
 }
 
-/** Every item on the project with its title and its completed drains. */
+/**
+ * Every item on the project with a run, a page at a time: an item with none has no title to
+ * cover a finding with.
+ */
+async function* everyItem(
+  source: DiscoveriesSource,
+  projectKey: string
+): AsyncGenerator<WorkflowItem> {
+  const until = new Date(Date.now() + 60_000);
+  let afterItemId: string | null = null;
+  for (;;) {
+    const page = await source.listItemsInWindow({
+      projectKey,
+      since: new Date(0),
+      until,
+      afterItemId,
+      limit: PAGE,
+    });
+    yield* page;
+    const last = page.at(-1);
+    if (page.length < PAGE || last === undefined) return;
+    afterItemId = last.id;
+  }
+}
+
+/** Every item on the project with its title (as the board reads it) and its completed drains. */
 async function readProject(
   source: DiscoveriesSource,
   input: ReadFactoryDiscoveriesInput,
@@ -145,28 +170,14 @@ async function readProject(
   const titles = new Map<string, string | null>();
   const drains: Drain[] = [];
   const runName = factoryRunWorkflowName(input.pack, workflow);
-  // Every item with a run: an item with none has no title to cover a finding with.
-  const until = new Date(Date.now() + 60_000);
-  let afterItemId: string | null = null;
-  for (;;) {
-    const page = await source.listItemsInWindow({
-      projectKey: input.projectKey,
-      since: new Date(0),
-      until,
-      afterItemId,
-      limit: PAGE,
-    });
-    for (const listed of page) {
-      const found = await readItemRuns(source, input.projectKey, listed.key);
-      if (found === null) continue;
-      titles.set(listed.key, itemTitle(input.view, found.runs));
-      for (const run of found.runs)
-        if (run.workflow_name === runName && run.status === 'completed')
-          drains.push({ run, itemKey: listed.key });
-    }
-    const last = page.at(-1);
-    if (page.length < PAGE || last === undefined) break;
-    afterItemId = last.id;
+  for await (const listed of everyItem(source, input.projectKey)) {
+    const found = await readItemRuns(source, input.projectKey, listed.key);
+    if (found === null) continue;
+    titles.set(listed.key, itemTitle(input.view, found.runs));
+    const completed = found.runs.filter(
+      run => run.workflow_name === runName && run.status === 'completed'
+    );
+    drains.push(...completed.map(run => ({ run, itemKey: listed.key })));
   }
   return { titles, drains };
 }
