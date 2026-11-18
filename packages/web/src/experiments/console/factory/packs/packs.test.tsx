@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'rea
 import type { FactoryPacksRead } from '../../skills/factory';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import { FactoryRailLink } from '../FactoryRailLink';
+import { ConsoleNav } from '../../components/ConsoleNav';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
 import type { FactoryPackListed } from '../lib/views';
 import { factoryPackRoutes } from './routes';
@@ -72,7 +72,7 @@ async function mount(at: string, packs: FactoryPacksRead): Promise<HTMLElement> 
         <LocationProbe />
         <Routes>
           {factoryPackRoutes('/console/')}
-          <Route path="/rail" element={<FactoryRailLink />} />
+          <Route path="/rail" element={<ConsoleNav />} />
         </Routes>
       </MemoryRouter>
     )
@@ -90,14 +90,19 @@ const hrefs = (within: ParentNode | null | undefined): string[] =>
   [...(within?.querySelectorAll('a') ?? [])].map(a => a.getAttribute('href') ?? '');
 
 describe('the sidebar Factory entry', () => {
-  test('shows once a pack is listed, and not with none', async () => {
+  // The rail's own navigation, as ProjectRail renders it.
+  test('sits just above Settings once a pack is listed, and is absent with none', async () => {
     const shown = await mount('/rail', listing([pack('acme.kit', 'Kit')]));
-    expect(hrefs(shown)).toEqual(['/console/factory']);
-    expect(shown.textContent).toContain('Factory');
+    expect(hrefs(shown)).toEqual([
+      '/console/metrics',
+      '/console/builder',
+      '/console/factory',
+      '/console/settings',
+    ]);
     await unmount?.();
 
     const hidden = await mount('/rail', listing([]));
-    expect(hrefs(hidden)).toEqual([]);
+    expect(hrefs(hidden)).toEqual(['/console/metrics', '/console/builder', '/console/settings']);
   });
 });
 
@@ -148,7 +153,11 @@ describe('/console/factory', () => {
       '/console/factory',
       listing([pack('acme.kit', 'Kit'), pack('acme.web', 'Web', { overview: null })])
     );
-    expect(page.textContent).toContain('Overview file is broken');
+    const cards = [...page.querySelectorAll('article')];
+    expect(cards).toHaveLength(2);
+    // With no overview, the card is titled by the pack's key and still opens its page.
+    expect(cards[1]?.querySelector('h2')?.textContent).toBe('acme.web');
+    expect(hrefs(cards[1])).toContain('/console/factory/acme.web/how-it-works');
   });
 });
 
@@ -162,14 +171,14 @@ describe('/console/factory/:pack/how-it-works', () => {
     );
     expect(crumbs).toEqual(['Kit', 'Make']);
     expect(page.querySelector('h1')?.textContent).toBe('Kit');
-    expect(page.querySelector('header')?.textContent).toContain('Read from web');
-    expect(hrefs(page.querySelector('header'))).toContain('/console/p/cb-1/factory');
+    const project = page.querySelector('header a[href="/console/p/cb-1/factory"]');
+    expect(project?.textContent).toBe('web');
   });
 
   test("the pack's own file names no project", async () => {
     const page = await mount('/console/factory/acme.web/how-it-works', two);
-    expect(page.querySelector('header')?.textContent).not.toContain('Read from');
-    expect(page.querySelector('header')?.textContent).toContain("the pack's own overview file");
+    const header = hrefs(page.querySelector('header'));
+    expect(header.filter(href => href.startsWith('/console/p/'))).toEqual([]);
   });
 
   test('has one tab, How it works, until the settings tab is built', async () => {
@@ -186,7 +195,7 @@ describe('/console/factory/:pack/how-it-works', () => {
 
   test('an unknown pack says so and links every pack', async () => {
     const page = await mount('/console/factory/nope/how-it-works', two);
-    expect(page.textContent).toContain('No factory pack here');
+    expect(page.querySelector('[data-card]')).toBeNull();
     expect(hrefs(page)).toContain('/console/factory');
   });
 

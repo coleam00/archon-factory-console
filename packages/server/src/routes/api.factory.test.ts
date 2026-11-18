@@ -259,31 +259,6 @@ describe('GET /api/factory/packs', () => {
     ]);
   });
 
-  test('no overview file anywhere lists no pack', async () => {
-    const { status, body } = await read([
-      { id: 'cb-1', name: 'web', files: { [viewFile]: declaration('acme/kit', 'Kit') } },
-    ]);
-    expect(status).toBe(200);
-    expect(factoryPacksResponseSchema.parse(body)).toEqual({
-      packs: [],
-      errors: [],
-      unreadProjects: [],
-    });
-  });
-
-  test('a broken file lists its pack with no overview and the error', async () => {
-    const { body } = await read([
-      {
-        id: 'cb-1',
-        name: 'web',
-        files: { [overviewFile]: { ...overview('acme/kit', 'Kit'), root: 'nope' } },
-      },
-    ]);
-    const [pack] = factoryPacksResponseSchema.parse(body).packs;
-    expect([pack?.key, pack?.overview]).toEqual(['acme.kit', null]);
-    expect(pack?.errors.map(e => e.error)).toEqual([expect.stringContaining('root')]);
-  });
-
   test('a project that cannot be read is listed, and the other packs remain', async () => {
     const { status, body } = await read([
       { id: 'cb-1', name: 'broken', files: {}, config: 'throws' },

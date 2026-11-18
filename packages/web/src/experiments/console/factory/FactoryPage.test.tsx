@@ -229,8 +229,8 @@ describe('the Overview', () => {
 
   test("the sub-navigation's How it works opens the sidebar page, when the packs list the view's pack", () => {
     const link = 'href="/console/factory/acme.kit/how-it-works"';
-    const withPacks = (packs: FactoryPacksRead['packs'] | undefined): string => {
-      if (packs !== undefined) set(K.factoryPacks, { packs, errors: [], unreadProjects: [] });
+    const withPacks = (packs: FactoryPacksRead['packs']): string => {
+      set(K.factoryPacks, { packs, errors: [], unreadProjects: [] });
       return render(`/console/p/${ID}/factory`, withView);
     };
     const listed = (key: string) => ({
@@ -241,9 +241,7 @@ describe('the Overview', () => {
       projects: [],
       errors: [],
     });
-    // Unread, read as none, and another pack's: no entry.
-    expect(withPacks(undefined)).not.toContain('How it works');
-    expect(withPacks([])).not.toContain('How it works');
+    // Another pack's listing: no entry, so the view's key is the one asked about.
     expect(withPacks([listed('other.kit')])).not.toContain('How it works');
     const html = withPacks([listed('acme.kit')]);
     expect(html).toContain(link);

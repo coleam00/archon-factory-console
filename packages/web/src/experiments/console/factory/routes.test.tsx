@@ -1,12 +1,11 @@
-import { afterAll, expect, test } from 'bun:test';
+import { afterAll, afterEach, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
-import { MemoryRouter, Routes, useLocation, useNavigationType } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router';
 import { invalidate } from '../store/cache';
 import { K } from '../store/keys';
 import { shippedListed } from './item-detail.test-fixtures';
-import { projectRoutes } from '../routes/project-routes';
-import { factoryPackRoutes } from './packs/routes';
+import { consoleRoutes } from '../routes/console-routes';
 
 // `renderToStaticMarkup` never follows a `<Navigate>`, so the redirect needs a live tree.
 const dom = new Window({ url: 'http://localhost' });
@@ -64,55 +63,54 @@ globalThis.fetch = Object.assign(
 
 const settle = (): Promise<void> => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
 
-for (const old of ['how-it-works', 'overview'])
-  test(`the project's factory/${old} replaces itself with its pack's sidebar page, drill-down kept`, async () => {
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={[`/console/p/${ID}/factory/${old}?view=checks#top`]}>
-          <HashProbe />
-          <Routes>
-            {projectRoutes('/console/')}
-            {factoryPackRoutes('/console/')}
-          </Routes>
-        </MemoryRouter>
-      )
-    );
-    await settle();
-    const probe = container.querySelector('output');
-    // One hop, by the key the views read lists for the view's pack.
-    expect(probe?.getAttribute('data-at')).toBe(
-      `/console/factory/${shippedListed.packKey}/how-it-works?view=checks#top`
-    );
-    expect(probe?.getAttribute('data-by')).toBe('REPLACE');
+let unmount: (() => Promise<void>) | undefined;
+// Unmount after every test, failed or not, so a tree left mounted cannot break the next file.
+afterEach(async () => {
+  await unmount?.();
+  unmount = undefined;
+});
 
-    await act(async () => root.unmount());
-    container.remove();
-  });
-
-test('the old Needs you address replaces itself with the project tab, query and hash kept', async () => {
+/** The console's own route list at `at`, under `/console/*` as the app mounts it. */
+async function mountConsole(at: string): Promise<HTMLElement> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
+  unmount = async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  };
   await act(async () =>
     root.render(
-      <MemoryRouter initialEntries={[`/console/p/${ID}/factory/needs-you?x=1#h`]}>
+      <MemoryRouter initialEntries={[at]}>
         <HashProbe />
-        <Routes>{projectRoutes('/console/')}</Routes>
+        <Routes>
+          <Route path="/console/*" element={<Routes>{consoleRoutes()}</Routes>} />
+        </Routes>
       </MemoryRouter>
     )
   );
   await settle();
-  const probe = container.querySelector('output');
+  return container;
+}
+
+for (const old of ['how-it-works', 'overview'])
+  test(`the project's factory/${old} replaces itself with its pack's sidebar page, drill-down kept`, async () => {
+    const page = await mountConsole(`/console/p/${ID}/factory/${old}?view=checks#top`);
+    const probe = page.querySelector('output');
+    // One hop, by the key the views read lists for the view's pack, to a route the console has.
+    expect(probe?.getAttribute('data-at')).toBe(
+      `/console/factory/${shippedListed.packKey}/how-it-works?view=checks#top`
+    );
+    expect(probe?.getAttribute('data-by')).toBe('REPLACE');
+  });
+
+test('the old Needs you address replaces itself with the project tab, query and hash kept', async () => {
+  const page = await mountConsole(`/console/p/${ID}/factory/needs-you?x=1#h`);
+  const probe = page.querySelector('output');
   expect(probe?.getAttribute('data-at')).toBe(`/console/p/${ID}/needs-you?x=1#h`);
   expect(probe?.getAttribute('data-by')).toBe('REPLACE');
   // It lands on the tab's page, outside the Factory frame.
-  expect(container.textContent).toContain('0 things need you');
-
-  await act(async () => root.unmount());
-  container.remove();
+  expect(page.textContent).toContain('0 things need you');
 });
 
 /** Where the router is, hash included, and how it got there. */
