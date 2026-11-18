@@ -227,7 +227,7 @@ describe('work orders on the item page', () => {
         questions: [],
         answers: [],
         progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
-        links: [incoming('9'), incoming('10')],
+        links: [incoming('9'), incoming('10'), { ...incoming('11'), ended: act }],
       },
     };
     // No item on the board names 48, so the items read never asked about it.
@@ -236,8 +236,9 @@ describe('work orders on the item page', () => {
     expect(words).toContain(WORK_ORDER_WORDS);
     expect(words).toContain('Members: 0 of 2 landed');
     expect(words.match(/Not started/g)).toHaveLength(2);
-    // The links stand as the members, not repeated as raw links.
-    expect(words).not.toContain('Has part');
+    // The live links stand as the members; an ended one is no member and stays a raw link.
+    expect(words).not.toContain('Has part 9');
+    expect(words).toContain('Has part 11 ended');
   });
 
   test('an order with no run of its own says so from its own links, before the items read', () => {

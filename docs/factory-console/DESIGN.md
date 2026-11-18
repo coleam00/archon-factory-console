@@ -350,10 +350,13 @@ items are `part_of`. An item's order is its newest active `part_of` link, else t
 newest completed run of the declared `partOf` workflow names: a link wins over a result that
 disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no card in any
 column and counts in no number; its members count as the items they are. Above the Pipeline's
-columns, a **Work orders** strip has one row per order with a member: its key (to its item
+columns, a **Work orders** strip has one row per order with a member on the board (one that
+has a run): its key (to its item
 page) and title (its own when it has runs, else the key), "N of M landed" with a small bar, one
 dot per member in its pill's colour, and a toggle that lights its members on the board and dims
-the rest (`?order=<key>`). A member's card says "part of <order>", which lights its order. An
+the rest (`?order=<key>`). An order whose members have not started has no row yet: the order
+and its members show on its item page (`factory/items/<order key>`). A member's card says
+"part of <order>", which lights its order. An
 order's own column, stages and landing target are not built (owner ruling of 2026-11-17).
 
 When an item changes column, the card moves there within 5 s; a brief highlight shows it moved.
