@@ -178,7 +178,10 @@ function FactoryHeading({
         <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
         {/* The summary introduces the factory once, on the Overview; the other pages need
             their first screen for the board, the item or the graph. */}
-        {section === 'overview' ? <ClampedSummary text={view.declaration.summary} /> : null}
+        {section === 'overview' ? (
+          // Keyed by the text, so a new summary measures again and opens clamped.
+          <ClampedSummary key={view.declaration.summary} text={view.declaration.summary} />
+        ) : null}
       </div>
       <nav aria-label="Factory" className="flex items-center gap-1">
         {SECTIONS.map(({ key, label, rest }) => (
