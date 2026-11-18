@@ -179,7 +179,7 @@ describe('work orders on the item page', () => {
     expect(text(html)).not.toContain('No links to other items.');
   });
 
-  test('an order with runs of its own: its members, with their state, and how many landed', () => {
+  test('an order with runs of its own: its members, with their state, and how many merged', () => {
     const base = itemDetail('1');
     // 3's link stands as the member; 9's, whose newer link names another order, stays a link.
     const incoming = (key: string) => ({
@@ -193,7 +193,7 @@ describe('work orders on the item page', () => {
     const order = { ...base, item: { ...base.item, links: [incoming('3'), incoming('9')] } };
     itemsRead([order.item, partOf(itemDetail('3').item, '1')], { '1': ['3'] });
     const words = text(render(order));
-    expect(words).toContain('Members: 0 of 1 landed');
+    expect(words).toContain('Members: 0 of 1 merged');
     expect(words).toContain('Has part 9');
     expect(words).not.toContain('Has part 3');
     expect(words).toMatch(/3 [^<]*Waiting Build/);
@@ -221,7 +221,7 @@ describe('work orders on the item page', () => {
     expect(words).toContain(WORK_ORDER_WORDS);
     const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
     expect(text(header)).toBe(` 48 Work order 48 ${WORK_ORDER_WORDS} `);
-    expect(words).toContain('Members: 0 of 1 landed');
+    expect(words).toContain('Members: 0 of 1 merged');
   });
 
   test('a member with no run yet: Not started, no state, column or change', () => {
@@ -244,7 +244,7 @@ describe('work orders on the item page', () => {
     expect(text(html)).toContain('Part of 48');
   });
 
-  test('an order whose members have not started: its members from its own links, N of M landed', () => {
+  test('an order whose members have not started: its members from its own links, N of M merged', () => {
     const base = itemDetail('1');
     const incoming = (key: string) => ({
       id: `link-${key}`,
@@ -271,7 +271,7 @@ describe('work orders on the item page', () => {
     itemsRead([itemDetail('3').item], {});
     const words = text(render(detail));
     expect(words).toContain(WORK_ORDER_WORDS);
-    expect(words).toContain('Members: 0 of 2 landed');
+    expect(words).toContain('Members: 0 of 2 merged');
     expect(words.match(/Not started/g)).toHaveLength(2);
     // The live links stand as the members; an ended one is no member and stays a raw link.
     expect(words).not.toContain('Has part 9');

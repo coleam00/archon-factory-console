@@ -111,7 +111,7 @@ test('every card shows its chips and links to its stage; its details button list
     expect(card(container, 'checks').getAttribute('aria-label')).toBe(
       'Checks: 1 here, 1 being worked'
     );
-    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Merged: 1 here');
     // What a person sees: the chips drawn on the card, by count.
     const chip = (stage: string, kind: string): string | null | undefined =>
       container.querySelector(`[data-stage="${stage}"] [data-chip="${kind}"]`)?.textContent;
@@ -170,7 +170,7 @@ test('the details button opens and closes the panel and never leaves the map', a
   const { container, unmount } = await mount();
   try {
     await act(async () => details(container, 'landed').click());
-    expect(container.querySelector('aside[aria-label="Landed details"]')).not.toBeNull();
+    expect(container.querySelector('aside[aria-label="Merged details"]')).not.toBeNull();
     expect(details(container, 'landed').getAttribute('aria-pressed')).toBe('true');
     expect(stagePage(container)).toBeUndefined();
     await act(async () => details(container, 'landed').click());
@@ -301,7 +301,7 @@ test("the cards take one row in the Overview's 1100px row, and wrap to two in a 
   expect((await cardTopsAt(358)).size).toBe(2);
 });
 
-test('while a merge state is pending, Ready to land and Landed say they are checking, not a count', async () => {
+test('while a merge state is pending, Ready to merge and Merged say they are checking, not a count', async () => {
   const pending = itemWith('p', [run('deliver', 'completed', 'ready')], 'pending');
   const { container, unmount } = await mount([realItem('7'), realItem('5'), pending]);
   try {
@@ -312,7 +312,7 @@ test('while a merge state is pending, Ready to land and Landed say they are chec
       ).toBe('checking…');
     }
     expect(card(container, 'landed').getAttribute('aria-label')).toBe(
-      'Landed: checking merge state'
+      'Merged: checking merge state'
     );
     expect(hereChip(container, 'build')).toContain('1');
   } finally {
@@ -336,7 +336,7 @@ test('a failed refresh says so and keeps the map it last read', async () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
       'Could not refresh: the server is down. Showing the last values read.'
     );
-    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Merged: 1 here');
   } finally {
     globalThis.fetch = originalFetch;
     await unmount();
@@ -388,7 +388,7 @@ test('before the items answer, every declared card and arrow is drawn and says "
       ).not.toBeNull();
       expect(card(container, stage).getAttribute('aria-label')).toMatch(/: loading$/);
     }
-    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: loading');
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Merged: loading');
     expect(container.querySelector('[data-chip="here"]')).toBeNull();
     expect(container.textContent).not.toContain('0 here');
     // No page-level "Loading…": the cards carry it.
@@ -404,7 +404,7 @@ test('before the items answer, every declared card and arrow is drawn and says "
     // The answer fills the chips in on the same cards, and the open panel stays open.
     server.release();
     await settle(() => container.querySelector('[data-chip="here"]') !== null);
-    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Landed: 1 here');
+    expect(card(container, 'landed').getAttribute('aria-label')).toBe('Merged: 1 here');
     expect(card(container, 'build').getAttribute('aria-label')).toBe(
       'Build: 2 here, 1 being worked, 1 needs you'
     );
@@ -434,7 +434,7 @@ test('a first items read that fails says so over the map drawn from the declarat
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('the server is down');
     // Nothing retries a failed read: the cards and the panel must not claim it is loading.
     expect(card(container, 'landed').getAttribute('aria-label')).toBe(
-      'Landed: items could not be read'
+      'Merged: items could not be read'
     );
     expect(container.querySelectorAll('[data-stage]')).toHaveLength(
       shippedListed.declaration.map.cards.length

@@ -200,10 +200,10 @@ describe('the Overview', () => {
     expect(tiles).toEqual([
       `5 in flight → ${board}?show=in-flight`,
       `0 need you → /console/p/${ID}/needs-you`,
-      expect.stringMatching(new RegExp(`^\\d+ landed today → ${board}\\?show=landed-today$`)),
+      expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
       `3 of 8 done → ${board}?show=landed`,
       expect.stringMatching(
-        new RegExp(` median from first run to landed → ${board}\\?show=landed$`)
+        new RegExp(` median from first run to merged → ${board}\\?show=landed$`)
       ),
     ]);
     // Above the map.

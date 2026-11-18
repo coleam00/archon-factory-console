@@ -14,7 +14,7 @@ import { StaleRead } from './StaleRead';
 import { FOUND_BY_THE_FACTORY, openFindings } from './lib/discoveries';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
-/** "Landed today" turns over at midnight without a reload. */
+/** "Merged today" turns over at midnight without a reload. */
 function useMinuteClock(): Date {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -66,7 +66,7 @@ function tiles(
         : { wait: null, value: waiting.toString() }),
       label: waiting === 1 ? 'needs you' : 'need you',
     },
-    { to: board('landed-today'), ...merged(n => n.landedToday.toString()), label: 'landed today' },
+    { to: board('landed-today'), ...merged(n => n.landedToday.toString()), label: 'merged today' },
     {
       to: board('landed'),
       ...merged(n => `${n.landed.toString()} of ${n.total.toString()}`),
@@ -75,7 +75,7 @@ function tiles(
     {
       to: board('landed'),
       ...merged(n => (n.medianToLandMs === null ? 'none yet' : durationWords(n.medianToLandMs))),
-      label: 'median from first run to landed',
+      label: 'median from first run to merged',
     },
   ];
 }

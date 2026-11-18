@@ -15,24 +15,26 @@ import {
   type BoardModel,
   type FactoryDeclaration,
 } from './lib/board';
-import { BOARD_SHOW_LABEL, parseBoardShow, type BoardShow } from './lib/board-show';
+import {
+  BOARD_SHOW_LABEL,
+  parseBoardShow,
+  SHOW_PARAM,
+  TABLE_VIEW,
+  VIEW_PARAM,
+  type BoardShow,
+} from './lib/board-show';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
 
-/** How long a card that changed column stays highlighted. */
+/** How long a card that changed stage stays highlighted. */
 const MOVED_MS = 1500;
-/** `?view=table` shows the Table view; Pipeline is the default. */
-const VIEW_PARAM = 'view';
-const TABLE_VIEW = 'table';
-/** `?show=` narrows the board to what one of the Overview's numbers counts. */
-const SHOW_PARAM = 'show';
 
-/** `/console/p/:projectId/factory/board`: every item, in the column of the stage it is in. */
+/** `/console/p/:projectId/factory/board`: every item, in the column holding its stage. */
 export function BoardPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   return (
-    <FactoryFrame section="board" wide>
+    <FactoryFrame section="board" wide fill>
       {view => <Board projectId={projectId} view={view.declaration} />}
     </FactoryFrame>
   );
@@ -72,9 +74,12 @@ function useMovedCards(
 export function Board({
   projectId,
   view,
+  now,
 }: {
   projectId: string;
   view: FactoryDeclaration;
+  /** The time the Merged column's window counts back from; the clock at render when absent. */
+  now?: Date;
 }): ReactElement {
   const read = useFactoryItemsRead(projectId);
   const items = read.data?.items;
@@ -118,7 +123,7 @@ export function Board({
     setParam(VIEW_PARAM, next === 'table' ? TABLE_VIEW : null);
   };
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
@@ -150,9 +155,16 @@ export function Board({
         moved={moved}
         orders={orders}
         lit={params.get(ORDER_PARAM)}
+        now={now ?? new Date()}
+        // filterBoard returns its input unchanged when nothing narrows it, so this is its own
+        // answer to "is the board narrowed", not a second copy of that condition.
+        filtered={shown !== all}
       />
       {view.discoveries === undefined ? null : (
-        <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+        // Never shrunk by the board's fill height: the panel's own lines and link stay whole.
+        <div className="shrink-0">
+          <FoundByTheFactory projectId={projectId} above={shown !== undefined} oneLine />
+        </div>
       )}
     </div>
   );
@@ -166,6 +178,8 @@ function BoardBody({
   moved,
   orders,
   lit,
+  now,
+  filtered,
 }: {
   projectId: string;
   read: ReturnType<typeof useFactoryItemsRead>;
@@ -175,6 +189,8 @@ function BoardBody({
   orders: readonly WorkOrder[];
   /** The work order `?order=` lights; null when none. */
   lit: string | null;
+  now: Date;
+  filtered: boolean;
 }): ReactElement {
   if (model === undefined) {
     const failed = readFailed(read.error);
@@ -199,6 +215,8 @@ function BoardBody({
             model={model}
             moved={moved}
             lit={highlightedKeys(orders.find(order => order.key === lit))}
+            now={now}
+            filtered={filtered}
           />
         </>
       )}

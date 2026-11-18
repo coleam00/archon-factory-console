@@ -84,7 +84,7 @@ describe('the work orders on a board', () => {
     expect(order).toMatchObject({ key: '48', title: 'Work order 48', landed: 1 });
     expect(order?.members.map(member => [member.key, member.pill, member.where])).toEqual([
       ['5', 'running', 'Build'],
-      ['2', 'landed', 'Landed'],
+      ['2', 'landed', 'Merged'],
       // 9 is linked and has no run yet: on no board, waiting.
       ['9', 'waiting', NOT_STARTED],
     ]);

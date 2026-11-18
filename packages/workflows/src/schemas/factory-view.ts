@@ -126,6 +126,19 @@ const stageSchema = z.strictObject({
   drilldown: drilldownSchema.optional(),
 });
 
+/**
+ * One board column: a group of stages drawn as one column, its cards each still naming its
+ * own stage. The column's colour is a console's choice, not declared here.
+ */
+const columnSchema = z.strictObject({
+  id: stageIdSchema,
+  label: labelSchema,
+  /** One line, plain words, under the column's label: the stages it holds, say. */
+  blurb: z.string().min(1).max(160),
+  /** The stages it holds, by id; every declared stage is in exactly one column. */
+  stages: z.array(stageIdSchema).min(1),
+});
+
 /** A step of a workflow the view names, and the outcome it records that decides something. */
 const decisionPointSchema = z.strictObject({
   workflow: workflowNameSchema,
@@ -189,8 +202,13 @@ const factoryViewShape = z.strictObject({
   title: labelSchema,
   /** One paragraph, plain words: what goes in, what comes out, where people step in. */
   summary: z.string().min(1).max(1200),
-  /** Map cards and board columns, left to right. */
+  /** The stages an item moves through, left to right: map cards, stage pages, placement. */
   stages: z.array(stageSchema).min(1),
+  /**
+   * The board's columns, left to right, each a group of stages. Absent, the board draws one
+   * column per stage, so an older file still loads.
+   */
+  columns: z.array(columnSchema).min(1).optional(),
   /**
    * Where an idle item sits after a run completed with this outcome; checked before
    * `endings`. `workflow:*` places every completed run of the workflow no exact key takes,
@@ -319,6 +337,45 @@ function stageReferenceIssues(view: FactoryViewShape): Issue[] {
   return issues;
 }
 
+/**
+ * When `columns` is given, every declared stage is in exactly one column, and the `landed`
+ * stage in a column of its own: the board's merged column (its recent window, its header and
+ * its compact cards) is a whole column, so one that also held other stages would be ambiguous.
+ */
+function columnIssues(view: FactoryViewShape): Issue[] {
+  if (view.columns === undefined) return [];
+  const declared = new Set(view.stages.map(stage => stage.id));
+  const ids = new Set<string>();
+  const holder = new Map<string, string>();
+  const issues: Issue[] = [];
+  view.columns.forEach((column, c) => {
+    if (ids.has(column.id))
+      issues.push({
+        path: ['columns', c, 'id'],
+        message: `column "${column.id}" is declared twice`,
+      });
+    ids.add(column.id);
+    column.stages.forEach((stage, s) => {
+      const path = ['columns', c, 'stages', s];
+      const already = holder.get(stage);
+      if (!declared.has(stage))
+        issues.push({ path, message: `names stage "${stage}", which is not declared in stages` });
+      else if (already !== undefined)
+        issues.push({ path, message: `stage "${stage}" is in column "${already}" already` });
+      else holder.set(stage, column.id);
+    });
+    if (column.stages.includes(view.landed.stage) && column.stages.length > 1)
+      issues.push({
+        path: ['columns', c, 'stages'],
+        message: `the landed stage "${view.landed.stage}" takes a column of its own`,
+      });
+  });
+  for (const stage of view.stages)
+    if (!holder.has(stage.id))
+      issues.push({ path: ['columns'], message: `stage "${stage.id}" is in no column` });
+  return issues;
+}
+
 /** Every workflow the declaration reads outcomes or steps of is one a stage counts. */
 function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   const workflows = new Set(view.stages.flatMap(stage => stage.workflows));
@@ -407,6 +464,7 @@ function drilldownIssues(view: FactoryViewShape): Issue[] {
 export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
   for (const issue of [
     ...stageReferenceIssues(view),
+    ...columnIssues(view),
     ...workflowReferenceIssues(view),
     ...verdictOverlapIssues(view),
     ...drilldownIssues(view),

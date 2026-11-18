@@ -115,12 +115,16 @@ interface Where {
 function placedByKey(model: BoardModel): Map<string, Where> {
   const placed = new Map<string, Where>();
   for (const column of model.columns)
-    for (const card of column.cards)
+    for (const card of column.cards) {
+      // Named by its stage, not its column: a member page says where it is, as precisely as
+      // the item page does.
+      const stage = card.column !== null && 'stage' in card.column ? card.column.stage : null;
       placed.set(card.card.key, {
         placed: card,
-        label: column.label,
-        landed: column.stage === model.landedStage,
+        label: stage?.label ?? column.label,
+        landed: stage?.id === model.landedStage,
       });
+    }
   for (const group of model.ended)
     for (const card of group.cards)
       placed.set(card.card.key, { placed: card, label: group.label, landed: false });
