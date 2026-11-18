@@ -252,7 +252,7 @@ describe('the ask popover', () => {
       const press = (target: EventTarget): Promise<void> =>
         act(async () => {
           target.dispatchEvent(
-            new dom.PointerEvent('pointerdown', { bubbles: true }) as unknown as Event
+            new dom.MouseEvent('mousedown', { bubbles: true }) as unknown as Event
           );
         });
       await press(dialogButton('Use main'));

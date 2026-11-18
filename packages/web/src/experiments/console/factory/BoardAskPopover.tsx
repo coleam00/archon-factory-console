@@ -28,14 +28,14 @@ const WIDE = '(min-width: 48rem)';
 /**
  * Where the popover sits, measured from the card holding `trigger` (the Table's row button
  * when there is no card) and the popover's own size: again on a resize, on any scroll, and
- * when its content changes size. Null under md, where the sheet's classes place it; undefined
- * until first measured, while it stays hidden.
+ * when its content changes size. Measured in a layout effect, so it is placed before it is
+ * first painted. Null under md, where the sheet's classes place it.
  */
 function usePlace(
   box: RefObject<HTMLDivElement | null>,
   trigger: HTMLElement
-): { top: number; left: number } | null | undefined {
-  const [place, setPlace] = useState<{ top: number; left: number } | null | undefined>();
+): { top: number; left: number } | null {
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
   useLayoutEffect(() => {
     const element = box.current;
     if (element === null) return;
@@ -69,10 +69,14 @@ function usePlace(
   return place;
 }
 
+/** What a press can land on that takes focus itself. */
+const FOCUSABLE = 'a[href], button, input, textarea, select, [tabindex]';
+
 /**
  * Closes on Esc and on a press outside the popover and its trigger. Esc is caught before it
  * reaches the card: the answer forms stop key events from leaving them, as a card can sit
- * inside another clickable one.
+ * inside another clickable one. A press on nothing that takes focus keeps the browser from
+ * moving focus to the page, so it returns to the card; a press on a control focuses it.
  */
 function useDismiss(
   box: RefObject<HTMLDivElement | null>,
@@ -85,16 +89,21 @@ function useDismiss(
       event.preventDefault();
       close();
     };
-    const onPress = (event: PointerEvent): void => {
+    const onPress = (event: MouseEvent): void => {
       const path = event.composedPath();
       if (path.includes(trigger) || (box.current !== null && path.includes(box.current))) return;
+      const control = path.some(
+        node => node instanceof window.HTMLElement && node.matches(FOCUSABLE)
+      );
+      if (!control) event.preventDefault();
       close();
     };
+    // mousedown, not pointerdown: the browser moves focus on mousedown, after pointerdown.
     document.addEventListener('keydown', onKey, true);
-    document.addEventListener('pointerdown', onPress);
+    document.addEventListener('mousedown', onPress);
     return (): void => {
       document.removeEventListener('keydown', onKey, true);
-      document.removeEventListener('pointerdown', onPress);
+      document.removeEventListener('mousedown', onPress);
     };
   }, [box, trigger, close]);
 }
@@ -171,7 +180,7 @@ function Popover({
       aria-modal="false"
       aria-label={`Asks on ${open.key}`}
       style={place == null ? undefined : { top: place.top, left: place.left }}
-      className={`${SHELL} ${place === undefined ? 'invisible' : ''}`}
+      className={SHELL}
     >
       <div className={`flex w-full flex-col gap-3 ${WIDTH}`}>
         <AskGroup
