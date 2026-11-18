@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { askItem } from '../needs-you.test-fixtures';
+import { askItem } from '../../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../../skills/factory';
 import { boardModel, filterBoard } from './board';
 import {
@@ -57,10 +57,10 @@ const numbers = (items: FactoryItem[], now: Date) =>
   factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map()), now);
 
 describe('the numbers strip', () => {
-  test('in flight, needs you, landed and M over the real items', () => {
+  test('in flight, landed and M over the real items', () => {
     const counts = numbers([...PAGE.items, asking(), closedByTriage()], local(17, 12));
     // 8, 5, 4, 6, 3 and the asking copy of 6 are on the board outside Landed; 7, 2, 1 landed.
-    expect(counts).toMatchObject({ inFlight: 6, needsYou: 1, landed: 3, total: 9 });
+    expect(counts).toMatchObject({ inFlight: 6, landed: 3, total: 9 });
   });
 
   test('an item closed by triage is not in M, nor in flight', () => {

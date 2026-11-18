@@ -5,7 +5,7 @@ import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRoutes } from './routes';
+import { projectRoutes } from '../routes/project-routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import {
   capturedItemAs,
@@ -125,7 +125,7 @@ async function renderAt(
     await act(async () =>
       root.render(
         <MemoryRouter initialEntries={[path]}>
-          <Routes>{factoryRoutes('/console/')}</Routes>
+          <Routes>{projectRoutes('/console/')}</Routes>
         </MemoryRouter>
       )
     );

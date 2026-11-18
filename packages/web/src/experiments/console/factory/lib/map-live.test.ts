@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { AttentionQueueItem } from '../../skills/runs';
-import { askItem, usageLimitItem } from '../needs-you.test-fixtures';
+import { askItem, usageLimitItem } from '../../lib/needs-you.test-fixtures';
 import { stageLive } from './map-live';
 import { itemWith, itemWithoutProgress, realItem, run } from './map.test-fixtures';
 import { shippedView } from '../item-detail.test-fixtures';

@@ -18,7 +18,7 @@ import type {
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRoutes } from './routes';
+import { projectRoutes } from '../routes/project-routes';
 import { MapDetails } from './map/MapDetails';
 import { itemDetail, shippedListed } from './item-detail.test-fixtures';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
@@ -94,13 +94,13 @@ const graphsListing: FactoryViews = {
 
 function render(path: string, detail?: FactoryItemDetail, views = listing): string {
   set(K.factoryViews(ID), views);
-  set(K.factoryAttention(ID), quiet);
+  set(K.projectAttention(ID), quiet);
   set(K.factoryWorkflow(ID, 'deliver'), DELIVER);
   set(K.factoryItems(ID), { items: ITEMS, members: {} });
   if (detail !== undefined) set(K.factoryItem(ID, detail.item.item.key), detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{factoryRoutes('/console/')}</Routes>
+      <Routes>{projectRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }

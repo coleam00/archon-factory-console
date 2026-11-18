@@ -1,0 +1,61 @@
+import type { ReactElement } from 'react';
+import type { NeedsYouItem } from '../../lib/needs-you';
+import type { AttentionQueue } from '../../skills/runs';
+import { AskCard, SubjectName, type AskSubject } from './AskCard';
+import { useAnsweredHold, type AnsweredHold } from './useAnsweredHold';
+
+/**
+ * One item's asks: the item named once, then a card per ask. It takes the asks and the
+ * queue's runs and needs no page around it, so the Needs you tab, the item page (which
+ * leaves out `subject`: the page is the item) and a popover over a board card all draw it.
+ * A page that groups several items passes its own `hold`, so an item whose last ask was just
+ * answered keeps its group while the answer shows; alone, the group holds its own.
+ */
+export function AskGroup({
+  projectId,
+  subject,
+  asks,
+  queue,
+  where,
+  hold: outer,
+}: {
+  projectId: string;
+  subject?: AskSubject;
+  asks: readonly NeedsYouItem[];
+  queue: Pick<AttentionQueue, 'runs'>;
+  /** The stage or workflow each ask came from. */
+  where?: (ask: NeedsYouItem) => string | undefined;
+  hold?: AnsweredHold;
+}): ReactElement {
+  const own = useAnsweredHold(asks);
+  const hold = outer ?? own;
+  const shown = outer === undefined ? own.asks : asks;
+  return (
+    <section
+      aria-label={subject === undefined ? 'Asks' : `Asks on ${subject.key}`}
+      className="flex flex-col gap-3"
+    >
+      {subject === undefined ? null : (
+        <h2 className="flex min-w-0 text-console-15 font-semibold">
+          <SubjectName subject={subject} />
+        </h2>
+      )}
+      {shown.map(ask => {
+        const answered = hold.answered.get(ask.ref);
+        const at = where?.(ask);
+        return (
+          <AskCard
+            key={ask.ref}
+            projectId={projectId}
+            ask={ask}
+            queue={queue}
+            {...(at === undefined ? {} : { where: at })}
+            {...(answered === undefined ? {} : { answered })}
+            folding={hold.folding.has(ask.ref)}
+            onAnswered={hold.onAnswered}
+          />
+        );
+      })}
+    </section>
+  );
+}

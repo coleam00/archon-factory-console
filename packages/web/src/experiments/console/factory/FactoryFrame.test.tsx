@@ -2,12 +2,27 @@ import { afterAll, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import { ProjectAttentionLayout } from '../components/ProjectAttention';
 import { invalidate } from '../store/cache';
 import { FactoryFrame } from './FactoryFrame';
 import { FACTORY_READ_DEADLINE_MS } from './lib/deadline';
 
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The project's attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -57,10 +72,12 @@ test('a stalled first views read, on a cold page load, says so and is retried', 
       root.render(
         <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
           <Routes>
-            <Route
-              path="/console/p/:projectId/factory"
-              element={<FactoryFrame section="overview">{() => null}</FactoryFrame>}
-            />
+            <Route path="/console/p/:projectId" element={<ProjectAttentionLayout />}>
+              <Route
+                path="factory"
+                element={<FactoryFrame section="overview">{() => null}</FactoryFrame>}
+              />
+            </Route>
           </Routes>
         </MemoryRouter>
       )

@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { FactorySectionLayout } from './section-attention';
+import { ProjectAttentionLayout } from '../components/ProjectAttention';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
@@ -122,11 +122,11 @@ async function renderChecks(check: (container: HTMLElement) => Promise<void>): P
       root.render(
         <MemoryRouter initialEntries={[`/console/p/${ID}/factory/stages/checks`]}>
           <Routes>
-            {/* As in ConsoleApp: every Factory page sits under the section layout, which holds
+            {/* As in ConsoleApp: every project page sits under the project layout, which holds
                 the one attention stream (#42). */}
-            <Route path="/console/p/:projectId/factory" element={<FactorySectionLayout />}>
-              <Route path="stages/:stage" element={<StagePage />} />
-              <Route path="steps/:workflow/:node" element={<StepPage />} />
+            <Route path="/console/p/:projectId" element={<ProjectAttentionLayout />}>
+              <Route path="factory/stages/:stage" element={<StagePage />} />
+              <Route path="factory/steps/:workflow/:node" element={<StepPage />} />
             </Route>
           </Routes>
         </MemoryRouter>

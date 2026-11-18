@@ -2,20 +2,35 @@ import { afterAll, afterEach, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
+import { AnsweredLately } from '../components/ask-card/AnsweredLately';
+import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import { invalidate } from '../store/cache';
-import { AnsweredLately } from './AnsweredLately';
 import { SLOW_READ_NOTICE } from './FactoryLoading';
 import { FactoryMap } from './map/FactoryMap';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
 import { run, settledItem } from './lib/map.test-fixtures';
-import { shippedListed, shippedView } from './item-detail.test-fixtures';
+import { shippedListed } from './item-detail.test-fixtures';
 
 // Readers that show nothing while they wait: a missed deadline must still be retried (#39).
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The tabs' attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -86,7 +101,11 @@ async function renderFor60s(
 test('the project tabs show the Factory tab when the views read answers after the first deadline', async () => {
   jest.useFakeTimers();
   serveSlowly(() => Response.json({ views: [shippedListed], errors: [] }));
-  const page = await renderFor60s(<ProjectViewTabs projectId={ID} active="runs" />);
+  const page = await renderFor60s(
+    <ProjectAttentionProvider projectId={ID}>
+      <ProjectViewTabs projectId={ID} active="runs" />
+    </ProjectAttentionProvider>
+  );
   try {
     expect(page.text).toContain('Factory');
   } finally {
@@ -106,10 +125,12 @@ test('Answered lately shows when the items read answers after the first deadline
   serveSlowly(url =>
     isItemsRead(url) ? items(url) : Response.json({ error: 'not in this test' }, { status: 404 })
   );
-  const page = await renderFor60s(<AnsweredLately projectId={ID} view={shippedView} />);
+  const page = await renderFor60s(
+    <AnsweredLately projectId={ID} view={shippedListed} empty={false} />
+  );
   try {
     expect(page.text).toContain('Answered lately');
-    expect(page.text).toContain('#p');
+    expect(page.text).toContain('Plan started again (running)');
   } finally {
     await page.done();
   }

@@ -103,7 +103,7 @@ test('hiding the page closes the stream, and a restore from the back/forward cac
 test("an attention change refreshes the project's queue and item reads, not another project's", async () => {
   const loads: string[] = [];
   const keys = [
-    K.factoryAttention('p1'),
+    K.projectAttention('p1'),
     K.factoryItems('p1'),
     K.factoryItem('p1', '6'),
     K.factoryItem('p2', '6'),

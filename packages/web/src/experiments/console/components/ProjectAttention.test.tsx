@@ -3,8 +3,8 @@ import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes, useNavigate, type NavigateFunction } from 'react-router';
 import { invalidate } from '../store/cache';
-import { shippedListed } from './item-detail.test-fixtures';
-import { factoryRoutes } from './routes';
+import { shippedListed } from '../factory/item-detail.test-fixtures';
+import { projectRoutes } from '../routes/project-routes';
 
 // The section's stream is opened by an effect, so this test mounts a live React tree.
 const dom = new Window({ url: 'http://localhost' });
@@ -80,7 +80,7 @@ function Navigator(): null {
 const attentionStreams = (): { url: string; closed: boolean }[] =>
   opened.filter(entry => entry.url.includes('/api/runs/attention/stream'));
 
-test('the Factory section keeps one attention stream across its pages and closes it on leaving', async () => {
+test('a project keeps one attention stream across its pages and closes it on leaving the project', async () => {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -89,8 +89,8 @@ test('the Factory section keeps one attention stream across its pages and closes
       <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
         <Navigator />
         <Routes>
-          {factoryRoutes('/console/')}
-          <Route path="/console/p/:projectId/chat" element={<p>chat</p>} />
+          {projectRoutes('/console/')}
+          <Route path="/console/elsewhere" element={<p>elsewhere</p>} />
         </Routes>
       </MemoryRouter>
     )
@@ -104,13 +104,17 @@ test('the Factory section keeps one attention stream across its pages and closes
     await settle();
     expect(container.textContent).toContain(shippedListed.declaration.title);
   }
+  // The Needs you tab is a project page too: the same stream.
+  await act(async () => navigate?.(`/console/p/${ID}/needs-you`));
+  await settle();
+  expect(container.textContent).toContain('0 things need you');
   expect(attentionStreams()).toEqual([
     { url: expect.stringContaining(`project=${ID}`) as unknown as string, closed: false },
   ]);
 
-  await act(async () => navigate?.(`/console/p/${ID}/chat`));
+  await act(async () => navigate?.('/console/elsewhere'));
   await settle();
-  expect(container.textContent).toBe('chat');
+  expect(container.textContent).toBe('elsewhere');
   expect(attentionStreams()).toHaveLength(1);
   expect(attentionStreams()[0]?.closed).toBe(true);
 

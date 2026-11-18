@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link } from 'react-router';
 import { errorDetail } from '../lib/http';
+import { needsYouPath } from '../lib/needs-you';
 import { useFactoryItems } from './useFactoryItems';
 import { boardModel, type FactoryDeclaration } from './lib/board';
 import type { BoardShow } from './lib/board-show';
@@ -38,32 +39,41 @@ const WAIT_TITLE: Record<TileWait, string> = {
 /** A tile that waits says it is loading, never a wrong count. */
 type TileValue = { wait: TileWait } | { wait: null; value: string };
 
-type Tile = TileValue & { show: BoardShow; label: string };
+type Tile = TileValue & { to: string; label: string };
 
-/** The five tiles, each saying "…" while `numbers` is not read (undefined). */
-function tiles(numbers: Numbers | undefined): Tile[] {
+/**
+ * The five tiles, each saying "…" while `numbers` is not read (undefined). `waiting` is the
+ * project's asks and waits (`needsYouCount`, undefined until the queue loads): the count the
+ * Needs you tab, its heading and the sub-navigation show, so the tile links there.
+ */
+function tiles(
+  projectId: string,
+  numbers: Numbers | undefined,
+  waiting: number | undefined
+): Tile[] {
+  const board = (show: BoardShow): string => factoryPath(projectId, `/board?show=${show}`);
   const read = (value: (n: Numbers) => string): TileValue =>
     numbers === undefined ? { wait: 'items' } : { wait: null, value: value(numbers) };
   // Every number but "needs you" depends on which items landed (placement rule 2).
   const merged = (value: (n: Numbers) => string): TileValue =>
     numbers?.pending === true ? { wait: 'merge' } : read(value);
   return [
-    { show: 'in-flight', ...merged(n => n.inFlight.toString()), label: 'in flight' },
+    { to: board('in-flight'), ...merged(n => n.inFlight.toString()), label: 'in flight' },
     {
-      show: 'needs-you',
-      ...read(n => n.needsYou.toString()),
-      // Counted per item: the sub-navigation's badge counts asks and waits, and an item can
-      // have several, so the words keep the two numbers from reading as a contradiction.
-      label: numbers?.needsYou === 1 ? 'item needs you' : 'items need you',
+      to: needsYouPath(projectId),
+      ...(waiting === undefined
+        ? { wait: 'items' as const }
+        : { wait: null, value: waiting.toString() }),
+      label: waiting === 1 ? 'needs you' : 'need you',
     },
-    { show: 'landed-today', ...merged(n => n.landedToday.toString()), label: 'merged today' },
+    { to: board('landed-today'), ...merged(n => n.landedToday.toString()), label: 'merged today' },
     {
-      show: 'landed',
+      to: board('landed'),
       ...merged(n => `${n.landed.toString()} of ${n.total.toString()}`),
       label: 'done',
     },
     {
-      show: 'landed',
+      to: board('landed'),
       ...merged(n => (n.medianToLandMs === null ? 'none yet' : durationWords(n.medianToLandMs))),
       label: 'median from first run to merged',
     },
@@ -77,9 +87,12 @@ function tiles(numbers: Numbers | undefined): Tile[] {
 export function FactoryNumbers({
   projectId,
   view,
+  waiting,
 }: {
   projectId: string;
   view: FactoryDeclaration;
+  /** The project's asks and waits (`needsYouCount`); undefined until the queue loads. */
+  waiting: number | undefined;
 }): ReactElement {
   const items = useFactoryItems(projectId);
   const now = useMinuteClock();
@@ -106,8 +119,8 @@ export function FactoryNumbers({
           view.discoveries === undefined ? 'sm:grid-cols-5' : 'sm:grid-cols-3 lg:grid-cols-6'
         }`}
       >
-        {tiles(numbers).map(tile => (
-          <NumberTile key={tile.label} projectId={projectId} tile={tile} />
+        {tiles(projectId, numbers, waiting).map(tile => (
+          <NumberTile key={tile.label} tile={tile} />
         ))}
         {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
       </ul>
@@ -119,11 +132,11 @@ export function FactoryNumbers({
   );
 }
 
-function NumberTile({ projectId, tile }: { projectId: string; tile: Tile }): ReactElement {
+function NumberTile({ tile }: { tile: Tile }): ReactElement {
   return (
     <li>
       <Link
-        to={factoryPath(projectId, `/board?show=${tile.show}`)}
+        to={tile.to}
         className="flex h-full flex-col gap-0.5 rounded-console-12 border border-border bg-surface px-3 py-2 transition-colors hover:border-border-bright"
       >
         <span className="text-lg font-medium tabular-nums text-text-primary">

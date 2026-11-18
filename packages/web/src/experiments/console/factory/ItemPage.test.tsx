@@ -5,11 +5,11 @@ import type { FactoryItemDetail, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryRoutes } from './routes';
+import { projectRoutes } from '../routes/project-routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { PILL_CLASS } from './BoardCard';
 import { itemPill } from './lib/board';
-import { askItem } from './needs-you.test-fixtures';
+import { askItem } from '../lib/needs-you.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 
 afterEach(() => {
@@ -28,11 +28,11 @@ const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
 function render(detail: FactoryItemDetail, attention: AttentionQueue = quiet): string {
   const key = detail.item.item.key;
   set(K.factoryViews(PROJECT), listing);
-  set(K.factoryAttention(PROJECT), attention);
+  set(K.projectAttention(PROJECT), attention);
   set(K.factoryItem(PROJECT, key), detail);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/${key}`]}>
-      <Routes>{factoryRoutes('/console/')}</Routes>
+      <Routes>{projectRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }
@@ -109,7 +109,10 @@ describe('the item page', () => {
     expect(words).toContain('Which base should the change target?');
     expect(words).toContain('From the child run?');
     expect(words).not.toContain('Not this item?');
-    expect(words).toContain('Recommended: Use dev');
+    // Each as the ask card, always open: its tiles, the recommended one first, answerable.
+    expect(html.split('data-ask=')).toHaveLength(3);
+    expect(words).toContain('Use dev Recommended Rebases onto dev.');
+    expect(html.split('aria-pressed="false"').length - 1).toBe(4);
   });
 
   test('an open ask on a running item: Needs you, as its board card says', () => {

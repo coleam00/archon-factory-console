@@ -373,15 +373,19 @@ documents through Neon live queries.
 
 ## Where it lives
 
-- A fourth project tab, **Factory**, after Runs, Chat and Metrics (`ProjectViewTabs`). It shows
-  only when a factory view applies to the project (below). Without one, nothing changes.
+- A project tab, **Needs you**, first, left of Runs, on every project (`ProjectViewTabs`, route
+  `/console/p/:projectId/needs-you`), with its count of asks and waits as a soft needs-you chip (rule 5; owner
+  change 2). It is console core, not part of the Factory section: every page of a project sits
+  under one layout (`ProjectAttentionLayout`) holding the project's attention queue and stream.
+- A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a factory view
+  applies to the project (below). Without one, nothing else changes.
 - Routes, all under `/console/p/:projectId/factory`:
 
   | Route | Page |
   |---|---|
-  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the Needs-you list, then the map |
+  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
-  | `factory/needs-you` | Needs you: every open ask and paused wait on this project's items, answerable in place (the Overview shows the newest few) |
+  | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
   | `factory/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down), when it has one |
   | `factory/overview` | Redirects (replace) to `factory/how-it-works`, keeping the query string, so old links land |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
@@ -389,9 +393,9 @@ documents through Neon live queries.
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview, Board, Needs you and How it works |
 
-- Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
-  count), each its own route, and How it works when the pack has a factory overview file (or a
-  broken one). Item, stage and step pages have a back link to where you came from.
+- Inside the Factory tab a small sub-navigation switches Overview and Board, each its own route,
+  links to the project's Needs you tab (with the same count), and shows How it works when the
+  pack has a factory overview file (or a broken one). Item, stage and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
@@ -565,7 +569,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## Overview page
 
 1. Title and the declaration's summary paragraph.
-2. **Numbers strip:** items in flight, needs you, merged today, merged in total ("N of M done"
+2. **Numbers strip:** items in flight, need you (the Needs you tab's count of asks and waits,
+   linking there), merged today, merged in total ("N of M done"
    where M excludes items closed by triage), median time from first run to merged. Until the
    items read first answers, each tile shows a skeleton bar (Visual standard, rule 6) in place
    of its number, above its label; while any item's merge state is pending, every number but
@@ -574,17 +579,23 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet and links to the board's panel; it has its
    own read, so it never holds up the other five.
-3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
-   question, recommended option) until opened. Opened, it shows the recommended option first and
-   highlighted, the other options with what each does and costs, answered in place through
-   `POST /api/attention/answer`. The list shows the newest few and says how many more there
-   are, with "show all"; a line the operator opened stays shown. Paused runs' waits appear here
-   too (the attention list already reads both into one shape). The item page shows its own asks
-   opened. Under the open asks, **Answered lately** lists the three newest sets of asks an item
-   settled, with how many were answered and withdrawn and the stage the settling started again
-   (engine #5834), linking to that run with its status, or that no run started from these answers. It
-   joins the item read's `asks_settled` answer to the run whose `cause` names the same asking
-   run, so an answer given through the CLI or by an agent shows too.
+3. **Needs you:** the newest three open asks and waits as compact ask cards (Visual standard rule
+   9): the item, the question, the recommended tile (or the first), and **Open**, which leads to
+   that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on
+   Needs you". Nothing shows when nothing waits.
+
+The Needs you tab (`/console/p/:projectId/needs-you`) lists every open ask and paused wait on the
+project's items and runs, newest first, grouped under their item, each an ask card answered
+through `POST /api/attention/answer` (a paused gate through its run's respond route), and an
+answered card says so for 5 s before it folds away. Its heading, the tab, the sub-navigation and
+the Overview's number all read one count, `needsYouCount`. Under the open asks, **Answered
+lately** lists the three newest sets of asks an item settled, as folded cards: each question and
+what it was answered with, and the stage the settling started again (engine #5834; the workflow on
+a project with no factory view), linking to that run with its status, or that no run started
+from these answers. It joins the item read's `asks_settled` answer to the run whose `cause` names
+the same asking run, so an answer given through the CLI or by an agent shows too. With no
+factory view it reads the engine's items window alone. With nothing open, the tab shows rule 6's
+empty state, when something was last asked, and those three cards.
 4. **The map.**
 
 ## The map
@@ -712,7 +723,7 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 - Header: key, title, state pill, the change link, the column it is in. An item no run has
   started yet (a member linked before its first run) says "Not started" instead of a state,
   column and change.
-- **Asks** it waits on, answerable in place (the same answer form as Needs you, always open).
+- **Asks** it waits on, answerable in place (the ask card Needs you draws, always open).
 - **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
   or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
   round with each check's verdict and what was returned. Each row links to its run. A check's

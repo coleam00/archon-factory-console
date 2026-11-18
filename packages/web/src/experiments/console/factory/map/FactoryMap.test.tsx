@@ -9,7 +9,7 @@ import { K } from '../../store/keys';
 import type { FactoryItem } from '../../skills/factory';
 import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
-import { askItem } from '../needs-you.test-fixtures';
+import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { MAP_TEXT_PX } from '../lib/map-camera';
 import { cancelRereads } from '../merge-reread';

@@ -14,7 +14,10 @@ The factory building this repository runs Archon from another checkout, on the h
   to start on it. To see the console: `bun run build:web && bun run dev:console --port <free port>`.
   That serves on a throwaway home (`.console-home/`, gitignored) seeded once with a read-only copy
   of the live database and of its installed packs (`plugins/`), so real items, runs and the
-  pack's workflows show. `--fresh` takes a new copy.
+  pack's workflows show. `--fresh` takes a new copy. `--reopen-asks` reopens, on that copy only,
+  the newest wholly answered set of asks per item and workflow, so Needs you has real asks to
+  look at. Use it only for looking: never confirm an answer on the copy, because settling an
+  item's asks there can start a real agent run.
 - Pick a free port (not 3090, 3190 or 8864, which are in use); check it first.
 - Stop every server and browser you start before you finish. Kill by the PID you started, never by
   process name: other factories run on this machine.

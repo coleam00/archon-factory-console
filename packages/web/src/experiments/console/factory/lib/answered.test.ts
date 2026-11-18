@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { FactoryItem } from '../../skills/factory';
 import { shippedView } from '../item-detail.test-fixtures';
 import { asksSettledRunId, recentlySettled } from './answered';
 import { itemWith, run, settledItem } from './map.test-fixtures';
@@ -15,28 +16,80 @@ const deliver = settledItem(
   '2026-11-17T11:00:00.000Z',
   run('deliver', 'completed', 'ready')
 );
+/** An ask of the set `deliver`'s first run left, closed with `chosen`. */
+function askAnswer(
+  question: string,
+  chosen: { id: string; does: string } | null
+): Extract<FactoryItem['answers'][number], { kind: 'ask' }> {
+  return {
+    kind: 'ask',
+    runId: deliver.runs[0]?.id ?? '',
+    node: null,
+    occurrence: null,
+    at: '2026-11-17T11:00:00.000Z',
+    via: null,
+    ref: `ask:${question}`,
+    question,
+    answer: null,
+    chosen,
+    withdrawn: false,
+    by: null,
+    fromRun: null,
+  };
+}
 const waiting = settledItem('w', run('plan', 'completed', 'ask'), '2026-11-17T09:00:00.000Z');
 
 describe('asks settled lately, and the stage each started again', () => {
   test('newest first; each joined to the run whose cause names the asking run', () => {
-    expect(recentlySettled(shippedView, [waiting, plan, deliver])).toEqual([
+    const listed = recentlySettled(shippedView, [waiting, plan, deliver]);
+    expect(
+      listed.map(({ itemKey, answered, withdrawn, at, restart }) => ({
+        itemKey,
+        answered,
+        withdrawn,
+        at,
+        restart,
+      }))
+    ).toEqual([
       {
         itemKey: 'd',
         answered: 2,
         withdrawn: 1,
         at: '2026-11-17T11:00:00.000Z',
         // deliver begins on Build.
-        restart: { runId: 'run-d-1', status: 'completed', stageLabel: 'Build' },
+        restart: { runId: 'run-d-1', status: 'completed', label: 'Build' },
       },
       {
         itemKey: 'p',
         answered: 2,
         withdrawn: 1,
         at: '2026-11-17T10:00:00.000Z',
-        restart: { runId: 'run-p-1', status: 'running', stageLabel: 'Plan' },
+        restart: { runId: 'run-p-1', status: 'running', label: 'Plan' },
       },
       { itemKey: 'w', answered: 2, withdrawn: 1, at: '2026-11-17T09:00:00.000Z', restart: null },
     ]);
+  });
+
+  test('without a view a restart is named by its workflow, and each ask by its answer in words', () => {
+    const asks: FactoryItem['answers'] = [
+      askAnswer('Send it back?', { id: 'send-back-once-more', does: 'Restarts the stage.' }),
+      askAnswer('Which base?', { id: 'other', does: 'None of these.' }),
+      { ...askAnswer('Split it?', null), withdrawn: true },
+      { ...askAnswer('From another run?', null), runId: 'run-elsewhere' },
+    ];
+    const item = { ...deliver, answers: [...deliver.answers, ...asks], progress: null };
+    const [entry] = recentlySettled(null, [item]);
+    expect(entry?.restart).toEqual({
+      runId: 'run-d-1',
+      status: 'completed',
+      label: 'Wirasm/archon-software-factory:deliver',
+    });
+    expect(entry?.asks).toEqual([
+      { question: 'Send it back?', answer: 'Send back once more', withdrawn: false },
+      { question: 'Which base?', answer: 'Something else', withdrawn: false },
+      { question: 'Split it?', answer: 'withdrawn', withdrawn: true },
+    ]);
+    expect(entry?.askedAt).toBe(deliver.runs[0]?.completedAt ?? null);
   });
 
   test('only the newest few; an item with no settled set adds nothing', () => {

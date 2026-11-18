@@ -4,7 +4,7 @@ import { act, type ReactElement } from 'react';
 import { MemoryRouter, Routes, useLocation, useNavigationType } from 'react-router';
 import { invalidate } from '../store/cache';
 import { shippedListed } from './item-detail.test-fixtures';
-import { factoryRoutes } from './routes';
+import { projectRoutes } from '../routes/project-routes';
 
 // `renderToStaticMarkup` never follows a `<Navigate>`, so the redirect needs a live tree.
 const dom = new Window({ url: 'http://localhost' });
@@ -76,7 +76,7 @@ test('the old How it works address replaces itself with the new one, drill-down 
     root.render(
       <MemoryRouter initialEntries={[`/console/p/${ID}/factory/overview?view=checks`]}>
         <LocationProbe />
-        <Routes>{factoryRoutes('/console/')}</Routes>
+        <Routes>{projectRoutes('/console/')}</Routes>
       </MemoryRouter>
     )
   );
@@ -88,3 +88,32 @@ test('the old How it works address replaces itself with the new one, drill-down 
   await act(async () => root.unmount());
   container.remove();
 });
+
+test('the old Needs you address replaces itself with the project tab, query and hash kept', async () => {
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <MemoryRouter initialEntries={[`/console/p/${ID}/factory/needs-you?x=1#h`]}>
+        <HashProbe />
+        <Routes>{projectRoutes('/console/')}</Routes>
+      </MemoryRouter>
+    )
+  );
+  await settle();
+  const probe = container.querySelector('output');
+  expect(probe?.getAttribute('data-at')).toBe(`/console/p/${ID}/needs-you?x=1#h`);
+  expect(probe?.getAttribute('data-by')).toBe('REPLACE');
+  // It lands on the tab's page, outside the Factory frame.
+  expect(container.textContent).toContain('0 things need you');
+
+  await act(async () => root.unmount());
+  container.remove();
+});
+
+/** Where the router is, hash included, and how it got there. */
+function HashProbe(): ReactElement {
+  const { pathname, search, hash } = useLocation();
+  return <output data-at={pathname + search + hash} data-by={useNavigationType()} />;
+}
