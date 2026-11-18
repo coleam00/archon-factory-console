@@ -1,36 +1,10 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { optionLabel, recommendationWhy, tileOrder } from '../../lib/ask-card';
+import { askTile } from '../../lib/ask-card';
 import type { NeedsYouItem } from '../../lib/needs-you';
 
 // console-token-exception max-w-[760px] -- Visual standard rule 9: an ask card is at most 760 px wide in a page.
 const WIDTH = 'max-w-[760px]';
-
-/** The one choice a compact card shows: the recommended option, else the first; words for the rest. */
-function shown(ask: NeedsYouItem): { label: string; detail?: string; recommended: boolean } {
-  switch (ask.kind) {
-    case 'attention': {
-      const first = tileOrder(ask)[0];
-      if (ask.form === 'message' || first === undefined)
-        return { label: 'Answer in words', recommended: false };
-      const recommended = first.id === ask.recommendation?.option;
-      const detail =
-        recommended && ask.recommendation !== undefined
-          ? recommendationWhy(ask.recommendation)
-          : first.does;
-      return {
-        label: optionLabel(ask, first),
-        ...(detail === undefined ? {} : { detail }),
-        recommended,
-      };
-    }
-    case 'awaiting_response':
-      return { label: 'A gate waits for your decision', recommended: false };
-    case 'owner_lost':
-    case 'unreadable':
-      return { label: 'Resume or abandon it on the run', recommended: false };
-  }
-}
 
 /**
  * The ask card's compact variant (the Overview): one line of what it is about, then the
@@ -49,7 +23,7 @@ export function CompactCard({
   header: ReactNode;
   openHref: string | undefined;
 }): ReactElement {
-  const tile = shown(ask);
+  const tile = askTile(ask);
   return (
     <article
       aria-label={question}

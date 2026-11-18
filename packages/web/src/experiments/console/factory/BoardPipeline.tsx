@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { BoardColumn } from './BoardColumn';
 import { hiddenColumnsHint, itemPath, type BoardModel } from './lib/board';
 import { mergedWindow } from './lib/merged-window';
+import type { BoardAsks } from './useBoardAsks';
 
 /**
  * The columns whose header shows inside the scroller. Every column counts as shown until
@@ -51,6 +52,7 @@ export function BoardPipeline({
   lit = null,
   now,
   filtered = false,
+  asks,
 }: {
   projectId: string;
   model: BoardModel;
@@ -61,6 +63,7 @@ export function BoardPipeline({
   now: Date;
   /** The filter box or `?show=` narrows the cards this model holds. */
   filtered?: boolean;
+  asks: BoardAsks;
 }): ReactElement {
   const scroller = useRef<HTMLDivElement>(null);
   const shown = useShownColumns(
@@ -94,6 +97,7 @@ export function BoardPipeline({
             filtered={filtered}
             moved={moved}
             lit={lit}
+            asks={asks}
           />
         ))}
       </div>

@@ -27,6 +27,8 @@ export const ANSWERED_SHOWN = 3;
 
 export interface SettledAsks {
   itemKey: string;
+  /** The asking run: the run whose open asks this set closed. */
+  runId: string;
   /** The item's title when the board's progress names one. */
   title: string | null;
   answered: number;
@@ -107,6 +109,7 @@ export function recentlySettled(
     .slice(0, limit)
     .map(({ item, settled }) => ({
       itemKey: item.item.key,
+      runId: settled.runId,
       title: item.progress?.title ?? null,
       answered: settled.answered,
       withdrawn: settled.withdrawn,

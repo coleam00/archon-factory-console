@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ClampedSummary } from '../../factory/ClampedSummary';
+import { askQuestion } from '../../lib/ask-card';
 import { relativeTime } from '../../lib/format';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import type { AttentionQueue } from '../../skills/runs';
@@ -39,18 +40,6 @@ const WIDTH = 'max-w-[760px]';
 const BOX = `@container flex w-full ${WIDTH} flex-col gap-3 rounded-console-16 border border-border bg-surface p-5`;
 const FOLD = 'motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out';
 
-/** What the card asks, as its heading. */
-function question(ask: NeedsYouItem): string {
-  switch (ask.kind) {
-    case 'unreadable':
-      return 'This paused run could not be read';
-    case 'owner_lost':
-      return 'A run lost its owner';
-    default:
-      return ask.message;
-  }
-}
-
 /**
  * The ask card (DESIGN.md, Visual standard rule 9): the one design wherever an ask or a
  * paused wait is answered. It takes one ask and the queue's runs and needs no page around
@@ -62,21 +51,21 @@ export function AskCard(props: AskCardProps): ReactElement {
     return (
       <CompactCard
         ask={ask}
-        question={question(ask)}
+        question={askQuestion(ask)}
         header={<AskHeader {...props} />}
         openHref={props.openHref}
       />
     );
   return (
     <article
-      aria-label={question(ask)}
+      aria-label={askQuestion(ask)}
       data-ask={ask.ref}
       tabIndex={-1}
       className={`${BOX} ${FOLD} ${folding ? 'opacity-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
     >
       <AskHeader {...props} />
       <h3 className="line-clamp-2 text-console-17 font-semibold text-text-primary">
-        {question(ask)}
+        {askQuestion(ask)}
       </h3>
       {answered !== undefined ? (
         <p role="status" className="text-console-14 font-medium text-success">
