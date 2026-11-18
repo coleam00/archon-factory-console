@@ -72,8 +72,8 @@ const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el
  * keeps its scale and pans only as far as it must to keep that card in view: refitting to the
  * narrower frame would shrink the cards' text below what a person can read. The cards the
  * panel's width pushes out of the frame are a drag away. Closing the panel refits again,
- * unless the person has moved the map. `fitting` sets the fit's padding and its least and most
- * scale (`fitCamera`); the live map takes the defaults.
+ * unless the person has moved the map. `fitting` sets the fit's padding, its least and most
+ * scale (`fitCamera`) and the bottom band it leaves clear; the live map takes the defaults.
  */
 export function useMapCamera(
   bounds: Box,
