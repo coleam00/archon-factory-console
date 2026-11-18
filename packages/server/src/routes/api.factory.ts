@@ -112,7 +112,7 @@ const getFactoryProgressRoute = createRoute({
   tags: ['Workflows'],
   summary: "The board progress of a project's items, by key",
   description:
-    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, its title, and its change, with whether that merged as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). A key the project has no item under is left out; an item whose progress could not be derived reads null.',
+    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, its title, the work order the declared `partOf` result names, and its change, with whether that merged as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
   request: { query: factoryProgressQuerySchema },
   responses: {
     200: {

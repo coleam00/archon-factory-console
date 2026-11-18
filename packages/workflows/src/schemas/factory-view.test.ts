@@ -198,6 +198,12 @@ describe('factoryViewSchema', () => {
     ]);
   });
 
+  test('a partOf naming a workflow no stage lists is rejected', () => {
+    expect(
+      issuePaths({ ...minimal(), partOf: { workflow: 'order', pointer: '/part_of' } })
+    ).toEqual(['partOf.workflow']);
+  });
+
   test('step names are accepted for a listed workflow and rejected for one no stage lists', () => {
     const steps = { build: { build__build: 'Writes the change' } };
     expect(factoryViewSchema.safeParse({ ...minimal(), steps }).success).toBe(true);

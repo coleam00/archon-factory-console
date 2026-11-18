@@ -218,7 +218,7 @@ describe('the facts of one run', () => {
     expect(facts.failedStep).toBe('rounds.review__review');
   });
 
-  test('triage and plan runs have no rounds, returns or change', () => {
+  test('triage and plan runs have no rounds, returns, change or work order', () => {
     for (const run of [triage1, plan1])
       expect(factsOf(run)).toEqual({
         active: null,
@@ -226,6 +226,7 @@ describe('the facts of one run', () => {
         returnCount: 0,
         failedStep: null,
         change: null,
+        partOf: null,
       });
   });
 
@@ -283,6 +284,75 @@ describe("each round's steps", () => {
     );
     const fix = factsOf({ ...deliver2, events }).rounds?.rounds[1]?.steps[0];
     expect(fix).toEqual({ node: 'rounds.fix', outcome: 'fixed', summary: null });
+  });
+});
+
+/**
+ * An order run: the triage fixture under the pack's `order` workflow, its result naming
+ * `partOf` at the pointer the view declares, as the live factory's order runs record it.
+ */
+function orderRun(
+  id: string,
+  partOf: unknown,
+  at: string,
+  status: WorkflowRun['status'] = 'completed'
+): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  const run = {
+    ...triage1.run,
+    id,
+    status,
+    workflow_name: `${PACK}:order`,
+    started_at: new Date(at),
+  };
+  const events = triage1.events.map(row => {
+    if (row.event_type !== 'workflow_completed') return row;
+    const data = row.data as { terminal_record: { returns: Record<string, unknown> } };
+    const value = { outcome: 'ready', item: id, land_on: '', part_of: partOf, why: '' };
+    return {
+      ...row,
+      workflow_run_id: id,
+      data: {
+        ...data,
+        terminal_record: {
+          ...data.terminal_record,
+          returns: { ...data.terminal_record.returns, value },
+        },
+      },
+    };
+  });
+  return { run, events };
+}
+
+describe("an item's work order, from its order runs' results", () => {
+  test('the newest completed order run names it, trimmed', async () => {
+    const old = orderRun('o1', '40', '2026-11-16T00:00:00Z');
+    const newer = orderRun('o2', ' 48 ', '2026-11-17T00:00:00Z');
+    expect(factsOf(newer).partOf).toBe('48');
+    expect((await progressOf([old, newer])).partOf).toBe('48');
+  });
+
+  test('an empty value on the newest completed run is no order, even when an older run named one', async () => {
+    const old = orderRun('o1', '48', '2026-11-16T00:00:00Z');
+    const newer = orderRun('o2', '', '2026-11-17T00:00:00Z');
+    expect((await progressOf([old, newer])).partOf).toBeNull();
+  });
+
+  test('a failed or running order run is not read; the newest completed one is', async () => {
+    const done = orderRun('o1', '48', '2026-11-16T00:00:00Z');
+    const failed = orderRun('o2', '50', '2026-11-17T00:00:00Z', 'failed');
+    const running = orderRun('o3', '51', '2026-11-18T00:00:00Z', 'running');
+    expect(factsOf(failed).partOf).toBeNull();
+    expect((await progressOf([done, failed, running])).partOf).toBe('48');
+  });
+
+  test('a value that is not a string is none', async () => {
+    expect(factsOf(orderRun('o1', 48, '2026-11-16T00:00:00Z')).partOf).toBeNull();
+  });
+
+  test('a view that declares no partOf reads none', () => {
+    const { partOf: _partOf, ...undeclared } = view;
+    const run = orderRun('o1', '48', '2026-11-16T00:00:00Z');
+    expect(factoryRunFacts(undeclared, PACK, run.run, run.events).partOf).toBeNull();
   });
 });
 
@@ -360,6 +430,7 @@ describe("an item's progress", () => {
           { iteration: 2, verdict: 'approved', outcome: 'approve' },
         ],
       },
+      partOf: null,
       returned: 2,
       change: { url: PR10, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 },
       // As the view declares each workflow, not as the runs record `owner/name:workflow`.
@@ -493,6 +564,10 @@ describe('the facts memo', () => {
     expect(factoryRunFacts(edited, PACK, deliver1.run, deliver1.events).returnCount).toBe(0);
     // An approval declared or withdrawn changes the rounds' verdicts too.
     expect(memo.get({ ...view, approves: [] }, PACK, deliver1.run)).toBeUndefined();
+    // So does where a result names the item's work order.
+    expect(
+      memo.get({ ...view, partOf: { workflow: 'order', pointer: '/order' } }, PACK, deliver1.run)
+    ).toBeUndefined();
   });
 
   test('is bounded, oldest out', () => {

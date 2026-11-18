@@ -368,6 +368,7 @@
   ],
   "approves": [{ "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" }],
   "change": { "workflow": "deliver", "pointer": "/change" },
+  "partOf": { "workflow": "order", "pointer": "/part_of" },
   "itemTitle": { "input": "item" },
   "steps": {
     "triage": {
