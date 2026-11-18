@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
+import { SHADOW_MEANS } from '../lib/shadows';
 import { ShadowBadge } from '../ShadowBadge';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
 
@@ -14,12 +15,13 @@ export function MapStageRow({
   stage,
   live,
   openTo,
-  shadow,
+  shadows,
 }: {
   stage: FactoryStage;
   live: StageRead;
   openTo: string;
-  shadow: boolean;
+  /** The stage's shadow steps with what each decided lately; empty when it holds none. */
+  shadows: readonly string[];
 }): ReactElement {
   return (
     <Link
@@ -35,7 +37,7 @@ export function MapStageRow({
         <span className="min-w-0 truncate text-console-13 font-medium text-text-primary">
           {stage.label}
         </span>
-        {shadow ? <ShadowBadge className="leading-4" /> : null}
+        <MapShadowBadge lines={shadows} />
         <span className="ml-auto flex">
           <HereChip live={live} />
         </span>
@@ -51,4 +53,16 @@ export function MapStageRow({
       </span>
     </Link>
   );
+}
+
+/**
+ * The shadow badge beside a stage's name on the map (rule 10). It marks a step of the stage,
+ * not the stage, so its hover names each shadow step and what it decided lately; the stage's
+ * details list the same lines.
+ */
+export function MapShadowBadge({ lines }: { lines: readonly string[] }): ReactElement | null {
+  if (lines.length === 0) return null;
+  // The legend's words first ("shadow: decides ..."), then one line per shadow step.
+  const title = [`shadow: ${SHADOW_MEANS}`, ...lines].join('\n');
+  return <ShadowBadge className="leading-4" title={title} />;
 }

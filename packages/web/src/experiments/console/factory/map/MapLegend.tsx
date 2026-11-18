@@ -1,15 +1,24 @@
 import type { ReactElement } from 'react';
 import { BACK, BACK_DASH, LINE, STROKE } from '../canvas-lines';
 import type { ColumnTone } from '../lib/board-columns';
+import { SHADOW_MEANS } from '../lib/shadows';
+import { ShadowBadge } from '../ShadowBadge';
 import { TONES } from '../tones';
 
 const ITEM = 'flex items-center gap-1.5 text-console-12 text-text-secondary';
 
 /**
  * The colour groups the map's cards are in, named in plain words in the order work reaches
- * them, and what each kind of line means, each drawn as the map draws it.
+ * them, what each kind of line means, each drawn as the map draws it, and the shadow badge
+ * when a stage holds a shadow step.
  */
-export function MapLegend({ tones }: { tones: readonly ColumnTone[] }): ReactElement {
+export function MapLegend({
+  tones,
+  shadow,
+}: {
+  tones: readonly ColumnTone[];
+  shadow: boolean;
+}): ReactElement {
   const shown = [...new Set(tones)];
   return (
     <div className="flex flex-col gap-1">
@@ -55,6 +64,12 @@ export function MapLegend({ tones }: { tones: readonly ColumnTone[] }): ReactEle
           />
           A dot moves along a line while a run works an item there
         </li>
+        {shadow ? (
+          <li className={ITEM}>
+            <ShadowBadge />
+            {`A step that ${SHADOW_MEANS}; hover it for which and what it decided`}
+          </li>
+        ) : null}
       </ul>
     </div>
   );

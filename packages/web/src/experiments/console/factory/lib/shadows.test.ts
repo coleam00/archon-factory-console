@@ -1,13 +1,15 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
-import { PAGE, VIEW, realItem } from './board.test-fixtures';
+import { endLastRun, keepRuns, PAGE, VIEW, realItem } from './board.test-fixtures';
+import { pageItemColumn } from './placement';
 import {
   boardShadowLine,
   cardShadows,
   recentTally,
   shadowOf,
   shadowWords,
-  stageHoldsShadow,
+  stageShadowLines,
+  stageShadows,
   type FactoryShadow,
   type ShadowDecision,
 } from './shadows';
@@ -150,8 +152,20 @@ describe('where the shipped view holds shadows', () => {
 
   test('the stages holding one: triage, checks and ready to merge', () => {
     expect(
-      VIEW.stages.filter(stage => stageHoldsShadow(stage, VIEW)).map(stage => stage.id)
+      VIEW.stages.filter(stage => stageShadows(stage, VIEW).length > 0).map(stage => stage.id)
     ).toEqual(['triage', 'checks', 'ready']);
+  });
+
+  test("the map's lines for a stage: each shadow step's label and what it decided lately", () => {
+    const checks = VIEW.stages.find(stage => stage.id === 'checks');
+    if (checks === undefined) throw new Error('the shipped view has a checks stage');
+    expect(stageShadowLines(checks, VIEW, [idleWithEveryDecision()])).toEqual([
+      'Project checks · last 1: all passed ×1',
+    ]);
+    expect(stageShadowLines(checks, VIEW, [])).toEqual(['Project checks · nothing decided yet']);
+    const plan = VIEW.stages.find(stage => stage.id === 'plan');
+    if (plan === undefined) throw new Error('the shipped view has a plan stage');
+    expect(stageShadowLines(plan, VIEW, [idleWithEveryDecision()])).toEqual([]);
   });
 });
 
@@ -183,7 +197,7 @@ function idleWithEveryDecision(): FactoryItem {
 }
 
 describe('boardShadowLine', () => {
-  test('on the shipped view, only Ready to merge shows a line', () => {
+  test("each stage shows its own workflows' newest verdict decision; others none", () => {
     const item = idleWithEveryDecision();
     const lines = VIEW.stages.map(stage => [
       stage.id,
@@ -199,10 +213,19 @@ describe('boardShadowLine', () => {
       ['ready', 'would ask you first'],
       ['landed', null],
     ]);
-    // So in practice only Ready to merge: an idle item waits in triage only before its triage
-    // run decides anything, since no triage outcome places an item back in triage.
-    const intoTriage = Object.entries(VIEW.placement).filter(([, stage]) => stage === 'triage');
-    expect(intoTriage.map(([key]) => key)).toEqual(['order:ready']);
+  });
+
+  test('a triage run that failed after admit decided places the card in Triage, with that line', () => {
+    const real = realItem('5');
+    const triageAt = real.runs.findIndex(run => run.workflow.endsWith(':triage'));
+    if (triageAt === -1) throw new Error('fixture item 5 has a triage run');
+    const item = endLastRun(keepRuns(real, triageAt + 1), 'failed', null, 'admitted');
+    if (item.progress === null) throw new Error('unreachable');
+    item.progress.shadows = [decision('triage', 'admit', verdict('auto'))];
+    const column = pageItemColumn(VIEW, item);
+    const stage = column !== null && 'stage' in column ? column.stage : null;
+    expect(stage?.id).toBe('triage');
+    expect(boardShadowLine(item, stage, VIEW)?.line).toBe('would start on its own');
   });
 
   test('an item a run works now shows none, nor does one without progress', () => {

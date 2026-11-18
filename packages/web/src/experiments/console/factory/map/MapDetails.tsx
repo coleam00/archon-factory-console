@@ -3,7 +3,9 @@ import { Link } from 'react-router';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { StageRead } from '../lib/map-live';
+import { SHADOW_MEANS } from '../lib/shadows';
 import { runLine } from '../lib/step-label';
+import { ShadowBadge } from '../ShadowBadge';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -14,6 +16,8 @@ interface StageDetails {
   live: StageRead;
   /** Notes the declaration places by the stage. */
   notes: readonly string[];
+  /** Its shadow steps with what each decided lately (`stageShadowLines`); empty when none. */
+  shadows: readonly string[];
 }
 
 interface MapDetailsProps {
@@ -83,7 +87,7 @@ function StageSection({
   entry: StageDetails;
   named: boolean;
 }): ReactElement {
-  const { stage, live, notes } = entry;
+  const { stage, live, notes, shadows } = entry;
   const stagePath = factoryPath(projectId, `/stages/${encodeURIComponent(stage.id)}`);
   return (
     <section aria-label={stage.label} className="flex flex-col gap-3">
@@ -101,6 +105,7 @@ function StageSection({
           {note}
         </p>
       ))}
+      <ShadowSteps lines={shadows} />
       <ItemsHere projectId={projectId} view={view} stage={stage} live={live} />
       <section className="flex flex-col gap-1.5">
         <h6 className={HEADING}>Workflows</h6>
@@ -121,6 +126,26 @@ function StageSection({
           </ul>
         )}
       </section>
+    </section>
+  );
+}
+
+/** The stage's shadow steps (rule 10): each step's label and what it decided lately. */
+function ShadowSteps({ lines }: { lines: readonly string[] }): ReactElement | null {
+  if (lines.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-1.5">
+      <h6 className={`${HEADING} flex items-center gap-2`}>
+        Shadow steps <ShadowBadge className="normal-case tracking-normal" />
+      </h6>
+      <p className="text-console-13 text-text-tertiary">{`Each ${SHADOW_MEANS}.`}</p>
+      <ul className="flex flex-col gap-1">
+        {lines.map(line => (
+          <li key={line} className="text-console-13 text-text-tertiary">
+            {line}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

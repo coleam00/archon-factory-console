@@ -703,12 +703,19 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   now for any item glows, and above the graph each item running the workflow is named, linking
   to its item page. Clicking a step opens the step page.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
-  its blurb, the notes the view file places by it, the items in it (linking to each item), and
-  the workflows behind it with links to their steps.
+  its blurb, the notes the view file places by it, its shadow steps (below), the items in it
+  (linking to each item), and the workflows behind it with links to their steps.
+- A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
+  rule 10's badge beside its name. The badge marks a step of the stage, not the stage, so it
+  says which: its hover, and the stage's details under "Shadow steps", give one line per
+  shadow step with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  "nothing decided yet".
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
   "Merged"), and draws each kind of line as the map does: solid, "Hands the item on"; dashed,
   "Sends it back, labelled where it returns to"; the running dot, "A dot moves along a line
-  while a run works an item there".
+  while a run works an item there". When a stage holds a shadow step, it shows the badge: "A
+  step that decides what it would do and does nothing; hover it for which and what it
+  decided".
 
 ## The board
 
@@ -746,8 +753,9 @@ A card, in this order:
    (`/console/p/:projectId/r/:runId`); the step's engine id shows on hover. Otherwise the label
    of the stage it waits in ("Plan", "CI and review"). Under it, on an item no run works, the
    shadow line (rule 10): the badge and what the newest decision of a verdict shadow its stage's
-   workflows declare would do ("would ask you first"), its why on hover. For this pack only Ready
-   to merge shows one, from the land gate (#80).
+   workflows declare would do ("would ask you first"), its why on hover. For this pack it shows
+   in Ready to merge, from the land gate, and in Triage on an item whose triage run failed after
+   admit or split decided, from that decision (#80).
 4. "part of <order>" when the item is a member of a work order (see Work orders).
 5. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),

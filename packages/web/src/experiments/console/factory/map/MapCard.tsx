@@ -5,8 +5,7 @@ import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { TONES } from '../tones';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
-import { ShadowBadge } from '../ShadowBadge';
-import { MapStageRow } from './MapStageRow';
+import { MapShadowBadge, MapStageRow } from './MapStageRow';
 
 interface MapCardProps {
   card: PlacedCard;
@@ -22,8 +21,11 @@ interface MapCardProps {
   stagePath: (stage: string) => string;
   /** The details button: the map shows or hides this card's details panel. */
   onDetails: (card: string) => void;
-  /** Whether a stage holds a shadow step (`stageHoldsShadow`): its name carries the badge. */
-  shadow: (stage: FactoryStage) => boolean;
+  /**
+   * A stage's shadow steps, each with what it decided lately (`stageShadowLines`): its name
+   * carries the badge, which says them on hover. Empty when it holds none.
+   */
+  shadows: (stage: FactoryStage) => readonly string[];
 }
 
 /** The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. */
@@ -43,7 +45,7 @@ export function MapCard({
   selected,
   stagePath,
   onDetails,
-  shadow,
+  shadows,
 }: MapCardProps): ReactElement {
   const border = selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border';
   const [only] = stages;
@@ -74,7 +76,7 @@ export function MapCard({
           draggable={false}
           className={`${BOX} ${HOVER} ${border}`}
         >
-          {body(<OneStage stage={only} live={live(only.id)} shadow={shadow(only)} />)}
+          {body(<OneStage stage={only} live={live(only.id)} shadows={shadows(only)} />)}
         </Link>
       ) : (
         <div className={`${BOX} ${HOVER} ${border}`}>
@@ -92,7 +94,7 @@ export function MapCard({
                   stage={stage}
                   live={live(stage.id)}
                   openTo={stagePath(stage.id)}
-                  shadow={shadow(stage)}
+                  shadows={shadows(stage)}
                 />
               ))}
             </>
@@ -136,11 +138,11 @@ function KindRow({ card }: { card: PlacedCard }): ReactElement {
 function OneStage({
   stage,
   live,
-  shadow,
+  shadows,
 }: {
   stage: FactoryStage;
   live: StageRead;
-  shadow: boolean;
+  shadows: readonly string[];
 }): ReactElement {
   return (
     <>
@@ -148,7 +150,7 @@ function OneStage({
         <span className="line-clamp-2 min-w-0 text-console-15 font-semibold leading-5 text-text-primary">
           {stage.label}
         </span>
-        {shadow ? <ShadowBadge className="leading-4" /> : null}
+        <MapShadowBadge lines={shadows} />
       </span>
       <span className="line-clamp-2 text-console-13 leading-4.5 text-text-secondary">
         {stage.short ?? stage.blurb}

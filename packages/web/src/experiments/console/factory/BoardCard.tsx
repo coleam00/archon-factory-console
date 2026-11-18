@@ -202,7 +202,7 @@ function ShadowLine({ shadow }: { shadow: NonNullable<BoardCardFields['shadow']>
     <span
       data-shadow-line="true"
       title={shadow.detail ?? undefined}
-      className="flex min-w-0 items-baseline gap-1.5 text-console-12 text-text-tertiary"
+      className="flex min-w-0 items-baseline gap-1.5 text-console-13 text-text-tertiary"
     >
       <ShadowBadge />
       <span className={`truncate ${shadow.mono ? 'font-mono' : ''}`}>{shadow.line}</span>

@@ -110,15 +110,31 @@ export function cardShadows(card: DrilldownCard, view: Declaration): FactoryShad
 }
 
 /**
- * Whether a stage holds a shadow step: one of its drill-down's cards covers one. Read from
- * the drill-down alone, so a step belongs to the stage whose card covers it, as the
- * coverage check holds each real step to one card.
+ * The shadow steps a stage holds: those its drill-down's cards cover. Read from the drill-down
+ * alone, so a step belongs to the stage whose card covers it, as the coverage check holds each
+ * real step to one card.
  */
-export function stageHoldsShadow(stage: FactoryStage, view: Declaration): boolean {
-  return (
-    stage.drilldown?.phases.some(phase =>
-      phase.cards.some(card => cardShadows(card, view).length > 0)
-    ) ?? false
+export function stageShadows(stage: FactoryStage, view: Declaration): FactoryShadow[] {
+  return (stage.drilldown?.phases ?? []).flatMap(phase =>
+    phase.cards.flatMap(card => cardShadows(card, view))
+  );
+}
+
+/** What a shadow badge marks, said once wherever it needs saying. */
+export const SHADOW_MEANS = 'decides what it would do and does nothing';
+
+/**
+ * A stage's shadow steps as the map says them, one line each: the step's label and what it
+ * decided lately ("Project checks · last 5: all passed ×5"), or that it has decided nothing
+ * yet. Empty when the stage holds none.
+ */
+export function stageShadowLines(
+  stage: FactoryStage,
+  view: Declaration,
+  items: readonly FactoryItem[]
+): string[] {
+  return stageShadows(stage, view).map(
+    shadow => `${shadow.label} · ${recentTally(items, shadow) ?? 'nothing decided yet'}`
   );
 }
 

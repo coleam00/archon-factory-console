@@ -9,9 +9,11 @@ import { cardFields } from './lib/board';
 import { VIEW, realItem } from './lib/board.test-fixtures';
 import { EMPTY_STAGE_LIVE } from './lib/map-live';
 import { layoutMap } from './lib/map-layout';
-import { stageHoldsShadow, type ShadowDecision } from './lib/shadows';
+import type { ShadowDecision } from './lib/shadows';
 import { buildTimeline } from './lib/timeline';
 import { MapCard } from './map/MapCard';
+import { MapDetails } from './map/MapDetails';
+import { MapLegend } from './map/MapLegend';
 import { DrilldownCard } from './stage/DrilldownCard';
 import type { BoardAsks } from './useBoardAsks';
 
@@ -177,6 +179,8 @@ describe('a board card in Ready to merge', () => {
     const line = page.querySelector('[data-shadow-line]');
     expect(line?.textContent).toBe('shadowwould ask you first');
     expect(line?.getAttribute('title')).toBe('Nothing shows the operator looked at it.');
+    // Rule 10: a shadow line reads at the 13 px meta size; the badge keeps its own 12.
+    expect(line?.className).toContain('text-console-13');
     expect(line?.outerHTML).not.toMatch(STATE_COLOUR);
   });
 });
@@ -184,8 +188,11 @@ describe('a board card in Ready to merge', () => {
 describe('the map', () => {
   const layout = layoutMap(shippedView);
 
-  test('a stage holding a shadow step carries the badge by its name; no line is added', async () => {
+  test('a stage holding a shadow step carries the badge by its name, saying it on hover', async () => {
+    const lines = (stage: { id: string }): string[] =>
+      stage.id === 'checks' ? ['Project checks · last 5: all passed ×5'] : [];
     const marked: string[] = [];
+    const titles: (string | null)[] = [];
     for (const card of layout.cards) {
       const stages = card.stages.flatMap(id => shippedView.stages.filter(stage => stage.id === id));
       const page = await render(
@@ -196,14 +203,52 @@ describe('the map', () => {
           selected={false}
           stagePath={stage => `/s/${stage}`}
           onDetails={() => undefined}
-          shadow={stage => stageHoldsShadow(stage, shippedView)}
+          shadows={lines}
         />
       );
-      for (const badge of page.querySelectorAll('[data-shadow-badge]'))
+      for (const badge of page.querySelectorAll('[data-shadow-badge]')) {
         marked.push(badge.closest('[data-stage]')?.getAttribute('data-stage') ?? card.id);
+        titles.push(badge.getAttribute('title'));
+      }
     }
-    expect(marked).toEqual(['triage', 'checks', 'ready']);
+    expect(marked).toEqual(['checks']);
+    expect(titles).toEqual([
+      'shadow: decides what it would do and does nothing\nProject checks · last 5: all passed ×5',
+    ]);
     // The map's lines are the declared arrows only: declaring shadows changes none of them.
     expect(layout).toEqual(layoutMap({ ...shippedView, shadows: undefined }));
+  });
+});
+
+describe("the map's details and legend", () => {
+  test("a stage's details list its shadow steps; the legend says what the badge means", async () => {
+    const checks = shippedView.stages.find(stage => stage.id === 'checks');
+    if (checks === undefined) throw new Error('the shipped view has a checks stage');
+    const details = await render(
+      <MapDetails
+        projectId={PROJECT}
+        view={shippedView}
+        title="Checks & review"
+        stages={[
+          {
+            stage: checks,
+            live: EMPTY_STAGE_LIVE,
+            notes: [],
+            shadows: ['Project checks · last 5: all passed ×5'],
+          },
+        ]}
+        onClose={() => undefined}
+      />
+    );
+    expect(details.textContent).toContain('Shadow steps');
+    expect(details.textContent).toContain('Each decides what it would do and does nothing.');
+    expect(details.textContent).toContain('Project checks · last 5: all passed ×5');
+    expect(details.innerHTML).not.toMatch(STATE_COLOUR);
+    const legend = await render(<MapLegend tones={['check']} shadow />);
+    expect(legend.querySelector('[data-shadow-badge]')?.parentElement?.textContent).toBe(
+      'shadowA step that decides what it would do and does nothing; hover it for which and what it decided'
+    );
+    const plain = await render(<MapLegend tones={['check']} shadow={false} />);
+    expect(plain.querySelector('[data-shadow-badge]')).toBeNull();
   });
 });

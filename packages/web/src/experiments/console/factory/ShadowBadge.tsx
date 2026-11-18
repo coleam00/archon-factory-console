@@ -5,10 +5,18 @@ import type { ReactElement } from 'react';
  * decides what it would file, a setting whose stage runs as a shadow, a shadow step's
  * decision). A dashed `--node-opaque` outline and text, no fill, never a state colour.
  */
-export function ShadowBadge({ className = '' }: { className?: string }): ReactElement {
+export function ShadowBadge({
+  className = '',
+  title,
+}: {
+  className?: string;
+  /** Hover text: what it marks and what that would do. */
+  title?: string;
+}): ReactElement {
   return (
     <span
       data-shadow-badge="true"
+      title={title}
       className={`shrink-0 rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)] ${className}`}
     >
       shadow

@@ -188,7 +188,7 @@ describe('no raw step id where a person reads', () => {
           projectId={ID}
           view={VIEW}
           title="Checks & review"
-          stages={[{ stage: checks, live, notes: [] }]}
+          stages={[{ stage: checks, live, notes: [], shadows: [] }]}
           onClose={() => undefined}
         />
       </MemoryRouter>
