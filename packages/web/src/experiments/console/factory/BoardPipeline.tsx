@@ -50,6 +50,7 @@ export function BoardPipeline({
   moved,
   lit = null,
   now,
+  filtered = false,
 }: {
   projectId: string;
   model: BoardModel;
@@ -58,6 +59,8 @@ export function BoardPipeline({
   lit?: ReadonlySet<string> | null;
   /** The time the Merged column's window counts back from. */
   now: Date;
+  /** The filter box or `?show=` narrows the cards this model holds. */
+  filtered?: boolean;
 }): ReactElement {
   const scroller = useRef<HTMLDivElement>(null);
   const shown = useShownColumns(
@@ -85,6 +88,7 @@ export function BoardPipeline({
             projectId={projectId}
             column={column}
             merged={column.id === model.landedColumn ? mergedWindow(column.cards, now) : undefined}
+            filtered={filtered}
             moved={moved}
             lit={lit}
           />

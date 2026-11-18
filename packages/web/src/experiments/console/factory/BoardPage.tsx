@@ -155,6 +155,7 @@ export function Board({
         orders={orders}
         lit={params.get(ORDER_PARAM)}
         now={now ?? new Date()}
+        filtered={query.trim() !== '' || show !== undefined}
       />
     </div>
   );
@@ -169,6 +170,7 @@ function BoardBody({
   orders,
   lit,
   now,
+  filtered,
 }: {
   projectId: string;
   read: ReturnType<typeof useFactoryItemsRead>;
@@ -179,6 +181,7 @@ function BoardBody({
   /** The work order `?order=` lights; null when none. */
   lit: string | null;
   now: Date;
+  filtered: boolean;
 }): ReactElement {
   if (model === undefined) {
     const failed = readFailed(read.error);
@@ -204,6 +207,7 @@ function BoardBody({
             moved={moved}
             lit={highlightedKeys(orders.find(order => order.key === lit))}
             now={now}
+            filtered={filtered}
           />
         </>
       )}

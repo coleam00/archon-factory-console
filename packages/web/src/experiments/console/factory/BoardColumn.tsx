@@ -46,11 +46,14 @@ export function BoardColumn({
   projectId,
   column,
   merged,
+  filtered,
   moved,
   lit,
 }: {
   projectId: string;
   column: BoardColumnModel;
+  /** The filter box or `?show=` narrows the board: an empty column may hold work. */
+  filtered: boolean;
   /** For the Merged column: its window (`mergedWindow`). Undefined for every other column. */
   merged?: { recent: PlacedCard[]; earlier: number };
   moved: ReadonlySet<string>;
@@ -87,7 +90,7 @@ export function BoardColumn({
             // Not known yet: rule 6's loading shape, never an empty state that may be false.
             <CardSkeletons />
           ) : (
-            <EmptyColumn label={column.label} />
+            <EmptyColumn sentence={emptySentence(column.label, filtered, merged?.earlier ?? 0)} />
           )}
           {cards.map(({ card }, index) => {
             const props = {
@@ -166,12 +169,22 @@ function CardSkeletons(): ReactElement {
   );
 }
 
+/**
+ * Why a column shows no card, so the sentence is true: the cards it is given may be narrowed
+ * by a filter or, for Merged, by the 7-day window, and only then is the column itself empty.
+ */
+export function emptySentence(label: string, filtered: boolean, earlier: number): string {
+  if (filtered) return 'No card here matches the filter';
+  if (earlier > 0) return 'Nothing merged in the last 7 days';
+  return `Nothing in ${label} now`;
+}
+
 /** Rule 9's empty-column placeholder, holding rule 6's empty state. */
-function EmptyColumn({ label }: { label: string }): ReactElement {
+function EmptyColumn({ sentence }: { sentence: string }): ReactElement {
   return (
     <div className="flex h-24 shrink-0 flex-col items-center justify-center gap-2 rounded-console-12 border border-dashed border-border px-3 text-center">
       <Inbox aria-hidden="true" className="size-5 text-text-tertiary" />
-      <p className="text-console-14 text-text-secondary">Nothing in {label} now</p>
+      <p className="text-console-14 text-text-secondary">{sentence}</p>
     </div>
   );
 }

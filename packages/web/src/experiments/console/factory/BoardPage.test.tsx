@@ -15,6 +15,7 @@ import {
   VIEW,
 } from './lib/board.test-fixtures';
 import { cancelRereads } from './merge-reread';
+import { formatDateTime } from '../lib/format';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -440,7 +441,15 @@ describe('the column headers and the Merged column', () => {
       expect(earlier?.getAttribute('href')).toBe(
         `/console/p/${ID}/factory/board?view=table&show=landed`
       );
-      // A merged card is compact: no round, no returned count.
+      // A merged card is compact: its change and when it merged, no round, no returned count.
+      const seven = [...(merged?.querySelectorAll('article') ?? [])].find(
+        article => article.querySelector('.font-mono')?.textContent === '7'
+      );
+      const change = realItem('7').progress!.change!;
+      expect(seven?.textContent).toContain(formatDateTime(change.mergedAt!));
+      expect(seven?.querySelector(`a[href="${change.url}"]`)?.textContent).toBe(
+        `PR #${String(change.number)}`
+      );
       expect(merged?.textContent).not.toContain('round');
       expect(merged?.textContent).not.toContain('returned');
     } finally {
@@ -452,6 +461,36 @@ describe('the column headers and the Merged column', () => {
     const { container, unmount } = await mount(PAGE.items);
     try {
       expect(columnNamed(container, 'Intake')?.textContent).toContain('Nothing in Intake now');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a column a filter empties says no card matches, never that it is empty', async () => {
+    // Plan & build holds 4 items; none needs you.
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?show=needs-you`
+    );
+    try {
+      const column = columnNamed(container, 'Plan & build')?.textContent ?? '';
+      expect(column).toContain('No card here matches the filter');
+      expect(column).not.toContain('Nothing in');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a Merged column with only older merges says none in the last 7 days', async () => {
+    const { container, unmount } = await mount([
+      mergedOn('old', new Date(2026, 10, 8, 9)),
+      mergedOn('older', new Date(2026, 9, 1)),
+    ]);
+    try {
+      const merged = columnNamed(container, 'Merged')?.textContent ?? '';
+      expect(merged).toContain('Nothing merged in the last 7 days');
+      expect(merged).not.toContain('Nothing in');
+      expect(merged).toContain('2 earlier');
     } finally {
       await unmount();
     }
@@ -540,4 +579,31 @@ describe('a column body', () => {
         else Reflect.deleteProperty(proto, key);
     }
   });
+});
+
+test("the Table puts each row's column and stage under the Column and Stage headers", async () => {
+  const { container, unmount } = await mount(
+    PAGE.items,
+    `/console/p/${ID}/factory/board?view=table`
+  );
+  try {
+    const headers = [...container.querySelectorAll('thead th')].map(th =>
+      (th.textContent ?? '').replace(/ [↑↓]$/, '')
+    );
+    const column = headers.indexOf('Column');
+    const stage = headers.indexOf('Stage');
+    expect(stage).toBe(column + 1);
+    const cells = (key: string): string[] =>
+      [
+        ...([...container.querySelectorAll('tbody tr')]
+          .find(row => row.querySelector('td')?.textContent === key)
+          ?.querySelectorAll('td') ?? []),
+      ].map(td => td.textContent ?? '');
+    expect([cells('7')[column], cells('7')[stage]]).toEqual(['Merged', 'Merged']);
+    expect([cells('8')[column], cells('8')[stage]]).toEqual(['Checks & review', 'Checks']);
+    // A cell after them still sits under its own header.
+    expect(cells('7')[headers.indexOf('State')]).toBe('Merged');
+  } finally {
+    await unmount();
+  }
 });
