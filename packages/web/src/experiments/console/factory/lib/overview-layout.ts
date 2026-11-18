@@ -73,10 +73,13 @@ export const OVERVIEW_FULL_LEGEND_H = 96;
  */
 export const OVERVIEW_PAGE_MAX_H = 640;
 
-/** A label pill's height, and its width for `text`: 12 px text, 6 px padding, a shadow badge. */
+/** A label pill's height, and its shadow badge's width and the room it takes at the pill's end. */
 export const PILL_H = 20;
+export const PILL_BADGE_W = 52;
+export const PILL_BADGE_ROOM = PILL_BADGE_W + 8;
+/** A pill's width for `text`: 12 px text, 6 px padding, and the badge's room on a shadow line's. */
 export function pillWidth(text: string, shadow: boolean): number {
-  return Math.ceil(text.length * 7 + 14 + (shadow ? 60 : 0));
+  return Math.ceil(text.length * 7 + 14 + (shadow ? PILL_BADGE_ROOM : 0));
 }
 /** How far a pill sits off the line it labels. */
 const PILL_GAP = 6;

@@ -3,6 +3,8 @@ import type { Box, Point } from '../lib/map-layout';
 import {
   OVERVIEW_SMALL_TEXT,
   type OverviewEdgePath,
+  PILL_BADGE_ROOM,
+  PILL_BADGE_W as BADGE_W,
   type OverviewFan,
 } from '../lib/overview-layout';
 
@@ -135,9 +137,6 @@ function EdgeLine({ edge, head }: { edge: OverviewEdgePath; head: boolean }): Re
   );
 }
 
-/** The width of a pill's shadow badge, and the badge's own box inside it. */
-const BADGE_W = 52;
-
 /** A line's label on a pill; a shadow line's pill ends in a "shadow" badge. */
 function EdgePill({
   pill,
@@ -148,7 +147,7 @@ function EdgePill({
   label: string;
   shadow: boolean;
 }): ReactElement {
-  const textW = shadow ? pill.w - BADGE_W - 8 : pill.w;
+  const textW = shadow ? pill.w - PILL_BADGE_ROOM : pill.w;
   const cy = pill.y + pill.h / 2;
   return (
     <g data-pill={label} className={OVERVIEW_SMALL_TEXT}>

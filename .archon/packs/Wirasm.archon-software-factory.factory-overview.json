@@ -162,7 +162,7 @@
         {
           "id": "triage-judge",
           "title": "Judge",
-          "text": "Decides what should happen, as the maintainers would",
+          "text": "Decides what happens, as maintainers would",
           "icon": "scale",
           "kind": "stage",
           "col": 2,
