@@ -14,7 +14,13 @@ import { useFactoryViews } from '../factory/useFactoryViews';
 import { groupBySubject } from '../lib/ask-card';
 import { askNaming, itemTitles, type AskNaming } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
-import { needsYou, needsYouCount, needsYouItemCount, type NeedsYouItem } from '../lib/needs-you';
+import {
+  needsYou,
+  needsYouCount,
+  needsYouSubjectWords,
+  needsYouSubjects,
+  type NeedsYouItem,
+} from '../lib/needs-you';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
@@ -76,16 +82,14 @@ function Heading({ queue }: { queue: AttentionQueue | undefined }): ReactElement
       </div>
     );
   const count = needsYouCount(queue);
-  const items = needsYouItemCount(needsYou(queue.items));
+  const subjects = needsYouSubjects(needsYou(queue.items));
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-console-22 font-semibold tracking-console-heading text-text-primary">
         {count === 1 ? '1 thing needs you' : `${count.toString()} things need you`}
       </h2>
       {count === 0 ? null : (
-        <p className="text-console-13 text-text-tertiary">
-          {items === 1 ? 'on 1 item' : `on ${items.toString()} items`}
-        </p>
+        <p className="text-console-13 text-text-tertiary">{needsYouSubjectWords(subjects)}</p>
       )}
     </div>
   );

@@ -30,11 +30,15 @@ export function askNaming(
   return {
     subject: ask => {
       const href = runHref(ask);
-      if (ask.item === undefined)
+      // A wait no item holds is on a run: named as that run, so the workflow (`where`) is
+      // named once, and a run never reads as an item.
+      if (ask.item === undefined) {
+        const runId = askRunId(ask);
         return {
-          key: shortWorkflow(askWorkflow(ask) ?? 'run'),
+          key: runId === undefined ? 'A run' : `Run ${runId.slice(0, 8)}`,
           ...(href === undefined ? {} : { href }),
         };
+      }
       const key = ask.item.key;
       const title = titles.get(key);
       const itemHref =

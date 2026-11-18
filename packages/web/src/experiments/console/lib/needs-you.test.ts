@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { askItem, gateItem, usageLimitItem } from './needs-you.test-fixtures';
-import { needsYou, needsYouCount, needsYouItemCount, needsYouPath } from './needs-you';
+import {
+  needsYou,
+  needsYouCount,
+  needsYouPath,
+  needsYouSubjectWords,
+  needsYouSubjects,
+} from './needs-you';
 
 describe('needsYou', () => {
   test('orders newest first, untimed waits last in server order, and drops usage limits', () => {
@@ -29,7 +35,7 @@ describe('needsYou', () => {
   });
 });
 
-describe('needsYouCount and needsYouItemCount', () => {
+describe('needsYouCount and needsYouSubjects', () => {
   test('count asks and waits, not usage limits; items once each, item-less waits by run', () => {
     const items = [
       askItem({ ref: 'ask:1' }),
@@ -40,8 +46,12 @@ describe('needsYouCount and needsYouItemCount', () => {
       usageLimitItem(),
     ];
     expect(needsYouCount({ items })).toBe(5);
-    // #7 (two asks), #9, and the one gate run holding both waits.
-    expect(needsYouItemCount(needsYou(items))).toBe(3);
+    // #7 (two asks) and #9 are items; the one gate run holding both waits is a run, not an item.
+    const subjects = needsYouSubjects(needsYou(items));
+    expect(subjects).toEqual({ items: 2, runs: 1 });
+    expect(needsYouSubjectWords(subjects)).toBe('on 2 items and 1 run');
+    expect(needsYouSubjectWords({ items: 0, runs: 1 })).toBe('on 1 run');
+    expect(needsYouSubjectWords({ items: 1, runs: 0 })).toBe('on 1 item');
   });
 
   test('the tab path carries the ask it brings forward, encoded', () => {

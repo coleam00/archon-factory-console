@@ -85,17 +85,28 @@ describe('the Needs you tab', () => {
     const text = words(render(none, busy));
     // Three asks and a gate; the usage limit retries by itself.
     expect(text).toContain('4 things need you');
-    expect(text).toContain('on 3 items');
+    // Two items, and the gate's run, which no item holds: a run, not an item.
+    expect(text).toContain('on 2 items and 1 run');
   });
 
-  test('the badge is hidden at zero', () => {
-    expect(render(none, quiet)).not.toContain('waiting"');
+  test('a wait on a run no item holds: counted and named as a run, its workflow named once', () => {
+    const html = render(none, { items: [gateItem({ ref: 'gate:1' })], runs: [], degraded: [] });
+    const text = words(html);
+    expect(text).toContain('1 thing needs you');
+    expect(text).toContain('on 1 run');
+    expect(text).not.toContain('item');
+    // The group's own text, after its opening tag: the heading names the run, the card its workflow.
+    const start = html.indexOf('aria-label="Asks on Run run-gate"');
+    expect(start).toBeGreaterThan(-1);
+    const group = words(html.slice(html.indexOf('>', start) + 1));
+    expect(group.match(/deliver/g)).toHaveLength(1);
+    expect(group).toContain('Run run-gate');
   });
 
   test("an item's asks sit together under it, newest first; without a view an item links to its run", () => {
     const html = render(none, busy);
     const groups = [...html.matchAll(/aria-label="Asks on ([^"]+)"/g)].map(match => match[1]);
-    expect(groups).toEqual(['#7', '#9', 'deliver']);
+    expect(groups).toEqual(['#7', '#9', 'Run run-gate']);
     const seventh = html.slice(html.indexOf('Asks on #7'), html.indexOf('Asks on #9'));
     expect(seventh.indexOf('Which base should the change target?')).toBeLessThan(
       seventh.indexOf('Rebase?')

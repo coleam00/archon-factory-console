@@ -10,7 +10,7 @@ import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from '../skills/factory';
 import { PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
-import { askItem } from '../lib/needs-you.test-fixtures';
+import { askItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
 import { OVERVIEW } from './lib/overview.test-fixtures';
 
 const ID = 'cb-1';
@@ -158,6 +158,20 @@ describe('the Overview', () => {
       'Needs you',
       'Needs you',
     ]);
+  });
+
+  test('the tab, the sub-navigation and the Overview number read one count: asks and waits', () => {
+    // Two asks on one item (#7) and a usage limit: 2 asks and waits, 3 queue items, 1 item.
+    const queue: AttentionQueue = {
+      items: [askItem({ ref: 'ask:a' }), askItem({ ref: 'ask:b' }), usageLimitItem()],
+      runs: [],
+      degraded: [],
+    };
+    const html = render(`/console/p/${ID}/factory`, withView, queue);
+    const badges = [...html.matchAll(/aria-label="(\d+) waiting"/g)].map(match => match[1]);
+    expect(badges).toEqual(['2', '2']);
+    const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
+    expect(strip.replace(/<[^>]*>/g, '')).toContain('2need you');
   });
 
   test('shows the summary only on the Overview; other pages show the title alone', () => {

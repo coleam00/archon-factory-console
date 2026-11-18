@@ -53,16 +53,30 @@ export function needsYouCount(queue: Pick<AttentionQueue, 'items'>): number {
 }
 
 /**
- * How many items the asks and waits sit on: each item once, and each wait no item holds
- * once by its run (a run with several waits counts once).
+ * What the asks and waits sit on: how many items (each once), and how many runs that hold a
+ * wait no item holds (each run once). A run with no item is a run, never counted as an item.
  */
-export function needsYouItemCount(items: readonly NeedsYouItem[]): number {
-  const subjects = new Set(
-    items.map(entry =>
-      entry.item !== undefined ? `item:${entry.item.id}` : `run:${entry.run?.id ?? entry.ref}`
-    )
-  );
-  return subjects.size;
+export function needsYouSubjects(entries: readonly NeedsYouItem[]): {
+  items: number;
+  runs: number;
+} {
+  const items = new Set<string>();
+  const runs = new Set<string>();
+  for (const entry of entries) {
+    if (entry.item !== undefined) items.add(entry.item.id);
+    else runs.add(entry.run?.id ?? entry.ref);
+  }
+  return { items: items.size, runs: runs.size };
+}
+
+/** "on 2 items and 1 run": the Needs you heading's line, naming items and item-less runs apart. */
+export function needsYouSubjectWords({ items, runs }: { items: number; runs: number }): string {
+  const count = (n: number, word: string): string => `${n.toString()} ${word}${n === 1 ? '' : 's'}`;
+  const parts = [
+    ...(items > 0 ? [count(items, 'item')] : []),
+    ...(runs > 0 ? [count(runs, 'run')] : []),
+  ];
+  return `on ${parts.join(' and ')}`;
 }
 
 /** The project's Needs you tab; `ask` names one ask (by its ref) for the page to bring forward. */
