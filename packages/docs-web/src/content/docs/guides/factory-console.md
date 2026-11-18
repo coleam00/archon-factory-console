@@ -42,10 +42,19 @@ it. Inside it:
 - **Board**: one column per declared stage, each item one card in the column of the stage it
   is in. A card shows the item's state (Running, Needs you, Failed, Waiting, Landed), the
   round it is on, the stage and step running now ("Checks · Code review · round 2"), how often
-  checks sent it back, and its pull request.
-  A **Table** view lists the same fields as sortable columns.
+  checks sent it back, its pull request, and the work order it is part of.
+  A **Table** view lists the same fields as sortable columns. The filter box finds an item by
+  key, title or the key of its work order.
+  A **work order** is an item other items are `part_of`. An item's order is its active `part_of`
+  link (`archon workflow link --item <member> --kind part_of --to <order>`), else the order its
+  latest completed run of the `partOf` workflow named; a link wins. Above the columns, one row
+  per order says how many of its members landed, shows each member's state as a dot, and lights
+  its members on the board on demand; a member's "part of" chip does the same. An order with no
+  run of its own is not a card and counts in no number. The console shows links; it never
+  records or ends one.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
-  other items, and the rulings and answers given on it. The timeline words an outcome from the
+  other items (on a work order, its members with their state and how many landed), and the
+  rulings and answers given on it. The timeline words an outcome from the
   declaration: a run outcome in `placement` reads as where it sent the item ("sent to Plan"),
   one in `endings` as its label, and a step outcome in `returns` or `approves` as "returned" or
   "approved". An outcome the declaration does not map shows as the pack's own name for it.
@@ -126,6 +135,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `returns` | no | Steps whose outcome sends an item back: each `{ "workflow", "node", "outcome" }`. The board counts them as "returned ×N" and colours that round returned. |
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
+| `partOf` | no | `{ "workflow", "pointer" }`: the JSON pointer to the item's work order (an item key) in that workflow's result. Read only for an item with no active `part_of` link; the newest completed run decides, and an empty value there means none. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step names nothing a page shows; the coverage check reports it. |
 | `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to`, an optional `label`, and `person: true` for a step a person takes, such as a replan, that no hand-off of the pack starts; an arrow into its own stage or an earlier one in `stages` order is a send-back, and a `back` flag an older file has is accepted and ignored), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
