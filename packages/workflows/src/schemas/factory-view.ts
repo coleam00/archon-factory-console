@@ -241,13 +241,16 @@ const factoryViewShape = z.strictObject({
     .optional(),
   /**
    * Where a run's result names the item's work order (an item key), as a JSON pointer: read
-   * when the item has no active `part_of` link, which wins when both exist. The latest
-   * completed run of `workflow` decides; an empty value there means none.
+   * when the item has no active `part_of` link, which wins when both exist. Only a run of
+   * `workflow` that completed with `outcome` (the one that accepts the item) counts; the
+   * newest such run decides, and an empty value there means none. A run that completed with
+   * any other outcome (a refusal) never makes the item a member.
    */
   partOf: z
     .strictObject({
       workflow: workflowNameSchema,
       pointer: jsonPointerSchema,
+      outcome: z.string().min(1),
     })
     .optional(),
   /** The run input whose title line (after any front matter) is the item's title. */

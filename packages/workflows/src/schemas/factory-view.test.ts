@@ -200,7 +200,10 @@ describe('factoryViewSchema', () => {
 
   test('a partOf naming a workflow no stage lists is rejected', () => {
     expect(
-      issuePaths({ ...minimal(), partOf: { workflow: 'order', pointer: '/part_of' } })
+      issuePaths({
+        ...minimal(),
+        partOf: { workflow: 'order', pointer: '/part_of', outcome: 'ready' },
+      })
     ).toEqual(['partOf.workflow']);
   });
 

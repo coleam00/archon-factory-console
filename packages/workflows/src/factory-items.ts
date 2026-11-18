@@ -26,7 +26,7 @@ import { startCauseSchema } from './schemas/resource-start';
 import { parseRunUsage } from './schemas/run-usage';
 import { isTerminalRunStatus } from './schemas/run-status';
 import type { WorkflowEventRow } from './schemas/workflow-event';
-import type { WorkflowRun } from './schemas/workflow-run';
+import { displayedRunOutcome, type WorkflowRun } from './schemas/workflow-run';
 import {
   foldActiveNodeIds,
   NODE_STATE_EVENT_TYPES,
@@ -102,8 +102,9 @@ export const factoryItemProgressSchema = z.object({
     })
     .nullable(),
   /**
-   * The work order (an item key) the latest completed run of the declared `partOf` workflow
-   * names at its pointer, as written; null when there is no such run or it names none there.
+   * The work order (an item key) the latest run of the declared `partOf` workflow that
+   * completed with the declared outcome names at its pointer, as written; null when there is
+   * no such run or it names none there.
    * An item's active `part_of` link wins over this; the reader decides.
    */
   partOf: z.string().nullable(),
@@ -407,9 +408,10 @@ export async function factoryItemProgress(
 }
 
 /**
- * The work order the newest completed run of the declared `partOf` workflow names. Not
- * `latest()`: an empty value on the newest such run means the item is in no order now, not
- * that an older run's order still holds.
+ * The work order the newest run of the declared `partOf` workflow that completed with the
+ * declared outcome names. A run that completed with another outcome (a refusal) is not read.
+ * Not `latest()`: an empty value on the newest such run means the item is in no order now,
+ * not that an older run's order still holds.
  */
 function workOrderOf(
   view: FactoryView,
@@ -418,12 +420,14 @@ function workOrderOf(
   facts: ReadonlyMap<string, FactoryRunFacts>
 ): string | null {
   if (view.partOf === undefined) return null;
-  const workflow = view.partOf.workflow;
+  const { workflow, outcome } = view.partOf;
   const newest = [...declared]
     .reverse()
     .find(
       run =>
-        run.status === 'completed' && declaredWorkflow(view, pack, run.workflow_name) === workflow
+        run.status === 'completed' &&
+        displayedRunOutcome(run) === outcome &&
+        declaredWorkflow(view, pack, run.workflow_name) === workflow
     );
   return newest === undefined ? null : (facts.get(newest.id)?.partOf ?? null);
 }

@@ -145,8 +145,10 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // only (approved | returned | asked)
   "asked": ["plan:ask", "deliver:ask"],            // outcomes that stop to ask you
   "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
-  "partOf": { "workflow": "order", "pointer": "/part_of" },     // where a result names the item's
-                                                   // work order; read only without a part_of link
+  "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
+                                                   // where a result names the item's work order:
+                                                   // only runs that completed with `outcome`;
+                                                   // read only without a part_of link
   "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
     "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
@@ -221,8 +223,8 @@ What those reads do not carry comes from **one read-only route file**,
   workflow and deepest running step, the current loop iteration of the declared `rounds` loop,
   the returned count, the change URL from the declared pointer with its pull request number,
   the title, each declared run's workflow as the view names it with the step it failed at, and
-  `partOf`: the work order the newest completed run of the declared `partOf` workflow names
-  (an empty value there means none). Beside `progress`, `members` lists for each asked key the
+  `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
+  its declared outcome names (an empty value there means none; a refused run is never read). Beside `progress`, `members` lists for each asked key the
   items with an active `part_of` link to it, so a member with no run yet counts. A key may name
   an item with no runs (a work order). The web joins each window page with it: one reader,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
@@ -357,7 +359,8 @@ box narrows by key, title or work order key.
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other
 items are `part_of`. An item's order is its newest active `part_of` link, else the order its
-newest completed run of the declared `partOf` workflow names: a link wins over a result that
+newest run of the declared `partOf` workflow that completed with its declared outcome names (a
+refused order run never makes an item a member): a link wins over a result that
 disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no card in any
 column and counts in no number; its members count as the items they are. Above the Pipeline's
 columns, a **Work orders** strip has one row per order with a member on the board (one that

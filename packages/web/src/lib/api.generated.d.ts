@@ -10993,6 +10993,7 @@ export interface components {
           partOf?: {
             workflow: string;
             pointer: string;
+            outcome: string;
           };
           itemTitle?: {
             input: string;

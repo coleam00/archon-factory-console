@@ -37,7 +37,7 @@ const view = factoryViewSchema.parse({
   placement: { 'intake:*': 'build' },
   endings: {},
   landed: { stage: 'landed' },
-  partOf: { workflow: 'intake', pointer: '/part_of' },
+  partOf: { workflow: 'intake', pointer: '/part_of', outcome: 'ready' },
   map: { cards: [{ stage: 'intake' }, { stage: 'build' }], arrows: [] },
 });
 
@@ -88,7 +88,9 @@ export function describeFactoryWorkOrderReadConformance(
         step_name: 'take',
         data: { structured_output: { outcome: 'ready', part_of: 'O2' } },
       });
-      await store.completeWorkflowRun(intake.id, { duration_ms: 1 });
+      await store.completeWorkflowRun(intake.id, { duration_ms: 1 }, undefined, {
+        outcome: { kind: 'enum', value: 'ready' },
+      });
 
       const source = attentionQueueSource(store, {
         findLatestByCodebaseAndWorkingPath: async () => null,

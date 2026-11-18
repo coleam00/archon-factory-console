@@ -295,19 +295,21 @@ function orderRun(
   id: string,
   partOf: unknown,
   at: string,
-  status: WorkflowRun['status'] = 'completed'
+  status: WorkflowRun['status'] = 'completed',
+  outcome = 'ready'
 ): { run: WorkflowRun; events: WorkflowEventRow[] } {
   const run = {
     ...triage1.run,
     id,
     status,
+    completed_outcome: status === 'completed' ? outcome : null,
     workflow_name: `${PACK}:order`,
     started_at: new Date(at),
   };
   const events = triage1.events.map(row => {
     if (row.event_type !== 'workflow_completed') return row;
     const data = row.data as { terminal_record: { returns: Record<string, unknown> } };
-    const value = { outcome: 'ready', item: id, land_on: '', part_of: partOf, why: '' };
+    const value = { outcome, item: id, land_on: '', part_of: partOf, why: '' };
     return {
       ...row,
       workflow_run_id: id,
@@ -343,6 +345,13 @@ describe("an item's work order, from its order runs' results", () => {
     const running = orderRun('o3', '51', '2026-11-18T00:00:00Z', 'running');
     expect(factsOf(failed).partOf).toBeNull();
     expect((await progressOf([done, failed, running])).partOf).toBe('48');
+  });
+
+  test('a refused order run never makes the item a member, newest or alone', async () => {
+    const ready = orderRun('o1', '48', '2026-11-16T00:00:00Z');
+    const refused = orderRun('o2', '50', '2026-11-17T00:00:00Z', 'completed', 'refused');
+    expect((await progressOf([ready, refused])).partOf).toBe('48');
+    expect((await progressOf([refused])).partOf).toBeNull();
   });
 
   test('a value that is not a string is none', async () => {
@@ -566,7 +575,11 @@ describe('the facts memo', () => {
     expect(memo.get({ ...view, approves: [] }, PACK, deliver1.run)).toBeUndefined();
     // So does where a result names the item's work order.
     expect(
-      memo.get({ ...view, partOf: { workflow: 'order', pointer: '/order' } }, PACK, deliver1.run)
+      memo.get(
+        { ...view, partOf: { workflow: 'order', pointer: '/order', outcome: 'ready' } },
+        PACK,
+        deliver1.run
+      )
     ).toBeUndefined();
   });
 
