@@ -1,340 +1,335 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  CARD_H,
-  CARD_W,
-  COL_PITCH,
-  LANE,
-  layoutMap,
-  type ArrowPath,
-  type Box,
-  type MapLayout,
-} from './map-layout';
+import { busiestCard, layoutMap, mapCards, type Box, type MapLayout } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
-import { crosses, enters, segments } from './map-geometry.test-fixtures';
-import { CHAR_W, LINE_H } from './map-sizes';
+import {
+  boxesMeet,
+  crosses,
+  enters,
+  pointSegments,
+  segments,
+  type Segment,
+} from './map-geometry.test-fixtures';
+import { CARD_H, CARD_W, GAP_MIN, LANE } from './map-sizes';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
 type MapBlock = Declaration['map'];
+type Columns = NonNullable<Declaration['columns']>;
 
-const SEVEN = ['triage', 'plan', 'build', 'checks', 'host', 'ready', 'landed'];
-
-/** The shipped declaration with `stages` in this order, each given a card, and `map`'s arrows. */
-function declaration(stages: readonly string[], map: Partial<MapBlock> = {}): Declaration {
+/**
+ * The shipped declaration with `stages` in this order, each given a card, `columns` as given
+ * (none by default: one card per stage), and `map`'s arrows.
+ */
+function declaration(
+  stages: readonly string[],
+  map: Partial<MapBlock> = {},
+  columns: Columns | undefined = undefined
+): Declaration {
   return {
     ...shippedView,
-    stages: stages.map(id => ({
-      id,
-      label: id,
-      blurb: id,
-      group: 'build',
-      workflows: [id],
-    })),
+    stages: stages.map(id => ({ id, label: id, blurb: id, group: 'build', workflows: [id] })),
+    columns,
+    landed: { stage: stages.at(-1) ?? '' },
     map: { cards: stages.map(stage => ({ stage })), arrows: [], ...map },
   };
 }
 
-/**
- * Seven stages with every kind of arrow: forward to the next stage, forward skipping one, and
- * send-backs from several stages into several targets. The layout is tested on it, not on the
- * shipped declaration, whose arrows follow the pack.
- */
-const seven = declaration(SEVEN, {
-  arrows: [
-    { from: 'triage', to: 'plan', label: 'build' },
-    { from: 'plan', to: 'build', label: 'planned' },
-    { from: 'build', to: 'checks', label: 'built' },
-    { from: 'checks', to: 'host', label: 'approved' },
-    { from: 'host', to: 'ready', label: 'ready' },
-    { from: 'ready', to: 'landed', label: 'landed' },
-    { from: 'checks', to: 'build', label: 'returned' },
-    { from: 'host', to: 'build', label: 'returned' },
-    { from: 'checks', to: 'plan', label: 'replan' },
-  ],
+const column = (id: string, stages: string[]): Columns[number] => ({
+  id,
+  label: id.toUpperCase(),
+  blurb: id,
+  stages,
 });
 
-const arrowOf = (layout: MapLayout, from: string, to: string): ArrowPath => {
-  const found = layout.arrows.find(entry => entry.from === from && entry.to === to);
-  if (found === undefined) throw new Error(`No arrow ${from} -> ${to}`);
-  return found;
-};
-
-/** Every line the layout draws, by the arrow it belongs to. */
-const lines = (layout: MapLayout) =>
+/**
+ * Seven stages in five columns, with every kind of arrow the rules sort: hand-offs inside a
+ * card (not drawn), between neighbours, one skipping a card, send-backs from several cards
+ * into two stages of one card, and one inside a card into its own stage.
+ */
+const seeded = declaration(
+  ['s1', 's2', 's3', 's4', 's5', 's6', 's7'],
+  {
+    arrows: [
+      { from: 's1', to: 's2', label: 'ready' },
+      { from: 's2', to: 's3', label: 'go' },
+      { from: 's3', to: 's4', label: 'built' },
+      { from: 's3', to: 's6', label: 'fast' },
+      { from: 's4', to: 's5', label: 'approved' },
+      { from: 's5', to: 's6', label: 'ready' },
+      { from: 's6', to: 's7', label: 'merged' },
+      { from: 's4', to: 's3', label: 'returned' },
+      { from: 's5', to: 's3', label: 'returned' },
+      { from: 's5', to: 's1', label: 'redo' },
+      { from: 's4', to: 's2', label: 'rework' },
+      { from: 's2', to: 's2', label: 'answers' },
+    ],
+  },
   [
-    ...layout.arrows.map(entry => ({ ...entry, back: false })),
-    ...layout.feedback.paths.map(entry => ({ ...entry, back: true })),
-  ].flatMap(entry => segments(entry.d).map(s => ({ id: entry.id, back: entry.back, s })));
+    column('a', ['s1', 's2']),
+    column('b', ['s3']),
+    column('c', ['s4', 's5']),
+    column('d', ['s6']),
+    column('e', ['s7']),
+  ]
+);
 
-function nothingEntersACard(layout: MapLayout): void {
-  const boxes = [...layout.boxes.values()];
-  for (const { s } of lines(layout)) for (const box of boxes) expect(enters(box, s)).toBe(false);
+/** Every line the layout draws: forward lines, each send-back's route, and the lane's strokes. */
+function lines(layout: MapLayout): Segment[] {
+  return [
+    ...layout.arrows.flatMap(arrow => segments(arrow.d)),
+    ...layout.feedback.paths.flatMap(path => segments(path.d)),
+    ...layout.feedback.strokes.flatMap(stroke => pointSegments(stroke.points)),
+  ];
 }
 
-describe('one row', () => {
-  const layout = layoutMap(seven);
+const pills = (layout: MapLayout): Box[] => [
+  ...layout.arrows.flatMap(arrow => (arrow.pill === undefined ? [] : [arrow.pill])),
+  ...layout.feedback.pills.map(pill => pill.box),
+];
 
-  test('the cards sit in stages order, one pitch apart, all on one row', () => {
-    expect(layout.rows).toBe(1);
-    SEVEN.forEach((stage, i) => {
-      expect(layout.boxes.get(stage)).toEqual({ x: i * COL_PITCH, y: 0, w: CARD_W, h: CARD_H });
+/** The done-when of the map's geometry: one row, and nothing crossing a card, a line or a pill. */
+function expectClean(layout: MapLayout): void {
+  const boxes = layout.cards.map(card => card.box);
+  for (const box of boxes) expect(box.y).toBe(0);
+  const all = lines(layout);
+  for (const s of all) for (const box of boxes) expect(enters(box, s)).toBe(false);
+  for (const p of all) for (const q of all) expect(crosses(p, q)).toBe(false);
+  const placed = pills(layout);
+  placed.forEach((pill, i) => {
+    for (const box of boxes) expect(boxesMeet(pill, box)).toBe(false);
+    for (const s of all) expect(enters(pill, s)).toBe(false);
+    placed.forEach((other, j) => {
+      if (i !== j) expect(boxesMeet(pill, other)).toBe(false);
     });
   });
+  const { bounds } = layout;
+  for (const box of [...boxes, ...placed]) {
+    expect(box.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(box.x + box.w).toBeLessThanOrEqual(bounds.x + bounds.w);
+    expect(box.y + box.h).toBeLessThanOrEqual(bounds.y + bounds.h);
+  }
+}
 
-  test('the order is the stages order: a card col and row written for the old grid are ignored', () => {
-    const gridded = layoutMap({
-      ...seven,
-      map: {
-        ...seven.map,
-        cards: [...SEVEN].reverse().map((stage, i) => ({ stage, col: i + 1, row: 1 + (i % 2) })),
-      },
-    });
-    expect(gridded.boxes).toEqual(layout.boxes);
-  });
-
-  test('a forward arrow runs from the right side of one card to the left side of the next', () => {
-    const planned = arrowOf(layout, 'plan', 'build');
-    expect(planned).toMatchObject({ back: false, lane: undefined, label: 'planned' });
-    const mid = CARD_H / 2;
-    expect(planned.d).toBe(`M${COL_PITCH + CARD_W},${mid} H${2 * COL_PITCH}`);
-    expect(planned.labelAt.x).toBe((COL_PITCH + CARD_W + 2 * COL_PITCH) / 2);
-    expect(planned.labelAt.y).toBeLessThan(mid);
-  });
-
-  test('every send-back is in the one feedback lane under the row, none among the forward arrows', () => {
-    expect(layout.arrows.every(arrow => !arrow.back)).toBe(true);
-    expect(layout.feedback.paths.map(path => `${path.from}->${path.to}`).sort()).toEqual([
-      'checks->build',
-      'checks->plan',
-      'host->build',
-    ]);
-    expect(layout.feedback.labels.map(label => label.stage)).toEqual(['build', 'plan']);
-  });
-
-  test('a forward arrow that skips cards runs in a lane above the row, through no card', () => {
-    const skip = layoutMap({
-      ...seven,
-      map: { ...seven.map, arrows: [...seven.map.arrows, { from: 'plan', to: 'host' }] },
-    });
-    const across = arrowOf(skip, 'plan', 'host');
-    expect(across.lane).toBe(0);
-    expect(across.d).toMatch(new RegExp(`^M[\\d.]+,0 V${-LANE} H[\\d.]+ V0$`));
-    nothingEntersACard(skip);
-    expect(skip.bounds.y).toBeLessThanOrEqual(-LANE);
-  });
-
-  test('no line enters a card, no forward arrow crosses a send-back, and bounds hold the lane labels', () => {
-    nothingEntersACard(layout);
-    const all = lines(layout);
-    for (const p of all)
-      for (const q of all) if (p.id !== q.id) expect(crosses(p.s, q.s)).toBe(false);
-    const lowest = Math.max(
-      ...layout.feedback.labels.flatMap(label => label.lines.map(line => line.at.y))
-    );
-    expect(layout.bounds.y + layout.bounds.h).toBeGreaterThanOrEqual(lowest + LINE_H / 2);
-    expect(layout.bounds.w).toBe(6 * COL_PITCH + CARD_W);
-  });
-});
-
-describe('two rows', () => {
-  const layout = layoutMap(seven, 2);
-  const row2 = layout.boxes.get('host')?.y ?? 0;
-
-  test('the first half of the stages above, the rest below, each row left to right', () => {
-    expect(layout.rows).toBe(2);
-    expect(['triage', 'plan', 'build', 'checks'].map(s => layout.boxes.get(s)?.y)).toEqual([
-      0, 0, 0, 0,
-    ]);
-    expect(['host', 'ready', 'landed'].map(s => layout.boxes.get(s)?.x)).toEqual([
-      0,
-      COL_PITCH,
-      2 * COL_PITCH,
-    ]);
-    expect(row2).toBeGreaterThan(CARD_H);
-  });
-
-  test('the hand-off between rows runs in a gap lane above the feedback lane', () => {
-    const approved = arrowOf(layout, 'checks', 'host');
-    expect(approved.lane).toBe(0);
-    expect(approved.d).toMatch(
-      new RegExp(`^M[\\d.]+,${CARD_H} V${CARD_H + LANE} H[\\d.]+ V${row2}$`)
-    );
-    const feedbackY = CARD_H + 2 * LANE;
-    for (const path of layout.feedback.paths) expect(path.d).toContain(` V${feedbackY} `);
-    for (const label of layout.feedback.labels)
-      for (const line of label.lines) expect(line.at.y + LINE_H / 2).toBeLessThan(row2);
-  });
-
-  test('no send-back crosses another; only the hand-offs between the rows cross the lane', () => {
-    nothingEntersACard(layout);
-    const all = lines(layout);
-    for (const p of all) {
-      for (const q of all) {
-        if (p.id === q.id || !crosses(p.s, q.s)) continue;
-        // A crossing is between a forward hand-off between rows and a send-back.
-        const forward = p.back ? q : p;
-        expect(p.back !== q.back).toBe(true);
-        expect(forward.id).toBe(arrowOf(layout, 'checks', 'host').id);
-      }
-    }
-  });
-});
-
-describe('declarations the schema allows', () => {
-  test('no cards: no boxes, no arrows, empty bounds', () => {
-    const empty = layoutMap(declaration([], { arrows: [{ from: 'a', to: 'b' }] }));
-    expect(empty.boxes.size).toBe(0);
-    expect(empty.arrows).toEqual([]);
-    expect(empty.feedback).toEqual({ paths: [], labels: [] });
-    expect(empty.bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
-  });
-
-  test('a stage with no card takes no place, and an arrow to it is left out', () => {
-    const partial = layoutMap({
-      ...seven,
-      map: { ...seven.map, cards: seven.map.cards.filter(card => card.stage !== 'plan') },
-    });
-    expect(partial.boxes.get('build')?.x).toBe(COL_PITCH);
-    const drawn = [...partial.arrows, ...partial.feedback.paths];
-    expect(drawn.some(entry => entry.from === 'plan' || entry.to === 'plan')).toBe(false);
-    expect(drawn).toHaveLength(seven.map.arrows.length - 3);
-  });
-});
-
-describe('several forward arrows between one pair of cards', () => {
-  const twice = (from: string, to: string, labels: (string | undefined)[]) =>
-    labels.map(label => ({ from, to, label }));
-  const view = declaration(SEVEN, {
-    arrows: [
-      ...twice('triage', 'plan', ['build', 'narrow', 'build']),
-      ...twice('plan', 'host', ['planned', undefined]),
-      { from: 'host', to: 'build', label: 'returned' },
-      { from: 'host', to: 'build', label: 'asks' },
-    ],
-  });
-
-  test('draw as one arrow, their outcomes joined, each once, side to side and in a lane', () => {
-    for (const rows of [1, 2] as const) {
-      const layout = layoutMap(view, rows);
-      expect(layout.arrows.map(arrow => [arrow.id, arrow.from, arrow.to, arrow.label])).toEqual([
-        ['decl:0', 'triage', 'plan', 'build, narrow'],
-        ['decl:3', 'plan', 'host', 'planned'],
-      ]);
-      // Send-backs stay one path each; the lane labels their target once.
-      expect(layout.feedback.paths).toHaveLength(2);
-      expect(layout.feedback.labels).toHaveLength(1);
-    }
-  });
-
-  test('no two labels on the map share a point', () => {
-    for (const map of [view, seven, shippedView]) {
-      for (const rows of [1, 2] as const) {
-        const layout = layoutMap(map, rows);
-        const points = [
-          ...layout.arrows.map(arrow => arrow.labelAt),
-          ...layout.feedback.labels.flatMap(label => label.lines.map(line => line.at)),
-        ].map(p => `${p.x.toString()},${p.y.toString()}`);
-        expect(new Set(points).size).toBe(points.length);
-      }
-    }
-  });
-});
-
-describe('direction comes from stages order, not from a back flag', () => {
-  test('leftward arrows with no flag are send-backs in the one lane; a flag on a forward arrow is ignored', () => {
-    const view = declaration(SEVEN, {
-      arrows: [
-        { from: 'build', to: 'checks', label: 'built', back: true },
-        { from: 'checks', to: 'build', label: 'returned', back: false },
-        { from: 'checks', to: 'plan', label: 'replan' },
-      ],
-    });
-    for (const rows of [1, 2] as const) {
-      const layout = layoutMap(view, rows);
-      expect(layout.arrows.map(arrow => `${arrow.from}->${arrow.to}`)).toEqual(['build->checks']);
-      expect(
-        layout.feedback.labels.map(l => `${l.stage}: ${l.lines.map(x => x.text).join(' ')}`)
-      ).toEqual(['build: returned', 'plan: replan']);
-      const points = [
-        ...layout.arrows.map(arrow => arrow.labelAt),
-        ...layout.feedback.labels.flatMap(label => label.lines.map(line => line.at)),
-      ].map(p => `${p.x.toString()},${p.y.toString()}`);
-      expect(new Set(points).size).toBe(points.length);
-    }
-  });
-});
+const arrowBetween = (layout: MapLayout, from: string, to: string) =>
+  layout.arrows.find(arrow => arrow.from === from && arrow.to === to);
+const pillOf = (layout: MapLayout, stage: string): string | undefined =>
+  layout.feedback.pills.find(pill => pill.stage === stage)?.text;
 
 describe('the shipped map', () => {
   const layout = layoutMap(shippedView);
-  const labelOf = (stage: string) =>
-    layout.feedback.labels
-      .find(label => label.stage === stage)
-      ?.lines.map(line => line.text)
-      .join(' ');
 
-  test('one row of the eight stages in stages order', () => {
-    const boxes = shippedView.stages.map(stage => layout.boxes.get(stage.id));
-    expect(boxes.map(box => box?.y)).toEqual(Array(8).fill(0));
-    expect(boxes.map(box => box?.x)).toEqual(shippedView.stages.map((_, i) => i * COL_PITCH));
-  });
-
-  test('only the declared arrows: every forward hand-off side to side between neighbours', () => {
-    expect(layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lane])).toEqual([
-      ['order', 'triage', undefined],
-      ['triage', 'plan', undefined],
-      ['plan', 'build', undefined],
-      ['build', 'checks', undefined],
-      ['checks', 'host', undefined],
-      ['host', 'ready', undefined],
-      ['ready', 'landed', undefined],
+  test("five cards, the board's columns in order, each holding its stages", () => {
+    expect(layout.cards.map(card => [card.label, card.stages])).toEqual([
+      ['Intake', ['order', 'triage']],
+      ['Plan & build', ['plan', 'build']],
+      ['Checks & review', ['checks', 'host']],
+      ['Ready to merge', ['ready']],
+      ['Merged', ['landed']],
+    ]);
+    expect(layout.cards.map(card => card.tone)).toEqual([
+      'intake',
+      'build',
+      'check',
+      'land',
+      'merged',
     ]);
   });
 
-  test('the send-backs into Build share one leg and one label; replan returns to Plan', () => {
-    expect(layout.feedback.paths.map(path => `${path.from}->${path.to}`)).toEqual([
-      'checks->build',
-      'host->build',
-      'checks->plan',
-      // Plan's answered asks start Plan again: a U on the lane under its card.
-      'plan->plan',
-    ]);
-    const intoBuild = layout.feedback.paths.filter(path => path.to === 'build');
-    expect(new Set(intoBuild.map(path => path.d.split(' ').at(-2))).size).toBe(1);
-    expect(labelOf('build')).toBe('returned');
-    expect(labelOf('plan')).toBe('replan, asks answered');
+  test('cards are the standard size and sit one row, left to right', () => {
+    let right = Number.NEGATIVE_INFINITY;
+    for (const { box } of layout.cards) {
+      expect(box).toMatchObject({ y: 0, w: CARD_W, h: CARD_H });
+      expect(box.w).toBeGreaterThanOrEqual(176);
+      expect(box.h).toBeLessThanOrEqual(box.w);
+      expect(box.x - right).toBeGreaterThanOrEqual(
+        right === Number.NEGATIVE_INFINITY ? 0 : GAP_MIN
+      );
+      right = box.x + box.w;
+    }
   });
 
-  test('nothing enters a card, no line crosses another, and the bounds hold the lane labels', () => {
-    nothingEntersACard(layout);
-    const all = lines(layout);
-    for (const p of all)
-      for (const q of all) if (p.id !== q.id) expect(crosses(p.s, q.s)).toBe(false);
-    const bottoms = layout.feedback.labels.flatMap(l =>
-      l.lines.map(line => line.at.y + LINE_H / 2)
+  test('a forward hand-off only between neighbours, straight, its pill above the line', () => {
+    expect(layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines.join(' ')])).toEqual([
+      ['intake', 'plan-build', 'build, narrow'],
+      ['plan-build', 'checks-review', 'built'],
+      ['checks-review', 'ready', 'ready'],
+      ['ready', 'merged', 'merged'],
+    ]);
+    for (const arrow of layout.arrows) {
+      const [s] = segments(arrow.d);
+      expect(segments(arrow.d)).toHaveLength(1);
+      expect(s?.y1).toBe(CARD_H / 2);
+      expect(s?.y2).toBe(CARD_H / 2);
+      const pill = arrow.pill as Box;
+      expect(pill.y + pill.h).toBeLessThan(CARD_H / 2);
+    }
+  });
+
+  test('one lane under the row: one pill per target stage, "returned" on build, "replan, answers" on plan', () => {
+    expect(layout.feedback.pills.map(pill => [pill.stage, pill.text])).toEqual([
+      ['plan', 'replan, answers'],
+      ['build', 'returned'],
+    ]);
+    const laneY = CARD_H + LANE;
+    for (const path of layout.feedback.paths) {
+      const s = segments(path.d);
+      expect(s.map(seg => seg.y2)).toContain(laneY);
+    }
+  });
+
+  test('nothing crosses a card, a line or a pill, and the bounds hold every pill', () => {
+    expectClean(layout);
+  });
+
+  test('no arrow is drawn for a hand-off inside a card', () => {
+    // order -> triage, plan -> build and checks -> host are each inside one card.
+    expect(layout.arrows).toHaveLength(4);
+  });
+});
+
+describe('the rules for arrows between card groups', () => {
+  const layout = layoutMap(seeded);
+
+  test('a hand-off inside a card is not drawn; one between neighbours is', () => {
+    expect(layout.arrows.map(arrow => [arrow.from, arrow.to])).toEqual([
+      ['a', 'b'],
+      ['b', 'c'],
+      ['c', 'd'],
+      ['d', 'e'],
+    ]);
+  });
+
+  test("a hand-off that skips cards folds into the next neighbour's label", () => {
+    expect(arrowBetween(layout, 'b', 'c')?.lines).toEqual(['built,', 'fast → D']);
+    expect(layout.arrows.some(arrow => arrow.from === 'b' && arrow.to === 'd')).toBe(false);
+  });
+
+  test('with no neighbour hand-off declared, the folded one is drawn alone', () => {
+    const view = declaration(
+      ['s1', 's2', 's3'],
+      { arrows: [{ from: 's1', to: 's3', label: 'skip' }] },
+      undefined
     );
-    expect(layout.bounds.y + layout.bounds.h).toBeGreaterThanOrEqual(Math.max(...bottoms));
+    const only = layoutMap(view);
+    expect(only.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines])).toEqual([
+      ['s1', 's2', ['skip → s3']],
+    ]);
+    expectClean(only);
   });
 
-  test('no lane label overlaps another or a card', () => {
-    const boxOf = (at: { x: number; y: number }, text: string): Box => ({
-      x: at.x - (text.length * CHAR_W) / 2,
-      y: at.y - LINE_H / 2,
-      w: text.length * CHAR_W,
-      h: LINE_H,
-    });
-    const owned = [
-      ...layout.feedback.labels.flatMap(label =>
-        label.lines.map(line => ({ owner: `lane:${label.stage}`, box: boxOf(line.at, line.text) }))
-      ),
-      ...[...layout.boxes].map(([stage, box]) => ({ owner: `card:${stage}`, box })),
+  test('send-backs go by card order; one inside a card into its own stage too', () => {
+    expect(layout.feedback.paths.map(path => [path.from, path.to])).toEqual([
+      ['c', 's3'],
+      ['c', 's3'],
+      ['c', 's1'],
+      ['c', 's2'],
+      ['a', 's2'],
+    ]);
+  });
+
+  test('two target stages in one card each get a leg and a pill, in the card stage order', () => {
+    const [a] = layout.cards;
+    const ids = layout.feedback.pills.map(pill => pill.stage);
+    expect(ids).toEqual(['s1', 's2', 's3']);
+    const centre = (stage: string): number => {
+      const box = layout.feedback.pills.find(pill => pill.stage === stage)?.box as Box;
+      return box.x + box.w / 2;
+    };
+    expect(centre('s1')).toBeLessThan(centre('s2'));
+    expect(centre('s2')).toBeLessThan((a?.box.x ?? 0) + (a?.box.w ?? 0) * 0.6);
+    expect(pillOf(layout, 's2')).toBe('rework, answers');
+    expect(pillOf(layout, 's3')).toBe('returned');
+  });
+
+  test('nothing crosses a card, a line or a pill', () => {
+    expectClean(layout);
+  });
+});
+
+describe('every view is one row and clean', () => {
+  for (let n = 1; n <= 12; n++) {
+    const stages = Array.from({ length: n }, (_, i) => `s${(i + 1).toString()}`);
+    const arrows = [
+      ...stages
+        .slice(1)
+        .map((to, i) => ({ from: stages[i] ?? '', to, label: `next ${i.toString()}` })),
+      ...stages
+        .slice(2)
+        .map((from, i) => ({ from, to: stages[i] ?? '', label: `back ${i.toString()}` })),
+      ...stages.slice(3).map((to, i) => ({ from: stages[i] ?? '', to, label: 'skip' })),
+      { from: stages.at(-1) ?? '', to: stages.at(-1) ?? '', label: 'again' },
     ];
-    const overlap = (p: Box, q: Box): boolean =>
-      p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
-    const clashes = owned.flatMap(p =>
-      owned
-        .filter(q => q.owner !== p.owner && overlap(p.box, q.box))
-        .map(q => `${p.owner} on ${q.owner}`)
-    );
-    expect(clashes).toEqual([]);
+    test(`${n.toString()} stages, one card each`, () => {
+      const layout = layoutMap(declaration(stages, { arrows }));
+      expect(layout.cards).toHaveLength(n);
+      expectClean(layout);
+    });
+    test(`${n.toString()} stages, in columns of two`, () => {
+      const columns = Array.from({ length: Math.ceil(n / 2) }, (_, i) =>
+        column(`c${i.toString()}`, stages.slice(2 * i, 2 * i + 2))
+      );
+      const layout = layoutMap(declaration(stages, { arrows }, columns));
+      expect(layout.cards).toHaveLength(columns.length);
+      expectClean(layout);
+    });
+  }
+});
+
+describe('declarations the schema allows', () => {
+  test('a view with no columns draws one card per stage', () => {
+    const layout = layoutMap(declaration(['p', 'q', 'r']));
+    expect(layout.cards.map(card => card.stages)).toEqual([['p'], ['q'], ['r']]);
+  });
+
+  test('no cards: no boxes, no arrows, empty bounds', () => {
+    const layout = layoutMap({ ...seeded, map: { cards: [], arrows: seeded.map.arrows } });
+    expect(layout.cards).toEqual([]);
+    expect(layout.arrows).toEqual([]);
+    expect(layout.feedback.paths).toEqual([]);
+    expect(layout.bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+  });
+
+  test('a stage with no card leaves its column, and a column with none is not drawn', () => {
+    const view = {
+      ...seeded,
+      map: { ...seeded.map, cards: seeded.map.cards.filter(c => !['s1', 's6'].includes(c.stage)) },
+    };
+    expect(mapCards(view).map(card => [card.id, card.stages])).toEqual([
+      ['a', ['s2']],
+      ['b', ['s3']],
+      ['c', ['s4', 's5']],
+      ['e', ['s7']],
+    ]);
+    const layout = layoutMap(view);
+    expect(layout.feedback.paths.some(path => path.to === 's1')).toBe(false);
+    expectClean(layout);
+  });
+
+  test('a card of three stages grows taller, and wider to stay wider than tall', () => {
+    const view = declaration(['p', 'q', 'r', 's'], {}, [
+      column('x', ['p', 'q', 'r']),
+      column('y', ['s']),
+    ]);
+    const [first] = layoutMap(view).cards;
+    expect(first?.box.h).toBeGreaterThan(CARD_H);
+    expect(first?.box.w).toBeGreaterThanOrEqual(first?.box.h ?? 0);
+  });
+});
+
+describe('the card a map opens on', () => {
+  const { cards } = layoutMap(shippedView);
+  const counts = (entries: Record<string, number>) => (stage: string) => entries[stage] ?? 0;
+
+  test('the one holding the stage with the most items in flight', () => {
+    expect(busiestCard(cards, counts({ build: 1, checks: 3 }), 'landed')?.id).toBe('checks-review');
+  });
+
+  test('the leftmost on a tie', () => {
+    expect(busiestCard(cards, counts({ ready: 2, plan: 2 }), 'landed')?.id).toBe('plan-build');
+  });
+
+  test('merged items do not count, and with nothing in flight there is none', () => {
+    expect(busiestCard(cards, counts({ landed: 40 }), 'landed')).toBeUndefined();
+    expect(busiestCard(cards, counts({ landed: 40, triage: 1 }), 'landed')?.id).toBe('intake');
   });
 });

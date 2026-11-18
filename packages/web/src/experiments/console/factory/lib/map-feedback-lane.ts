@@ -1,164 +1,236 @@
 /**
- * The map's one feedback lane: every send-back the view file declares (an arrow into its own
- * card or an earlier one in `stages` order: a return, a replan) drawn on a single line under the stages, running right to left. A send-back leaves
- * its source card's lane edge on the source's leg, runs along the lane, and enters its target's
- * lane edge on the target's leg. A card has at most one leg of each kind, so every send-back
- * into one card shares one leg, and one label per target names them all.
+ * The map's one feedback lane: every send-back the view file declares (`map-layout.ts` says
+ * which arrows are send-backs) drawn on a single line under the row of cards, running right
+ * to left. A send-back leaves its source card's bottom edge on the card's one source leg,
+ * runs along the lane, and rises into its target stage's leg on the target card. A card has
+ * one source leg (at 0.85 of its width) and one target leg per stage something returns to,
+ * spread over its left 0.1-0.6 in the card's stage order, so every send-back into one stage
+ * shares one leg, and one pill under the lane names them all.
  *
- * Why nothing crosses: every leg is a vertical between its card's edge and the lane, and every
- * run lies on the lane. Two verticals never cross; a vertical meets the lane only at its own
- * end; and no leg enters a card, since it starts on the card's own edge. Where two runs
- * overlap they are collinear: one line, not a crossing. The line exists only where some
- * send-back runs, so a send-back into its own card is a short U of its own, not joined to a
- * trunk beside it, which would claim a hand-off nobody makes.
+ * Why nothing crosses: every leg is a vertical between its card's bottom edge and the lane,
+ * and every run lies on the lane. Two verticals never cross; a vertical meets the lane only
+ * at its own end; and no leg enters a card, since it starts on the card's own edge. Where two
+ * runs overlap they are collinear: one line, not a crossing. The pills sit under the lane,
+ * where nothing else is drawn, each on the first band down where it meets no pill before it.
  */
 import type { Box, Point } from './map-layout';
-import { CHAR_W, LINE_H, WRAP } from './map-sizes';
+import { pillWidth, PILL_H } from './overview-layout';
 
-/**
- * How a card meets the lane: `one` for the single row (its bottom edge), `upper` and `lower`
- * for the rows above and below a lane between two rows (the upper's bottom, the lower's top).
- */
-export type LaneSide = 'one' | 'upper' | 'lower';
-
-/**
- * Where a card's two legs meet its lane edge, as fractions of its width, the target's left of
- * the source's. Between two rows the upper and lower cards' legs keep to opposite outer
- * quarters: a column's two cards then never put legs in one line across the lane, and the
- * middle half stays free for the forward hand-offs between the rows (`map-layout.ts`).
- */
-const LEGS: Record<LaneSide, { to: number; from: number }> = {
-  one: { to: 0.35, from: 0.65 },
-  upper: { to: 0.12, from: 0.22 },
-  lower: { to: 0.78, from: 0.88 },
-};
-
-/** From the lane to its first label line's centre. */
-const LABEL_OFFSET = LINE_H / 2 + 6;
+/** Where a card's legs meet its bottom edge, as fractions of its width. */
+const SOURCE_LEG = 0.85;
+const TARGET_FROM = 0.1;
+const TARGET_TO = 0.6;
+/** From the lane to the first band of pills, between bands, and between pills on one band. */
+const PILL_OFFSET = 6;
+const BAND_GAP = 4;
+const PILL_CLEAR = 8;
 
 export interface LaneCard {
   box: Box;
-  side: LaneSide;
+  /** Its stages, in the order it lists them. */
+  stages: readonly string[];
 }
 
-/** A send-back the view file declares. */
+/** A send-back the view file declares, from a card into a stage. */
 export interface SendBack {
   /** Unique on the map: `decl:<index>`. */
   id: string;
+  /** The card it leaves from, by card id. */
   from: string;
+  /** The stage it returns to. */
   to: string;
   label: string | undefined;
 }
 
 export interface LanePath extends SendBack {
-  /** The SVG path, ending where the arrowhead points into the target. */
+  /** The SVG path, in M, H and V, ending where the arrowhead points into the target. */
   d: string;
 }
 
-export interface LaneLabel {
+export interface LanePill {
+  /** The stage its leg rises into. */
   stage: string;
-  /** Top to bottom, each with where its centre goes; each line but the last ends in a comma. */
-  lines: { text: string; at: Point }[];
-}
-
-export interface FeedbackLane {
-  /** One path per send-back. */
-  paths: LanePath[];
-  /** One per target stage. */
-  labels: LaneLabel[];
-  /** What the lane and its labels take; undefined when nothing sends back. */
-  extent: Box | undefined;
-}
-
-const edgeY = (card: LaneCard): number =>
-  card.side === 'lower' ? card.box.y : card.box.y + card.box.h;
-
-const legX = (card: LaneCard, leg: 'to' | 'from'): number =>
-  card.box.x + card.box.w * LEGS[card.side][leg];
-
-/** `parts` joined into lines of at most `WRAP` characters where they fit, commas kept. */
-function wrap(parts: readonly string[]): string[] {
-  const lines: string[] = [];
-  for (const part of parts) {
-    const last = lines.at(-1);
-    if (last !== undefined && last.length + part.length + 2 <= WRAP)
-      lines[lines.length - 1] = `${last}, ${part}`;
-    else lines.push(part);
-  }
-  return lines.map((line, index) => (index < lines.length - 1 ? `${line},` : line));
-}
-
-/** The lines of each target's label: its send-backs' outcomes in order, each once. */
-function labelLines(sendBacks: readonly SendBack[]): Map<string, string[]> {
-  const parts = new Map<string, string[]>();
-  for (const sendBack of sendBacks) {
-    const list = parts.get(sendBack.to) ?? [];
-    for (const text of sendBack.label?.split(', ') ?? []) if (!list.includes(text)) list.push(text);
-    parts.set(sendBack.to, list);
-  }
-  const lines = new Map<string, string[]>();
-  for (const [stage, list] of parts) if (list.length > 0) lines.set(stage, wrap(list));
-  return lines;
-}
-
-/** How far below the lane its labels reach: room a gap under it must leave. */
-export function laneLabelRoom(sendBacks: readonly SendBack[]): number {
-  const most = Math.max(0, ...[...labelLines(sendBacks).values()].map(lines => lines.length));
-  return most === 0 ? 0 : LABEL_OFFSET + LINE_H * most - LINE_H / 2;
+  /** Its send-backs' outcomes, each once, in declared order. */
+  text: string;
+  box: Box;
 }
 
 /**
- * The send-backs between two `cards` drawn on the lane at `y`, labels under it. A send-back
- * whose source or target has no card is left out.
+ * What the map draws: each distinct piece of the lane once, so two send-backs sharing a run
+ * do not draw two dashed lines over each other, out of step. `head` ends a piece in an
+ * arrowhead into a card.
+ */
+export interface LaneStroke {
+  points: Point[];
+  head: boolean;
+}
+
+export interface FeedbackLane {
+  /** One path per send-back: what each send-back's route is. */
+  paths: LanePath[];
+  /** The same lines, each piece once, as the map draws them. */
+  strokes: LaneStroke[];
+  /** One per target stage. */
+  pills: LanePill[];
+  /** What the lane and its pills take; undefined when nothing sends back. */
+  extent: Box | undefined;
+}
+
+const bottomOf = (card: LaneCard): number => card.box.y + card.box.h;
+const sourceX = (card: LaneCard): number => card.box.x + card.box.w * SOURCE_LEG;
+
+/** Each card's target legs, keyed by stage: one per stage something returns to. */
+function targetLegs(
+  cards: ReadonlyMap<string, LaneCard>,
+  drawn: readonly SendBack[]
+): Map<string, { x: number; y: number }> {
+  const targets = new Set(drawn.map(entry => entry.to));
+  const legs = new Map<string, { x: number; y: number }>();
+  for (const card of cards.values()) {
+    const mine = card.stages.filter(stage => targets.has(stage));
+    const step = (TARGET_TO - TARGET_FROM) / mine.length;
+    mine.forEach((stage, i) =>
+      legs.set(stage, {
+        x: card.box.x + card.box.w * (TARGET_FROM + step * (i + 0.5)),
+        y: bottomOf(card),
+      })
+    );
+  }
+  return legs;
+}
+
+/** Each target's outcomes, each once, in declared order; a target with none has no pill. */
+function pillTexts(drawn: readonly SendBack[]): Map<string, string> {
+  const parts = new Map<string, string[]>();
+  for (const entry of drawn) {
+    const list = parts.get(entry.to) ?? [];
+    for (const text of entry.label?.split(', ') ?? []) if (!list.includes(text)) list.push(text);
+    parts.set(entry.to, list);
+  }
+  return new Map(
+    [...parts].filter(([, list]) => list.length > 0).map(([k, v]) => [k, v.join(', ')])
+  );
+}
+
+const meets = (a: Box, b: Box, clear: number): boolean =>
+  a.x < b.x + b.w + clear && b.x < a.x + a.w + clear && a.y < b.y + b.h && b.y < a.y + a.h;
+
+/** The pills under the lane at `y`, left to right, each on the first band it fits. */
+function placePills(
+  texts: ReadonlyMap<string, string>,
+  legs: ReadonlyMap<string, { x: number }>,
+  y: number
+): LanePill[] {
+  const ordered = [...texts].flatMap(([stage, text]) => {
+    const leg = legs.get(stage);
+    return leg === undefined ? [] : [{ stage, text, x: leg.x }];
+  });
+  ordered.sort((p, q) => p.x - q.x);
+  const placed: LanePill[] = [];
+  for (const { stage, text, x } of ordered) {
+    const w = pillWidth(text, false);
+    let band = 0;
+    const at = (n: number): Box => ({
+      x: x - w / 2,
+      y: y + PILL_OFFSET + n * (PILL_H + BAND_GAP),
+      w,
+      h: PILL_H,
+    });
+    while (placed.some(pill => meets(pill.box, at(band), PILL_CLEAR))) band += 1;
+    placed.push({ stage, text, box: at(band) });
+  }
+  return placed;
+}
+
+/** Where two ranges on the lane overlap, they are drawn as one run. */
+function mergedRuns(spans: readonly { lo: number; hi: number }[]): { lo: number; hi: number }[] {
+  const sorted = [...spans].sort((p, q) => p.lo - q.lo);
+  const runs: { lo: number; hi: number }[] = [];
+  for (const span of sorted) {
+    const last = runs.at(-1);
+    if (last !== undefined && span.lo < last.hi) last.hi = Math.max(last.hi, span.hi);
+    else runs.push({ ...span });
+  }
+  return runs;
+}
+
+/**
+ * The pieces the map draws. A merged run's right end is a source leg and its left end a
+ * target leg (every send-back runs right to left), so each run is one U from the one into
+ * the other; the legs between its ends meet it at a T.
+ */
+function strokesOf(
+  spans: readonly { lo: number; hi: number; top: number; end: number }[],
+  y: number
+): LaneStroke[] {
+  const legs = new Map<string, LaneStroke>();
+  for (const span of spans) {
+    legs.set(`s:${span.hi.toString()}`, {
+      points: [
+        { x: span.hi, y: span.top },
+        { x: span.hi, y },
+      ],
+      head: false,
+    });
+    legs.set(`t:${span.lo.toString()}`, {
+      points: [
+        { x: span.lo, y },
+        { x: span.lo, y: span.end },
+      ],
+      head: true,
+    });
+  }
+  const strokes: LaneStroke[] = [];
+  for (const run of mergedRuns(spans)) {
+    const source = legs.get(`s:${run.hi.toString()}`);
+    const target = legs.get(`t:${run.lo.toString()}`);
+    if (source === undefined || target === undefined) continue;
+    strokes.push({ points: [...source.points, ...target.points], head: true });
+    legs.delete(`s:${run.hi.toString()}`);
+    legs.delete(`t:${run.lo.toString()}`);
+  }
+  return [...strokes, ...legs.values()];
+}
+
+/**
+ * The send-backs between `cards` (by card id) drawn on the lane at `y`, pills under it. A
+ * send-back whose source card or target stage has no card is left out.
  */
 export function feedbackLane(
   cards: ReadonlyMap<string, LaneCard>,
   y: number,
   sendBacks: readonly SendBack[]
 ): FeedbackLane {
-  const drawn = sendBacks.filter(entry => cards.has(entry.from) && cards.has(entry.to));
-  const paths = drawn.flatMap((entry): LanePath[] => {
+  const stages = new Set([...cards.values()].flatMap(card => card.stages));
+  const drawn = sendBacks.filter(entry => cards.has(entry.from) && stages.has(entry.to));
+  const legs = targetLegs(cards, drawn);
+  const spans = drawn.flatMap(entry => {
     const from = cards.get(entry.from);
-    const to = cards.get(entry.to);
+    const to = legs.get(entry.to);
     if (from === undefined || to === undefined) return [];
-    const d = `M${legX(from, 'from')},${edgeY(from)} V${y} H${legX(to, 'to')} V${edgeY(to)}`;
-    return [{ ...entry, d }];
+    return [{ entry, lo: to.x, hi: sourceX(from), top: bottomOf(from), end: to.y }];
   });
-  const labels = [...labelLines(drawn)].flatMap(([stage, lines]): LaneLabel[] => {
-    const card = cards.get(stage);
-    if (card === undefined) return [];
-    const x = legX(card, 'to');
-    return [
-      {
-        stage,
-        lines: lines.map((text, index) => ({
-          text,
-          at: { x, y: y + LABEL_OFFSET + LINE_H * index },
-        })),
-      },
-    ];
-  });
-  return { paths, labels, extent: extentOf(drawn, cards, y, labels) };
+  const paths = spans.map(
+    ({ entry, lo, hi, top, end }): LanePath => ({
+      ...entry,
+      d: `M${hi.toString()},${top.toString()} V${y.toString()} H${lo.toString()} V${end.toString()}`,
+    })
+  );
+  const pills = placePills(pillTexts(drawn), legs, y);
+  return { paths, strokes: strokesOf(spans, y), pills, extent: extentOf(spans, pills, y) };
 }
 
 function extentOf(
-  drawn: readonly SendBack[],
-  cards: ReadonlyMap<string, LaneCard>,
-  y: number,
-  labels: readonly LaneLabel[]
+  spans: readonly { lo: number; hi: number }[],
+  pills: readonly LanePill[],
+  y: number
 ): Box | undefined {
-  if (drawn.length === 0) return undefined;
-  const xs = drawn.flatMap(entry => {
-    const from = cards.get(entry.from);
-    const to = cards.get(entry.to);
-    return from === undefined || to === undefined ? [] : [legX(from, 'from'), legX(to, 'to')];
-  });
-  for (const label of labels) {
-    const half = (Math.max(...label.lines.map(line => line.text.length)) * CHAR_W) / 2;
-    const x = label.lines[0]?.at.x ?? 0;
-    xs.push(x - half, x + half);
-  }
-  const lowest = Math.max(y, ...labels.flatMap(label => label.lines.map(l => l.at.y + LINE_H / 2)));
+  if (spans.length === 0) return undefined;
+  const xs = [
+    ...spans.flatMap(span => [span.lo, span.hi]),
+    ...pills.flatMap(pill => [pill.box.x, pill.box.x + pill.box.w]),
+  ];
+  const lowest = Math.max(y, ...pills.map(pill => pill.box.y + pill.box.h));
   const left = Math.min(...xs);
   return { x: left, y, w: Math.max(...xs) - left, h: lowest - y };
 }

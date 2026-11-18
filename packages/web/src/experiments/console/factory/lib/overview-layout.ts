@@ -17,6 +17,7 @@
  * `@archon/workflows`); `scripts/overview-geometry-parity.test.ts` holds them in step on
  * seeded views, and `overview-layout.test.ts` checks this drawing of the shipped file.
  */
+import { TYPE_FLOOR_PX } from './map-camera';
 import type { Box, Point } from './map-layout';
 import { type LaneLine, type LaneRoute, laneRoutes, replies } from './overview-lanes';
 import type { OverviewView } from './overview-nav';
@@ -52,7 +53,7 @@ export const OVERVIEW_TEXT = 'text-console-13';
 export const OVERVIEW_SMALL_TEXT = 'text-console-12';
 export const OVERVIEW_SMALLEST_PX = tokenPx(OVERVIEW_SMALL_TEXT);
 /** The Visual standard's type floor (rule 1): nothing a person reads is drawn under it. */
-export const OVERVIEW_TYPE_FLOOR_PX = 12;
+export const OVERVIEW_TYPE_FLOOR_PX = TYPE_FLOOR_PX;
 /**
  * The least zoom a fit opens at, so the smallest text draws at the floor; a view wider than
  * its frame at this zoom pans. The most a fit enlarges a small view, to fill a large frame.

@@ -5,22 +5,22 @@ import {
   fittedHeight,
   MAX_ZOOM,
   MIN_FRAME_HEIGHT,
-  MAP_TEXT_PX,
+  FIT_PAD,
+  MAP_SMALLEST_PX,
   MIN_ZOOM,
   READABLE_K,
   reveal,
-  rowsFor,
   TYPE_FLOOR_PX,
   zoomAt,
 } from './map-camera';
-import { layoutMap } from './map-layout';
+import { busiestCard, layoutMap } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 
 const world = { x: 0, y: -10, w: 1000, h: 200 };
 
 describe('the map camera', () => {
   test('fit centres the map in the frame at the largest scale that holds it, inside the padding', () => {
-    const camera = fitCamera(world, { width: 848, height: 400 }, 24);
+    const camera = fitCamera(world, { width: 848, height: 400 }, 24, MIN_ZOOM);
     expect(camera.k).toBe(0.8);
     expect(camera.x).toBe(24);
     // 200 tall at 0.8 is 160, centred in 400; the world starts at y -10.
@@ -40,33 +40,63 @@ describe('the map camera', () => {
     expect(camera.x).toBe(24);
   });
 
-  test("the shipped map's text opens at or above the type floor at every frame width", () => {
-    const oneRow = layoutMap(shippedView).bounds;
-    // From a phone's frame up to a wide desktop's, in the rows that width takes, with the
-    // height the frame takes there.
-    for (let width = 0; width <= 2000; width += 50) {
-      const { bounds } = layoutMap(shippedView, rowsFor(oneRow, width));
-      const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
-      expect(MAP_TEXT_PX * k).toBeGreaterThanOrEqual(TYPE_FLOOR_PX);
+  test('the readable scale is 1: the smallest text, 12 px, at the type floor', () => {
+    expect(MAP_SMALLEST_PX).toBe(TYPE_FLOOR_PX);
+    expect(READABLE_K).toBe(1);
+  });
+
+  // The Overview frame's widths on a phone, a tablet, at 1440x900, 1280 and wider.
+  const WIDTHS = [320, 390, 768, 1100, 1280, 1600];
+  const { bounds, cards } = layoutMap(shippedView);
+  const fitWidth = bounds.w + 2 * FIT_PAD;
+
+  test('the shipped map opens at the readable scale at every frame width, panning exactly below its fit width', () => {
+    for (const width of WIDTHS) {
+      const camera = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
+      expect(camera.k).toBe(READABLE_K);
+      const pans = bounds.w * camera.k > width - 2 * FIT_PAD;
+      expect(pans).toBe(width < fitWidth);
+    }
+    const at = (width: number) => fitCamera(bounds, { width, height: 400 });
+    // At its fit width it is centred; one pixel narrower it opens on its start and pans.
+    expect(at(fitWidth).x).toBe(FIT_PAD - bounds.x);
+    expect(at(fitWidth - 1).x).toBe(FIT_PAD - bounds.x);
+    expect(at(fitWidth + 100).x).toBe(FIT_PAD + 50 - bounds.x);
+  });
+
+  test('a map that pans opens with the busiest card in the frame, within its edges', () => {
+    for (const width of WIDTHS.filter(w => w < fitWidth)) {
+      for (const card of cards) {
+        const camera = fitCamera(bounds, { width, height: 400 }, FIT_PAD, READABLE_K, 1, card.box);
+        const left = card.box.x * camera.k + camera.x;
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(left + card.box.w * camera.k).toBeLessThanOrEqual(width);
+        // The drawing's edges never leave the padding.
+        expect(bounds.x * camera.k + camera.x).toBeLessThanOrEqual(FIT_PAD);
+        expect((bounds.x + bounds.w) * camera.k + camera.x).toBeGreaterThanOrEqual(width - FIT_PAD);
+      }
     }
   });
 
-  test("the shipped map is one row in the Overview's frame at 1440x900, two on a phone", () => {
-    const { bounds } = layoutMap(shippedView);
-    // The Overview's map frame measures 1100px wide in a 1440x900 window.
-    const width = 1100;
-    expect(rowsFor(bounds, width)).toBe(1);
-    const { k } = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
-    // Blurbs and labels are MAP_TEXT_PX (15) world px, so about 10px; titles about 11px.
-    expect(k).toBeGreaterThanOrEqual(0.65);
-    expect(rowsFor(bounds, 390)).toBe(2);
-  });
-
-  test('a row too narrow for one row at the readable scale takes two; one not measured, one', () => {
-    const row = { x: 0, y: 0, w: 1000, h: 200 };
-    expect(rowsFor(row, 1000 * READABLE_K + 48)).toBe(1);
-    expect(rowsFor(row, 1000 * READABLE_K + 47)).toBe(2);
-    expect(rowsFor(row, 0)).toBe(1);
+  test('the opening card is the busiest, the leftmost on a tie; none in flight opens on the start', () => {
+    const width = 390;
+    const open = (counts: Record<string, number>) =>
+      fitCamera(
+        bounds,
+        { width, height: 400 },
+        FIT_PAD,
+        READABLE_K,
+        1,
+        busiestCard(cards, stage => counts[stage] ?? 0, shippedView.landed.stage)?.box
+      );
+    const centreOf = (id: string, x: number): number => {
+      const box = cards.find(card => card.id === id)?.box;
+      return (box?.x ?? 0) + (box?.w ?? 0) / 2 + x;
+    };
+    expect(centreOf('checks-review', open({ checks: 2, build: 1 }).x)).toBe(width / 2);
+    expect(centreOf('plan-build', open({ plan: 1, host: 1 }).x)).toBe(width / 2);
+    expect(open({}).x).toBe(FIT_PAD - bounds.x);
+    expect(open({ landed: 9 }).x).toBe(FIT_PAD - bounds.x);
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {
@@ -77,7 +107,7 @@ describe('the map camera', () => {
   });
 
   test('the fitted frame height leaves no empty band, never below the floor', () => {
-    expect(fittedHeight({ x: 0, y: 0, w: 1000, h: 600 }, 848, 24)).toBe(528);
+    expect(fittedHeight({ x: 0, y: 0, w: 1000, h: 600 }, 848, 24, MIN_ZOOM)).toBe(528);
     // Too narrow to fit: the height of the map at the readable scale.
     expect(fittedHeight({ x: 0, y: 0, w: 1000, h: 600 }, 300, 24)).toBe(600 * READABLE_K + 48);
     expect(fittedHeight(world, 548, 24)).toBe(MIN_FRAME_HEIGHT);

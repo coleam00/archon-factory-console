@@ -19,20 +19,22 @@ export const MIN_ZOOM = 0.3;
 export const MAX_ZOOM = 2;
 /** Fitting never enlarges the live map past its drawn size: zoom in to read closer. */
 const MAX_FIT = 1;
+/** The px a console type token names: `text-console-12` is 12 px (theme.css's scale). */
+const tokenPx = (token: string): number => Number(token.slice('text-console-'.length));
 /**
- * The smallest text the map draws, in world px (cards, chips and arrow labels are
- * `text-console-15`; FactoryMap.test.tsx holds the classes to it), and the console's type
- * floor, its smallest text token (`--text-console-9`).
+ * The smallest text the map draws (its chips and line pills; FactoryMap.test.tsx holds every
+ * class on the map to it), and the Visual standard's type floor (rule 1).
  */
-export const MAP_TEXT_PX = 15;
-export const TYPE_FLOOR_PX = 9;
+export const MAP_SMALLEST_TEXT = 'text-console-12';
+export const MAP_SMALLEST_PX = tokenPx(MAP_SMALLEST_TEXT);
+export const TYPE_FLOOR_PX = 12;
 /**
- * The least scale fitting opens at, so the map's text never draws under the type floor. A
- * frame too narrow for the whole map at this scale shows its start and pans to the rest.
+ * The least scale fitting opens at, so the map's text never draws under the type floor: 1. A
+ * frame too narrow for the whole map at this scale shows part of it and pans to the rest.
  */
-export const READABLE_K = TYPE_FLOOR_PX / MAP_TEXT_PX;
+export const READABLE_K = TYPE_FLOOR_PX / MAP_SMALLEST_PX;
 /** Space kept between the fitted map and the frame's edge. */
-export const FIT_PAD = 24;
+export const FIT_PAD = 16;
 /** The frame is never shorter than this, so the details panel beside it has room. */
 export const MIN_FRAME_HEIGHT = 260;
 
@@ -57,21 +59,37 @@ function place(size: number, extent: number, pad: number): number {
 }
 
 /**
+ * Where the drawing's left edge goes in a frame it does not fit: `open` (a world span)
+ * centred, but never so far that the drawing's edge leaves the padding on either side.
+ */
+function placeOpen(bounds: Box, open: Box, k: number, width: number, pad: number): number {
+  const centred = width / 2 - (open.x + open.w / 2 - bounds.x) * k;
+  return Math.min(pad, Math.max(width - pad - bounds.w * k, centred));
+}
+
+/**
  * The map in the frame at its fitting scale: centred where it fits, else from its start
- * (top-left), so a narrow frame shows the first stages and pans to the rest. Finite for any
- * frame, a zero-sized one included.
+ * (top-left), so a narrow frame shows the first stages and pans to the rest; or, given
+ * `open`, with that box centred as far as the drawing allows. Finite for any frame, a
+ * zero-sized one included.
  */
 export function fitCamera(
   bounds: Box,
   frame: Frame,
   pad = FIT_PAD,
   minK = READABLE_K,
-  maxK = MAX_FIT
+  maxK = MAX_FIT,
+  open?: Box
 ): Camera {
   const k = fitScale(bounds, frame, pad, minK, maxK);
+  const fits = bounds.w * k <= frame.width - 2 * pad;
+  const left =
+    fits || open === undefined
+      ? place(bounds.w * k, frame.width, pad)
+      : placeOpen(bounds, open, k, frame.width, pad);
   return {
     k,
-    x: place(bounds.w * k, frame.width, pad) - bounds.x * k,
+    x: left - bounds.x * k,
     y: place(bounds.h * k, frame.height, pad) - bounds.y * k,
   };
 }
@@ -86,15 +104,6 @@ export function fittedHeight(
 ): number {
   const k = fitScale(bounds, { width, height: Number.POSITIVE_INFINITY }, pad, minK, maxK);
   return Math.max(MIN_FRAME_HEIGHT, Math.ceil(bounds.h * k + 2 * pad));
-}
-
-/**
- * How many rows the map takes in a row `width` wide (the frame and the details panel beside
- * it): one while the one-row map fits there at the readable scale, else two. A width not
- * measured yet (0) takes one. Below the width that holds two rows the map pans.
- */
-export function rowsFor(oneRow: Box, width: number, pad = FIT_PAD): 1 | 2 {
-  return width <= 0 || oneRow.w * READABLE_K + 2 * pad <= width ? 1 : 2;
 }
 
 /** Zoom by `factor` keeping the frame point `at` over the same world point. */

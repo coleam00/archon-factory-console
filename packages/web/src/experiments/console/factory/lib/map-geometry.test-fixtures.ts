@@ -52,3 +52,15 @@ export function crosses(p: Segment, q: Segment): boolean {
   const [h, v] = horizontal(p) ? [p, q] : [q, p];
   return strictlyBetween(v.x1, h.x1, h.x2) && strictlyBetween(h.y1, v.y1, v.y2);
 }
+
+/** A polyline of axis-aligned points as its straight segments. */
+export function pointSegments(points: readonly { x: number; y: number }[]): Segment[] {
+  return points.slice(1).map((p, i) => {
+    const q = points[i] as { x: number; y: number };
+    return { x1: q.x, y1: q.y, x2: p.x, y2: p.y };
+  });
+}
+
+/** Whether two boxes overlap, edges touching not counted. */
+export const boxesMeet = (a: Box, b: Box): boolean =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
