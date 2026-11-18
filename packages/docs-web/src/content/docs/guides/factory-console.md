@@ -244,7 +244,7 @@ file and commit both.
 
 A factory overview explains how a factory runs, for presenting it. It is written by hand: it
 is not live, not exhaustive, and never generated from the pack's workflows. The Factory tab
-shows it under **How it works** (`factory/overview`) when the pack the tab draws has one.
+shows it under **How it works** (`factory/how-it-works`) when the pack the tab draws has one.
 
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its

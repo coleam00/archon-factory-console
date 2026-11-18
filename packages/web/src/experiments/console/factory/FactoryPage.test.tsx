@@ -211,7 +211,7 @@ describe('the Overview', () => {
   });
 
   test('the sub-navigation shows How it works only when the pack has an overview file, or a broken one', () => {
-    const link = `href="/console/p/${ID}/factory/overview"`;
+    const link = `href="/console/p/${ID}/factory/how-it-works"`;
     const withOverview = (read: FactoryOverviewRead | undefined): string => {
       if (read !== undefined) set(K.factoryOverview(ID), read);
       return render(`/console/p/${ID}/factory`, withView);
@@ -384,5 +384,46 @@ describe('the step page', () => {
 
   test('a step the workflow does not have says so', () => {
     expect(render(`/console/p/${ID}/factory/steps/deliver/nope`, withView)).toContain('No step');
+  });
+});
+
+describe('Factory routes', () => {
+  const overviewRead: FactoryOverviewRead = {
+    overview: {
+      pack: 'acme/kit',
+      source: 'project-file',
+      path: '/repo/.archon/packs/acme.kit.factory-overview.json',
+      declaration: OVERVIEW,
+    },
+    errors: [],
+  };
+
+  test('How it works lives at /factory/how-it-works, its tab current', () => {
+    set(K.factoryOverview(ID), overviewRead);
+    const html = render(`/console/p/${ID}/factory/how-it-works`, withView);
+    expect(html).toContain('Work comes in, is made, and is checked.');
+    expect(currentLinks(html)).toEqual([
+      `/console/p/${ID}/factory Factory`,
+      `/console/p/${ID}/factory/how-it-works How it works`,
+    ]);
+  });
+
+  test('an unknown path stays in the section, says so, and links every page', () => {
+    const html = render(`/console/p/${ID}/factory/how-it-work`, withView);
+    expect(html).toContain('No page here');
+    // The frame is intact: the view's title and the project's tabs still draw.
+    expect(html).toContain('Kit factory');
+    const start = html.indexOf('aria-label="Factory pages"');
+    expect(start).toBeGreaterThan(-1);
+    const links = html.slice(start, html.indexOf('</nav>', start));
+    for (const rest of ['', '/board', '/needs-you', '/how-it-works'])
+      expect(links).toContain(`href="/console/p/${ID}/factory${rest}"`);
+  });
+
+  test('an unknown stage or item keeps its own page and message', () => {
+    const stage = render(`/console/p/${ID}/factory/stages/nope`, withView);
+    expect(stage).toContain('This factory has no stage');
+    expect(stage).not.toContain('No page here');
+    expect(render(`/console/p/${ID}/factory/items/nope`, withView)).not.toContain('No page here');
   });
 });

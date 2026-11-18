@@ -195,7 +195,7 @@ function FactoryHeading({
         ))}
         {hasOverview ? (
           <SectionLink
-            to={factoryPath(projectId, '/overview')}
+            to={factoryPath(projectId, '/how-it-works')}
             label="How it works"
             active={section === 'how-it-works'}
           />

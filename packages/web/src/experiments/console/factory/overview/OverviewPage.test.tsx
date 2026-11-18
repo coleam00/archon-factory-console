@@ -30,7 +30,7 @@ afterEach(async () => {
   unmount = undefined;
 });
 
-async function mount(at = '/console/p/cb-1/factory/overview'): Promise<HTMLElement> {
+async function mount(at = '/console/p/cb-1/factory/how-it-works'): Promise<HTMLElement> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -39,7 +39,7 @@ async function mount(at = '/console/p/cb-1/factory/overview'): Promise<HTMLEleme
       <MemoryRouter initialEntries={[at]}>
         <Routes>
           <Route
-            path="/console/p/:projectId/factory/overview"
+            path="/console/p/:projectId/factory/how-it-works"
             element={<OverviewBody overview={OVERVIEW} />}
           />
         </Routes>
@@ -103,7 +103,7 @@ describe('the factory overview', () => {
   });
 
   test('the sidebar opens any view; an unknown ?view= opens the root and says so', async () => {
-    const page = await mount('/console/p/cb-1/factory/overview?view=gone');
+    const page = await mount('/console/p/cb-1/factory/how-it-works?view=gone');
     expect(cards(page)).toEqual(['in', 'make', 'check']);
     // It names the view it could not find rather than silently showing the root.
     expect(page.textContent).toContain('"gone"');

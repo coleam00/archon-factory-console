@@ -16,7 +16,7 @@ import { OverviewMap } from './OverviewMap';
 import { OverviewSidebar } from './OverviewSidebar';
 
 /**
- * `/console/p/:projectId/factory/overview`: the hand-written explainer of how the factory runs,
+ * `/console/p/:projectId/factory/how-it-works`: the hand-written explainer of how the factory runs,
  * for presenting it. The open view is `?view=<id>`, so the browser's back goes up a level.
  */
 export function OverviewPage(): ReactElement {
