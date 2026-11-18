@@ -11,7 +11,7 @@ import type { BoardModel, Pill, PlacedCard } from './board';
 type ItemLink = FactoryItem['links'][number];
 
 /** The item's active outgoing `part_of` links, in recording order. */
-export function activeOrderLinks(item: FactoryItem): ItemLink[] {
+function activeOrderLinks(item: FactoryItem): ItemLink[] {
   return item.links.filter(
     link => link.kind === 'part_of' && link.direction === 'outgoing' && link.ended === null
   );
@@ -43,20 +43,14 @@ export interface WorkOrderMember {
   title: string;
   pill: Pill;
   landed: boolean;
-  /** The column or ending the member sits in; a member with no run yet is in none. */
+  /** The column or ending the member sits in; `NOT_STARTED` for a member with no run yet. */
   where: string;
-  /** False for a member linked to the order that has no run yet, so the board lacks it. */
-  onBoard: boolean;
 }
 
 export interface WorkOrder {
   key: string;
   /** The order's own title when it has runs (it is on the board), else its key. */
   title: string;
-  /** The order has runs of its own, so it is an item on the board too. */
-  onBoard: boolean;
-  /** The project has an item row under the key; false when only a result names it. */
-  exists: boolean;
   /** Board members newest activity first, then members with no run yet. */
   members: WorkOrderMember[];
   landed: number;
@@ -97,19 +91,13 @@ export function workOrders(
           pill: 'waiting',
           landed: false,
           where: NOT_STARTED,
-          onBoard: false,
         });
-  return [...grouped].map(([key, list]) => {
-    const own = placed.get(key);
-    return {
-      key,
-      title: own?.placed.card.title ?? key,
-      onBoard: own !== undefined,
-      exists: own !== undefined || key in members,
-      members: list,
-      landed: list.filter(member => member.landed).length,
-    };
-  });
+  return [...grouped].map(([key, list]) => ({
+    key,
+    title: placed.get(key)?.placed.card.title ?? key,
+    members: list,
+    landed: list.filter(member => member.landed).length,
+  }));
 }
 
 interface Where {
@@ -136,7 +124,7 @@ function placedByKey(model: BoardModel): Map<string, Where> {
 
 function onBoard({ placed, label, landed }: Where): WorkOrderMember {
   const { card } = placed;
-  return { key: card.key, title: card.title, pill: card.pill, landed, where: label, onBoard: true };
+  return { key: card.key, title: card.title, pill: card.pill, landed, where: label };
 }
 
 /** The keys a highlighted order lights on the board: its members and the order itself. */

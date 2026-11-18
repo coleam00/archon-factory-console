@@ -81,27 +81,19 @@ describe('the work orders on a board', () => {
     expect(model.positions.has('48')).toBe(false);
     const [order, ...rest] = workOrders(items, model, { '48': ['5', '2', '9'] });
     expect(rest).toEqual([]);
-    expect(order).toMatchObject({
-      key: '48',
-      title: '48',
-      onBoard: false,
-      exists: true,
-      landed: 1,
-    });
-    expect(
-      order?.members.map(member => [member.key, member.pill, member.where, member.onBoard])
-    ).toEqual([
-      ['5', 'running', 'Build', true],
-      ['2', 'landed', 'Landed', true],
+    expect(order).toMatchObject({ key: '48', title: '48', landed: 1 });
+    expect(order?.members.map(member => [member.key, member.pill, member.where])).toEqual([
+      ['5', 'running', 'Build'],
+      ['2', 'landed', 'Landed'],
       // 9 is linked and has no run yet: on no board, waiting.
-      ['9', 'waiting', NOT_STARTED, false],
+      ['9', 'waiting', NOT_STARTED],
     ]);
   });
 
   test('a member whose order has no other members is an order of one', () => {
     const [order] = ordersOf([namedBy(realItem('5'), '60'), realItem('3')]);
     // 60 is named only by a result: no item row, no members map entry.
-    expect(order).toMatchObject({ key: '60', exists: false, landed: 0 });
+    expect(order).toMatchObject({ key: '60', title: '60', landed: 0 });
     expect(order?.members.map(member => member.key)).toEqual(['5']);
   });
 
@@ -115,11 +107,7 @@ describe('the work orders on a board', () => {
   test('an order with runs of its own keeps its card and its title', () => {
     const items = [realItem('8'), linkTo(realItem('5'), '8')];
     const [order] = ordersOf(items, { '8': ['5'] });
-    expect(order).toMatchObject({
-      key: '8',
-      onBoard: true,
-      title: progressOf(realItem('8')).title,
-    });
+    expect(order).toMatchObject({ key: '8', title: progressOf(realItem('8')).title });
     expect(highlightedKeys(order)).toEqual(new Set(['8', '5']));
   });
 
