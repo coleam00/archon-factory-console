@@ -101,7 +101,8 @@ card's option tiles (rule 9).
 - Padding: 12 px (`p-3`); a drill-down card 16 px (`p-4`).
 - A 3 px top accent bar in the stage group's colour (rule 5), inside the radius.
 - Row 1: a 16 px icon and a kind label in the Label role ("AGENT · LARGE", as in 12-drill-build).
-- Then the title in the Card title role, at most 2 lines.
+- Then the title in the Card title role, at most 2 lines; on a board card at most 3 (owner,
+  2026-11-18: the board is where people find items, and a cut title costs a click).
 - Then at most two lines of text at `--text-console-13`, `--text-secondary` (`line-clamp-2`).
 - Live chips (rule 5's state colours) sit below the text.
 - Minimum width on the map and How it works: **176 px**. A card is wider than tall (height at most
@@ -116,7 +117,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Between cards in a list or a column: 12 px (`gap-3`).
 - Between canvas cards joined by a labelled line: 48 px, room for a label pill.
 - Between page sections: 24 px (`gap-6`). Page padding: 24 px (`p-6`).
-- Board columns: 12 px apart (`gap-3`), each at least 220 px wide.
+- Board columns: 12 px apart (`gap-3`), each at least 208 px wide (owner, 2026-11-18: five
+  columns fit beside the sidebar at 1440x900, 5 x 208 + 4 x 12 = 1088 of 1100 px; narrower
+  windows scroll sideways).
 
 ### 4. Lines
 
@@ -423,7 +426,7 @@ present itself without the console knowing it. Shape (validated with zod in
   "pack": "Wirasm/archon-software-factory",       // the pack this view draws
   "title": "Software factory",
   "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
-  "stages": [                                      // map cards and board columns, left to right
+  "stages": [                                      // map cards and stage pages, left to right
     { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
       "group": "intake", "workflows": ["order"] },
     {
@@ -437,6 +440,11 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // an included node is <include>__<node>)
     }
   ],
+  "columns": [                                     // the board's columns, left to right: each a
+    { "id": "plan-build", "label": "Plan & build", // group of stages, every stage in exactly
+      "blurb": "Plan, build", "stages": ["plan", "build"] },  // one, the landed stage alone;
+    { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
+  ],                                               // absent: one column per stage
   "placement": {                                    // where an idle item sits after a run ended
     "order:ready": "triage",
     "triage:build": "plan", "triage:narrow": "plan",
@@ -651,7 +659,9 @@ empty state, when something was last asked, and those three cards.
 
 ## The board
 
-Columns are the declaration's stages in order, then the Merged column. Placement of one item,
+Columns are the declaration's `columns` in order, each a group of stages (without them, one
+column per stage), the Merged column among them; a card sits in the column holding its stage.
+Placement of one item,
 first rule that matches. The board, the map and the item page all place through one function
 (`factory/lib/placement.ts`), so they never disagree:
 
@@ -673,28 +683,41 @@ first rule that matches. The board, the map and the item page all place through 
 
 A card, in this order:
 
-1. Item key and title (title from the declared run input's title line: the first non-empty line
-   after any `---` front matter, without a leading `#<n> ` or heading marker; else the key).
-2. State pill: **Running** (a run works it now), **Needs you** (it has an open ask), **Failed**,
-   **Waiting** (queued or idle between stages), **Merged**.
-3. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
+1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
+   **Failed**, **Waiting** (queued or idle between stages), **Merged**.
+2. Title (from the declared run input's title line: the first non-empty line after any `---`
+   front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines.
+3. The stage line, so a card names its stage inside a column that groups several. While a run
+   works it: its stage, the running step's name and the round when the step is of the declared
+   rounds loop, "Checks · Code review · round 2", linking to the run in the console
+   (`/console/p/:projectId/r/:runId`); the step's engine id shows on hover. Otherwise the label
+   of the stage it waits in ("Plan", "CI and review").
+4. "part of <order>" when the item is a member of a work order (see Work orders).
+5. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),
    returned (a declared return), needs a decision (neither: an ask or a replan), running.
-4. While a run works it: its stage, the running step's name and the round when the step is of the
-   declared rounds loop, "Checks · Code review · round 2", linking to the run in the console
-   (`/console/p/:projectId/r/:runId`). The step's engine id shows on hover.
-5. "returned ×N" when checks or the host sent it back, linking to the item page.
-6. The change: "PR #123" linking to it, when there is one. When the change host could not say
+6. "returned ×N" when checks or the host sent it back, linking to the item page; then the
+   change: "PR #123" linking to it, when there is one. When the change host could not say
    whether it merged, the card says "merge state unknown" rather than reading as unmerged;
    while the server is still asking, it says "checking merge state", and the column holding
-   it and the Merged column show a skeleton bar (Visual standard, rule 6) instead of a count.
-7. In the Merged column: when it merged, in local time.
-8. For a failed item or one that needs you: one line saying what stopped it or what it asks.
+   it and the Merged column show a skeleton bar (Visual standard, rule 6) instead of a count
+   and no state chips; an empty column in that state shows skeleton cards, not its empty
+   placeholder.
+7. For a failed item or one that needs you: one line saying what stopped it or what it asks.
+
+A merged card, in the Merged column, is compact: its key and pill, its title, then the change
+and when it merged, in local time; no stage line, order chip, rounds or returned count. The
+Merged column lists the items merged in the last 7 local calendar days, newest first, then
+"N earlier · show all" opening the Table filtered to merged. A column with no card to show says why: "No card here
+matches the filter" under the filter box or `?show=`, "Nothing merged in the last 7 days" for
+a Merged column holding only older merges ("No match merged in the last 7 days" when the filter
+matches only older merges), else rule 9's "Nothing in <column> now".
 
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
 columns. A card opens the item page. **Table** view: one
-row per item with the same fields as columns, a Work order column among them, sortable. A filter
+row per item with the same fields as columns, a Work order, a Column and a Stage column among
+them, sortable. A filter
 box narrows by key, title or work order key.
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other

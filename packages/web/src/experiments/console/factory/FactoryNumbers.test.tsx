@@ -124,9 +124,9 @@ test('before the reads answer, the five item tiles say "…" and the found tile 
     expect(tiles.map(li => li.textContent)).toEqual([
       '…Loadingin flight',
       '…Loadingneed you',
-      '…Loadinglanded today',
+      '…Loadingmerged today',
       '…Loadingdone',
-      '…Loadingmedian from first run to landed',
+      '…Loadingmedian from first run to merged',
       // Its own read, drawn as a skeleton bar (Visual standard, rule 6).
       'Loadingfound by the factory',
     ]);
@@ -144,7 +144,7 @@ test('while a merge state is pending, the counts it decides say loading, never z
   const items = [...PAGE.items, readyWithMerge('p', 'pending')];
   const { container, tile, unmount } = await mount('cb-pending', items);
   try {
-    for (const label of ['in flight', 'landed today', 'done', 'median from first run to landed'])
+    for (const label of ['in flight', 'merged today', 'done', 'median from first run to merged'])
       expect(tile(label)).toBe(`…Loading${label}`);
     expect(container.textContent).not.toMatch(/\d+ of \d+/);
     expect(container.querySelector('[title="Loading"]')).toBeNull();

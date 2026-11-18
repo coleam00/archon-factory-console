@@ -16,6 +16,7 @@ import {
 } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
+import { formatDateTime } from '../lib/format';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -46,6 +47,8 @@ afterAll(async () => {
 });
 
 const ID = 'cb-1';
+// The Merged column lists the last 7 local days; the fixtures merged on 2026-11-17.
+const NOW = new Date(2026, 10, 18, 12, 0);
 afterEach(() => {
   cancelRereads();
   invalidate('factory-items');
@@ -68,7 +71,7 @@ async function mount(
         <Routes>
           <Route
             path="/console/p/:projectId/factory/board"
-            element={<Board projectId={ID} view={VIEW} />}
+            element={<Board projectId={ID} view={VIEW} now={NOW} />}
           />
         </Routes>
       </MemoryRouter>
@@ -83,9 +86,16 @@ async function mount(
   };
 }
 
-/** Each column's label and count, as its header shows them. */
+/** Each column's label and count, as its header shows them ("checking" while it waits). */
 const headers = (container: HTMLElement): string[] =>
-  [...container.querySelectorAll('h3[data-stage]')].map(h => h.textContent ?? '');
+  [...container.querySelectorAll('header[data-column]')].map(
+    header =>
+      `${header.querySelector('h3')?.textContent ?? ''}${header.querySelector('[data-count]')?.textContent ?? ''}`
+  );
+
+/** A column's section by its label. */
+const columnNamed = (container: HTMLElement, label: string): Element | null =>
+  container.querySelector(`section[aria-label="${label}"]`);
 
 const cardKeys = (container: HTMLElement): string[] =>
   [...container.querySelectorAll('article')].map(
@@ -100,7 +110,15 @@ describe('Found by the factory', () => {
         'section[aria-labelledby="found-by-the-factory-heading"]'
       );
       expect(panel?.querySelector('h2')?.textContent).toBe('Found by the factory');
-      const lastColumn = [...container.querySelectorAll('h3[data-stage]')].at(-1);
+      // On the board it is one line (owner ruling), so the columns keep their height: the
+      // full panel's chips are not drawn until "show the findings" opens it.
+      expect(
+        [...(panel?.querySelectorAll('button') ?? [])].some(
+          button => button.textContent === 'show the findings'
+        )
+      ).toBe(true);
+      expect(panel?.querySelector('ul[aria-label="What the drains decided"]')).toBeNull();
+      const lastColumn = [...container.querySelectorAll('header[data-column]')].at(-1);
       expect(lastColumn).toBeDefined();
       // After every column in document order: under the board, not above it.
       expect(
@@ -113,20 +131,17 @@ describe('Found by the factory', () => {
 });
 
 describe('the Pipeline view', () => {
-  test('one column per declared stage with its count, every real item in its column', async () => {
+  test('one column per declared column with its count, every real item in its column', async () => {
     const { container, unmount } = await mount(PAGE.items);
     try {
       expect(headers(container)).toEqual([
-        'Order0',
-        'Triage0',
-        'Plan0',
-        'Build4',
-        'Checks1',
-        'CI and review0',
-        'Ready to land0',
-        'Landed3',
+        'Intake0',
+        'Plan & build4',
+        'Checks & review1',
+        'Ready to merge0',
+        'Merged3',
       ]);
-      const checks = container.querySelector('section[aria-label="Checks"]');
+      const checks = columnNamed(container, 'Checks & review');
       expect(
         checks?.querySelector('a[aria-label="Checks · Product check · round 1"]')
       ).not.toBeNull();
@@ -149,7 +164,7 @@ describe('the Pipeline view', () => {
         input.dispatchEvent(new dom.Event('input', { bubbles: true }) as unknown as Event);
       });
       expect(cardKeys(container)).toEqual(['7']);
-      expect(headers(container)).toContain('Landed1');
+      expect(headers(container)).toContain('Merged1');
     } finally {
       await unmount();
     }
@@ -168,7 +183,7 @@ describe('the Pipeline view', () => {
     try {
       const strip = container.querySelector('section[aria-label="Work orders"]');
       const row = strip?.querySelector('li[data-order="48"]');
-      expect(row?.textContent).toContain('1 of 3 landed');
+      expect(row?.textContent).toContain('1 of 3 merged');
       // 48 has no title of its own: its key, then "Work order 48".
       expect(row?.querySelector('a')?.textContent).toBe('48');
       expect(row?.textContent).toContain('Work order 48');
@@ -176,7 +191,7 @@ describe('the Pipeline view', () => {
         [...(row?.querySelectorAll('[role="img"][title]') ?? [])].map(dot =>
           dot.getAttribute('title')
         )
-      ).toEqual(['5: Running', '2: Landed', '9: Waiting']);
+      ).toEqual(['5: Running', '2: Merged', '9: Waiting']);
       // A run-less order's row is its key; one with runs shows its key and its own title.
       expect(row?.querySelector('a')?.textContent).toBe('48');
       const withRuns = strip?.querySelector('li[data-order="8"]');
@@ -338,7 +353,7 @@ describe('a board opened from a number', () => {
           row => row.querySelector('td')?.textContent ?? ''
         );
       expect(keys()).toEqual(['7', '2', '1']);
-      expect(container.textContent).toContain('Showing: landed');
+      expect(container.textContent).toContain('Showing: merged');
       const clear = container.querySelector(
         'button[aria-label="Show every item"]'
       ) as HTMLButtonElement;
@@ -367,16 +382,29 @@ describe('a board opened from a number', () => {
 });
 
 describe('while a merge state is pending', () => {
-  test('Ready to land and Landed say they are checking; the card says why', async () => {
+  test('Ready to merge and Merged show a skeleton count; the card says why', async () => {
     const { container, unmount } = await mount([...PAGE.items, readyWithMerge('p', 'pending')]);
     try {
       const shown = headers(container);
-      expect(shown).toContain('Ready to land…checking');
-      expect(shown).toContain('Landed…checking');
-      expect(shown).toContain('Build4');
-      expect(container.querySelector('section[aria-label="Ready to land"]')?.textContent).toContain(
-        'checking merge state'
-      );
+      expect(shown).toContain('Ready to mergechecking');
+      expect(shown).toContain('Mergedchecking');
+      expect(shown).toContain('Plan & build4');
+      const ready = columnNamed(container, 'Ready to merge');
+      expect(ready?.textContent).toContain('checking merge state');
+      // No state chips while the count is not known: they would count what the skeleton hides.
+      expect(ready?.querySelectorAll('header li')).toHaveLength(0);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('an empty column whose count is not known shows card skeletons, not "Nothing in"', async () => {
+    // Nothing merged is read yet and one change waits on its answer: Merged may gain it.
+    const { container, unmount } = await mount([realItem('6'), readyWithMerge('p', 'pending')]);
+    try {
+      const merged = columnNamed(container, 'Merged');
+      expect(merged?.querySelector('[data-skeleton]')).not.toBeNull();
+      expect(merged?.textContent).not.toContain('Nothing in');
     } finally {
       await unmount();
     }
@@ -393,7 +421,248 @@ test('a failed refresh says so and keeps the board it last read', async () => {
     expect(container.querySelector('[role="status"]')?.textContent).toContain(
       'Could not refresh: the board test fetched. Showing the last values read.'
     );
-    expect(headers(container)).toContain('Landed3');
+    expect(headers(container)).toContain('Merged3');
+  } finally {
+    await unmount();
+  }
+});
+
+/** Real item 7 (merged) keyed `key`, merged at `at`. */
+function mergedOn(key: string, at: Date): FactoryItem {
+  const item = realItem('7');
+  item.item = { ...item.item, key };
+  item.progress = {
+    ...item.progress!,
+    change: { ...item.progress!.change!, mergedAt: at.toISOString() },
+  };
+  return item;
+}
+
+describe('the column headers and the Merged column', () => {
+  test("a header names its column, its stages and its cards' states", async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const header = columnNamed(container, 'Plan & build')?.querySelector('header');
+      expect(header?.querySelector('p')?.textContent).toBe('Plan, build');
+      expect([...(header?.querySelectorAll('li') ?? [])].map(chip => chip.textContent)).toEqual([
+        'running 2',
+        'waiting 2',
+      ]);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('Merged lists the last 7 days newest first, and links to the Table for the rest', async () => {
+    const items = [
+      ...PAGE.items,
+      mergedOn('old', new Date(2026, 10, 8, 9)),
+      mergedOn('older', new Date(2026, 9, 1)),
+    ];
+    const { container, unmount } = await mount(items);
+    try {
+      const merged = columnNamed(container, 'Merged');
+      expect(merged?.querySelector('header p')?.textContent).toBe('last 7 days');
+      expect(headers(container)).toContain('Merged3');
+      expect(cardKeys(merged as HTMLElement)).toEqual(['7', '2', '1']);
+      const earlier = [...(merged?.querySelectorAll('a') ?? [])].find(link =>
+        link.textContent?.includes('earlier')
+      );
+      expect(earlier?.textContent).toBe('2 earlier · show all');
+      expect(earlier?.getAttribute('href')).toBe(
+        `/console/p/${ID}/factory/board?view=table&show=landed`
+      );
+      // A merged card is compact: its change and when it merged, no round, no returned count.
+      const seven = [...(merged?.querySelectorAll('article') ?? [])].find(
+        article => article.querySelector('.font-mono')?.textContent === '7'
+      );
+      const change = realItem('7').progress!.change!;
+      expect(seven?.textContent).toContain(formatDateTime(change.mergedAt!));
+      expect(seven?.querySelector(`a[href="${change.url}"]`)?.textContent).toBe(
+        `PR #${String(change.number)}`
+      );
+      expect(merged?.textContent).not.toContain('round');
+      expect(merged?.textContent).not.toContain('returned');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('an empty column says so', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      expect(columnNamed(container, 'Intake')?.textContent).toContain('Nothing in Intake now');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a column a filter empties says no card matches, never that it is empty', async () => {
+    // Plan & build holds 4 items; none needs you.
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?show=needs-you`
+    );
+    try {
+      const column = columnNamed(container, 'Plan & build')?.textContent ?? '';
+      expect(column).toContain('No card here matches the filter');
+      expect(column).not.toContain('Nothing in');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('the filter box counts as a filter: a column it empties says no card matches', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      await filterTo(container, 'needs you');
+      const column = columnNamed(container, 'Plan & build')?.textContent ?? '';
+      expect(column).toContain('No card here matches the filter');
+      expect(column).not.toContain('Nothing in');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a filtered Merged column whose matches all merged earlier points to them', async () => {
+    const { container, unmount } = await mount([
+      mergedOn('old', new Date(2026, 10, 8, 9)),
+      mergedOn('older', new Date(2026, 9, 1)),
+      realItem('7'),
+    ]);
+    try {
+      await filterTo(container, 'old');
+      const merged = columnNamed(container, 'Merged')?.textContent ?? '';
+      expect(merged).toContain('No match merged in the last 7 days');
+      expect(merged).not.toContain('No card here matches');
+      expect(merged).toContain('2 earlier');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a Merged column with only older merges says none in the last 7 days', async () => {
+    const { container, unmount } = await mount([
+      mergedOn('old', new Date(2026, 10, 8, 9)),
+      mergedOn('older', new Date(2026, 9, 1)),
+    ]);
+    try {
+      const merged = columnNamed(container, 'Merged')?.textContent ?? '';
+      expect(merged).toContain('Nothing merged in the last 7 days');
+      expect(merged).not.toContain('Nothing in');
+      expect(merged).toContain('2 earlier');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('stacked on a phone, a column shows 3 cards and "show all N" for the rest', async () => {
+    const five = ['a', 'b', 'c', 'd', 'e'].map(key => ({
+      ...realItem('6'),
+      item: { ...realItem('6').item, key },
+    }));
+    const { container, unmount } = await mount(five);
+    try {
+      const column = columnNamed(container, 'Plan & build');
+      const folded = () => column?.querySelectorAll('.max-md\\:hidden').length;
+      expect(folded()).toBe(2);
+      const button = [...(column?.querySelectorAll('button') ?? [])].find(
+        b => b.textContent === 'show all 5'
+      );
+      expect(button).toBeDefined();
+      await act(async () => button?.click());
+      expect(folded()).toBe(0);
+    } finally {
+      await unmount();
+    }
+  });
+});
+
+/** Type `query` into the board's filter box, as a keystroke does. */
+async function filterTo(container: HTMLElement, query: string): Promise<void> {
+  const input = container.querySelector('input[type="search"]') as HTMLInputElement;
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set;
+    setter?.call(input, query);
+    input.dispatchEvent(new dom.Event('input', { bubbles: true }) as unknown as Event);
+  });
+}
+
+describe('a column body', () => {
+  test('a waiting card names the stage it waits in', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const card = [
+        ...(columnNamed(container, 'Plan & build')?.querySelectorAll('article') ?? []),
+      ].find(article => article.querySelector('.font-mono')?.textContent === '6');
+      expect(card?.textContent).toContain('Build');
+      expect(card?.querySelector('a[href*="/r/"]')).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('the bottom fade follows the cards a filter leaves, not only scrolling', async () => {
+    // happy-dom lays nothing out: a column body is 250 px tall, 100 px per child.
+    const proto = dom.HTMLElement.prototype as unknown as HTMLElement;
+    const saved = ['scrollHeight', 'clientHeight'].map(
+      key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+    );
+    const sized = (value: (body: HTMLElement) => number) => ({
+      configurable: true,
+      get(this: HTMLElement): number {
+        return this.dataset.columnBody === undefined ? 0 : value(this);
+      },
+    });
+    Object.defineProperty(
+      proto,
+      'scrollHeight',
+      sized(body => body.children.length * 100)
+    );
+    Object.defineProperty(
+      proto,
+      'clientHeight',
+      sized(() => 250)
+    );
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const fade = () => columnNamed(container, 'Merged')?.querySelector('[data-fade]');
+      expect(fade()).not.toBeNull();
+      await filterTo(container, '7');
+      expect(fade()).toBeNull();
+      await filterTo(container, '');
+      expect(fade()).not.toBeNull();
+    } finally {
+      await unmount();
+      for (const [key, descriptor] of saved)
+        if (descriptor) Object.defineProperty(proto, key, descriptor);
+        else Reflect.deleteProperty(proto, key);
+    }
+  });
+});
+
+test("the Table puts each row's column and stage under the Column and Stage headers", async () => {
+  const { container, unmount } = await mount(
+    PAGE.items,
+    `/console/p/${ID}/factory/board?view=table`
+  );
+  try {
+    const headers = [...container.querySelectorAll('thead th')].map(th =>
+      (th.textContent ?? '').replace(/ [↑↓]$/, '')
+    );
+    const column = headers.indexOf('Column');
+    const stage = headers.indexOf('Stage');
+    expect(stage).toBe(column + 1);
+    const cells = (key: string): string[] =>
+      [
+        ...([...container.querySelectorAll('tbody tr')]
+          .find(row => row.querySelector('td')?.textContent === key)
+          ?.querySelectorAll('td') ?? []),
+      ].map(td => td.textContent ?? '');
+    expect([cells('7')[column], cells('7')[stage]]).toEqual(['Merged', 'Merged']);
+    expect([cells('8')[column], cells('8')[stage]]).toEqual(['Checks & review', 'Checks']);
+    // A cell after them still sits under its own header.
+    expect(cells('7')[headers.indexOf('State')]).toBe('Merged');
   } finally {
     await unmount();
   }

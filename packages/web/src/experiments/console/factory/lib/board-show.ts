@@ -6,6 +6,12 @@
 import { ensureUtc } from '../../lib/format';
 import type { PlacedCard } from './board';
 
+/** `?view=table` shows the board's Table view; Pipeline is the default. */
+export const VIEW_PARAM = 'view';
+export const TABLE_VIEW = 'table';
+/** `?show=` narrows the board to what one of the Overview's numbers counts. */
+export const SHOW_PARAM = 'show';
+
 export const BOARD_SHOWS = ['in-flight', 'needs-you', 'landed-today', 'landed'] as const;
 export type BoardShow = (typeof BOARD_SHOWS)[number];
 
@@ -13,8 +19,8 @@ export type BoardShow = (typeof BOARD_SHOWS)[number];
 export const BOARD_SHOW_LABEL: Record<BoardShow, string> = {
   'in-flight': 'in flight',
   'needs-you': 'needs you',
-  'landed-today': 'landed today',
-  landed: 'landed',
+  'landed-today': 'merged today',
+  landed: 'merged',
 };
 
 /** The `?show=` value as a filter; undefined for one no filter has. */
@@ -34,7 +40,7 @@ function sameLocalDay(iso: string, now: Date): boolean {
 
 /**
  * Whether the filter `show` keeps `placed`. In flight: on the board, outside the landed
- * column. Needs you: its pill says so. Landed: in the landed column. Landed today: landed,
+ * stage. Needs you: its pill says so. Landed: in the landed stage. Landed today: landed,
  * its change merged on `now`'s local day. An item an ending took off the board, or one
  * placement found no column for, is none.
  */

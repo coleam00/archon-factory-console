@@ -69,7 +69,7 @@ export function WorkOrderOnly({
   );
 }
 
-/** An order's members, how many landed, and where each stands. */
+/** An order's members, how many merged, and where each stands. */
 export function OrderMembers({
   projectId,
   order,
@@ -80,7 +80,7 @@ export function OrderMembers({
   return (
     <div className="flex flex-col gap-1.5" aria-label={`Members of ${order.key}`}>
       <p className="text-sm text-text-secondary">
-        Members: {order.landed} of {order.members.length} landed
+        Members: {order.landed} of {order.members.length} merged
       </p>
       <ul className="flex flex-col gap-1">
         {order.members.map(member => (

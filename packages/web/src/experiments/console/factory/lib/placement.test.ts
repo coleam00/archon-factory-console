@@ -174,14 +174,14 @@ describe('the pack after its work-order upgrade', () => {
     expect(after(run('order', 'completed', 'refused'))).toBe('ended: Refused at intake');
   });
 
-  test('a landgate run that completed with no outcome keeps a ready change in Ready to land', () => {
+  test('a landgate run that completed with no outcome keeps a ready change in Ready to merge', () => {
     expect(after(ready, run('landgate', 'running', null, 'gate'))).toBe('ready');
     expect(after(ready, run('landgate', 'completed'))).toBe('ready');
     // Whatever outcome a later version of the gate returns, `landgate:*` places it.
     expect(after(ready, run('landgate', 'completed', 'held'))).toBe('ready');
   });
 
-  test('a discoveries run after the gate is no stage: the item stays in Ready to land', () => {
+  test('a discoveries run after the gate is no stage: the item stays in Ready to merge', () => {
     // The view names no `discoveries` workflow, so its runs are not the view's.
     for (const status of ['running', 'completed', 'failed'] as const)
       expect(after(ready, run('landgate', 'completed'), run(null, status))).toBe('ready');
@@ -234,7 +234,7 @@ describe('placing items of the items read, first rule that matches', () => {
     expect(placeOf(delivering(null))).toBe('build');
   });
 
-  test('1 before 2: a land run still running after it merged keeps the item in Ready to land', () => {
+  test('1 before 2: a land run still running after it merged keeps the item in Ready to merge', () => {
     expect(placeOf(landRunning())).toBe('ready');
   });
 
@@ -242,7 +242,7 @@ describe('placing items of the items read, first rule that matches', () => {
     expect(placeOf(realItem('7'))).toBe('landed');
   });
 
-  test('3: ended ready, its change unmerged or its merge state unknown or pending, is in Ready to land', () => {
+  test('3: ended ready, its change unmerged or its merge state unknown or pending, is in Ready to merge', () => {
     for (const merged of [false, 'unknown', 'pending'] as const) {
       const item = realItem('1');
       const progress = progressOf(item);

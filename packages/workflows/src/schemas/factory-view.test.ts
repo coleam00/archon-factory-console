@@ -283,3 +283,53 @@ describe('factoryViewSchema', () => {
     expect(parsed.success).toBe(false);
   });
 });
+
+describe('factoryViewSchema columns', () => {
+  type Columns = NonNullable<FactoryView['columns']>;
+  const grouped = (columns: Columns): FactoryView => ({ ...minimal(), columns });
+  const work = (stages: string[]): Columns[number] => ({
+    id: 'work',
+    label: 'Plan & build',
+    blurb: 'Plan, build',
+    stages,
+  });
+  const merged: Columns[number] = {
+    id: 'merged',
+    label: 'Merged',
+    blurb: 'Merged changes',
+    stages: ['landed'],
+  };
+
+  test('groups stages into columns, and keeps them in their declared order', () => {
+    const parsed = factoryViewSchema.safeParse(grouped([work(['plan', 'build']), merged]));
+    expect(parsed.error?.issues ?? []).toEqual([]);
+    expect(parsed.data?.columns?.map(column => column.id)).toEqual(['work', 'merged']);
+  });
+
+  test('a stage in no column is a finding', () => {
+    expect(issuePaths(grouped([work(['plan']), merged]))).toEqual(['columns']);
+  });
+
+  test('a stage in two columns is a finding at its second place', () => {
+    const view = grouped([work(['plan', 'build']), { ...work(['build']), id: 'again' }, merged]);
+    expect(issuePaths(view)).toEqual(['columns.1.stages.0']);
+  });
+
+  test('a column naming a stage no stage declares is a finding at its place', () => {
+    expect(issuePaths(grouped([work(['plan', 'build', 'biuld']), merged]))).toEqual([
+      'columns.0.stages.2',
+    ]);
+  });
+
+  test('a column id declared twice is a finding', () => {
+    expect(issuePaths(grouped([work(['plan']), work(['build']), merged]))).toEqual([
+      'columns.1.id',
+    ]);
+  });
+
+  test('the landed stage sharing its column is a finding', () => {
+    expect(
+      issuePaths(grouped([work(['plan']), { ...merged, stages: ['build', 'landed'] }]))
+    ).toEqual(['columns.1.stages']);
+  });
+});
