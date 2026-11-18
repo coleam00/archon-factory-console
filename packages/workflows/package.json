@@ -88,6 +88,7 @@
     "./factory-steps": "./src/factory-steps.ts",
     "./factory-items": "./src/factory-items.ts",
     "./factory-discoveries": "./src/factory-discoveries.ts",
+    "./factory-pack-settings": "./src/factory-pack-settings.ts",
     "./dag-resume-snapshot": "./src/dag-resume-snapshot.ts",
     "./store-conformance": "./src/store-conformance.ts",
     "./file-store": "./src/file-store/index.ts",

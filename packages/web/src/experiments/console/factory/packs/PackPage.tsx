@@ -1,14 +1,10 @@
 import type { ReactElement, ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
-import { EmptyState } from '../../components/EmptyState';
-import { errorDetail } from '../../lib/http';
+import { Link } from 'react-router';
 import { FactoryErrors } from '../FactoryFrame';
-import { FactoryLoading } from '../FactoryLoading';
 import { OverviewBody } from '../overview/OverviewPage';
-import { useFactoryPacks } from '../useFactoryPacks';
-import { readFailed } from '../lib/deadline';
 import { factoryPath, type FactoryPackListed } from '../lib/views';
-import { AllPacksLink, PackFrame, PacksFailed } from './PackFrame';
+import { PackFrame } from './PackFrame';
+import { PackLookup, packTitle } from './PackLookup';
 
 /**
  * `/console/factory/:pack/how-it-works`: How it works for one pack, from the overview file the
@@ -16,29 +12,13 @@ import { AllPacksLink, PackFrame, PacksFailed } from './PackFrame';
  * factory on every project that runs it, so its page lives in the sidebar, not in a project.
  */
 export function PackPage(): ReactElement {
-  const { pack: packKey = '' } = useParams<{ pack: string }>();
-  const read = useFactoryPacks();
-  const failed = readFailed(read.error);
-  const pack = read.data?.packs.find(listed => listed.key === packKey);
-  if (pack === undefined)
-    return (
-      <PackFrame title="Factory" subtitle={packKey}>
-        {failed !== undefined ? (
-          <PacksFailed message={errorDetail(failed)} />
-        ) : read.data === undefined ? (
-          <FactoryLoading read={read} />
-        ) : (
-          <EmptyState
-            title="No factory pack here"
-            hint={`No installed pack keyed "${packKey}" has a factory overview file.`}
-            action={<AllPacksLink />}
-          />
-        )}
-      </PackFrame>
-    );
+  return <PackLookup render={pack => <HowItWorks pack={pack} />} />;
+}
+
+function HowItWorks({ pack }: { pack: FactoryPackListed }): ReactElement {
   return (
     <PackFrame
-      title={pack.overview?.declaration.title ?? pack.key}
+      title={packTitle(pack)}
       subtitle={<ReadFrom pack={pack} />}
       tabs={{ packKey: pack.key, active: 'how-it-works' }}
     >

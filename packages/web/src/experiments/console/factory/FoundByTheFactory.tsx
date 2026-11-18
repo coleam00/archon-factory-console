@@ -13,6 +13,7 @@ import { errorDetail } from '../lib/http';
 import type { FactoryDiscoveries } from '../skills/factory';
 import { itemPath } from './lib/board';
 import { readFailed } from './lib/deadline';
+import { ShadowBadge } from './ShadowBadge';
 import {
   type FactoryFinding,
   FOUND_BY_THE_FACTORY,
@@ -210,15 +211,6 @@ function Heading({ shadow }: { shadow: boolean }): ReactElement {
         </p>
       ) : null}
     </div>
-  );
-}
-
-/** Rule 10's shadow badge: the drains decide what they would file and file nothing. */
-function ShadowBadge(): ReactElement {
-  return (
-    <span className="rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)]">
-      shadow
-    </span>
   );
 }
 

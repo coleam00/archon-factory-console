@@ -324,6 +324,16 @@ has an overview file) lists every such pack with the projects that run it, and e
 pack, **Factory** opens its page directly. A project's Factory tab links to the page for its
 pack, and its old `factory/how-it-works` and `factory/overview` addresses still land there.
 
+Beside How it works, the pack's **Settings** tab (`/console/factory/<pack key>/settings`) shows
+how the pack is configured, read-only: one card per setting the pack declares in its
+`.pack/pack.yaml`, in the pack's order, with its name, the pack's description and default, and
+what each project that runs the pack sets in its `.archon/packs/<pack key>.yaml`. A setting a
+project leaves empty or unset reads "pack default". A setting the overview's `settings` map
+marks as a policy or the checks file shows the path, says "file not found" when the project
+has no such file, and lists a checks file's checks by name and command. A key a project sets
+that the pack does not declare is listed under "Not declared by the pack". To change a value,
+edit the project's file.
+
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
 number of cards and one line saying what it shows (on a phone, a menu above the map), a
@@ -367,6 +377,7 @@ names, is drawn as parallel: a line into or out of the group branches to each ca
 | `caption` | yes | One paragraph in plain words, shown under the root view's map on the page. Full screen does not show it: whoever presents says it. |
 | `root` | yes | The id of the view the page opens on. |
 | `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), an optional `label`, and optionally `shadow: true` for a line the pack would act on but does nothing about yet, which is drawn in the shadow style with "shadow" on its label. Every view but the root is opened by exactly one card. |
+| `settings` | no | How the Settings tab presents the pack's settings, by setting name: `shadow: true` for a setting whose stage runs as a shadow (it carries the shadow badge), and `points_to`: `policy` for a path to a document in the project, or `checks` for the path to the project's checks file (at most one setting). Every key must be a setting the pack's `.pack/pack.yaml` declares; the Settings tab lists any other as an error. |
 
 The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
 `git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.

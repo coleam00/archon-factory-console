@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { Navigate, Route } from 'react-router';
 import { PackIndexPage } from './PackIndexPage';
 import { PackPage } from './PackPage';
+import { PackSettingsPage } from './PackSettingsPage';
 
 /**
  * The sidebar's Factory pages: every pack, then one pack's tabs. A function returning a
@@ -15,6 +16,7 @@ export function factoryPackRoutes(base: '' | '/console/'): ReactElement {
       <Route index element={<PackIndexPage />} />
       <Route path=":pack" element={<Navigate replace to="how-it-works" />} />
       <Route path=":pack/how-it-works" element={<PackPage />} />
+      <Route path=":pack/settings" element={<PackSettingsPage />} />
     </Route>
   );
 }

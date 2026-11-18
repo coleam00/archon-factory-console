@@ -11,6 +11,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import {
   readProjectPackSettings,
+  readProjectPackSettingsRaw,
   packSettingValue,
   parsePackDeclaration,
   PackSettingsError,
@@ -316,6 +317,21 @@ describe('readProjectPackSettings', () => {
     await expect(readProjectPackSettings(cwd, { key: 'alpha', source: 'project' })).rejects.toThrow(
       "pack 'alpha' declares no settings"
     );
+  });
+});
+
+describe('readProjectPackSettingsRaw', () => {
+  it('returns no settings for a missing file, and an unknown key raw instead of refusing it', async () => {
+    expect((await readProjectPackSettingsRaw(cwd, 'alpha')).settings).toBeUndefined();
+    await mkdir(join(cwd, '.archon', 'packs'), { recursive: true });
+    await writeFile(
+      join(cwd, '.archon', 'packs', 'alpha.yaml'),
+      'settings:\n  colour: red\n  n: 3\n'
+    );
+    expect(await readProjectPackSettingsRaw(cwd, 'alpha')).toEqual({
+      path: join(cwd, '.archon', 'packs', 'alpha.yaml'),
+      settings: { colour: 'red', n: 3 },
+    });
   });
 });
 

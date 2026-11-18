@@ -46,7 +46,8 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    decides what it would file.
 8. **Later, not now:** a read-only page of the pack's settings and policies (under the sidebar
    Factory entry); reading engine-reported rounds and limits per item when the engine reports them
-   instead of deriving rounds from events.
+   instead of deriving rounds from events. *The read-only settings page is built (#74): the
+   Settings tab of the pack's sidebar page.*
 
 Not ours to build: forge views of issues and PRs (Thomas works on those in the existing UI), and a
 YAML-to-graph generator for the detailed authoring view (Rasmus has one). Our view and overview files
@@ -387,7 +388,8 @@ documents through Neon live queries.
   |---|---|
   | `/console/factory` | One card per pack with an overview file: its title, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
-  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header naming the file it was read from, with the pack's tabs. `:pack` is the pack key (`owner.name` when installed). Only How it works is a tab today; the pack's read-only settings (owner change 8) will be the second |
+  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header naming the file it was read from, with the pack's tabs. `:pack` is the pack key (`owner.name` when installed). The pack's tabs are How it works and Settings |
+  | `/console/factory/:pack/settings` | Settings (owner change 8, read-only): one card per setting the pack's `.pack/pack.yaml` declares, in its order, with its name in sentence case, the key, the pack's description (clamped) and default, and each project's value from its `.archon/packs/<pack key>.yaml` ("pack default" when empty or unset). The overview file's `settings` map marks shadows (rule 10's badge) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks. Keys a project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
 
   Which file a pack page reads: the pack's own `.shared/factory-overview.json` (bundled, global
   or installed) when it ships one; else the first project, by name, whose own files give one
@@ -542,6 +544,11 @@ What those reads do not carry comes from **one read-only route file**,
   the overview its page shows (the pack's own file, else the first project's by name, named in
   `readFrom`), the projects a view of it applies to, and its files that failed; beside them, the
   scope roots and projects that could not be read.
+- `GET /api/factory/pack-settings?pack=<key>` the pack's Settings tab: the settings its
+  `.pack/pack.yaml` declares (the install's, else a project's pack folder), as the overview's
+  `settings` map presents them, and for each project a view of the pack applies to, its value
+  of each from `.archon/packs/<key>.yaml`, the policy or checks file a value names looked up in
+  its checkout, and the keys the pack does not declare.
 - `GET /api/factory/workflow?codebaseId=&workflow=` one workflow a view names, for the stage and
   step pages: its steps keyed as run events name them, the loop groups and included workflows
   that frame them, and each step's kind, model, `when:`, prompt and authored YAML.
