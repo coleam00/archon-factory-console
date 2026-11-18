@@ -125,19 +125,23 @@ function sortArrows(
       return;
     }
     if (sameCard) return;
-    const outcomes = arrow.label?.split(', ') ?? [];
-    const skip = b.card > a.card + 1;
-    const target = cards[b.card]?.label ?? '';
-    const parts = skip
-      ? outcomes.length === 0
-        ? [`→ ${target}`]
-        : outcomes.map(outcome => `${outcome} → ${target}`)
-      : outcomes;
+    const parts = forwardParts(arrow.label, b.card > a.card + 1 ? cards[b.card]?.label : undefined);
     const into = forward.get(a.card) ?? { id, left: a.card, parts: [] };
     for (const part of parts) if (!into.parts.includes(part)) into.parts.push(part);
     forward.set(a.card, into);
   });
   return { forward: [...forward.values()].sort((p, q) => p.left - q.left), sendBacks };
+}
+
+/**
+ * A forward arrow's outcomes as its neighbour hand-off's label reads them: as they are, or,
+ * for one that skips to the card labelled `skipsTo`, each followed by where it goes.
+ */
+function forwardParts(label: string | undefined, skipsTo: string | undefined): string[] {
+  const outcomes = label?.split(', ') ?? [];
+  if (skipsTo === undefined) return outcomes;
+  if (outcomes.length === 0) return [`→ ${skipsTo}`];
+  return outcomes.map(outcome => `${outcome} → ${skipsTo}`);
 }
 
 /** A label's pill size: one line per outcome, the last without its comma. */
