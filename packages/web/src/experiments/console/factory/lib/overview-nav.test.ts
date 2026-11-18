@@ -14,12 +14,12 @@ describe('viewTrail', () => {
 });
 
 describe('viewList', () => {
-  test('lists every view depth first, with its depth and card count', () => {
+  test("lists every view depth first, with its depth, card count and its opener's line", () => {
     expect(viewList(OVERVIEW)).toEqual([
-      { id: 'top', label: 'How it works', depth: 0, cards: 3 },
-      { id: 'make', label: 'Make', depth: 1, cards: 2 },
-      { id: 'test', label: 'Test it', depth: 2, cards: 1 },
-      { id: 'check', label: 'Check', depth: 1, cards: 1 },
+      { id: 'top', label: 'How it works', depth: 0, cards: 3, line: undefined },
+      { id: 'make', label: 'Make', depth: 1, cards: 2, line: 'What Make does.' },
+      { id: 'test', label: 'Test it', depth: 2, cards: 1, line: 'What Test it does.' },
+      { id: 'check', label: 'Check', depth: 1, cards: 1, line: 'What Check does.' },
     ]);
   });
 });

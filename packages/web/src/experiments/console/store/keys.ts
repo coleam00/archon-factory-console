@@ -34,6 +34,8 @@ export const K = {
   factoryItem: (projectId: string, key: string): string => `factory-items:${projectId}:item:${key}`,
   // A project's items without the factory progress join, for a project no factory view applies to.
   projectItems: (projectId: string): string => `factory-items:${projectId}:window`,
+  // Under the same prefix, so a drain that ends refreshes what the drains decided.
+  factoryDiscoveries: (projectId: string): string => `factory-items:${projectId}:discoveries`,
   messages: (conversationId: string): string => `messages:${conversationId}`,
   conversations: (projectId: string): string => `conversations:${projectId}`,
   countsGlobal: 'counts:global' as const,

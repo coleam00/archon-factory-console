@@ -293,6 +293,18 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
         });
     });
   });
+  // The discoveries workflow places no item, so only its existence is checked: no steps or
+  // hand-offs of it are compared, and `unlistedWorkflows` still names it.
+  const { discoveries } = view;
+  if (discoveries !== undefined) {
+    const names = graph.stages.map(stage => stage.name);
+    if (packWorkflowName(names, discoveries.workflow) === undefined)
+      findings.push({
+        kind: 'unknown-workflow',
+        path: ['discoveries', 'workflow'],
+        message: `names workflow "${discoveries.workflow}", which pack "${graph.pack}" does not have`,
+      });
+  }
   // Loop groups count as steps. Fan-out bodies (`graph.fanOutBlocks`) do not: a fan-out
   // include is one node of its stage; this pack has none.
   return [

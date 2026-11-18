@@ -35,6 +35,8 @@ type Edge = OverviewView['edges'][number];
 const COLS = 6;
 const ROWS = 4;
 const VIEWS = 20_000;
+/** The most loops-back edges a view gets between cards, besides a reply. */
+const LANES = 3;
 
 type Random = () => number;
 
@@ -100,22 +102,48 @@ function addGroups(view: OverviewView, random: Random): void {
   }
 }
 
-/** Up to six edges between distinct ends, no pair twice, at most one lane between two cards. */
+/** Whether the view has a `calls` edge `from`->`to`: a loops-back edge back along it is a reply. */
+const asks = (view: OverviewView, from: string, to: string): boolean =>
+  view.edges.some(edge => edge.kind === 'calls' && edge.from === from && edge.to === to);
+
+/**
+ * Up to six straight edges between distinct ends, then up to three loops-back edges between
+ * cards, some sharing an end and some nested, apart or interleaved, and sometimes a reply to
+ * one of the asks. No pair twice, keyed as the schema keys them (a lane line and a reply each
+ * apart from a straight edge), since the web has no rule against a repeated pair.
+ */
 function addEdges(view: OverviewView, random: Random): void {
   const pick = pickOf(random);
   const ends = [...view.cards.map(c => c.id), ...(view.groups ?? []).map(g => g.id)];
+  // A lane end with a card under it is refused, so lane ends are mostly the lowest card of a column.
+  const lowest = view.cards
+    .filter(c => !view.cards.some(o => o.col === c.col && o.row > c.row))
+    .map(c => c.id);
+  const all = view.cards.map(c => c.id);
+  const laneEnd = (): string => {
+    const from = random() < 0.85 ? lowest : all;
+    return from[pick(from.length)] as string;
+  };
   const pairs = new Set<string>();
-  let lane = false;
-  for (let tries = 0; tries < 1 + pick(6); tries++) {
-    const from = ends[pick(ends.length)] as string;
-    const to = ends[pick(ends.length)] as string;
-    const isLane: boolean = !lane && random() < 0.3 && from.startsWith('c') && to.startsWith('c');
-    const key = `${[from, to].sort().join(' ')}${isLane ? ' lane' : ''}`;
-    if (from === to || pairs.has(key)) continue;
+  const add = (from: string, to: string, kind: Edge['kind']): void => {
+    const reply = kind === 'loops-back' && asks(view, to, from);
+    const tag = kind !== 'loops-back' ? '' : reply ? ' reply' : ' lane';
+    const key = `${[from, to].sort().join(' ')}${tag}`;
+    if (from === to || pairs.has(key)) return;
     pairs.add(key);
-    lane ||= isLane;
-    const kind: Edge['kind'] = isLane ? 'loops-back' : random() < 0.5 ? 'feeds' : 'calls';
     view.edges.push({ from, to, kind });
+  };
+  for (let tries = 0; tries < 1 + pick(6); tries++)
+    add(
+      ends[pick(ends.length)] as string,
+      ends[pick(ends.length)] as string,
+      random() < 0.5 ? 'feeds' : 'calls'
+    );
+  for (let tries = pick(LANES + 1); tries > 0; tries--) add(laneEnd(), laneEnd(), 'loops-back');
+  const calls = view.edges.filter(edge => edge.kind === 'calls');
+  if (calls.length > 0 && random() < 0.3) {
+    const asked = calls[pick(calls.length)] as Edge;
+    add(asked.to, asked.from, 'loops-back');
   }
 }
 

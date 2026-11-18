@@ -6,10 +6,12 @@
  *
  * An overview is a root view and drill-downs a card `opens`. Each view lays its cards out on a
  * 1-based grid and joins them with edges, which a console draws straight: an edge runs along a
- * row or a column its two ends share, and the one `loops-back` edge drops from its source, runs
- * in a lane under everything, and rises into its target. The schema rejects a file whose lines
- * would run through a card, cross a group it does not belong to, or cross another line, so
- * nothing crosses in any file that validates (`factory-overview-geometry.ts`).
+ * row or a column its two ends share. A `loops-back` edge that answers a `calls` edge (a reply)
+ * runs beside that edge; every other `loops-back` edge drops from its source into one lane
+ * under everything, runs along its own track there, and rises into its target, so a view may
+ * send work back several ways. The schema rejects a file whose lines would run through a card,
+ * cross a group it does not belong to, or cross another line, so nothing crosses in any file
+ * that validates (`factory-overview-geometry.ts`, `factory-overview-lanes.ts`).
  */
 import { z } from 'zod';
 import { factoryViewSourceSchema } from './factory-view';
@@ -86,6 +88,11 @@ const edgeSchema = z.strictObject({
   /** `feeds` hands work on; `calls` asks someone; `loops-back` sends work back. */
   kind: factoryOverviewEdgeKindSchema,
   label: z.string().min(1).max(40).optional(),
+  /**
+   * A shadow line says what the pack would do and does nothing yet (it decides what it would
+   * file, and files nothing). A console draws it in the shadow style and says so on its label.
+   */
+  shadow: z.boolean().optional(),
 });
 
 const viewSchema = z.strictObject({
@@ -189,23 +196,16 @@ function rootCaptionIssues(overview: FactoryOverviewShape): Issue[] {
   ];
 }
 
-/** One loops-back line per view at most, and exactly one in the root: the lane under the line. */
+/** The root shows how work goes back: it needs at least one loops-back edge. */
 function loopIssues(overview: FactoryOverviewShape): Issue[] {
-  const issues: Issue[] = [];
-  for (const [viewId, view] of Object.entries(overview.views)) {
-    const loops = view.edges.filter(edge => edge.kind === 'loops-back').length;
-    if (loops > 1)
-      issues.push({
-        path: ['views', viewId, 'edges'],
-        message: `has ${loops.toString()} loops-back edges; a view draws one lane at most`,
-      });
-    if (viewId === overview.root && loops === 0)
-      issues.push({
-        path: ['views', viewId, 'edges'],
-        message: 'the root view needs its one loops-back edge',
-      });
-  }
-  return issues;
+  const root = overview.views[overview.root];
+  if (root === undefined || root.edges.some(edge => edge.kind === 'loops-back')) return [];
+  return [
+    {
+      path: ['views', overview.root, 'edges'],
+      message: 'the root view needs a loops-back edge: the way work is sent back',
+    },
+  ];
 }
 
 export const factoryOverviewSchema = factoryOverviewShape.superRefine((overview, ctx) => {

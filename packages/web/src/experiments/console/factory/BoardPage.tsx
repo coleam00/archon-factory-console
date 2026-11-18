@@ -7,6 +7,7 @@ import { StaleRead } from './StaleRead';
 import { useFactoryItemsRead } from './useFactoryItems';
 import { WorkOrdersStrip } from './WorkOrdersStrip';
 import { FactoryFrame } from './FactoryFrame';
+import { FoundByTheFactory } from './FoundByTheFactory';
 import {
   boardModel,
   filterBoard,
@@ -150,6 +151,9 @@ export function Board({
         orders={orders}
         lit={params.get(ORDER_PARAM)}
       />
+      {view.discoveries === undefined ? null : (
+        <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+      )}
     </div>
   );
 }

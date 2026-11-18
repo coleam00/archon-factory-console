@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "How the factory works",
-  "caption": "Work comes in as an issue, a work order, or something the factory found while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A change that is ready waits for you to land it. Whenever something needs a decision, the factory stops and asks you. What the checks and CI find goes back to the same builder, for up to three rounds, and a check can send an item back to Plan.",
+  "caption": "Work comes in as an issue, a work order, or something the factory found while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A change that is ready waits for you to merge it. Whenever something needs a decision, the factory stops and asks you, and your answer restarts the stage that asked. What the checks and CI find goes back to the same builder, for up to three rounds; an item that needs a different approach goes back to Plan.",
   "root": "factory",
   "views": {
     "factory": {
@@ -89,8 +89,8 @@
         },
         {
           "id": "ready",
-          "title": "Ready to land",
-          "text": "Approved, waiting to be merged",
+          "title": "Ready to merge",
+          "text": "Approved, waiting for you to merge it",
           "icon": "git-pull-request",
           "kind": "outcome",
           "col": 7,
@@ -98,8 +98,8 @@
         },
         {
           "id": "landed",
-          "title": "Landed",
-          "text": "The change is merged",
+          "title": "Merged",
+          "text": "The change is in main",
           "icon": "flag",
           "kind": "outcome",
           "col": 8,
@@ -117,7 +117,7 @@
         {
           "id": "landgate",
           "title": "Land gate",
-          "text": "Says if it may land; you merge",
+          "text": "Says if it may merge; you merge it",
           "icon": "gavel",
           "kind": "gate",
           "col": 7,
@@ -133,8 +133,18 @@
         { "from": "ci", "to": "ready", "kind": "feeds" },
         { "from": "ready", "to": "landed", "kind": "feeds" },
         { "from": "plan", "to": "you", "kind": "calls", "label": "asks" },
-        { "from": "ready", "to": "landgate", "kind": "calls", "label": "may it land?" },
-        { "from": "ci", "to": "build", "kind": "loops-back", "label": "sent back to fix" }
+        { "from": "you", "to": "plan", "kind": "loops-back", "label": "your answer restarts it" },
+        { "from": "ready", "to": "landgate", "kind": "calls", "label": "may it merge?" },
+        { "from": "checks", "to": "build", "kind": "loops-back", "label": "sent back to fix" },
+        { "from": "ci", "to": "build", "kind": "loops-back", "label": "CI or a reviewer found something" },
+        { "from": "build", "to": "plan", "kind": "loops-back", "label": "replan" },
+        {
+          "from": "ci",
+          "to": "found",
+          "kind": "loops-back",
+          "label": "unrelated finds would become new work",
+          "shadow": true
+        }
       ]
     },
     "triage": {
@@ -152,7 +162,7 @@
         {
           "id": "triage-judge",
           "title": "Judge",
-          "text": "Decides what should happen, as the maintainers would",
+          "text": "Decides what happens, as maintainers would",
           "icon": "scale",
           "kind": "stage",
           "col": 2,
@@ -194,7 +204,7 @@
       ]
     },
     "plan": {
-      "caption": "Plan reads the project and writes down how to build the item. It changes nothing.",
+      "caption": "Plan reads the project and writes down how to build the item. It changes nothing. When it asks you, your answer starts it again with the answer in hand.",
       "cards": [
         {
           "id": "plan-item",
@@ -246,11 +256,12 @@
         { "from": "plan-item", "to": "plan-read", "kind": "feeds" },
         { "from": "plan-read", "to": "plan-weigh", "kind": "feeds" },
         { "from": "plan-weigh", "to": "plan-plan", "kind": "feeds" },
-        { "from": "plan-weigh", "to": "you-plan", "kind": "calls", "label": "asks" }
+        { "from": "plan-weigh", "to": "you-plan", "kind": "calls", "label": "asks" },
+        { "from": "you-plan", "to": "plan-weigh", "kind": "loops-back", "label": "your answer restarts it" }
       ]
     },
     "build": {
-      "caption": "Build writes the change in its own checkout and opens a draft pull request. What the checks and CI find comes back to the same builder to fix.",
+      "caption": "Build writes the change in its own checkout and opens a draft pull request. What the checks and CI find comes back to the same builder to fix; a plan that cannot be built as written goes back to Plan.",
       "cards": [
         {
           "id": "build-plan",
@@ -293,11 +304,12 @@
         { "from": "build-plan", "to": "build-build", "kind": "feeds" },
         { "from": "build-build", "to": "build-pr", "kind": "feeds" },
         { "from": "build-pr", "to": "build-back", "kind": "feeds" },
-        { "from": "build-back", "to": "build-build", "kind": "loops-back", "label": "fix it, same builder" }
+        { "from": "build-back", "to": "build-build", "kind": "loops-back", "label": "fix it, same builder" },
+        { "from": "build-build", "to": "build-plan", "kind": "loops-back", "label": "replan" }
       ]
     },
     "checks": {
-      "caption": "Three checks read every change. A verdict approves it or sends it back, for up to three rounds.",
+      "caption": "Three checks read every change. The verdict approves it, sends it back to the same builder with what they found, for up to three rounds, or sends it back to Plan when it needs a different approach.",
       "groups": [{ "id": "checks-three", "label": "Three checks" }],
       "cards": [
         {
@@ -342,7 +354,7 @@
         {
           "id": "checks-verdict",
           "title": "Verdict",
-          "text": "Approve, or send back what they found",
+          "text": "Approve, send back, or replan",
           "icon": "gavel",
           "kind": "gate",
           "col": 3,
@@ -356,12 +368,32 @@
           "kind": "outcome",
           "col": 4,
           "row": 2
+        },
+        {
+          "id": "checks-build",
+          "title": "Build",
+          "text": "The same builder fixes what they found",
+          "icon": "hammer",
+          "kind": "stage",
+          "col": 1,
+          "row": 3
+        },
+        {
+          "id": "checks-plan",
+          "title": "Plan",
+          "text": "A new plan, for a different approach",
+          "icon": "map",
+          "kind": "stage",
+          "col": 4,
+          "row": 3
         }
       ],
       "edges": [
         { "from": "checks-pr", "to": "checks-three", "kind": "feeds" },
         { "from": "checks-three", "to": "checks-verdict", "kind": "feeds" },
-        { "from": "checks-verdict", "to": "checks-approved", "kind": "feeds" }
+        { "from": "checks-verdict", "to": "checks-approved", "kind": "feeds" },
+        { "from": "checks-verdict", "to": "checks-build", "kind": "loops-back", "label": "sent back to fix" },
+        { "from": "checks-verdict", "to": "checks-plan", "kind": "loops-back", "label": "replan" }
       ]
     }
   }
