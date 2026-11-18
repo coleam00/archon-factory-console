@@ -104,7 +104,7 @@ function ItemRead({
         item={data.item}
         pill={itemPill(declaration, data.item, landed).pill}
         column={column ?? null}
-        workOrder={order !== undefined && data.item.runs.length === 0}
+        workOrder={data.item.runs.length === 0 && (order !== undefined || hasMembers(data.item))}
       />
       <ItemAsks projectId={projectId} asks={asks} attention={attention} />
       <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
@@ -117,6 +117,16 @@ function ItemRead({
       <ItemAnswers projectId={projectId} answers={data.item.answers} />
       <Degraded degraded={data.item.degraded} />
     </>
+  );
+}
+
+/**
+ * Whether an active `part_of` link names the item: then it is a work order, known from its own
+ * read before the items read lands.
+ */
+function hasMembers(item: FactoryItemDetail['item']): boolean {
+  return item.links.some(
+    link => link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null
   );
 }
 

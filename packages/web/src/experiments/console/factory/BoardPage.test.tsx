@@ -166,8 +166,9 @@ describe('the Pipeline view', () => {
     }
   });
 
-  test('no work order, no strip', async () => {
-    const { container, unmount } = await mount(PAGE.items);
+  test('no work order with a member on the board, no strip', async () => {
+    // 9 is linked to 48 and has no run yet: 48 has its page, nothing on the board to light.
+    const { container, unmount } = await mount(PAGE.items, undefined, { '48': ['9'] });
     try {
       expect(container.querySelector('section[aria-label="Work orders"]')).toBeNull();
     } finally {

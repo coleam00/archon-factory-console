@@ -163,10 +163,22 @@ describe('work orders on the item page', () => {
   });
 
   test('an order with runs of its own: its members, with their state, and how many landed', () => {
-    const order = itemDetail('1');
+    const base = itemDetail('1');
+    // 3's link stands as the member; 9's, whose newer link names another order, stays a link.
+    const incoming = (key: string) => ({
+      id: `link-${key}`,
+      kind: 'part_of' as const,
+      direction: 'incoming' as const,
+      other: { id: `item-${key}`, projectKey: base.item.item.projectKey, key },
+      ...act,
+      ended: null,
+    });
+    const order = { ...base, item: { ...base.item, links: [incoming('3'), incoming('9')] } };
     itemsRead([order.item, partOf(itemDetail('3').item, '1')], { '1': ['3'] });
     const words = text(render(order));
     expect(words).toContain('Members: 0 of 1 landed');
+    expect(words).toContain('Has part 9');
+    expect(words).not.toContain('Has part 3');
     expect(words).toMatch(/3 [^<]*Waiting Build/);
     // Its own column and state still show: it is worked by the factory.
     expect(words).not.toContain(WORK_ORDER_WORDS);
@@ -193,5 +205,32 @@ describe('work orders on the item page', () => {
     const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
     expect(text(header)).toBe(` 48 48 ${WORK_ORDER_WORDS} `);
     expect(words).toContain('Members: 0 of 1 landed');
+  });
+
+  test('an order with no run of its own says so from its own links, before the items read', () => {
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-48', key: '48' },
+        runs: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+        links: [
+          {
+            id: 'link-3',
+            kind: 'part_of',
+            direction: 'incoming',
+            other: { id: 'item-3', projectKey: base.item.item.projectKey, key: '3' },
+            ...act,
+            ended: null,
+          },
+        ],
+      },
+    };
+    const words = text(render(detail));
+    expect(words).toContain(WORK_ORDER_WORDS);
+    expect(words).not.toContain('In Order');
   });
 });

@@ -100,7 +100,7 @@ export function BoardCard({
       data-dimmed={dimmed ? 'true' : undefined}
       className={`relative flex flex-col gap-1 rounded border bg-surface-elevated px-2.5 py-2 hover:border-border-bright ${
         moved ? 'border-accent-bright ring-1 ring-accent-bright' : 'border-border'
-      } ${dimmed ? 'opacity-40' : ''} motion-safe:transition-[colors,opacity]`}
+      } ${dimmed ? 'opacity-40' : ''} motion-safe:transition`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="truncate font-mono text-console-11 text-text-tertiary">{card.key}</span>

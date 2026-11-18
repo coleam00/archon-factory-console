@@ -188,8 +188,9 @@ The items and the stage graph are the engine's own reads, which any API client u
   (1970, so every item with a run shows) by its `after` cursor, which carries the window, 100
   items a page. The window lists an item once one of its own runs started, so an item whose
   first start is still queued for capacity, or that only a link or ruling created, is on no
-  board, map or number until its first run starts. Showing those needs the window to count
-  queued starts (an engine change), not a second reader here.
+  board, map or number until its first run starts; one linked `part_of` a work order counts
+  only in that order's "N of M landed" (as not started). Showing those needs the window to
+  count queued starts (an engine change), not a second reader here.
   The window pages by item id; the console sorts newest activity first (the latest of each
   item's runs' end, or start while one runs), since a board column keeps the order it is given.
 - `GET /api/packs/{pack}/graph?codebaseId=` (#5848, what `archon pack graph` prints) gives the

@@ -25,12 +25,18 @@ export function ItemLinks({
   membership?: Membership | null;
   order?: WorkOrder;
 }): ReactElement {
-  const links =
-    order === undefined
-      ? all
-      : all.filter(
-          link => !(link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null)
-        );
+  // A member's link is shown as the member; a link from an item whose newer link names
+  // another order stays a plain link.
+  const members = new Set(order?.members.map(member => member.key));
+  const links = all.filter(
+    link =>
+      !(
+        link.kind === 'part_of' &&
+        link.direction === 'incoming' &&
+        link.ended === null &&
+        members.has(link.other.key)
+      )
+  );
   const named = membership?.source === 'output' ? membership.order : null;
   return (
     <section className="flex flex-col gap-2.5">

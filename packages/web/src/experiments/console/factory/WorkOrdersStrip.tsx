@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { statusDotClass } from '../lib/run-status';
 import { itemPath, PILL_LABEL, type Pill } from './lib/board';
-import { orderSearch, type WorkOrder } from './lib/work-orders';
+import { NOT_STARTED, orderSearch, type WorkOrder } from './lib/work-orders';
 
 /** A member's state as a dot, in the colour its pill has. */
 const PILL_DOT_CLASS: Record<Pill, string> = {
@@ -28,14 +28,16 @@ export function WorkOrdersStrip({
   /** The order `?order=` lights; null when none. */
   lit: string | null;
 }): ReactElement | null {
-  if (orders.length === 0) return null;
+  // An order whose members have no run yet has nothing on the board to light; its page has it.
+  const shown = orders.filter(order => order.members.some(member => member.where !== NOT_STARTED));
+  if (shown.length === 0) return null;
   return (
     <section aria-label="Work orders" className="flex flex-col gap-1.5">
       <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
         Work orders
       </h3>
       <ul className="flex flex-col gap-1.5">
-        {orders.map(order => (
+        {shown.map(order => (
           <WorkOrderRow
             key={order.key}
             projectId={projectId}
