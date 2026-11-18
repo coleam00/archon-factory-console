@@ -1,14 +1,6 @@
-import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
-import { useParams, useSearchParams } from 'react-router';
-import { errorDetail } from '../../lib/http';
-import * as skill from '../../skills';
-import type { FactoryOverviewRead } from '../../skills/factory';
-import { K } from '../../store/keys';
-import { useFactoryRead } from '../useFactoryRead';
-import { FactoryFrame } from '../FactoryFrame';
-import { FactoryLoading } from '../FactoryLoading';
-import { readFailed } from '../lib/deadline';
+import { useSearchParams } from 'react-router';
 import { openView, viewList, viewTrail, type OverviewDeclaration } from '../lib/overview-nav';
 import { OverviewBreadcrumb } from './OverviewBreadcrumb';
 import { OverviewLegend } from './OverviewLegend';
@@ -16,40 +8,11 @@ import { OverviewMap } from './OverviewMap';
 import { OverviewSidebar } from './OverviewSidebar';
 
 /**
- * `/console/p/:projectId/factory/how-it-works`: the hand-written explainer of how the factory runs,
- * for presenting it. The open view is `?view=<id>`, so the browser's back goes up a level.
+ * The hand-written explainer of how a pack's factory runs, for presenting it, as the pack's
+ * page in the sidebar shows it (`packs/PackPage.tsx`). The open view is `?view=<id>`, so the
+ * browser's back goes up a level; on the page, or full screen over the whole console until
+ * Esc or Exit.
  */
-export function OverviewPage(): ReactElement {
-  const { projectId = '' } = useParams<{ projectId: string }>();
-  return (
-    <FactoryFrame section="how-it-works" wide>
-      {() => <OverviewRead projectId={projectId} />}
-    </FactoryFrame>
-  );
-}
-
-function OverviewRead({ projectId }: { projectId: string }): ReactNode {
-  // The frame reads the same key for its sub-navigation, so this is one fetch.
-  const read = useFactoryRead<FactoryOverviewRead>(K.factoryOverview(projectId), within =>
-    within(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
-  );
-  const failed = readFailed(read.error);
-  if (failed !== undefined)
-    return (
-      <p role="alert" className="text-sm text-error">
-        The factory overview could not be loaded: {errorDetail(failed)}
-      </p>
-    );
-  if (read.data === undefined) return <FactoryLoading read={read} />;
-  // A broken file is listed by the frame above; with none at all, say so here.
-  if (read.data.overview === null)
-    return read.data.errors.length > 0 ? null : (
-      <p className="text-sm text-text-secondary">This factory's pack has no overview file.</p>
-    );
-  return <OverviewBody overview={read.data.overview.declaration} />;
-}
-
-/** The overview: on the page, or full screen over the whole console until Esc or Exit. */
 export function OverviewBody({ overview }: { overview: OverviewDeclaration }): ReactElement {
   const [params, setParams] = useSearchParams();
   const [fullScreen, setFullScreen] = useState(false);

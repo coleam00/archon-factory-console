@@ -25,7 +25,9 @@ export const K = {
   metrics: (scope: Scope, since: string): string => `metrics:${scopeKey(scope)}:${since}`,
   metricViews: (scope: Scope): string => `metric-views:${scopeKey(scope)}`,
   factoryViews: (projectId: string): string => `factory-views:${projectId}`,
-  factoryOverview: (projectId: string): string => `factory-overview:${projectId}`,
+  // Under `projects:` on purpose: adding, removing or renaming a project invalidates
+  // `projects`, and the packs list which projects run each pack.
+  factoryPacks: 'projects:factory-packs' as const,
   factoryWorkflow: (projectId: string, workflow: string): string =>
     `factory-workflow:${projectId}:${workflow}`,
   // Every page of one project's items; the dashboard SSE invalidates the `factory-items` prefix.

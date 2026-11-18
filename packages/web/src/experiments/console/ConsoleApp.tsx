@@ -9,6 +9,7 @@ import { BuilderConnected } from './builder/BuilderConnected';
 import { RunsPage } from './routes/RunsPage';
 import { RunDetailPage } from './routes/RunDetailPage';
 import { MetricsPage } from './routes/metrics/MetricsPage';
+import { factoryPackRoutes } from './factory/packs/routes';
 import { projectRoutes } from './routes/project-routes';
 import { PreviewPage } from './routes/PreviewPage';
 import { SettingsPage } from './routes/SettingsPage';
@@ -119,6 +120,7 @@ export function ConsoleApp(): ReactElement {
             <Route path="r/:runId" element={<RunDetailPage />} />
             <Route path="*" element={<Navigate to="/console" replace />} />
             {projectRoutes('')}
+            {factoryPackRoutes('')}
           </Routes>
         </main>
       </div>

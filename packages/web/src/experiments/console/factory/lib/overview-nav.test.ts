@@ -33,25 +33,23 @@ describe('openView', () => {
 });
 
 describe('howItWorksShown', () => {
-  const overview = {
+  const listed = {
     pack: 'acme/kit',
-    source: 'project-file' as const,
-    path: '/o.json',
-    declaration: OVERVIEW,
+    key: 'acme.kit',
+    overview: null,
+    readFrom: null,
+    projects: [],
+    errors: [],
   };
-  test('shows for a file, a broken file or a failed read; not unread or read as none', () => {
-    expect(howItWorksShown({ data: undefined, error: undefined })).toBe(false);
-    expect(howItWorksShown({ data: { overview: null, errors: [] }, error: undefined })).toBe(false);
-    expect(howItWorksShown({ data: { overview, errors: [] }, error: undefined })).toBe(true);
-    const broken = {
-      pack: 'acme.kit',
-      source: 'project-file' as const,
-      path: '/o.json',
-      error: 'bad',
-    };
-    expect(howItWorksShown({ data: { overview: null, errors: [broken] }, error: undefined })).toBe(
-      true
-    );
-    expect(howItWorksShown({ data: undefined, error: new Error('500') })).toBe(true);
+  const read = (packs: (typeof listed)[]) => ({
+    data: { packs, errors: [], unreadProjects: [] },
+    error: undefined,
+  });
+  test('shows for a listed pack or a failed read; not unread, nor for a pack it does not list', () => {
+    expect(howItWorksShown({ data: undefined, error: undefined }, 'acme.kit')).toBe(false);
+    expect(howItWorksShown(read([]), 'acme.kit')).toBe(false);
+    expect(howItWorksShown(read([listed]), 'acme.kit')).toBe(true);
+    expect(howItWorksShown(read([listed]), 'other.kit')).toBe(false);
+    expect(howItWorksShown({ data: undefined, error: new Error('500') }, 'acme.kit')).toBe(true);
   });
 });

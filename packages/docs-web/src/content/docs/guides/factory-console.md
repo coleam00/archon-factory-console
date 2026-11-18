@@ -93,9 +93,10 @@ it. Inside it:
 - **Step page**: the step by its name, with its engine id under it, the items on it now, when
   it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
   prompt, its YAML and the model it runs on.
-- **How it works**: the pack's [factory overview](#the-factory-overview), when it ships one: a
+- **How it works**: the pack's [factory overview](#the-factory-overview), when it has one: a
   hand-written picture of how the factory runs, for explaining it to someone who has never
-  seen it.
+  seen it. It explains the pack, not the project, so the link opens the pack's page under
+  **Factory** in the console's sidebar.
 
 Views update within a few seconds of a run starting, changing step or ending, and of a
 question opening or closing.
@@ -296,8 +297,12 @@ file and commit both.
 ## The factory overview
 
 A factory overview explains how a factory runs, for presenting it. It is written by hand: it
-is not live, not exhaustive, and never generated from the pack's workflows. The Factory tab
-shows it under **How it works** (`factory/how-it-works`) when the pack the tab draws has one.
+is not live, not exhaustive, and never generated from the pack's workflows. The same pack runs
+on many projects, so the overview lives in the console's sidebar: **Factory** (shown once a pack
+has an overview file) lists every such pack with the projects that run it, and each pack's
+**How it works** page (`/console/factory/<pack key>/how-it-works`) draws its overview. With one
+pack, **Factory** opens its page directly. A project's Factory tab links to the page for its
+pack, and its old `factory/how-it-works` and `factory/overview` addresses still land there.
 
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
@@ -307,10 +312,11 @@ legend docked in its bottom-left corner, until **Esc**. Drag to pan, scroll or u
 to zoom, and **Fit** to see a whole view. A view opens at a zoom whose smallest text is at least
 12 px; a view wider than the screen at that zoom opens at its start and pans.
 
-The file is found as the view file is: the project's
-`.archon/packs/<pack key>.factory-overview.json` first, then the pack's own
-`.shared/factory-overview.json`. A file that does not validate is listed with its path and the
-field at fault on every Factory page.
+A pack's page reads the pack's own `.shared/factory-overview.json` when it ships one. Otherwise
+it reads a project's `.archon/packs/<pack key>.factory-overview.json` (the first project by
+name that has one) and names that project under its title, so a project can present a pack it
+cannot edit. A file that does not validate is listed with its path and the field at fault on
+the pack's page; a broken pack file falls back to a project's file, its error still listed.
 
 Lines are drawn straight, so a view validates only when its picture is clean:
 

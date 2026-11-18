@@ -376,6 +376,22 @@ documents through Neon live queries.
   under one layout (`ProjectAttentionLayout`) holding the project's attention queue and stream.
 - A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a factory view
   applies to the project (below). Without one, nothing else changes.
+- A **Factory** entry in the console's sidebar (`ProjectRail`), directly above Settings, for what
+  explains a pack rather than a project (owner change 5). It shows only when at least one
+  installed pack has a factory overview file, or a broken one. Its routes:
+
+  | Route | Page |
+  |---|---|
+  | `/console/factory` | One card per pack with an overview file: its title, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
+  | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
+  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header naming the file it was read from, with the pack's tabs. `:pack` is the pack key (`owner.name` when installed). Only How it works is a tab today; the pack's read-only settings (owner change 8) will be the second |
+
+  Which file a pack page reads: the pack's own `.shared/factory-overview.json` (bundled, global
+  or installed) when it ships one; else the first project, by name, whose own files give one
+  (`.archon/packs/<pack key>.factory-overview.json`, or a pack folder in its checkout), named on
+  the page as "Read from <project>". A broken pack file falls back to a project's file and its
+  error stays listed on the page; a pack whose files are all broken shows only their errors.
+  One read-only route lists all of this (`GET /api/factory/packs`).
 - Routes, all under `/console/p/:projectId/factory`:
 
   | Route | Page |
@@ -383,8 +399,8 @@ documents through Neon live queries.
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
-  | `factory/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down), when it has one |
-  | `factory/overview` | Redirects (replace) to `factory/how-it-works`, keeping the query string, so old links land |
+  | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
+  | `factory/overview` | The same redirect, in one hop |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind "Show the real steps"; a stage with no drill-down shows the graphs |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
@@ -392,7 +408,8 @@ documents through Neon live queries.
 
 - Inside the Factory tab a small sub-navigation switches Overview and Board, each its own route,
   links to the project's Needs you tab (with the same count), and shows How it works when the
-  pack has a factory overview file (or a broken one). Item, stage and step pages have a back link to where you came from.
+  pack has a factory overview file (or a broken one). How it works opens the pack's page in the
+  sidebar, so it is never the tab's current page, and its file errors show there. Item, stage and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
@@ -513,8 +530,10 @@ What those reads do not carry comes from **one read-only route file**,
 - `GET /api/factory/views?codebaseId=` the factory views that apply to the project. Each carries
   `packKey` (the graph's `{pack}`) and `runNames` (each workflow a stage lists, as its runs record
   it and the graph names its stage), so the web never re-derives either.
-- `GET /api/factory/overview?codebaseId=` the factory overview of the pack the first applying
-  view draws, or null, with any overview file that failed.
+- `GET /api/factory/packs` every pack with a factory overview file across the install, by key:
+  the overview its page shows (the pack's own file, else the first project's by name, named in
+  `readFrom`), the projects a view of it applies to, and its files that failed; beside them, the
+  scope roots and projects that could not be read.
 - `GET /api/factory/workflow?codebaseId=&workflow=` one workflow a view names, for the stage and
   step pages: its steps keyed as run events name them, the loop groups and included workflows
   that frame them, and each step's kind, model, `when:`, prompt and authored YAML.

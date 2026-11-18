@@ -3,8 +3,10 @@ import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Routes, useLocation, useNavigationType } from 'react-router';
 import { invalidate } from '../store/cache';
+import { K } from '../store/keys';
 import { shippedListed } from './item-detail.test-fixtures';
 import { projectRoutes } from '../routes/project-routes';
+import { factoryPackRoutes } from './packs/routes';
 
 // `renderToStaticMarkup` never follows a `<Navigate>`, so the redirect needs a live tree.
 const dom = new Window({ url: 'http://localhost' });
@@ -35,7 +37,7 @@ const originalFetch = globalThis.fetch;
 afterAll(async () => {
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
-  invalidate('factory-overview');
+  invalidate(K.factoryPacks);
   invalidate('project');
   invalidate('runs');
   await dom.happyDOM.close();
@@ -62,32 +64,33 @@ globalThis.fetch = Object.assign(
 
 const settle = (): Promise<void> => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
 
-/** Where the router is, and how it got there. */
-function LocationProbe(): ReactElement {
-  const { pathname, search } = useLocation();
-  return <output data-at={pathname + search} data-by={useNavigationType()} />;
-}
+for (const old of ['how-it-works', 'overview'])
+  test(`the project's factory/${old} replaces itself with its pack's sidebar page, drill-down kept`, async () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={[`/console/p/${ID}/factory/${old}?view=checks#top`]}>
+          <HashProbe />
+          <Routes>
+            {projectRoutes('/console/')}
+            {factoryPackRoutes('/console/')}
+          </Routes>
+        </MemoryRouter>
+      )
+    );
+    await settle();
+    const probe = container.querySelector('output');
+    // One hop, by the key the views read lists for the view's pack.
+    expect(probe?.getAttribute('data-at')).toBe(
+      `/console/factory/${shippedListed.packKey}/how-it-works?view=checks#top`
+    );
+    expect(probe?.getAttribute('data-by')).toBe('REPLACE');
 
-test('the old How it works address replaces itself with the new one, drill-down kept', async () => {
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <MemoryRouter initialEntries={[`/console/p/${ID}/factory/overview?view=checks`]}>
-        <LocationProbe />
-        <Routes>{projectRoutes('/console/')}</Routes>
-      </MemoryRouter>
-    )
-  );
-  await settle();
-  const probe = container.querySelector('output');
-  expect(probe?.getAttribute('data-at')).toBe(`/console/p/${ID}/factory/how-it-works?view=checks`);
-  expect(probe?.getAttribute('data-by')).toBe('REPLACE');
-
-  await act(async () => root.unmount());
-  container.remove();
-});
+    await act(async () => root.unmount());
+    container.remove();
+  });
 
 test('the old Needs you address replaces itself with the project tab, query and hash kept', async () => {
   const container = document.createElement('div');

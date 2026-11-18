@@ -6,21 +6,22 @@ import { useProjectAttention } from '../components/ProjectAttention';
 import { ProjectViewTabs, WaitingBadge } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
-import type { FactoryOverviewRead, FactoryViews } from '../skills/factory';
+import type { FactoryPacksRead, FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { ClampedSummary } from './ClampedSummary';
+import { useFactoryPacks } from './useFactoryPacks';
 import { useFactoryRead } from './useFactoryRead';
 import { useFactoryViews } from './useFactoryViews';
 import { readFailed, SlowReadError } from './lib/deadline';
 import { needsYouCount, needsYouPath } from '../lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
-import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
+import { currentView, factoryPackPath, factoryPath, type FactoryViewListed } from './lib/views';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
-export type FactorySection = 'overview' | 'board' | 'how-it-works' | null;
+export type FactorySection = 'overview' | 'board' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
@@ -96,10 +97,7 @@ function FactoryViewed({
 }): ReactElement {
   const attention = useProjectAttention();
   const waiting = attention.data === undefined ? undefined : needsYouCount(attention.data);
-  // Read here, where a view applies: the route answers 404 for a project without one.
-  const overview = useFactoryRead<FactoryOverviewRead>(K.factoryOverview(projectId), within =>
-    within(signal => skill.getFactoryOverview({ codebaseId: projectId }, { signal }))
-  );
+  const packs = useFactoryPacks();
   return (
     <>
       <FactoryHeading
@@ -107,9 +105,9 @@ function FactoryViewed({
         view={view}
         section={section}
         waiting={waiting}
-        overview={overview}
+        packs={packs}
       />
-      <FactoryErrors errors={[...errors, ...(overview.data?.errors ?? [])]} />
+      <FactoryErrors errors={errors} />
       {children(view, attention)}
     </>
   );
@@ -147,7 +145,7 @@ function FactoryAbsent({
 }
 
 const SECTIONS: readonly {
-  key: Exclude<FactorySection, null | 'how-it-works'>;
+  key: Exclude<FactorySection, null>;
   label: string;
   rest: string;
 }[] = [
@@ -160,17 +158,21 @@ function FactoryHeading({
   view,
   section,
   waiting,
-  overview,
+  packs,
 }: {
   projectId: string;
   view: FactoryViewListed;
   section: FactorySection;
   /** How many open asks and waits need a person; undefined until the queue loads. */
   waiting: number | undefined;
-  /** The pack's overview file, read; its entry shows when there is one, a broken one, or the read failed. */
-  overview: EntityView<FactoryOverviewRead>;
+  /**
+   * Every pack with an overview file. How it works shows when the view's pack is listed or
+   * the read failed, and opens the pack's page in the sidebar: it explains the pack, so it is
+   * never this project's current page, and its file errors show there.
+   */
+  packs: EntityView<FactoryPacksRead>;
 }): ReactElement {
-  const hasOverview = howItWorksShown(overview);
+  const hasOverview = howItWorksShown(packs, view.packKey);
   return (
     <div className="flex max-w-5xl flex-col gap-3">
       <div className="flex flex-col gap-1.5">
@@ -199,11 +201,7 @@ function FactoryHeading({
           count={waiting}
         />
         {hasOverview ? (
-          <SectionLink
-            to={factoryPath(projectId, '/how-it-works')}
-            label="How it works"
-            active={section === 'how-it-works'}
-          />
+          <SectionLink to={factoryPackPath(view.packKey)} label="How it works" active={false} />
         ) : null}
       </nav>
     </div>
@@ -240,7 +238,7 @@ function SectionLink({
 }
 
 /** View and overview files that failed, each with its file, so a broken one is never silent. */
-function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): ReactNode {
+export function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): ReactNode {
   if (errors.length === 0) return null;
   return (
     <div
