@@ -8,12 +8,12 @@ import {
 } from 'react';
 import { Link, useLocation } from 'react-router';
 import { Inbox } from 'lucide-react';
+import { formatDateTime } from '../lib/format';
 import { errorDetail } from '../lib/http';
 import type { FactoryDiscoveries } from '../skills/factory';
 import { itemPath } from './lib/board';
 import { readFailed } from './lib/deadline';
 import {
-  decidedWhen,
   type FactoryFinding,
   FOUND_BY_THE_FACTORY,
   foundChips,
@@ -165,11 +165,14 @@ export function FoundPanel({
   return (
     <div className="flex flex-col gap-2">
       <p className="flex items-baseline gap-2">
-        <span className="text-console-22 font-semibold tabular-nums text-text-primary">
+        <span
+          data-found-count
+          className="text-console-22 font-semibold tabular-nums text-text-primary"
+        >
           {findings.length}
         </span>
         <span className="text-console-13 text-text-secondary">
-          {read.shadow ? 'it would file' : 'filed'}, not on the board yet
+          {read.shadow ? 'the factory would file' : 'filed'}, not on the board yet
         </span>
       </p>
       <ul aria-label="What the drains decided" className="flex flex-wrap gap-2">
@@ -268,7 +271,7 @@ function FindingRow({
           #{finding.from.key}
         </Link>
         {finding.from.title === null ? '' : ` · ${finding.from.title}`} ·{' '}
-        {decidedWhen(finding.decidedAt)}
+        {formatDateTime(finding.decidedAt)}
       </span>
       {finding.verified === null ? null : (
         <span className="sr-only">Verified: {finding.verified}</span>

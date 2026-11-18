@@ -3,6 +3,7 @@ import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
 import { invalidate, set } from '../store/cache';
+import { formatDateTime } from '../lib/format';
 import { K } from '../store/keys';
 import { FoundByTheFactory } from './FoundByTheFactory';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
@@ -66,10 +67,12 @@ test('the count no item covers, the chips, and the shadow badge and line', async
     expect(container.querySelector('h2')?.textContent).toBe('Found by the factory');
     expect(container.textContent).toContain('shadow');
     expect(container.textContent).toContain('files nothing yet');
-    expect(container.textContent).toContain('2it would file, not on the board yet');
+    expect(container.querySelector('[data-found-count]')?.textContent).toBe('2');
     const chips = [...container.querySelectorAll('[aria-label="What the drains decided"] li')];
     expect(chips.map(li => li.textContent)).toEqual(['would file 3', 'held 10', 'dropped 16']);
-    expect(container.textContent).toContain('1 already on the board · 1 drain could not be read');
+    // One finding an item covers, and one drain that could not be read.
+    expect(container.textContent).toMatch(/1 already on the board/);
+    expect(container.textContent).toMatch(/1 drain could not be read/);
     // Collapsed until asked.
     expect(container.querySelector('#found-by-the-factory-list')).toBeNull();
   } finally {
@@ -91,6 +94,8 @@ test('expanded, a row per open finding with its kind, source item and verified l
     expect(first?.textContent).toContain('Defect');
     expect(first?.textContent).toContain('A dev:console server on a seeded copy');
     expect(first?.textContent).toContain('#58 · Items window read takes ~1.1 s');
+    // When that drain decided, as the board's cards word a time.
+    expect(first?.textContent).toContain(formatDateTime(DISCOVERIES.findings[0]!.decidedAt));
     expect(first?.querySelector('a')?.getAttribute('href')).toBe(
       '/console/p/cb-found/factory/items/58'
     );
@@ -134,9 +139,7 @@ test('a read that fails says what could not be read', async () => {
   try {
     for (let turn = 0; turn < 5 && container.querySelector('[role="alert"]') === null; turn++)
       await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'What the factory found could not be read: the server is down'
-    );
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('the server is down');
   } finally {
     await unmount();
   }

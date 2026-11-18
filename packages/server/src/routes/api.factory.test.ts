@@ -317,7 +317,7 @@ describe('GET /api/factory/discoveries', () => {
     });
     expect(status).toBe(200);
     const read = factoryDiscoveriesResponseSchema.parse(body);
-    expect(read).toMatchObject({ pack: 'acme/kit', shadow: true, drains: 1, held: 1, dropped: 0 });
+    expect(read).toMatchObject({ pack: 'acme/kit', shadow: true, held: 1, dropped: 0 });
     expect(read.findings.map(f => [f.title, f.kind, f.from.key, f.coveredBy])).toEqual([
       ['A finding', 'defect', '1', null],
     ]);

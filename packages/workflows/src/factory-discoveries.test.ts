@@ -99,16 +99,14 @@ describe('a finding is covered by an item with the same title', () => {
   ]);
 
   test('in any case, trimmed', () => {
-    expect(coveredBy('an ORDER with runs but no title reads "48 48"', titles, '3')).toBe('12');
+    expect(coveredBy('an ORDER with runs but no title reads "48 48"', titles)).toBe('12');
   });
 
   test('a near title does not cover it', () => {
-    expect(coveredBy('An order with runs but no title reads "48"', titles, '3')).toBeNull();
-    expect(coveredBy('The board reads well.', titles, '3')).toBeNull();
-  });
-
-  test("the drain's own item never covers what it noticed", () => {
-    expect(coveredBy('The board reads well', titles, '5')).toBeNull();
+    expect(coveredBy('An order with runs but no title reads "48"', titles)).toBeNull();
+    expect(coveredBy('The board reads well.', titles)).toBeNull();
+    // A title an item's title extends is not the same title either.
+    expect(coveredBy('The board reads', titles)).toBeNull();
   });
 });
 
@@ -235,7 +233,6 @@ describe('reading every drain on the project', () => {
     expect(read).toMatchObject({
       pack: PACK,
       shadow: true,
-      drains: 2,
       unreadable: 0,
       held: 2,
       dropped: 2,
@@ -255,7 +252,7 @@ describe('reading every drain on the project', () => {
       ]),
       { view, pack: PACK, projectKey: 'acme/web', onUnreadable: id => unreadable.push(id) }
     );
-    expect(read).toMatchObject({ drains: 1, unreadable: 1, held: 0, dropped: 0, findings: [] });
+    expect(read).toMatchObject({ unreadable: 1, held: 0, dropped: 0, findings: [] });
     expect(unreadable).toEqual(['d1']);
   });
 

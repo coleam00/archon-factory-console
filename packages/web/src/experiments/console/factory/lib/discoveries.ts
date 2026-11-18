@@ -39,18 +39,3 @@ export function kindLabel(kind: string | null): string | null {
   const words = kind.trim().replace(/[-_]+/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
-
-/** When a drain decided, as "18 Nov, 13:10" in the reader's time zone. */
-export function decidedWhen(at: string, timeZone?: string): string {
-  const date = new Date(at);
-  const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone }).format(
-    date
-  );
-  const time = new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZone,
-  }).format(date);
-  return `${day}, ${time}`;
-}

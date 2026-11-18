@@ -11175,7 +11175,6 @@ export interface components {
     FactoryDiscoveries: {
       pack: string;
       shadow: boolean;
-      drains: number;
       unreadable: number;
       held: number;
       dropped: number;

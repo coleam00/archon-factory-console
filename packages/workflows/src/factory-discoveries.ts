@@ -47,8 +47,6 @@ export const factoryDiscoveriesSchema = z.object({
   pack: z.string(),
   /** The drains decide what they would file and file nothing. */
   shadow: z.boolean(),
-  /** Completed drains read, `unreadable` ones included. */
-  drains: z.number().int().nonnegative(),
   /** Drains whose result had no decisions at the declared pointers; their findings are missing. */
   unreadable: z.number().int().nonnegative(),
   held: z.number().int().nonnegative(),
@@ -104,18 +102,14 @@ export function drainDecisions(
 
 const sameTitle = (title: string): string => title.trim().toLowerCase();
 
-/**
- * The first item, in `titles` order, whose title is `title` (trimmed, case-insensitive,
- * exact), skipping `drainedItem`: a drain's own item never covers what it noticed.
- */
+/** The first item, in `titles` order, whose title is `title` (trimmed, case-insensitive, exact). */
 export function coveredBy(
   title: string,
-  titles: ReadonlyMap<string, string | null>,
-  drainedItem: string
+  titles: ReadonlyMap<string, string | null>
 ): string | null {
   const wanted = sameTitle(title);
   for (const [key, candidate] of titles) {
-    if (key !== drainedItem && candidate !== null && sameTitle(candidate) === wanted) return key;
+    if (candidate !== null && sameTitle(candidate) === wanted) return key;
   }
   return null;
 }
@@ -200,7 +194,6 @@ export async function readFactoryDiscoveries(
   const result: FactoryDiscoveries = {
     pack: input.pack,
     shadow: declaration.shadow,
-    drains: drains.length,
     unreadable: 0,
     held: 0,
     dropped: 0,
@@ -225,7 +218,7 @@ export async function readFactoryDiscoveries(
         from: { key: itemKey, title: titles.get(itemKey) ?? null },
         decidedAt: decidedAt(run).toISOString(),
         runId: run.id,
-        coveredBy: coveredBy(entry.title, titles, itemKey),
+        coveredBy: coveredBy(entry.title, titles),
       });
   }
   return result;

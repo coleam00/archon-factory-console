@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { decidedWhen, foundChips, kindLabel, openFindings } from './discoveries';
+import { foundChips, kindLabel, openFindings } from './discoveries';
 import { DISCOVERIES } from './discoveries.test-fixtures';
 
 describe('the words of what the factory found', () => {
@@ -20,9 +20,5 @@ describe('the words of what the factory found', () => {
     expect(kindLabel('defect')).toBe('Defect');
     expect(kindLabel('follow-up')).toBe('Follow up');
     expect(kindLabel(null)).toBeNull();
-  });
-
-  test('when a drain decided reads as day, month and time', () => {
-    expect(decidedWhen('2026-11-18T13:10:00.000Z', 'UTC')).toBe('18 Nov, 13:10');
   });
 });
