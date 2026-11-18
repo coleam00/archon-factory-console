@@ -352,7 +352,7 @@
     {
       "id": "checks-review",
       "label": "Checks & review",
-      "blurb": "Check rounds, CI and PR reviews",
+      "blurb": "Checks, CI and PR reviews",
       "stages": ["checks", "host"]
     },
     { "id": "ready", "label": "Ready to merge", "blurb": "Gate, then a person merges", "stages": ["ready"] },

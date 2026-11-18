@@ -49,8 +49,12 @@ export function ColumnHeader({
       />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
-          <h3 className="truncate text-console-15 font-semibold text-text-primary">{label}</h3>
-          <p className="truncate text-console-12 text-text-tertiary">{subtitle}</p>
+          <h3 title={label} className="truncate text-console-15 font-semibold text-text-primary">
+            {label}
+          </h3>
+          <p title={subtitle} className="truncate text-console-12 text-text-tertiary">
+            {subtitle}
+          </p>
         </div>
         {count === null ? (
           <span data-count title="Checking which changes merged" className="flex items-center">
