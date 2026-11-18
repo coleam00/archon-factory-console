@@ -50,14 +50,15 @@ it. Inside it:
   link (`archon workflow link --item <member> --kind part_of --to <order>`), else the order its
   latest run of the `partOf` workflow that completed with its declared outcome named (a refused
   run never makes it a member); a link wins. Above the columns, one row
-  per order with a member on the board says how many of its members landed, shows each member's
+  per order with a member on the board names it (its own title, else "Work order <key>"), says how many of its members landed, shows each member's
   state as a dot, and lights its members on the board on demand; a member's "part of" chip does
   the same. A row appears once one of the order's members has a run; until then the order and its
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
-  other items (on a work order, its members with their state and how many landed), and the
+  other items (on a work order, its members with their state and how many landed; an item no run
+  has started yet says "Not started"), and the
   rulings and answers given on it. The timeline words an outcome from the
   declaration: a run that ended in an `asked` outcome, or that left asks on the item, reads
   "asked you" (its questions on hover); otherwise a run outcome in `placement` reads as where it

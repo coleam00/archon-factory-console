@@ -59,6 +59,11 @@ export interface WorkOrder {
 /** What a member that has no run yet shows: it waits, in no column. */
 export const NOT_STARTED = 'Not started';
 
+/** What a person reads for an order with no title of its own: "Work order 48". */
+export function orderTitle(key: string): string {
+  return `Work order ${key}`;
+}
+
 /**
  * Every work order with at least one member, ordered by its newest member's activity.
  * `items` are the board's items, newest activity first; `model` is the board they make
@@ -94,7 +99,7 @@ export function workOrders(
         });
   return [...grouped].map(([key, list]) => ({
     key,
-    title: placed.get(key)?.placed.card.title ?? key,
+    title: placed.get(key)?.placed.item.progress?.title ?? orderTitle(key),
     members: list,
     landed: list.filter(member => member.landed).length,
   }));

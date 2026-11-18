@@ -146,6 +146,9 @@ describe('the Pipeline view', () => {
       const strip = container.querySelector('section[aria-label="Work orders"]');
       const row = strip?.querySelector('li[data-order="48"]');
       expect(row?.textContent).toContain('1 of 3 landed');
+      // 48 has no title of its own: its key, then "Work order 48".
+      expect(row?.querySelector('a')?.textContent).toBe('48');
+      expect(row?.textContent).toContain('Work order 48');
       expect(
         [...(row?.querySelectorAll('[role="img"][title]') ?? [])].map(dot =>
           dot.getAttribute('title')

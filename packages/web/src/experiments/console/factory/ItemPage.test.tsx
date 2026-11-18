@@ -217,8 +217,28 @@ describe('work orders on the item page', () => {
     const words = text(html);
     expect(words).toContain(WORK_ORDER_WORDS);
     const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
-    expect(text(header)).toBe(` 48 48 ${WORK_ORDER_WORDS} `);
+    expect(text(header)).toBe(` 48 Work order 48 ${WORK_ORDER_WORDS} `);
     expect(words).toContain('Members: 0 of 1 landed');
+  });
+
+  test('a member with no run yet: Not started, no state, column or change', () => {
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...partOf({ ...base.item, item: { ...base.item.item, id: 'item-58', key: '58' } }, '48'),
+        runs: [],
+        questions: [],
+        answers: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+      },
+    };
+    itemsRead([]);
+    const html = render(detail);
+    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
+    expect(text(header)).toBe(' 58 58 Not started ');
+    expect(text(html)).toContain('Part of 48');
   });
 
   test('an order whose members have not started: its members from its own links, N of M landed', () => {

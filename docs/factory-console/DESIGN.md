@@ -365,7 +365,7 @@ disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no 
 column and counts in no number; its members count as the items they are. Above the Pipeline's
 columns, a **Work orders** strip has one row per order with a member on the board (one that
 has a run): its key (to its item
-page) and title (its own when it has runs, else the key), "N of M landed" with a small bar, one
+page) and title (its own when it has one, else "Work order <key>"), "N of M landed" with a small bar, one
 dot per member in its pill's colour, and a toggle that lights its members on the board and dims
 the rest (`?order=<key>`). An order whose members have not started has no row yet: the order
 and its members show on its item page (`factory/items/<order key>`). A member's card says
@@ -376,7 +376,9 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 
 ## The item page
 
-- Header: key, title, state pill, the change link, the column it is in.
+- Header: key, title, state pill, the change link, the column it is in. An item no run has
+  started yet (a member linked before its first run) says "Not started" instead of a state,
+  column and change.
 - **Asks** it waits on, answerable in place (the same answer form as Needs you, always open).
 - **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
   or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
@@ -389,8 +391,9 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
   run placed without a link says "Part of <order>, as its order run recorded". On a work order,
   its members stand for their links: each with its title, state pill and where it sits, under
   "Members: N of M landed". An order with no run of its own has no column or state; its header
-  says it is a work order, not worked by the factory itself. An order only a result names has
-  no item row: its page is its key and members, from the items read.
+  says it is a work order, not worked by the factory itself, and without a title of its own it
+  reads "Work order <key>" (the key stays the mono label). An order only a result names has
+  no item row: its page is its key, that title and its members, from the items read.
 - **Rulings and answers** given on the item.
 
 ## Visual rules

@@ -75,9 +75,7 @@ function WorkOrderRow({
       >
         {order.key}
       </Link>
-      {order.title === order.key ? null : (
-        <span className="min-w-0 max-w-full truncate text-text-primary">{order.title}</span>
-      )}
+      <span className="min-w-0 max-w-full truncate text-text-primary">{order.title}</span>
       <span className="flex items-center gap-2 whitespace-nowrap text-text-secondary">
         {landedWords}
         <span

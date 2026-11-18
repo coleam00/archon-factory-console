@@ -4,6 +4,7 @@ import { PillBadge } from './BoardCard';
 import type { Pill } from './lib/board';
 import type { ItemColumn } from './lib/placement';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
+import { NOT_STARTED, orderTitle } from './lib/work-orders';
 
 /** The item's key, title, state, column and change: the same pill its board card shows. */
 export function ItemHeader({
@@ -18,11 +19,11 @@ export function ItemHeader({
   column: ItemColumn | null;
   /**
    * A work order with no run of its own: it is in no column and has no state or change, so
-   * the header says what it is instead.
+   * the header says what it is instead, and without a title of its own reads "Work order <key>".
    */
   workOrder?: boolean;
 }): ReactElement {
-  const title = item.progress?.title ?? null;
+  const title = item.progress?.title ?? (workOrder ? orderTitle(item.item.key) : null);
   return (
     <header className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -33,6 +34,10 @@ export function ItemHeader({
       </div>
       {workOrder ? (
         <p className="text-console-12 text-text-secondary">{WORK_ORDER_WORDS}</p>
+      ) : item.runs.length === 0 ? (
+        // No run has started it (a member linked before its first run): no state, column or
+        // change to show yet.
+        <p className="text-console-12 text-text-secondary">{NOT_STARTED}</p>
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
           <PillBadge pill={pill} />
