@@ -50,6 +50,19 @@ interface Drag {
   moved: boolean;
 }
 
+/**
+ * How a camera fits its drawing: the padding kept round it, the least and most scale, and a
+ * band at the frame's bottom a fit leaves clear (for a panel docked over it), which panning
+ * may still use.
+ */
+export interface Fitting {
+  pad: number;
+  minK: number;
+  maxK: number;
+  reserveBottom: number;
+}
+const LIVE_FITTING: Fitting = { pad: FIT_PAD, minK: READABLE_K, maxK: 1, reserveBottom: 0 };
+
 const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el.clientHeight });
 
 /**
@@ -59,9 +72,23 @@ const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el
  * keeps its scale and pans only as far as it must to keep that card in view: refitting to the
  * narrower frame would shrink the cards' text below what a person can read. The cards the
  * panel's width pushes out of the frame are a drag away. Closing the panel refits again,
- * unless the person has moved the map. `minK` is the least scale a fit opens at (`fitCamera`).
+ * unless the person has moved the map. `fitting` sets the fit's padding, its least and most
+ * scale (`fitCamera`) and the bottom band it leaves clear; the live map takes the defaults.
  */
-export function useMapCamera(bounds: Box, focus: Box | null, minK = READABLE_K): MapCamera {
+export function useMapCamera(
+  bounds: Box,
+  focus: Box | null,
+  fitting: Fitting = LIVE_FITTING
+): MapCamera {
+  const { pad, minK, maxK, reserveBottom } = fitting;
+  /** The part of the frame a fit fills. */
+  const fitFrame = useCallback(
+    (el: HTMLElement): Frame => ({
+      width: el.clientWidth,
+      height: Math.max(0, el.clientHeight - reserveBottom),
+    }),
+    [reserveBottom]
+  );
   const frameRef = useRef<HTMLDivElement | null>(null);
   const [camera, setCamera] = useState<Camera>({ x: 0, y: 0, k: 1 });
   const [height, setHeight] = useState(MIN_FRAME_HEIGHT);
@@ -80,11 +107,11 @@ export function useMapCamera(bounds: Box, focus: Box | null, minK = READABLE_K):
     const el = frameRef.current;
     if (el === null) return;
     const row = el.parentElement ?? el;
-    setHeight(fittedHeight(bounds, row.clientWidth, FIT_PAD, minK));
+    setHeight(fittedHeight(bounds, row.clientWidth, pad, minK, maxK));
     const target = focused.current;
     if (target !== null) put(reveal(current.current, target, frameOf(el)));
-    else if (!moved.current) put(fitCamera(bounds, frameOf(el), FIT_PAD, minK));
-  }, [bounds, minK, put]);
+    else if (!moved.current) put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));
+  }, [bounds, pad, minK, maxK, fitFrame, put]);
 
   useEffect(() => {
     focused.current = focus;
@@ -134,7 +161,7 @@ export function useMapCamera(bounds: Box, focus: Box | null, minK = READABLE_K):
     const el = frameRef.current;
     if (el === null) return;
     moved.current = false;
-    put(fitCamera(bounds, frameOf(el), FIT_PAD, minK));
+    put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {

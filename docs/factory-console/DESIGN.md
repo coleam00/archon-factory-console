@@ -302,11 +302,16 @@ The section has **two separate things**, each with its own file:
    (`.archon/packs/<pack key>.factory-overview.json`, or `<pack>/.shared/factory-overview.json`), in the
    format of Mission Control's `app/map/factory-map.json` (read-only reference at
    `C:\Users\colem\OpenSource\factory-mission-control`): views (a root view and drill-downs), groups,
-   cards (title, one line of text, icon, kind), edges (feeds, calls, and exactly one "loops back" line
-   drawn as a single lane under the line, never crossing dotted lines). Interaction like Eric Tech's
+   cards (title, one line of text, icon, kind), edges (feeds, calls, and "loops back" lines: as many
+   as the factory has, nested in one lane under the line, each on its own track and labelled where it
+   rises into its target, never crossing a card or each other (the schema refuses a file whose lines
+   would; it does not measure labels, so the shipped file's test checks that its label pills meet
+   nothing, and a pack author keeps a short line's label short); an answer to an ask is drawn
+   beside the ask's line; a line the pack only would act on is marked `shadow`; changed by the owner's
+   audit of 2026-11-18, which asked for several labelled send-back lines). Interaction like Eric Tech's
    skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
-   counts, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a full-screen
-   mode. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
+   counts and its one line, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a
+   full-screen mode over the whole screen with the legend docked bottom-left. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
 2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each

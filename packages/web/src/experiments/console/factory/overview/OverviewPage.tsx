@@ -78,13 +78,14 @@ export function OverviewBody({ overview }: { overview: OverviewDeclaration }): R
     />
   );
   if (!fullScreen) return explorer;
-  // Portalled to the body, so no ancestor's layout or transform can hold the overlay in.
+  // Portalled to the body, so no ancestor's layout or transform can hold the overlay in; it
+  // carries `console-root` itself, as the body is outside the console's theme.
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={`${overview.title}, full screen`}
-      className="fixed inset-0 z-50 flex flex-col bg-background p-4"
+      className="console-root fixed inset-0 z-50 bg-surface-inset text-text-primary"
     >
       {explorer}
     </div>,
@@ -92,51 +93,71 @@ export function OverviewBody({ overview }: { overview: OverviewDeclaration }): R
   );
 }
 
-function OverviewExplorer({
-  overview,
-  viewId,
-  unknown,
-  fullScreen,
-  onOpen,
-  onToggleFullScreen,
-}: {
+interface ExplorerProps {
   overview: OverviewDeclaration;
   viewId: string;
   unknown: string | undefined;
   fullScreen: boolean;
   onOpen: (view: string) => void;
   onToggleFullScreen: () => void;
-}): ReactElement {
+}
+
+/** The open view's map, with Up one level wired to the view above it, under its header. */
+function ExplorerMap({
+  overview,
+  viewId,
+  unknown,
+  fullScreen,
+  onOpen,
+  onToggleFullScreen,
+}: ExplorerProps): ReactElement | null {
   const view = overview.views[viewId];
   const trail = viewTrail(overview, viewId);
   const parent = trail.at(-2);
-  // Full screen the map takes the height; the presenter says what the caption says.
-  const caption = fullScreen
-    ? undefined
-    : viewId === overview.root
-      ? overview.caption
-      : view?.caption;
+  if (view === undefined) return null;
   return (
-    <div className={`flex flex-col gap-4 md:flex-row ${fullScreen ? 'min-h-0 flex-1' : ''}`}>
+    <OverviewMap
+      // A new view opens fitted, whatever the last one's camera did.
+      key={viewId}
+      view={view}
+      fullScreen={fullScreen}
+      onOpen={onOpen}
+      onUp={parent === undefined ? undefined : () => onOpen(parent.id)}
+      onToggleFullScreen={onToggleFullScreen}
+      header={
+        <div className="flex flex-col gap-1">
+          <OverviewBreadcrumb trail={trail} onOpen={onOpen} />
+          {unknown === undefined ? null : (
+            <p className="text-console-12 text-text-tertiary">
+              This overview has no view "{unknown}", so it opened at the top.
+            </p>
+          )}
+        </div>
+      }
+    />
+  );
+}
+
+function OverviewExplorer(props: ExplorerProps): ReactElement {
+  const { overview, viewId, fullScreen, onOpen } = props;
+  if (fullScreen)
+    // The map fills the screen; its header (the breadcrumb, which also moves between views)
+    // and its controls float over its top corners, the legend over the bottom-left one. The
+    // presenter says what the caption says.
+    return (
+      <>
+        <ExplorerMap {...props} />
+        <div className="absolute bottom-4 left-4 max-w-5xl rounded-console-12 border border-border bg-surface px-3 py-2 shadow-lg">
+          <OverviewLegend overview={overview} />
+        </div>
+      </>
+    );
+  const caption = viewId === overview.root ? overview.caption : overview.views[viewId]?.caption;
+  return (
+    <div className="flex flex-col gap-4 md:flex-row">
       <OverviewSidebar views={viewList(overview)} current={viewId} onOpen={onOpen} />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <OverviewBreadcrumb trail={trail} onOpen={onOpen} />
-        {unknown === undefined ? null : (
-          <p className="text-console-12 text-text-tertiary">
-            This overview has no view "{unknown}", so it opened at the top.
-          </p>
-        )}
-        {view === undefined ? null : (
-          <OverviewMap
-            // A new view opens fitted, whatever the last one's camera did.
-            key={viewId}
-            view={view}
-            fullScreen={fullScreen}
-            onOpen={onOpen}
-            onUp={parent === undefined ? undefined : () => onOpen(parent.id)}
-            onToggleFullScreen={onToggleFullScreen}
-          />
-        )}
+        <ExplorerMap {...props} />
         <OverviewLegend overview={overview} />
         {/* Under the map, so the whole root view is in the first screen at 1440x900. */}
         {caption === undefined ? null : (

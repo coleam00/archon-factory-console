@@ -50,12 +50,15 @@ export interface ListedView {
   /** 0 for the root, 1 for a view the root opens, and so on. */
   depth: number;
   cards: number;
+  /** What the view shows, in one line: the text of the card that opens it; undefined for the root. */
+  line: string | undefined;
 }
 
 /** Every view, depth first from the root in the order its cards open them. */
 export function viewList(overview: OverviewDeclaration): ListedView[] {
   const listed: ListedView[] = [];
   const seen = new Set<string>();
+  const opened = openers(overview);
   const walk = (viewId: string, depth: number): void => {
     const view = overview.views[viewId];
     if (view === undefined || seen.has(viewId)) return;
@@ -65,6 +68,7 @@ export function viewList(overview: OverviewDeclaration): ListedView[] {
       label: viewLabel(overview, viewId),
       depth,
       cards: view.cards.length,
+      line: opened.get(viewId)?.card.text,
     });
     for (const card of view.cards) if (card.opens !== undefined) walk(card.opens, depth + 1);
   };

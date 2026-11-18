@@ -1,7 +1,10 @@
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import type { OverviewDeclaration } from '../lib/overview-nav';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
 import { OverviewBody } from './OverviewPage';
 
@@ -30,7 +33,10 @@ afterEach(async () => {
   unmount = undefined;
 });
 
-async function mount(at = '/console/p/cb-1/factory/how-it-works'): Promise<HTMLElement> {
+async function mount(
+  at = '/console/p/cb-1/factory/how-it-works',
+  overview: OverviewDeclaration = OVERVIEW
+): Promise<HTMLElement> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -40,7 +46,7 @@ async function mount(at = '/console/p/cb-1/factory/how-it-works'): Promise<HTMLE
         <Routes>
           <Route
             path="/console/p/:projectId/factory/how-it-works"
-            element={<OverviewBody overview={OVERVIEW} />}
+            element={<OverviewBody overview={overview} />}
           />
         </Routes>
       </MemoryRouter>
@@ -69,15 +75,26 @@ const button = (within: ParentNode, text: string): Element | undefined =>
   [...within.querySelectorAll('button')].find(b => b.textContent?.includes(text));
 
 describe('the factory overview', () => {
-  test('opens at the root with its cards, caption and every view listed with its count', async () => {
+  test('opens at the root with its cards, caption and every view listed with its count and line', async () => {
     const page = await mount();
     expect(cards(page)).toEqual(['in', 'make', 'check']);
     expect(crumbs(page)).toBe('How it works');
     expect(page.textContent).toContain('Work comes in, is made, and is checked.');
-    const listed = [...page.querySelectorAll('aside[aria-label="Views"] li')].map(li =>
-      li.textContent?.trim()
+    const listed = [...page.querySelectorAll('aside[aria-label="Views"] li')].map(li => {
+      const line = li.querySelector('[data-line]')?.textContent ?? '';
+      return [li.textContent?.replace(line, '').trim(), line];
+    });
+    // A drill-down's line is the text of the card that opens it.
+    expect(listed).toEqual([
+      ['How it works3', 'The whole factory, start to end'],
+      ['Make2', 'What Make does.'],
+      ['Test it1', 'What Test it does.'],
+      ['Check1', 'What Check does.'],
+    ]);
+    // On a phone, the open view's line sits under the select.
+    expect(page.querySelector('aside label')?.textContent).toContain(
+      'The whole factory, start to end'
     );
-    expect(listed).toEqual(['How it works3', 'Make2', 'Test it1', 'Check1']);
     // Only a card that opens a view is a button.
     expect(page.querySelector('button[data-card="in"]')).toBeNull();
     // Up one level has nowhere to go from the root.
@@ -132,12 +149,18 @@ describe('the factory overview', () => {
     expect((page.querySelector('aside select') as HTMLSelectElement).value).toBe('check');
   });
 
-  test('full screen draws over the console until Exit or Esc', async () => {
+  test('full screen draws over the console until Exit or Esc, the legend docked bottom left', async () => {
     const page = await mount();
     await click(button(page, 'Full screen'));
     const overlay = document.body.querySelector('[role="dialog"]');
     expect(overlay?.getAttribute('aria-label')).toBe('How it works, full screen');
     expect(cards(overlay as Element)).toEqual(['in', 'make', 'check']);
+    // The map has the screen: no views sidebar or caption, the legend in its bottom-left corner.
+    expect(overlay?.querySelector('aside')).toBeNull();
+    expect(overlay?.textContent).not.toContain('Work comes in, is made, and is checked.');
+    const legend = overlay?.querySelector('ul[aria-label="Legend"]')?.parentElement;
+    expect(legend?.className).toContain('bottom-4');
+    expect(legend?.className).toContain('left-4');
     // Views open inside it too.
     await click(overlay?.querySelector('[data-card="check"]'));
     expect(cards(document.body.querySelector('[role="dialog"]') as Element)).toEqual(['read']);
@@ -153,5 +176,24 @@ describe('the factory overview', () => {
       button(document.body.querySelector('[role="dialog"]') as Element, 'Exit full screen')
     );
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test('the shipped overview says Merged, never Landed, and its legend explains the shadow line', async () => {
+    const shipped = JSON.parse(
+      readFileSync(
+        join(
+          import.meta.dir,
+          '../../../../../../../.archon/packs/Wirasm.archon-software-factory.factory-overview.json'
+        ),
+        'utf8'
+      )
+    ) as OverviewDeclaration;
+    const page = await mount(undefined, shipped);
+    expect(page.textContent).toContain('Merged');
+    expect(page.textContent).toContain('Ready to merge');
+    expect(page.textContent).not.toMatch(/Landed|Ready to land|may it land/);
+    expect(page.querySelector('ul[aria-label="Legend"]')?.textContent).toContain(
+      'would do it, does nothing yet'
+    );
   });
 });
