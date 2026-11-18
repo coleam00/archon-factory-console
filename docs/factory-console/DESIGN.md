@@ -710,10 +710,11 @@ A card, in this order:
    line saying what it asks. The face opens the item's asks in a popover over the board, 480 px
    beside the card from md up and a sheet from the bottom under md: the ask cards Needs you
    draws, answered in place, with an empty slot under them for a later preview of the change.
-   Esc or a press outside closes it and focus returns to the card. Answering one of several
-   keeps it open on the rest; answering the last closes it, and the card reads "Answered:
-   <label>", then "Answered · <stage> started again" once the items read records the run the
-   settled asks started, until a read moves the card or the item asks something new.
+   Esc or a press outside closes it; focus returns to the card unless the press landed on
+   another control. Answering one of several keeps it open on the rest; answering the last
+   closes it, and the card reads "Answered: <label>", then "Answered · <stage> started again"
+   once the items read records the run the settled asks started, until a read moves the card
+   or the item asks something new. A merged card keeps its compact form and no face.
 
 A merged card, in the Merged column, is compact: its key and pill, its title, then the change
 and when it merged, in local time; no stage line, order chip, rounds or returned count. The
