@@ -12,7 +12,7 @@
 import { z } from 'zod';
 import { factoryRunWorkflowName } from './factory-views';
 import {
-  assembleItemRead,
+  assembleItemReads,
   itemReadSchema,
   readItemQueue,
   readItemRuns,
@@ -539,9 +539,14 @@ async function readFoundItems(
   // The one queue reader, read once for all of them.
   const queue = await readItemQueue(source);
   const facts = await runFactsFor(source, input, found);
+  const reads = await assembleItemReads(
+    source,
+    found.map(item => item.item),
+    queue
+  );
   const read = await Promise.all(
-    found.map(async (item): Promise<FactoryItem | null> => {
-      const itemRead = await assembleItemRead(source, item.item, queue);
+    found.map(async (item, index): Promise<FactoryItem | null> => {
+      const itemRead = reads[index] ?? null;
       // An item gone from the store since it was found is no longer the project's.
       if (itemRead === null) return null;
       return { ...itemRead, progress: await itemProgress(source, input, item, facts) };

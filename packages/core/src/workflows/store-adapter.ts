@@ -23,6 +23,7 @@ import * as itemRulingsDb from '../db/item-rulings';
 import * as itemMergesDb from '../db/item-merges';
 import * as itemAsksDb from '../db/item-asks';
 import * as workflowDb from '../db/workflows';
+import * as itemStarts from '../db/item-starts';
 import * as resourceStarts from '../db/resource-starts';
 import { toHydratedTimestamp } from '../db/timestamps';
 import * as workflowEventDb from '../db/workflow-events';
@@ -157,13 +158,14 @@ export function createWorkflowStore(): IWorkflowStore {
     hasStartReceiptForDelivery: resourceStarts.hasStartReceiptForDelivery,
     acceptStartReceipt: resourceStarts.acceptStartReceipt,
     getStartReceipt: resourceStarts.getStartReceipt,
+    listStartReceiptSources: resourceStarts.listStartReceiptSources,
     listStartReceipts: resourceStarts.listStartReceipts,
     listPendingStartBindings: resourceStarts.listPendingStartBindings,
     getResourceStartRequest: resourceStarts.getResourceStartRequest,
-    listSkippedItemStarts: resourceStarts.listSkippedItemStarts,
+    listSkippedItemStarts: itemStarts.listSkippedItemStarts,
     listWaitedItemHolders: resourceStarts.listWaitedItemHolders,
     listQueuedResourceStartsForHost: resourceStarts.listQueuedResourceStartsForHost,
-    listQueuedItemStarts: resourceStarts.listQueuedItemStarts,
+    listQueuedItemStarts: itemStarts.listQueuedItemStarts,
     withdrawQueuedResourceStart: resourceStarts.withdrawQueuedResourceStart,
     claimStartBindingPreparation: resourceStarts.claimStartBindingPreparation,
     completeStartBindingPreparation: resourceStarts.completeStartBindingPreparation,

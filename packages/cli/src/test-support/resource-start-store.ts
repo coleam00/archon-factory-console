@@ -299,6 +299,17 @@ export function createInMemoryResourceStartStore(
       const receipt = receipts.get(id);
       return receipt ? inspectReceipt(receipt) : null;
     },
+    listStartReceiptSources: async (
+      ids
+    ): ReturnType<IResourceStartStore['listStartReceiptSources']> =>
+      new Map(
+        ids.flatMap(id => {
+          const receipt = receipts.get(id);
+          if (!receipt) return [];
+          const { sourceInstanceId, sourceActor } = structuredClone(receipt);
+          return [[id, { id, sourceInstanceId, sourceActor }] as const];
+        })
+      ),
     listStartReceipts: async (
       limit?: number
     ): ReturnType<IResourceStartStore['listStartReceipts']> =>
@@ -331,7 +342,7 @@ export function createInMemoryResourceStartStore(
           )
           .slice(0, limit)
       ),
-    listSkippedItemStarts: async () => [],
+    listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
     listWaitedItemHolders: async () => [],
     getResourceStartRequest: async (
       id

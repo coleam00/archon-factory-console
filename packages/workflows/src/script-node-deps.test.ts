@@ -119,8 +119,13 @@ function createMockStore(): IWorkflowStore {
     listPendingStartBindings: mock<IWorkflowStore['listPendingStartBindings']>(() => {
       throw new Error('Unexpected listPendingStartBindings');
     }),
-    listSkippedItemStarts: mock<IWorkflowStore['listSkippedItemStarts']>(async () => []),
+    listSkippedItemStarts: mock<IWorkflowStore['listSkippedItemStarts']>(
+      async itemIds => new Map(itemIds.map(id => [id, []]))
+    ),
     listWaitedItemHolders: mock<IWorkflowStore['listWaitedItemHolders']>(async () => []),
+    listStartReceiptSources: mock<IWorkflowStore['listStartReceiptSources']>(() => {
+      throw new Error('Unexpected listStartReceiptSources');
+    }),
     getResourceStartRequest: mock<IWorkflowStore['getResourceStartRequest']>(() => {
       throw new Error('Unexpected getResourceStartRequest');
     }),

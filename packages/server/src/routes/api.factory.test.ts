@@ -368,13 +368,13 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
       getCodebase: async () => null,
       getItem: async () => null,
       getItemMerge: async () => null,
-      listSkippedItemStarts: async () => [],
-      listQueuedItemStarts: async () => [],
+      listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+      listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       listItemAsks: async () => [],
       listItemRulings: async () => [],
       listItemLinks: async () => [],
       getResourceStartRequest: async () => null,
-      getStartReceipt: async () => null,
+      listStartReceiptSources: async () => new Map(),
     },
   };
 
