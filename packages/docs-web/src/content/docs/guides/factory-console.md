@@ -58,6 +58,15 @@ it. Inside it:
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
+  When the view declares `discoveries`, **Found by the factory** sits under the columns, in
+  both views and whatever the filter: how many findings the discoveries drains decided to file
+  that no item on the project carries yet (an item carries one when its title is the finding's,
+  ignoring case), with chips counting every finding they decided to file, held and dropped,
+  and how many are already on the board. **Show the findings** lists each: its kind, its title,
+  the item whose drain decided it and when, and how the drain verified it, on hover. While the
+  view marks the drains `shadow`, the panel carries a "shadow" badge and says the factory
+  decides what it would file and files nothing yet. The panel only reads: it files, starts
+  and dismisses nothing.
 - **Item page**: one item's state, open asks, a timeline of every run and round, its links to
   other items (on a work order, its members with their state and how many landed; an item no run
   has started yet says "Not started"), and the
@@ -93,8 +102,10 @@ question opening or closing.
 | landed today | Items whose change merged today, in the browser's local time |
 | N of M done | N items landed out of M on the board. Items an `endings` outcome closed are not in M |
 | median from first run to landed | Over landed items, the median time from an item's first run of a workflow the view names to its change merging |
+| found by the factory | Findings the discoveries drains decided to file that no item carries yet; shown only when the view declares `discoveries` |
 
-Each number opens the board filtered to the items it counts.
+Each number opens the board filtered to the items it counts; **found by the factory** opens
+the board at its panel.
 
 ### Where an item sits
 
@@ -148,12 +159,14 @@ parse or validate shows on the Factory tab with its path and the error.
 | `asked` | no | Completed outcomes that stop to ask you: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one). A run that ended so reads "asked you" on the item page's timeline, as does any run that left asks on the item, with its questions on hover. `placement` still decides where the item waits. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `partOf` | no | `{ "workflow", "pointer", "outcome" }`: the JSON pointer to the item's work order (an item key) in that workflow's result, read only from runs that completed with `outcome` (the one that accepts the item), so a refused run never makes an item a member. Read only for an item with no active `part_of` link; the newest such run decides, and an empty value there means none. |
+| `discoveries` | no | `{ "workflow", "shadow", "filed", "held", "dropped", "entry": { "title", "kind", "verified" } }`: the workflow that drains what agents noticed outside their work, and where each of its completed runs' result lists what it decided, as JSON pointers: `filed`, `held` and `dropped` into the result (each a list), `entry` into each entry of `filed` (`title` required, `kind` and `verified` optional). Its runs place no item, so no stage need list it. `shadow: true` says the drains only decide what they would file: the board's panel words them "would file" and marks them shadow. A run whose result has no list at a declared pointer, or a filed entry with no title, counts as a drain that could not be read. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step names nothing a page shows; the coverage check reports it. |
 | `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; it draws them in `stages` order, and accepts and ignores the `col` and `row` an older file has), `arrows` are every arrow it draws (`from`, `to`, an optional `label`, and `person: true` for a step a person takes, such as a replan, that no hand-off of the pack starts; an arrow into its own stage or an earlier one in `stages` order is a send-back, and a `back` flag an older file has is accepted and ignored), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. The map draws a stage's notes on its card; a `needs-you` note is not drawn yet. A forward arrow runs side to side between cards next to each other; every send-back runs in one feedback lane under the row. The cards take one row wherever it fits at a readable size, and two rows on a narrower screen. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
-`placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage.
+`placement`, `endings`, `rounds`, `returns`, `approves` and `change` must be listed by a stage;
+`discoveries` is the exception.
 A drill-down card and loop must name a workflow their own stage lists.
 
 ## Coverage check
@@ -183,14 +196,15 @@ pack declares. It reports, each with its path in the view file:
   step two of them cover (a loop group counts as a step);
 - every step a card, a loop, a stage's `nodes`, `steps` or `verdicts` names that the workflow
   does not have,
-  and every listed workflow the pack does not have;
+  and every listed workflow the pack does not have, the `discoveries` workflow included;
 - every hand-off between two stages that the pack declares (each of its bindings, whether or
   not a trigger file on this machine installs it) that `map.arrows` does not declare, and
   every declared arrow no such hand-off backs, unless it is `person: true`, joins two different
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
   own stage is a rerun only a hand-off starts, so it is always checked.
 
-It compares only the workflows the view's stages list, steps and hand-offs alike, and names
+It compares only the workflows the view's stages list, steps and hand-offs alike (of the
+`discoveries` workflow it checks only that the pack has it), and names
 the pack's other workflows on one informational line that is not a failure.
 
 After reinstalling the pack, refresh the snapshot from the installed pack with
@@ -245,6 +259,14 @@ file and commit both.
   "approves": [{ "workflow": "deliver", "node": "rounds.review", "outcome": "approve" }],
   "asked": ["deliver:ask"],
   "change": { "workflow": "deliver", "pointer": "/change" },
+  "discoveries": {
+    "workflow": "discoveries",
+    "shadow": true,
+    "filed": "/filed",
+    "held": "/held",
+    "dropped": "/dropped",
+    "entry": { "title": "/title", "kind": "/kind", "verified": "/verified" }
+  },
   "itemTitle": { "input": "item" },
   "map": {
     "cards": [

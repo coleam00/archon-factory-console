@@ -203,6 +203,22 @@ describe('factoryViewCoverage', () => {
     ]);
   });
 
+  test('a discoveries workflow the pack does not have is reported; one it has is not', () => {
+    const view = clean();
+    const discoveries = {
+      workflow: 'discoveries',
+      shadow: true,
+      filed: '/filed',
+      held: '/held',
+      dropped: '/dropped',
+      entry: { title: '/title' },
+    };
+    view.discoveries = discoveries;
+    expect(findings(view)).toEqual([]);
+    view.discoveries = { ...discoveries, workflow: 'discovery' };
+    expect(findings(view)).toEqual([['unknown-workflow', 'discoveries.workflow']]);
+  });
+
   test('a hand-off the pack starts and the view does not declare is reported', () => {
     const view = clean();
     view.map.arrows = view.map.arrows.filter(entry => entry.from !== entry.to);

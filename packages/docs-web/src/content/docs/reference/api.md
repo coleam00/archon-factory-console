@@ -609,6 +609,7 @@ See the [metrics guide](/guides/metrics/).
 | GET | `/api/factory/progress` | The board progress of a project's items, by key, as `FactoryProgress` |
 | GET | `/api/factory/workflow` | One workflow a factory view names, as its steps and groups (`FactoryWorkflow`) |
 | GET | `/api/factory/item` | One item with its progress and each run's timeline facts, as `FactoryItemDetail` |
+| GET | `/api/factory/discoveries` | What the discoveries drains the view's `discoveries` field names decided to file, held and dropped, as `FactoryDiscoveries` |
 
 A factory view is a JSON declaration that presents a workflow pack as a software factory in
 the console: its stages, where a finished run leaves an item, and a map. A pack ships one as

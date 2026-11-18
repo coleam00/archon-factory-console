@@ -14,6 +14,7 @@ import {
   realItem,
   VIEW,
 } from './lib/board.test-fixtures';
+import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
@@ -56,6 +57,8 @@ async function mount(
   members: Record<string, string[]> = {}
 ) {
   set(K.factoryItems(ID), { items, members });
+  // The view declares discoveries, so the board mounts the "Found by the factory" panel.
+  set(K.factoryDiscoveries(ID), DISCOVERIES);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -88,6 +91,26 @@ const cardKeys = (container: HTMLElement): string[] =>
   [...container.querySelectorAll('article')].map(
     card => card.querySelector('.font-mono')?.textContent ?? ''
   );
+
+describe('Found by the factory', () => {
+  test('a view that declares discoveries draws the panel under the columns', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      const panel = container.querySelector(
+        'section[aria-labelledby="found-by-the-factory-heading"]'
+      );
+      expect(panel?.querySelector('h2')?.textContent).toBe('Found by the factory');
+      const lastColumn = [...container.querySelectorAll('h3[data-stage]')].at(-1);
+      expect(lastColumn).toBeDefined();
+      // After every column in document order: under the board, not above it.
+      expect(
+        lastColumn!.compareDocumentPosition(panel!) & dom.Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    } finally {
+      await unmount();
+    }
+  });
+});
 
 describe('the Pipeline view', () => {
   test('one column per declared stage with its count, every real item in its column', async () => {

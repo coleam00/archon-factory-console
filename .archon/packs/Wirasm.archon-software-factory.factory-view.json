@@ -387,6 +387,14 @@
   "asked": ["plan:ask", "deliver:ask", "land:ask"],
   "change": { "workflow": "deliver", "pointer": "/change" },
   "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
+  "discoveries": {
+    "workflow": "discoveries",
+    "shadow": true,
+    "filed": "/filed",
+    "held": "/held",
+    "dropped": "/dropped",
+    "entry": { "title": "/title", "kind": "/kind", "verified": "/verified" }
+  },
   "itemTitle": { "input": "item" },
   "steps": {
     "triage": {
