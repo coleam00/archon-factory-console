@@ -461,7 +461,9 @@ enable the factory for a project and its view appears.
 This repository ships the declaration for `Wirasm/archon-software-factory` as the project file
 `.archon/packs/Wirasm.archon-software-factory.factory-view.json`. Proposing it upstream into the
 pack is later work. The pack's `discoveries` drain runs after deliver but moves no item, so the
-declaration names no stage for it: runs of a workflow no stage lists do not place an item.
+declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
+`discoveries` field names the workflow instead, and where each completed drain's result lists
+what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -551,6 +553,9 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    of its number, above its label; while any item's merge state is pending, every number but
    needs you shows the skeleton bar too, never a count that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
+   When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
+   drains decided to file that no item carries yet and links to the board's panel; it has its
+   own read, so it never holds up the other five.
 3. **Needs you:** each open ask on this project's items, newest first, as one line (item,
    question, recommended option) until opened. Opened, it shows the recommended option first and
    highlighted, the other options with what each does and costs, answered in place through
