@@ -184,7 +184,8 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   (`landgate`, `landed`).
 - **An option id is never shown raw.** A person reads the option's `label` when it has one, else
   the id in sentence case with hyphens as spaces ("send-back-once-more" reads "Send back once
-  more").
+  more"). The one exception is the reserved `other` option (label "Other"), which reads
+  "Something else" (rule 9).
 - Plain words, never raw enum values: "returned", "needs you", "round 2 of 3".
 
 ### 9. The ask card and the column header
@@ -209,26 +210,32 @@ the Overview, the item page and the board popover.
   Under its text, one line at `--text-console-13`, `--text-secondary` gives the recommendation's
   `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
   without a recommendation keeps its declared order and marks no tile.
-- "Something else" is the ask's reserved `other` option, not a tile the card adds. Only an ask
-  declared `other: true` carries it (the engine appends it last); its tile reads "Something else"
-  with "Write your own answer" under it, with a dashed `--border-bright` border. Choosing it opens
-  a textarea in place (`--text-console-14`, 3 rows), and Confirm stays disabled until it holds
-  text. An ask without `other: true` has no such tile.
+- "Something else" is the ask's reserved `other` option, not a tile the card adds: it is drawn
+  only when the ask carries that option (an ask declared `other: true`; the engine appends it
+  last). Its tile reads "Something else" with "Write your own answer" under it, with a dashed
+  `--border-bright` border. Choosing it opens a textarea in place (`--text-console-14`, 3 rows).
 - Choosing a tile does not send. A confirm row appears under the tiles: "Answer: <label>", a
   Confirm button and a Cancel button. Once sent, the card reads "Answered: <label>" in place.
-- The card's forms, from the ask's `form` (and its kind in the Needs you list):
-  - `select`: the tiles above, one chosen.
-  - `multi_select`: tiles toggle (a chosen tile takes the recommended tile's `--accent-muted`
-    border and `--accent-soft` background, with a check icon); the confirm row lists the chosen
-    labels ("Answer: <label>, <label>") and Confirm needs at least one. No recommendation.
-  - `message`: no tiles; the textarea, open from the start, and the confirm row ("Answer" with
-    Confirm and Cancel). No recommendation.
-  - `approval`, and a paused approval gate (kind `awaiting_response`): two tiles, Approve then
-    Reject (rule 8's labels for `approve` and `reject`), the recommended one first and marked as
-    above when the ask recommends one.
-  - A paused run the console cannot answer here (kind `owner_lost` or `unreadable`): no tiles;
-    the context says what happened, and the confirm row is replaced by a link to the run, where
-    it is resumed or abandoned.
+- **The card draws an answer; it does not define one.** Which choices an ask offers, how many
+  may be chosen, which need text, and what is refused belong to the ask and its owners: for an
+  attention ask, its declared `form`, `options`, `other` and `recommendation`, checked by
+  `attentionAnswerProblem` (`packages/workflows/src/schemas/run-wait.ts`) and answered today by
+  `AttentionAnswerPanel`; for a paused gate (kind `awaiting_response`), the decisions the gate
+  declares and the flow `ApprovalPanel` gives them. The card sends and accepts exactly what those
+  owners do, and draws it in the anatomy above (every choice still goes through the confirm row):
+  - a choice is a tile, labelled by rule 8 (or by the label its owner gives it, such as
+    `ApprovalPanel`'s "Continue" and "Accept & complete");
+  - a choice that takes several picks toggles its tiles: a chosen tile takes the recommended
+    tile's `--accent-muted` border and `--accent-soft` background, with a check icon, and the
+    confirm row lists the chosen labels ("Answer: <label>, <label>");
+  - an answer in words, or a choice whose owner takes text with it (required or optional, as
+    `ApprovalPanel`'s comment on approve and its reason on every other decision), opens the textarea in place
+    (`--text-console-14`, 3 rows) above the confirm row, and an ask answered only in words has no
+    tiles and opens with the textarea;
+  - Confirm is enabled exactly when the owner would accept the answer.
+- A paused run the console cannot answer here (kind `owner_lost` or `unreadable`) has no tiles:
+  the context says what happened, and the confirm row is replaced by a link to the run, where it
+  is resumed or abandoned.
 - Under 520 px wide (the popover, a 390 px phone) the tiles stack full width.
 - The Needs you tab's heading reads "N things need you", in the Page title role.
 - On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines, the
