@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
+import { Factory } from 'lucide-react';
 import { Link, Navigate } from 'react-router';
 import { EmptyState } from '../../components/EmptyState';
 import { errorDetail } from '../../lib/http';
@@ -87,13 +88,20 @@ function UnreadProjects({ projects }: { projects: FactoryPacksRead['unreadProjec
   );
 }
 
-/** One pack: its title, summary and the projects that run it; the title opens its page. */
+/**
+ * One pack: its title, summary and the projects that run it; the title opens its page. The
+ * Visual standard's card, without the top accent bar: that bar is a stage group's colour, and
+ * a pack has none.
+ */
 function PackCard({ pack }: { pack: FactoryPackListed }): ReactElement {
   const count = pack.projects.length;
   return (
     <article className="flex h-full flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-3 transition-colors hover:border-border-bright hover:bg-surface-elevated">
-      <p className="truncate text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
-        Pack · <span className="font-mono normal-case">{pack.pack}</span>
+      <p className="flex min-w-0 items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
+        <Factory aria-hidden className="h-4 w-4 shrink-0" />
+        <span className="truncate">
+          Pack · <span className="font-mono normal-case">{pack.pack}</span>
+        </span>
       </p>
       <h2 className="line-clamp-2 text-console-15 font-semibold text-text-primary">
         <Link to={factoryPackPath(pack.key)} className="hover:underline">

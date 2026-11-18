@@ -133,6 +133,16 @@ describe('/console/factory', () => {
     ]);
   });
 
+  test('with one pack and a project it could not read, stays to say so', async () => {
+    const page = await mount('/console/factory', {
+      ...listing([pack('acme.kit', 'Kit')]),
+      unreadProjects: [{ codebaseId: 'cb-9', name: 'gone', error: 'ENOENT' }],
+    });
+    expect(at(page)).toBe('/console/factory');
+    expect(page.querySelector('[role="alert"]')?.textContent).toContain('gone: ENOENT');
+    expect(page.querySelectorAll('article')).toHaveLength(1);
+  });
+
   test('a pack whose files are all broken still gets a card, saying so', async () => {
     const page = await mount(
       '/console/factory',
