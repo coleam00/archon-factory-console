@@ -579,42 +579,35 @@ test('pause, approve in another process, and resume without any SQL connection',
   expect(existsSync(f.trap)).toBe(false);
   expect(existsSync(join(f.home, 'archon.db'))).toBe(false);
 }, 60000);
-// Skipped in factory-console CI: intermittent on the private 2-vCPU runner (passed on the run
-// before); its waits on concurrent CLI children are timing-bound. Unchanged by console
-// commits since fork 715c5cfba; see #62.
-test.skipIf(process.env.CI === 'true')(
-  'a hand start waits while its resource is full and --no-wait refuses it',
-  async () => {
-    const f = fixture('store: files\nconcurrency:\n  resources:\n    build: 1\n');
-    const workflow = (name: string, bash: string): void =>
-      writeFileSync(
-        join(f.project, `.archon/workflows/${name}.yaml`),
-        `name: ${name}\ndescription: holds build\nresource: build\nmutates_checkout: false\nworktree:\n  enabled: false\nnodes:\n  - id: work\n    bash: ${bash}\n`
-      );
-    workflow('held', 'touch held-started; while [ ! -f release ]; do sleep 0.1; done');
-    workflow('quick', 'echo ran > quick-ran');
-    const run = (...args: string[]) =>
-      cli(f, ['workflow', 'run', ...args, '--folder', '--no-worktree']);
-    const held = run('held');
-    while (!existsSync(join(f.project, 'held-started'))) await Bun.sleep(50);
+test('a hand start waits while its resource is full and --no-wait refuses it', async () => {
+  const f = fixture('store: files\nconcurrency:\n  resources:\n    build: 1\n');
+  const workflow = (name: string, bash: string): void =>
+    writeFileSync(
+      join(f.project, `.archon/workflows/${name}.yaml`),
+      `name: ${name}\ndescription: holds build\nresource: build\nmutates_checkout: false\nworktree:\n  enabled: false\nnodes:\n  - id: work\n    bash: ${bash}\n`
+    );
+  workflow('held', 'touch held-started; while [ ! -f release ]; do sleep 0.1; done');
+  workflow('quick', 'echo ran > quick-ran');
+  const run = (...args: string[]) =>
+    cli(f, ['workflow', 'run', ...args, '--folder', '--no-worktree']);
+  const held = run('held');
+  while (!existsSync(join(f.project, 'held-started'))) await Bun.sleep(50);
 
-    const refused = await run('quick', '--no-wait');
-    expect(refused.code, refused.output + refused.error).not.toBe(0);
-    expect(refused.output + refused.error).toContain("Resource 'build' is full");
-    expect(existsSync(join(f.project, 'quick-ran'))).toBe(false);
+  const refused = await run('quick', '--no-wait');
+  expect(refused.code, refused.output + refused.error).not.toBe(0);
+  expect(refused.output + refused.error).toContain("Resource 'build' is full");
+  expect(existsSync(join(f.project, 'quick-ran'))).toBe(false);
 
-    const waiting = run('quick');
-    await Bun.sleep(3000);
-    expect(existsSync(join(f.project, 'quick-ran'))).toBe(false);
-    writeFileSync(join(f.project, 'release'), '');
-    expect(await held).toMatchObject({ code: 0 });
-    const waited = await waiting;
-    expect(waited, waited.output + waited.error).toMatchObject({ code: 0 });
-    expect(waited.output + waited.error).toContain("Waiting for resource 'build'");
-    expect(readFileSync(join(f.project, 'quick-ran'), 'utf8')).toBe('ran\n');
-  },
-  60000
-);
+  const waiting = run('quick');
+  await Bun.sleep(3000);
+  expect(existsSync(join(f.project, 'quick-ran'))).toBe(false);
+  writeFileSync(join(f.project, 'release'), '');
+  expect(await held).toMatchObject({ code: 0 });
+  const waited = await waiting;
+  expect(waited, waited.output + waited.error).toMatchObject({ code: 0 });
+  expect(waited.output + waited.error).toContain("Waiting for resource 'build'");
+  expect(readFileSync(join(f.project, 'quick-ran'), 'utf8')).toBe('ran\n');
+}, 60000);
 test('trigger check refuses a run-ended binding on the file store', async () => {
   const f = fixture('store: files\n');
   mkdirSync(join(f.home, 'triggers'));
@@ -680,10 +673,7 @@ test('a hand start is checked against its own declared capacity, then the defaul
 }, 60000);
 // Windows has no SIGINT or SIGTERM delivery to a child: kill() ends it at once, so no
 // handler can fail the pending run. There the wait ends like any abrupt kill.
-// Skipped in factory-console CI: upstream's fixed 3 s sleep before SIGINT assumes the child has
-// reached its resource wait; on the private 2-vCPU runner it had not, so the output lacked the
-// wait line. Unchanged by console commits since fork 715c5cfba; see #62.
-test.skipIf(process.platform === 'win32' || process.env.CI === 'true')(
+test.skipIf(process.platform === 'win32')(
   'interrupting a hand start that waits for its resource leaves no pending run or request',
   async () => {
     const f = fixture('store: files\n');

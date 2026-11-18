@@ -366,6 +366,53 @@ test(
   testTimeout(10000)
 );
 
+test(
+  'ARCHON_TEST_PART applies to a request that names no file, and its JUnit report covers the part',
+  async () => {
+    const root = fixture();
+    for (const name of ['a', 'b', 'c']) {
+      testFile(root, name, `test('${name}', () => appendFileSync('ran', '${name}\\n'));`, true);
+    }
+    const reported = (part: string): Promise<number> =>
+      run(root, ['--reporter=junit', `--reporter-outfile=${join(root, `${part[0]}.xml`)}`], part);
+    expect(await reported('1/2')).toBe(0);
+    expect(await reported('2/2')).toBe(0);
+    const ran = readFileSync(join(root, 'ran'), 'utf8').trim().split('\n');
+    expect(ran.sort()).toEqual(['a', 'b', 'c']);
+    const tests = (file: string): number =>
+      Number(/<testsuites[^>]*tests="(\d+)"/.exec(readFileSync(join(root, file), 'utf8'))?.[1]);
+    expect(tests('1.xml')).toBeGreaterThan(0);
+    expect(tests('2.xml')).toBeGreaterThan(0);
+    expect(tests('1.xml') + tests('2.xml')).toBe(3);
+    // A request that names a file runs that file, whatever part is set.
+    expect(await run(root, ['src/a.test.ts'], '2/2')).toBe(0);
+    expect(readFileSync(join(root, 'ran'), 'utf8').trim().split('\n').at(-1)).toBe('a');
+  },
+  testTimeout(10000)
+);
+
+test(
+  'a malformed ARCHON_TEST_CONCURRENCY fails the run instead of falling back',
+  async () => {
+    const root = fixture({ testConcurrency: 2 });
+    testFile(root, 'a', `test('a', () => {});`, true);
+    const child = Bun.spawn([process.execPath, 'run', runner], {
+      cwd: root,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: { ...process.env, ARCHON_TELEMETRY_DISABLED: '1', ARCHON_TEST_CONCURRENCY: 'two' },
+    });
+    const [status, , stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ]);
+    expect(status).not.toBe(0);
+    expect(stderr).toContain('ARCHON_TEST_CONCURRENCY');
+  },
+  testTimeout(5000)
+);
+
 for (const concurrency of [1, 2]) {
   test(
     `requested JUnit combines every group: concurrency=${concurrency}`,

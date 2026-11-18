@@ -416,62 +416,54 @@ export function describeSqlItemAskConformance(makeHarness: () => Promise<Harness
     }
   });
 
-  // Skipped in factory-console CI: upstream's final terminal-line assertion runs right after
-  // the third resolved line with no wait for the third terminal line, so it races the watch's
-  // poll; on the private 2-vCPU runner the Postgres copy saw 2, not 3 (passed on other runs).
-  // Shared by both harnesses, so the SQLite copy skips in CI too. Unchanged by console commits
-  // since fork 715c5cfba; see #62.
-  test.skipIf(process.env.CI === 'true')(
-    'a watch sees an ask open and close, and says why from the stored row',
-    async () => {
-      const harness = await makeHarness();
-      const lines: AttentionStreamLine[] = [];
-      const deps = itemDeps(harness);
-      const watch = await watchAttentionQueue(
-        harness.store,
-        watchSource(deps.queue),
-        line => {
-          lines.push(line);
-        },
-        { scope: { kind: 'all' }, pollIntervalMs: 20 }
-      );
-      const resolved = async (count: number) => {
-        for (let i = 0; i < 200; i++) {
-          const found = lines.filter(line => line.type === 'resolved');
-          if (found.length >= count) return found;
-          await Bun.sleep(10);
-        }
-        throw new Error(`Expected ${String(count)} resolved line(s), saw ${JSON.stringify(lines)}`);
-      };
-      try {
-        await completeWithAsks(harness, [ask('A?'), ask('B?')]);
-        for (let i = 0; i < 200 && lines.filter(line => line.type === 'attention').length < 2; i++)
-          await Bun.sleep(10);
-        const [a, b] = await openRefs(harness);
-        // Nothing else happens: the answer's own event wakes the watch.
-        await answerAttentionItem(deps, a ?? '', { choose: ['keep'] }, operator, 'cli');
-        expect((await resolved(1))[0]).toMatchObject({
-          ref: a,
-          reason: 'answered',
-          answeredVia: 'cli',
-          answeredBy: { declared: 'maintainer' },
-          answeredFromRun: null,
-          workflow: 'plan',
-        });
-        await withdrawAttentionItem(deps, b ?? '', operator, 'cli');
-        expect((await resolved(2))[1]).toMatchObject({ ref: b, reason: 'withdrawn' });
-
-        await completeWithAsks(harness, [ask('C?')]);
-        for (let i = 0; i < 200 && lines.filter(line => line.type === 'attention').length < 3; i++)
-          await Bun.sleep(10);
-        const next = await completeWithAsks(harness, [ask('D?')]);
-        expect((await resolved(3))[2]).toMatchObject({ reason: 'replaced', replacedByRunId: next });
-        // An ask's own events on its completed run repeat no terminal line.
-        expect(lines.filter(line => line.type === 'terminal')).toHaveLength(3);
-      } finally {
-        await watch.close();
-        await harness.close();
+  test('a watch sees an ask open and close, and says why from the stored row', async () => {
+    const harness = await makeHarness();
+    const lines: AttentionStreamLine[] = [];
+    const deps = itemDeps(harness);
+    const watch = await watchAttentionQueue(
+      harness.store,
+      watchSource(deps.queue),
+      line => {
+        lines.push(line);
+      },
+      { scope: { kind: 'all' }, pollIntervalMs: 20 }
+    );
+    const resolved = async (count: number) => {
+      for (let i = 0; i < 200; i++) {
+        const found = lines.filter(line => line.type === 'resolved');
+        if (found.length >= count) return found;
+        await Bun.sleep(10);
       }
+      throw new Error(`Expected ${String(count)} resolved line(s), saw ${JSON.stringify(lines)}`);
+    };
+    try {
+      await completeWithAsks(harness, [ask('A?'), ask('B?')]);
+      for (let i = 0; i < 200 && lines.filter(line => line.type === 'attention').length < 2; i++)
+        await Bun.sleep(10);
+      const [a, b] = await openRefs(harness);
+      // Nothing else happens: the answer's own event wakes the watch.
+      await answerAttentionItem(deps, a ?? '', { choose: ['keep'] }, operator, 'cli');
+      expect((await resolved(1))[0]).toMatchObject({
+        ref: a,
+        reason: 'answered',
+        answeredVia: 'cli',
+        answeredBy: { declared: 'maintainer' },
+        answeredFromRun: null,
+        workflow: 'plan',
+      });
+      await withdrawAttentionItem(deps, b ?? '', operator, 'cli');
+      expect((await resolved(2))[1]).toMatchObject({ ref: b, reason: 'withdrawn' });
+
+      await completeWithAsks(harness, [ask('C?')]);
+      for (let i = 0; i < 200 && lines.filter(line => line.type === 'attention').length < 3; i++)
+        await Bun.sleep(10);
+      const next = await completeWithAsks(harness, [ask('D?')]);
+      expect((await resolved(3))[2]).toMatchObject({ reason: 'replaced', replacedByRunId: next });
+      // An ask's own events on its completed run repeat no terminal line.
+      expect(lines.filter(line => line.type === 'terminal')).toHaveLength(3);
+    } finally {
+      await watch.close();
+      await harness.close();
     }
-  );
+  });
 }

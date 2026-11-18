@@ -92,6 +92,10 @@ export function resolveRequestedTestGroups(
       groups.length === 0
         ? [requested]
         : groups.map(group => [...options, ...group.map(file => `./${file}`)]),
+    /** The request's arguments other than file selectors. */
+    options,
+    /** Whether the request names files; one that does not runs the whole suite. */
+    selectsFiles: positionals.length > 0,
     hasShard: optionTokens.some(token => token.name === 'shard'),
     namePattern:
       groups.length > 0

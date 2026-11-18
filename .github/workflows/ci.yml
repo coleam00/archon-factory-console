@@ -54,14 +54,15 @@ jobs:
       - name: Web build
         run: bun run build:web
 
-  # Each package's suite on its own runner. A private repository's runner has 7 GB and 2 vCPUs,
-  # and these suites together (about 2100 s of measured group time for core, workflows, cli and
-  # adapters alone, scripts/test-weights.json) do not fit one 45-minute job. Each package's
-  # `test` script owns its group splitting and concurrency (scripts/package-tests.ts), as
-  # upstream's CI did. The junit options put the runner in request mode, which runs every group
-  # even after one fails, and its combined report gives the leg's totals for the step summary.
+  # Each package's suite on its own runner, through the package's `test` script
+  # (scripts/package-tests.ts), as upstream's CI did. A private repository's runner has 7 GB and
+  # 2 vCPUs. There, test groups running side by side starve each other's timing-bound upstream
+  # tests, so every leg runs one group at a time (ARCHON_TEST_CONCURRENCY=1). cli is too slow
+  # for one 45-minute leg that way, so it runs in parts split by measured group time
+  # (ARCHON_TEST_PART). The junit options put the runner in request mode, which runs every group
+  # even after one fails, and its combined report gives the leg's totals and its failing files.
   package-tests:
-    name: tests (${{ matrix.package }})
+    name: tests (${{ matrix.package }}${{ matrix.part && format(' {0}', matrix.part) || '' }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -69,7 +70,15 @@ jobs:
       # their results until the next round.
       fail-fast: false
       matrix:
-        package: [core, workflows, cli, adapters, server, web]
+        include:
+          - { package: core, part: '' }
+          - { package: workflows, part: '' }
+          - { package: cli, part: 1/3 }
+          - { package: cli, part: 2/3 }
+          - { package: cli, part: 3/3 }
+          - { package: adapters, part: '' }
+          - { package: server, part: '' }
+          - { package: web, part: '' }
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -78,13 +87,21 @@ jobs:
       # Script-node tests run Python through uv (upstream's test job installed it too).
       - uses: astral-sh/setup-uv@v4
       - run: bun install --frozen-lockfile
+      # A failing file is rerun once by itself (scripts/retry-failed-test-files.ts), which prints
+      # `RETRIED <file>` to the log and the summary; a file that fails again fails the leg.
       - name: Tests
-        run: bun run --cwd packages/${{ matrix.package }} test --reporter=junit --reporter-outfile="$RUNNER_TEMP/junit.xml"
+        env:
+          ARCHON_TEST_CONCURRENCY: '1'
+          ARCHON_TEST_PART: ${{ matrix.part }}
+        run: |
+          report="$RUNNER_TEMP/junit.xml"
+          bun run --cwd packages/${{ matrix.package }} test --reporter=junit --reporter-outfile="$report" && exit 0
+          bun scripts/retry-failed-test-files.ts packages/${{ matrix.package }} "$report"
       - name: Test counts
         if: always()
         run: |
           totals=$(grep -o '<testsuites[^>]*>' "$RUNNER_TEMP/junit.xml" || echo 'no report written')
-          printf '### %s\n\n`%s`\n' '${{ matrix.package }}' "$totals" | tee -a "$GITHUB_STEP_SUMMARY"
+          printf '### %s %s\n\n`%s`\n' '${{ matrix.package }}' '${{ matrix.part }}' "$totals" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # The stores must work on Postgres as well as SQLite. This runs every test file that reads
   # ARCHON_TEST_PG_URL, found by content rather than by name (not every such file is named
@@ -127,7 +144,11 @@ jobs:
             pkg=${f#packages/}; pkg=${pkg%%/*}; rel=${f#packages/$pkg/}; i=$((i+1))
             out="$RUNNER_TEMP/pg-$i.xml"
             printf '== %s\n' "$f"
-            bun run --cwd "packages/$pkg" test "$rel" --reporter=junit --reporter-outfile="$out" || failed=1
+            # A failing file is rerun once, as in package-tests; a second failure fails the job.
+            if ! bun run --cwd "packages/$pkg" test "$rel" --reporter=junit --reporter-outfile="$out"; then
+              printf -- '- `RETRIED %s`\n' "$f" | tee -a "$GITHUB_STEP_SUMMARY"
+              bun run --cwd "packages/$pkg" test "$rel" --reporter=junit --reporter-outfile="$out" || failed=1
+            fi
             totals=$(grep -o '<testsuites[^>]*>' "$out" || echo 'no report written')
             printf -- '- `%s`: `%s`\n' "$f" "$totals" | tee -a "$GITHUB_STEP_SUMMARY"
             tests=$(sed -nE 's/.* tests="([0-9]+)".*/\1/p' <<<"$totals")

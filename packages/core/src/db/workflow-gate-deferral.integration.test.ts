@@ -361,97 +361,89 @@ describe('per-run gate deferral — real SQLite', () => {
     expect(snapshot.completedNodeOutputs.has('group')).toBe(false);
   });
 
-  // Skipped in factory-console CI: an upstream pause/resume race. On the private 2-vCPU runner
-  // the pause found no matching row (db.workflow_run_pause_no_match), the wait node 'action'
-  // was recorded failed, and the next resume replayed that failure
-  // (dag.node_prior_failure_replayed), so the run ended failed (passed on other runs). No
-  // console commit touches the DAG, pause or resume code; see #62.
-  test.skipIf(process.env.CI === 'true')(
-    'an approval defers behind a same-run wait and presents once after cold resume',
-    async () => {
-      const messages: string[] = [];
-      const platform: IWorkflowPlatform = {
-        sendMessage: async (_id, message) => {
-          messages.push(message);
-        },
-        getPlatformType: () => 'test',
-        getStreamingMode: () => 'batch',
-      };
-      const store = createWorkflowStore();
-      const pause = store.pauseWorkflowRun;
-      let waitPaused = () => {};
-      const waiting = new Promise<void>(resolve => {
-        waitPaused = resolve;
-      });
-      const pauseWait = store.pauseWorkflowRunForWait;
-      store.pauseWorkflowRunForWait = async (...args) => {
-        await pauseWait(...args);
-        waitPaused();
-      };
-      store.pauseWorkflowRun = async (...args) => {
-        await waiting;
-        await pause(...args);
-      };
-      const deps: WorkflowDeps = {
-        store,
-        providers: providerRegistry,
-        getAgentProvider: () => {
-          throw new Error('Unexpected provider');
-        },
-        loadConfig: async () => ({
-          assistant: 'claude',
-          baseBranch: 'main',
-          assistants: { claude: {}, codex: {} },
-          commands: {},
-          defaults: { loadDefaultCommands: false, loadDefaultWorkflows: false },
-        }),
-      };
-      const workflow = makeTestResolvedWorkflow({
-        name: 'wait-and-gate',
-        nodes: [
-          { id: 'action', wait: { attention: 'Finish external action' } },
-          { id: 'review', approval: { message: 'Review' } },
-        ],
-      });
-      const result = await new InProcessWorkflowEngine(deps).submit({
+  test('an approval defers behind a same-run wait and presents once after cold resume', async () => {
+    const messages: string[] = [];
+    const platform: IWorkflowPlatform = {
+      sendMessage: async (_id, message) => {
+        messages.push(message);
+      },
+      getPlatformType: () => 'test',
+      getStreamingMode: () => 'batch',
+    };
+    const store = createWorkflowStore();
+    const pause = store.pauseWorkflowRun;
+    let waitPaused = () => {};
+    const waiting = new Promise<void>(resolve => {
+      waitPaused = resolve;
+    });
+    const pauseWait = store.pauseWorkflowRunForWait;
+    store.pauseWorkflowRunForWait = async (...args) => {
+      await pauseWait(...args);
+      waitPaused();
+    };
+    store.pauseWorkflowRun = async (...args) => {
+      await waiting;
+      await pause(...args);
+    };
+    const deps: WorkflowDeps = {
+      store,
+      providers: providerRegistry,
+      getAgentProvider: () => {
+        throw new Error('Unexpected provider');
+      },
+      loadConfig: async () => ({
+        assistant: 'claude',
+        baseBranch: 'main',
+        assistants: { claude: {}, codex: {} },
+        commands: {},
+        defaults: { loadDefaultCommands: false, loadDefaultWorkflows: false },
+      }),
+    };
+    const workflow = makeTestResolvedWorkflow({
+      name: 'wait-and-gate',
+      nodes: [
+        { id: 'action', wait: { attention: 'Finish external action' } },
+        { id: 'review', approval: { message: 'Review' } },
+      ],
+    });
+    const result = await new InProcessWorkflowEngine(deps).submit({
+      platform,
+      conversationId,
+      origin: { conversationId },
+      cwd: root,
+      workflow,
+      userMessage: 'goal',
+    });
+    const id = result.workflowRunId!;
+    expect((await getWorkflowRun(id))?.status).toBe('paused');
+    expect(messages.some(message => message.includes('**Approval required**'))).toBe(false);
+    const events = await getDatabase().query<{ event_type: string }>(
+      "SELECT event_type FROM remote_agent_workflow_events WHERE workflow_run_id = $1 AND step_name = 'review'",
+      [id]
+    );
+    expect(events.rows.map(row => row.event_type)).toEqual(['node_started']);
+    await closeDatabase();
+    resetDatabase();
+    const resume = async () => {
+      const admission = await new InProcessWorkflowEngine(deps).resume({
+        run: (await getWorkflowRun(id))!,
         platform,
         conversationId,
         origin: { conversationId },
         cwd: root,
-        workflow,
+        legacyWorkflow: workflow,
         userMessage: 'goal',
       });
-      const id = result.workflowRunId!;
-      expect((await getWorkflowRun(id))?.status).toBe('paused');
-      expect(messages.some(message => message.includes('**Approval required**'))).toBe(false);
-      const events = await getDatabase().query<{ event_type: string }>(
-        "SELECT event_type FROM remote_agent_workflow_events WHERE workflow_run_id = $1 AND step_name = 'review'",
-        [id]
-      );
-      expect(events.rows.map(row => row.event_type)).toEqual(['node_started']);
-      await closeDatabase();
-      resetDatabase();
-      const resume = async () => {
-        const admission = await new InProcessWorkflowEngine(deps).resume({
-          run: (await getWorkflowRun(id))!,
-          platform,
-          conversationId,
-          origin: { conversationId },
-          cwd: root,
-          legacyWorkflow: workflow,
-          userMessage: 'goal',
-        });
-        expect(admission.accepted).toBe(true);
-        if (admission.accepted) await admission.settled;
-      };
-      await resume();
-      expect(messages.filter(message => message.includes('**Approval required**'))).toHaveLength(1);
-      await approveWorkflow(id, undefined, { kind: 'operator' }, { via: 'cli' });
-      await resume();
-      expect((await getWorkflowRun(id))?.status).toBe('completed');
-      expect(messages.filter(message => message.includes('**Approval required**'))).toHaveLength(1);
-    }
-  );
+      expect(admission.accepted).toBe(true);
+      if (admission.accepted) await admission.settled;
+    };
+    await resume();
+    expect(messages.filter(message => message.includes('**Approval required**'))).toHaveLength(1);
+    await approveWorkflow(id, undefined, { kind: 'operator' }, { via: 'cli' });
+    await resume();
+    expect((await getWorkflowRun(id))?.status).toBe('completed');
+    expect(messages.filter(message => message.includes('**Approval required**'))).toHaveLength(1);
+  });
 
   test.each(['approve', 'reject'] as const)(
     'two ordinary gates survive cold resume after %s and retain their own decisions',
