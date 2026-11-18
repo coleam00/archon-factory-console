@@ -80,10 +80,14 @@ export class InMemoryStore implements IWorkflowStore {
   listPendingStartBindings: IWorkflowStore['listPendingStartBindings'] = async () => {
     throw new Error('Unexpected listPendingStartBindings');
   };
+  listStartReceiptSources: IWorkflowStore['listStartReceiptSources'] = async () => {
+    throw new Error('Unexpected listStartReceiptSources');
+  };
   getResourceStartRequest: IWorkflowStore['getResourceStartRequest'] = async () => {
     throw new Error('Unexpected getResourceStartRequest');
   };
-  listSkippedItemStarts: IWorkflowStore['listSkippedItemStarts'] = async () => [];
+  listSkippedItemStarts: IWorkflowStore['listSkippedItemStarts'] = async itemIds =>
+    new Map(itemIds.map(id => [id, []]));
   listWaitedItemHolders: IWorkflowStore['listWaitedItemHolders'] = async () => [];
   listQueuedResourceStartsForHost: IWorkflowStore['listQueuedResourceStartsForHost'] = async () => {
     throw new Error('Unexpected listQueuedResourceStartsForHost');

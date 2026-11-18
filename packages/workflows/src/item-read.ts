@@ -67,6 +67,7 @@ import type { IWorkflowStore } from './store';
 import {
   awaitingExecution,
   type SkippedItemStart,
+  type StartReceiptSource,
   type ResourceStartRequestInspection,
 } from './resource-start-store';
 import { itemHolder, itemHolders } from './item-hold';
@@ -294,7 +295,7 @@ export interface ItemReadSource extends AttentionQueueSource {
       | 'getItemMerge'
       | 'listItemLinks'
       | 'listItemAsks'
-      | 'getStartReceipt'
+      | 'listStartReceiptSources'
       | 'getResourceStartRequest'
       | 'listQueuedItemStarts'
       | 'listSkippedItemStarts'
@@ -321,16 +322,27 @@ async function completionEvents(
   return source.store.listEventsForRuns(completedIds, ['workflow_completed']);
 }
 
-async function itemRun(
+/**
+ * The receipts the runs started from, by id. The receipt stays the one owner of why a start
+ * happened; this only reads it.
+ */
+async function runReceipts(
   source: ItemReadSource,
+  runs: readonly WorkflowRun[]
+): Promise<ReadonlyMap<string, StartReceiptSource>> {
+  const ids = runs.flatMap(run => readResourceStartReceiptId(run.metadata) ?? []);
+  return ids.length === 0 ? new Map() : source.store.listStartReceiptSources(ids);
+}
+
+function itemRun(
   run: WorkflowRun,
+  receipts: ReadonlyMap<string, StartReceiptSource>,
   request: ResourceStartRequestInspection | null,
   heldBehind: ItemHeldBehind | null,
   terminalEvents: ReadonlyMap<string, WorkflowEventRow[]>
-): Promise<ItemRun> {
-  // The receipt stays the one owner of why a start happened; this only reads it.
+): ItemRun {
   const receiptId = readResourceStartReceiptId(run.metadata);
-  const receipt = receiptId ? await source.store.getStartReceipt(receiptId) : null;
+  const receipt = receiptId ? receipts.get(receiptId) : undefined;
   const usage = parseRunUsage(run.metadata);
   return {
     id: run.id,
@@ -339,7 +351,7 @@ async function itemRun(
     outcome: displayedRunOutcome(run),
     startedAt: run.started_at.toISOString(),
     completedAt: run.completed_at?.toISOString() ?? null,
-    cause: receipt ? startCause(receipt) : null,
+    cause: receipt === undefined ? null : startCause(receipt),
     awaitingExecution: awaitingExecution(request),
     spend: {
       usd: usage.costUsd ?? null,
@@ -552,7 +564,8 @@ export async function readItem(
 ): Promise<ItemRead | null> {
   const resolved = await readItemRuns(source.store, projectKey, key);
   if (resolved === null) return null;
-  return assembleItemRead(source, resolved.item, await readItemQueue(source));
+  const [read] = await assembleItemReads(source, [resolved.item], await readItemQueue(source));
+  return read ?? null;
 }
 
 type ItemQueueRead = ReturnType<typeof splitAttentionRead<AttentionQueueItem>>;
@@ -588,18 +601,50 @@ async function readItemFacts(source: ItemReadSource, itemId: string) {
   };
 }
 
+/** The item's queued and skipped starts, read for a whole page of items at once. */
+interface ItemStarts {
+  waiting: readonly QueuedItemStart[];
+  skipped: readonly SkippedItemStart[];
+}
+
 /**
- * Build the read of an item against one read of the attention queue, so a reader of many
- * items reads the queue once. Null when the item has gone from the store.
+ * Build the reads of `items`, in their order, against one read of the attention queue, so a
+ * reader of many items reads the queue and the items' starts once. A read is null when its
+ * item has gone from the store.
  */
-export async function assembleItemRead(
+export async function assembleItemReads(
+  source: ItemReadSource,
+  items: readonly WorkflowItem[],
+  queue: ItemQueueRead
+): Promise<(ItemRead | null)[]> {
+  const ids = items.map(item => item.id);
+  // Queued starts first, then every item's runs: a start admitted between the two reads then
+  // shows in both (its run id is its request id), and is listed once as a run, never in neither.
+  const waiting = await source.store.listQueuedItemStarts(ids);
+  const skipped = await source.store.listSkippedItemStarts(ids);
+  const reads: (ItemRead | null)[] = [];
+  for (const item of items) {
+    // bun:sqlite answers synchronously, so every store read resolves without leaving the
+    // event loop: without a turn between items, a page of item reads holds the server end
+    // to end and every other request waits behind it (#58).
+    await new Promise<void>(resolve => setImmediate(resolve));
+    reads.push(
+      await assembleItemRead(source, item, queue, {
+        waiting: waiting.get(item.id) ?? [],
+        skipped: skipped.get(item.id) ?? [],
+      })
+    );
+  }
+  return reads;
+}
+
+/** The read of one item, against the page's queue and starts. */
+async function assembleItemRead(
   source: ItemReadSource,
   item: WorkflowItem,
-  queue: ItemQueueRead
+  queue: ItemQueueRead,
+  starts: ItemStarts
 ): Promise<ItemRead | null> {
-  // Queued starts first, then the runs: a start admitted between the two reads then shows
-  // in both (its run id is its request id), and is listed once as a run, never in neither.
-  const waiting = await source.store.listQueuedItemStarts(item.id);
   const found = await readItemRuns(source.store, item.projectKey, item.key);
   if (found === null) return null;
   const own = { values: found.runs, degraded: found.degraded };
@@ -632,23 +677,24 @@ export async function assembleItemRead(
     .sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const holds = await itemHolds(source, found.item.id, own.values);
   const queued: ItemQueuedStart[] = [];
-  for (const start of waiting.filter(start => !tree.has(start.requestId)))
+  for (const start of starts.waiting.filter(start => !tree.has(start.requestId)))
     queued.push({ ...start, heldBehind: (await holds.queuedHeldBehind(start)) ?? null });
   const skipped: ItemSkippedStart[] = [];
-  for (const start of await source.store.listSkippedItemStarts(found.item.id))
+  for (const start of starts.skipped)
     skipped.push({
       requestId: start.requestId,
       workflow: start.workflow,
       resource: start.resource,
       heldBehind: (await holds.skippedHeldBehind(start)) ?? null,
     });
+  const receipts = await runReceipts(source, own.values);
   return {
     item: found.item,
     runs: await Promise.all(
       own.values.map(async run =>
         itemRun(
-          source,
           run,
+          receipts,
           holds.request(run.id),
           (await holds.runHeldBehind(run)) ?? null,
           terminalEvents

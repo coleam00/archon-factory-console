@@ -191,24 +191,21 @@ const source: ItemReadSource = {
     getItemMerge: async id => (id === item.id ? merge : null),
     listItemLinks: async id => (id === item.id ? links : []),
     getResourceStartRequest: async () => null,
-    listSkippedItemStarts: async () => [],
-    listQueuedItemStarts: async () => [],
-    getStartReceipt: async id =>
-      id === SECOND_RECEIPT
-        ? {
+    listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+    listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+    listStartReceiptSources: async ids =>
+      new Map(
+        ids
+          .filter(id => id === SECOND_RECEIPT)
+          .map(id => [
             id,
-            sourceInstanceId: 'review-after-deliver',
-            deliveryId: 'first',
-            contentDigest: 'digest',
-            receivedAt: '2026-11-01T09:30:00.000Z',
-            occurredAt: null,
-            sourceActor: { source: 'archon-run-ended', id: 'first', display: 'built' },
-            itemKey: item.key,
-            outcome: 'matched',
-            reason: null,
-            bindings: [],
-          }
-        : null,
+            {
+              id,
+              sourceInstanceId: 'review-after-deliver',
+              sourceActor: { source: 'archon-run-ended', id: 'first', display: 'built' },
+            },
+          ])
+      ),
   },
 };
 
@@ -402,19 +399,25 @@ describe('reading an item', () => {
         getItemRuns: () =>
           read(() => ({ item, runs: isAdmitted ? [admitted] : [], descendantIds: [] })),
         listQueuedItemStarts: () =>
-          read(() =>
-            isAdmitted
-              ? []
-              : [
-                  {
-                    requestId: 'admitted',
-                    workflow: 'deliver',
-                    resource: 'build',
-                    hostId: 'host',
-                    queuedAt: '2026-11-01T11:05:00.000Z',
-                    ahead: 0,
-                  },
-                ]
+          read(
+            () =>
+              new Map([
+                [
+                  item.id,
+                  isAdmitted
+                    ? []
+                    : [
+                        {
+                          requestId: 'admitted',
+                          workflow: 'deliver',
+                          resource: 'build',
+                          hostId: 'host',
+                          queuedAt: '2026-11-01T11:05:00.000Z',
+                          ahead: 0,
+                        },
+                      ],
+                ],
+              ])
           ),
       },
     };
@@ -540,18 +543,24 @@ describe('reading an item', () => {
           runs: [first, second, waiting, review],
           descendantIds: [],
         }),
-        listQueuedItemStarts: async () => [
-          queued('queued-deliver', 'deliver'),
-          queued('queued-review', 'review'),
-        ],
-        listSkippedItemStarts: async () => [
-          {
-            requestId: 'skipped-deliver',
-            workflow: 'deliver',
-            resource: 'build',
-            blockerRunId: 'second',
-          },
-        ],
+        listQueuedItemStarts: async () =>
+          new Map([
+            [item.id, [queued('queued-deliver', 'deliver'), queued('queued-review', 'review')]],
+          ]),
+        listSkippedItemStarts: async () =>
+          new Map([
+            [
+              item.id,
+              [
+                {
+                  requestId: 'skipped-deliver',
+                  workflow: 'deliver',
+                  resource: 'build',
+                  blockerRunId: 'second',
+                },
+              ],
+            ],
+          ]),
       },
     };
     const read = await readItem(held, item.projectKey, item.key);

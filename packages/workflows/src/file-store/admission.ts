@@ -145,7 +145,7 @@ export function createFileAdmissionStore(
         return admitted;
       }),
     // No start names an item here (`FileStoreUnsupportedError('items')`).
-    listSkippedItemStarts: async () => [],
+    listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
     listWaitedItemHolders: async () => [],
     getResourceStartRequest: id =>
       query(async tx => {

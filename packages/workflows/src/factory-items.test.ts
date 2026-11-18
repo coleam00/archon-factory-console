@@ -547,13 +547,13 @@ describe('reading progress, and one item whole', () => {
         getCodebase: async () => null,
         getItem: async () => null,
         getItemMerge: async () => null,
-        listSkippedItemStarts: async () => [],
-        listQueuedItemStarts: async () => [],
+        listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+        listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
         listItemAsks: async () => [],
         listItemRulings: async () => [],
         listItemLinks: async () => [],
         getResourceStartRequest: async () => null,
-        getStartReceipt: async () => null,
+        listStartReceiptSources: async () => new Map(),
       },
     };
     return source;
@@ -734,14 +734,19 @@ describe('reading progress, and one item whole', () => {
       runs: [triage, planAfterTriage, deliver],
       descendantIds: [],
     });
-    source.store.getStartReceipt = async id =>
-      id === receiptId
-        ? ({
+    source.store.listStartReceiptSources = async ids =>
+      new Map(
+        ids
+          .filter(id => id === receiptId)
+          .map(id => [
             id,
-            sourceInstanceId: 'fc-start-plan',
-            sourceActor: { source: RUN_ENDED_SOURCE_ACTOR, id: triage.id },
-          } as Awaited<ReturnType<ItemReadSource['store']['getStartReceipt']>>)
-        : null;
+            {
+              id,
+              sourceInstanceId: 'fc-start-plan',
+              sourceActor: { source: RUN_ENDED_SOURCE_ACTOR, id: triage.id },
+            },
+          ])
+      );
     const detail = await readFactoryItem(source, itemInput(unexpected), '1');
     expect(detail?.runs.map(run => run.cause ?? null)).toEqual([
       null,
