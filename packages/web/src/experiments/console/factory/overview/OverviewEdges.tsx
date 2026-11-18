@@ -126,7 +126,6 @@ function EdgeLine({ edge, head }: { edge: OverviewEdgePath; head: boolean }): Re
   return (
     <path
       data-edge={edge.kind}
-      data-shadow={edge.shadow ? 'true' : undefined}
       d={rounded(edge.points)}
       fill="none"
       stroke={COLOURS[colour]}

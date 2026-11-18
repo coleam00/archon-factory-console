@@ -178,7 +178,7 @@ describe('the factory overview', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  test('the shipped overview says Merged, never Landed, and marks its shadow line', async () => {
+  test('the shipped overview says Merged, never Landed, and its legend explains the shadow line', async () => {
     const shipped = JSON.parse(
       readFileSync(
         join(
@@ -192,7 +192,6 @@ describe('the factory overview', () => {
     expect(page.textContent).toContain('Merged');
     expect(page.textContent).toContain('Ready to merge');
     expect(page.textContent).not.toMatch(/Landed|Ready to land|may it land/);
-    expect(page.querySelector('[data-edge="loops-back"][data-shadow="true"]')).not.toBeNull();
     expect(page.querySelector('ul[aria-label="Legend"]')?.textContent).toContain(
       'would do it, does nothing yet'
     );

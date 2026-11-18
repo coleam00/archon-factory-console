@@ -304,7 +304,9 @@ The section has **two separate things**, each with its own file:
    `C:\Users\colem\OpenSource\factory-mission-control`): views (a root view and drill-downs), groups,
    cards (title, one line of text, icon, kind), edges (feeds, calls, and "loops back" lines: as many
    as the factory has, nested in one lane under the line, each on its own track and labelled where it
-   rises into its target, never crossing a card, a label or each other; an answer to an ask is drawn
+   rises into its target, never crossing a card or each other (the schema refuses a file whose lines
+   would; it does not measure labels, so the shipped file's test checks that its label pills meet
+   nothing, and a pack author keeps a short line's label short); an answer to an ask is drawn
    beside the ask's line; a line the pack only would act on is marked `shadow`; changed by the owner's
    audit of 2026-11-18, which asked for several labelled send-back lines). Interaction like Eric Tech's
    skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with

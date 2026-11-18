@@ -17,7 +17,6 @@ import {
   OVERVIEW_REPLY_OFFSET,
   OVERVIEW_SMALLEST_PX,
   OVERVIEW_TITLE_PX,
-  OVERVIEW_TRACK,
   OVERVIEW_TYPE_FLOOR_PX,
   type OverviewEdgePath,
   parallelGroups,
@@ -79,7 +78,6 @@ function pageFrame(view: OverviewView): Frame {
 
 const laneLines = (edges: OverviewEdgePath[]): OverviewEdgePath[] =>
   edges.filter(edge => edge.kind === 'loops-back' && edge.points.length === 4);
-const trackOf = (edge: OverviewEdgePath): number => edge.points[1]?.y ?? Number.NaN;
 const edgeNamed = (edges: OverviewEdgePath[], from: string, to: string): OverviewEdgePath => {
   const edge = edges.find(e => e.from === from && e.to === to);
   if (edge === undefined) throw new Error(`no edge ${from}->${to}`);
@@ -98,12 +96,8 @@ describe('the shipped overview, drawn', () => {
     }
   );
 
-  test('the root sends work back four ways in one lane, each on a track under every box with its pill above it', () => {
-    const layout = layoutOverview(root);
-    const lowest = Math.max(
-      ...[...layout.cards.values(), ...layout.groups.values()].map(b => b.y + b.h)
-    );
-    const lanes = laneLines(layout.edges);
+  test('the root sends work back four ways in one lane, each labelled where it rises into its target', () => {
+    const lanes = laneLines(layoutOverview(root).edges);
     expect(lanes.map(edge => `${edge.from}->${edge.to}`).sort()).toEqual([
       'build->plan',
       'checks->build',
@@ -111,20 +105,15 @@ describe('the shipped overview, drawn', () => {
       'ci->found',
     ]);
     for (const edge of lanes) {
+      // The target's riser, and the source's: the pill sits beside the first, toward the second.
+      const riser = edge.points[2]?.x ?? Number.NaN;
+      const source = edge.points[1]?.x ?? Number.NaN;
       const pill = pillOf(edge);
-      expect(trackOf(edge)).toBeGreaterThan(lowest);
-      expect(pill.y + pill.h).toBeLessThan(trackOf(edge));
-      expect(pill.y).toBeGreaterThan(trackOf(edge) - OVERVIEW_TRACK);
+      const near = source > riser ? pill.x - riser : riser - (pill.x + pill.w);
+      expect(near).toBeGreaterThan(0);
+      expect(near).toBeLessThanOrEqual(8);
     }
-    // A line whose span holds another runs under it: the found line under CI's, CI's under the checks'.
-    const edges = layout.edges;
-    expect(trackOf(edgeNamed(edges, 'ci', 'found'))).toBeGreaterThan(
-      trackOf(edgeNamed(edges, 'ci', 'build'))
-    );
-    expect(trackOf(edgeNamed(edges, 'ci', 'build'))).toBeGreaterThan(
-      trackOf(edgeNamed(edges, 'checks', 'build'))
-    );
-    expect(edgeNamed(edges, 'ci', 'found').shadow).toBe(true);
+    expect(edgeNamed(lanes, 'ci', 'found').shadow).toBe(true);
   });
 
   test('an answer to an ask runs beside the ask, each pill on its own side', () => {

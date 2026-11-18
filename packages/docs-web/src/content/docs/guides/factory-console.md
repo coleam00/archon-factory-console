@@ -295,6 +295,9 @@ Lines are drawn straight, so a view validates only when its picture is clean:
   under it, and two lines whose spans overlap without one holding the other would cross.
 - No line may run through a card other than its ends, through a group that holds neither end,
   or into another line. Move a card to give a line a clear row or column.
+- Labels are not part of the check. Each label is drawn on a pill beside its line, and a pill
+  wider than the room its line has can cover a card or a line: keep the label of a short line
+  short, such as a send-back between neighbouring columns or an answer between neighbouring cards.
 
 A group stacked in one column, met only along rows, whose cards no `feeds` or `calls` line
 names, is drawn as parallel: a line into or out of the group branches to each card.

@@ -7,7 +7,8 @@
  * other `loops-back` edge drops from a port on its source's bottom into the lane under every
  * box, runs along its own track, and rises into a port on its target's bottom. A file the
  * server lists has passed those rules, so no edge drawn here crosses. Each label is a pill set
- * off its line, which `overview-layout.test-fixtures.ts` checks meets nothing on the shipped file.
+ * off its line. The rules do not measure labels, so a long label on a short line can meet a card
+ * or a line; `overview-layout.test-fixtures.ts` checks the pills of the shipped file only.
  *
  * A parallel group (`parallelGroups`) also gets a fan on each side an edge meets it: a bar
  * along the frame and a stub to each member, drawn inside the group's pad, which no forward
