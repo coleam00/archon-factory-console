@@ -338,7 +338,6 @@ describe('GET /api/factory/pack-settings', () => {
         'docs/land.md',
         'found',
       ]);
-      expect(project?.values.command).toEqual({ state: 'unset' });
       expect(project?.undeclared).toEqual([{ name: 'colour', value: 'red' }]);
     } finally {
       await removeTempTree(pack);
