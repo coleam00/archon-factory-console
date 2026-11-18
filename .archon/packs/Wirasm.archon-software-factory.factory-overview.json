@@ -396,5 +396,19 @@
         { "from": "checks-verdict", "to": "checks-plan", "kind": "loops-back", "label": "replan" }
       ]
     }
+  },
+  "settings": {
+    "triage_policy": { "points_to": "policy" },
+    "plan_policy": { "points_to": "policy" },
+    "build_policy": { "points_to": "policy" },
+    "review_policy": { "points_to": "policy" },
+    "test_policy": { "points_to": "policy" },
+    "host_policy": { "points_to": "policy" },
+    "admit_policy": { "points_to": "policy", "shadow": true },
+    "land_policy": { "points_to": "policy", "shadow": true },
+    "discoveries_policy": { "points_to": "policy" },
+    "checks_file": { "points_to": "checks", "shadow": true },
+    "propose_policy": { "points_to": "policy" },
+    "product_policy": { "points_to": "policy" }
   }
 }

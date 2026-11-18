@@ -3955,6 +3955,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/factory/pack-settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * A pack's declared settings, and what each project that runs it sets
+     * @description Every setting the pack declares in its `.pack/pack.yaml` (`inputs:`), in its order, presented as the `settings` map of the overview `GET /api/factory/packs` shows for it says (shadow, and whether the value names a policy or the checks file). For each project a factory view of the pack applies to: its value of each setting from `.archon/packs/<pack key>.yaml`, the file a policy or checks setting names looked up in its checkout (a checks file listed), and the keys it sets that the pack does not declare. A map key the pack does not declare is listed under `mapErrors`. A project whose settings file cannot be read carries its `error`; the others still read. Nothing is written.
+     */
+    get: {
+      parameters: {
+        query: {
+          /** @description The pack's key, as `GET /api/factory/packs` lists it. */
+          pack: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['FactoryPackSettings'];
+          };
+        };
+        /** @description No pack with a factory overview has this key */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/factory/discoveries': {
     parameters: {
       query?: never;
@@ -11161,6 +11221,13 @@ export interface components {
                 }[];
               };
             };
+            settings?: {
+              [key: string]: {
+                shadow?: boolean;
+                /** @enum {string} */
+                points_to?: 'policy' | 'checks';
+              };
+            };
           };
         } | null;
         readFrom: {
@@ -11190,6 +11257,64 @@ export interface components {
         codebaseId: string;
         name: string;
         error: string;
+      }[];
+    };
+    FactoryPackSettings: {
+      pack: string;
+      declaration: {
+        path: string;
+        error: string | null;
+      } | null;
+      settingsFile: string;
+      settings: {
+        name: string;
+        description: string | null;
+        default: string | null;
+        /** @enum {string} */
+        type: 'string' | 'bool' | 'list' | 'enum';
+        shadow: boolean;
+        /** @enum {string|null} */
+        pointsTo: 'policy' | 'checks' | null;
+      }[];
+      mapErrors: string[];
+      projects: {
+        codebaseId: string;
+        name: string;
+        error: string | null;
+        values: {
+          [key: string]:
+            | {
+                /** @enum {string} */
+                state: 'unset';
+              }
+            | {
+                /** @enum {string} */
+                state: 'empty';
+              }
+            | {
+                /** @enum {string} */
+                state: 'set';
+                value: string;
+                problem: string | null;
+                file: {
+                  display: string;
+                  full: string;
+                  /** @enum {string} */
+                  status: 'found' | 'missing' | 'unreadable';
+                  error: string | null;
+                  checks:
+                    | {
+                        name: string;
+                        run: string;
+                      }[]
+                    | null;
+                } | null;
+              };
+        };
+        undeclared: {
+          name: string;
+          value: string;
+        }[];
       }[];
     };
     FactoryDiscoveries: {

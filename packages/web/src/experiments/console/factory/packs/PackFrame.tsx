@@ -2,12 +2,10 @@ import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { factoryPackPath } from '../lib/views';
 
-/**
- * A pack page's tabs. The pack's read-only settings are planned as a second tab: that item
- * adds its entry here and its route in `routes.tsx`. Nothing shows for it until then.
- */
+/** A pack page's tabs; each has its route in `routes.tsx`. */
 export const PACK_TABS = [
   { key: 'how-it-works', label: 'How it works', rest: '/how-it-works' },
+  { key: 'settings', label: 'Settings', rest: '/settings' },
 ] as const;
 export type PackTab = (typeof PACK_TABS)[number]['key'];
 

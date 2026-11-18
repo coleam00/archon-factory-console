@@ -83,6 +83,18 @@ describe('factoryOverviewSchema', () => {
     ]);
   });
 
+  test('accepts a settings map, and rejects a second checks file or a key that is no setting name', () => {
+    const settings = {
+      plan_policy: { points_to: 'policy' as const },
+      checks_file: { points_to: 'checks' as const, shadow: true },
+    };
+    expect(issues({ ...valid(), settings })).toEqual([]);
+    expect(
+      issues({ ...valid(), settings: { ...settings, more_checks: { points_to: 'checks' } } })
+    ).toEqual(['settings.more_checks.points_to more_checks checks_file']);
+    expect(issues({ ...valid(), settings: { '1st': { shadow: true } } })).toEqual(['settings.1st']);
+  });
+
   test('rejects a root that names no view', () => {
     expect(issues({ ...valid(), root: 'nope' })).toEqual(['root nope']);
   });

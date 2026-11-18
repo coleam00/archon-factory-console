@@ -2,7 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router';
-import type { FactoryPacksRead } from '../../skills/factory';
+import type { FactoryPackSettings, FactoryPacksRead } from '../../skills/factory';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { ConsoleNav } from '../../components/ConsoleNav';
@@ -34,6 +34,7 @@ afterEach(async () => {
   await unmount?.();
   unmount = undefined;
   invalidate(K.factoryPacks);
+  invalidate(K.factoryPackSettings('acme.kit'));
 });
 
 const pack = (key: string, title: string, more: Partial<FactoryPackListed> = {}) => ({
@@ -181,11 +182,14 @@ describe('/console/factory/:pack/how-it-works', () => {
     expect(header.filter(href => href.startsWith('/console/p/'))).toEqual([]);
   });
 
-  test('has one tab, How it works, until the settings tab is built', async () => {
+  test('has two tabs, How it works and Settings', async () => {
     const page = await mount('/console/factory/acme.kit/how-it-works', two);
     const tabs = page.querySelector('nav[aria-label="Pack"]');
-    expect(hrefs(tabs)).toEqual(['/console/factory/acme.kit/how-it-works']);
-    expect(tabs?.textContent).toBe('How it works');
+    expect(hrefs(tabs)).toEqual([
+      '/console/factory/acme.kit/how-it-works',
+      '/console/factory/acme.kit/settings',
+    ]);
+    expect(tabs?.querySelector('[aria-current="page"]')?.textContent).toBe('How it works');
   });
 
   test('the bare pack address opens How it works', async () => {
@@ -211,5 +215,150 @@ describe('/console/factory/:pack/how-it-works', () => {
       ])
     );
     expect(page.querySelector('[role="alert"]')?.textContent).toContain('bad root');
+  });
+});
+
+describe('/console/factory/:pack/settings', () => {
+  const packs = listing([pack('acme.kit', 'Kit')]);
+  type ProjectSettings = FactoryPackSettings['projects'][number];
+  const file = (
+    display: string,
+    status: 'found' | 'missing',
+    checks: { name: string; run: string }[] | null = null
+  ) => ({ display, full: `/repo/${display}`, status, error: null, checks });
+  const setting = (
+    name: string,
+    more: Partial<FactoryPackSettings['settings'][number]> = {}
+  ): FactoryPackSettings['settings'][number] => ({
+    name,
+    description: null,
+    default: '',
+    type: 'string',
+    shadow: false,
+    pointsTo: null,
+    ...more,
+  });
+  const web: ProjectSettings = {
+    codebaseId: 'cb-1',
+    name: 'web',
+    error: null,
+    values: {
+      triage_policy: { state: 'empty' },
+      land_policy: {
+        state: 'set',
+        value: 'docs/land.md',
+        problem: null,
+        file: file('docs/land.md', 'missing'),
+      },
+      checks_file: {
+        state: 'set',
+        value: 'checks.yaml',
+        problem: null,
+        file: file('checks.yaml', 'found', [{ name: 'lint', run: 'bun run lint' }]),
+      },
+      validate_command: { state: 'set', value: 'bun test', problem: null, file: null },
+    },
+    undeclared: [],
+  };
+  const api: ProjectSettings = {
+    codebaseId: 'cb-2',
+    name: 'api',
+    error: null,
+    values: {
+      triage_policy: { state: 'unset' },
+      land_policy: { state: 'unset' },
+      checks_file: { state: 'unset' },
+      validate_command: { state: 'unset' },
+    },
+    undeclared: [{ name: 'colour', value: 'red' }],
+  };
+  const SETTINGS: FactoryPackSettings = {
+    pack: 'acme.kit',
+    declaration: { path: '/home/plugins/acme/kit/.pack/pack.yaml', error: null },
+    settingsFile: '.archon/packs/acme.kit.yaml',
+    settings: [
+      setting('triage_policy', { description: 'Path to the triage policy.', pointsTo: 'policy' }),
+      setting('land_policy', { shadow: true, pointsTo: 'policy' }),
+      setting('checks_file', { shadow: true, pointsTo: 'checks' }),
+      setting('validate_command', { default: null }),
+    ],
+    mapErrors: [],
+    projects: [web, api],
+  };
+
+  async function settingsPage(settings: FactoryPackSettings = SETTINGS): Promise<HTMLElement> {
+    set(K.factoryPackSettings('acme.kit'), settings);
+    return mount('/console/factory/acme.kit/settings', packs);
+  }
+  const card = (page: HTMLElement, name: string): Element | null =>
+    page.querySelector(`[data-setting="${name}"]`);
+  const rows = (within: Element | null): string[] =>
+    [...(within?.querySelectorAll('dl > div') ?? [])].map(row =>
+      [row.querySelector('dt')?.textContent, row.querySelector('dd')?.textContent].join(': ')
+    );
+
+  test('is the active tab, one card per declared setting in order, by its plain name', async () => {
+    const page = await settingsPage();
+    const active = page.querySelector('nav[aria-label="Pack"] [aria-current="page"]');
+    expect(active?.getAttribute('href')).toBe('/console/factory/acme.kit/settings');
+    expect([...page.querySelectorAll('[data-setting] h2')].map(h => h.textContent)).toEqual([
+      'Triage policy',
+      'Land policy',
+      'Checks file',
+      'Validate command',
+    ]);
+    expect(card(page, 'triage_policy')?.textContent).toContain('Path to the triage policy.');
+  });
+
+  test('an empty or unset value says "pack default", per project', async () => {
+    const page = await settingsPage();
+    expect(rows(card(page, 'triage_policy'))).toEqual(['web: pack default', 'api: pack default']);
+    expect(rows(card(page, 'validate_command'))).toEqual(['web: bun test', 'api: pack default']);
+  });
+
+  test('a policy path not in the project says "file not found", its whole path on hover', async () => {
+    const page = await settingsPage();
+    expect(rows(card(page, 'land_policy'))[0]).toBe('web: docs/land.mdfile not found');
+    expect(card(page, 'land_policy')?.querySelector('[title="/repo/docs/land.md"]')).not.toBeNull();
+  });
+
+  test('a checks file is listed as its checks: name and command', async () => {
+    const page = await settingsPage();
+    const checks = card(page, 'checks_file')?.querySelector('ul[aria-label="Checks"]');
+    expect([...(checks?.querySelectorAll('li') ?? [])].map(li => li.textContent)).toEqual([
+      'lintbun run lint',
+    ]);
+  });
+
+  test('the shadow badge marks the shadow settings only', async () => {
+    const page = await settingsPage();
+    const badged = [...page.querySelectorAll('[data-setting]')]
+      .filter(li => [...li.querySelectorAll('span')].some(span => span.textContent === 'shadow'))
+      .map(li => li.getAttribute('data-setting'));
+    expect(badged).toEqual(['land_policy', 'checks_file']);
+  });
+
+  test('a key a project sets that the pack does not declare is listed as such', async () => {
+    const page = await settingsPage();
+    const undeclared = page.querySelector('section[aria-label="Not declared by the pack"]');
+    expect(undeclared?.querySelector('h2')?.textContent).toBe('Not declared by the pack');
+    expect(rows(undeclared)).toEqual(['api: colourred']);
+  });
+
+  test('a map key the pack does not declare, and an unreadable project file, say so', async () => {
+    const page = await settingsPage({
+      ...SETTINGS,
+      mapErrors: ['The factory overview presents setting "gone", which the pack does not declare'],
+      projects: [{ ...web, error: 'not valid YAML', values: {} }, api],
+    });
+    expect(page.querySelector('[role="alert"]')?.textContent).toContain('"gone"');
+    expect(rows(card(page, 'triage_policy'))[0]).toBe(
+      'web: Its settings file could not be read: not valid YAML'
+    );
+  });
+
+  test('a pack that declares nothing says so', async () => {
+    const page = await settingsPage({ ...SETTINGS, declaration: null, settings: [], projects: [] });
+    expect(page.textContent).toContain('This pack declares no settings');
   });
 });

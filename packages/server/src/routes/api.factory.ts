@@ -1,8 +1,9 @@
 /**
  * Read-only routes for the console's Software Factory section. Nothing here writes: the
  * section reads the engine's own records, the factory view and overview files packs and
- * projects ship (`@archon/workflows/factory-views`, `factory-overviews`), and asks the change host whether a
- * change merged through the forge seam.
+ * projects ship (`@archon/workflows/factory-views`, `factory-overviews`), a pack's declared
+ * settings and each project's values for them (`factory-pack-settings`), and asks the change
+ * host whether a change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { isAbsolute } from 'node:path';
@@ -36,6 +37,11 @@ import {
   factoryViewWorkflowNames,
   factoryViewsForProject,
 } from '@archon/workflows/factory-views';
+import {
+  findPackDeclaration,
+  readFactoryPackSettings,
+  type FactoryPackSettings,
+} from '@archon/workflows/factory-pack-settings';
 import { factoryWorkflowSteps } from '@archon/workflows/factory-steps';
 import type { WorkflowConfig } from '@archon/workflows/deps';
 import type { ItemReadSource } from '@archon/workflows/item-read';
@@ -53,6 +59,7 @@ import {
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
+  factoryPackSettingsResponseSchema,
   factoryPacksResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
@@ -96,6 +103,31 @@ const getFactoryPacksRoute = createRoute({
       content: { 'application/json': { schema: factoryPacksResponseSchema } },
       description: 'OK',
     },
+    500: jsonError('Server error'),
+  },
+});
+
+const factoryPackSettingsQuerySchema = z.object({
+  pack: z
+    .string()
+    .min(1)
+    .openapi({ description: "The pack's key, as `GET /api/factory/packs` lists it." }),
+});
+
+const getFactoryPackSettingsRoute = createRoute({
+  method: 'get',
+  path: '/api/factory/pack-settings',
+  tags: ['Workflows'],
+  summary: "A pack's declared settings, and what each project that runs it sets",
+  description:
+    'Every setting the pack declares in its `.pack/pack.yaml` (`inputs:`), in its order, presented as the `settings` map of the overview `GET /api/factory/packs` shows for it says (shadow, and whether the value names a policy or the checks file). For each project a factory view of the pack applies to: its value of each setting from `.archon/packs/<pack key>.yaml`, the file a policy or checks setting names looked up in its checkout (a checks file listed), and the keys it sets that the pack does not declare. A map key the pack does not declare is listed under `mapErrors`. A project whose settings file cannot be read carries its `error`; the others still read. Nothing is written.',
+  request: { query: factoryPackSettingsQuerySchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: factoryPackSettingsResponseSchema } },
+      description: 'OK',
+    },
+    404: jsonError('No pack with a factory overview has this key'),
     500: jsonError('Server error'),
   },
 });
@@ -408,6 +440,35 @@ async function factoryPacks(deps: FactoryRouteDeps): Promise<FactoryPacks> {
   return resolveFactoryPacks({ home, projects });
 }
 
+/**
+ * The Settings page of the pack keyed `key`, or null when no pack with an overview has that
+ * key. The declaration is the install's (bundled, global or installed), else the first
+ * project's, by name, whose checkout holds the pack as a folder.
+ */
+async function packSettings(
+  deps: FactoryRouteDeps,
+  key: string
+): Promise<FactoryPackSettings | null> {
+  const pack = (await factoryPacks(deps)).packs.find(listed => listed.key === key);
+  if (pack === undefined) return null;
+  const cwds = new Map((await deps.codebases()).map(({ id, cwd }) => [id, cwd]));
+  const projects = pack.projects.flatMap(({ codebaseId, name }) => {
+    const cwd = cwds.get(codebaseId);
+    return cwd === undefined ? [] : [{ codebaseId, name, cwd }];
+  });
+  let declaration = await findPackDeclaration(liveSourceRoots(null), key);
+  for (const project of projects) {
+    if (declaration !== null) break;
+    declaration = await findPackDeclaration(await projectRoots(deps, project.cwd), key);
+  }
+  return readFactoryPackSettings({
+    packKey: key,
+    declaration,
+    map: pack.overview?.declaration.settings,
+    projects,
+  });
+}
+
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
   const changeStates = changeStateCache(deps);
@@ -439,6 +500,26 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     } catch (error) {
       getLog().error({ err: error }, 'discover_factory_packs_failed');
       return apiError(c, 500, 'Failed to discover the factory packs');
+    }
+  });
+
+  register(getFactoryPackSettingsRoute, async c => {
+    const { pack } = getValidatedQuery(c, factoryPackSettingsQuerySchema);
+    try {
+      const read = await packSettings(deps, pack);
+      if (read === null) return apiError(c, 404, 'No factory pack has this key');
+      // The body lists these too; the log keeps them findable without a console open.
+      if (read.declaration?.error)
+        getLog().warn({ pack, path: read.declaration.path }, 'factory_pack_declaration_invalid');
+      for (const error of read.mapErrors)
+        getLog().warn({ pack, error }, 'factory_pack_settings_map_invalid');
+      for (const { codebaseId, error } of read.projects)
+        if (error !== null)
+          getLog().warn({ pack, codebaseId }, 'factory_pack_project_settings_invalid');
+      return c.json(read);
+    } catch (error) {
+      getLog().error({ err: error, pack }, 'factory_pack_settings_read_failed');
+      return apiError(c, 500, "Failed to read the pack's settings");
     }
   });
 

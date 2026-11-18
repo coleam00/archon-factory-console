@@ -16,6 +16,7 @@
 import { z } from 'zod';
 import { factoryViewSourceSchema } from './factory-view';
 import { geometryIssues, type Issue } from './factory-overview-geometry';
+import { INPUT_NAME_PATTERN } from './node-bindings';
 
 export const FACTORY_OVERVIEW_FILE = 'factory-overview.json';
 /** Appended to a pack key to name the project file: `<pack key>.factory-overview.json`. */
@@ -104,6 +105,17 @@ const viewSchema = z.strictObject({
 });
 export type FactoryOverviewView = z.infer<typeof viewSchema>;
 
+/** How one pack setting is presented: as a shadow, and what its value points to. */
+const factoryOverviewSettingSchema = z.strictObject({
+  /** The pack runs what this setting configures as a shadow: recorded, nothing acts on it. */
+  shadow: z.boolean().optional(),
+  /**
+   * The value is a path in the project: a `policy` document, or the `checks` file, a YAML
+   * list of checks (`schemas/factory-checks.ts`). A pack declares at most one checks file.
+   */
+  points_to: z.enum(['policy', 'checks']).optional(),
+});
+
 const factoryOverviewShape = z.strictObject({
   version: z.literal(1),
   /** The pack this overview explains: `owner/name` when installed, else its folder name. */
@@ -118,6 +130,17 @@ const factoryOverviewShape = z.strictObject({
   root: slugSchema,
   /** Every view by id: the root and the drill-downs cards open. */
   views: z.record(slugSchema, viewSchema),
+  /**
+   * How a console presents the pack's settings, by setting name. The pack's `.pack/pack.yaml`
+   * declares each setting's name, default and description, but says in prose only whether a
+   * setting runs as a shadow or names a file, so this map says it in fields until the pack's
+   * declaration does. Every key must be a setting the pack declares; the console checks that
+   * against the declaration it reads (`factory-pack-settings.ts`) and shows any other key as
+   * an error. A setting without an entry is shown as its plain value.
+   */
+  settings: z
+    .record(z.string().regex(INPUT_NAME_PATTERN, 'a setting name'), factoryOverviewSettingSchema)
+    .optional(),
 });
 
 type FactoryOverviewShape = z.infer<typeof factoryOverviewShape>;
@@ -208,8 +231,20 @@ function loopIssues(overview: FactoryOverviewShape): Issue[] {
   ];
 }
 
+/** A pack declares one checks file, so at most one setting points to it. */
+function settingsIssues(overview: FactoryOverviewShape): Issue[] {
+  const checks = Object.entries(overview.settings ?? {}).filter(
+    ([, setting]) => setting.points_to === 'checks'
+  );
+  return checks.slice(1).map(([name]) => ({
+    path: ['settings', name, 'points_to'],
+    message: `"${name}" points to the checks file, which "${checks[0]?.[0] ?? ''}" already does`,
+  }));
+}
+
 export const factoryOverviewSchema = factoryOverviewShape.superRefine((overview, ctx) => {
   const issues = [
+    ...settingsIssues(overview),
     ...idIssues(overview),
     ...openIssues(overview),
     ...loopIssues(overview),

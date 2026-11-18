@@ -16,6 +16,7 @@ import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from '
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
+  factoryPackSettingsResponseSchema,
   factoryPacksResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
@@ -270,6 +271,81 @@ describe('GET /api/factory/packs', () => {
     expect(packs.unreadProjects).toEqual([
       { codebaseId: 'cb-1', name: 'broken', error: 'config is broken' },
     ]);
+  });
+});
+
+describe('GET /api/factory/pack-settings', () => {
+  const track = trackTempRoots();
+  const overview = {
+    version: 1,
+    pack: 'kit',
+    title: 'Kit',
+    caption: 'Work comes in and lands.',
+    root: 'top',
+    views: {
+      top: {
+        cards: [
+          { id: 'a', title: 'A', text: 'In.', icon: 'inbox', kind: 'input', col: 1, row: 1 },
+          { id: 'b', title: 'B', text: 'Out.', icon: 'flag', kind: 'outcome', col: 2, row: 1 },
+        ],
+        edges: [
+          { from: 'a', to: 'b', kind: 'feeds' },
+          { from: 'b', to: 'a', kind: 'loops-back' },
+        ],
+      },
+    },
+    settings: { land_policy: { points_to: 'policy', shadow: true } },
+  };
+
+  async function read(query: string): Promise<{ status: number; body: unknown; cwd: string }> {
+    const cwd = await projectWith(track, {
+      '.archon/packs/kit.factory-view.json': declaration('kit', 'Kit factory'),
+      '.archon/packs/kit.yaml': 'settings:\n  land_policy: docs/land.md\n  colour: red\n',
+      'docs/land.md': '# Land',
+    });
+    const app = new OpenAPIHono();
+    registerFactoryRoutes(app, {
+      ...noItems,
+      codebases: async () => [{ id: 'cb-1', name: 'web', cwd }],
+    });
+    const response = await app.request(`/api/factory/pack-settings?pack=${query}`);
+    return { status: response.status, body: await response.json(), cwd };
+  }
+
+  test("reads a home pack's declaration and each project's values", async () => {
+    // A global folder pack: the scratch home every test process starts with.
+    const pack = join(getHomeWorkflowsPath(), 'kit');
+    await mkdir(join(pack, '.pack'), { recursive: true });
+    await mkdir(join(pack, '.shared'), { recursive: true });
+    await writeFile(
+      join(pack, '.pack', 'pack.yaml'),
+      'inputs:\n  land_policy:\n    default: ""\n    description: Shadow only.\n  command: {}\n'
+    );
+    await writeFile(join(pack, '.shared', 'factory-overview.json'), JSON.stringify(overview));
+    try {
+      const { status, body } = await read('kit');
+      expect(status).toBe(200);
+      const settings = factoryPackSettingsResponseSchema.parse(body);
+      expect(settings.declaration).toEqual({ path: join(pack, '.pack', 'pack.yaml'), error: null });
+      expect(settings.settings.map(s => [s.name, s.shadow, s.pointsTo])).toEqual([
+        ['land_policy', true, 'policy'],
+        ['command', false, null],
+      ]);
+      const [project] = settings.projects;
+      expect(project?.name).toBe('web');
+      const land = project?.values.land_policy;
+      expect(land?.state === 'set' ? [land.file?.display, land.file?.status] : null).toEqual([
+        'docs/land.md',
+        'found',
+      ]);
+      expect(project?.undeclared).toEqual([{ name: 'colour', value: 'red' }]);
+    } finally {
+      await removeTempTree(pack);
+    }
+  });
+
+  test('a key no pack with an overview has is 404', async () => {
+    expect((await read('nope')).status).toBe(404);
   });
 });
 
