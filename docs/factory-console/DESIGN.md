@@ -132,13 +132,12 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Send-back lines: dashed `6 4`, all in one colour, `--node-approval` (the colour the How it works
   lane already uses).
 - Asks: dotted `2 3`, `--text-tertiary`.
-- No line crosses a card or a label. Where The map allows two-row crossings, a line crosses
-  another line only at a right angle.
+- No line crosses a card, a label or another line.
 
 ### 5. Colour
 
 - Group colours: intake `--node-prompt`, build `--node-wait`, check `--node-approval`, land
-  `--node-script` (today's `factory/map/MapLegend.tsx`).
+  `--node-script` (`factory/tones.ts`, which the board, the map and its legend all read).
 - Board columns (owner change 4): Intake takes intake's colour, Plan & build build's, Checks &
   review check's, Ready to merge land's, and Merged `--success`.
 - A group colour appears only as the accent bar, the icon and the legend swatch: never a fill or a
@@ -411,7 +410,8 @@ present itself without the console knowing it. Shape (validated with zod in
   "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
   "stages": [                                      // map cards and stage pages, left to right
     { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
-      "group": "intake", "workflows": ["order"] },
+      "short": "Turns a work order into an item",  // optional: the map card's one line,
+      "group": "intake", "workflows": ["order"] },   // about six words; else the blurb
     {
       "id": "build",
       "label": "Build",
@@ -457,7 +457,8 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // read only without a part_of link
   "itemTitle": { "input": "item" },                // item title = title line of this run input
   "map": {
-    "cards": [ { "stage": "build" } ],              // drawn in stages order, one row
+    "cards": [ { "stage": "build" } ],              // the stages the map shows, each in its
+                                                   // column's card, one row
     "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // every arrow the
                 { "from": "checks", "to": "build", "label": "returned" },  // map draws; leftward
                 { "from": "checks", "to": "plan", "label": "replan",  // ones send back;
@@ -600,31 +601,64 @@ empty state, when something was last asked, and those three cards.
 
 ## The map
 
-- One card per stage `map.cards` lists, in `stages` order (the board's), in one row left to
-  right. The map wraps into two rows (the first half above) only where one row would draw its
-  text under the type floor; below that it pans. `col` and `row` on a card are accepted, so an
-  older view file still loads, and ignored. A card shows the stage label, its blurb, and live
-  chips: how many items are in it now ("2 here", pulsing while a run works), how many wait on
-  a person. Where a board column would show a skeleton bar for a pending merge state, the card says
-  "checking merge state" instead of how many are here. The cards and arrows are drawn from the view file
-  as soon as it is read: until the items read answers each card's chip is a skeleton bar (Visual standard, rule 6;
-  never "0 here"), and the chips fill in on the same cards when it does. If that first read fails,
-  an alert above the map says so and the cards stay drawn with no chip, their details saying
-  the items could not be read rather than showing a skeleton.
+Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row, one clean lane.
+
+- **One card per board column** (owner change 4): the view file's `columns`, in order, each
+  card holding the stages of its column that `map.cards` lists, in the column's order; a
+  column left with none is not drawn. Without `columns`, one card per stage, as the board. For
+  the shipped file: Intake, Plan & build, Checks & review, Ready to merge, Merged. `col` and
+  `row` on a card are accepted, so an older view file still loads, and ignored.
+- **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
+  fit the frame, the map pans sideways, opening with the busiest card centred: the one holding
+  the stage with the most items in flight, the leftmost on a tie. Merged items do not count
+  (the Merged stage keeps every change ever merged, so it would win every time); with nothing
+  in flight it opens on the row's start. When the items first answer, the map re-opens on the
+  busiest card unless the person has moved it; Fit returns there. The shipped map is about
+  1226 px wide with its padding, so it pans a little at 1440x900 and more on smaller screens.
+- **Cards in the card language** (rule 2), 184 px wide by 168 tall, every card one size so the
+  lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
+  label ("Intake", "Build", "Check", "Merge", "Merged"), then:
+  - a card of one stage: the stage label (Card title role, two lines at most), its one short
+    line (the stage's `short`, about six words; without one, its blurb clamped to two lines),
+    and its chips on the bottom row. The whole card opens the stage page.
+  - a card of several stages: the column's label, then one row per stage, each opening its
+    stage page: the stage label with its "here" chip, and under it its short line (or blurb,
+    one line), which the stage's needs-you chip takes the place of while one waits there.
+- **Live chips** are rule 9's pills at `--text-console-12`: "2 here" (running colour with a
+  pulsing dot while a run works an item there, rule 7; the waiting colour otherwise),
+  "1 needs you" (soft, rule 5), and "checking…" in place of a count where a board column would
+  show a skeleton bar for a pending merge state. The cards and arrows are drawn from the view
+  file as soon as it is read: until the items read answers each chip is a skeleton bar (rule 6;
+  never "0 here", never "…"), and the chips fill in on the same cards when it does. If that
+  first read fails, an alert above the map says so and the cards stay drawn with no chip, their
+  details saying the items could not be read.
 - The arrows are the view file's `map.arrows` and no others: the map does not read the pack
   graph, so the view file declares every hand-off, between workflows too, and every send-back.
-  Forward arrows, labelled with the outcome that moves an item along, run side to side between
-  cards next to each other; one that skips cards runs in a lane off the row's outer edge.
-- **One feedback lane** under the row carries every send-back: an arrow into its own card or
-  an earlier one in `stages` order (a return, a replan). Direction comes from that order only;
-  an arrow's `back` flag is accepted, so an older view file loads, and ignored. Each send-back drops from its source to the lane, runs right to left along it, and
-  rises into its target; every send-back into one card shares one leg, labelled once with all
-  their outcomes. An arrow into its own card is a short U on the lane under it. In one row
-  nothing crosses: no line crosses another or a card. In two rows the lane runs in the gap
-  below the forward hand-offs between the rows; those hand-offs cross it, and the upper row's
-  send-back legs cross them, at right angles.
+  Direction comes from card order: an arrow into an earlier card is a send-back, into a later
+  one a forward hand-off. Inside one card, an arrow to a later stage of the card is not drawn
+  (the rows show that order); one into its own stage or an earlier one of the card is a
+  send-back. An arrow's `back` flag is accepted, so an older view file loads, and ignored.
+- **Forward hand-offs** run only between neighbouring cards: a short straight line at the
+  cards' mid-height, its outcomes on one pill above the line (rule 4), one outcome per line
+  ("build, narrow" stacks). The gap between two cards is the pill's width plus 8 px each side,
+  at least 48 px. A hand-off that would skip cards has no route of its own: its outcomes join
+  the label of the hand-off from its source card to the next, as "<outcome> → <target card>",
+  and where no such hand-off is declared, one is drawn for it.
+- **One feedback lane** under the row carries every send-back, dashed `6 4` in
+  `--node-approval` (rule 4). A card has one source leg, near its right edge, and one target leg
+  per stage of it something returns to, spread over its left half in its stage order. Each
+  send-back drops from its card's source leg to the lane, runs right to left, and rises into
+  its target stage's leg; every send-back into one stage shares that leg and one pill under the
+  lane ("returned" on Build, "replan, answers" on Plan). A send-back inside one card (an asked
+  plan answered) is a short U from the card's source leg into its stage's leg. Where runs
+  overlap they are one line, drawn once. Pills sit under the lane, each on the first band down
+  where it meets no other pill. Nothing crosses: no line crosses a card, a pill or another line.
+- **Flow** (the map's addition to rule 7): while a run works an item on a card, a small dot in
+  the running colour travels along the hand-off into that card, over and over, fading as it
+  arrives, where the running chip's pulsing dot holds it. The first card, with no hand-off into
+  it, has none. Off under reduced motion.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
-- **Click** a card: the stage page. It opens on the stage's drill-down: numbered phase columns
+- **Click** a card or a stage's row: the stage page. It opens on the stage's drill-down: numbered phase columns
   of plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
   and naming the items on a step it covers now, and a click on a card listing the real steps
   it stands for, each linking to its step page. Its "Show the real steps" toggle (or, for a
@@ -633,10 +667,13 @@ empty state, when something was last asked, and those three cards.
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
   now for any item glows, and above the graph each item running the workflow is named, linking
   to its item page. Clicking a step opens the step page.
-- Its **details** button: a panel beside the map with the blurb, the items in that stage
-  (linking to each item), and the workflows behind it with links to their steps.
-- A legend under the map names the colour groups and what each kind of line means, in plain
-  words.
+- A card's **details** button: a panel beside the map listing each of its stages in turn, with
+  its blurb, the notes the view file places by it, the items in it (linking to each item), and
+  the workflows behind it with links to their steps.
+- A legend under the map names the cards' colour groups in plain words ("Merging it",
+  "Merged"), and draws each kind of line as the map does: solid, "Hands the item on"; dashed,
+  "Sends it back, labelled where it returns to"; the running dot, "A dot moves along a line
+  while a run works an item there".
 
 ## The board
 
