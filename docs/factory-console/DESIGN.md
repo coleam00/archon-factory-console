@@ -85,10 +85,12 @@ documents through Neon live queries.
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the Needs-you list, then the map |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/needs-you` | Needs you: every open ask and paused wait on this project's items, answerable in place (the Overview shows the newest few) |
-  | `factory/overview` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down), when it has one |
+  | `factory/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down), when it has one |
+  | `factory/overview` | Redirects (replace) to `factory/how-it-works`, keeping the query string, so old links land |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind "Show the real steps"; a stage with no drill-down shows the graphs |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
+  | `factory/*` | Any other path: "No page here" inside the section, with links to Overview, Board, Needs you and How it works |
 
 - Inside the Factory tab a small sub-navigation switches Overview, Board and Needs you (with a
   count), each its own route, and How it works when the pack has a factory overview file (or a
