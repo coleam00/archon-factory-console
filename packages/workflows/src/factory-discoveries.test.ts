@@ -244,6 +244,23 @@ describe('reading every drain on the project', () => {
     expect(read.findings[1]?.decidedAt).toBe('2026-11-17T17:03:26.000Z');
   });
 
+  test('a drain whose result is text holding JSON reads; text that is not JSON does not', async () => {
+    const unreadable: string[] = [];
+    const read = await readFactoryDiscoveries(
+      source(
+        [item(1)],
+        { '1': [drain('d1', '2026-11-17T17:03:26Z'), drain('d2', '2026-11-17T18:00:00Z')] },
+        [
+          completedEvent('d1', JSON.stringify(liveValue)),
+          completedEvent('d2', 'Filed one finding.'),
+        ]
+      ),
+      { view, pack: PACK, projectKey: 'acme/web', onUnreadable: id => unreadable.push(id) }
+    );
+    expect(read.findings.map(f => f.runId)).toEqual(liveValue.filed.map(() => 'd1'));
+    expect(unreadable).toEqual(['d2']);
+  });
+
   test('a drain with no output is counted unreadable and reported, not read as empty', async () => {
     const unreadable: string[] = [];
     const read = await readFactoryDiscoveries(

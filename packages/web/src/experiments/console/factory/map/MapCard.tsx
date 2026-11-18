@@ -22,8 +22,8 @@ interface MapCardProps {
   stagePath: (stage: string) => string;
   /** The details button: the map shows or hides this card's details panel. */
   onDetails: (card: string) => void;
-  /** One of its stages holds a shadow step (`stageHoldsShadow`): the card carries the badge. */
-  shadow: boolean;
+  /** Whether a stage holds a shadow step (`stageHoldsShadow`): its name carries the badge. */
+  shadow: (stage: FactoryStage) => boolean;
 }
 
 /** The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. */
@@ -54,7 +54,7 @@ export function MapCard({
         className="absolute inset-x-0 top-0 h-0.75"
         style={{ background: TONES[card.tone].color }}
       />
-      <KindRow card={card} shadow={shadow} />
+      <KindRow card={card} />
       {children}
     </>
   );
@@ -74,7 +74,7 @@ export function MapCard({
           draggable={false}
           className={`${BOX} ${HOVER} ${border}`}
         >
-          {body(<OneStage stage={only} live={live(only.id)} />)}
+          {body(<OneStage stage={only} live={live(only.id)} shadow={shadow(only)} />)}
         </Link>
       ) : (
         <div className={`${BOX} ${HOVER} ${border}`}>
@@ -92,6 +92,7 @@ export function MapCard({
                   stage={stage}
                   live={live(stage.id)}
                   openTo={stagePath(stage.id)}
+                  shadow={shadow(stage)}
                 />
               ))}
             </>
@@ -115,8 +116,8 @@ export function MapCard({
   );
 }
 
-/** Row 1: the group's icon and kind label (rule 2), and the shadow badge (rule 10). */
-function KindRow({ card, shadow }: { card: PlacedCard; shadow: boolean }): ReactElement {
+/** Row 1: the group's icon and kind label (rule 2). */
+function KindRow({ card }: { card: PlacedCard }): ReactElement {
   const { Icon, kind, color } = TONES[card.tone];
   return (
     <span className="flex h-4 items-center gap-1.5 pr-6">
@@ -124,17 +125,30 @@ function KindRow({ card, shadow }: { card: PlacedCard; shadow: boolean }): React
       <span className="truncate text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         {kind}
       </span>
-      {shadow ? <ShadowBadge className="leading-3.5" /> : null}
     </span>
   );
 }
 
-/** A card of one stage: its label, its short line (or its blurb, two lines), its chips. */
-function OneStage({ stage, live }: { stage: FactoryStage; live: StageRead }): ReactElement {
+/**
+ * A card of one stage: its label (with the shadow badge when it holds a shadow step), its
+ * short line (or its blurb, two lines), its chips.
+ */
+function OneStage({
+  stage,
+  live,
+  shadow,
+}: {
+  stage: FactoryStage;
+  live: StageRead;
+  shadow: boolean;
+}): ReactElement {
   return (
     <>
-      <span className="line-clamp-2 text-console-15 font-semibold leading-5 text-text-primary">
-        {stage.label}
+      <span className="flex items-start gap-2">
+        <span className="line-clamp-2 min-w-0 text-console-15 font-semibold leading-5 text-text-primary">
+          {stage.label}
+        </span>
+        {shadow ? <ShadowBadge className="leading-4" /> : null}
       </span>
       <span className="line-clamp-2 text-console-13 leading-4.5 text-text-secondary">
         {stage.short ?? stage.blurb}

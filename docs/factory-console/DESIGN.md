@@ -501,6 +501,9 @@ pack is later work. The pack's `discoveries` drain runs after deliver but moves 
 declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
 `discoveries` field names the workflow instead, and where each completed drain's result lists
 what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
+Its `shadows` field names the steps the pack runs as shadows (admit, split, the project checks,
+the land gate and the drain) and how each one's value reads; the item timeline, stage pages,
+board and map show their decisions as shadows (#80).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -559,7 +562,8 @@ What those reads do not carry comes from **one read-only route file**,
   the returned count, the change URL from the declared pointer with its pull request number,
   the title, each declared run's workflow as the view names it with the step it failed at, and
   `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
-  its declared outcome names (an empty value there means none; a refused run is never read). Beside `progress`, `members` lists for each asked key the
+  its declared outcome names (an empty value there means none; a refused run is never read), and
+  `shadows`: the newest decision of each shadow step the view declares. Beside `progress`, `members` lists for each asked key the
   items with an active `part_of` link to it, so a member with no run yet counts. A key may name
   an item with no runs (a work order). The web joins each window page with it: one reader,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
@@ -572,8 +576,9 @@ What those reads do not carry comes from **one read-only route file**,
   declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
   timeline needs per run and neither read carries: the declared workflow, the run's cause, its
-  cost, its running step, and each round of the declared `rounds` loop with the steps that
-  recorded an outcome in it and the deciding step's summary.
+  cost, its running step, each round of the declared `rounds` loop with the steps that
+  recorded an outcome in it and the deciding step's summary, and what each shadow step decided
+  on the run (one per round in a loop; a drain's run included).
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The pull request is the one the run's forge records name, else the one on a branch

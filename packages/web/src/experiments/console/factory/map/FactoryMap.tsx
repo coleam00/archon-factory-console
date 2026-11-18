@@ -188,7 +188,7 @@ function MapCanvas({
                 key={card.id}
                 card={card}
                 stages={stagesOf(card.stages)}
-                shadow={stagesOf(card.stages).some(stage => stageHoldsShadow(stage, view))}
+                shadow={stage => stageHoldsShadow(stage, view)}
                 live={stage => liveOf(live, stage)}
                 selected={card.id === selected}
                 stagePath={stagePath}

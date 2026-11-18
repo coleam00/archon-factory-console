@@ -184,7 +184,7 @@ describe('a board card in Ready to merge', () => {
 describe('the map', () => {
   const layout = layoutMap(shippedView);
 
-  test('a card holding a shadow step carries the badge; others do not; no arrow is added', async () => {
+  test('a stage holding a shadow step carries the badge by its name; no line is added', async () => {
     const marked: string[] = [];
     for (const card of layout.cards) {
       const stages = card.stages.flatMap(id => shippedView.stages.filter(stage => stage.id === id));
@@ -196,12 +196,13 @@ describe('the map', () => {
           selected={false}
           stagePath={stage => `/s/${stage}`}
           onDetails={() => undefined}
-          shadow={stages.some(stage => stageHoldsShadow(stage, shippedView))}
+          shadow={stage => stageHoldsShadow(stage, shippedView)}
         />
       );
-      if (page.querySelector('[data-shadow-badge]') !== null) marked.push(card.id);
+      for (const badge of page.querySelectorAll('[data-shadow-badge]'))
+        marked.push(badge.closest('[data-stage]')?.getAttribute('data-stage') ?? card.id);
     }
-    expect(marked).toEqual(['intake', 'checks-review', 'ready']);
+    expect(marked).toEqual(['triage', 'checks', 'ready']);
     // The map's lines are the declared arrows only: declaring shadows changes none of them.
     expect(layout).toEqual(layoutMap({ ...shippedView, shadows: undefined }));
   });

@@ -2,21 +2,24 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
+import { ShadowBadge } from '../ShadowBadge';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
 
 /**
  * One stage inside a card of several, two 20 px lines (map-sizes.ts sizes the card from them):
- * its label with how many sit there, then who needs you there, or else its short line. A
- * click opens its stage page.
+ * its label (with the shadow badge when it holds a shadow step) with how many sit there, then
+ * who needs you there, or else its short line. A click opens its stage page.
  */
 export function MapStageRow({
   stage,
   live,
   openTo,
+  shadow,
 }: {
   stage: FactoryStage;
   live: StageRead;
   openTo: string;
+  shadow: boolean;
 }): ReactElement {
   return (
     <Link
@@ -32,6 +35,7 @@ export function MapStageRow({
         <span className="min-w-0 truncate text-console-13 font-medium text-text-primary">
           {stage.label}
         </span>
+        {shadow ? <ShadowBadge className="leading-4" /> : null}
         <span className="ml-auto flex">
           <HereChip live={live} />
         </span>

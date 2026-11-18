@@ -14,6 +14,7 @@ import { itemTitle } from './factory-items';
 import { factoryRunWorkflowName } from './factory-views';
 import { readItemRuns } from './item-read';
 import { resolveJsonPointer } from './json-pointer';
+import { nodeResultValue } from './node-result-value';
 import type { JsonValue } from './output-ref';
 import type { FactoryView } from './schemas/factory-view';
 import type { WorkflowItem, WorkflowRun } from './schemas/workflow-run';
@@ -201,10 +202,9 @@ export async function readFactoryDiscoveries(
   };
   for (const { run, itemKey } of newestFirst) {
     const record = getTerminalRecord(run.status, events.get(run.id) ?? []);
-    const decisions =
-      record?.returns.availability === 'available'
-        ? drainDecisions(declaration, record.returns.value as JsonValue)
-        : 'unreadable';
+    const value =
+      record?.returns.availability === 'available' ? drainValue(record.returns.value) : undefined;
+    const decisions = value === undefined ? 'unreadable' : drainDecisions(declaration, value);
     if (decisions === 'unreadable') {
       result.unreadable += 1;
       input.onUnreadable?.(run.id);
@@ -222,6 +222,17 @@ export async function readFactoryDiscoveries(
       });
   }
   return result;
+}
+
+/**
+ * A drain's result as its run's result reads it. The terminal record holds a returns node's
+ * text output as that text, so text holding JSON is parsed by the rule the run result itself
+ * uses (`nodeResultValue`); a script drain returns its decisions that way.
+ */
+function drainValue(recorded: unknown): JsonValue | undefined {
+  return typeof recorded === 'string'
+    ? nodeResultValue(undefined, recorded)
+    : (recorded as JsonValue);
 }
 
 /** A completed run records when it completed; one that does not counts from its start. */
