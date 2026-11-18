@@ -5,12 +5,16 @@
  * change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
-import { type ChangeMergeState, prRefFromAudits } from '@archon/adapters/forge-host';
+import {
+  type ChangeLookup,
+  type ChangeMergeState,
+  prRefFromAudits,
+} from '@archon/adapters/forge-host';
 import {
   FactoryRunFactsMemo,
   readFactoryItem,
   readFactoryProgress,
-  type FactoryChangeMerged,
+  type FactoryChangeLookup,
   type FactoryChangeState,
 } from '@archon/workflows/factory-items';
 import { ITEM_WINDOW_MAX_LIMIT } from '@archon/workflows/item-window';
@@ -180,14 +184,18 @@ const getFactoryItemRoute = createRoute({
 
 /** The merge state of one change, as the forge seam answered it (`changeMergeState`). */
 export type ChangeMergeLookup = (
-  url: string,
-  audits: readonly unknown[],
+  lookup: ChangeLookup,
   branches: () => Promise<readonly string[]>
 ) => Promise<ChangeMergeState>;
 
 export interface FactoryRouteDeps {
-  /** A registered codebase's checkout and the engine's project key for it; null when unknown. */
-  codebase: (id: string) => Promise<{ cwd: string; projectKey: string } | null>;
+  /**
+   * A registered codebase's checkout, the engine's project key for it, and its registered git
+   * remote (null when it has none); null when the codebase is unknown.
+   */
+  codebase: (
+    id: string
+  ) => Promise<{ cwd: string; projectKey: string; remote: string | null } | null>;
   loadConfig: (cwd: string) => Promise<WorkflowConfig>;
   /** Which of these run names (as runs record them) the codebase has any run of. */
   ranWorkflows: (codebaseId: string, names: readonly string[]) => Promise<ReadonlySet<string>>;
@@ -210,39 +218,48 @@ const CHANGE_STATE_WAIT_MS = 4_000;
 
 type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
 /** What a read answers: the host's answer, or `pending` while its lookup still runs. */
-interface ShownAnswer {
-  merged: FactoryChangeMerged;
-  mergedAt: string | null;
-  number: number | null;
-}
+type ShownAnswer = Awaited<ReturnType<FactoryChangeState>>;
+/** The change state of the project whose remote a branch lookup searches. */
+export type ProjectChangeState = (
+  lookup: FactoryChangeLookup,
+  branches: () => Promise<readonly string[]>,
+  remote: string | null
+) => ReturnType<FactoryChangeState>;
 
 /**
- * The change host's answer for each change URL, shared by every request: one lookup in
- * flight per URL, a merged answer kept, any other for `CHANGE_STATE_TTL_MS`. A stale
- * answer is served while its refresh runs. A cold lookup slower than the wait answers
- * `pending` for that request only and is never cached, so the next read gets the host's
- * answer once it settles; a lookup that failed answers `unknown` and is cached like any
- * other. The pull request number is the forge's, else the one the run's own audit rows
- * name, so a `pending` answer still carries it when they do.
+ * The change host's answer for each change, shared by every request: one lookup in flight
+ * per change, a merged answer kept, any other for `CHANGE_STATE_TTL_MS`. A change is keyed
+ * by its URL, or, for a run that named no URL, by that run, so two such items never share
+ * an answer. A stale answer is served while its refresh runs. A cold lookup slower than the
+ * wait answers `pending` for that request only and is never cached, so the next read gets
+ * the host's answer once it settles; a lookup that failed answers `unknown` and is cached
+ * like any other. The URL is the run's, else the forge's; the pull request number is the
+ * forge's, else the one the run's own audit rows name, so a `pending` answer still carries
+ * it when they do.
  */
 export function changeStateCache(
   deps: Pick<FactoryRouteDeps, 'changeMergeState' | 'changeStateWaitMs' | 'now'>
-): FactoryChangeState {
+): ProjectChangeState {
   const now = deps.now ?? Date.now;
   const waitMs = deps.changeStateWaitMs ?? CHANGE_STATE_WAIT_MS;
   const answers = new Map<string, { answer: ChangeAnswer; at: number }>();
   const pending = new Map<string, Promise<ChangeAnswer>>();
+  const keyOf = (change: FactoryChangeLookup): string =>
+    change.kind === 'url' ? change.url : `run:${change.run}`;
   const lookup = (
-    url: string,
-    audits: readonly unknown[],
-    branches: () => Promise<readonly string[]>
+    change: FactoryChangeLookup,
+    branches: () => Promise<readonly string[]>,
+    remote: string | null
   ): Promise<ChangeAnswer> => {
-    const running = pending.get(url);
+    const key = keyOf(change);
+    const running = pending.get(key);
     if (running !== undefined) return running;
+    const asked: ChangeLookup = change.kind === 'url' ? change : { kind: 'branch', remote };
     const started = deps
-      .changeMergeState(url, audits, branches)
+      .changeMergeState(asked, branches)
       .catch(
         (error: unknown): ChangeAnswer => ({
+          url: null,
           merged: 'unknown',
           mergedAt: null,
           number: null,
@@ -251,36 +268,45 @@ export function changeStateCache(
       )
       .then(answer => {
         if (answer.merged === 'unknown')
-          getLog().warn({ url, reason: answer.reason }, 'factory_change_state_unknown');
-        answers.set(url, { answer, at: now() });
-        pending.delete(url);
+          getLog().warn({ change: key, reason: answer.reason }, 'factory_change_state_unknown');
+        answers.set(key, { answer, at: now() });
+        pending.delete(key);
         return answer;
       });
-    pending.set(url, started);
+    pending.set(key, started);
     return started;
   };
-  const shown = (answer: ShownAnswer, url: string, audits: readonly unknown[]): ShownAnswer => ({
-    merged: answer.merged,
-    mergedAt: answer.mergedAt,
-    number: answer.number ?? prRefFromAudits(url, audits)?.number ?? null,
-  });
-  return async (url, audits, branches) => {
-    const known = answers.get(url);
+  const shown = (answer: ShownAnswer, change: FactoryChangeLookup): ShownAnswer =>
+    change.kind === 'url'
+      ? {
+          url: change.url,
+          merged: answer.merged,
+          mergedAt: answer.mergedAt,
+          number: answer.number ?? prRefFromAudits(change.url, change.audits)?.number ?? null,
+        }
+      : {
+          url: answer.url,
+          merged: answer.merged,
+          mergedAt: answer.mergedAt,
+          number: answer.number,
+        };
+  return async (change, branches, remote) => {
+    const known = answers.get(keyOf(change));
     if (known !== undefined) {
       if (known.answer.merged !== true && now() - known.at >= CHANGE_STATE_TTL_MS)
-        void lookup(url, audits, branches);
-      return shown(known.answer, url, audits);
+        void lookup(change, branches, remote);
+      return shown(known.answer, change);
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Only `lookup` writes `answers`, so this answer never outlives the request.
     const waited = new Promise<ShownAnswer>(resolve => {
       timer = setTimeout(() => {
-        resolve({ merged: 'pending', mergedAt: null, number: null });
+        resolve({ url: null, merged: 'pending', mergedAt: null, number: null });
       }, waitMs);
     });
-    const answer: ShownAnswer = await Promise.race([lookup(url, audits, branches), waited]);
+    const answer: ShownAnswer = await Promise.race([lookup(change, branches, remote), waited]);
     clearTimeout(timer);
-    return shown(answer, url, audits);
+    return shown(answer, change);
   };
 }
 
@@ -307,7 +333,7 @@ async function applyingViews(
 
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
-  const changeState = changeStateCache(deps);
+  const changeStates = changeStateCache(deps);
   const memo = new FactoryRunFactsMemo();
 
   register(getFactoryViewsRoute, async c => {
@@ -361,7 +387,7 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
           view: view.declaration,
           pack: view.pack,
           projectKey: project.projectKey,
-          changeState,
+          changeState: (change, branches) => changeStates(change, branches, project.remote),
           memo,
           onProgressError: (itemId, error) => {
             getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');
@@ -392,7 +418,7 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
           view: view.declaration,
           pack: view.pack,
           projectKey: project.projectKey,
-          changeState,
+          changeState: (change, branches) => changeStates(change, branches, project.remote),
           memo,
           onProgressError: (itemId, error) => {
             getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');

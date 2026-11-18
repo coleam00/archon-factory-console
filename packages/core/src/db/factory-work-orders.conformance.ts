@@ -113,7 +113,7 @@ export function describeFactoryWorkOrderReadConformance(
             view,
             pack: PACK,
             projectKey,
-            changeState: async () => ({ merged: false, mergedAt: null, number: null }),
+            changeState: async () => ({ url: null, merged: false, mergedAt: null, number: null }),
             memo: new FactoryRunFactsMemo(),
             onProgressError: (itemId, error) => {
               throw new Error(`progress failed for ${itemId}: ${String(error)}`);

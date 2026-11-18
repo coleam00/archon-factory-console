@@ -61,7 +61,18 @@ export function prRefFromAudits(url: string, audits: readonly unknown[]): PrRef 
   return null;
 }
 
+/**
+ * Which change to ask about: the change at a URL, with the forge audit rows of the run that
+ * recorded it, or the pull request on the item's run branches in the repository the project's
+ * git `remote` resolves to (null when the project has none), for a run that named no URL.
+ */
+export type ChangeLookup =
+  | { kind: 'url'; url: string; audits: readonly unknown[] }
+  | { kind: 'branch'; remote: string | null };
+
 export interface ChangeMergeState {
+  /** The pull request's URL as the forge returned it; null when it could not say. */
+  url: string | null;
   merged: boolean | 'unknown';
   mergedAt: string | null;
   /** The pull request's number when the forge named it; null when it could not. */
@@ -78,6 +89,7 @@ type Ask = (request: ForgeRequest) => Promise<ForgeResponse>;
 type Found = { view: PrView } | { reason: string };
 
 const unknown = (reason: string): ChangeMergeState => ({
+  url: null,
   merged: 'unknown',
   mergedAt: null,
   number: null,
@@ -100,18 +112,44 @@ async function viewByNumber(ask: Ask, ref: PrRef): Promise<Found> {
 }
 
 /**
- * The pull request opened from one of `branches` (the item's runs' recorded branches,
- * newest first) whose URL is `url`, in any state. The repository is the one the forge
- * resolves `url` to; a branch with no pull request, or one whose URL differs, is passed
- * over, and a forge failure ends the search as unknown rather than as not found.
+ * The repository a change lookup searches: the one the forge resolves the change's web URL
+ * to, or, for a branch lookup, the project's git remote.
  */
-async function viewByBranch(ask: Ask, url: string, branches: readonly string[]): Promise<Found> {
-  if (branches.length === 0) return { reason: 'no forge record or run branch names this change' };
-  const resolved = await ask({ op: 'resolve', operationId: randomUUID(), remote: url, web: true });
+async function repoOf(
+  ask: Ask,
+  lookup: ChangeLookup
+): Promise<{ repo: PrRef['repo'] } | { reason: string }> {
+  const remote = lookup.kind === 'url' ? lookup.url : lookup.remote;
+  if (remote === null) return { reason: 'the project has no remote to look the change up in' };
+  const resolved = await ask({
+    op: 'resolve',
+    operationId: randomUUID(),
+    remote,
+    ...(lookup.kind === 'url' ? { web: true as const } : {}),
+  });
   if (!resolved.ok) return { reason: failed(resolved) };
   if (resolved.result.op !== 'resolve' || resolved.result.value.kind !== 'resolved')
-    return { reason: 'no forge plugin resolves this change' };
-  const repo = resolved.result.value.repo;
+    return {
+      reason:
+        lookup.kind === 'url'
+          ? 'no forge plugin resolves this change'
+          : "no forge plugin resolves the project's remote",
+    };
+  return { repo: resolved.result.value.repo };
+}
+
+/**
+ * The pull request opened from one of `branches` (the item's runs' recorded branches,
+ * newest first) in `repo`, in any state, that `accept` takes. A branch with no pull
+ * request, or one `accept` refuses, is passed over, and a forge failure ends the search as
+ * unknown rather than as not found.
+ */
+async function viewByBranch(
+  ask: Ask,
+  repo: PrRef['repo'],
+  branches: readonly string[],
+  accept: (view: PrView) => boolean
+): Promise<Found> {
   for (const head of branches) {
     const response = await ask({
       op: 'pr.view',
@@ -121,22 +159,40 @@ async function viewByBranch(ask: Ask, url: string, branches: readonly string[]):
     if (!response.ok) return { reason: failed(response) };
     if (response.result.op !== 'pr.view') return { reason: 'the forge answered another operation' };
     const view = response.result.value;
-    if (view?.pr.url === url) return { view };
+    if (view !== null && accept(view)) return { view };
   }
   return { reason: "no pull request on the item's run branches is this change" };
 }
 
+/** The pull request a lookup names, through the forge. */
+async function findChange(
+  ask: Ask,
+  lookup: ChangeLookup,
+  branches: () => Promise<readonly string[]>
+): Promise<Found> {
+  const ref = lookup.kind === 'url' ? prRefFromAudits(lookup.url, lookup.audits) : null;
+  if (ref !== null) return viewByNumber(ask, ref);
+  const heads = await branches();
+  if (heads.length === 0) return { reason: 'no forge record or run branch names this change' };
+  const repo = await repoOf(ask, lookup);
+  if ('reason' in repo) return repo;
+  return viewByBranch(ask, repo.repo, heads, view =>
+    lookup.kind === 'url' ? view.pr.url === lookup.url : true
+  );
+}
+
 /**
- * Whether the change at `url` merged, asked of its forge with `pr.view`. `audits` are the
- * forge audit rows of the run that recorded the change; when one names its pull request,
- * that is asked by number. When none does (an earlier run opened it), `branches` gives the
- * item's runs' recorded branches, newest first, read only then, and the pull request on
- * one of them whose URL is the change is taken. Never throws: a failure is `unknown` with
- * its reason. Nothing is audited, as nothing here belongs to a run.
+ * Which pull request a change is and whether it merged, asked of its forge with `pr.view`.
+ * For a URL lookup, when one of the recording run's forge audit rows names its pull
+ * request, that is asked by number. When none does (an earlier run opened it), `branches`
+ * gives the item's runs' recorded branches, newest first, read only then, and the pull
+ * request on one of them whose URL is the change is taken. A branch lookup (the run named
+ * no URL) takes the first pull request on those branches in the project remote's
+ * repository, whatever its URL. Never throws: a failure is `unknown` with its reason.
+ * Nothing is audited, as nothing here belongs to a run.
  */
 export async function changeMergeState(
-  url: string,
-  audits: readonly unknown[],
+  lookup: ChangeLookup,
   branches: () => Promise<readonly string[]>,
   options: { archonHome: string; env: NodeJS.ProcessEnv; dispatch?: typeof dispatchForge }
 ): Promise<ChangeMergeState> {
@@ -149,14 +205,12 @@ export async function changeMergeState(
           credentialEnv: options.env,
         })
       ).response;
-    const ref = prRefFromAudits(url, audits);
-    const found =
-      ref === null ? await viewByBranch(ask, url, await branches()) : await viewByNumber(ask, ref);
+    const found = await findChange(ask, lookup, branches);
     if ('reason' in found) return unknown(found.reason);
     const { pr, timestamps } = found.view;
     return pr.state === 'merged'
-      ? { merged: true, mergedAt: timestamps?.merged_at ?? null, number: pr.number }
-      : { merged: false, mergedAt: null, number: pr.number };
+      ? { url: pr.url, merged: true, mergedAt: timestamps?.merged_at ?? null, number: pr.number }
+      : { url: pr.url, merged: false, mergedAt: null, number: pr.number };
   } catch (error) {
     return unknown((error as Error).message);
   }

@@ -208,7 +208,9 @@ function CardLinks({ card }: { card: BoardCardFields }): ReactNode {
           returned ×{card.returned.count}
         </Link>
       )}
-      {card.change === null ? null : (
+      {card.change === null ? null : card.change.href === null ? (
+        <span className="text-text-secondary">{card.change.label}</span>
+      ) : (
         <a
           href={card.change.href}
           target="_blank"

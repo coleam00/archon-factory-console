@@ -154,6 +154,14 @@ describe('card fields, in order', () => {
     expect(card(realItem('6')).change).toBeNull();
   });
 
+  test('6: a change the host has not named yet is "the change", with no link', () => {
+    const item = readyWithMerge('p', 'pending');
+    const progress = progressOf(item);
+    if (progress.change === null) throw new Error('readyWithMerge has a change');
+    item.progress = { ...progress, change: { ...progress.change, url: null, number: null } };
+    expect(card(item).change).toEqual({ href: null, label: 'the change', mergeState: 'pending' });
+  });
+
   test('7: in Landed, when it landed in local time', () => {
     const item = realItem('7');
     expect(card(item).landedAt).toBe(formatDateTime('2026-11-17T04:30:22Z'));

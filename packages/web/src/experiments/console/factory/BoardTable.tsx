@@ -126,14 +126,18 @@ function BoardRow({
       {cell(
         card.change === null ? null : (
           <span className="flex flex-col">
-            <a
-              href={card.change.href}
-              target="_blank"
-              rel="noreferrer"
-              className="whitespace-nowrap text-accent-bright hover:underline"
-            >
-              {card.change.label}
-            </a>
+            {card.change.href === null ? (
+              <span className="whitespace-nowrap text-text-secondary">{card.change.label}</span>
+            ) : (
+              <a
+                href={card.change.href}
+                target="_blank"
+                rel="noreferrer"
+                className="whitespace-nowrap text-accent-bright hover:underline"
+              >
+                {card.change.label}
+              </a>
+            )}
             <MergeState state={card.change.mergeState} />
           </span>
         )

@@ -80,9 +80,19 @@ function mergeWords(merged: Change['merged']): string {
   }
 }
 
-/** "PR #n" when the URL ends in a number, else the URL; then whether it merged. */
+/**
+ * "PR #n" when the URL ends in a number, else the URL; then whether it merged. Unlinked
+ * "the change" while the change host has not named the pull request (no URL yet).
+ */
 function ChangeLink({ change }: { change: Change | null }): ReactNode {
   if (change === null) return <span className="text-text-tertiary">No change yet</span>;
+  if (change.url === null)
+    return (
+      <span className="flex items-baseline gap-1.5">
+        <span className="text-text-secondary">the change</span>
+        <span className="text-text-tertiary">{mergeWords(change.merged)}</span>
+      </span>
+    );
   const number = /\/(\d+)\/?$/.exec(change.url)?.[1];
   return (
     <span className="flex items-baseline gap-1.5">
