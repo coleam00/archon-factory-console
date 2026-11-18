@@ -6,8 +6,9 @@
  *
  * The derivation is pure (`factoryRunFacts`, `factoryItemProgress`); `readFactoryProgress`
  * reads the store once for a set of items and feeds them, and `readFactoryItem` reads one
- * item whole, adding each run's timeline facts (`FactoryItemRun`). Whether a change merged
- * is the caller's lookup (`changeState`), since only the server reaches the forge.
+ * item whole, adding each run's timeline facts (`FactoryItemRun`). Whether a change merged,
+ * and which pull request a run that named no URL delivered, is the caller's lookup
+ * (`changeState`), since only the server reaches the forge.
  */
 import { z } from 'zod';
 import { factoryRunWorkflowName } from './factory-views';
@@ -110,13 +111,21 @@ export const factoryItemProgressSchema = z.object({
   partOf: z.string().nullable(),
   /** How many times a declared return point sent the item back, across all its runs. */
   returned: z.number().int().nonnegative(),
-  /** The change at the declared result pointer of the latest run that has one. */
+  /**
+   * The change at the declared result pointer of the latest run that names one. When no run
+   * names one but a run of the change workflow delivered with an empty URL there, the pull
+   * request the change host finds on the item's run branches.
+   */
   change: z
     .object({
-      url: z.string(),
+      /**
+       * The change's URL; null only while the change host has not named the pull request of
+       * a run that named no URL (`pending`, or `unknown`).
+       */
+      url: z.string().nullable(),
       merged: factoryChangeMergedSchema,
       mergedAt: z.string().nullable(),
-      /** The pull request's number, as the run's forge audit rows name it; null when none does. */
+      /** The pull request's number, as the forge or the run's audit rows name it; null when none does. */
       number: z.number().int().positive().nullable(),
     })
     .nullable(),
@@ -172,8 +181,12 @@ export interface FactoryRunFacts {
   returnCount: number;
   /** The first step that failed, as the run's terminal record names it; null when none did. */
   failedStep: string | null;
-  /** The change at the declared pointer, with the run's forge audit rows; null when none. */
-  change: { url: string; audits: unknown[] } | null;
+  /**
+   * The change at the declared pointer, trimmed, with the run's forge audit rows; null when
+   * the run has no string there. A null `url` is an empty or whitespace string: the run
+   * delivered but named no URL.
+   */
+  change: { url: string | null; audits: unknown[] } | null;
   /**
    * The work order at the declared `partOf` pointer, trimmed; null when the run is not of that
    * workflow, did not complete with a result, or names none there (empty or not a string).
@@ -236,7 +249,8 @@ function changeFacts(
   const audits = events
     .filter(row => row.event_type === 'integration_operation')
     .map(row => row.data);
-  return { url, audits };
+  const trimmed = url.trim();
+  return { url: trimmed === '' ? null : trimmed, audits };
 }
 
 /** The trimmed, non-empty string at `pointer` in a completed run's result; else null. */
@@ -325,15 +339,28 @@ export function titleOfItemText(text: string): string | null {
 }
 
 /**
- * The merge state and pull request number of a change URL, given the forge audit rows of
- * the run that recorded it and, read only when those name no pull request, the branches
- * the item's declared runs recorded, newest first.
+ * Which change to ask about: a change URL with the forge audit rows of the run that recorded
+ * it, or, when no run named a URL, the pull request on the item's run branches, keyed by the
+ * newest run of the change workflow that delivered without one.
+ */
+export type FactoryChangeLookup =
+  | { kind: 'url'; url: string; audits: readonly unknown[] }
+  | { kind: 'branch'; run: string };
+
+/**
+ * The URL, merge state and pull request number of a change, given the branches the item's
+ * declared runs recorded, newest first: for a URL lookup, read only when its audit rows name
+ * no pull request.
  */
 export type FactoryChangeState = (
-  url: string,
-  audits: readonly unknown[],
+  lookup: FactoryChangeLookup,
   branches: () => Promise<readonly string[]>
-) => Promise<{ merged: FactoryChangeMerged; mergedAt: string | null; number: number | null }>;
+) => Promise<{
+  url: string | null;
+  merged: FactoryChangeMerged;
+  mergedAt: string | null;
+  number: number | null;
+}>;
 
 /**
  * An item's progress from its runs (start order) and the facts of each declared run.
@@ -385,26 +412,47 @@ export async function factoryItemProgress(
         }
       : null;
   });
-  const found = latest((_run, fact) => fact.change);
   return {
     title: itemTitle(view, runs),
     running,
     round,
     partOf: workOrderOf(view, pack, declared, facts),
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
-    change:
-      found === null
-        ? null
-        : {
-            url: found.url,
-            ...(await changeState(found.url, found.audits, () => runBranches(declared, branchOf))),
-          },
+    change: await changeOf(declared, latest, changeState, branchOf),
     runs: declared.map(run => ({
       runId: run.id,
       workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
       failedStep: facts.get(run.id)?.failedStep ?? null,
     })),
   };
+}
+
+/**
+ * The item's change: the latest declared run that named a URL at the change pointer, as it
+ * named it. When none did, the pull request on the item's run branches, but only when a run
+ * delivered with an empty URL there and some run recorded a branch, so an item that has not
+ * reached delivery never asks the change host.
+ */
+async function changeOf(
+  declared: readonly WorkflowRun[],
+  latest: <T>(pick: (run: WorkflowRun, fact: FactoryRunFacts) => T | null) => T | null,
+  changeState: FactoryChangeState,
+  branchOf: (run: WorkflowRun) => Promise<string | null>
+): Promise<FactoryItemProgress['change']> {
+  const named = latest((_run, fact) =>
+    fact.change?.url ? { url: fact.change.url, audits: fact.change.audits } : null
+  );
+  if (named !== null) {
+    const answer = await changeState({ kind: 'url', ...named }, () =>
+      runBranches(declared, branchOf)
+    );
+    return { ...answer, url: named.url };
+  }
+  const unnamed = latest((run, fact) => (fact.change !== null ? run : null));
+  if (unnamed === null) return null;
+  const branches = await runBranches(declared, branchOf);
+  if (branches.length === 0) return null;
+  return changeState({ kind: 'branch', run: unnamed.id }, async () => branches);
 }
 
 /**

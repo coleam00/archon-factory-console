@@ -237,7 +237,12 @@ What those reads do not carry comes from **one read-only route file**,
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The pull request is the one the run's forge records name, else the one on a branch
-  the item's runs recorded whose URL is the change (an earlier run may have opened it). The
+  the item's runs recorded whose URL is the change (an earlier run may have opened it). An
+  empty change URL is no URL: the item takes the latest earlier run that named one. When no
+  run named one but a delivery run returned an empty URL, the change is the first pull request
+  found on the item's run branches, newest branch first, in the project's registered remote,
+  and the item shows
+  that pull request's own URL ("the change", unlinked, until the host names it). The
   browser never calls GitHub. A first lookup slower than the server's wait answers `pending`
   for that read only (never cached); the console reads again every few seconds while any item
   is pending. A lookup that failed answers `unknown` and is cached like any other answer.

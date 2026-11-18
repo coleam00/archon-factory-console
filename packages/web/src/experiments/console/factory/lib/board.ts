@@ -77,9 +77,14 @@ export interface BoardCard {
   /**
    * The change, by its pull request number when known. `mergeState` when the change host
    * could not say whether it merged (`unknown`) or the server is still asking (`pending`):
-   * the card says so rather than reading as unmerged.
+   * the card says so rather than reading as unmerged. `href` is null while the change host
+   * has not named the pull request of a run that named no URL.
    */
-  change: { href: string; label: string; mergeState: Extract<ChangeMerged, string> | null } | null;
+  change: {
+    href: string | null;
+    label: string;
+    mergeState: Extract<ChangeMerged, string> | null;
+  } | null;
   /** When the change merged, in local time; only in the landed column. */
   landedAt: string | null;
   /** What stopped a failed item, or what an item that needs you asks. */

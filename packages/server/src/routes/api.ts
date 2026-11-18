@@ -148,13 +148,14 @@ export function registerApiRoutes(
         : {
             cwd: codebase.default_cwd,
             projectKey: projectKeyForCodebase(codebase, codebase.default_cwd),
+            remote: codebase.repository_url,
           };
     },
     loadConfig,
     ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
     itemsSource: attentionQueueSource(createWorkflowStore(), createWorkflowHostStore().isolation),
-    changeMergeState: (url, audits, branches) =>
-      changeMergeState(url, audits, branches, { archonHome: getArchonHome(), env: process.env }),
+    changeMergeState: (lookup, branches) =>
+      changeMergeState(lookup, branches, { archonHome: getArchonHome(), env: process.env }),
     discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerPackGraphRoute(app, {

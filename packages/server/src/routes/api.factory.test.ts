@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import type { ChangeMergeState } from '@archon/adapters/forge-host';
+import type { ChangeLookup, ChangeMergeState } from '@archon/adapters/forge-host';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
 import type { ItemReadSource } from '@archon/workflows/item-read';
@@ -77,7 +77,8 @@ describe('GET /api/factory/views', () => {
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
-      codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
+      codebase: async id =>
+        id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: null } : null,
       ranWorkflows: async (id, names) => {
         asked.push([id, ...names]);
         return new Set(ran);
@@ -178,7 +179,8 @@ describe('GET /api/factory/overview', () => {
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
-      codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
+      codebase: async id =>
+        id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: null } : null,
     });
     const response = await app.request(`/api/factory/overview?codebaseId=${codebaseId}`);
     return { status: response.status, body: await response.json(), project };
@@ -236,9 +238,10 @@ describe('GET /api/factory/overview', () => {
 
 describe('GET /api/factory/progress and /api/factory/item', () => {
   const track = trackTempRoots();
-  const items: [WorkflowItem, WorkflowItem] = [
+  const items: [WorkflowItem, WorkflowItem, WorkflowItem] = [
     { id: 'item-a', projectKey: 'acme/web', key: '1' },
     { id: 'item-b', projectKey: 'acme/web', key: '2' },
+    { id: 'item-c', projectKey: 'acme/web', key: '3' },
   ];
   const run = (id: string, item: WorkflowItem, fields: Partial<WorkflowRun>): WorkflowRun => ({
     origin: null,
@@ -270,32 +273,39 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
     '2': [
       run('run-b', items[1], { status: 'running', completed_at: null, completed_outcome: null }),
     ],
+    // A deliver whose result names an empty change URL.
+    '3': [run('run-c', items[2], {})],
   };
   const CHANGE = 'https://forge.example/acme/web/pull/7';
-  const events: WorkflowEventRow[] = [
-    {
-      // The shape a completed run records: its terminal record carries the declared result.
-      id: 'e0',
-      workflow_run_id: 'run-a',
-      event_type: 'workflow_completed',
-      step_index: null,
-      step_name: null,
-      data: {
-        terminal_record: {
-          run_id: 'run-a',
-          status: 'completed',
-          outcome: null,
-          completed_outcome: 'ready',
-          error: null,
-          first_failed_node: null,
-          nodes: [],
-          returns: { availability: 'available', node_id: 'result', value: { change: CHANGE } },
-          artifacts: { root: null, files: [], limitations: [] },
-        },
+  const BRANCH_CHANGE = 'https://forge.example/acme/web/pull/8';
+  const REMOTE = 'https://forge.example/acme/web.git';
+  /** The terminal record a completed run records, its declared result naming `change`. */
+  const completed = (runId: string, change: string, order: number): WorkflowEventRow => ({
+    id: `${runId}-completed`,
+    workflow_run_id: runId,
+    event_type: 'workflow_completed',
+    step_index: null,
+    step_name: null,
+    data: {
+      terminal_record: {
+        run_id: runId,
+        status: 'completed',
+        outcome: null,
+        completed_outcome: 'ready',
+        error: null,
+        first_failed_node: null,
+        nodes: [],
+        returns: { availability: 'available', node_id: 'result', value: { change } },
+        artifacts: { root: null, files: [], limitations: [] },
       },
-      created_at: '2026-11-16T10:30:00Z',
-      event_order: 9,
     },
+    created_at: '2026-11-16T10:30:00Z',
+    event_order: order,
+  });
+  const events: WorkflowEventRow[] = [
+    // The shape a completed run records: its terminal record carries the declared result.
+    completed('run-a', CHANGE, 9),
+    completed('run-c', '', 9),
     {
       // A forge audit row naming the pull request, the shape `pr.ready` records.
       id: 'e0-audit',
@@ -380,20 +390,23 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
 
   async function itemsApp(
     files: Record<string, unknown>,
-    lookups: string[] = [],
+    lookups: unknown[] = [],
     branchesSeen: string[][] = []
   ): Promise<OpenAPIHono> {
     const project = await projectWith(track, files);
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
-      codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
+      codebase: async id =>
+        id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: REMOTE } : null,
       itemsSource: source,
-      changeMergeState: async (url, _audits, branches) => {
-        lookups.push(url);
+      changeMergeState: async (lookup, branches) => {
+        lookups.push(lookup.kind === 'url' ? lookup.url : lookup);
         branchesSeen.push([...(await branches())]);
-        // No number from the forge: the one the run's audit row names stands.
-        return { merged: true, mergedAt: '2026-11-17T01:00:00Z', number: null };
+        return lookup.kind === 'url'
+          ? // No number from the forge: the one the run's audit row names stands.
+            { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: null }
+          : { url: BRANCH_CHANGE, merged: false, mergedAt: null, number: 8 };
       },
     });
     return app;
@@ -435,7 +448,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
   });
 
   test('a change is looked up once across requests, through the cache the route shares', async () => {
-    const lookups: string[] = [];
+    const lookups: unknown[] = [];
     const branchesSeen: string[][] = [];
     const app = await itemsApp(withView, lookups, branchesSeen);
     for (let request = 0; request < 2; request++) {
@@ -452,6 +465,22 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
     expect(lookups).toEqual([CHANGE]);
     // The lookup is handed the item's runs' recorded branches, for a change no audit row names.
     expect(branchesSeen).toEqual([['branch-run-a']]);
+  });
+
+  test("an empty change URL: the PR the forge finds on the item's branches in the project's remote", async () => {
+    const lookups: unknown[] = [];
+    const branchesSeen: string[][] = [];
+    const app = await itemsApp(withView, lookups, branchesSeen);
+    const response = await app.request('/api/factory/progress?codebaseId=cb-1&keys=3');
+    const read = factoryProgressResponseSchema.parse(await response.json());
+    expect(read.progress['3']?.change).toEqual({
+      url: BRANCH_CHANGE,
+      merged: false,
+      mergedAt: null,
+      number: 8,
+    });
+    expect(lookups).toEqual([{ kind: 'branch', remote: REMOTE }]);
+    expect(branchesSeen).toEqual([['branch-run-c']]);
   });
 
   test('no keys, or more keys than a window page holds, is a 400', async () => {
@@ -481,7 +510,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
   });
 
   test('the item route shares the merge cache with the progress route', async () => {
-    const lookups: string[] = [];
+    const lookups: unknown[] = [];
     const app = await itemsApp(withView, lookups);
     await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
     const response = await app.request('/api/factory/item?codebaseId=cb-1&key=1');
@@ -503,6 +532,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
 describe('the merge-state cache', () => {
   const CHANGE = 'https://forge.example/acme/web/pull/7';
   const noBranches = async (): Promise<string[]> => [];
+  const change = { kind: 'url' as const, url: CHANGE, audits: [] };
   const settle = async (): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 0));
   };
@@ -512,15 +542,19 @@ describe('the merge-state cache', () => {
     const state = changeStateCache({
       changeMergeState: async () => {
         lookups++;
-        return { merged: false, mergedAt: null, number: null };
+        return { url: null, merged: false, mergedAt: null, number: null };
       },
     });
-    const both = await Promise.all([state(CHANGE, [], noBranches), state(CHANGE, [], noBranches)]);
-    expect(both).toEqual([
-      { merged: false, mergedAt: null, number: null },
-      { merged: false, mergedAt: null, number: null },
+    const both = await Promise.all([
+      state(change, noBranches, null),
+      state(change, noBranches, null),
     ]);
-    await state(CHANGE, [], noBranches);
+    // The run's URL is shown, whatever the forge's answer names.
+    expect(both).toEqual([
+      { url: CHANGE, merged: false, mergedAt: null, number: null },
+      { url: CHANGE, merged: false, mergedAt: null, number: null },
+    ]);
+    await state(change, noBranches, null);
     expect(lookups).toBe(1);
   });
 
@@ -533,16 +567,18 @@ describe('the merge-state cache', () => {
           finish = resolve;
         }),
     });
-    expect(await state(CHANGE, [], noBranches)).toEqual({
+    expect(await state(change, noBranches, null)).toEqual({
+      url: CHANGE,
       merged: 'pending',
       mergedAt: null,
       number: null,
     });
     // Still running: the next read waits on the same lookup and answers pending again.
-    expect((await state(CHANGE, [], noBranches)).merged).toBe('pending');
-    finish({ merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
+    expect((await state(change, noBranches, null)).merged).toBe('pending');
+    finish({ url: CHANGE, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
     await settle();
-    expect(await state(CHANGE, [], noBranches)).toEqual({
+    expect(await state(change, noBranches, null)).toEqual({
+      url: CHANGE,
       merged: true,
       mergedAt: '2026-11-17T01:00:00Z',
       number: 7,
@@ -556,19 +592,19 @@ describe('the merge-state cache', () => {
       now: () => clock,
       changeMergeState: async () =>
         lookups++ === 0
-          ? { merged: false, mergedAt: null, number: null }
-          : { merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 },
+          ? { url: null, merged: false, mergedAt: null, number: null }
+          : { url: CHANGE, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 },
     });
-    expect((await state(CHANGE, [], noBranches)).merged).toBe(false);
+    expect((await state(change, noBranches, null)).merged).toBe(false);
     clock = 59_999;
-    expect((await state(CHANGE, [], noBranches)).merged).toBe(false);
+    expect((await state(change, noBranches, null)).merged).toBe(false);
     expect(lookups).toBe(1);
     clock = 60_000;
-    expect((await state(CHANGE, [], noBranches)).merged).toBe(false);
+    expect((await state(change, noBranches, null)).merged).toBe(false);
     await settle();
-    expect((await state(CHANGE, [], noBranches)).merged).toBe(true);
+    expect((await state(change, noBranches, null)).merged).toBe(true);
     clock = 10_000_000;
-    await state(CHANGE, [], noBranches);
+    await state(change, noBranches, null);
     expect(lookups).toBe(2);
   });
 
@@ -580,13 +616,48 @@ describe('the merge-state cache', () => {
         throw new Error('offline');
       },
     });
-    expect(await state(CHANGE, [], noBranches)).toEqual({
+    expect(await state(change, noBranches, null)).toEqual({
+      url: CHANGE,
       merged: 'unknown',
       mergedAt: null,
       number: null,
     });
-    expect((await state(CHANGE, [], noBranches)).merged).toBe('unknown');
+    expect((await state(change, noBranches, null)).merged).toBe('unknown');
     expect(lookups).toBe(1);
+  });
+
+  test('runs that named no URL get an answer each, asked in the remote they are given', async () => {
+    const asked: ChangeLookup[] = [];
+    const state = changeStateCache({
+      changeMergeState: async lookup => {
+        asked.push(lookup);
+        const number = asked.length === 1 ? 8 : 9;
+        return { url: `${CHANGE.slice(0, -1)}${number}`, merged: true, mergedAt: null, number };
+      },
+    });
+    const branches = async (): Promise<string[]> => ['a'];
+    const first = await state({ kind: 'branch', run: 'run-1' }, branches, 'remote-1');
+    const second = await state({ kind: 'branch', run: 'run-2' }, branches, 'remote-1');
+    expect([first.number, second.number]).toEqual([8, 9]);
+    expect(first.url).toBe(`${CHANGE.slice(0, -1)}8`);
+    expect((await state({ kind: 'branch', run: 'run-1' }, branches, 'remote-1')).number).toBe(8);
+    expect(asked).toEqual([
+      { kind: 'branch', remote: 'remote-1' },
+      { kind: 'branch', remote: 'remote-1' },
+    ]);
+  });
+
+  test('a slow branch lookup answers pending with no URL yet', async () => {
+    const state = changeStateCache({
+      changeStateWaitMs: 10,
+      changeMergeState: () => new Promise(() => {}),
+    });
+    expect(await state({ kind: 'branch', run: 'run-1' }, noBranches, null)).toEqual({
+      url: null,
+      merged: 'pending',
+      mergedAt: null,
+      number: null,
+    });
   });
 });
 
@@ -614,7 +685,8 @@ describe('GET /api/factory/workflow', () => {
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
-      codebase: async id => (id === 'cb-1' ? { cwd: project, projectKey: 'acme/web' } : null),
+      codebase: async id =>
+        id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: null } : null,
       discoverWorkflows: cwd =>
         discoverWorkflows(cwd, { providers: providerRegistry, loadDefaults: false }),
     });

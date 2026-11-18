@@ -365,7 +365,40 @@ describe("an item's work order, from its order runs' results", () => {
   });
 });
 
-const notMerged: FactoryChangeState = async () => ({ merged: false, mergedAt: null, number: null });
+const notMerged: FactoryChangeState = async lookup => ({
+  url: lookup.kind === 'url' ? lookup.url : null,
+  merged: false,
+  mergedAt: null,
+  number: null,
+});
+
+/** `entry`, a deliver run, as run `id` at `at`, its result naming `change` at the pointer. */
+function deliverNaming(
+  entry: { run: WorkflowRun; events: WorkflowEventRow[] },
+  id: string,
+  change: unknown,
+  at: string
+): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  const events = entry.events.map(row => {
+    if (row.event_type !== 'workflow_completed') return row;
+    const data = row.data as {
+      terminal_record: { returns: { value: Record<string, unknown> } & Record<string, unknown> };
+    };
+    const returns = data.terminal_record.returns;
+    return {
+      ...row,
+      workflow_run_id: id,
+      data: {
+        ...data,
+        terminal_record: {
+          ...data.terminal_record,
+          returns: { ...returns, value: { ...returns.value, change } },
+        },
+      },
+    };
+  });
+  return { run: { ...entry.run, id, started_at: new Date(at) }, events };
+}
 
 async function progressOf(
   runs: { run: WorkflowRun; events: WorkflowEventRow[] }[],
@@ -412,9 +445,9 @@ describe("an item's progress", () => {
       PACK,
       [...declared.map(entry => entry.run), undeclared],
       new Map(declared.map(entry => [entry.run.id, factsOf(entry)])),
-      async (_url, _audits, branches) => {
+      async (_lookup, branches) => {
         read.push([...(await branches())]);
-        return { merged: false, mergedAt: null, number: null };
+        return { url: PR10, merged: false, mergedAt: null, number: null };
       },
       async run => recorded[run.id] ?? null
     );
@@ -423,9 +456,10 @@ describe("an item's progress", () => {
 
   test('item 1 after its deliver run: title, round 2 of 3, returned twice, its change', async () => {
     const seen: [string, number][] = [];
-    const progress = await progressOf([triage1, plan1, deliver1], async (url, audits) => {
-      seen.push([url, audits.length]);
-      return { merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 };
+    const progress = await progressOf([triage1, plan1, deliver1], async lookup => {
+      if (lookup.kind === 'url') seen.push([lookup.url, lookup.audits.length]);
+      // The forge's URL is not shown on the URL path: the run's is.
+      return { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 };
     });
     expect(progress).toEqual({
       title: 'The live-home guard and dev:console have tests',
@@ -470,6 +504,72 @@ describe("an item's progress", () => {
       startedAt: deliver2Cut.run.started_at.toISOString(),
     });
     expect(progress.round?.iteration).toBe(2);
+    expect(progress.change).toBeNull();
+  });
+
+  test('a deliver that named an empty URL: the change is the pull request on its branches', async () => {
+    const PR59 = 'https://github.com/coleam00/archon-factory-console/pull/59';
+    const empty = deliverNaming(deliver1, 'deliver-empty', '', '2026-12-01T00:00:00Z');
+    const asked: unknown[] = [];
+    const progress = await progressOf(
+      [triage1, plan1, empty],
+      async (lookup, branches) => {
+        asked.push({ lookup, branches: await branches() });
+        return { url: PR59, merged: true, mergedAt: '2026-11-18T20:00:00Z', number: 59 };
+      },
+      async run => `branch-${run.id}`
+    );
+    expect(factsOf(empty).change?.url).toBeNull();
+    expect(asked).toEqual([
+      {
+        lookup: { kind: 'branch', run: 'deliver-empty' },
+        branches: ['branch-deliver-empty', `branch-${plan1.run.id}`, `branch-${triage1.run.id}`],
+      },
+    ]);
+    expect(progress.change).toEqual({
+      url: PR59,
+      merged: true,
+      mergedAt: '2026-11-18T20:00:00Z',
+      number: 59,
+    });
+  });
+
+  test("a whitespace URL after an earlier deliver's real one: the earlier one, branches unread", async () => {
+    const blank = deliverNaming(deliver1, 'deliver-blank', '  ', '2027-01-01T00:00:00Z');
+    const asked: unknown[] = [];
+    const progress = await progressOf(
+      [deliver1, blank],
+      async (lookup, branches) => {
+        asked.push(lookup.kind === 'url' ? lookup.url : lookup);
+        expect(branches).toBeFunction();
+        return { url: null, merged: true, mergedAt: null, number: 10 };
+      },
+      async () => {
+        throw new Error('branches are read only when the audit rows name no pull request');
+      }
+    );
+    expect(asked).toEqual([PR10]);
+    expect(progress.change).toEqual({ url: PR10, merged: true, mergedAt: null, number: 10 });
+  });
+
+  test('an empty URL and no run branch: no change, and nothing is asked', async () => {
+    const empty = deliverNaming(deliver1, 'deliver-empty', '', '2026-12-01T00:00:00Z');
+    const progress = await progressOf([triage1, empty], async () => {
+      throw new Error('nothing to look up');
+    });
+    expect(progress.change).toBeNull();
+  });
+
+  test('an item not yet delivered reads no branch and asks nothing', async () => {
+    const progress = await progressOf(
+      [triage1, plan1],
+      async () => {
+        throw new Error('nothing to look up');
+      },
+      async () => {
+        throw new Error('no branch is read before a deliver names a change');
+      }
+    );
     expect(progress.change).toBeNull();
   });
 
@@ -708,7 +808,7 @@ describe('reading progress, and one item whole', () => {
       started++;
       if (started === 2) release();
       await both;
-      return { merged: false, mergedAt: null, number: null };
+      return { url: null, merged: false, mergedAt: null, number: null };
     };
     const read = await readFactoryProgress(
       source,

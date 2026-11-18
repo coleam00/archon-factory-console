@@ -11681,7 +11681,7 @@ export interface components {
           partOf: string | null;
           returned: number;
           change: {
-            url: string;
+            url: string | null;
             merged: boolean | 'unknown' | 'pending';
             mergedAt: string | null;
             number: number | null;
@@ -11765,7 +11765,7 @@ export interface components {
           partOf: string | null;
           returned: number;
           change: {
-            url: string;
+            url: string | null;
             merged: boolean | 'unknown' | 'pending';
             mergedAt: string | null;
             number: number | null;
