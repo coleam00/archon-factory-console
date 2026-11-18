@@ -26,8 +26,8 @@ const SHELL = `console-root fixed z-50 flex flex-col gap-3 overflow-y-auto round
 const WIDE = '(min-width: 48rem)';
 
 /**
- * Where the popover sits, measured from the card holding `trigger` (the Table's row button
- * when there is no card) and the popover's own size: again on a resize, on any scroll, and
+ * Where the popover sits, measured from the board card holding `trigger` (in the Table, the
+ * Answer button itself) and the popover's own size: again on a resize, on any scroll, and
  * when its content changes size. Measured in a layout effect, so it is placed before it is
  * first painted. Null under md, where the sheet's classes place it.
  */
@@ -44,7 +44,8 @@ function usePlace(
         setPlace(null);
         return;
       }
-      const anchor = (trigger.closest('[data-card]') ?? trigger).getBoundingClientRect();
+      // A board card is the anchor; in the Table, the row is as wide as the page, so the button is.
+      const anchor = (trigger.closest('article[data-card]') ?? trigger).getBoundingClientRect();
       const next = popoverPlace(
         anchor,
         { width: element.offsetWidth, height: element.offsetHeight },
