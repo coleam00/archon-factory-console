@@ -126,10 +126,11 @@ describe('the shipped overview, drawn', () => {
     expect(pillOf(reply).x).toBeGreaterThan(x(reply));
   });
 
-  test('the checks drill-down sends the verdict back to Build', () => {
+  test('the checks drill-down sends the verdict back to Build, or to Plan for a replan', () => {
     const { edges } = layoutOverview(shipped.views.checks as OverviewView);
     expect(laneLines(edges).map(edge => [edge.from, edge.to, edge.label])).toEqual([
       ['checks-verdict', 'checks-build', 'sent back to fix'],
+      ['checks-verdict', 'checks-plan', 'replan'],
     ]);
   });
 

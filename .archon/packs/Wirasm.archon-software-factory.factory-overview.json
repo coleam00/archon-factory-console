@@ -377,13 +377,23 @@
           "kind": "stage",
           "col": 1,
           "row": 3
+        },
+        {
+          "id": "checks-plan",
+          "title": "Plan",
+          "text": "A new plan, for a different approach",
+          "icon": "map",
+          "kind": "stage",
+          "col": 4,
+          "row": 3
         }
       ],
       "edges": [
         { "from": "checks-pr", "to": "checks-three", "kind": "feeds" },
         { "from": "checks-three", "to": "checks-verdict", "kind": "feeds" },
         { "from": "checks-verdict", "to": "checks-approved", "kind": "feeds" },
-        { "from": "checks-verdict", "to": "checks-build", "kind": "loops-back", "label": "sent back to fix" }
+        { "from": "checks-verdict", "to": "checks-build", "kind": "loops-back", "label": "sent back to fix" },
+        { "from": "checks-verdict", "to": "checks-plan", "kind": "loops-back", "label": "replan" }
       ]
     }
   }
