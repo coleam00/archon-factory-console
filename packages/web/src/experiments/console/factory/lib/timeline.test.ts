@@ -425,3 +425,65 @@ describe('a check outcome no `verdicts` entry means', () => {
     expect(outcomes).toEqual([token('replan'), said('asked you'), token('ask')]);
   });
 });
+
+describe('shadow decisions on the timeline', () => {
+  const at = '2026-11-17T01:00:00.000Z';
+
+  test('each run lists what its shadow steps decided, worded, under that run only', () => {
+    const detail = itemDetail('1');
+    const [triage, , deliver] = detail.runs;
+    if (triage === undefined || deliver === undefined) throw new Error('item 1 has three runs');
+    triage.shadows = [
+      {
+        workflow: 'triage',
+        node: 'admit',
+        round: null,
+        runId: triage.runId,
+        decidedAt: at,
+        read: { reads: 'verdict', value: 'ask', why: 'No policy says it may start.' },
+      },
+    ];
+    deliver.shadows = [
+      {
+        workflow: 'deliver',
+        node: 'rounds.checks',
+        round: 2,
+        runId: deliver.runId,
+        decidedAt: at,
+        read: {
+          reads: 'checks',
+          results: [{ name: 'lint', passed: true, seconds: 56, tail: null }],
+        },
+      },
+    ];
+    const rows = timeline(detail);
+    expect(
+      rows.map(row => row.shadows.map(entry => [entry.label, entry.round, entry.words.line]))
+    ).toEqual([
+      [['Would it start on its own', null, 'would ask you first']],
+      [],
+      [['Project checks', 2, '1 check · all passed · 56 s']],
+    ]);
+    expect(rows[0]?.shadows[0]?.words.detail).toBe('No policy says it may start.');
+  });
+
+  test('a run of a workflow no stage lists keeps its decisions', () => {
+    const detail = itemDetail('1');
+    const [first] = detail.runs;
+    if (first === undefined) throw new Error('item 1 has runs');
+    first.workflow = null;
+    first.shadows = [
+      {
+        workflow: 'discoveries',
+        node: 'result',
+        round: null,
+        runId: first.runId,
+        decidedAt: at,
+        read: { reads: 'lists', counts: [1, 3, 0, 2], why: null },
+      },
+    ];
+    expect(timeline(detail)[0]?.shadows.map(entry => entry.words.line)).toEqual([
+      'would file 1 · would fold into open items 3 · would drop 2',
+    ]);
+  });
+});

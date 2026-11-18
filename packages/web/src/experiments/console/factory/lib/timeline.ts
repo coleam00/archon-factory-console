@@ -1,5 +1,6 @@
 import type { FactoryItemDetail } from '../../skills/factory';
 import { placedStage, stageOfWorkflow } from './placement';
+import { shadowOf, shadowWords, type ShadowWords } from './shadows';
 import { VERDICT_LABEL, type RoundVerdict } from './board';
 import { stepLabel } from './step-label';
 import type { FactoryViewListed } from './views';
@@ -64,6 +65,17 @@ export interface TimelineRound {
   groups: TimelineGroup[];
 }
 
+/** One decision a shadow step recorded on a run: what it would have done. */
+export interface TimelineShadow {
+  /** The run, step and round, unique on the run. */
+  key: string;
+  /** The shadow's declared label, else the step's engine id. */
+  label: string;
+  /** The loop round it decided in; null outside a loop. */
+  round: number | null;
+  words: ShadowWords;
+}
+
 export interface TimelineRow {
   runId: string;
   href: string;
@@ -84,6 +96,8 @@ export interface TimelineRow {
   /** The running step's name, with its round when it is of the rounds loop. */
   liveStepName: string | null;
   rounds: TimelineRound[];
+  /** What the shadow steps the view declares decided on this run, in recording order. */
+  shadows: TimelineShadow[];
 }
 
 export const runHref = (projectId: string, runId: string): string =>
@@ -217,6 +231,18 @@ function timelineRounds(
   }));
 }
 
+function timelineShadows(view: Declaration, fact: RunFacts | undefined): TimelineShadow[] {
+  return (fact?.shadows ?? []).map(decision => {
+    const shadow = shadowOf(view, decision.workflow, decision.node);
+    return {
+      key: `${decision.runId}|${decision.node}|${String(decision.round)}`,
+      label: shadow?.label ?? decision.node,
+      round: decision.round,
+      words: shadowWords(shadow, decision),
+    };
+  });
+}
+
 function durationOf(run: ItemRun, now: number): number | null {
   if (run.status === 'pending' || run.awaitingExecution !== null) return null;
   const end = run.completedAt === null ? now : Date.parse(run.completedAt);
@@ -268,7 +294,7 @@ function startedText(
 
 /**
  * The item page's timeline: one row per run in the item read's order (start order), each
- * with the declared rounds loop's rounds under it.
+ * with the declared rounds loop's rounds and its shadow decisions under it.
  */
 export function buildTimeline(
   view: Declaration,
@@ -297,6 +323,8 @@ export function buildTimeline(
       liveStepName:
         liveStep === null ? null : stepLabel(view, workflow ?? run.workflow, liveStep, iteration),
       rounds: workflow === null ? [] : timelineRounds(view, workflow, fact?.rounds ?? null),
+      // Not gated on a declared workflow: the discoveries workflow is on no stage.
+      shadows: timelineShadows(view, fact),
       cause: fact?.cause,
     };
   });
