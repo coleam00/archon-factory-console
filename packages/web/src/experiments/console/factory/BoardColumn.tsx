@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type ReactElement, type RefObject } from '
 import { Inbox } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { BoardCard, MergedCard } from './BoardCard';
-import { ColumnHeader, toneColor } from './ColumnHeader';
+import { ColumnHeader } from './ColumnHeader';
+import { toneColor } from './tones';
 import { columnChips, type BoardColumn as BoardColumnModel, type PlacedCard } from './lib/board';
 import { earlierSearch, MERGED_DAYS } from './lib/merged-window';
 

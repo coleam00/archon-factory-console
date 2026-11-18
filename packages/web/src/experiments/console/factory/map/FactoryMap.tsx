@@ -5,8 +5,7 @@ import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
-import { rowsFor } from '../lib/map-camera';
-import { layoutMap } from '../lib/map-layout';
+import { busiestCard, layoutMap } from '../lib/map-layout';
 import {
   EMPTY_STAGE_LIVE,
   stageLive,
@@ -14,14 +13,15 @@ import {
   type StageRead,
   type Unread,
 } from '../lib/map-live';
+import type { FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
+import { MapFlow } from './MapFlow';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
 import { useMapCamera } from './useMapCamera';
-import { useRowWidth } from './useRowWidth';
 import { FactoryLoading } from '../FactoryLoading';
 import { readFailed, SlowReadError } from '../lib/deadline';
 
@@ -46,7 +46,7 @@ export function FactoryMap({ projectId, view, attention }: FactoryMapProps): Rea
   const items = useFactoryItems(projectId);
   return (
     <section aria-label="The map" className="flex flex-col gap-2.5">
-      <h3 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
+      <h3 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         The map
       </h3>
       <MapBody projectId={projectId} view={view.declaration} items={items} attention={attention} />
@@ -73,8 +73,8 @@ function MapBody({
 }
 
 /**
- * What the map says above itself about the items read. Before the first answer the cards say
- * "…" themselves, so there is no page-level "Loading…"; a read past its deadline says so.
+ * What the map says above itself about the items read. Before the first answer the cards show
+ * skeleton chips themselves, so there is no page-level "Loading…"; a read past its deadline says so.
  */
 function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElement | null {
   if (items.data !== undefined) return <StaleRead error={items.error} />;
@@ -90,7 +90,7 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
 
 /**
  * The map over the items, drawn from the declaration before they are read (`items` undefined:
- * every card says "…", or that the read failed). It keeps where each item sat on the last
+ * every chip a skeleton bar, or none once the read failed). It keeps where each item sat on the last
  * read, as the board does, so a run on a step no stage names holds its card where the board
  * holds its column.
  */
@@ -122,14 +122,29 @@ function MapCanvas({
   view,
   live,
 }: Omit<MapInputs, 'attention'> & { live: MapLive | Unread }): ReactElement {
-  // The row holding the frame and the details panel, so opening the panel does not re-wrap.
-  const row = useRowWidth();
-  const oneRow = useMemo(() => layoutMap(view, 1), [view]);
-  const rows = rowsFor(oneRow.bounds, row.width);
-  const layout = useMemo(() => (rows === 1 ? oneRow : layoutMap(view, 2)), [rows, oneRow, view]);
-  const { boxes, bounds } = layout;
+  const layout = useMemo(() => layoutMap(view), [view]);
+  const { cards, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
-  const camera = useMapCamera(bounds, selected === null ? null : (boxes.get(selected) ?? null));
+  const selectedCard = cards.find(card => card.id === selected);
+  // By id, so the opening box keeps its identity until the busiest card changes. A stage whose
+  // count waits on a merge answer counts as empty: its chip says "checking…", not a number, and
+  // opening on it would move the map again once the answer lands.
+  const busiest =
+    typeof live === 'string'
+      ? undefined
+      : busiestCard(
+          cards,
+          stage => {
+            const here = live.stages.get(stage);
+            return here === undefined || here.pending ? 0 : here.items.length;
+          },
+          view.landed.stage
+        )?.id;
+  const open = useMemo(
+    () => cards.find(card => card.id === busiest)?.box ?? null,
+    [cards, busiest]
+  );
+  const camera = useMapCamera(bounds, selectedCard?.box ?? null, undefined, open);
   const stagePath = (stage: string): string =>
     factoryPath(projectId, `/stages/${encodeURIComponent(stage)}`);
 
@@ -142,14 +157,15 @@ function MapCanvas({
     return () => window.removeEventListener('keydown', onKey);
   }, [selected]);
 
+  const stagesOf = (stages: readonly string[]): FactoryStage[] =>
+    stages.flatMap(id => view.stages.filter(stage => stage.id === id));
   const stageNotes = (stage: string): string[] =>
     (view.map.notes ?? []).filter(note => note.near === stage).map(note => note.text);
-  const selectedStage = view.stages.find(stage => stage.id === selected);
   const { k, x, y } = camera.camera;
   return (
     <div className="flex flex-col gap-2">
       {/* Side by side from md up; on a phone the details stack under the map. */}
-      <div ref={row.ref} className="flex flex-col gap-3 md:flex-row">
+      <div className="flex flex-col gap-3 md:flex-row">
         <div
           ref={camera.frameRef}
           style={{ height: camera.height }}
@@ -166,36 +182,43 @@ function MapCanvas({
             }}
           >
             <MapArrows layout={layout} />
-            {view.stages.map(stage => {
-              const box = boxes.get(stage.id);
-              if (box === undefined) return null;
-              return (
-                <MapCard
-                  key={stage.id}
-                  stage={stage}
-                  box={box}
-                  live={liveOf(live, stage.id)}
-                  notes={stageNotes(stage.id)}
-                  selected={stage.id === selected}
-                  openTo={stagePath(stage.id)}
-                  onDetails={stage => setSelected(current => (current === stage ? null : stage))}
-                />
-              );
-            })}
+            {cards.map(card => (
+              <MapCard
+                key={card.id}
+                card={card}
+                stages={stagesOf(card.stages)}
+                live={stage => liveOf(live, stage)}
+                selected={card.id === selected}
+                stagePath={stagePath}
+                onDetails={id => setSelected(current => (current === id ? null : id))}
+              />
+            ))}
+            <MapFlow
+              cards={cards}
+              arrows={layout.arrows}
+              working={card =>
+                typeof live !== 'string' &&
+                card.stages.some(stage => (live.stages.get(stage)?.working ?? 0) > 0)
+              }
+            />
           </div>
           <MapControls zoomIn={camera.zoomIn} zoomOut={camera.zoomOut} fit={camera.fit} />
         </div>
-        {selectedStage === undefined ? null : (
+        {selectedCard === undefined ? null : (
           <MapDetails
             projectId={projectId}
             view={view}
-            stage={selectedStage}
-            live={liveOf(live, selectedStage.id)}
+            title={selectedCard.label}
+            stages={stagesOf(selectedCard.stages).map(stage => ({
+              stage,
+              live: liveOf(live, stage.id),
+              notes: stageNotes(stage.id),
+            }))}
             onClose={() => setSelected(null)}
           />
         )}
       </div>
-      <MapLegend stages={view.stages} />
+      <MapLegend tones={cards.map(card => card.tone)} />
       <MapNotOnMap
         projectId={projectId}
         view={view}

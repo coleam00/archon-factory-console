@@ -116,6 +116,17 @@ describe('factoryViewSchema', () => {
     expect(factoryViewSchema.safeParse(view).error?.issues ?? []).toEqual([]);
   });
 
+  test("a stage's short line is optional and at most 24 characters", () => {
+    const view = minimal();
+    const plan = view.stages[0];
+    if (plan === undefined) throw new Error('minimal() has a first stage');
+    expect(factoryViewSchema.safeParse(view).success).toBe(true);
+    plan.short = 'x'.repeat(24);
+    expect(factoryViewSchema.safeParse(view).success).toBe(true);
+    plan.short = 'x'.repeat(25);
+    expect(issuePaths(view)).toEqual(['stages.0.short']);
+  });
+
   test('a stage takes a drill-down of phases, cards and a loop over its own workflow', () => {
     const view = minimal();
     view.stages[1] = { ...view.stages[1]!, drilldown: drilldown() };

@@ -1,28 +1,23 @@
 import type { ReactElement } from 'react';
-import type { Box, Point } from '../lib/map-layout';
 import {
-  OVERVIEW_SMALL_TEXT,
-  type OverviewEdgePath,
-  PILL_BADGE_ROOM,
-  PILL_BADGE_W as BADGE_W,
-  type OverviewFan,
-} from '../lib/overview-layout';
+  BACK,
+  BACK_DASH,
+  HeadMarker,
+  LINE,
+  LinePill,
+  rounded,
+  SHADOW,
+  STROKE,
+} from '../canvas-lines';
+import type { Box } from '../lib/map-layout';
+import type { OverviewEdgePath, OverviewFan } from '../lib/overview-layout';
 
-/*
- * Lines in the Visual standard's rule 4: 1.5 px, 8 px rounded bends, 6 px heads. Forward lines
- * solid and asks dotted, in the tertiary text colour; send-backs dashed in the approval colour;
- * a shadow line in its kind's dash, in the shadow colour (rule 10).
- */
-const LINE = 'var(--text-tertiary)';
-const BACK = 'var(--node-approval)';
-const SHADOW = 'var(--node-opaque)';
-const STROKE = 1.5;
-const BEND = 8;
-const HEAD = 6;
+/* Lines in the Visual standard's rule 4 (`canvas-lines.tsx`); asks dotted. */
+
 const DASH: Record<OverviewEdgePath['kind'], string | undefined> = {
   feeds: undefined,
   calls: '2 3',
-  'loops-back': '6 4',
+  'loops-back': BACK_DASH,
 };
 
 /** The colour a line is drawn in, and the arrowhead marker of that colour. */
@@ -34,29 +29,6 @@ function colourOf(edge: {
   return edge.kind === 'loops-back' ? 'back' : 'line';
 }
 const COLOURS = { line: LINE, back: BACK, shadow: SHADOW } as const;
-
-/** An orthogonal path with each bend rounded, never by more than half a run. */
-function rounded(points: readonly Point[]): string {
-  const at = (p: Point): string => `${p.x.toString()},${p.y.toString()}`;
-  const first = points[0];
-  if (first === undefined) return '';
-  let d = `M${at(first)}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const prev = points[i - 1] as Point;
-    const corner = points[i] as Point;
-    const next = points[i + 1] as Point;
-    const into = Math.hypot(corner.x - prev.x, corner.y - prev.y);
-    const out = Math.hypot(next.x - corner.x, next.y - corner.y);
-    const r = Math.min(BEND, into / 2, out / 2);
-    const toward = (from: Point, len: number): Point => ({
-      x: corner.x + ((from.x - corner.x) / len) * r,
-      y: corner.y + ((from.y - corner.y) / len) * r,
-    });
-    d += ` L${at(toward(prev, into))} Q${at(corner)} ${at(toward(next, out))}`;
-  }
-  const last = points.at(-1) as Point;
-  return points.length > 1 ? `${d} L${at(last)}` : d;
-}
 
 /**
  * A view's edges and fans, under its cards, with an arrowhead at each target card and each
@@ -82,19 +54,7 @@ export function OverviewEdges({
     >
       <defs>
         {(Object.keys(COLOURS) as (keyof typeof COLOURS)[]).map(id => (
-          <marker
-            key={id}
-            id={`overview-head-${id}`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerUnits="userSpaceOnUse"
-            markerWidth={HEAD}
-            markerHeight={HEAD}
-            orient="auto-start-reverse"
-          >
-            <path d="M0,0 L10,5 L0,10 z" fill={COLOURS[id]} />
-          </marker>
+          <HeadMarker key={id} id={`overview-head-${id}`} colour={COLOURS[id]} />
         ))}
       </defs>
       {edges.map(edge => (
@@ -109,10 +69,10 @@ export function OverviewEdges({
       ))}
       {edges.map(edge =>
         edge.pill === undefined || edge.label === undefined ? null : (
-          <EdgePill
+          <LinePill
             key={`${edge.from}->${edge.to}:${edge.kind}`}
             pill={edge.pill}
-            label={edge.label}
+            lines={[edge.label]}
             shadow={edge.shadow}
           />
         )
@@ -133,65 +93,6 @@ function EdgeLine({ edge, head }: { edge: OverviewEdgePath; head: boolean }): Re
       strokeDasharray={DASH[edge.kind]}
       markerEnd={head ? `url(#overview-head-${colour})` : undefined}
     />
-  );
-}
-
-/** A line's label on a pill; a shadow line's pill ends in a "shadow" badge. */
-function EdgePill({
-  pill,
-  label,
-  shadow,
-}: {
-  pill: Box;
-  label: string;
-  shadow: boolean;
-}): ReactElement {
-  const textW = shadow ? pill.w - PILL_BADGE_ROOM : pill.w;
-  const cy = pill.y + pill.h / 2;
-  return (
-    <g data-pill={label} className={OVERVIEW_SMALL_TEXT}>
-      <rect
-        x={pill.x}
-        y={pill.y}
-        width={pill.w}
-        height={pill.h}
-        rx={pill.h / 2}
-        fill="var(--surface-inset)"
-        stroke="var(--border)"
-      />
-      <text
-        x={pill.x + textW / 2}
-        y={cy}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fill="var(--text-secondary)"
-      >
-        {label}
-      </text>
-      {shadow ? (
-        <g>
-          <rect
-            x={pill.x + pill.w - BADGE_W - 4}
-            y={pill.y + 2}
-            width={BADGE_W}
-            height={pill.h - 4}
-            rx={(pill.h - 4) / 2}
-            fill="none"
-            stroke={SHADOW}
-            strokeDasharray="3 2"
-          />
-          <text
-            x={pill.x + pill.w - BADGE_W / 2 - 4}
-            y={cy}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fill={SHADOW}
-          >
-            shadow
-          </text>
-        </g>
-      ) : null}
-    </g>
   );
 }
 

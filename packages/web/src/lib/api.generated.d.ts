@@ -10953,6 +10953,7 @@ export interface components {
             id: string;
             label: string;
             blurb: string;
+            short?: string;
             /** @enum {string} */
             group: 'intake' | 'build' | 'check' | 'land';
             workflows: string[];

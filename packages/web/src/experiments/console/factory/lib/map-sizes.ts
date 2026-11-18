@@ -1,28 +1,48 @@
 /**
- * The factory map's sizes, in world units (px at zoom 1). Their own module because the layout
- * (`map-layout.ts`) and the feedback lane (`map-feedback-lane.ts`) both size from them, and
- * the layout imports the lane.
+ * The factory map's sizes, in world units (px at zoom 1, the map's least fitted zoom: its
+ * smallest text is the type floor's 12 px, `map-camera.ts`). Their own module because the
+ * layout (`map-layout.ts`) and the feedback lane (`map-feedback-lane.ts`) both size from them,
+ * and the layout imports the lane.
  *
- * Sized so the shipped eight stages fit one row of the Overview's frame (about 1100px wide at
- * 1440x900): 7 * COL_PITCH + CARD_W = 1592, which fits at k of about 0.66, so card titles draw
- * at about 11px and blurbs, chips and labels at about 10px. A longer row fits smaller, down to
- * READABLE_K (map-camera.ts); below the width that holds the row there, the map takes two rows.
- * The fit is limited by width, so a card can be tall enough to hold a whole blurb.
+ * A card is in the Visual standard's card language (rule 2), its height fixed by construction
+ * so every card shares one and the lane under them is straight (rows top to bottom, 8 px
+ * apart, inside 12 px padding and the 3 px accent bar's 4 px):
+ *
+ * - a card of one stage: the icon and kind row (16), the stage label on up to two lines (40),
+ *   its short line on up to two (36) and the chips on one row (20): 16 + 16 + 8 + 40 + 8 + 36
+ *   + 8 + 20 + 12 = 164, so 168;
+ * - a card of several stages: the kind row, the group label on one line (20), then a row per
+ *   stage of two 20 px lines, the label with its "here" chip and under it the short line or
+ *   the needs-you chip, 8 px apart: 16 + 16 + 8 + 20 + 8 + 12 = 80, and 48 per stage less the
+ *   last gap, so 72 + 48 per stage: 168 for two.
+ *
+ * The width holds a chip row of "2 here" and "1 needs you" (about 150 px) inside the padding,
+ * so no chip row wraps. A card grows wider with its height, so it stays wider than tall.
+ *
+ * Fit width: the shipped map is five cards of 184 and four gaps sized to their pills
+ * (72 "build, narrow" stacked, 65 "built", 65 "ready", 72 "merged"), 920 + 274 = 1194, plus
+ * twice `FIT_PAD`: 1226 px. The Overview's frame at 1440x900 is narrower, so there the map
+ * pans a little at zoom 1, opening on the busiest card; at 1280x720 and on a phone it pans more.
  */
-export const CARD_W = 136;
-export const CARD_H = 252;
-/** Room between cards for a forward arrow and its one-word label at 15px. */
-export const COL_PITCH = 208;
-/** The least room between two rows. */
-export const ROW_GAP = 48;
-/** Vertical distance between lanes, and from a card's edge to the first lane. */
-export const LANE = 26;
-/** One line of a label at the map's label size. */
-export const LINE_H = 18;
-/** About how wide one character of a label draws, for a label's extent. */
-export const CHAR_W = 9;
-/**
- * The longest line a label wraps to, in characters: a label centred on a card stays inside
- * its pitch, clear of the labels on the cards beside it.
- */
-export const WRAP = Math.floor((COL_PITCH - 2 * CHAR_W) / CHAR_W);
+export const CARD_W = 184;
+/** A card of one stage, and of two. */
+export const CARD_H = 168;
+/** What a card of several stages takes besides its stage rows, and what each row takes. */
+const GROUP_BASE_H = 72;
+const STAGE_ROW_H = 48;
+
+/** The size every card takes when the fullest holds `most` stages. */
+export function cardSize(most: number): { w: number; h: number } {
+  const h = Math.max(CARD_H, GROUP_BASE_H + STAGE_ROW_H * most);
+  return { w: Math.max(CARD_W, h), h };
+}
+
+/** The least room between two cards (rule 3), and the room kept each side of a pill there. */
+export const GAP_MIN = 48;
+export const PILL_CLEAR = 8;
+/** How far a forward pill's bottom sits above its line. */
+export const PILL_GAP = 6;
+/** From one line of a stacked pill to the next. */
+export const PILL_LINE = 16;
+/** From a card's bottom edge to the feedback lane. */
+export const LANE = 32;

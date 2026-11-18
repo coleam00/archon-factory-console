@@ -1,87 +1,109 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import type { FactoryStage } from '../lib/stage-steps';
-import type { Box } from '../lib/map-layout';
+import type { PlacedCard } from '../lib/map-layout';
 import type { StageRead } from '../lib/map-live';
-import { GROUPS } from './MapLegend';
+import type { FactoryStage } from '../lib/stage-steps';
+import { TONES } from '../tones';
+import { chipWords, HereChip, NeedsYouChip } from './MapChips';
+import { MapStageRow } from './MapStageRow';
 
 interface MapCardProps {
-  stage: FactoryStage;
-  box: Box;
+  card: PlacedCard;
+  /** Its stages, in the card's order. */
+  stages: readonly FactoryStage[];
   /**
-   * Before the items are read the card is drawn from the declaration and says "…", or shows
-   * no chip once the first read failed.
+   * A stage's chips. Before the items are read a chip is a skeleton bar, and there is none
+   * once the first read failed.
    */
-  live: StageRead;
-  /** Stage notes the declaration places by this card. */
-  notes: readonly string[];
+  live: (stage: string) => StageRead;
   selected: boolean;
-  /** The stage page's path, which a click on the card opens. */
-  openTo: string;
-  /** The details button: the map shows or hides this stage's details panel. */
-  onDetails: (stage: string) => void;
+  /** A stage page's path, which a click on its card or row opens. */
+  stagePath: (stage: string) => string;
+  /** The details button: the map shows or hides this card's details panel. */
+  onDetails: (card: string) => void;
 }
 
-/** One stage on the map: its colour, label, blurb and live chips; a click opens its stage page. */
+/** The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. */
+const BOX =
+  'relative flex size-full flex-col gap-2 overflow-hidden rounded-console-12 border bg-surface px-3 pb-3 pt-4 transition-colors duration-150 ease-out';
+const HOVER = 'hover:border-border-bright hover:bg-surface-elevated';
+
+/**
+ * One card on the map: a board column, in the card language. A card of one stage is that
+ * stage (its label, its short line, its chips) and opens its stage page; a card of several
+ * lists them as rows, each opening its own stage page, under the column's label.
+ */
 export function MapCard({
-  stage,
-  box,
+  card,
+  stages,
   live,
-  notes,
   selected,
-  openTo,
+  stagePath,
   onDetails,
 }: MapCardProps): ReactElement {
-  const color = GROUPS[stage.group].color;
+  const border = selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border';
+  const [only] = stages;
+  const body = (children: ReactNode): ReactNode => (
+    <>
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-0.75"
+        style={{ background: TONES[card.tone].color }}
+      />
+      <KindRow card={card} />
+      {children}
+    </>
+  );
   return (
     <div
-      data-stage={stage.id}
+      data-card={card.id}
       className="absolute"
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+      style={{ left: card.box.x, top: card.box.y, width: card.box.w, height: card.box.h }}
     >
-      <Link
-        to={openTo}
-        aria-label={`${stage.label}: ${chipWords(live)}`}
-        // A link is natively draggable: a pan that starts on the card would become a link drag
-        // the map never sees.
-        draggable={false}
-        className={`relative flex size-full flex-col gap-1 overflow-hidden rounded-console-12 border bg-surface py-2.5 pl-4 pr-3 text-left transition-colors hover:bg-surface-elevated ${
-          selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border'
-        }`}
-      >
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-2.5 left-1.5 w-1 rounded-full"
-          style={{ background: color }}
-        />
-        {/* A card is narrow enough for eight in one row, so a title wraps rather than cuts. */}
-        <span className="line-clamp-2 pr-5 text-console-17 font-medium leading-snug text-text-primary">
-          {stage.label}
-        </span>
-        {/* The map's sizing comment (map-sizes.ts) says what this draws at when fitted. The
-            clamp only guards a blurb longer than any card holds; the panel shows it whole. */}
-        <span className="line-clamp-8 text-console-15 leading-snug text-text-secondary">
-          {stage.blurb}
-        </span>
-        {notes.map(note => (
-          <span key={note} className="truncate text-console-15 italic text-text-tertiary">
-            {note}
-          </span>
-        ))}
-        <span className="mt-auto flex flex-wrap gap-1">
-          <Chips live={live} />
-        </span>
-      </Link>
-      {/* Beside the card's link, not in it: a button inside a link is invalid. */}
+      {stages.length === 1 && only !== undefined ? (
+        <Link
+          to={stagePath(only.id)}
+          data-stage={only.id}
+          aria-label={`${only.label}: ${chipWords(live(only.id))}`}
+          // A link is natively draggable: a pan that starts on the card would become a link
+          // drag the map never sees.
+          draggable={false}
+          className={`${BOX} ${HOVER} ${border}`}
+        >
+          {body(<OneStage stage={only} live={live(only.id)} />)}
+        </Link>
+      ) : (
+        <div className={`${BOX} ${HOVER} ${border}`}>
+          {body(
+            <>
+              <span
+                title={card.label}
+                className="truncate text-console-15 font-semibold leading-5 text-text-primary"
+              >
+                {card.label}
+              </span>
+              {stages.map(stage => (
+                <MapStageRow
+                  key={stage.id}
+                  stage={stage}
+                  live={live(stage.id)}
+                  openTo={stagePath(stage.id)}
+                />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+      {/* Beside the card's links, not in them: a button inside a link is invalid. */}
       <button
         type="button"
-        aria-label={`${stage.label} details`}
+        aria-label={`${card.label} details`}
         aria-pressed={selected}
         title="Details"
         // A press on the button must not start a pan of the map under it.
         onPointerDown={event => event.stopPropagation()}
-        onClick={() => onDetails(stage.id)}
-        className="absolute right-1.5 top-1.5 rounded px-1 text-console-15 text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
+        onClick={() => onDetails(card.id)}
+        className="absolute right-2 top-3 rounded px-1 text-console-13 leading-4 text-text-tertiary hover:bg-surface-hover hover:text-text-primary"
       >
         ⓘ
       </button>
@@ -89,67 +111,33 @@ export function MapCard({
   );
 }
 
-function chipWords(live: StageRead): string {
-  if (live === 'loading') return 'loading';
-  if (live === 'failed') return 'items could not be read';
-  const parts = [live.pending ? 'checking merge state' : `${live.items.length.toString()} here`];
-  if (live.working > 0) parts.push(`${live.working.toString()} being worked`);
-  if (live.needYou.length > 0) parts.push(needYouWords(live.needYou.length));
-  return parts.join(', ');
+/** Row 1: the group's icon and kind label (rule 2). */
+function KindRow({ card }: { card: PlacedCard }): ReactElement {
+  const { Icon, kind, color } = TONES[card.tone];
+  return (
+    <span className="flex h-4 items-center gap-1.5 pr-6">
+      <Icon aria-hidden="true" className="size-4 shrink-0" style={{ color }} />
+      <span className="truncate text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
+        {kind}
+      </span>
+    </span>
+  );
 }
 
-const needYouWords = (n: number): string => `${n.toString()} ${n === 1 ? 'needs' : 'need'} you`;
-
-/** "N here", in the running colour and pulsing while a run works one, and "N need you" in the page's one loud colour. */
-function Chips({ live }: { live: StageRead }): ReactElement | null {
-  // A failed read draws no chip: the alert above the map says why, and nothing is loading.
-  if (live === 'failed') return null;
-  if (live === 'loading')
-    // Not read yet: never "0 here", which would be a wrong count.
-    return (
-      <span
-        data-chip="loading"
-        title="Loading"
-        className="rounded-full bg-surface-elevated px-2 text-console-15 text-text-tertiary"
-      >
-        <span aria-hidden="true">…</span>
-        <span className="sr-only">Loading</span>
-      </span>
-    );
-  const here = live.items.length;
-  const waiting = live.needYou.length;
-  if (here === 0 && waiting === 0 && !live.pending) return null;
+/** A card of one stage: its label, its short line (or its blurb, two lines), its chips. */
+function OneStage({ stage, live }: { stage: FactoryStage; live: StageRead }): ReactElement {
   return (
     <>
-      {live.pending ? (
-        // How many sit here waits on a merge answer: the count may be wrong until it lands.
-        <span
-          data-chip="checking"
-          title="Checking which changes merged"
-          className="rounded-full bg-surface-elevated px-2 text-console-15 text-text-tertiary"
-        >
-          checking…
-        </span>
-      ) : here > 0 ? (
-        <span
-          data-chip="here"
-          className={`rounded-full px-2 text-console-15 font-medium ${
-            live.working > 0
-              ? 'bg-[color:var(--running-soft)] text-[color:var(--running)] motion-safe:animate-pulse'
-              : 'bg-surface-elevated text-text-secondary'
-          }`}
-        >
-          {here} here
-        </span>
-      ) : null}
-      {waiting > 0 ? (
-        <span
-          data-chip="need-you"
-          className="rounded-full bg-warning/20 px-2 text-console-15 font-semibold text-warning"
-        >
-          {needYouWords(waiting)}
-        </span>
-      ) : null}
+      <span className="line-clamp-2 text-console-15 font-semibold leading-5 text-text-primary">
+        {stage.label}
+      </span>
+      <span className="line-clamp-2 text-console-13 leading-4.5 text-text-secondary">
+        {stage.short ?? stage.blurb}
+      </span>
+      <span className="mt-auto flex gap-1 overflow-hidden">
+        <HereChip live={live} />
+        <NeedsYouChip live={live} />
+      </span>
     </>
   );
 }
