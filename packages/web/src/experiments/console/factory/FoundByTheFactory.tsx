@@ -50,9 +50,19 @@ function useScrollWhenLinked(ready: boolean): RefObject<HTMLElement | null> {
  * shadow (the view says so) it reads as one: they decide what they would file and file
  * nothing. The Overview's tile links here by `#found-by-the-factory`.
  */
-export function FoundByTheFactory({ projectId }: { projectId: string }): ReactElement {
+export function FoundByTheFactory({
+  projectId,
+  above = true,
+}: {
+  projectId: string;
+  /**
+   * Whether what is drawn above the panel has its final height. The board passes false
+   * until its columns are drawn: scrolling earlier would leave the panel pushed down.
+   */
+  above?: boolean;
+}): ReactElement {
   const read = useFactoryDiscoveries(projectId);
-  const ref = useScrollWhenLinked(read.data !== undefined);
+  const ref = useScrollWhenLinked(above && read.data !== undefined);
   return (
     <section
       ref={ref}

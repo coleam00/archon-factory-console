@@ -39,14 +39,14 @@ afterAll(async () => {
   }
 });
 
-async function mount(path = `/console/p/${ID}/factory/board`) {
+async function mount(path = `/console/p/${ID}/factory/board`, above = true) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
     root.render(
       <MemoryRouter initialEntries={[path]}>
-        <FoundByTheFactory projectId={ID} />
+        <FoundByTheFactory projectId={ID} above={above} />
       </MemoryRouter>
     )
   );
@@ -152,11 +152,14 @@ test('opened at its hash, the panel scrolls into view once its read answers', as
     scrolled.push(options);
   };
   set(K.factoryDiscoveries(ID), DISCOVERIES);
+  // Not while the board above it is still loading: it would be pushed down after.
+  const early = await mount(`/console/p/${ID}/factory/board#found-by-the-factory`, false);
   const linked = await mount(`/console/p/${ID}/factory/board#found-by-the-factory`);
   const plain = await mount();
   try {
     expect(scrolled).toEqual([{ block: 'start' }]);
   } finally {
+    await early.unmount();
     await linked.unmount();
     await plain.unmount();
     proto.scrollIntoView = original;

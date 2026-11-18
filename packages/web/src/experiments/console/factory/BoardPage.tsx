@@ -151,7 +151,9 @@ export function Board({
         orders={orders}
         lit={params.get(ORDER_PARAM)}
       />
-      {view.discoveries === undefined ? null : <FoundByTheFactory projectId={projectId} />}
+      {view.discoveries === undefined ? null : (
+        <FoundByTheFactory projectId={projectId} above={shown !== undefined} />
+      )}
     </div>
   );
 }
