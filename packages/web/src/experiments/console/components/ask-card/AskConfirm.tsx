@@ -9,10 +9,15 @@ export interface ConfirmDraft {
   placeholder: string;
 }
 
+// A style, not `border-accent-muted`: theme.css's unlayered `.console-root *` border colour
+// outranks every border utility (tile-marks.tsx says more).
+const CONFIRM_BORDER = { borderColor: 'var(--accent-muted)' } as const;
+
 /**
  * Under the tiles (Visual standard rule 9): the textarea when the choice takes words, then
- * "Answer: <label>" with Confirm and Cancel. Confirm is enabled exactly when `accepted`, which
- * the ask's owner decides; a refusal shows in the server's own words, and the card stays.
+ * "Answer: <label>" with Confirm, the accent at reduced strength, and a quiet Cancel. Confirm
+ * is enabled exactly when `accepted`, which the ask's owner decides; a refusal shows in the
+ * server's own words, and the card stays.
  */
 export function AskConfirm({
   draft,
@@ -50,7 +55,7 @@ export function AskConfirm({
         />
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 flex-1 text-console-14 text-text-primary">
+        <span className="min-w-0 flex-1 text-console-14 text-text-primary [overflow-wrap:anywhere]">
           {draft.labels.length === 0 ? 'Answer in words' : `Answer: ${draft.labels.join(', ')}`}
         </span>
         {onCancel === undefined ? null : (
@@ -67,13 +72,14 @@ export function AskConfirm({
           type="button"
           onClick={onConfirm}
           disabled={busy || !accepted}
-          className="rounded-console-12 bg-accent px-3 py-1.5 text-console-13 font-semibold text-white transition-colors duration-150 ease-out hover:bg-accent-hover disabled:opacity-50"
+          style={CONFIRM_BORDER}
+          className="rounded-console-12 border bg-[color:var(--accent-soft)] px-3 py-1.5 text-console-13 font-semibold text-accent transition-colors duration-150 ease-out hover:bg-[color:var(--accent-muted)] disabled:opacity-50"
         >
           {busy ? 'Sending…' : 'Confirm'}
         </button>
       </div>
       {error === null ? null : (
-        <p role="alert" className="text-console-13 text-error">
+        <p role="alert" className="text-console-13 text-error [overflow-wrap:anywhere]">
           {error}
         </p>
       )}

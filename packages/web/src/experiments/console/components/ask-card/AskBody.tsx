@@ -58,7 +58,7 @@ function Unanswerable({
 }): ReactElement {
   return (
     <>
-      <p className="text-console-14 text-text-secondary">{what}</p>
+      <p className="text-console-14 text-text-secondary [overflow-wrap:anywhere]">{what}</p>
       <RunLink projectId={projectId} runId={runId}>
         Resume or abandon it on the run
       </RunLink>
@@ -78,7 +78,7 @@ function RunLink({
   return (
     <Link
       to={runPath(projectId, runId)}
-      className="self-start text-console-13 text-accent-bright underline"
+      className="self-start text-console-13 text-text-secondary underline hover:text-text-primary"
     >
       {children}
     </Link>

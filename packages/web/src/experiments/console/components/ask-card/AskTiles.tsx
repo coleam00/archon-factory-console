@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react';
 import type { ReactElement } from 'react';
+import { markProps, RECOMMENDED_BG, RecommendedBadge } from './tile-marks';
 
 /** One choice an ask offers, as a tile draws it. */
 export interface AskTile {
@@ -15,15 +16,20 @@ export interface AskTile {
   other: boolean;
 }
 
+// Its explicit min-width (not `auto`) and max-w-full keep a long unbroken word from widening it.
 // console-token-exception min-w-[176px] -- Visual standard rule 9: an option tile is at least 176 px wide.
-const TILE = 'min-w-[176px]';
+const TILE = 'min-w-[176px] max-w-full';
 const BASE = `${TILE} group flex flex-1 flex-col items-start gap-1 rounded-console-12 border p-3 text-left transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50`;
-const MARKED = 'border-accent-muted bg-[color:var(--accent-soft)]';
 const PLAIN = 'border-border bg-surface hover:border-border-bright hover:bg-surface-elevated';
 const OTHER = 'border-dashed border-border-bright bg-surface hover:bg-surface-elevated';
 
+/**
+ * Selected depends on the pick alone; the recommendation only adds its green (rule 9). The
+ * border colour of either mark comes from `markProps`.
+ */
 function tileClass(tile: AskTile, picked: boolean): string {
-  if (picked || tile.recommended) return `${BASE} ${MARKED}`;
+  if (picked) return `${BASE} ${tile.recommended ? RECOMMENDED_BG : 'bg-surface-elevated'}`;
+  if (tile.recommended) return `${BASE} ${RECOMMENDED_BG}`;
   return `${BASE} ${tile.other ? OTHER : PLAIN}`;
 }
 
@@ -56,6 +62,7 @@ export function AskTiles({
             key={tile.id}
             type="button"
             aria-pressed={picked}
+            data-recommended={tile.recommended || undefined}
             disabled={disabled}
             title={[tile.does, tile.cost === undefined ? undefined : `Cost: ${tile.cost}`]
               .filter(line => line !== undefined)
@@ -64,6 +71,7 @@ export function AskTiles({
               onPick(tile.id);
             }}
             className={tileClass(tile, picked)}
+            {...markProps(picked, tile.recommended)}
           >
             <TileBody tile={tile} picked={picked} />
           </button>
@@ -73,8 +81,11 @@ export function AskTiles({
   );
 }
 
+const WORDS = 'w-full text-console-13 text-text-secondary [overflow-wrap:anywhere]';
+
 /**
- * A tile's words: its label (with the badge or the check), then what it does and costs. At rest
+ * A tile's words: its label (with the check when chosen), the green badge when recommended,
+ * then what it does and costs, each wrapping a long unbroken path inside the tile. At rest
  * those clamp to 2 lines (rule 9); a chosen tile shows them whole, and so does a tile with
  * keyboard focus, so the operator reads what an option costs before Confirm, on touch or
  * keyboard as well as by hover.
@@ -85,17 +96,15 @@ function TileBody({ tile, picked }: { tile: AskTile; picked: boolean }): ReactEl
   return (
     <>
       <span className="flex w-full items-start justify-between gap-2">
-        <span className="text-console-14 font-semibold text-text-primary">{tile.label}</span>
+        <span className="min-w-0 text-console-14 font-semibold text-text-primary [overflow-wrap:anywhere]">
+          {tile.label}
+        </span>
         {picked ? <Check aria-hidden className="size-4 shrink-0 text-accent" /> : null}
       </span>
-      {tile.recommended ? (
-        <span className="text-console-12 font-medium text-accent">Recommended</span>
-      ) : null}
-      {does === undefined ? null : (
-        <span className={`${clamp} text-console-13 text-text-secondary`}>{does}</span>
-      )}
+      {tile.recommended ? <RecommendedBadge /> : null}
+      {does === undefined ? null : <span className={`${clamp} ${WORDS}`}>{does}</span>}
       {tile.cost === undefined ? null : (
-        <span className={`${clamp} text-console-13 text-text-secondary`}>Cost: {tile.cost}</span>
+        <span className={`${clamp} ${WORDS}`}>Cost: {tile.cost}</span>
       )}
     </>
   );

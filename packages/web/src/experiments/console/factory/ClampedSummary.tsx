@@ -25,10 +25,10 @@ export function ClampedSummary({ text, lines }: { text: string; lines: 2 | 3 }):
     return () => observer.disconnect();
   }, []);
   return (
-    <div className="flex max-w-3xl flex-col items-start gap-1">
+    <div className="flex min-w-0 max-w-3xl flex-col items-start gap-1">
       <p
         ref={ref}
-        className={`whitespace-pre-line text-console-14 leading-relaxed text-text-secondary ${
+        className={`whitespace-pre-line text-console-14 leading-relaxed text-text-secondary [overflow-wrap:anywhere] ${
           expanded ? '' : CLAMP[lines]
         }`}
       >
