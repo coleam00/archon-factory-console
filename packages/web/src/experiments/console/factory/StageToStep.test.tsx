@@ -172,7 +172,7 @@ test('a stage with no drill-down draws its graphs, with no toggle', async () => 
   await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
     expect(stepButton(container, '·fix')).toBeDefined();
     const buttons = [...container.querySelectorAll('button')].map(button => button.textContent);
-    expect(buttons).not.toContain('Show the real steps');
+    expect(buttons).not.toContain('Real steps');
   });
 });
 

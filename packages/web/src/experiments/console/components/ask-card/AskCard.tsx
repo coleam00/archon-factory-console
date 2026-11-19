@@ -120,7 +120,7 @@ export function SubjectName({ subject }: { subject: AskSubject }): ReactElement 
 function AskContext({ ask }: { ask: NeedsYouItem }): ReactNode {
   if (ask.kind === 'attention')
     return ask.context === undefined ? null : (
-      <ClampedSummary key={ask.context} text={ask.context} always />
+      <ClampedSummary key={ask.context} text={ask.context} lines={3} />
     );
   return null;
 }

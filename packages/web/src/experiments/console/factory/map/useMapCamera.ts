@@ -74,15 +74,12 @@ const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el
  * panel's width pushes out of the frame are a drag away. Closing the panel refits again,
  * unless the person has moved the map. `fitting` sets the fit's padding, its least and most
  * scale (`fitCamera`) and the bottom band it leaves clear; the live map takes the defaults.
- * Where the drawing does not fit, a fit opens with `open` centred (the live map's busiest
- * card), else on the drawing's start. Pass a box that keeps its identity between renders: a
- * new one refits, unless the person has moved the map.
+ * Where the drawing does not fit, a fit opens (and Fit returns) at the drawing's start.
  */
 export function useMapCamera(
   bounds: Box,
   focus: Box | null,
-  fitting: Fitting = LIVE_FITTING,
-  open: Box | null = null
+  fitting: Fitting = LIVE_FITTING
 ): MapCamera {
   const { pad, minK, maxK, reserveBottom } = fitting;
   /** The part of the frame a fit fills. */
@@ -114,9 +111,8 @@ export function useMapCamera(
     setHeight(fittedHeight(bounds, row.clientWidth, pad, minK, maxK));
     const target = focused.current;
     if (target !== null) put(reveal(current.current, target, frameOf(el)));
-    else if (!moved.current)
-      put(fitCamera(bounds, fitFrame(el), pad, minK, maxK, open ?? undefined));
-  }, [bounds, pad, minK, maxK, fitFrame, put, open]);
+    else if (!moved.current) put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));
+  }, [bounds, pad, minK, maxK, fitFrame, put]);
 
   useEffect(() => {
     focused.current = focus;
@@ -166,7 +162,7 @@ export function useMapCamera(
     const el = frameRef.current;
     if (el === null) return;
     moved.current = false;
-    put(fitCamera(bounds, fitFrame(el), pad, minK, maxK, open ?? undefined));
+    put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));
   };
 
   const onPointerDown = (event: PointerEvent<HTMLElement>): void => {

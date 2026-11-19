@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
-import { Inbox } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
+import { EmptyNote } from '../components/EmptyNote';
+import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../components/Skeleton';
 import { BoardCard, MergedCard } from './BoardCard';
 import { ColumnHeader } from './ColumnHeader';
 import { toneColor } from './tones';
@@ -92,7 +93,7 @@ export function BoardColumn({
         >
           {cards.length > 0 ? null : column.pending ? (
             // Not known yet: rule 6's loading shape, never an empty state that may be false.
-            <CardSkeletons />
+            <CardSkeletons label="Checking which changes merged" />
           ) : (
             <EmptyColumn sentence={emptySentence(column.label, filtered, merged?.earlier ?? 0)} />
           )}
@@ -156,24 +157,17 @@ function EarlierLink({ earlier }: { earlier: number }): ReactElement {
   );
 }
 
-/** Rule 6's loading state for a column whose cards wait on a merge answer: two card shapes. */
-function CardSkeletons(): ReactElement {
+/** Rule 6's loading state for a column whose cards are not known yet: two card shapes. */
+export function CardSkeletons({ label }: { label: string }): ReactElement {
   return (
-    <div
-      data-skeleton="true"
-      aria-label="Checking which changes merged"
-      className="flex flex-col gap-3"
-    >
+    <SkeletonGroup label={label}>
       {[0, 1].map(index => (
-        <div
-          key={index}
-          className="flex h-28 shrink-0 flex-col gap-2 rounded-console-12 bg-surface-elevated p-3 motion-safe:animate-pulse"
-        >
-          <span className="h-3 w-2/5 rounded bg-surface-hover" />
-          <span className="h-3 w-3/5 rounded bg-surface-hover" />
-        </div>
+        <SkeletonBlock key={index} height="h-28">
+          <SkeletonInnerLine width="short" />
+          <SkeletonInnerLine />
+        </SkeletonBlock>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 
@@ -192,9 +186,9 @@ export function emptySentence(label: string, filtered: boolean, earlier: number)
 /** Rule 9's empty-column placeholder, holding rule 6's empty state. */
 function EmptyColumn({ sentence }: { sentence: string }): ReactElement {
   return (
-    <div className="flex h-24 shrink-0 flex-col items-center justify-center gap-2 rounded-console-12 border border-dashed border-border px-3 text-center">
-      <Inbox aria-hidden="true" className="size-5 text-text-tertiary" />
-      <p className="text-console-14 text-text-secondary">{sentence}</p>
-    </div>
+    <EmptyNote
+      sentence={sentence}
+      className="flex h-24 shrink-0 flex-col items-center justify-center gap-2 rounded-console-12 border border-dashed border-border px-3 text-center"
+    />
   );
 }

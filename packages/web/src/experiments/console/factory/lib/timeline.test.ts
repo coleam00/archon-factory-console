@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
 import { askItem, gateItem } from '../../lib/needs-you.test-fixtures';
-import { buildTimeline, runHref, type TimelineRow } from './timeline';
+import { buildTimeline, runHref, timelineMerged, type TimelineRow } from './timeline';
 
 const NOW = Date.parse('2026-11-17T08:00:00Z');
 /** An outcome the declaration words, and a pack token it does not, drawn in mono. */
@@ -29,16 +29,24 @@ describe('the timeline of an item that landed', () => {
   test('how each run started: a trigger, then after the run before it with its outcome', () => {
     const [triage, plan] = detail.item.runs;
     expect(rows.map(row => row.started)).toEqual([
-      { text: 'Started by a trigger', mono: 'fc-start-triage', step: null, runHref: null },
+      {
+        text: 'Started by a trigger',
+        mono: null,
+        title: 'fc-start-triage',
+        step: null,
+        runHref: null,
+      },
       {
         text: 'After Triage: sent to Plan',
         mono: null,
+        title: null,
         step: null,
         runHref: runHref(PROJECT, triage?.id ?? ''),
       },
       {
         text: 'After Plan: sent to Build',
         mono: null,
+        title: null,
         step: null,
         runHref: runHref(PROJECT, plan?.id ?? ''),
       },
@@ -125,7 +133,8 @@ describe('the timeline of an item asked twice', () => {
     // The second was started again by a trigger, not after the first.
     expect(delivers[1]?.started).toEqual({
       text: 'Started by a trigger',
-      mono: 'fc-start-deliver',
+      mono: null,
+      title: 'fc-start-deliver',
       step: null,
       runHref: null,
     });
@@ -197,6 +206,7 @@ describe('how a run started', () => {
     expect(withCause(undefined)?.started).toEqual({
       text: 'Started by hand',
       mono: null,
+      title: null,
       step: null,
       runHref: null,
     });
@@ -209,6 +219,7 @@ describe('how a run started', () => {
     ).toEqual({
       text: 'After another run',
       mono: null,
+      title: null,
       step: null,
       runHref: runHref(PROJECT, 'elsewhere'),
     });
@@ -220,6 +231,7 @@ describe('how a run started', () => {
     expect(withCause({ kind: 'run_fired', runId: firing, node })?.started).toEqual({
       text: 'Started by step',
       mono: null,
+      title: null,
       step: { name: 'Verdict', node },
       runHref: runHref(PROJECT, firing),
     });
@@ -232,6 +244,7 @@ describe('how a run started', () => {
     expect(withCause({ kind: 'run_fired', runId: 'r', node: 'start-it' })?.started).toEqual({
       text: 'Started by another run',
       mono: null,
+      title: null,
       step: null,
       runHref: runHref(PROJECT, 'r'),
     });
@@ -254,6 +267,7 @@ describe('how a run started', () => {
     expect(rows[1]?.started).toEqual({
       text: 'After Triage:',
       mono: 'skip',
+      title: null,
       step: null,
       runHref: runHref(PROJECT, triage.id),
     });
@@ -485,5 +499,75 @@ describe('shadow decisions on the timeline', () => {
     expect(timeline(detail)[0]?.shadows.map(entry => entry.words.line)).toEqual([
       'would file 1 · would fold into open items 3 · would drop 2',
     ]);
+  });
+});
+
+describe('what each run did to the item, for its icon', () => {
+  /** Item 1 with its deliver run's outcome replaced. */
+  const deliverEnding = (patch: Partial<FactoryItemDetail['item']['runs'][number]>) => {
+    const detail = itemDetail('1');
+    const runs = detail.item.runs.map((run, i) => (i === 2 ? { ...run, ...patch } : run));
+    return timeline({ ...detail, item: { ...detail.item, runs } })[2];
+  };
+
+  test('a placement into a later stage sends it on', () => {
+    expect(timeline(itemDetail('1')).map(row => row.kind)).toEqual([
+      'sent-on',
+      'sent-on',
+      'sent-on',
+    ]);
+  });
+
+  test('a placement into the same or an earlier stage, by the board order, returns it', () => {
+    // deliver works Build: "returned" lands in Build itself, "replan" in Plan before it.
+    expect(deliverEnding({ outcome: 'returned' })?.kind).toBe('returned');
+    expect(deliverEnding({ outcome: 'replan' })?.kind).toBe('returned');
+    expect(deliverEnding({ outcome: 'replan' })?.outcome).toEqual(said('sent to Plan'));
+  });
+
+  test('a run that stopped to ask, one that failed, one running, one ended', () => {
+    const asked = timeline(itemDetail('3')).filter(row => row.workflow === 'deliver');
+    expect(asked.map(row => row.kind)).toEqual(['asked', 'asked']);
+    expect(deliverEnding({ status: 'failed' })?.kind).toBe('failed');
+    expect(deliverEnding({ status: 'cancelled' })?.kind).toBe('failed');
+    expect(timeline(itemDetail('6')).at(-1)?.kind).toBe('running');
+    const detail = itemDetail('1');
+    const [triage, ...rest] = detail.item.runs;
+    if (triage === undefined) throw new Error('item 1 has runs');
+    const ended = timeline({
+      ...detail,
+      item: { ...detail.item, runs: [{ ...triage, outcome: 'skip' }, ...rest] },
+    });
+    expect(ended[0]?.kind).toBe('stopped');
+  });
+
+  test('each run carries its stage group for its dot', () => {
+    expect(timeline(itemDetail('1')).map(row => row.group)).toEqual(['intake', 'intake', 'build']);
+  });
+
+  test('a run of the discoveries workflow reads as found by the factory, a shadow dot', () => {
+    const detail = itemDetail('1');
+    const [first] = detail.runs;
+    if (first === undefined) throw new Error('item 1 has runs');
+    first.workflow = shippedView.discoveries?.workflow ?? null;
+    const [row] = timeline(detail);
+    expect([row?.stage, row?.group]).toEqual(['Found by the factory', 'shadow']);
+  });
+
+  test('the trigger id is the hover, never the words', () => {
+    const [row] = timeline(itemDetail('1'));
+    expect(row?.started.mono).toBeNull();
+    expect(row?.started.title).toBe('fc-start-triage');
+  });
+});
+
+describe('the merged entry', () => {
+  test('ends the timeline of a change that merged, with when', () => {
+    expect(timelineMerged(itemDetail('1'))).toEqual({ at: '2026-11-17T00:03:14Z' });
+  });
+
+  test('is absent while the merge state is unknown, and before any change', () => {
+    expect(timelineMerged(itemDetail('3'))).toBeNull();
+    expect(timelineMerged(itemDetail('6'))).toBeNull();
   });
 });

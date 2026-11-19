@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { busiestCard, layoutMap, mapCards, type Box, type MapLayout } from './map-layout';
+import { layoutMap, mapCards, type Box, type MapLayout } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 import {
   boxesMeet,
@@ -300,23 +300,5 @@ describe('declarations the schema allows', () => {
     const [first] = layoutMap(view).cards;
     expect(first?.box.h).toBeGreaterThan(CARD_H);
     expect(first?.box.w).toBeGreaterThanOrEqual(first?.box.h ?? 0);
-  });
-});
-
-describe('the card a map opens on', () => {
-  const { cards } = layoutMap(shippedView);
-  const counts = (entries: Record<string, number>) => (stage: string) => entries[stage] ?? 0;
-
-  test('the one holding the stage with the most items in flight', () => {
-    expect(busiestCard(cards, counts({ build: 1, checks: 3 }), 'landed')?.id).toBe('checks-review');
-  });
-
-  test('the leftmost on a tie', () => {
-    expect(busiestCard(cards, counts({ ready: 2, plan: 2 }), 'landed')?.id).toBe('plan-build');
-  });
-
-  test('merged items do not count, and with nothing in flight there is none', () => {
-    expect(busiestCard(cards, counts({ landed: 40 }), 'landed')).toBeUndefined();
-    expect(busiestCard(cards, counts({ landed: 40, triage: 1 }), 'landed')?.id).toBe('intake');
   });
 });

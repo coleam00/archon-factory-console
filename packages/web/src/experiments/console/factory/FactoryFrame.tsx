@@ -1,6 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
+import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
+import { TabLink } from '../components/TabLink';
 import { ProjectHeader } from '../components/ProjectHeader';
 import { useProjectAttention } from '../components/ProjectAttention';
 import { ProjectViewTabs, WaitingBadge } from '../components/ProjectViewTabs';
@@ -18,6 +20,7 @@ import { readFailed, SlowReadError } from './lib/deadline';
 import { needsYouCount, needsYouPath } from '../lib/needs-you';
 import { howItWorksShown } from './lib/overview-nav';
 import { currentView, factoryPackPath, factoryPath, type FactoryViewListed } from './lib/views';
+import { BackLink } from './BackLink';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
@@ -64,16 +67,16 @@ export function FactoryFrame({
         title={project.data?.name ?? 'Project'}
         subtitle={
           project.data?.path ??
-          (project.error instanceof SlowReadError ? SLOW_READ_NOTICE : 'Loading…')
+          (project.error instanceof SlowReadError ? SLOW_READ_NOTICE : <ProjectPathSkeleton />)
         }
       >
         <ProjectViewTabs projectId={projectId} active="factory" />
       </ProjectHeader>
       <div
-        className={`flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5 ${fill ? 'md:flex md:min-h-0 md:flex-col' : ''}`}
+        className={`flex-1 overflow-y-auto p-4 md:p-6 ${fill ? 'md:flex md:min-h-0 md:flex-col' : ''}`}
       >
         <div
-          className={`flex flex-col gap-5 ${wide ? '' : 'max-w-5xl'} ${fill ? 'md:min-h-0 md:flex-1' : ''}`}
+          className={`flex flex-col gap-6 ${wide ? '' : 'max-w-5xl'} ${fill ? 'md:min-h-0 md:flex-1' : ''}`}
         >
           {view === undefined ? (
             <>
@@ -140,21 +143,22 @@ function FactoryAbsent({
   const failed = readFailed(read.error);
   if (failed !== undefined)
     return <EmptyState title="The factory view could not be loaded" hint={failed.message} />;
-  if (listing === undefined) return <FactoryLoading read={read} />;
+  if (listing === undefined)
+    return (
+      <FactoryLoading read={read}>
+        <SkeletonGroup label="Loading the factory view" className="flex max-w-5xl flex-col gap-3">
+          <SkeletonLine width="short" />
+          <SkeletonLine />
+        </SkeletonGroup>
+      </FactoryLoading>
+    );
   // A broken project file already shows above; an empty state under it would contradict it.
   if (listing.errors.some(error => error.source === 'project-file')) return null;
   return (
     <EmptyState
       title="No factory view applies to this project"
       hint="A project shows its factory once it runs a pack that declares a factory view, or ships its own in .archon/packs/."
-      action={
-        <Link
-          to={`/console/p/${projectId}`}
-          className="text-console-12 text-accent-bright underline"
-        >
-          Back to runs
-        </Link>
-      }
+      action={<BackLink to={`/console/p/${projectId}`} label="Back to runs" />}
     />
   );
 }
@@ -191,15 +195,21 @@ function FactoryHeading({
   return (
     <div className="flex max-w-5xl flex-col gap-3">
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-lg font-medium text-text-primary">{view.declaration.title}</h2>
+        <h2 className="text-console-22 font-semibold tracking-console-heading text-text-primary">
+          {view.declaration.title}
+        </h2>
         {/* The summary introduces the factory once, on the Overview; the other pages need
             their first screen for the board, the item or the graph. */}
         {section === 'overview' ? (
           // Keyed by the text, so a new summary measures again and opens clamped.
-          <ClampedSummary key={view.declaration.summary} text={view.declaration.summary} />
+          <ClampedSummary
+            key={view.declaration.summary}
+            text={view.declaration.summary}
+            lines={2}
+          />
         ) : null}
       </div>
-      <nav aria-label="Factory" className="flex items-center gap-1">
+      <nav aria-label="Factory" className="flex flex-wrap items-center gap-1">
         {SECTIONS.map(({ key, label, rest }) => (
           <SectionLink
             key={key}
@@ -237,18 +247,20 @@ function SectionLink({
   count?: number;
 }): ReactElement {
   return (
-    <Link
-      to={to}
-      aria-current={active ? 'page' : undefined}
-      className={`flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium transition-colors ${
-        active
-          ? 'bg-surface-elevated text-text-primary'
-          : 'text-text-tertiary hover:text-text-primary'
-      }`}
-    >
+    <TabLink to={to} active={active}>
       {label}
       {count === undefined || count === 0 ? null : <WaitingBadge count={count} />}
-    </Link>
+    </TabLink>
+  );
+}
+
+/** The project's path while the project is read: one short line (Visual standard, rule 6). */
+export function ProjectPathSkeleton(): ReactElement {
+  return (
+    <span role="status" className="flex h-4 items-center">
+      <span className="sr-only">Loading the project</span>
+      <SkeletonLine width="short" />
+    </span>
   );
 }
 
@@ -268,7 +280,7 @@ export function FactoryErrors({ errors }: { errors: FactoryViews['errors'] }): R
       <ul className="flex flex-col gap-1">
         {errors.map(error => (
           <li key={`${error.source}:${error.path}`} className="text-console-12 text-text-secondary">
-            <span className="break-all font-mono text-console-11 text-text-primary">
+            <span className="break-all font-mono text-console-12 text-text-primary">
               {error.path}
             </span>
             <span className="block break-words">{error.error}</span>

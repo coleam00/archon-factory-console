@@ -39,8 +39,26 @@ describe('cards of placed items', () => {
   test('a failed deliver after a completed plan is marked failed, with the step it failed at', () => {
     expect(card(endLastRun(realItem('5'), 'failed', null, 'build__build'))).toMatchObject({
       pill: 'failed',
-      stopLine: 'deliver failed at Writes the change',
+      stopLine: 'Build failed at Writes the change',
     });
+  });
+
+  test('a failed run names its stage, never its workflow id, even one no stage declares', () => {
+    const failed = endLastRun(realItem('5'), 'failed', null, 'build__build');
+    const progress = failed.progress!;
+    const full = {
+      ...failed,
+      progress: {
+        ...progress,
+        runs: progress.runs.map((run, index) =>
+          index === progress.runs.length - 1
+            ? { ...run, workflow: 'Wirasm/archon-software-factory:deliver' }
+            : run
+        ),
+      },
+    };
+    // The stage it is placed in names it; no step label is declared for an unknown workflow.
+    expect(card(full).stopLine).toBe('Build failed at build');
   });
 
   test('an item whose progress could not be read stays on the board and says so', () => {
@@ -188,7 +206,7 @@ describe('card fields, in order', () => {
     const asking = { ...realItem('6'), questions: [askItem()] };
     expect(card(asking).stopLine).toBe('Which base should the change target?');
     const cancelled = endLastRun(realItem('5'), 'cancelled', null);
-    expect(card(cancelled).stopLine).toBe('deliver was cancelled');
+    expect(card(cancelled).stopLine).toBe('Build was cancelled');
     expect(card(realItem('8')).stopLine).toBeNull();
   });
 });

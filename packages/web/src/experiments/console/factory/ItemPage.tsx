@@ -2,7 +2,10 @@ import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { AskGroup } from '../components/ask-card/AskGroup';
 import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
+import { CircleCheck } from 'lucide-react';
+import { EmptyNote } from '../components/EmptyNote';
 import { EmptyState } from '../components/EmptyState';
+import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { askNaming } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
@@ -22,7 +25,7 @@ import { itemPill } from './lib/board';
 import { mergePending } from './lib/merge-pending';
 import { itemAsks, type NeedsYouItem } from '../lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
-import { buildTimeline } from './lib/timeline';
+import { buildTimeline, timelineMerged } from './lib/timeline';
 import { membershipOf } from './lib/work-orders';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
@@ -56,7 +59,7 @@ function ItemBody({
     if (data !== undefined && mergePending(data.item)) scheduleReread(itemKey);
   }, [data, error, itemKey]);
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <BackLink to={factoryPath(projectId)} label="Back to the overview" />
       <ItemRead view={view} projectId={projectId} itemKey={key} read={read} attention={attention} />
     </div>
@@ -116,7 +119,10 @@ function ItemRead({
         }
       />
       <ItemAsks projectId={projectId} view={view} asks={asks} attention={attention} />
-      <ItemTimeline rows={buildTimeline(declaration, projectId, data, Date.now())} />
+      <ItemTimeline
+        rows={buildTimeline(declaration, projectId, data, Date.now())}
+        merged={timelineMerged(data)}
+      />
       <ItemLinks
         projectId={projectId}
         links={data.item.links}
@@ -156,11 +162,31 @@ function ItemUnread({
   if (isNoSuchItem(failed)) {
     const order = orders.orders?.find(entry => entry.key === itemKey);
     if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
-    if (orders.orders === undefined && !orders.failed) return <FactoryLoading read={read} />;
+    if (orders.orders === undefined && !orders.failed) return <ItemSkeleton read={read} />;
   }
   if (failed !== undefined)
     return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
-  return <FactoryLoading read={read} />;
+  return <ItemSkeleton read={read} />;
+}
+
+/** The item page's shape while it loads (rule 6): the header's lines and pill, three runs. */
+function ItemSkeleton({ read }: { read: EntityView<FactoryItemDetail> }): ReactElement {
+  return (
+    <FactoryLoading read={read}>
+      <SkeletonGroup label="Loading the item" className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <SkeletonLine width="short" />
+          <SkeletonLine />
+          <SkeletonBlock height="h-6" />
+        </div>
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2].map(index => (
+            <SkeletonBlock key={index} height="h-16" />
+          ))}
+        </div>
+      </SkeletonGroup>
+    </FactoryLoading>
+  );
 }
 
 /** The item's open asks, each as the ask card Needs you draws, always open; the page names the item. */
@@ -184,14 +210,18 @@ function ItemAsks({
       <SectionTitle>Asks</SectionTitle>
       {queue === undefined ? (
         failed === undefined ? (
-          <FactoryLoading read={attention} />
+          <FactoryLoading read={attention}>
+            <SkeletonGroup label="Loading what waits on you">
+              <SkeletonBlock height="h-32" rounded="rounded-console-16" />
+            </SkeletonGroup>
+          </FactoryLoading>
         ) : (
-          <p className="text-xs text-text-tertiary">
+          <p className="text-console-13 text-text-tertiary">
             What waits on you could not be loaded: {errorDetail(failed)}
           </p>
         )
       ) : hold.asks.length === 0 ? (
-        <p className="text-sm text-text-secondary">Nothing on this item is waiting on you.</p>
+        <EmptyNote icon={CircleCheck} sentence="Nothing on this item is waiting on you." />
       ) : (
         <AskGroup
           projectId={projectId}
@@ -209,7 +239,7 @@ function ItemAsks({
 function Degraded({ degraded }: { degraded: FactoryItem['degraded'] }): ReactNode {
   if (degraded.length === 0) return null;
   return (
-    <ul className="flex flex-col gap-1 text-console-12 text-text-tertiary">
+    <ul className="flex flex-col gap-1 text-console-13 text-text-tertiary">
       {degraded.map(report => (
         <li key={JSON.stringify(report)}>{degradedWords(report)}</li>
       ))}

@@ -4,7 +4,9 @@ import { askNaming, itemTitles } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { BoardAskPopover } from './BoardAskPopover';
+import { BoardSkeleton } from './BoardSkeleton';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
 import { StaleRead } from './StaleRead';
@@ -150,12 +152,16 @@ export function Board({
           }}
           placeholder="Filter by key, title or order"
           aria-label="Filter by key, title or work order"
-          className="w-56 rounded border border-border bg-surface-inset px-2.5 py-1 text-console-12 text-text-primary outline-none placeholder:text-text-tertiary focus:border-border-bright"
+          className="w-56 rounded border border-border bg-surface-inset px-2.5 py-1 text-console-13 text-text-primary outline-none placeholder:text-text-tertiary focus:border-border-bright"
         />
-        <div role="group" aria-label="Board view" className="flex items-center gap-1">
-          <ViewToggle label="Pipeline" active={!table} onClick={() => showView('pipeline')} />
-          <ViewToggle label="Table" active={table} onClick={() => showView('table')} />
-        </div>
+        <SegmentedControl
+          label="Board view"
+          active={table ? 'table' : 'pipeline'}
+          segments={[
+            { key: 'pipeline', label: 'Pipeline', onSelect: () => showView('pipeline') },
+            { key: 'table', label: 'Table', onSelect: () => showView('table') },
+          ]}
+        />
         <ShowChip
           param={showParam}
           show={show}
@@ -166,6 +172,7 @@ export function Board({
       </div>
       <BoardBody
         projectId={projectId}
+        view={view}
         read={read}
         model={shown}
         table={table}
@@ -191,6 +198,7 @@ export function Board({
 
 function BoardBody({
   projectId,
+  view,
   read,
   model,
   table,
@@ -202,6 +210,7 @@ function BoardBody({
   asks,
 }: {
   projectId: string;
+  view: FactoryDeclaration;
   read: ReturnType<typeof useFactoryItemsRead>;
   model: BoardModel | undefined;
   table: boolean;
@@ -217,11 +226,15 @@ function BoardBody({
     const failed = readFailed(read.error);
     if (failed !== undefined)
       return (
-        <p role="alert" className="text-sm text-error">
+        <p role="alert" className="text-console-14 text-error">
           The board could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <FactoryLoading read={read} />;
+    return (
+      <FactoryLoading read={read}>
+        <BoardSkeleton view={view} />
+      </FactoryLoading>
+    );
   }
   return (
     <>
@@ -279,30 +292,5 @@ function ShowChip({
         Show all
       </button>
     </span>
-  );
-}
-
-function ViewToggle({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}): ReactElement {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`rounded px-2 py-1 text-console-12 font-medium transition-colors ${
-        active
-          ? 'bg-surface-elevated text-text-primary'
-          : 'text-text-tertiary hover:text-text-primary'
-      }`}
-    >
-      {label}
-    </button>
   );
 }

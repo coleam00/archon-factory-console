@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
-import { Link } from 'react-router';
+import { TabLink } from '../../components/TabLink';
+import { BackLink } from '../BackLink';
 import { factoryPackPath } from '../lib/views';
 
 /** A pack page's tabs; each has its route in `routes.tsx`. */
@@ -48,18 +49,9 @@ function PackTabs({ packKey, active }: { packKey: string; active: PackTab }): Re
   return (
     <nav aria-label="Pack" className="flex items-center gap-1">
       {PACK_TABS.map(({ key, label, rest }) => (
-        <Link
-          key={key}
-          to={factoryPackPath(packKey, rest)}
-          aria-current={key === active ? 'page' : undefined}
-          className={`rounded px-2 py-1 text-console-12 font-medium transition-colors ${
-            key === active
-              ? 'bg-surface-elevated text-text-primary'
-              : 'text-text-tertiary hover:text-text-primary'
-          }`}
-        >
+        <TabLink key={key} to={factoryPackPath(packKey, rest)} active={key === active}>
           {label}
-        </Link>
+        </TabLink>
       ))}
     </nav>
   );
@@ -76,9 +68,5 @@ export function PacksFailed({ message }: { message: string }): ReactElement {
 
 /** The link back to every pack. */
 export function AllPacksLink(): ReactElement {
-  return (
-    <Link to="/console/factory" className="text-console-13 text-accent-bright underline">
-      All factory packs
-    </Link>
-  );
+  return <BackLink to="/console/factory" label="All factory packs" />;
 }

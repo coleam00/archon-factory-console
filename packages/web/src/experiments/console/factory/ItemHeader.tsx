@@ -1,6 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
+import { GitPullRequest } from 'lucide-react';
+import { SkeletonLine } from '../components/Skeleton';
 import type { FactoryItem } from '../skills/factory';
-import { PillBadge } from './BoardCard';
+import { PILL_CLASS, PillBadge } from './BoardCard';
 import type { Pill } from './lib/board';
 import type { ItemColumn } from './lib/placement';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
@@ -27,19 +29,19 @@ export function ItemHeader({
   return (
     <header className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-mono text-console-12 text-text-tertiary">{item.item.key}</span>
-        <h3 className="min-w-0 break-words text-base font-medium text-text-primary">
+        <span className="font-mono text-console-13 text-text-tertiary">{item.item.key}</span>
+        <h3 className="min-w-0 break-words text-console-17 font-semibold text-text-primary">
           {title ?? item.item.key}
         </h3>
       </div>
       {workOrder ? (
-        <p className="text-console-12 text-text-secondary">{WORK_ORDER_WORDS}</p>
+        <p className="text-console-13 text-text-secondary">{WORK_ORDER_WORDS}</p>
       ) : item.runs.length === 0 ? (
         // No run has started it (a member linked before its first run): no state, column or
         // change to show yet.
-        <p className="text-console-12 text-text-secondary">{NOT_STARTED}</p>
+        <p className="text-console-13 text-text-secondary">{NOT_STARTED}</p>
       ) : (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-12 text-text-secondary">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-13 text-text-secondary">
           <PillBadge pill={pill} />
           <ColumnWords item={item} column={column} />
           <ChangeLink change={item.progress?.change ?? null} />
@@ -63,48 +65,57 @@ function ColumnWords({
 
 type Change = NonNullable<NonNullable<FactoryItem['progress']>['change']>;
 
-function mergeWords(merged: Change['merged']): string {
-  switch (merged) {
-    case true:
-      return 'merged';
-    case false:
-      return 'open';
-    case 'pending':
-      return 'checking whether it merged';
-    case 'unknown':
-      return 'merge state unknown';
-    default: {
-      const unhandled: never = merged;
-      return unhandled;
-    }
-  }
+/** Rule 5's chip for each merge state the host answered. */
+function mergeChip(merged: true | false | 'unknown'): { text: string; className: string } {
+  if (merged === true) return { text: 'merged', className: PILL_CLASS.landed };
+  if (merged === false) return { text: 'open', className: PILL_CLASS.waiting };
+  return { text: 'merge state unknown', className: 'text-text-tertiary' };
+}
+
+/** Whether the change merged, as a chip; while the host is asked, a skeleton line. */
+function MergeState({ merged }: { merged: Change['merged'] }): ReactElement {
+  if (merged === 'pending')
+    return (
+      <span className="inline-flex w-20 items-center" data-merge-state="pending">
+        <SkeletonLine />
+        <span className="sr-only">checking whether it merged</span>
+      </span>
+    );
+  const chip = mergeChip(merged);
+  return (
+    <span
+      data-merge-state={String(merged)}
+      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium ${chip.className}`}
+    >
+      {chip.text}
+    </span>
+  );
 }
 
 /**
- * "PR #n" when the URL ends in a number, else the URL; then whether it merged. Unlinked
- * "the change" while the change host has not named the pull request (no URL yet).
+ * The pull request as a button-style link ("PR #n" when the URL ends in a number, else the
+ * URL), then whether it merged. Unlinked "the change" while the change host has not named the
+ * pull request (no URL yet).
  */
 function ChangeLink({ change }: { change: Change | null }): ReactNode {
   if (change === null) return <span className="text-text-tertiary">No change yet</span>;
-  if (change.url === null)
-    return (
-      <span className="flex items-baseline gap-1.5">
-        <span className="text-text-secondary">the change</span>
-        <span className="text-text-tertiary">{mergeWords(change.merged)}</span>
-      </span>
-    );
-  const number = /\/(\d+)\/?$/.exec(change.url)?.[1];
+  const number = change.url === null ? undefined : /\/(\d+)\/?$/.exec(change.url)?.[1];
   return (
-    <span className="flex items-baseline gap-1.5">
-      <a
-        href={change.url}
-        target="_blank"
-        rel="noreferrer"
-        className="text-accent-bright hover:underline"
-      >
-        {number === undefined ? change.url : `PR #${number}`}
-      </a>
-      <span className="text-text-tertiary">{mergeWords(change.merged)}</span>
+    <span className="flex items-center gap-2">
+      {change.url === null ? (
+        <span className="text-text-secondary">the change</span>
+      ) : (
+        <a
+          href={change.url}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-console-13 font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated"
+        >
+          <GitPullRequest aria-hidden="true" className="size-4 shrink-0 text-text-tertiary" />
+          {number === undefined ? change.url : `PR #${number}`}
+        </a>
+      )}
+      <MergeState merged={change.merged} />
     </span>
   );
 }

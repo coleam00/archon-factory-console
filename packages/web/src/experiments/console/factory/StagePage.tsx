@@ -1,5 +1,9 @@
 import { useMemo, useState, type ReactElement } from 'react';
+import { GitMerge } from 'lucide-react';
 import { useParams } from 'react-router';
+import { EmptyNote } from '../components/EmptyNote';
+import { SegmentedControl } from '../components/SegmentedControl';
+import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
 import type { EntityView } from '../store/cache';
@@ -20,6 +24,7 @@ import { stepLabel } from './lib/step-label';
 import { readFailure } from './lib/read-failure';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
+import { GraphSkeleton } from './GraphSkeleton';
 
 type Declaration = FactoryViewListed['declaration'];
 
@@ -37,10 +42,10 @@ export function StagePage(): ReactElement {
       {view => {
         const stage = view.declaration.stages.find(candidate => candidate.id === stageId);
         return (
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
             <BackLink to={factoryPath(projectId)} label="Back to the overview" />
             {stage === undefined ? (
-              <p className="text-sm text-text-secondary">
+              <p className="text-console-14 text-text-secondary">
                 This factory has no stage <span className="font-mono">{stageId}</span>.
               </p>
             ) : (
@@ -70,6 +75,12 @@ function StageBody({
 }): ReactElement {
   const items = useFactoryItems(projectId);
   const [real, setReal] = useState(false);
+  const header = (
+    <div className="flex flex-col gap-2">
+      <h3 className="text-console-17 font-semibold text-text-primary">{stage.label}</h3>
+      <p className="max-w-3xl text-console-14 leading-relaxed text-text-secondary">{stage.blurb}</p>
+    </div>
+  );
   const graphs = stage.workflows.map(workflow => (
     <StageWorkflow
       key={workflow}
@@ -82,35 +93,44 @@ function StageBody({
   ));
   return (
     <>
-      <div className="flex flex-col gap-1.5">
-        <h3 className="text-base font-medium text-text-primary">{stage.label}</h3>
-        <p className="max-w-3xl text-sm leading-relaxed text-text-secondary">{stage.blurb}</p>
-      </div>
       {stage.drilldown !== undefined ? (
         <>
-          <StageDrilldown
-            projectId={projectId}
-            view={view}
-            stage={stage}
-            drilldown={stage.drilldown}
-            items={items}
-          />
-          <button
-            type="button"
-            aria-pressed={real}
-            onClick={() => setReal(shown => !shown)}
-            className="self-start rounded-console-12 border border-border px-3 py-1.5 text-console-13 text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-          >
-            {real ? 'Hide the real steps' : 'Show the real steps'}
-          </button>
-          {real ? graphs : null}
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            {header}
+            <SegmentedControl
+              label="How this stage is drawn"
+              active={real ? 'real' : 'drilldown'}
+              segments={[
+                { key: 'drilldown', label: 'Drill-down', onSelect: () => setReal(false) },
+                { key: 'real', label: 'Real steps', onSelect: () => setReal(true) },
+              ]}
+            />
+          </div>
+          {real ? (
+            graphs
+          ) : (
+            <StageDrilldown
+              projectId={projectId}
+              view={view}
+              stage={stage}
+              drilldown={stage.drilldown}
+              items={items}
+            />
+          )}
         </>
       ) : stage.workflows.length === 0 ? (
-        <p className="text-sm text-text-secondary">
-          No workflow runs in this stage. An item arrives here when its change merges.
-        </p>
+        <>
+          {header}
+          <EmptyNote
+            icon={GitMerge}
+            sentence="No workflow runs in this stage. An item arrives here when its change merges."
+          />
+        </>
       ) : (
-        graphs
+        <>
+          {header}
+          {graphs}
+        </>
       )}
     </>
   );
@@ -151,9 +171,9 @@ function StageWorkflow({
   const stepsFailed = readFailed(read.error);
   return (
     <section className="flex flex-col gap-2">
-      <h4 className="font-mono text-console-13 font-semibold text-text-primary">{workflow}</h4>
+      <h4 className="font-mono text-console-15 font-semibold text-text-primary">{workflow}</h4>
       {stage.nodes === undefined ? null : (
-        <p className="text-console-12 text-text-tertiary">
+        <p className="text-console-13 text-text-tertiary">
           Other stages work the dimmed steps of this workflow.
         </p>
       )}
@@ -167,15 +187,13 @@ function StageWorkflow({
           running={running}
         />
       ) : stepsFailed !== undefined ? (
-        <p className="font-mono text-console-12 text-error">
+        <p className="font-mono text-console-13 text-error">
           Could not load the steps: {readFailure(stepsFailed)}
         </p>
       ) : (
-        <FactoryLoading
-          read={read}
-          label="Loading the steps…"
-          className="text-console-12 text-text-tertiary"
-        />
+        <FactoryLoading read={read}>
+          <GraphSkeleton label="Loading the steps" />
+        </FactoryLoading>
       )}
     </section>
   );
@@ -201,11 +219,17 @@ function RunningNow({
   if (failed !== undefined) return <RunningItemsFailure error={failed} />;
   // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
   if (items.error !== undefined)
-    return <FactoryLoading read={items} className="text-console-12 text-text-tertiary" />;
+    return (
+      <FactoryLoading read={items}>
+        <SkeletonGroup label="Reading which items run here">
+          <SkeletonLine width="short" />
+        </SkeletonGroup>
+      </FactoryLoading>
+    );
   if (onWorkflow.length === 0) return null;
   return (
     <div className="flex flex-col gap-1">
-      <h5 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
+      <h5 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         Running now
       </h5>
       <RunningItemLinks view={view} projectId={projectId} items={onWorkflow} />

@@ -162,7 +162,7 @@ function GroupFrame({
       <div
         // A label wider than a narrow frame runs past its edge on its backing rather than cut
         // off the condition, which must read without hovering.
-        className={`relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-11 ${
+        className={`relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-12 ${
           inStage || glows ? '' : 'opacity-50'
         }`}
         title={group.group.when === null ? undefined : `Runs when ${group.group.when}`}
@@ -263,7 +263,7 @@ function StepButton({
           {node.label}
         </span>
         {node.condition === null ? null : (
-          <span className="truncate text-console-11 text-text-secondary">{node.condition}</span>
+          <span className="truncate text-console-12 text-text-secondary">{node.condition}</span>
         )}
       </span>
     </button>

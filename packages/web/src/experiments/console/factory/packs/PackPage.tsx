@@ -30,8 +30,8 @@ function HowItWorks({ pack }: { pack: FactoryPackListed }): ReactElement {
 
 /** Which file the page reads, and the project it came from when it is not the pack's own. */
 function ReadFrom({ pack }: { pack: FactoryPackListed }): ReactNode {
-  if (pack.overview === null) return pack.pack;
-  if (pack.readFrom === null) return `${pack.pack}: the pack's own overview file`;
+  if (pack.overview === null) return 'No readable overview file';
+  if (pack.readFrom === null) return "Read from the pack's own overview file";
   return (
     <>
       Read from{' '}

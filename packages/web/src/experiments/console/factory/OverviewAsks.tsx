@@ -6,9 +6,10 @@ import { errorDetail } from '../lib/http';
 import { needsYou, needsYouPath } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
-import { readFailed, SlowReadError } from './lib/deadline';
+import { readFailed } from './lib/deadline';
 import type { FactoryViewListed } from './lib/views';
-import { SLOW_READ_NOTICE } from './FactoryLoading';
+import { FactoryLoading } from './FactoryLoading';
+import { SkeletonBlock, SkeletonGroup } from '../components/Skeleton';
 import { useFactoryItems } from './useFactoryItems';
 
 /** How many asks the Overview shows before "N more" leads to the Needs you tab. */
@@ -39,7 +40,15 @@ export function OverviewAsks({
           What needs you could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <OverviewAsksLoading slow={attention.error instanceof SlowReadError} />;
+    return (
+      <FactoryLoading read={attention}>
+        <SkeletonGroup label="Loading what needs you" className="flex max-w-3xl flex-col gap-3">
+          {[0, 1, 2].map(index => (
+            <SkeletonBlock key={index} height="h-24" rounded="rounded-console-16" />
+          ))}
+        </SkeletonGroup>
+      </FactoryLoading>
+    );
   }
   const asks = needsYou(queue.items);
   if (asks.length === 0) return null;
@@ -67,23 +76,6 @@ export function OverviewAsks({
       })}
       {more > 0 ? <MoreLink projectId={projectId} more={more} /> : null}
     </section>
-  );
-}
-
-/** Skeletons of the compact cards to come (Visual standard rule 6), and why when the read is slow. */
-function OverviewAsksLoading({ slow }: { slow: boolean }): ReactElement {
-  return (
-    <div role="status" className="flex flex-col gap-3">
-      <span className="sr-only">Loading what needs you</span>
-      {slow ? <p className="text-console-13 text-text-tertiary">{SLOW_READ_NOTICE}</p> : null}
-      {[0, 1, 2].map(index => (
-        <div
-          key={index}
-          aria-hidden
-          className="h-24 w-full max-w-3xl rounded-console-16 bg-surface-elevated motion-safe:animate-pulse"
-        />
-      ))}
-    </div>
   );
 }
 

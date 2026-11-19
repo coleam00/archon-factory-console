@@ -59,37 +59,21 @@ function place(size: number, extent: number, pad: number): number {
 }
 
 /**
- * Where the drawing's left edge goes in a frame it does not fit: `open` (a world span)
- * centred, but never so far that the drawing's edge leaves the padding on either side.
- */
-function placeOpen(bounds: Box, open: Box, k: number, width: number, pad: number): number {
-  const centred = width / 2 - (open.x + open.w / 2 - bounds.x) * k;
-  return Math.min(pad, Math.max(width - pad - bounds.w * k, centred));
-}
-
-/**
  * The map in the frame at its fitting scale: centred where it fits, else from its start
- * (top-left), so a narrow frame shows the first stages and pans to the rest; or, given
- * `open`, with that box centred as far as the drawing allows. Finite for any frame, a
- * zero-sized one included.
+ * (top-left), so a narrow frame shows the first stages and the flow reads left to right,
+ * panning to the rest. Finite for any frame, a zero-sized one included.
  */
 export function fitCamera(
   bounds: Box,
   frame: Frame,
   pad = FIT_PAD,
   minK = READABLE_K,
-  maxK = MAX_FIT,
-  open?: Box
+  maxK = MAX_FIT
 ): Camera {
   const k = fitScale(bounds, frame, pad, minK, maxK);
-  const fits = bounds.w * k <= frame.width - 2 * pad;
-  const left =
-    fits || open === undefined
-      ? place(bounds.w * k, frame.width, pad)
-      : placeOpen(bounds, open, k, frame.width, pad);
   return {
     k,
-    x: left - bounds.x * k,
+    x: place(bounds.w * k, frame.width, pad) - bounds.x * k,
     y: place(bounds.h * k, frame.height, pad) - bounds.y * k,
   };
 }

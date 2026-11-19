@@ -1,9 +1,11 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { MergeState, PillBadge, RoundDots } from './BoardCard';
-import type { BoardModel } from './lib/board';
+import type { BoardCard, BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
+import { statusTextClass } from '../lib/run-status';
+import { shortDateTime } from './lib/board-table';
 import { RowAnswer, RowAsk } from './BoardAskFace';
 import type { BoardAsks } from './useBoardAsks';
 import {
@@ -76,6 +78,11 @@ export function BoardTable({
   );
 }
 
+/** One cell, its content at the top of the row. */
+function Cell({ children, className = '' }: { children?: ReactNode; className?: string }) {
+  return <td className={`px-2 py-1.5 align-top ${className}`}>{children}</td>;
+}
+
 function BoardRow({
   projectId,
   row,
@@ -88,79 +95,107 @@ function BoardRow({
   asks: BoardAsks;
 }): ReactElement {
   const { card } = row.placed;
-  const cell = (content: ReactNode, className = ''): ReactElement => (
-    <td className={`px-2 py-1.5 align-top ${className}`}>{content}</td>
-  );
   return (
     <tr
       data-card={card.key}
       data-moved={moved ? 'true' : undefined}
       className={`border-b border-border ${moved ? 'bg-[color:var(--accent-soft)]' : ''} motion-safe:transition-colors`}
     >
-      {cell(
-        <Link
-          to={itemPath(projectId, card.key)}
-          className="font-mono text-console-12 text-accent-bright hover:underline"
-        >
-          {card.key}
-        </Link>
-      )}
-      {cell(card.title, 'min-w-48 text-text-primary')}
-      {cell(
-        card.order === null ? null : (
-          <Link
-            to={itemPath(projectId, card.order)}
-            className="font-mono text-console-12 text-accent-bright hover:underline"
-          >
-            {card.order}
-          </Link>
-        )
-      )}
-      {cell(row.column, 'whitespace-nowrap text-text-secondary')}
-      {cell(row.stage, 'whitespace-nowrap text-text-secondary')}
-      {cell(
-        <span className="flex flex-wrap items-center gap-2">
+      <Cell>
+        <ItemLink projectId={projectId} itemKey={card.key} />
+      </Cell>
+      <Cell className="min-w-56 text-text-primary">{card.title}</Cell>
+      <Cell>
+        {card.order === null ? null : <ItemLink projectId={projectId} itemKey={card.order} />}
+      </Cell>
+      <Cell className="text-text-secondary">{row.column}</Cell>
+      <Cell className="max-w-48 text-text-secondary">
+        <StageCell stage={row.stage} run={card.run} />
+      </Cell>
+      <Cell>
+        <span className="flex items-center gap-2">
           <PillBadge pill={card.pill} />
           <RowAnswer card={card} asks={asks} />
         </span>
-      )}
-      {cell(card.round === null ? null : <RoundDots round={card.round} />, 'whitespace-nowrap')}
-      {cell(
-        card.run === null ? null : (
-          <Link
-            to={card.run.href}
-            title={engineIdTitle(card.run.text, card.run.step)}
-            className="hover:underline"
-          >
-            {card.run.text}
-          </Link>
-        )
-      )}
-      {cell(card.returned === null ? null : `×${card.returned.count.toString()}`)}
-      {cell(
-        card.change === null ? null : (
-          <span className="flex flex-col">
-            {card.change.href === null ? (
-              <span className="whitespace-nowrap text-text-secondary">{card.change.label}</span>
-            ) : (
-              <a
-                href={card.change.href}
-                target="_blank"
-                rel="noreferrer"
-                className="whitespace-nowrap text-accent-bright hover:underline"
-              >
-                {card.change.label}
-              </a>
-            )}
-            <MergeState state={card.change.mergeState} />
-          </span>
-        )
-      )}
-      {cell(card.mergedAt, 'whitespace-nowrap text-text-tertiary')}
-      {cell(
-        <RowAsk card={card} asks={asks} />,
-        card.pill === 'failed' ? 'min-w-48 text-error' : 'min-w-48 text-warning'
-      )}
+      </Cell>
+      <Cell className="whitespace-nowrap">
+        {card.round === null ? null : <RoundDots round={card.round} />}
+      </Cell>
+      <Cell>{card.returned === null ? null : `×${card.returned.count.toString()}`}</Cell>
+      <Cell>{card.change === null ? null : <ChangeCell change={card.change} />}</Cell>
+      <Cell className="whitespace-nowrap text-text-tertiary">
+        <MergedWhen full={card.mergedAt} iso={row.placed.item.progress?.change?.mergedAt} />
+      </Cell>
+      <Cell
+        className={`min-w-48 max-w-64 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
+      >
+        <span title={card.stopLine ?? undefined} className="line-clamp-2">
+          <RowAsk card={card} asks={asks} />
+        </span>
+      </Cell>
     </tr>
   );
+}
+
+function ItemLink({ projectId, itemKey }: { projectId: string; itemKey: string }): ReactElement {
+  return (
+    <Link
+      to={itemPath(projectId, itemKey)}
+      className="font-mono text-console-12 text-accent-bright hover:underline"
+    >
+      {itemKey}
+    </Link>
+  );
+}
+
+/**
+ * The stage it sits in, and under it, while a run works it, the running step as the card's
+ * stage line says it ("Checks · Code review · round 2"), linking to the run.
+ */
+function StageCell({ stage, run }: { stage: string | null; run: BoardCard['run'] }): ReactNode {
+  if (run === null) return stage;
+  return (
+    <span className="flex flex-col">
+      {stage}
+      <Link
+        to={run.href}
+        title={engineIdTitle(run.text, run.step)}
+        className={`line-clamp-2 hover:underline ${statusTextClass.running}`}
+      >
+        {run.parts[0] === stage ? run.parts.slice(1).join(' · ') : run.text}
+      </Link>
+    </span>
+  );
+}
+
+function ChangeCell({ change }: { change: NonNullable<BoardCard['change']> }): ReactElement {
+  return (
+    <span className="flex flex-col">
+      {change.href === null ? (
+        <span className="whitespace-nowrap text-text-secondary">{change.label}</span>
+      ) : (
+        <a
+          href={change.href}
+          target="_blank"
+          rel="noreferrer"
+          className="whitespace-nowrap text-accent-bright hover:underline"
+        >
+          {change.label}
+        </a>
+      )}
+      <MergeState state={change.mergeState} />
+    </span>
+  );
+}
+
+/** When it merged, short ("Nov 17, 14:05") in local time; the full time on hover. */
+function MergedWhen({
+  full,
+  iso,
+}: {
+  full: string | null;
+  iso: string | null | undefined;
+}): ReactNode {
+  if (full === null || iso == null) return full;
+  return <span title={full}>{shortDateTime(iso)}</span>;
 }

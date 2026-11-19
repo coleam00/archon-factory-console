@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react';
+import { Link2, Scale } from 'lucide-react';
 import { Link } from 'react-router';
+import { EmptyNote } from '../components/EmptyNote';
 import { formatDateTime } from '../lib/format';
 import type { FactoryItem } from '../skills/factory';
 import { describeAnswer, linkWords } from './lib/item-answers';
@@ -43,7 +45,7 @@ export function ItemLinks({
       <SectionTitle>Links</SectionTitle>
       {order === undefined ? null : <OrderMembers projectId={projectId} order={order} />}
       {named === null ? null : (
-        <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+        <p className="flex flex-wrap items-baseline gap-x-2 text-console-14">
           <span className="text-text-secondary">Part of</span>
           <Link
             to={factoryPath(projectId, `/items/${encodeURIComponent(named)}`)}
@@ -51,17 +53,17 @@ export function ItemLinks({
           >
             {named}
           </Link>
-          <span className="text-console-12 text-text-tertiary">as its order run recorded</span>
+          <span className="text-console-13 text-text-tertiary">as its order run recorded</span>
         </p>
       )}
       {links.length === 0 ? (
         order !== undefined || named !== null ? null : (
-          <p className="text-sm text-text-secondary">No links to other items.</p>
+          <EmptyNote icon={Link2} sentence="No links to other items." />
         )
       ) : (
         <ul className="flex flex-col gap-1">
           {links.map(link => (
-            <li key={link.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <li key={link.id} className="flex flex-wrap items-baseline gap-x-2 text-console-14">
               <span
                 className={
                   link.ended === null ? 'text-text-secondary' : 'text-text-tertiary line-through'
@@ -76,7 +78,7 @@ export function ItemLinks({
                 {link.other.key}
               </Link>
               {link.ended === null ? null : (
-                <span className="text-console-12 text-text-tertiary">ended</span>
+                <span className="text-console-13 text-text-tertiary">ended</span>
               )}
             </li>
           ))}
@@ -98,7 +100,7 @@ export function ItemAnswers({
     <section className="flex flex-col gap-2.5">
       <SectionTitle>Rulings and answers</SectionTitle>
       {answers.length === 0 ? (
-        <p className="text-sm text-text-secondary">Nothing has been ruled or answered yet.</p>
+        <EmptyNote icon={Scale} sentence="Nothing has been ruled or answered yet." />
       ) : (
         <ol className="flex flex-col gap-2">
           {answers.map((entry, index) => {
@@ -106,7 +108,7 @@ export function ItemAnswers({
             return (
               // Answers carry no shared id; their order is the read's and stable.
               <li key={index} className="flex min-w-0 flex-col gap-0.5">
-                <div className="flex flex-wrap items-baseline gap-x-2 text-console-12 text-text-tertiary">
+                <div className="flex flex-wrap items-baseline gap-x-2 text-console-13 text-text-tertiary">
                   <span className="font-medium text-text-secondary">{line.label}</span>
                   <span>{formatDateTime(line.at)}</span>
                   {line.runId === null ? null : (
@@ -116,12 +118,12 @@ export function ItemAnswers({
                   )}
                 </div>
                 <p
-                  className={`break-words text-sm ${line.withdrawn ? 'text-text-tertiary line-through' : 'text-text-primary'}`}
+                  className={`break-words text-console-14 ${line.withdrawn ? 'text-text-tertiary line-through' : 'text-text-primary'}`}
                 >
                   {line.text}
                 </p>
                 {line.details.map(detail => (
-                  <p key={detail} className="break-words text-console-12 text-text-secondary">
+                  <p key={detail} className="break-words text-console-13 text-text-secondary">
                     {detail}
                   </p>
                 ))}

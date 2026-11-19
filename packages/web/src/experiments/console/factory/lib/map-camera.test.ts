@@ -55,25 +55,16 @@ describe('the map camera', () => {
     expect(at(fitWidth + 100).x).toBe(FIT_PAD + 50 - bounds.x);
   });
 
-  test('a map that pans opens with the busiest card in the frame, within its edges', () => {
+  test('a map that pans opens at the start of the row: the first card whole, the flow left to right', () => {
+    const [first] = cards;
+    // The Overview frame at 1440x900 (1100 px) and narrower.
     for (const width of WIDTHS.filter(w => w < fitWidth)) {
-      for (const card of cards) {
-        const camera = fitCamera(bounds, { width, height: 400 }, FIT_PAD, READABLE_K, 1, card.box);
-        const left = card.box.x * camera.k + camera.x;
-        expect(left).toBeGreaterThanOrEqual(0);
-        expect(left + card.box.w * camera.k).toBeLessThanOrEqual(width);
-        // The drawing's edges never leave the padding.
-        expect(bounds.x * camera.k + camera.x).toBeLessThanOrEqual(FIT_PAD);
-        expect((bounds.x + bounds.w) * camera.k + camera.x).toBeGreaterThanOrEqual(width - FIT_PAD);
-      }
+      const camera = fitCamera(bounds, { width, height: 400 });
+      expect(bounds.x * camera.k + camera.x).toBe(FIT_PAD);
+      const left = (first?.box.x ?? 0) * camera.k + camera.x;
+      expect(left).toBeGreaterThanOrEqual(FIT_PAD);
+      if (width >= 390) expect(left + (first?.box.w ?? 0) * camera.k).toBeLessThanOrEqual(width);
     }
-  });
-
-  test('a map that pans opens with the box it is given centred', () => {
-    const width = 390;
-    const box = cards.find(card => card.id === 'checks-review')?.box;
-    const camera = fitCamera(bounds, { width, height: 400 }, FIT_PAD, READABLE_K, 1, box);
-    expect((box?.x ?? 0) + (box?.w ?? 0) / 2 + camera.x).toBe(width / 2);
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {

@@ -44,11 +44,13 @@ afterAll(async () => {
   }
 });
 
-async function mount(): Promise<HTMLElement> {
+async function mount(lines: 2 | 3 = 2): Promise<HTMLElement> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<ClampedSummary text="A long summary of the factory." />));
+  await act(async () =>
+    root.render(<ClampedSummary text="A long summary of the factory." lines={lines} />)
+  );
   unmount = async () => {
     await act(async () => root.unmount());
     container.remove();
@@ -56,30 +58,36 @@ async function mount(): Promise<HTMLElement> {
   return container;
 }
 
-describe('the summary on a phone', () => {
+describe('the clamped summary', () => {
   test('clamped text that overflows gets More, which unclamps it, and Less clamps it again', async () => {
     stubHeights(240, 66);
     const page = await mount();
     const paragraph = page.querySelector('p') as HTMLParagraphElement;
     const toggle = (): HTMLButtonElement => page.querySelector('button') as HTMLButtonElement;
-    expect(paragraph.classList.contains('line-clamp-3')).toBe(true);
+    expect(paragraph.classList.contains('line-clamp-2')).toBe(true);
     expect(toggle().textContent).toBe('More');
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
 
     await act(async () => toggle().click());
-    expect(paragraph.classList.contains('line-clamp-3')).toBe(false);
+    expect(paragraph.classList.contains('line-clamp-2')).toBe(false);
     expect(toggle().textContent).toBe('Less');
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
 
     await act(async () => toggle().click());
-    expect(paragraph.classList.contains('line-clamp-3')).toBe(true);
+    expect(paragraph.classList.contains('line-clamp-2')).toBe(true);
     expect(toggle().textContent).toBe('More');
   });
 
-  test('text that fits in three lines gets no toggle', async () => {
+  test('text that fits in its lines gets no toggle', async () => {
     stubHeights(44, 44);
     const page = await mount();
     expect(page.querySelector('p')?.textContent).toBe('A long summary of the factory.');
     expect(page.querySelector('button')).toBeNull();
+  });
+
+  test('an ask context clamps at three lines', async () => {
+    stubHeights(240, 66);
+    const page = await mount(3);
+    expect(page.querySelector('p')?.classList.contains('line-clamp-3')).toBe(true);
   });
 });

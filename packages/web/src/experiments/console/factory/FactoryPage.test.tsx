@@ -170,7 +170,7 @@ describe('the Overview', () => {
     const badges = [...html.matchAll(/aria-label="(\d+) waiting"/g)].map(match => match[1]);
     expect(badges).toEqual(['2', '2']);
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
-    expect(strip.replace(/<[^>]*>/g, '')).toContain('2need you');
+    expect(strip.replace(/<[^>]*>/g, '')).toContain('need you2');
   });
 
   test('shows the summary only on the Overview; other pages show the title alone', () => {
@@ -192,18 +192,18 @@ describe('the Overview', () => {
     );
     const tiles = [
       ...strip.matchAll(
-        /<a [^>]*href="([^"]*)"[^>]*><span[^>]*>([^<]*)<\/span><span[^>]*>([^<]*)</g
+        /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>([^<]*)</g
       ),
-    ].map(([, href, value, label]) => `${value ?? ''} ${label ?? ''} → ${href ?? ''}`);
+    ].map(([, label, href, value]) => `${value ?? ''} ${label ?? ''} → ${href ?? ''}`);
     const board = `/console/p/${ID}/factory/board`;
     expect(tiles).toEqual([
       `5 in flight → ${board}?show=in-flight`,
       `0 need you → /console/p/${ID}/needs-you`,
       expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
-      `3 of 8 done → ${board}?show=landed`,
-      expect.stringMatching(
-        new RegExp(` median from first run to merged → ${board}\\?show=landed$`)
-      ),
+      `3 of 8 merged → ${board}?show=landed`,
+      expect.stringMatching(new RegExp(` median to merged → ${board}\\?show=landed$`)),
+      // Its own read, not answered in a static render: a skeleton, no figure.
+      ` found by the factory → ${board}#found-by-the-factory`,
     ]);
     // Above the map.
     expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(html.indexOf('aria-label="The map"'));

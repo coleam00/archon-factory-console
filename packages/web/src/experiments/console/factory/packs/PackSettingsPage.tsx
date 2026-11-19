@@ -2,6 +2,8 @@ import type { ReactElement, ReactNode } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import { errorDetail } from '../../lib/http';
 import type { FactoryPackSettings } from '../../skills/factory';
+import { EmptyNote } from '../../components/EmptyNote';
+import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../../components/Skeleton';
 import { FactoryLoading } from '../FactoryLoading';
 import { readFailed } from '../lib/deadline';
 import type { FactoryPackListed } from '../lib/views';
@@ -107,33 +109,30 @@ function SettingsErrors({ settings }: { settings: FactoryPackSettings }): ReactN
 
 function NoSettings(): ReactElement {
   return (
-    <div className="flex flex-col items-start gap-2">
-      <SlidersHorizontal aria-hidden className="size-5 text-text-tertiary" />
-      <p className="text-console-14 text-text-secondary">
-        This pack declares no settings: a project has nothing to set for it.
-      </p>
-    </div>
+    <EmptyNote
+      icon={SlidersHorizontal}
+      sentence="This pack declares no settings: a project has nothing to set for it."
+    />
   );
 }
 
 /** Rule 6: three setting cards' shapes while the settings are read. */
-function SettingsSkeleton({ read }: { read: ReturnType<typeof useFactoryPackSettings> }) {
+function SettingsSkeleton({
+  read,
+}: {
+  read: ReturnType<typeof useFactoryPackSettings>;
+}): ReactElement {
   return (
-    <ul className="flex max-w-5xl flex-col gap-3">
-      {['a', 'b', 'c'].map(key => (
-        <li
-          key={key}
-          aria-hidden
-          className="flex h-40 flex-col gap-2 rounded-console-12 border border-border bg-surface p-4"
-        >
-          <span className="h-3 w-2/5 rounded bg-surface-elevated motion-safe:animate-pulse" />
-          <span className="h-3 w-3/5 rounded bg-surface-elevated motion-safe:animate-pulse" />
-          <span className="h-3 w-2/5 rounded bg-surface-elevated motion-safe:animate-pulse" />
-        </li>
-      ))}
-      <li className="sr-only">
-        <FactoryLoading read={read} label="Reading the pack's settings" />
-      </li>
-    </ul>
+    <FactoryLoading read={read}>
+      <SkeletonGroup label="Reading the pack's settings" className="flex max-w-5xl flex-col gap-3">
+        {['a', 'b', 'c'].map(key => (
+          <SkeletonBlock key={key} height="h-40">
+            <SkeletonInnerLine width="short" />
+            <SkeletonInnerLine />
+            <SkeletonInnerLine width="short" />
+          </SkeletonBlock>
+        ))}
+      </SkeletonGroup>
+    </FactoryLoading>
   );
 }

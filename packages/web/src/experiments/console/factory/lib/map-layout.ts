@@ -26,6 +26,7 @@ import { boardColumns, type ColumnTone } from './board-columns';
 import { feedbackLane, type FeedbackLane, type LaneCard, type SendBack } from './map-feedback-lane';
 import { cardSize, GAP_MIN, LANE, PILL_CLEAR, PILL_GAP, PILL_LINE } from './map-sizes';
 import { pillWidth, PILL_H } from './overview-layout';
+import { isSendBack, type Seat } from './stage-direction';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -93,9 +94,6 @@ export function mapCards(view: Declaration): MapCardDecl[] {
   });
 }
 
-/** Where a stage sits: its card's index, and its row in that card. */
-type Seat = { card: number; row: number };
-
 /** A forward hand-off between two neighbouring cards, by the left card's index. */
 interface Forward {
   id: string;
@@ -119,12 +117,11 @@ function sortArrows(
     const b = seats.get(arrow.to);
     if (a === undefined || b === undefined) return;
     const id = `decl:${index.toString()}`;
-    const sameCard = a.card === b.card;
-    if (b.card < a.card || (sameCard && b.row <= a.row)) {
+    if (isSendBack(a, b)) {
       sendBacks.push({ id, from: cards[a.card]?.id ?? '', to: arrow.to, label: arrow.label });
       return;
     }
-    if (sameCard) return;
+    if (a.card === b.card) return;
     const parts = forwardParts(arrow.label, b.card > a.card + 1 ? cards[b.card]?.label : undefined);
     const into = forward.get(a.card) ?? { id, left: a.card, parts: [] };
     for (const part of parts) if (!into.parts.includes(part)) into.parts.push(part);
@@ -212,25 +209,4 @@ export function layoutMap(view: Declaration): MapLayout {
       ...(feedback.extent === undefined ? [] : [feedback.extent]),
     ]),
   };
-}
-
-/**
- * The card a map opens on where it does not fit: the one holding the stage with the most
- * items in flight, the leftmost on a tie. Items on `skip` (the merged stage, which keeps
- * every change ever merged) do not count, or the map would open on Merged every time.
- * Undefined when nothing is in flight.
- */
-export function busiestCard(
-  cards: readonly PlacedCard[],
-  count: (stage: string) => number,
-  skip: string
-): PlacedCard | undefined {
-  let best: PlacedCard | undefined;
-  let most = 0;
-  for (const card of cards)
-    for (const stage of card.stages) {
-      const n = stage === skip ? 0 : count(stage);
-      if (n > most) [best, most] = [card, n];
-    }
-  return best;
 }

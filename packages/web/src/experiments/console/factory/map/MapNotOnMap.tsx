@@ -30,7 +30,7 @@ export function MapNotOnMap({
           <li key={entry.item.item.id} className="text-console-12 text-text-secondary">
             <Link
               to={factoryPath(projectId, `/items/${encodeURIComponent(entry.item.item.key)}`)}
-              className="font-mono text-console-11 text-text-primary underline"
+              className="font-mono text-console-12 text-text-primary hover:underline"
             >
               {entry.item.item.key}
             </Link>{' '}
@@ -50,7 +50,7 @@ function Why({
   why: NotOnMap['why'];
 }): ReactElement {
   const mono = (text: string): ReactElement => (
-    <span className="font-mono text-console-11">{text}</span>
+    <span className="font-mono text-console-12">{text}</span>
   );
   if (why.kind === 'no-card') {
     const label = view.stages.find(stage => stage.id === why.stage)?.label ?? why.stage;

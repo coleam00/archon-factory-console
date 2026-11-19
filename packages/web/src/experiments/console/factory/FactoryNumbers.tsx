@@ -1,4 +1,13 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  Activity,
+  CircleCheck,
+  GitMerge,
+  type LucideIcon,
+  MessageCircleQuestionMark,
+  Search,
+  Timer,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { errorDetail } from '../lib/http';
 import { needsYouPath } from '../lib/needs-you';
@@ -9,7 +18,8 @@ import { durationWords } from './lib/duration';
 import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
-import { readFailed, SlowReadError } from './lib/deadline';
+import { readFailed } from './lib/deadline';
+import { SkeletonFigure } from '../components/Skeleton';
 import { StaleRead } from './StaleRead';
 import { FOUND_BY_THE_FACTORY, openFindings } from './lib/discoveries';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
@@ -36,13 +46,13 @@ const WAIT_TITLE: Record<TileWait, string> = {
   merge: 'Checking which changes merged',
 };
 
-/** A tile that waits says it is loading, never a wrong count. */
+/** A tile that waits shows a skeleton bar (rule 6), never a wrong count and never "…". */
 type TileValue = { wait: TileWait } | { wait: null; value: string };
 
-type Tile = TileValue & { to: string; label: string };
+type Tile = TileValue & { to: string; label: string; icon: LucideIcon; title?: string };
 
 /**
- * The five tiles, each saying "…" while `numbers` is not read (undefined). `waiting` is the
+ * The five tiles, each a skeleton while `numbers` is not read (undefined). `waiting` is the
  * project's asks and waits (`needsYouCount`, undefined until the queue loads): the count the
  * Needs you tab, its heading and the sub-navigation show, so the tile links there.
  */
@@ -54,28 +64,42 @@ function tiles(
   const board = (show: BoardShow): string => factoryPath(projectId, `/board?show=${show}`);
   const read = (value: (n: Numbers) => string): TileValue =>
     numbers === undefined ? { wait: 'items' } : { wait: null, value: value(numbers) };
-  // Every number but "needs you" depends on which items landed (placement rule 2).
+  // Every number but "needs you" depends on which items merged (placement rule 2).
   const merged = (value: (n: Numbers) => string): TileValue =>
     numbers?.pending === true ? { wait: 'merge' } : read(value);
   return [
-    { to: board('in-flight'), ...merged(n => n.inFlight.toString()), label: 'in flight' },
+    {
+      to: board('in-flight'),
+      ...merged(n => n.inFlight.toString()),
+      label: 'in flight',
+      icon: Activity,
+    },
     {
       to: needsYouPath(projectId),
       ...(waiting === undefined
         ? { wait: 'items' as const }
         : { wait: null, value: waiting.toString() }),
       label: waiting === 1 ? 'needs you' : 'need you',
+      icon: MessageCircleQuestionMark,
     },
-    { to: board('landed-today'), ...merged(n => n.landedToday.toString()), label: 'merged today' },
+    {
+      to: board('landed-today'),
+      ...merged(n => n.landedToday.toString()),
+      label: 'merged today',
+      icon: GitMerge,
+    },
     {
       to: board('landed'),
       ...merged(n => `${n.landed.toString()} of ${n.total.toString()}`),
-      label: 'done',
+      label: 'merged',
+      icon: CircleCheck,
     },
     {
       to: board('landed'),
       ...merged(n => (n.medianToLandMs === null ? 'none yet' : durationWords(n.medianToLandMs))),
-      label: 'median from first run to merged',
+      label: 'median to merged',
+      title: "The median time from an item's first run to its change merging",
+      icon: Timer,
     },
   ];
 }
@@ -106,52 +130,81 @@ export function FactoryNumbers({
   const failed = readFailed(items.error);
   if (numbers === undefined && failed !== undefined)
     return (
-      <p role="alert" className="text-sm text-error">
+      <p role="alert" className="text-console-14 text-error">
         The numbers could not be loaded: {errorDetail(failed)}
       </p>
     );
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       {numbers === undefined ? null : <StaleRead error={items.error} />}
+      {/* Before the first answer the tiles show skeletons; a read past its deadline says so. */}
+      {numbers === undefined ? <FactoryLoading read={items} /> : null}
       <ul
         aria-label="Numbers"
-        className={`grid grid-cols-2 gap-2 ${
+        className={`grid grid-cols-2 gap-3 ${
           view.discoveries === undefined ? 'sm:grid-cols-5' : 'sm:grid-cols-3 lg:grid-cols-6'
         }`}
       >
         {tiles(projectId, numbers, waiting).map(tile => (
-          <NumberTile key={tile.label} tile={tile} />
+          <NumberTile
+            key={tile.label}
+            to={tile.to}
+            label={tile.label}
+            icon={tile.icon}
+            title={tile.title}
+          >
+            {tile.wait === null ? tile.value : <FigureSkeleton title={WAIT_TITLE[tile.wait]} />}
+          </NumberTile>
         ))}
         {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
       </ul>
-      {/* Before the first answer the tiles say "…"; a read past its deadline says so too. */}
-      {numbers === undefined && items.error instanceof SlowReadError ? (
-        <FactoryLoading read={items} />
-      ) : null}
     </div>
   );
 }
 
-function NumberTile({ tile }: { tile: Tile }): ReactElement {
+/**
+ * One number tile, in the card language (Visual standard, rules 1 and 2): an icon and the
+ * label in the Label role, then the figure at the tile figure's size.
+ */
+function NumberTile({
+  to,
+  label,
+  icon: Icon,
+  title,
+  children,
+}: {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  title?: string;
+  children: ReactNode;
+}): ReactElement {
   return (
-    <li>
+    <li data-tile={label}>
       <Link
-        to={tile.to}
-        className="flex h-full flex-col gap-0.5 rounded-console-12 border border-border bg-surface px-3 py-2 transition-colors hover:border-border-bright"
+        to={to}
+        title={title}
+        className="flex h-full flex-col gap-2 rounded-console-12 border border-border bg-surface p-3 transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated"
       >
-        <span className="text-lg font-medium tabular-nums text-text-primary">
-          {tile.wait === null ? (
-            tile.value
-          ) : (
-            <span title={WAIT_TITLE[tile.wait]}>
-              <span aria-hidden="true">…</span>
-              <span className="sr-only">Loading</span>
-            </span>
-          )}
+        <span className="flex items-start gap-1.5 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
+          <Icon aria-hidden="true" className="size-4 shrink-0" />
+          {label}
         </span>
-        <span className="text-console-12 text-text-secondary">{tile.label}</span>
+        <span className="flex h-7 items-center text-console-22 font-semibold tabular-nums text-text-primary">
+          {children}
+        </span>
       </Link>
     </li>
+  );
+}
+
+/** A figure not known yet, with why for a screen reader and on hover. */
+function FigureSkeleton({ title }: { title: string }): ReactElement {
+  return (
+    <span title={title} className="inline-flex items-center">
+      <SkeletonFigure />
+      <span className="sr-only">{title}</span>
+    </span>
   );
 }
 
@@ -164,28 +217,18 @@ function FoundTile({ projectId }: { projectId: string }): ReactElement {
   const read = useFactoryDiscoveries(projectId);
   const failed = read.data === undefined && readFailed(read.error) !== undefined;
   return (
-    <li>
-      <Link
-        to={factoryPath(projectId, `/board#${FOUND_BY_THE_FACTORY}`)}
-        className="flex h-full flex-col gap-0.5 rounded-console-12 border border-border bg-surface px-3 py-2 transition-colors hover:border-border-bright"
-      >
-        <span className="text-console-22 font-semibold tabular-nums text-text-primary">
-          {read.data !== undefined ? (
-            openFindings(read.data).length
-          ) : failed ? (
-            <span title="Could not be read">–</span>
-          ) : (
-            <span className="inline-flex h-7 items-center">
-              <span
-                aria-hidden
-                className="h-5.5 w-12 rounded bg-surface-elevated motion-safe:animate-pulse"
-              />
-              <span className="sr-only">Loading</span>
-            </span>
-          )}
-        </span>
-        <span className="text-console-12 text-text-secondary">found by the factory</span>
-      </Link>
-    </li>
+    <NumberTile
+      to={factoryPath(projectId, `/board#${FOUND_BY_THE_FACTORY}`)}
+      label="found by the factory"
+      icon={Search}
+    >
+      {read.data !== undefined ? (
+        openFindings(read.data).length
+      ) : failed ? (
+        <span title="Could not be read">–</span>
+      ) : (
+        <FigureSkeleton title="Loading" />
+      )}
+    </NumberTile>
   );
 }

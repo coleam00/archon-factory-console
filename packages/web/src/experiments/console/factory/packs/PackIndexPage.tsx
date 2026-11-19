@@ -10,6 +10,7 @@ import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
 import { factoryPackPath, factoryPath, type FactoryPackListed } from '../lib/views';
 import { PackFrame, PacksFailed } from './PackFrame';
+import { PackSkeleton } from './PackSkeleton';
 
 /**
  * `/console/factory`: one card per installed pack with a factory overview file. With one
@@ -29,7 +30,9 @@ export function PackIndexPage(): ReactElement {
       {failed !== undefined ? (
         <PacksFailed message={errorDetail(failed)} />
       ) : listing === undefined ? (
-        <FactoryLoading read={read} />
+        <FactoryLoading read={read}>
+          <PackSkeleton />
+        </FactoryLoading>
       ) : (
         <PackList listing={listing} />
       )}
@@ -89,7 +92,8 @@ function UnreadProjects({ projects }: { projects: FactoryPacksRead['unreadProjec
 }
 
 /**
- * One pack: its title, summary and the projects that run it; the title opens its page. The
+ * One pack: its name, its overview's caption and the projects that run it; the name opens its
+ * page. The
  * Visual standard's card, without the top accent bar: that bar is a stage group's colour, and
  * a pack has none.
  */
@@ -99,13 +103,11 @@ function PackCard({ pack }: { pack: FactoryPackListed }): ReactElement {
     <article className="flex h-full flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-3 transition-colors hover:border-border-bright hover:bg-surface-elevated">
       <p className="flex min-w-0 items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         <Factory aria-hidden className="h-4 w-4 shrink-0" />
-        <span className="truncate">
-          Pack · <span className="font-mono normal-case">{pack.pack}</span>
-        </span>
+        <span className="truncate">Pack</span>
       </p>
       <h2 className="line-clamp-2 text-console-15 font-semibold text-text-primary">
         <Link to={factoryPackPath(pack.key)} className="hover:underline">
-          {pack.overview?.declaration.title ?? pack.key}
+          {pack.pack}
         </Link>
       </h2>
       {pack.overview === null ? (

@@ -266,8 +266,10 @@ export interface FactoryRouteDeps {
   changeMergeState: ChangeMergeLookup;
   /** Workflow discovery for a project, as runs see it. */
   discoverWorkflows: (cwd: string) => Promise<WorkflowLoadResult>;
-  /** How long one read waits on a lookup no request has made yet; tests shorten it. */
+  /** How long one read waits on a lookup another read already started; tests shorten it. */
   changeStateWaitMs?: number;
+  /** How long the read that starts a lookup waits on it; tests shorten it. */
+  changeStateFirstWaitMs?: number;
   now?: () => number;
 }
 
@@ -278,6 +280,12 @@ const CHANGE_STATE_TTL_MS = 60_000;
  * the lookup finishes into the cache for the next one.
  */
 const CHANGE_STATE_WAIT_MS = 4_000;
+/**
+ * The read that starts a lookup waits only this long: on a cold server every change starts
+ * one, and the console's first paint must not wait on the slowest. A quick host still
+ * answers in time; the console reads again on `pending` and joins the running lookups.
+ */
+const CHANGE_STATE_FIRST_WAIT_MS = 300;
 
 type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
 /** What a read answers: the host's answer, or `pending` while its lookup still runs. */
@@ -293,18 +301,24 @@ export type ProjectChangeState = (
  * The change host's answer for each change, shared by every request: one lookup in flight
  * per change, a merged answer kept, any other for `CHANGE_STATE_TTL_MS`. A change is keyed
  * by its URL, or, for a run that named no URL, by that run, so two such items never share
- * an answer. A stale answer is served while its refresh runs. A cold lookup slower than the
- * wait answers `pending` for that request only and is never cached, so the next read gets
- * the host's answer once it settles; a lookup that failed answers `unknown` and is cached
+ * an answer. A stale answer is served while its refresh runs. The read that starts a cold
+ * lookup waits `CHANGE_STATE_FIRST_WAIT_MS` for it, so a cold server answers at once; a read
+ * that finds the lookup already running waits up to `CHANGE_STATE_WAIT_MS`, so the console's
+ * re-read returns as soon as it settles. Either wait running out answers `pending` for that
+ * request only, never cached; a lookup that failed answers `unknown` and is cached
  * like any other. The URL is the run's, else the forge's; the pull request number is the
  * forge's, else the one the run's own audit rows name, so a `pending` answer still carries
  * it when they do.
  */
 export function changeStateCache(
-  deps: Pick<FactoryRouteDeps, 'changeMergeState' | 'changeStateWaitMs' | 'now'>
+  deps: Pick<
+    FactoryRouteDeps,
+    'changeMergeState' | 'changeStateWaitMs' | 'changeStateFirstWaitMs' | 'now'
+  >
 ): ProjectChangeState {
   const now = deps.now ?? Date.now;
   const waitMs = deps.changeStateWaitMs ?? CHANGE_STATE_WAIT_MS;
+  const firstWaitMs = deps.changeStateFirstWaitMs ?? CHANGE_STATE_FIRST_WAIT_MS;
   const answers = new Map<string, { answer: ChangeAnswer; at: number }>();
   const pending = new Map<string, Promise<ChangeAnswer>>();
   const keyOf = (change: FactoryChangeLookup): string =>
@@ -360,12 +374,13 @@ export function changeStateCache(
         void lookup(change, branches, remote);
       return shown(known.answer, change);
     }
+    const wait = pending.has(keyOf(change)) ? waitMs : firstWaitMs;
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Only `lookup` writes `answers`, so this answer never outlives the request.
     const waited = new Promise<ShownAnswer>(resolve => {
       timer = setTimeout(() => {
         resolve({ url: null, merged: 'pending', mergedAt: null, number: null });
-      }, waitMs);
+      }, wait);
     });
     const answer: ShownAnswer = await Promise.race([lookup(change, branches, remote), waited]);
     clearTimeout(timer);

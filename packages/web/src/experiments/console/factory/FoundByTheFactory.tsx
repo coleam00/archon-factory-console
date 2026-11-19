@@ -7,7 +7,8 @@ import {
   type RefObject,
 } from 'react';
 import { Link, useLocation } from 'react-router';
-import { Inbox } from 'lucide-react';
+import { EmptyNote } from '../components/EmptyNote';
+import { SkeletonFigure, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { formatDateTime } from '../lib/format';
 import { errorDetail } from '../lib/http';
 import type { FactoryDiscoveries } from '../skills/factory';
@@ -216,19 +217,12 @@ function Heading({ shadow }: { shadow: boolean }): ReactElement {
 
 function FoundSkeleton({ read }: { read: ReturnType<typeof useFactoryDiscoveries> }): ReactElement {
   return (
-    <div className="flex flex-col gap-2">
-      <span
-        aria-hidden
-        className="h-5.5 w-12 rounded bg-surface-elevated motion-safe:animate-pulse"
-      />
-      <span
-        aria-hidden
-        className="h-3 w-2/5 rounded bg-surface-elevated motion-safe:animate-pulse"
-      />
-      <span className="sr-only">
-        <FactoryLoading read={read} label="Reading what the factory found" />
-      </span>
-    </div>
+    <FactoryLoading read={read}>
+      <SkeletonGroup label="Reading what the factory found" className="flex flex-col gap-2">
+        <SkeletonFigure />
+        <SkeletonLine width="short" />
+      </SkeletonGroup>
+    </FactoryLoading>
   );
 }
 
@@ -320,12 +314,14 @@ function MetaLines({ covered, unreadable }: { covered: number; unreadable: numbe
 
 function NothingFound({ shadow }: { shadow: boolean }): ReactElement {
   return (
-    <p className="flex items-center gap-2 text-console-14 text-text-secondary">
-      <Inbox aria-hidden className="size-5 text-text-tertiary" />
-      {shadow
-        ? 'Nothing the factory would file now. What agents notice after a delivery shows here.'
-        : 'Nothing filed that is not on the board. What agents notice after a delivery shows here.'}
-    </p>
+    <EmptyNote
+      className="flex items-center gap-2"
+      sentence={
+        shadow
+          ? 'Nothing the factory would file now. What agents notice after a delivery shows here.'
+          : 'Nothing filed that is not on the board. What agents notice after a delivery shows here.'
+      }
+    />
   );
 }
 

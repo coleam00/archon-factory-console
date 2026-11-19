@@ -35,7 +35,9 @@ export function SettingCard({
         <span className="font-mono text-console-13 text-text-tertiary">{setting.name}</span>
         {setting.shadow ? <ShadowBadge /> : null}
       </div>
-      {setting.description === null ? null : <ClampedSummary text={setting.description} always />}
+      {setting.description === null ? null : (
+        <ClampedSummary text={setting.description} lines={3} />
+      )}
       <div className="flex flex-wrap items-baseline gap-x-2">
         <span className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
           Default

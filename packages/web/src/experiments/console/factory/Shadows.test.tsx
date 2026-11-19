@@ -84,7 +84,7 @@ describe("the item's timeline", () => {
     if (deliver === undefined) throw new Error('item 1 has a deliver run');
     deliver.shadows = [{ ...failedChecks, runId: deliver.runId }];
     const rows = buildTimeline(shippedView, PROJECT, detail, Date.parse(at));
-    const page = await render(<ItemTimeline rows={rows} />);
+    const page = await render(<ItemTimeline rows={rows} merged={null} />);
     const runs = [...page.querySelectorAll('ol > li')].filter(li => li.querySelector('a') !== null);
     expect(runs[2]?.querySelector('[data-shadow]')).not.toBeNull();
     expect(runs[0]?.querySelector('[data-shadow]')).toBeNull();

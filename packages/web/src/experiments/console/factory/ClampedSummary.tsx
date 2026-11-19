@@ -1,19 +1,16 @@
 import { useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 
+/** Tailwind sees whole class names only, so each clamp is written out. */
+const CLAMP = { 2: 'line-clamp-2', 3: 'line-clamp-3' } as const;
+
 /**
- * A paragraph clamped to three lines with a More toggle: the factory's summary, clamped below
- * `md` so the numbers and Needs you start in a phone's first screen (never clamped at `md` and
- * up), and an ask's context, clamped at every width (`always`). The toggle shows only when it
- * does something: while expanded, or when the clamped text overflows, measured on mount and
- * on every resize.
+ * A paragraph clamped to `lines` lines at every width, with a More toggle: the factory's
+ * summary at two lines, so the numbers sit high in the Overview's first screen, and an ask's
+ * context or a setting's description at three (Visual standard, rule 9). Line breaks in the
+ * text are kept. The toggle shows only when it does something: while expanded, or when the
+ * clamped text overflows, measured on mount and on every resize.
  */
-export function ClampedSummary({
-  text,
-  always = false,
-}: {
-  text: string;
-  always?: boolean;
-}): ReactElement {
+export function ClampedSummary({ text, lines }: { text: string; lines: 2 | 3 }): ReactElement {
   const ref = useRef<HTMLParagraphElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
@@ -28,12 +25,12 @@ export function ClampedSummary({
     return () => observer.disconnect();
   }, []);
   return (
-    <div className="flex max-w-3xl flex-col items-start gap-0.5">
+    <div className="flex max-w-3xl flex-col items-start gap-1">
       <p
         ref={ref}
-        className={`text-sm leading-relaxed text-text-secondary ${
-          always ? 'whitespace-pre-line' : ''
-        } ${expanded ? '' : always ? 'line-clamp-3' : 'line-clamp-3 md:line-clamp-none'}`}
+        className={`whitespace-pre-line text-console-14 leading-relaxed text-text-secondary ${
+          expanded ? '' : CLAMP[lines]
+        }`}
       >
         {text}
       </p>
@@ -42,7 +39,7 @@ export function ClampedSummary({
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded(!expanded)}
-          className={`rounded text-console-12 font-medium text-text-tertiary hover:text-text-primary ${always ? '' : 'md:hidden'}`}
+          className="rounded text-console-13 font-medium text-text-tertiary transition-colors duration-150 ease-out hover:text-text-primary"
         >
           {expanded ? 'Less' : 'More'}
         </button>

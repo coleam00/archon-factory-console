@@ -783,9 +783,35 @@ describe('the merge-state cache', () => {
     expect(lookups).toBe(1);
   });
 
+  test('the read that starts a slow lookup answers pending at once; a joining read gets the answer', async () => {
+    let finish: (value: ChangeMergeState) => void = () => {};
+    const state = changeStateCache({
+      changeStateFirstWaitMs: 10,
+      changeStateWaitMs: 60_000,
+      changeMergeState: () =>
+        new Promise(resolve => {
+          finish = resolve;
+        }),
+    });
+    const started = Date.now();
+    expect((await state(change, noBranches, null)).merged).toBe('pending');
+    // The cold read never waits the joining read's wait.
+    expect(Date.now() - started).toBeLessThan(1_000);
+    // A read while the lookup runs joins it and answers the moment it settles.
+    const joined = state(change, noBranches, null);
+    finish({ url: CHANGE, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
+    expect(await joined).toEqual({
+      url: CHANGE,
+      merged: true,
+      mergedAt: '2026-11-17T01:00:00Z',
+      number: 7,
+    });
+  });
+
   test('a slow first lookup answers pending within the wait, uncached, then fills the cache', async () => {
     let finish: (value: ChangeMergeState) => void = () => {};
     const state = changeStateCache({
+      changeStateFirstWaitMs: 10,
       changeStateWaitMs: 10,
       changeMergeState: () =>
         new Promise(resolve => {
@@ -874,7 +900,7 @@ describe('the merge-state cache', () => {
 
   test('a slow branch lookup answers pending with no URL yet', async () => {
     const state = changeStateCache({
-      changeStateWaitMs: 10,
+      changeStateFirstWaitMs: 10,
       changeMergeState: () => new Promise(() => {}),
     });
     expect(await state({ kind: 'branch', run: 'run-1' }, noBranches, null)).toEqual({

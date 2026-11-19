@@ -331,11 +331,11 @@
             ]
           },
           {
-            "label": "Land",
+            "label": "Merge",
             "cards": [
               {
-                "title": "Land",
-                "text": "You start the landing, and it merges the change",
+                "title": "Merge",
+                "text": "A person merges the change",
                 "icon": "git-merge",
                 "kind": "you",
                 "covers": [{ "workflow": "land", "steps": ["land"] }]
@@ -386,7 +386,7 @@
     "order:refused": "Refused at intake",
     "triage:*": "Closed by triage",
     "plan:stop": "Stopped at planning",
-    "land:stop": "Stopped at landing"
+    "land:stop": "Stopped before merging"
   },
   "landed": { "stage": "landed" },
   "rounds": { "workflow": "deliver", "loop": "rounds" },

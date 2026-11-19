@@ -42,7 +42,7 @@ export function DrilldownCard({
   return (
     <article
       data-live={live ? 'true' : undefined}
-      className="relative flex flex-col overflow-hidden rounded-console-16 border-2 bg-surface"
+      className="relative flex flex-col overflow-hidden rounded-console-12 border bg-surface transition-colors duration-150 ease-out hover:border-border-bright"
       // Border colours go inline: the console root's `* { border-color }` outranks a utility.
       // A selected card keeps its accent border; the glow still tints and rings it.
       style={{
@@ -52,24 +52,26 @@ export function DrilldownCard({
     >
       <span
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-1.5"
+        className="absolute inset-x-0 top-0 h-0.75"
         style={{ background: shadow === null ? kind.color : 'var(--node-opaque)' }}
       />
       <button
         type="button"
         aria-expanded={selected}
         onClick={onSelect}
-        className="flex cursor-pointer flex-col gap-1.5 px-4 pb-4 pt-5 text-left transition-colors hover:bg-surface-elevated"
+        className="flex cursor-pointer flex-col gap-2 p-4 text-left transition-colors duration-150 ease-out hover:bg-surface-elevated"
       >
-        <span className="flex items-center gap-2 text-console-12 font-medium uppercase tracking-wider text-text-tertiary">
-          <Icon aria-hidden="true" className="size-5 shrink-0" style={{ color: kind.color }} />
+        <span className="flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
+          <Icon aria-hidden="true" className="size-4 shrink-0" style={{ color: kind.color }} />
           {kind.label}
           {shadow === null ? null : <ShadowBadge className="ml-auto normal-case tracking-normal" />}
         </span>
-        <span className="text-console-17 font-semibold leading-tight text-text-primary">
+        <span className="line-clamp-2 text-console-15 font-semibold leading-snug text-text-primary">
           {card.title}
         </span>
-        <span className="text-console-15 leading-snug text-text-secondary">{card.text}</span>
+        <span title={card.text} className="line-clamp-2 text-console-13 text-text-secondary">
+          {card.text}
+        </span>
         {shadow?.lately.map(line => (
           <span key={line} className="text-console-13 text-text-tertiary">
             {line}
