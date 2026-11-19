@@ -320,6 +320,20 @@ describe('the Pipeline view', () => {
     }
   });
 
+  test('a key no work order has lights nothing and is not named', async () => {
+    const { container, unmount } = await mount(
+      withOrders(),
+      `/console/p/${ID}/factory/board?order=nope`,
+      { '48': ['9'] }
+    );
+    try {
+      expect(summary(container)?.parentElement?.textContent).not.toContain('highlighting');
+      expect(container.querySelectorAll('article[data-dimmed="true"]')).toHaveLength(0);
+    } finally {
+      await unmount();
+    }
+  });
+
   test('no work order with a member on the board, no summary line', async () => {
     // 9 is linked to 48 and has no run yet: 48 has its page, nothing on the board to light.
     const { container, unmount } = await mount(PAGE.items, undefined, { '48': ['9'] });

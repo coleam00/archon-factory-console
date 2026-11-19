@@ -40,6 +40,9 @@ export function WorkOrdersStrip({
   if (shown.length === 0) return null;
   const pending = shown.filter(order => order.landed < order.members.length).length;
   const count = `${shown.length.toString()} work order${shown.length === 1 ? '' : 's'}`;
+  // Named only when `?order=` lights cards (`highlightedKeys` finds the order), so an old or
+  // mistyped key never claims a highlight the board does not show.
+  const lighting = orders.some(order => order.key === lit) ? lit : null;
   return (
     <>
       <span className="flex min-w-0 items-center gap-2 text-console-12">
@@ -58,9 +61,9 @@ export function WorkOrdersStrip({
             className={`h-3.5 w-3.5 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
           />
         </button>
-        {lit === null ? null : (
+        {lighting === null ? null : (
           <>
-            <span className="min-w-0 truncate text-text-primary">highlighting {lit}</span>
+            <span className="min-w-0 truncate text-text-primary">highlighting {lighting}</span>
             <button
               type="button"
               onClick={() => {

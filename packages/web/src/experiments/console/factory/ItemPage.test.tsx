@@ -184,7 +184,7 @@ describe('the item page', () => {
     const read = { ...detail, item: { ...detail.item, questions: [child] } };
     const html = render(read, { items: [mine, child, other], runs: [], degraded: [] });
     const words = text(html);
-    // The header pill, not the sub-navigation entry that prints the same words on every page.
+    // The header pill, not the project's Needs you tab that prints the same words on every page.
     expect(html).toContain(pill('needs-you', 'Needs you'));
     expect(words).toContain('Which base should the change target?');
     expect(words).toContain('From the child run?');
