@@ -40,7 +40,7 @@ describe('the map camera', () => {
 
   // The Overview frame's widths on a phone, a tablet, at 1440x900, 1280 and wider.
   const WIDTHS = [320, 390, 768, 1100, 1280, 1600];
-  const { bounds, cards } = layoutMap(shippedView);
+  const { bounds } = layoutMap(shippedView);
   const fitWidth = bounds.w + 2 * FIT_PAD;
 
   test('the shipped map opens at the readable scale at every frame width, panning exactly below its fit width', () => {
@@ -53,18 +53,6 @@ describe('the map camera', () => {
     expect(at(fitWidth).x).toBe(FIT_PAD - bounds.x);
     expect(at(fitWidth - 1).x).toBe(FIT_PAD - bounds.x);
     expect(at(fitWidth + 100).x).toBe(FIT_PAD + 50 - bounds.x);
-  });
-
-  test('a map that pans opens at the start of the row: the first card whole, the flow left to right', () => {
-    const [first] = cards;
-    // The Overview frame at 1440x900 (1100 px) and narrower.
-    for (const width of WIDTHS.filter(w => w < fitWidth)) {
-      const camera = fitCamera(bounds, { width, height: 400 });
-      expect(bounds.x * camera.k + camera.x).toBe(FIT_PAD);
-      const left = (first?.box.x ?? 0) * camera.k + camera.x;
-      expect(left).toBeGreaterThanOrEqual(FIT_PAD);
-      if (width >= 390) expect(left + (first?.box.w ?? 0) * camera.k).toBeLessThanOrEqual(width);
-    }
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {

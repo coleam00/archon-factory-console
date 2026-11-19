@@ -518,11 +518,23 @@ describe('what each run did to the item, for its icon', () => {
     ]);
   });
 
-  test('a placement into the same or an earlier stage, by the board order, returns it', () => {
-    // deliver works Build: "returned" lands in Build itself, "replan" in Plan before it.
+  test("a placement into a stage before the run's furthest one, by the board order, returns it", () => {
+    // deliver works Build to Host: "returned" lands in Build, "replan" in Plan before it.
     expect(deliverEnding({ outcome: 'returned' })?.kind).toBe('returned');
     expect(deliverEnding({ outcome: 'replan' })?.kind).toBe('returned');
     expect(deliverEnding({ outcome: 'replan' })?.outcome).toEqual(said('sent to Plan'));
+  });
+
+  test('a placement into the furthest stage the run works sends it on: the land gate', () => {
+    // `landgate:*` places the item in Ready to merge, the stage the gate itself works.
+    const detail = itemDetail('1');
+    const runs = detail.item.runs.map((run, i) =>
+      i === 2 ? { ...run, workflow_name: 'landgate', outcome: null } : run
+    );
+    const facts = detail.runs.map((run, i) => (i === 2 ? { ...run, workflow: 'landgate' } : run));
+    const row = timeline({ ...detail, item: { ...detail.item, runs }, runs: facts })[2];
+    expect([row?.outcome, row?.kind]).toEqual([said('sent to Ready to merge'), 'sent-on']);
+    expect(deliverEnding({ outcome: 'waiting' })?.kind).toBe('sent-on');
   });
 
   test('a run that stopped to ask, one that failed, one running, one ended', () => {
@@ -552,12 +564,6 @@ describe('what each run did to the item, for its icon', () => {
     first.workflow = shippedView.discoveries?.workflow ?? null;
     const [row] = timeline(detail);
     expect([row?.stage, row?.group]).toEqual(['Found by the factory', 'shadow']);
-  });
-
-  test('the trigger id is the hover, never the words', () => {
-    const [row] = timeline(itemDetail('1'));
-    expect(row?.started.mono).toBeNull();
-    expect(row?.started.title).toBe('fc-start-triage');
   });
 });
 

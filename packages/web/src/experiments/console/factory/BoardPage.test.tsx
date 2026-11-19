@@ -17,7 +17,6 @@ import {
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
 import { formatDateTime } from '../lib/format';
-import { shortDateTime } from './lib/board-table';
 import { boardColumns } from './lib/board-columns';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
@@ -376,7 +375,14 @@ describe('the Table view', () => {
       const cell = [...container.querySelectorAll('tbody tr')]
         .find(row => row.querySelector('td')?.textContent === '7')
         ?.querySelectorAll('td')[column];
-      expect(cell?.textContent).toBe(shortDateTime(at));
+      // Short on its own terms, not by the function the cell renders: no year, no seconds,
+      // and shorter than the full time. The Table fits 1440x900 only while this holds.
+      const text = cell?.textContent ?? '';
+      const year = new Date(at).getFullYear().toString();
+      expect(text).not.toContain(year);
+      expect(text).toMatch(/ \d{2}:\d{2}$/);
+      expect(text.length).toBeLessThan(formatDateTime(at).length);
+      expect(text.length).toBeLessThanOrEqual(14);
       expect(cell?.querySelector('[title]')?.getAttribute('title')).toBe(formatDateTime(at));
     } finally {
       await unmount();

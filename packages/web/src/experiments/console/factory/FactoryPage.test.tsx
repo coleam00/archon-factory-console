@@ -175,7 +175,12 @@ describe('the Overview', () => {
 
   test('shows the summary only on the Overview; other pages show the title alone', () => {
     const summary = 'Issues come in; changes go out.';
-    expect(render(`/console/p/${ID}/factory`, withView)).toContain(summary);
+    const overview = render(`/console/p/${ID}/factory`, withView);
+    // A two-line lead, so the numbers start in the first screen.
+    const paragraph = overview
+      .match(/<p[^>]*class="([^"]*)"[^>]*>([^<]*)<\/p>/g)
+      ?.find(p => p.includes(summary));
+    expect(paragraph).toContain('line-clamp-2');
     for (const path of ['/board', '/stages/checks', '/steps/deliver/rounds.fix']) {
       const html = render(`/console/p/${ID}/factory${path}`, withView);
       expect(html).toContain('Kit factory');

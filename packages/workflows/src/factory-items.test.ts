@@ -984,7 +984,7 @@ describe('reading progress, and one item whole', () => {
     expect(Object.hasOwn(detail?.runs[0] ?? {}, 'cause')).toBe(false);
   });
 
-  test('a discoveries run, which no stage lists, gets facts: its shadow decision on its row', async () => {
+  test("a discoveries run, which no stage lists, gets facts and the view's name: its shadow decision on its row", async () => {
     const drain = drainFixture();
     const source = pageSource({ queue: 0, loaded: [] });
     const own = { ...drain.run, item_id: item1.id };
@@ -1001,7 +1001,8 @@ describe('reading progress, and one item whole', () => {
     };
     const detail = await readFactoryItem(source, itemInput(unexpected), '1');
     const row = detail?.runs.find(run => run.runId === own.id);
-    expect(row?.workflow).toBeNull();
+    // Named as the view names it, so the item page reads it as the drain, not a raw id.
+    expect(row?.workflow).toBe('discoveries');
     expect(row?.shadows.map(decision => [decision.workflow, decision.node])).toEqual([
       ['discoveries', 'result'],
     ]);

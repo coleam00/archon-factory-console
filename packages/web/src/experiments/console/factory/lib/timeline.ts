@@ -4,7 +4,7 @@ import { shadowOf, shadowWords, type ShadowWords } from './shadows';
 import { VERDICT_LABEL, type RoundVerdict } from './board';
 import { stepLabel } from './step-label';
 import { FOUND_BY_THE_FACTORY_LABEL } from './discoveries';
-import { boardSeats, isSendBack } from './stage-direction';
+import { boardSeats, isSendBack, type Seat } from './stage-direction';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -194,15 +194,28 @@ function completedOutcome(
 }
 
 /**
- * Whether placing the item in `stage` after a run of `workflow` sent it back or on: from the
- * stage the run works (where the workflow sits, `stageOfWorkflow`), by the board's order.
+ * Whether placing the item in `stage` after a run of `workflow` sent it back or on, by the
+ * board's order (`isSendBack`, the map's rule). A run is judged from the furthest stage its
+ * workflow works, since it may have reached any of them: `deliver:returned` lands in Build
+ * from Checks, `deliver:replan` in Plan. A placement into that furthest stage itself is no
+ * send-back: the land gate places the item in Ready to merge, the stage it works.
  */
 function placedKind(view: Declaration, workflow: string, stage: string): RunKind {
   const seats = boardSeats(view);
-  const from = seats.get(stageOfWorkflow(view, workflow, null)?.id ?? '');
   const to = seats.get(stage);
+  const from = view.stages
+    .filter(candidate => candidate.workflows.includes(workflow))
+    .map(candidate => seats.get(candidate.id))
+    .reduce<Seat | undefined>(
+      (furthest, seat) =>
+        seat === undefined || (furthest !== undefined && isSendBack(furthest, seat))
+          ? furthest
+          : seat,
+      undefined
+    );
   if (from === undefined || to === undefined) return 'sent-on';
-  return isSendBack(from, to) ? 'returned' : 'sent-on';
+  const same = from.card === to.card && from.row === to.row;
+  return !same && isSendBack(from, to) ? 'returned' : 'sent-on';
 }
 
 /** How a run ended, or what it is doing; `workflow` as the view names it, null if it does not. */
