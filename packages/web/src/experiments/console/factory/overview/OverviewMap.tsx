@@ -15,6 +15,7 @@ import type { OverviewView } from '../lib/overview-nav';
 import { useMapCamera } from '../map/useMapCamera';
 import { OverviewCard } from './OverviewCard';
 import { OverviewEdges } from './OverviewEdges';
+import { OverviewFlow, useOverviewFlow } from './OverviewFlow';
 
 interface OverviewMapProps {
   view: OverviewView;
@@ -27,6 +28,13 @@ interface OverviewMapProps {
   onToggleFullScreen: () => void;
   /** Where the view sits (the breadcrumb): beside the controls above the frame, or full screen over its top-left corner. */
   header: ReactNode;
+  /** The flow's pause state, for the view that animates its flow (the root); undefined for the rest. */
+  flowControl: FlowControl | undefined;
+}
+
+export interface FlowControl {
+  paused: boolean;
+  onToggle: () => void;
 }
 
 /**
@@ -45,8 +53,11 @@ export function OverviewMap({
   onUp,
   onToggleFullScreen,
   header,
+  flowControl,
 }: OverviewMapProps): ReactElement {
-  const { cards, groups, edges, bounds, fans } = useMemo(() => layoutOverview(view), [view]);
+  const layout = useMemo(() => layoutOverview(view), [view]);
+  const { cards, groups, edges, bounds, fans } = layout;
+  const flow = useOverviewFlow(view, layout, flowControl !== undefined);
   const pad = fullScreen ? OVERVIEW_FULL_FIT_PAD : OVERVIEW_FIT_PAD;
   const camera = useMapCamera(bounds, null, {
     pad,
@@ -61,6 +72,7 @@ export function OverviewMap({
       onUp={onUp}
       fullScreen={fullScreen}
       onToggleFullScreen={onToggleFullScreen}
+      flow={flow === undefined ? undefined : flowControl}
     />
   );
   return (
@@ -95,6 +107,15 @@ export function OverviewMap({
             );
           })}
           <OverviewEdges edges={edges} fans={fans} bounds={bounds} />
+          {flow === undefined ? null : (
+            <OverviewFlow
+              flow={flow}
+              view={view}
+              cards={cards}
+              bounds={bounds}
+              paused={flowControl?.paused ?? false}
+            />
+          )}
           {view.cards.map(card => {
             const box = cards.get(card.id);
             if (box === undefined) return null;
@@ -142,11 +163,14 @@ function OverviewControls({
   onUp,
   fullScreen,
   onToggleFullScreen,
+  flow,
 }: {
   camera: ReturnType<typeof useMapCamera>;
   onUp: (() => void) | undefined;
   fullScreen: boolean;
   onToggleFullScreen: () => void;
+  /** Shown only while the view's flow is drawn. */
+  flow: FlowControl | undefined;
 }): ReactElement {
   // Full screen they float in the top-right corner, which the fit's wider margin keeps clear.
   const place = fullScreen ? 'absolute right-4 top-4 shadow-lg' : '';
@@ -169,6 +193,16 @@ function OverviewControls({
       <button type="button" onClick={onToggleFullScreen} className={CONTROL}>
         {fullScreen ? 'Exit full screen (Esc)' : '⛶ Full screen'}
       </button>
+      {flow === undefined ? null : (
+        <button
+          type="button"
+          aria-pressed={flow.paused}
+          onClick={flow.onToggle}
+          className={CONTROL}
+        >
+          {flow.paused ? '▶ Play flow' : '❚❚ Pause flow'}
+        </button>
+      )}
     </div>
   );
 }

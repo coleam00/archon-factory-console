@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 import { openView, viewList, viewTrail, type OverviewDeclaration } from '../lib/overview-nav';
 import { OverviewBreadcrumb } from './OverviewBreadcrumb';
 import { OverviewLegend } from './OverviewLegend';
-import { OverviewMap } from './OverviewMap';
+import { type FlowControl, OverviewMap } from './OverviewMap';
 import { OverviewSidebar } from './OverviewSidebar';
 
 /**
@@ -16,6 +16,8 @@ import { OverviewSidebar } from './OverviewSidebar';
 export function OverviewBody({ overview }: { overview: OverviewDeclaration }): ReactElement {
   const [params, setParams] = useSearchParams();
   const [fullScreen, setFullScreen] = useState(false);
+  // Here, above the map, so a pause holds across full screen (a remount) and between views.
+  const [flowPaused, setFlowPaused] = useState(false);
   const { id: viewId, unknown } = openView(overview, params.get('view'));
   const open = (id: string): void => {
     setParams(id === overview.root ? {} : { view: id });
@@ -38,6 +40,11 @@ export function OverviewBody({ overview }: { overview: OverviewDeclaration }): R
       fullScreen={fullScreen}
       onOpen={open}
       onToggleFullScreen={() => setFullScreen(!fullScreen)}
+      flowControl={
+        viewId === overview.root
+          ? { paused: flowPaused, onToggle: () => setFlowPaused(!flowPaused) }
+          : undefined
+      }
     />
   );
   if (!fullScreen) return explorer;
@@ -63,6 +70,8 @@ interface ExplorerProps {
   fullScreen: boolean;
   onOpen: (view: string) => void;
   onToggleFullScreen: () => void;
+  /** The flow's pause state, at the root view only: the drill-downs do not animate. */
+  flowControl: FlowControl | undefined;
 }
 
 /** The open view's map, with Up one level wired to the view above it, under its header. */
@@ -73,6 +82,7 @@ function ExplorerMap({
   fullScreen,
   onOpen,
   onToggleFullScreen,
+  flowControl,
 }: ExplorerProps): ReactElement | null {
   const view = overview.views[viewId];
   const trail = viewTrail(overview, viewId);
@@ -87,6 +97,7 @@ function ExplorerMap({
       onOpen={onOpen}
       onUp={parent === undefined ? undefined : () => onOpen(parent.id)}
       onToggleFullScreen={onToggleFullScreen}
+      flowControl={flowControl}
       header={
         <div className="flex flex-col gap-1">
           <OverviewBreadcrumb trail={trail} onOpen={onOpen} />
