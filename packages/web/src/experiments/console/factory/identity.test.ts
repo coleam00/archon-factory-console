@@ -35,12 +35,20 @@ describe('the canvas identity', () => {
       '--card-glow',
       '--card-tint',
       '--canvas-texture',
+      '--running-fill',
+      '--running-border',
+      '--running-ring',
     ])
       expect({ token, defined: new RegExp(`${token}:`).test(css) }).toEqual({
         token,
         defined: true,
       });
-    for (const rule of ['.factory-card {', '.factory-card[data-lit]', '.factory-canvas {'])
+    for (const rule of [
+      '.factory-card {',
+      '.factory-card[data-lit]',
+      '.factory-card[data-running]',
+      '.factory-canvas {',
+    ])
       expect({ rule, defined: css.includes(rule) }).toEqual({ rule, defined: true });
   });
 

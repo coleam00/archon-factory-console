@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { closePairs, MIN_CHROMA, oklch, PURPLE_PINK, tokens } from '../lib/token-hue';
+import { closePairs, MIN_CHROMA, oklch, PURPLE_PINK, tokens } from '../lib/token-hue.test-fixtures';
 import { KINDS } from './overview-kinds';
 
 describe('the overview kind colours', () => {

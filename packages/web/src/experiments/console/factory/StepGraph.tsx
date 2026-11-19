@@ -29,12 +29,13 @@ const NOT_RUNNING: readonly ItemOnStep[] = [];
 
 /**
  * RunGraphPanel's running tint, held still: the items read carries no owner liveness, so a
- * pulse would claim more than it knows.
+ * pulse would claim more than it knows. Its values are theme.css's running-mark tokens, which
+ * the stage drill-down's cards wear too.
  */
 export const RUNNING_GLOW: CSSProperties = {
-  background: 'color-mix(in oklch, var(--running), transparent 90%)',
-  borderColor: 'color-mix(in oklch, var(--running), transparent 40%)',
-  boxShadow: '0 0 0 3px color-mix(in oklch, var(--running), transparent 85%)',
+  background: 'var(--running-fill)',
+  borderColor: 'var(--running-border)',
+  boxShadow: 'var(--running-ring)',
 };
 
 function runningFor(onStep: readonly ItemOnStep[]): string {

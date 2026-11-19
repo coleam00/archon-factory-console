@@ -106,8 +106,10 @@ miss on a projector. Intake on the map was purple.
   fading to `--surface` by 48 px. *It ties the bar to the card without colouring the text area.*
 - **Light.** A map card that holds an item is lit (`data-lit`): `--card-glow`, a 1 px ring of its
   group colour at 30% and a glow `0 8px 28px -8px` at 45%. The Merged card is never lit: it holds
-  every merged item for good, so its light would say nothing. A stage drill-down card is lit in
-  `--running` while items are on its steps (as the step graph glows). How it works has no live
+  every merged item for good, so its light would say nothing. A stage drill-down card with items
+  on its steps (`data-running`) wears the step graph's running mark, the same as the loop pill
+  beside it: `--running-border` and `--running-ring` (a 3 px ring), the tokens StepGraph's
+  `RUNNING_GLOW` reads; its tint stays its kind's colour. How it works has no live
   items; its light is the flow loop's glow round the card a dot rests on (rule 7). *Light
   carries information, where work is, and nothing else.*
 - **Canvas.** Both viewports take `.factory-canvas`: `--canvas-texture`, a vignette
@@ -125,11 +127,13 @@ miss on a projector. Intake on the map was purple.
 - **Colour.** Intake moves from `--node-prompt` (purple, hue 290) to `--tone-intake`
   `oklch(0.8 0.15 112)`, a lime 27 degrees from warning and 28 from land. The canvases' one
   accent use is the selected map card (a 2 px `--accent-muted` ring, the border unchanged); neither
-  canvas has purple. *Owner change 1: more green, purple and pink kept for one thing each.*
-- **Flow dot.** How it works: a 5 px dot with a 10 px halo at 0.28 opacity (a second circle in
+  canvas, nor the stage drill-down's cards, has purple: the drill-down's Agent kind moves from
+  `--node-prompt` to `--node-wait`, the teal How it works gives a stage
+  (`stage/drilldown-kinds.test.ts`). *Owner change 1: more green, purple and pink kept for one thing each.*
+- **Flow dot.** How it works: a dot 10 px across with a halo 20 px across at 0.28 opacity (a second circle in
   the same moving group, not a blur), in the kind colour of the card it travels to, a shadow move
   in `--node-opaque`. The glow round the card it rests on reaches 6 px out with a 12% fill. The
-  map's dot is 10 px in `--running` with a soft halo (`.map-flow-dot`; the legend's swatch,
+  map's dot is 10 px across in `--running` with a soft halo (`.map-flow-dot`; the legend's swatch,
   `.map-flow-swatch`, wears the same). *Presence on a projector (the #93 operator note), still
   only position and opacity animate.*
 
@@ -151,7 +155,8 @@ live in two files: `packages/web/src/index.css` (`@theme inline`: `--text-consol
 `--node-bash`, `--node-loop`, `--node-approval`, `--node-wait`) and
 `packages/web/src/experiments/console/theme.css` (`.console-root`: surfaces, borders, text, accent,
 status colours, `--node-script`, `--node-cancel`, `--node-opaque`, and the canvases' identity:
-`--tone-intake`, `--card-depth`, `--card-depth-hover`, `--canvas-texture`, and on `.factory-card`
+`--tone-intake`, `--card-depth`, `--card-depth-hover`, `--canvas-texture`, the running mark
+(`--running-fill`, `--running-border`, `--running-ring`), and on `.factory-card`
 `--card-glow` and `--card-tint`). Where no token exists yet, a
 rule names the Tailwind utility or the value instead; the list closing this section names those
 gaps.
@@ -459,7 +464,7 @@ The section has **two separate things**, each with its own file:
    no single input line has no flow. Drill-downs and the other send-back lines stay still. A
    "Pause flow" control beside Full screen stops and resumes it (a pause holds across full screen
    and views); under `prefers-reduced-motion` neither the dots nor the control are drawn. Each dot
-  is 5 px with a faint 10 px halo, in the kind colour of the card it travels to ("Visual
+  is 10 px across with a faint halo 20 px across, in the kind colour of the card it travels to ("Visual
   identity, 2026-11-19").
 2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which

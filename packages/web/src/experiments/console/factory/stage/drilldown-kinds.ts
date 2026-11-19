@@ -27,10 +27,11 @@ import type { DrilldownCard } from '../lib/drilldown-live';
 /**
  * Who works a card: its colour along the card's top and its word. Keyed by the generated kind
  * enum, so a kind the schema gains fails type-check here until it has both. The colours are
- * the console's node tokens.
+ * the console's node and status tokens, none purple or pink (owner change 1 of 2026-11-19;
+ * `drilldown-kinds.test.ts`); an agent takes the teal How it works gives a stage.
  */
 export const KINDS: Record<DrilldownCard['kind'], { color: string; label: string }> = {
-  agent: { color: 'var(--node-prompt)', label: 'Agent' },
+  agent: { color: 'var(--node-wait)', label: 'Agent' },
   check: { color: 'var(--node-loop)', label: 'Check' },
   script: { color: 'var(--node-bash)', label: 'Script' },
   you: { color: 'var(--warning)', label: 'You' },

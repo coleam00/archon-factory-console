@@ -10,11 +10,11 @@ import { ICONS, KINDS } from './drilldown-kinds';
 /**
  * One card of a drill-down: its kind's colour along the top, its icon and kind, its title and
  * line of text. The card is a button that opens its real steps; the items on it now are named
- * under it, outside the button, since each is a link. It is lit in the running colour while
- * items are on it, still, as the step graph glows: the items read carries no owner liveness.
- * Its box is `.factory-card`'s (theme.css), tinted in its kind's colour. A card standing for a
- * shadow step (rule 10) carries the shadow badge and a `--node-opaque` bar and tint, and says
- * what it decided lately.
+ * under it, outside the button, since each is a link. While items are on it, it wears the step
+ * graph's running border and ring (`data-running`, the same tokens as RUNNING_GLOW), held still:
+ * the items read carries no owner liveness. Its box is `.factory-card`'s (theme.css), tinted in
+ * its kind's colour. A card standing for a shadow step (rule 10) carries the shadow badge and a
+ * `--node-opaque` bar and tint, and says what it decided lately.
  */
 export function DrilldownCard({
   view,
@@ -41,12 +41,12 @@ export function DrilldownCard({
   const kind = KINDS[card.kind];
   const Icon = ICONS[card.icon];
   const live = onCard.length > 0;
-  const tone = live ? 'var(--running)' : shadow === null ? kind.color : 'var(--node-opaque)';
+  const tone = shadow === null ? kind.color : 'var(--node-opaque)';
   return (
     <article
       data-live={live ? 'true' : undefined}
-      data-lit={live ? '' : undefined}
-      // A selected card wears the accent ring; a lit one still glows.
+      data-running={live ? '' : undefined}
+      // A selected card wears the accent ring beside the running ring.
       data-selected={selected ? '' : undefined}
       className="factory-card relative flex flex-col overflow-hidden rounded-console-12 border"
       style={cardTone(tone)}
@@ -54,7 +54,7 @@ export function DrilldownCard({
       <span
         aria-hidden="true"
         className="absolute inset-x-0 top-0 h-0.75"
-        style={{ background: shadow === null ? kind.color : 'var(--node-opaque)' }}
+        style={{ background: tone }}
       />
       <button
         type="button"
