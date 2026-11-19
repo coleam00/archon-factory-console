@@ -88,6 +88,10 @@ const views: FactoryViews = {
   errors: [],
 };
 
+/** What each workflow read gets, in turn, the last repeating; a test sets it to fail first. */
+let workflowAnswers: (() => Response)[] = [() => Response.json(deliverJson)];
+let workflowFetches = 0;
+
 /** What the stubbed server answers for the items read; a test swaps it to move an item. */
 let itemsResponse: (url: string) => Response = itemsReadAnswer(capturedItemsPage.items);
 
@@ -98,7 +102,11 @@ function serve(items: (url: string) => Response): void {
     async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/factory/views')) return Response.json(views);
-      if (url.includes('/api/factory/workflow')) return Response.json(deliver);
+      if (url.includes('/api/factory/workflow')) {
+        const answer = workflowAnswers[Math.min(workflowFetches, workflowAnswers.length - 1)];
+        workflowFetches++;
+        return answer!();
+      }
       if (isItemsRead(url)) return itemsResponse(url);
       if (url.includes('/api/runs/attention'))
         return Response.json({ items: [], runs: [], degraded: [] });
@@ -258,4 +266,49 @@ test('a run between loop bodies lights the loop frame', async () => {
     expect(lit[0]?.getAttribute('title')).toBe('Running for loop');
     expect(container.querySelectorAll('button[data-running]')).toHaveLength(0);
   });
+});
+
+test("a step's back link opens its stage over the Overview, where it came from", async () => {
+  serve(itemsReadAnswer([]));
+  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+    await act(async () => {
+      stepButton(container, '·fix').click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    const back = container.querySelector<HTMLAnchorElement>('a[data-back-link]');
+    expect(back?.textContent).toBe('Back to Checks');
+    await act(async () => {
+      back?.click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(document.querySelector('[role="dialog"] h3')?.textContent).toBe('Checks');
+  });
+});
+
+test('the step page tries its workflow read again, and Retry reads it after two failures', async () => {
+  serve(itemsReadAnswer([]));
+  invalidate('factory-workflow');
+  const offline = (): Response => {
+    throw new TypeError('Failed to fetch');
+  };
+  workflowAnswers = [offline, offline, () => Response.json(deliverJson)];
+  workflowFetches = 0;
+  try {
+    await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async container => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 1_100)));
+      expect(workflowFetches).toBe(2);
+      const alert = container.querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain('deliver');
+      expect(alert?.textContent).toContain('Failed to fetch');
+      await act(async () => {
+        alert?.querySelector('button')?.click();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      await settle();
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+      expect(container.textContent).toContain('Prompt, from command fix');
+    });
+  } finally {
+    workflowAnswers = [() => Response.json(deliverJson)];
+  }
 });

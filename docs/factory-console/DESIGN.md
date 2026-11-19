@@ -745,7 +745,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     discovery; runs never read this list.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
   its blurb, the notes the view file places by it, its shadow steps (below), the items in it
-  (linking to each item), and the workflows behind it with links to their steps.
+  (linking to each item), and the workflows behind it with links to their steps (each opens the
+  stage on "The real workflow"). A step page's back link opens its stage over the Overview.
 - A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it

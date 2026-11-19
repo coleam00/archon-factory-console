@@ -11,6 +11,7 @@ import { K } from '../../store/keys';
 import { shippedListed } from '../item-detail.test-fixtures';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
+import { PILL_LABEL } from '../lib/board';
 import { cancelRereads } from '../merge-reread';
 import { FactoryMap } from './FactoryMap';
 
@@ -271,9 +272,10 @@ describe('a stage opened over the Overview', () => {
         `${OVERVIEW}/items/5`,
         `${OVERVIEW}/items/9`,
       ]);
+      // Each with its state: the asking item says so; the running one names its run.
       expect(rows[1]?.textContent).toContain('Needs you');
       expect(rows[0]?.textContent).not.toContain('Needs you');
-      expect(rows[0]?.textContent).toMatch(/Build|Waiting|Failed/);
+      expect(rows[0]?.textContent).toContain('Build · Writes the change');
 
       await click(inDialog('The real workflow'));
       expect(dialog()?.textContent).toContain(
@@ -282,6 +284,53 @@ describe('a stage opened over the Overview', () => {
       await settle();
       expect(graphStep()).toBeDefined();
       expect(dialog()?.textContent).not.toMatch(/Drill-down|Real steps/);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('an item no run works and no ask holds says its state in Items here now', async () => {
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'landed'));
+      await click(inDialog('Items here now'));
+      const rows = [...(dialog()?.querySelectorAll('li a') ?? [])];
+      expect(rows).toHaveLength(1);
+      // The row's last line is its state, in the board card's word.
+      expect(rows[0]?.lastElementChild?.textContent).toBe(PILL_LABEL.landed);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a stage with no summary and no workflow does not point at an empty tab', async () => {
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'landed'));
+      await click(inDialog('What this stage does'));
+      expect(dialog()?.textContent).toContain(
+        'This stage has no summary and no workflow runs in it.'
+      );
+      expect(dialog()?.textContent).not.toContain('The real workflow shows its steps');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test("a workflow's name in a card's details opens the stage on its real workflow", async () => {
+    const { container, unmount } = await mount();
+    try {
+      await click(container.querySelector<HTMLButtonElement>('[data-card="plan-build"] > button')!);
+      const chip = [
+        ...container.querySelectorAll<HTMLAnchorElement>(
+          'aside[aria-label="Plan & build details"] li a'
+        ),
+      ].find(link => link.textContent === 'deliver');
+      await click(chip!);
+      expect(title()).toBe('Build');
+      expect(dialog()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+        'The real workflow'
+      );
     } finally {
       await unmount();
     }

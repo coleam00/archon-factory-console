@@ -1,22 +1,18 @@
-import { useMemo, useRef, useState, type ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
-import * as skill from '../../skills';
-import type { FactoryItem, FactoryWorkflow } from '../../skills/factory';
+import type { FactoryItem } from '../../skills/factory';
 import type { EntityView } from '../../store/cache';
-import { K } from '../../store/keys';
 import { FactoryLoading } from '../FactoryLoading';
 import { GraphSkeleton } from '../GraphSkeleton';
 import { readFailed } from '../lib/deadline';
 import { itemsOnStep, runningItems } from '../lib/items-on-step';
-import { retryOnceOnNetworkFailure } from '../lib/network-retry';
-import { readFailure } from '../lib/read-failure';
 import { stepInStage, type FactoryStage } from '../lib/stage-steps';
 import { stepGraph } from '../lib/step-graph';
 import { stepLabel } from '../lib/step-label';
 import type { FactoryViewListed } from '../lib/views';
 import { RunningItemLinks, RunningItemsFailure } from '../RunningItems';
 import { StepGraph } from '../StepGraph';
-import { useFactoryRead } from '../useFactoryRead';
+import { useFactoryWorkflow, WorkflowReadFailure } from './useFactoryWorkflow';
 
 type Declaration = FactoryViewListed['declaration'];
 
@@ -38,12 +34,7 @@ export function StageWorkflow({
   workflow: string;
   items: EntityView<FactoryItem[]>;
 }): ReactElement {
-  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
-    retryOnceOnNetworkFailure(() =>
-      within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
-    )
-  );
-  const failed = useShownFailure(read);
+  const { read, failed, retry } = useFactoryWorkflow(projectId, workflow);
   const graph = useMemo(
     () =>
       read.data === undefined
@@ -77,20 +68,8 @@ export function StageWorkflow({
           graph={graph}
           running={running}
         />
-      ) : failed.error !== undefined ? (
-        <div role="alert" className="flex flex-wrap items-center gap-3">
-          <p className="min-w-0 text-console-14 text-error [overflow-wrap:anywhere]">
-            Could not read the workflow <span className="font-mono">{workflow}</span>:{' '}
-            {readFailure(failed.error)}
-          </p>
-          <button
-            type="button"
-            onClick={failed.retry}
-            className="rounded-md border border-border bg-surface px-2.5 py-1 text-console-13 text-text-primary transition-colors duration-150 ease-out hover:bg-surface-hover"
-          >
-            Retry
-          </button>
-        </div>
+      ) : failed !== undefined ? (
+        <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />
       ) : (
         <FactoryLoading read={read}>
           <GraphSkeleton label="Loading the steps" />
@@ -98,30 +77,6 @@ export function StageWorkflow({
       )}
     </section>
   );
-}
-
-/**
- * The failure to show for `read`, and a retry. The cache keeps a read's error after its last
- * reader leaves, and a reader that comes back loads again with that error still held, so the
- * error held when this reader mounted, or when Retry was pressed, is dismissed: only a failure
- * of a load this reader waited on shows. (`loading` cannot tell them apart: it still reads true
- * on the render that brings the error.)
- */
-function useShownFailure(read: EntityView<unknown>): {
-  error: Error | undefined;
-  retry: () => void;
-} {
-  const dismissed = useRef(read.error);
-  const [, rerender] = useState(0);
-  const failed = readFailed(read.error);
-  return {
-    error: failed === dismissed.current ? undefined : failed,
-    retry: (): void => {
-      dismissed.current = read.error;
-      rerender(count => count + 1);
-      read.refetch();
-    },
-  };
 }
 
 /** The items a run of this workflow works now, named and linked: a graph node is a button. */

@@ -88,6 +88,8 @@ function StageSection({
 }): ReactElement {
   const { stage, live, notes, shadows } = entry;
   const open = stageModalLink(projectId, stage.id);
+  // A workflow's name opens the stage on that workflow's steps.
+  const steps = stageModalLink(projectId, stage.id, 'workflow');
   return (
     <section aria-label={stage.label} className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
@@ -126,8 +128,8 @@ function StageSection({
             {stage.workflows.map(workflow => (
               <li key={workflow}>
                 <Link
-                  to={open.to}
-                  state={open.state}
+                  to={steps.to}
+                  state={steps.state}
                   className="rounded bg-surface-elevated px-1.5 py-0.5 font-mono text-console-12 text-text-primary hover:bg-surface-hover"
                 >
                   {workflow}

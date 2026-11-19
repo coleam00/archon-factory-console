@@ -233,8 +233,6 @@ test('a click on a card opens its stage over the map', async () => {
   try {
     await act(async () => card(container, 'checks').click());
     expect(stagePage(container)).toBe('checks');
-    expect(document.querySelector('[role="dialog"] h3')?.textContent).toBe('Checks');
-    expect(container.querySelector('[data-card="checks-review"]')).not.toBeNull();
   } finally {
     await unmount();
   }

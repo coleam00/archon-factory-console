@@ -34,15 +34,24 @@ export function factoryPath(projectId: string, rest = ''): string {
 /** A link that opens a stage as the modal over the Overview's map. */
 export interface StageModalLink {
   to: To;
-  /** Marks the entry the link pushed, so closing the modal goes back to the entry before it. */
-  state: { stageModal: true };
+  /**
+   * Marks the entry the link pushed, so closing the modal goes back to the entry before it;
+   * `tab` opens it on that tab rather than the stage's first.
+   */
+  state: { stageModal: true; tab?: StageTab };
 }
 
-/** The Overview with `stage` open as a modal over its map: `?stage=<id>`, pushed, so Back closes it. */
-export function stageModalLink(projectId: string, stage: string): StageModalLink {
+/** The tabs a stage opens on: what it does, the items in it, its real workflow. */
+export type StageTab = 'does' | 'items' | 'workflow';
+
+/**
+ * The Overview with `stage` open as a modal over its map: `?stage=<id>`, pushed, so Back closes
+ * it, and on `tab` when one is given.
+ */
+export function stageModalLink(projectId: string, stage: string, tab?: StageTab): StageModalLink {
   return {
     to: { pathname: factoryPath(projectId), search: `?stage=${encodeURIComponent(stage)}` },
-    state: { stageModal: true },
+    state: tab === undefined ? { stageModal: true } : { stageModal: true, tab },
   };
 }
 

@@ -32,7 +32,8 @@ export function StageModal({
   const titleId = useId();
   const stageId = params.get('stage');
   if (stageId === null) return null;
-  const pushed = (location.state as Partial<StageModalLink['state']> | null)?.stageModal === true;
+  const linked = location.state as Partial<StageModalLink['state']> | null;
+  const pushed = linked?.stageModal === true;
   const close = (): void => {
     if (pushed) {
       void navigate(-1);
@@ -67,6 +68,7 @@ export function StageModal({
           stage={stage}
           live={stageReadOf(live, stage.id)}
           titleId={titleId}
+          initialTab={linked?.tab}
         />
       )}
     </ModalShell>

@@ -4,15 +4,13 @@ import { Link } from 'react-router';
 import { EmptyNote } from '../../components/EmptyNote';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
-import { factoryPath, type FactoryViewListed } from '../lib/views';
+import { factoryPath, type FactoryViewListed, type StageTab } from '../lib/views';
 import { useFactoryItems } from '../useFactoryItems';
 import { ItemsHere } from './StageItems';
 import { StageDrilldown } from './StageDrilldown';
 import { StageWorkflow } from './StageWorkflow';
 
 type Declaration = FactoryViewListed['declaration'];
-
-type StageTab = 'does' | 'items' | 'workflow';
 
 const TABS: readonly { key: StageTab; label: string }[] = [
   { key: 'does', label: 'What this stage does' },
@@ -37,6 +35,7 @@ export function StageView({
   stage,
   live,
   titleId,
+  initialTab,
 }: {
   projectId: string;
   view: Declaration;
@@ -45,9 +44,13 @@ export function StageView({
   live: StageRead;
   /** The id its title carries, for the dialog that names itself by it. */
   titleId?: string;
+  /** The tab it opens on, when the link that opened it named one. */
+  initialTab?: StageTab;
 }): ReactElement {
   const items = useFactoryItems(projectId);
-  const [tab, setTab] = useState<StageTab>(stage.drilldown === undefined ? 'workflow' : 'does');
+  const [tab, setTab] = useState<StageTab>(
+    initialTab ?? (stage.drilldown === undefined ? 'workflow' : 'does')
+  );
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -65,7 +68,12 @@ export function StageView({
           {stage.drilldown === undefined ? (
             <EmptyNote
               icon={BookOpen}
-              sentence="This stage has no summary. The real workflow shows its steps."
+              sentence={
+                // Point at the real workflow only when there is one to read.
+                stage.workflows.length === 0
+                  ? 'This stage has no summary and no workflow runs in it. An item arrives here when its change merges.'
+                  : 'This stage has no summary. The real workflow shows its steps.'
+              }
             />
           ) : (
             <StageDrilldown
