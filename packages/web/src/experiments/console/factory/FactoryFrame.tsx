@@ -70,10 +70,12 @@ export function FactoryFrame({
         <ProjectViewTabs projectId={projectId} active="factory" />
       </ProjectHeader>
       <div
-        className={`flex-1 overflow-y-auto p-4 md:p-6 ${fill ? 'md:flex md:min-h-0 md:flex-col' : ''}`}
+        // A filled page (the board) gives its columns the height a reading page spends on air:
+        // a smaller gap under the heading and less padding under the page.
+        className={`flex-1 overflow-y-auto p-4 md:p-6 ${fill ? 'md:flex md:min-h-0 md:flex-col md:pb-4' : ''}`}
       >
         <div
-          className={`flex flex-col gap-6 ${wide ? '' : 'max-w-5xl'} ${fill ? 'md:min-h-0 md:flex-1' : ''}`}
+          className={`flex flex-col ${fill ? 'gap-4 md:min-h-0 md:flex-1' : 'gap-6'} ${wide ? '' : 'max-w-5xl'}`}
         >
           {view === undefined ? (
             <>

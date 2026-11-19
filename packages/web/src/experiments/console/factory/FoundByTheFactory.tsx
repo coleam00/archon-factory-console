@@ -82,7 +82,7 @@ export function FoundByTheFactory({
       ref={ref}
       id={FOUND_BY_THE_FACTORY}
       aria-labelledby={HEADING_ID}
-      className={`relative flex scroll-mt-6 ${oneLine ? '' : 'mt-3'} flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface ${expanded ? 'p-4' : 'px-4 py-3'}`}
+      className={`relative flex scroll-mt-6 ${oneLine ? '' : 'mt-3'} flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface ${expanded ? 'p-4' : 'px-4 py-2'}`}
     >
       {/* The shadow accent (Visual standard, rule 10): the drains did nothing. */}
       <span aria-hidden className="absolute inset-x-0 top-0 h-0.75 bg-[color:var(--node-opaque)]" />

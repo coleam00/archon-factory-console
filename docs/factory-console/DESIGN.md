@@ -45,7 +45,10 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    (free text), confirm in place.
 3. **The board card is the approval card.** An item with an open ask shows its question and the
    recommended option on its board card, with a visible ping. Clicking it opens the full ask card
-   in a popover over the board, answered in place, without leaving the board.
+   in a popover over the board, answered in place, without leaving the board. *Amended by the
+   owner on 2026-11-19 (#91), so the board fits its cards: such a card is short. Its title takes
+   2 lines; the question takes 1 line, with the ping and "N questions" on it. The popover holds
+   the rest.*
 4. **Fewer board columns.** The view file groups stages into columns; the board draws one column
    per group, not per stage. For this pack: **Intake** (order, triage) | **Plan & build** |
    **Checks & review** (the check rounds, CI and PR reviews) | **Ready to merge** | **Merged**.
@@ -265,9 +268,11 @@ the Overview, the item page and the board popover.
   is resumed or abandoned.
 - Under 520 px wide (the popover, a 390 px phone) the tiles stack full width.
 - The Needs you tab's heading reads "N things need you", in the Page title role.
-- On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines, the
-  line Needs you shows for it at `--text-console-12` ("Recommended: <label>" when the ask
-  recommends one), and the ping.
+- On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping, the
+  question at `--text-console-13` cut to that line (the whole question on hover and in the
+  popover), and "N questions" when there are several; under it, the line Needs you shows for it
+  at `--text-console-12` ("Recommended: <label>" when the ask recommends one). The card's title
+  then takes 2 lines, not 3.
 
 **The column header** (owner change 4), one per board column:
 
@@ -772,7 +777,8 @@ A card, in this order:
 1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
    **Failed**, **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the declared run input's title line: the first non-empty line after any `---`
-   front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines.
+   front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines;
+   2 on a card showing an ask's face (rule 7).
 3. The stage line, so a card names its stage inside a column that groups several. While a run
    works it: its stage, the running step's name and the round when the step is of the declared
    rounds loop, "Checks · Code review · round 2", linking to the run in the console
@@ -796,8 +802,9 @@ A card, in this order:
 7. For a failed item: one line saying what stopped it, naming its stage and the step it failed
    at ("Build failed at Writes the change"), never the workflow id. For one that needs you, the approval
    card's face (owner change 3), from the project's attention queue Needs you reads
-   (`itemAsks`): the ping, "N questions" when it holds several, the first one's question and
-   the line Needs you shows for it ("Recommended: <label>"). Until that queue is read, one
+   (`itemAsks`): on one line the ping, the first one's question cut to that line and "N
+   questions" when it holds several; then the line Needs you shows for it ("Recommended:
+   <label>"). Until that queue is read, one
    line saying what it asks. The face opens the item's asks in a popover over the board, 480 px
    beside the card from md up and a sheet from the bottom under md: the ask cards Needs you
    draws, answered in place, with an empty slot under them for a later preview of the change.

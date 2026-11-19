@@ -16,6 +16,16 @@ function StopLine({ card }: { card: BoardCard }): ReactNode {
 }
 
 /**
+ * The open ask's face a card draws, or null: none once an answer given from the board stands,
+ * for an item that does not need you, or until the project's queue holds the item's asks.
+ * The card shortens its title while a face shows, so `CardAsk` and the card ask this once.
+ */
+export function shownAsk(card: BoardCard, asks: BoardAsks): ReturnType<BoardAsks['faceOf']> {
+  if (card.pill !== 'needs-you' || asks.answeredLine(card.key) !== null) return null;
+  return asks.faceOf(card.key);
+}
+
+/**
  * The foot of a board card: an answer given from the board while it stands, else the open
  * ask's face for an item that needs you, else the card's stop line. Until the project's queue
  * is read (or while it holds nothing for the item the item read still lists), the stop line
@@ -29,7 +39,7 @@ export function CardAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): R
         {answered}
       </p>
     );
-  const shown = card.pill === 'needs-you' ? asks.faceOf(card.key) : null;
+  const shown = shownAsk(card, asks);
   if (shown === null) return <StopLine card={card} />;
   return (
     <>
@@ -40,10 +50,11 @@ export function CardAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): R
 }
 
 /**
- * The approval card's face (DESIGN.md, owner change 3; Visual standard rules 7 and 9): the
- * ping, "N questions" when there are several, the first ask's question and the line Needs you
- * shows for it, as one control opening the ask in place. It sits above the title's stretched
- * link, so the rest of the card still opens the item page.
+ * The approval card's face (DESIGN.md, owner change 3; Visual standard rules 7 and 9): on one
+ * line the ping, the first ask's question cut to that line, and "N questions" when there are
+ * several; under it the line Needs you shows for the ask. One control opening the ask in place,
+ * where the whole question reads, so the card stays short enough for the board's columns. It
+ * sits above the title's stretched link, so the rest of the card still opens the item page.
  */
 function AskFace({
   itemKey,
@@ -67,13 +78,17 @@ function AskFace({
       }}
       className="relative z-10 flex flex-col items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <span className="flex items-center gap-2">
+      <span className="flex w-full min-w-0 items-center gap-2">
         <Ping />
+        <span title={face.question} className="min-w-0 truncate text-console-13 text-text-primary">
+          {face.question}
+        </span>
         {several === null ? null : (
-          <span className="text-console-12 text-text-tertiary">{several}</span>
+          <span className="shrink-0 whitespace-nowrap text-console-12 text-text-tertiary">
+            {several}
+          </span>
         )}
       </span>
-      <span className="line-clamp-2 text-console-13 text-text-primary">{face.question}</span>
       <span
         title={face.tile.detail}
         className={`rounded-console-12 border px-2 py-1 text-console-12 text-text-primary transition-colors duration-150 ease-out ${

@@ -10,7 +10,7 @@ import {
 } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
 import { orderSearch } from './lib/work-orders';
-import { CardAsk } from './BoardAskFace';
+import { CardAsk, shownAsk } from './BoardAskFace';
 import { ShadowBadge } from './ShadowBadge';
 import type { BoardAsks } from './useBoardAsks';
 
@@ -102,8 +102,13 @@ function CardBox({
   moved,
   dimmed = false,
   accent,
+  short = false,
   children,
-}: CardProps & { children: ReactNode }): ReactElement {
+}: CardProps & {
+  /** The card carries an ask's face: its title takes 2 lines, not 3, so the card stays short. */
+  short?: boolean;
+  children: ReactNode;
+}): ReactElement {
   return (
     <article
       data-card={card.key}
@@ -124,7 +129,7 @@ function CardBox({
       </div>
       <Link
         to={itemPath(projectId, card.key)}
-        className="line-clamp-3 text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0"
+        className={`${short ? 'line-clamp-2' : 'line-clamp-3'} text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0`}
       >
         {card.title}
       </Link>
@@ -140,7 +145,7 @@ function CardBox({
 export function BoardCard(props: CardProps & { asks: BoardAsks }): ReactElement {
   const { card } = props;
   return (
-    <CardBox {...props}>
+    <CardBox {...props} short={shownAsk(card, props.asks) !== null}>
       {card.run !== null ? (
         <RunLink run={card.run} />
       ) : card.stage === null ? null : (
