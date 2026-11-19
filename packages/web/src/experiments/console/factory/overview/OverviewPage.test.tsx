@@ -272,9 +272,24 @@ describe('the flow on the root view', () => {
     expect(button(page, 'Pause flow')).toBeUndefined();
   });
 
-  test('a drill-down stays still', async () => {
-    const page = await mount('/console/p/cb-1/factory/how-it-works?view=make');
-    expect(cards(page)).toEqual(['write', 'test']);
+  test('a drill-down stays still, even one with a line the flow could run', async () => {
+    // The drill-down gets an input card feeding its first stage, as every shipped drill-down
+    // has, so only the root-only gate keeps its dots off.
+    const make = OVERVIEW.views.make as OverviewView;
+    const animatable: OverviewView = {
+      ...make,
+      cards: [
+        { ...(make.cards[0] as OverviewView['cards'][number]), id: 'brief', kind: 'input' },
+        ...make.cards.map(card => ({ ...card, col: card.col + 1 })),
+      ],
+      edges: [{ from: 'brief', to: 'write', kind: 'feeds' }, ...make.edges],
+    };
+    expect(overviewFlow(animatable, layoutOverview(animatable))).toBeDefined();
+    const page = await mount('/console/p/cb-1/factory/how-it-works?view=make', {
+      ...OVERVIEW,
+      views: { ...OVERVIEW.views, make: animatable },
+    });
+    expect(cards(page)).toEqual(['brief', 'write', 'test']);
     expect(dots(page)).toEqual([]);
     expect(button(page, 'Pause flow')).toBeUndefined();
   });
