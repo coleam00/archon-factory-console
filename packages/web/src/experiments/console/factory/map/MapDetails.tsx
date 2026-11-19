@@ -1,13 +1,11 @@
 import type { ReactElement } from 'react';
 import { Link } from 'react-router';
-import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
-import type { FactoryItem } from '../../skills/factory';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { StageRead } from '../lib/map-live';
 import { SHADOW_MEANS } from '../lib/shadows';
-import { runLine } from '../lib/step-label';
 import { ShadowBadge } from '../ShadowBadge';
-import { factoryPath, type FactoryViewListed } from '../lib/views';
+import { ItemsHere } from '../stage/StageItems';
+import { stageModalLink, type FactoryViewListed } from '../lib/views';
 
 type Declaration = FactoryViewListed['declaration'];
 
@@ -89,14 +87,20 @@ function StageSection({
   named: boolean;
 }): ReactElement {
   const { stage, live, notes, shadows } = entry;
-  const stagePath = factoryPath(projectId, `/stages/${encodeURIComponent(stage.id)}`);
+  const open = stageModalLink(projectId, stage.id);
+  // A workflow's name opens the stage on that workflow's steps.
+  const steps = stageModalLink(projectId, stage.id, 'workflow');
   return (
     <section aria-label={stage.label} className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
         {named ? (
           <h5 className="text-console-14 font-medium text-text-primary">{stage.label}</h5>
         ) : null}
-        <Link to={stagePath} className="text-console-13 text-accent-bright hover:underline">
+        <Link
+          to={open.to}
+          state={open.state}
+          className="text-console-13 text-accent-bright hover:underline"
+        >
           Open stage
         </Link>
       </div>
@@ -107,7 +111,14 @@ function StageSection({
         </p>
       ))}
       <ShadowSteps lines={shadows} />
-      <ItemsHere projectId={projectId} view={view} stage={stage} live={live} />
+      <ItemsHere
+        projectId={projectId}
+        view={view}
+        stage={stage}
+        live={live}
+        empty={<p className="text-console-13 text-text-tertiary">Nothing here now.</p>}
+        resting={false}
+      />
       <section className="flex flex-col gap-1.5">
         <h6 className={HEADING}>Workflows</h6>
         {stage.workflows.length === 0 ? (
@@ -117,7 +128,8 @@ function StageSection({
             {stage.workflows.map(workflow => (
               <li key={workflow}>
                 <Link
-                  to={stagePath}
+                  to={steps.to}
+                  state={steps.state}
                   className="rounded bg-surface-elevated px-1.5 py-0.5 font-mono text-console-12 text-text-primary hover:bg-surface-hover"
                 >
                   {workflow}
@@ -148,106 +160,5 @@ function ShadowSteps({ lines }: { lines: readonly string[] }): ReactElement | nu
         ))}
       </ul>
     </section>
-  );
-}
-
-/**
- * What sits in the stage now; skeleton lines until the items are read (rule 6), never
- * "Nothing here now." early,
- * and "Could not be read." once the first read failed (the alert above the map says why).
- */
-function ItemsHere({
-  projectId,
-  view,
-  stage,
-  live,
-}: {
-  projectId: string;
-  view: Declaration;
-  stage: FactoryStage;
-  live: StageRead;
-}): ReactElement {
-  if (typeof live === 'string')
-    return (
-      <section className="flex flex-col gap-1.5">
-        <h6 className={HEADING}>Items here</h6>
-        {live === 'loading' ? (
-          <SkeletonGroup label="Loading the items here" className="flex flex-col gap-2">
-            <SkeletonLine />
-            <SkeletonLine width="short" />
-          </SkeletonGroup>
-        ) : (
-          <p className="text-console-13 text-text-tertiary">Could not be read.</p>
-        )}
-      </section>
-    );
-  const waiting = new Set(live.needYou.map(item => item.item.id));
-  return (
-    <section className="flex flex-col gap-1.5">
-      <h6 className={HEADING}>Items here · {live.pending ? 'checking…' : live.items.length}</h6>
-      {live.items.length === 0 ? (
-        <p className="text-console-13 text-text-tertiary">Nothing here now.</p>
-      ) : (
-        <ul className="flex flex-col gap-1">
-          {live.items.map(item => (
-            <ItemRow
-              key={item.item.id}
-              projectId={projectId}
-              view={view}
-              stage={stage}
-              item={item}
-              needsYou={waiting.has(item.item.id)}
-            />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-function ItemRow({
-  projectId,
-  view,
-  stage,
-  item,
-  needsYou,
-}: {
-  projectId: string;
-  view: Declaration;
-  /** The stage the item is placed in, which its run line names on a step no stage names. */
-  stage: FactoryStage;
-  item: FactoryItem;
-  needsYou: boolean;
-}): ReactElement {
-  const running = item.progress?.running ?? null;
-  return (
-    <li>
-      <Link
-        to={factoryPath(projectId, `/items/${encodeURIComponent(item.item.key)}`)}
-        className="flex flex-col rounded px-1.5 py-1 hover:bg-surface-hover"
-      >
-        <span className="flex items-baseline gap-1.5">
-          <span className="shrink-0 font-mono text-console-12 text-text-tertiary">
-            {item.item.key}
-          </span>
-          <span className="truncate text-console-12 text-text-primary">
-            {item.progress?.title ?? item.item.key}
-          </span>
-          {needsYou ? (
-            <span className="ml-auto shrink-0 rounded-full bg-[color:var(--warning-soft)] px-2 text-console-12 font-semibold text-warning">
-              Needs you
-            </span>
-          ) : null}
-        </span>
-        {running === null ? null : (
-          <span
-            className="truncate text-console-12 text-[color:var(--running)]"
-            title={running.step ?? undefined}
-          >
-            {runLine(view, running, item.progress?.round, stage).text}
-          </span>
-        )}
-      </Link>
-    </li>
   );
 }

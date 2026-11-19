@@ -474,13 +474,13 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map |
+  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
-  | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind its "Drill-down \| Real steps" control; a stage with no drill-down shows the graphs with no control |
+  | `factory/stages/:stage` | One stage, full page, as a deep link: the same content the Overview's stage modal shows (its label, blurb and the tabs "What this stage does \| Items here now \| The real workflow"), under a back link to the Overview |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
@@ -727,9 +727,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   label ("Intake", "Build", "Check", "Merge", "Merged"), then:
   - a card of one stage: the stage label (Card title role, two lines at most), its one short
     line (the stage's `short`, at most 24 characters; without one, its blurb clamped to two lines),
-    and its chips on the bottom row. The whole card opens the stage page.
+    and its chips on the bottom row. The whole card opens the stage.
   - a card of several stages: the column's label, then one row per stage, each opening its
-    stage page: the stage label with its "here" chip, and under it its short line (or blurb,
+    stage: the stage label with its "here" chip, and under it its short line (or blurb,
     one line), which the stage's needs-you chip takes the place of while one waits there.
 - **Live chips** are rule 9's pills at `--text-console-12`: "2 here" (running colour with a
   pulsing dot while a run works an item there, rule 7; the waiting colour otherwise),
@@ -765,19 +765,43 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   arrives, where the running chip's pulsing dot holds it. The first card, with no hand-off into
   it, has none. Off under reduced motion.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
-- **Click** a card or a stage's row: the stage page. It opens on the stage's drill-down: numbered phase columns
-  of plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
-  and naming the items on a step it covers now, and a click on a card listing the real steps
-  it stands for, each linking to its step page. A segmented control above it, "Drill-down |
-  Real steps", switches the page to each workflow's steps (a stage with no drill-down draws
-  them with no control), drawn
-  as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
-  group labelled "up to N rounds"; included workflows as nested groups). A step that is running
-  now for any item glows, and above the graph each item running the workflow is named, linking
-  to its item page. Clicking a step opens the step page.
+- **Click** a card or a stage's row: the stage opens as a large modal over the Overview (owner
+  change of 2026-11-19, point 5), 40 px inside the window from md up and the whole screen under
+  it, its body scrolling on its own. The URL says which (`?stage=<id>`, pushed, so it can be
+  linked and Back closes it). Esc, the close button and a press on the backdrop close it too;
+  the Overview stays mounted under it, so the page keeps its scroll and the map its pan, zoom
+  and open details panel. Focus moves to the close button, stays in the modal, and returns to
+  the stage that opened it. The `factory/stages/:stage` route shows the same content full page.
+  Under the stage's label and blurb, three tabs, and between the tabs and the open tab one
+  notice about the items read, which every tab reads from: a failed first read says why with a
+  Retry; a failed refresh says this stage shows the last items read, and why, with a Retry, so
+  no tab passes old items off as here now and none glows a step from them; a slow read says it
+  is trying again. No tab draws a notice of its own:
+  - **What this stage does** (first when the view file gives the stage a drill-down), with the
+    line "The factory's summary of this stage, from its view file.": numbered phase columns of
+    plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
+    and naming the items on a step it covers now, and a click on a card listing the real steps
+    it stands for, each linking to its step page. A stage without one says it has no summary
+    and that the real workflow shows its steps.
+  - **Items here now**: the items in the stage, from the same read as the card's chips, each
+    linking to its item page with its state (needs you, the run line of the run working it, or
+    the board's merged, failed or waiting); rule 6's empty state when there are none.
+  - **The real workflow** (first when the stage has no drill-down), with the line "Generated
+    from the pack's workflow files; shows every step.": each workflow's steps drawn as a graph
+    (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed group
+    labelled "up to N rounds"; included workflows as nested groups). A step that is running now
+    for any item glows, and above the graph each item running the workflow is named, linking to
+    its item page. Clicking a step opens the step page. The graph's read shows its skeleton,
+    tries once more after a second when the request got no answer at all (a server
+    restarting), and on failure says which workflow could not be read and why, with a Retry
+    button. The server keeps a project's discovered workflows for this graph: younger than 30 s
+    they are served as they are, older they are served once more while a refresh runs. So an
+    edited workflow file shows from the second read made 30 s or more after the last
+    discovery; runs never read this list.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
   its blurb, the notes the view file places by it, its shadow steps (below), the items in it
-  (linking to each item), and the workflows behind it with links to their steps.
+  (linking to each item), and the workflows behind it with links to their steps (each opens the
+  stage on "The real workflow"). A step page's back link opens its stage over the Overview.
 - A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it

@@ -1,7 +1,7 @@
 import { afterAll, afterEach, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
-import { MemoryRouter, Route, Routes, useParams } from 'react-router';
+import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
 import { invalidate, set } from '../../store/cache';
@@ -55,8 +55,10 @@ const attention: EntityView<AttentionQueue> = {
   refetch: () => undefined,
 };
 
-function StagePage(): React.ReactElement {
-  return <p data-testid="stage-page">{useParams().stage}</p>;
+/** The stage the URL opens over the map, for the tests to read. */
+function OpenStage(): React.ReactElement | null {
+  const stage = useSearchParams()[0].get('stage');
+  return stage === null ? null : <p data-testid="stage-page">{stage}</p>;
 }
 
 /** The map over `read`, seeded warm in the cache; null leaves the cache cold, so it fetches. */
@@ -74,9 +76,13 @@ async function mount(
         <Routes>
           <Route
             path="/console/p/:projectId/factory"
-            element={<FactoryMap projectId={ID} view={listed} attention={attention} />}
+            element={
+              <>
+                <FactoryMap projectId={ID} view={listed} attention={attention} />
+                <OpenStage />
+              </>
+            }
           />
-          <Route path="/console/p/:projectId/factory/stages/:stage" element={<StagePage />} />
         </Routes>
       </MemoryRouter>
     )
@@ -127,7 +133,7 @@ test('every card shows its chips and links to its stage; its details button list
     expect(chip('checks', 'need-you')).toBeUndefined();
     expect(chip('plan', 'here')).toBeUndefined();
     expect(card(container, 'build').getAttribute('href')).toBe(
-      `/console/p/${ID}/factory/stages/build`
+      `/console/p/${ID}/factory?stage=build`
     );
 
     await act(async () => details(container, 'plan-build').click());
@@ -137,10 +143,10 @@ test('every card shows its chips and links to its stage; its details button list
       link.getAttribute('href')
     );
     expect(links).toEqual([
-      `/console/p/${ID}/factory/stages/plan`,
+      `/console/p/${ID}/factory?stage=plan`,
       `/console/p/${ID}/factory/items/5`,
       `/console/p/${ID}/factory/items/9`,
-      `/console/p/${ID}/factory/stages/build`,
+      `/console/p/${ID}/factory?stage=build`,
     ]);
     expect(panel?.textContent).toContain('Needs you');
     expect(panel?.textContent).toContain('Build · Writes the change');
@@ -165,10 +171,10 @@ test('the map draws one card per board column, a card of several stages a row fo
         link.getAttribute('href')
       );
     expect(rows('plan-build')).toEqual([
-      `/console/p/${ID}/factory/stages/plan`,
-      `/console/p/${ID}/factory/stages/build`,
+      `/console/p/${ID}/factory?stage=plan`,
+      `/console/p/${ID}/factory?stage=build`,
     ]);
-    expect(rows('merged')).toEqual([`/console/p/${ID}/factory/stages/landed`]);
+    expect(rows('merged')).toEqual([`/console/p/${ID}/factory?stage=landed`]);
     // A card of one stage reads its short line, not its blurb; a row of a card of several, its own.
     const ready = container.querySelector('[data-card="ready"]')?.textContent ?? '';
     expect(ready).toContain('Gated, waits for a merge');
@@ -222,7 +228,7 @@ test('no text the camera scales is under the type floor the readable scale assum
   }
 });
 
-test('a click on a card opens its stage page', async () => {
+test('a click on a card opens its stage over the map', async () => {
   const { container, unmount } = await mount();
   try {
     await act(async () => card(container, 'checks').click());

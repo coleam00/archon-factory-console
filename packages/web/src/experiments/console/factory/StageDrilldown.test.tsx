@@ -222,7 +222,7 @@ test('a failed items read says so and lights no card', async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
     expect(container.textContent).toContain(
-      'Could not load which items are running: The items read failed.'
+      'Could not refresh the items, so this stage shows the last ones read: The items read failed.'
     );
     expect(liveCards(container)).toEqual([]);
   });
@@ -245,24 +245,29 @@ test('clicking a card lists its real steps by name, each opening its step page b
   });
 });
 
-test('Drill-down | Real steps switches between the drill-down and the real step graph', async () => {
+test('on the stage page the tabs switch between the phases, the items and the real step graph', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
     const graphStep = (): HTMLButtonElement | undefined =>
       [...container.querySelectorAll('button')].find(candidate =>
         candidate.textContent.startsWith('·fix')
       );
+    const tab = (name: string): HTMLButtonElement => {
+      const found = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
+        candidate => candidate.textContent === name
+      );
+      if (found === undefined) throw new Error(`No tab ${name}`);
+      return found;
+    };
+    expect(phaseLabels(container)).toHaveLength(4);
     expect(graphStep()).toBeUndefined();
-    const drilldown = button(container, 'Drill-down');
-    const real = button(container, 'Real steps');
-    expect(drilldown.getAttribute('aria-pressed')).toBe('true');
-    expect(real.getAttribute('aria-pressed')).toBe('false');
-    await click(real);
-    expect(real.getAttribute('aria-pressed')).toBe('true');
+    await click(tab('The real workflow'));
     expect(graphStep()).toBeDefined();
     expect(phaseLabels(container)).toHaveLength(0);
-    await click(drilldown);
+    await click(tab('Items here now'));
+    expect(container.textContent).toContain('Nothing is in this stage now.');
     expect(graphStep()).toBeUndefined();
+    await click(tab('What this stage does'));
     expect(phaseLabels(container)).toHaveLength(4);
   });
 });

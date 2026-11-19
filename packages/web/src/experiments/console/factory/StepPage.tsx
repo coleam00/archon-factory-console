@@ -4,10 +4,7 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import { useLocation, useParams } from 'react-router';
 import { YamlPreview } from '../builder/components/YamlPreview';
-import * as skill from '../skills';
 import type { FactoryWorkflow } from '../skills/factory';
-import { K } from '../store/keys';
-import { useFactoryRead } from './useFactoryRead';
 import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
@@ -20,13 +17,13 @@ import {
   stepPageFromStage,
   type FactoryStage,
 } from './lib/stage-steps';
-import { readFailure } from './lib/read-failure';
 import { conditionText } from './lib/step-graph';
 import { stepLabel } from './lib/step-label';
-import { factoryPath, type FactoryViewListed } from './lib/views';
+import { factoryPath, stageModalLink, type FactoryViewListed } from './lib/views';
 import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { FactoryLoading } from './FactoryLoading';
 import { GraphSkeleton } from './GraphSkeleton';
+import { useFactoryWorkflow, WorkflowReadFailure } from './stage/useFactoryWorkflow';
 
 type Declaration = FactoryViewListed['declaration'];
 type FactoryStep = FactoryWorkflow['steps'][number];
@@ -74,8 +71,8 @@ export function StepPage(): ReactElement {
 }
 
 /**
- * Back to the stage the step was opened from; on a direct load, the stage that works this
- * step, else the first naming its workflow, else the overview.
+ * Back to the stage the step was opened from, open over the Overview; on a direct load, the
+ * stage that works this step, else the first naming its workflow, else the overview.
  */
 function StepBackLink({
   projectId,
@@ -93,12 +90,9 @@ function StepBackLink({
     stages[0];
   if (stage === undefined)
     return <BackLink to={factoryPath(projectId)} label="Back to the overview" />;
-  return (
-    <BackLink
-      to={factoryPath(projectId, `/stages/${encodeURIComponent(stage.id)}`)}
-      label={`Back to ${stage.label}`}
-    />
-  );
+  // The stage's home is its modal over the Overview. No `stageModal` state: closing it then
+  // drops `?stage=` in place, rather than going back to this step page.
+  return <BackLink to={stageModalLink(projectId, stage.id).to} label={`Back to ${stage.label}`} />;
 }
 
 function StepBody({
@@ -112,21 +106,15 @@ function StepBody({
   workflow: string;
   stepKey: string;
 }): ReactElement {
-  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
-    within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
-  );
-  if (read.data === undefined) {
-    const failed = readFailed(read.error);
+  const { read, failed, retry } = useFactoryWorkflow(projectId, workflow);
+  if (read.data === undefined)
     return failed === undefined ? (
       <FactoryLoading read={read}>
         <GraphSkeleton label="Loading the step" />
       </FactoryLoading>
     ) : (
-      <p className="font-mono text-console-13 text-error">
-        Could not load the step: {readFailure(failed)}
-      </p>
+      <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />
     );
-  }
   const step = read.data.steps.find(candidate => candidate.key === stepKey);
   if (step === undefined)
     return (
@@ -179,7 +167,7 @@ function OnThisStep({
   );
   // A failed refresh keeps the last list in the cache; it is no longer evidence of what runs.
   const failed = readFailed(items.error);
-  if (failed !== undefined) return <RunningItemsFailure error={failed} />;
+  if (failed !== undefined) return <RunningItemsFailure error={failed} retry={items.refetch} />;
   // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
   if (items.error !== undefined || items.data === undefined)
     return (

@@ -73,11 +73,11 @@ describe('the section-wide pieces of the Visual standard', () => {
     expect(links.match(/aria-current="page"/g)?.length).toBe(1);
     const buttons = routed(
       <SegmentedControl
-        label="Steps"
-        active="drill"
+        label="Board view"
+        active="pipeline"
         segments={[
-          { key: 'drill', label: 'Drill-down', onSelect: () => {} },
-          { key: 'real', label: 'Real steps', onSelect: () => {} },
+          { key: 'pipeline', label: 'Pipeline', onSelect: () => {} },
+          { key: 'table', label: 'Table', onSelect: () => {} },
         ]}
       />
     );

@@ -375,7 +375,8 @@ describe('the step page', () => {
     // The highlighted YAML block itself, not only its heading.
     expect(html).toContain('language-yaml');
     expect(html.replace(/<[^>]*>/g, '')).toContain('id: fix');
-    expect(html).toContain(`href="/console/p/${ID}/factory/stages/build"`);
+    // The stage's home is its modal over the Overview.
+    expect(html).toContain(`href="/console/p/${ID}/factory?stage=build"`);
   });
 
   test('a step opened from a stage leads back to that stage', () => {
@@ -386,14 +387,14 @@ describe('the step page', () => {
       },
       withView
     );
-    expect(html).toContain(`href="/console/p/${ID}/factory/stages/checks"`);
+    expect(html).toContain(`href="/console/p/${ID}/factory?stage=checks"`);
     expect(html).toContain('Back to Checks');
   });
 
   test('an included step leads back to the stage that works it', () => {
     const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`, withView);
     expect(html).toContain('included from');
-    expect(html).toContain(`href="/console/p/${ID}/factory/stages/checks"`);
+    expect(html).toContain(`href="/console/p/${ID}/factory?stage=checks"`);
   });
 
   test('a step the workflow does not have says so', () => {

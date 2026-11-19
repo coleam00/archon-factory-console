@@ -373,6 +373,57 @@ export function changeStateCache(
   };
 }
 
+/** How long the stage graph serves a project's discovered workflows before refreshing them. */
+const DISCOVERY_FRESH_MS = 30_000;
+
+/** A project's workflows for the stage graph; `fresh` waits on a new discovery. */
+export type StageDiscovery = (
+  cwd: string,
+  options?: { fresh?: boolean }
+) => Promise<WorkflowLoadResult>;
+
+/**
+ * Workflow discovery for the stage page's step graph, kept per project checkout. A discovery
+ * parses every workflow the project can see, about a second on the live factory, and the
+ * graph only displays what it finds. So one discovery runs per checkout at a time, shared by
+ * every read; a result younger than `DISCOVERY_FRESH_MS` is served as it is, and an older one
+ * is served once more while a refresh runs. So a workflow edited on disk reaches the graph on
+ * the second read made `DISCOVERY_FRESH_MS` or more after the discovery it replaces: the first
+ * starts the refresh and gets the old steps. That is acceptable for a read-only drawing (the
+ * page holds its graph until a reload anyway); runs and `/api/workflows` discover for
+ * themselves and never read this. A failed discovery is never kept: the first one rejects its
+ * reads, and a failed refresh is logged and the last result stays.
+ */
+export function discoveryCache(
+  deps: Pick<FactoryRouteDeps, 'discoverWorkflows' | 'now'>
+): StageDiscovery {
+  const now = deps.now ?? Date.now;
+  const known = new Map<string, { result: WorkflowLoadResult; at: number }>();
+  const running = new Map<string, Promise<WorkflowLoadResult>>();
+  const discover = (cwd: string): Promise<WorkflowLoadResult> => {
+    const inFlight = running.get(cwd);
+    if (inFlight !== undefined) return inFlight;
+    const started = deps
+      .discoverWorkflows(cwd)
+      .then(result => {
+        known.set(cwd, { result, at: now() });
+        return result;
+      })
+      .finally(() => running.delete(cwd));
+    running.set(cwd, started);
+    return started;
+  };
+  return async (cwd, { fresh = false } = {}) => {
+    const entry = known.get(cwd);
+    if (entry === undefined || fresh) return discover(cwd);
+    if (now() - entry.at >= DISCOVERY_FRESH_MS)
+      discover(cwd).catch((error: unknown) => {
+        getLog().warn({ err: error, cwd }, 'factory_workflow_discovery_refresh_failed');
+      });
+    return entry.result;
+  };
+}
+
 type ProjectRoots = ReturnType<typeof liveSourceRoots>;
 
 /** The live source roots of the project checked out at `cwd`, under its config. */
@@ -472,6 +523,7 @@ async function packSettings(
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
   const changeStates = changeStateCache(deps);
+  const stageWorkflows = discoveryCache(deps);
   const memo = new FactoryRunFactsMemo();
 
   register(getFactoryViewsRoute, async c => {
@@ -608,9 +660,15 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
       if (view === undefined)
         return apiError(c, 404, `This factory has no stage that runs the workflow ${workflow}.`);
       const runName = factoryRunWorkflowName(view.pack, workflow);
-      const entry = (await deps.discoverWorkflows(project.cwd)).workflows.find(
-        candidate => candidate.workflow.name === runName
-      );
+      const named = (
+        found: WorkflowLoadResult
+      ): WorkflowLoadResult['workflows'][number] | undefined =>
+        found.workflows.find(candidate => candidate.workflow.name === runName);
+      // A kept discovery may predate installing the pack, and the 404 below tells the person to
+      // install it and reload: discover again before saying it is missing.
+      const entry =
+        named(await stageWorkflows(project.cwd)) ??
+        named(await stageWorkflows(project.cwd, { fresh: true }));
       // Said for the person reading the stage page, who can act on it.
       if (entry === undefined)
         return apiError(

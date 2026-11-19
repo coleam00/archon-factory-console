@@ -12,7 +12,13 @@ import type { ItemReadSource } from '@archon/workflows/item-read';
 import type { WorkflowEventRow } from '@archon/workflows/schemas/workflow-event';
 import type { WorkflowItem, WorkflowRun } from '@archon/workflows/schemas/workflow-run';
 import { discoverWorkflows } from '@archon/workflows/workflow-discovery';
-import { changeStateCache, registerFactoryRoutes, type FactoryRouteDeps } from './api.factory';
+import type { WorkflowLoadResult } from '@archon/workflows/schemas/workflow';
+import {
+  changeStateCache,
+  discoveryCache,
+  registerFactoryRoutes,
+  type FactoryRouteDeps,
+} from './api.factory';
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
@@ -888,6 +894,73 @@ describe('the merge-state cache', () => {
   });
 });
 
+describe('the stage graph discovery cache', () => {
+  const found = (name: string): WorkflowLoadResult =>
+    ({ workflows: [{ workflow: { name } }], errors: [] }) as unknown as WorkflowLoadResult;
+  const settle = async (): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  };
+
+  test('concurrent reads share one discovery, and its result serves the next read', async () => {
+    let discoveries = 0;
+    const workflows = discoveryCache({
+      discoverWorkflows: async () => {
+        discoveries++;
+        return found('deliver');
+      },
+    });
+    await Promise.all([workflows('/repo'), workflows('/repo')]);
+    await workflows('/repo');
+    expect(discoveries).toBe(1);
+    // Another checkout is its own entry.
+    await workflows('/other');
+    expect(discoveries).toBe(2);
+  });
+
+  test('an old result is served while a refresh runs; the next read gets the refresh', async () => {
+    let clock = 0;
+    let discoveries = 0;
+    const workflows = discoveryCache({
+      now: () => clock,
+      discoverWorkflows: async () => found(discoveries++ === 0 ? 'old' : 'new'),
+    });
+    expect((await workflows('/repo')).workflows[0]?.workflow.name).toBe('old');
+    clock = 29_999;
+    await workflows('/repo');
+    expect(discoveries).toBe(1);
+    clock = 30_000;
+    expect((await workflows('/repo')).workflows[0]?.workflow.name).toBe('old');
+    await settle();
+    expect(discoveries).toBe(2);
+    expect((await workflows('/repo')).workflows[0]?.workflow.name).toBe('new');
+  });
+
+  test('a failed discovery is not kept; a failed refresh keeps the last result', async () => {
+    let clock = 0;
+    let fail = true;
+    let discoveries = 0;
+    const workflows = discoveryCache({
+      now: () => clock,
+      discoverWorkflows: async () => {
+        discoveries++;
+        if (fail) throw new Error('disk busy');
+        return found('deliver');
+      },
+    });
+    await expect(workflows('/repo')).rejects.toThrow('disk busy');
+    await settle();
+    fail = false;
+    expect((await workflows('/repo')).workflows).toHaveLength(1);
+    expect(discoveries).toBe(2);
+    fail = true;
+    clock = 60_000;
+    expect((await workflows('/repo')).workflows).toHaveLength(1);
+    await settle();
+    expect(discoveries).toBe(3);
+    expect((await workflows('/repo')).workflows).toHaveLength(1);
+  });
+});
+
 describe('GET /api/factory/workflow', () => {
   const track = trackTempRoots();
   const DELIVER = [
@@ -949,6 +1022,35 @@ describe('GET /api/factory/workflow', () => {
     // Read by a person on the stage page: it names the pack and the workflow.
     expect(error).toContain('kit');
     expect(error).toContain('deliver');
+  });
+
+  test('reads share one discovery; a workflow missing from it is discovered again before the 404', async () => {
+    const project = await projectWith(track, {
+      '.archon/packs/kit.factory-view.json': declaration('kit', 'Kit factory'),
+    });
+    let discoveries = 0;
+    const app = new OpenAPIHono();
+    registerFactoryRoutes(app, {
+      ...noItems,
+      codebase: async () => ({ cwd: project, projectKey: 'acme/web', remote: null }),
+      discoverWorkflows: cwd => {
+        discoveries++;
+        return discoverWorkflows(cwd, { providers: providerRegistry, loadDefaults: false });
+      },
+    });
+    const read = (): Promise<Response> =>
+      Promise.resolve(app.request('/api/factory/workflow?codebaseId=cb-1&workflow=deliver'));
+    expect((await read()).status).toBe(404);
+    // The pack is installed after the 404, and the person reloads as it told them to.
+    await mkdir(join(project, '.archon/workflows/kit/deliver'), { recursive: true });
+    await writeFile(join(project, '.archon/workflows/kit/deliver/deliver.yaml'), DELIVER);
+    discoveries = 0;
+    expect((await read()).status).toBe(200);
+    expect(discoveries).toBe(1);
+    expect((await Promise.all([read(), read()])).map(response => response.status)).toEqual([
+      200, 200,
+    ]);
+    expect(discoveries).toBe(1);
   });
 
   test('an unknown codebase returns 404', async () => {

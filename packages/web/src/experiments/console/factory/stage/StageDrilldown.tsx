@@ -7,7 +7,6 @@ import type { ItemOnStep } from '../lib/items-on-step';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed } from '../lib/views';
 import { cardShadows, recentTally } from '../lib/shadows';
-import { RunningItemsFailure } from '../RunningItems';
 import { RUNNING_GLOW } from '../StepGraph';
 import { DrilldownCard } from './DrilldownCard';
 import { DrilldownSteps } from './DrilldownSteps';
@@ -77,7 +76,6 @@ export function StageDrilldown({
   const card = selected === null ? undefined : phases[selected.phase]?.cards[selected.card];
   return (
     <div className="flex flex-col gap-4">
-      {items.error === undefined ? null : <RunningItemsFailure error={items.error} />}
       <div
         className={`flex flex-col gap-4 md:grid md:items-start ${loop === undefined ? '' : 'pb-4'}`}
         style={{ gridTemplateColumns: `repeat(${String(phases.length)}, minmax(0, 20rem))` }}

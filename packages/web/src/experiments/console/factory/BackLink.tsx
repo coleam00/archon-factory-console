@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, type To } from 'react-router';
 
 /**
  * The link a Factory page leads back with, top-left above its content: a chevron and where it
  * goes, in the Meta size, never an underlined accent link.
  */
-export function BackLink({ to, label }: { to: string; label: string }): ReactElement {
+export function BackLink({ to, label }: { to: To; label: string }): ReactElement {
   return (
     <Link
       to={to}

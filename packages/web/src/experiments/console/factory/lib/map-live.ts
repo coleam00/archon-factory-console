@@ -37,6 +37,10 @@ export type StageRead = StageLive | Unread;
 /** A stage nothing sits on. */
 export const EMPTY_STAGE_LIVE: StageLive = { items: [], working: 0, needYou: [], pending: false };
 
+/** One stage's chips, why there are none yet, or empty when nothing sits there. */
+export const stageReadOf = (live: MapLive | Unread, stage: string): StageRead =>
+  typeof live === 'string' ? live : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
+
 /** Why an item is on no card: so the reader knows whether to fix the read or the view. */
 export type NotOnMapWhy =
   /** Placement found no column: the view names no stage for it (as the item page's "Position unknown"). */
