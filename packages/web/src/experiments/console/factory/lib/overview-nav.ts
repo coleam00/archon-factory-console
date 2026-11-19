@@ -90,17 +90,3 @@ export function openView(
   if (overview.views[asked] !== undefined) return { id: asked, unknown: undefined };
   return { id: overview.root, unknown: asked };
 }
-
-/**
- * Whether the Factory sub-navigation offers How it works for the pack keyed `packKey`: the
- * packs listing names it (it has an overview file, or a broken one), or the read failed. A
- * failed read shows the entry so the pack page can say why; hiding it would be silent.
- * Unread, or not listed, there is nothing to show.
- */
-export function howItWorksShown(
-  read: { data: FactoryPacksRead | undefined; error: Error | undefined },
-  packKey: string
-): boolean {
-  if (read.error !== undefined) return true;
-  return read.data?.packs.some(pack => pack.key === packKey) ?? false;
-}

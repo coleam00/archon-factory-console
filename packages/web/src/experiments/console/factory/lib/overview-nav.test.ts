@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { OVERVIEW } from './overview.test-fixtures';
-import { howItWorksShown, openView, viewList, viewTrail } from './overview-nav';
+import { openView, viewList, viewTrail } from './overview-nav';
 
 describe('viewTrail', () => {
   test('runs from the root, named by its title, to the view, named by the card that opens it', () => {
@@ -29,27 +29,5 @@ describe('openView', () => {
     expect(openView(OVERVIEW, null)).toEqual({ id: 'top', unknown: undefined });
     expect(openView(OVERVIEW, 'make')).toEqual({ id: 'make', unknown: undefined });
     expect(openView(OVERVIEW, 'gone')).toEqual({ id: 'top', unknown: 'gone' });
-  });
-});
-
-describe('howItWorksShown', () => {
-  const listed = {
-    pack: 'acme/kit',
-    key: 'acme.kit',
-    overview: null,
-    readFrom: null,
-    projects: [],
-    errors: [],
-  };
-  const read = (packs: (typeof listed)[]) => ({
-    data: { packs, errors: [], unreadProjects: [] },
-    error: undefined,
-  });
-  test('shows for a listed pack or a failed read; not unread, nor for a pack it does not list', () => {
-    expect(howItWorksShown({ data: undefined, error: undefined }, 'acme.kit')).toBe(false);
-    expect(howItWorksShown(read([]), 'acme.kit')).toBe(false);
-    expect(howItWorksShown(read([listed]), 'acme.kit')).toBe(true);
-    expect(howItWorksShown(read([listed]), 'other.kit')).toBe(false);
-    expect(howItWorksShown({ data: undefined, error: new Error('500') }, 'acme.kit')).toBe(true);
   });
 });

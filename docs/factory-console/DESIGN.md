@@ -432,12 +432,13 @@ documents through Neon live queries.
   | `factory/items/:key` | One item: its timeline, asks, links and change |
   | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind its "Drill-down \| Real steps" control; a stage with no drill-down shows the graphs with no control |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
-  | `factory/*` | Any other path: "No page here" inside the section, with links to Overview, Board, Needs you and How it works |
+  | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
-- Inside the Factory tab a small sub-navigation switches Overview and Board, each its own route,
-  links to the project's Needs you tab (with the same count), and shows How it works when the
-  pack has a factory overview file (or a broken one). How it works opens the pack's page in the
-  sidebar, so it is never the tab's current page, and its file errors show there. Item, stage and step pages have a back link to where you came from.
+- Inside the Factory tab a small sub-navigation, on the line of the view's title, switches
+  Overview and Board, each its own route; the tab has no other pages (owner change 3 of
+  2026-11-19). Needs you is the project tab beside it and How it works the sidebar Factory page;
+  the old `factory/needs-you`, `factory/how-it-works` and `factory/overview` addresses redirect
+  there. Item, stage and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
@@ -646,8 +647,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 The Needs you tab (`/console/p/:projectId/needs-you`) lists every open ask and paused wait on the
 project's items and runs, newest first, grouped under their item, each an ask card answered
 through `POST /api/attention/answer` (a paused gate through its run's respond route), and an
-answered card says so for 5 s before it folds away. Its heading, the tab, the sub-navigation and
-the Overview's number all read one count, `needsYouCount`. Under the open asks, **Answered
+answered card says so for 5 s before it folds away. Its heading, the tab and the Overview's
+number all read one count, `needsYouCount`. Under the open asks, **Answered
 lately** lists the three newest sets of asks an item settled, as folded cards: each question and
 what it was answered with, and the stage the settling started again (engine #5834; the workflow on
 a project with no factory view), linking to that run with its status, or that no run started
@@ -760,7 +761,8 @@ first rule that matches. The board, the map and the item page all place through 
 3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
    also places a run that returns no outcome, such as the pack's `landgate`): that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
-   "N closed by triage" under the board, each linking to its item.
+   "N closed by triage" at the end of the board's toolbar, opening a list over the board, each
+   linking to its item.
 5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
@@ -816,7 +818,9 @@ matches only older merges), else rule 9's "Nothing in <column> now".
 
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
-columns. A card opens the item page, except its links and its ask face. **Table** view: one
+columns, at the end of the toolbar. The Pipeline's toolbar is one line at 1440x900 and
+1280x720 (the filter box, Pipeline/Table, a `?show=` chip, the work orders' summary, the folded
+endings, the hint), wrapping on a phone, so the columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item with the same fields as columns, a Work order, a Column and a Stage column among
 them (a running item's step and round under its stage, as the card's stage line reads; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
@@ -829,8 +833,10 @@ newest run of the declared `partOf` workflow that completed with its declared ou
 refused order run never makes an item a member): a link wins over a result that
 disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no card in any
 column and counts in no number; its members count as the items they are. Above the Pipeline's
-columns, a **Work orders** strip has one row per order with a member on the board (one that
-has a run): its key (to its item
+columns, in the toolbar, one line summarises the work orders with a member on the board (one
+that has a run): "N work orders · M open" (open: not every member merged), and, while an order
+is lit, "highlighting <key>" with Clear highlight, so a card's "part of" link lights something
+visible without opening the list. Clicking the line lists, under the toolbar, one row per order: its key (to its item
 page) and title (its own when it has one, else "Work order <key>"), "N of M merged" with a small bar, one
 dot per member in its pill's colour, and a toggle that lights its members on the board and dims
 the rest (`?order=<key>`). An order whose members have not started has no row yet: the order

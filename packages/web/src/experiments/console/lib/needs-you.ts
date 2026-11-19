@@ -44,8 +44,8 @@ export function itemAsks(
 }
 
 /**
- * How many asks and waits need a person: the one count the Needs you tab's badge, the Factory
- * sub-navigation, the Needs you heading and the Overview's number all read, so they never
+ * How many asks and waits need a person: the one count the Needs you tab's badge, the Needs you
+ * heading and the Factory Overview's number all read, so they never
  * disagree.
  */
 export function needsYouCount(queue: Pick<AttentionQueue, 'items'>): number {

@@ -1,4 +1,5 @@
-import type { ReactElement } from 'react';
+import { useId, useState, type ReactElement } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { statusDotClass } from '../lib/run-status';
 import { itemPath, PILL_LABEL, type Pill } from './lib/board';
@@ -14,9 +15,12 @@ const PILL_DOT_CLASS: Record<Pill, string> = {
 };
 
 /**
- * The work orders with a member on the board, one compact row each, above the Pipeline's
- * columns: the order, how many of its members merged, each member's state, and a toggle
- * that lights its members on the board. Nothing when no item is part of an order.
+ * The work orders with a member on the board, in the board's toolbar: one summary line
+ * ("2 work orders · 1 open") that lists them on a click, one compact row each with the
+ * order, how many of its members merged, each member's state, and a toggle that lights its
+ * members on the board. A lit order is named on the summary line with a way to clear it, so
+ * a card's "part of" link lights something visible without opening the list. Nothing when no
+ * item is part of an order.
  */
 export function WorkOrdersStrip({
   projectId,
@@ -28,26 +32,67 @@ export function WorkOrdersStrip({
   /** The order `?order=` lights; null when none. */
   lit: string | null;
 }): ReactElement | null {
+  const [open, setOpen] = useState(false);
+  const [, setParams] = useSearchParams();
+  const list = useId();
   // An order whose members have no run yet has nothing on the board to light; its page has it.
   const shown = orders.filter(order => order.members.some(member => member.where !== NOT_STARTED));
   if (shown.length === 0) return null;
+  const pending = shown.filter(order => order.landed < order.members.length).length;
+  const count = `${shown.length.toString()} work order${shown.length === 1 ? '' : 's'}`;
   return (
-    <section aria-label="Work orders" className="flex shrink-0 flex-col gap-1.5">
-      <h3 className="text-console-12 font-medium uppercase tracking-wider text-text-tertiary">
-        Work orders
-      </h3>
-      {/* Capped, so a long list of orders never takes the columns' height. */}
-      <ul className="flex max-h-32 flex-col gap-1.5 overflow-y-auto">
-        {shown.map(order => (
-          <WorkOrderRow
-            key={order.key}
-            projectId={projectId}
-            order={order}
-            lit={order.key === lit}
+    <>
+      <span className="flex min-w-0 items-center gap-2 text-console-12">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={list}
+          onClick={() => {
+            setOpen(was => !was);
+          }}
+          className="flex items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+        >
+          {`${count} · ${pending.toString()} open`}
+          <ChevronDown
+            aria-hidden="true"
+            className={`h-3.5 w-3.5 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
           />
-        ))}
-      </ul>
-    </section>
+        </button>
+        {lit === null ? null : (
+          <>
+            <span className="min-w-0 truncate text-text-primary">highlighting {lit}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setParams(current => new URLSearchParams(orderSearch(current, null)), {
+                  replace: true,
+                });
+              }}
+              className="whitespace-nowrap rounded px-2 py-0.5 font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+            >
+              Clear highlight
+            </button>
+          </>
+        )}
+      </span>
+      {open ? (
+        // Its own line under the toolbar, capped so a long list never takes the columns' height.
+        <ul
+          id={list}
+          aria-label="Work orders"
+          className="order-last flex max-h-32 basis-full flex-col gap-1.5 overflow-y-auto"
+        >
+          {shown.map(order => (
+            <WorkOrderRow
+              key={order.key}
+              projectId={projectId}
+              order={order}
+              lit={order.key === lit}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }
 

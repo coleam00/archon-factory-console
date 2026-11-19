@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
-import { Link } from 'react-router';
 import { BoardColumn } from './BoardColumn';
-import { hiddenColumnsHint, itemPath, type BoardModel } from './lib/board';
+import { hiddenColumnsHint, type BoardModel } from './lib/board';
 import { mergedWindow } from './lib/merged-window';
 import type { BoardAsks } from './useBoardAsks';
 
@@ -41,9 +40,10 @@ function useShownColumns(
 }
 
 /**
- * Pipeline view: one column per declared column, left to right (top to bottom on a phone),
- * then the folded endings. From md up the row takes the height it is given and each column
- * scrolls on its own; the Merged column lists the recent window (`mergedWindow`).
+ * Pipeline view: one column per declared column, left to right (top to bottom on a phone).
+ * From md up the row takes the height it is given and each column scrolls on its own; the
+ * Merged column lists the recent window (`mergedWindow`). Which columns the row hides is
+ * reported through `onHint`, for the board's toolbar to say, and cleared when it unmounts.
  */
 export function BoardPipeline({
   projectId,
@@ -53,6 +53,7 @@ export function BoardPipeline({
   now,
   filtered = false,
   asks,
+  onHint,
 }: {
   projectId: string;
   model: BoardModel;
@@ -64,6 +65,8 @@ export function BoardPipeline({
   /** The filter box or `?show=` narrows the cards this model holds. */
   filtered?: boolean;
   asks: BoardAsks;
+  /** "Scroll for: Merged" while a column is out of view, else null. */
+  onHint: (hint: string | null) => void;
 }): ReactElement {
   const scroller = useRef<HTMLDivElement>(null);
   const shown = useShownColumns(
@@ -71,17 +74,18 @@ export function BoardPipeline({
     model.columns.map(column => column.id)
   );
   const hint = hiddenColumnsHint(model.columns, shown);
+  // Cleared on unmount (the Table, a reload), so the toolbar never names a stale column.
+  useEffect(() => {
+    onHint(hint);
+    return (): void => {
+      onHint(null);
+    };
+  }, [hint, onHint]);
   return (
     // The minimum sits on this box, not the row inside it: what the board draws under it (the
     // Found by the factory panel) then follows the columns and the frame scrolls, rather than
     // the row overflowing a shrunken box and the panel drawing over the cards.
-    <div className="flex flex-col gap-3 md:min-h-80 md:flex-1">
-      {hint === null ? null : (
-        // Only where the columns sit side by side: on a phone they stack and none is hidden.
-        <p className="hidden text-console-12 text-text-tertiary md:block" aria-live="polite">
-          {hint} →
-        </p>
-      )}
+    <div className="flex flex-col md:min-h-80 md:flex-1">
       {/* A phone stacks the columns, each at full width; from md they sit side by side and
           the row scrolls sideways when they do not fit. */}
       <div
@@ -101,45 +105,6 @@ export function BoardPipeline({
           />
         ))}
       </div>
-      <EndedRows projectId={projectId} ended={model.ended} />
-    </div>
-  );
-}
-
-/** "N closed by triage" and the like: folded, each item linking to its page. */
-function EndedRows({
-  projectId,
-  ended,
-}: {
-  projectId: string;
-  ended: BoardModel['ended'];
-}): ReactElement | null {
-  if (ended.length === 0) return null;
-  return (
-    <div className="flex shrink-0 flex-wrap gap-2">
-      {ended.map(group => (
-        <details
-          key={group.label}
-          className="rounded-console-12 border border-border bg-surface px-3 py-2 text-console-13 md:max-w-md"
-        >
-          <summary className="cursor-pointer text-text-secondary">
-            {group.cards.length} {group.label.toLowerCase()}
-          </summary>
-          <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-y-auto">
-            {group.cards.map(({ card }) => (
-              <li key={card.key} className="flex gap-2">
-                <Link
-                  to={itemPath(projectId, card.key)}
-                  className="font-mono text-console-12 text-accent-bright hover:underline"
-                >
-                  {card.key}
-                </Link>
-                <span className="truncate text-text-secondary">{card.title}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ))}
     </div>
   );
 }

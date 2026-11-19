@@ -5,21 +5,18 @@ import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { TabLink } from '../components/TabLink';
 import { ProjectHeader } from '../components/ProjectHeader';
 import { useProjectAttention } from '../components/ProjectAttention';
-import { ProjectViewTabs, WaitingBadge } from '../components/ProjectViewTabs';
+import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
-import type { FactoryPacksRead, FactoryViews } from '../skills/factory';
+import type { FactoryViews } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { ClampedSummary } from './ClampedSummary';
-import { useFactoryPacks } from './useFactoryPacks';
 import { useFactoryRead } from './useFactoryRead';
 import { useFactoryViews } from './useFactoryViews';
 import { readFailed, SlowReadError } from './lib/deadline';
-import { needsYouCount, needsYouPath } from '../lib/needs-you';
-import { howItWorksShown } from './lib/overview-nav';
-import { currentView, factoryPackPath, factoryPath, type FactoryViewListed } from './lib/views';
+import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 import { BackLink } from './BackLink';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
@@ -114,17 +111,9 @@ function FactoryViewed({
   children: FactoryFrameProps['children'];
 }): ReactElement {
   const attention = useProjectAttention();
-  const waiting = attention.data === undefined ? undefined : needsYouCount(attention.data);
-  const packs = useFactoryPacks();
   return (
     <>
-      <FactoryHeading
-        projectId={projectId}
-        view={view}
-        section={section}
-        waiting={waiting}
-        packs={packs}
-      />
+      <FactoryHeading projectId={projectId} view={view} section={section} />
       <FactoryErrors errors={errors} />
       {children(view, attention)}
     </>
@@ -172,85 +161,41 @@ const SECTIONS: readonly {
   { key: 'board', label: 'Board', rest: '/board' },
 ];
 
+/**
+ * The view's title and the sub-navigation on one line, which wraps where it must (a phone, a
+ * long title), so the board keeps the height. The tab has two pages, Overview and Board:
+ * Needs you is the project tab beside it and How it works the sidebar Factory page.
+ */
 function FactoryHeading({
   projectId,
   view,
   section,
-  waiting,
-  packs,
 }: {
   projectId: string;
   view: FactoryViewListed;
   section: FactorySection;
-  /** How many open asks and waits need a person; undefined until the queue loads. */
-  waiting: number | undefined;
-  /**
-   * Every pack with an overview file. How it works shows when the view's pack is listed or
-   * the read failed, and opens the pack's page in the sidebar: it explains the pack, so it is
-   * never this project's current page, and its file errors show there.
-   */
-  packs: EntityView<FactoryPacksRead>;
 }): ReactElement {
-  const hasOverview = howItWorksShown(packs, view.packKey);
   return (
-    <div className="flex max-w-5xl flex-col gap-3">
-      <div className="flex flex-col gap-1.5">
-        <h2 className="text-console-22 font-semibold tracking-console-heading text-text-primary">
+    <div className="flex max-w-5xl flex-col gap-1.5">
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+        <h2 className="min-w-0 text-console-22 font-semibold tracking-console-heading text-text-primary [overflow-wrap:anywhere]">
           {view.declaration.title}
         </h2>
-        {/* The summary introduces the factory once, on the Overview; the other pages need
-            their first screen for the board, the item or the graph. */}
-        {section === 'overview' ? (
-          // Keyed by the text, so a new summary measures again and opens clamped.
-          <ClampedSummary
-            key={view.declaration.summary}
-            text={view.declaration.summary}
-            lines={2}
-          />
-        ) : null}
+        <nav aria-label="Factory" className="flex flex-wrap items-center gap-1">
+          {SECTIONS.map(({ key, label, rest }) => (
+            <TabLink key={key} to={factoryPath(projectId, rest)} active={key === section}>
+              {label}
+            </TabLink>
+          ))}
+        </nav>
       </div>
-      <nav aria-label="Factory" className="flex flex-wrap items-center gap-1">
-        {SECTIONS.map(({ key, label, rest }) => (
-          <SectionLink
-            key={key}
-            to={factoryPath(projectId, rest)}
-            label={label}
-            active={key === section}
-          />
-        ))}
-        {/* Needs you is a project tab, not a Factory page; the link takes its count along. */}
-        <SectionLink
-          to={needsYouPath(projectId)}
-          label="Needs you"
-          active={false}
-          count={waiting}
-        />
-        {hasOverview ? (
-          <SectionLink to={factoryPackPath(view.packKey)} label="How it works" active={false} />
-        ) : null}
-      </nav>
+      {/* The summary introduces the factory once, on the Overview; the other pages need
+          their first screen for the board, the item or the graph. */}
+      {section === 'overview' ? (
+        // Keyed by the text, so a new summary measures again and opens clamped.
+        <ClampedSummary key={view.declaration.summary} text={view.declaration.summary} lines={2} />
+      ) : null}
     </div>
-  );
-}
-
-/** One sub-navigation entry; a count, while above zero, shows as the soft needs-you chip. */
-function SectionLink({
-  to,
-  label,
-  active,
-  count,
-}: {
-  to: string;
-  label: string;
-  active: boolean;
-  /** How many wait on a person, for Needs you; undefined for the others and until it loads. */
-  count?: number;
-}): ReactElement {
-  return (
-    <TabLink to={to} active={active}>
-      {label}
-      {count === undefined || count === 0 ? null : <WaitingBadge count={count} />}
-    </TabLink>
   );
 }
 
