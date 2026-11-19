@@ -225,9 +225,10 @@ export async function readFactoryDiscoveries(
 }
 
 /**
- * A drain's result as its run's result reads it. The terminal record holds a returns node's
- * text output as that text, so text holding JSON is parsed by the rule the run result itself
- * uses (`nodeResultValue`); a script drain returns its decisions that way.
+ * A drain's result as the console reads it. The terminal record holds a returns node's text
+ * output as that text, so the console parses text holding JSON by its own reading rule
+ * (`nodeResultValue`); a script drain returns its decisions that way. This is not the engine's
+ * run-result rule, which returns a text output as the string itself.
  */
 function drainValue(recorded: unknown): JsonValue | undefined {
   return typeof recorded === 'string'
