@@ -4,15 +4,17 @@ import type { ItemOnStep } from '../lib/items-on-step';
 import type { FactoryViewListed } from '../lib/views';
 import { RunningItemLinks } from '../RunningItems';
 import { ShadowBadge } from '../ShadowBadge';
-import { RUNNING_GLOW } from '../StepGraph';
+import { cardTone } from '../tones';
 import { ICONS, KINDS } from './drilldown-kinds';
 
 /**
  * One card of a drill-down: its kind's colour along the top, its icon and kind, its title and
  * line of text. The card is a button that opens its real steps; the items on it now are named
- * under it, outside the button, since each is a link. It glows still, as the step graph does:
- * the items read carries no owner liveness. A card standing for a shadow step (rule 10)
- * carries the shadow badge and a `--node-opaque` bar, and says what it decided lately.
+ * under it, outside the button, since each is a link. It is lit in the running colour while
+ * items are on it, still, as the step graph glows: the items read carries no owner liveness.
+ * Its box is `.factory-card`'s (theme.css), tinted in its kind's colour. A card standing for a
+ * shadow step (rule 10) carries the shadow badge and a `--node-opaque` bar and tint, and says
+ * what it decided lately.
  */
 export function DrilldownCard({
   view,
@@ -39,16 +41,15 @@ export function DrilldownCard({
   const kind = KINDS[card.kind];
   const Icon = ICONS[card.icon];
   const live = onCard.length > 0;
+  const tone = live ? 'var(--running)' : shadow === null ? kind.color : 'var(--node-opaque)';
   return (
     <article
       data-live={live ? 'true' : undefined}
-      className="relative flex flex-col overflow-hidden rounded-console-12 border bg-surface transition-colors duration-150 ease-out hover:border-border-bright"
-      // Border colours go inline: the console root's `* { border-color }` outranks a utility.
-      // A selected card keeps its accent border; the glow still tints and rings it.
-      style={{
-        ...(live ? RUNNING_GLOW : {}),
-        ...(selected ? { borderColor: 'var(--accent-bright)' } : {}),
-      }}
+      data-lit={live ? '' : undefined}
+      // A selected card keeps its accent border and ring; a lit one still glows.
+      data-selected={selected ? '' : undefined}
+      className="factory-card relative flex flex-col overflow-hidden rounded-console-12 border"
+      style={cardTone(tone)}
     >
       <span
         aria-hidden="true"

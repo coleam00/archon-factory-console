@@ -88,7 +88,7 @@ export function OverviewMap({
         style={fullScreen ? undefined : { height: Math.min(camera.height, OVERVIEW_PAGE_MAX_H) }}
         aria-label="How the factory works. Drag to move, scroll to zoom, click a card marked ⤢ to open it."
         role="group"
-        className={`relative min-w-0 cursor-grab touch-none select-none overflow-hidden bg-surface-inset active:cursor-grabbing ${
+        className={`relative min-w-0 cursor-grab touch-none select-none overflow-hidden factory-canvas active:cursor-grabbing ${
           fullScreen ? 'size-full' : 'rounded-console-12 border border-border'
         }`}
         {...camera.frameHandlers}

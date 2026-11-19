@@ -1,10 +1,14 @@
-import type { ReactElement } from 'react';
+import { type ReactElement, useId } from 'react';
 import {
   BACK,
   BACK_DASH,
+  BACK_OPACITY,
+  FlowGradient,
   HeadMarker,
   LINE,
+  LINE_TO,
   LinePill,
+  MAIN_STROKE,
   rounded,
   SHADOW,
   STROKE,
@@ -12,7 +16,10 @@ import {
 import type { Box } from '../lib/map-layout';
 import type { OverviewEdgePath, OverviewFan } from '../lib/overview-layout';
 
-/* Lines in the Visual standard's rule 4 (`canvas-lines.tsx`); asks dotted. */
+/*
+ * Lines in the Visual standard's rule 4 (`canvas-lines.tsx`): a forward line 2 px, brightening
+ * along the flow; asks dotted; send-backs dashed and a little quieter; a shadow line as it was.
+ */
 
 const DASH: Record<OverviewEdgePath['kind'], string | undefined> = {
   feeds: undefined,
@@ -24,11 +31,13 @@ const DASH: Record<OverviewEdgePath['kind'], string | undefined> = {
 function colourOf(edge: {
   kind: OverviewEdgePath['kind'];
   shadow: boolean;
-}): 'line' | 'back' | 'shadow' {
+}): 'flow' | 'line' | 'back' | 'shadow' {
   if (edge.shadow) return 'shadow';
-  return edge.kind === 'loops-back' ? 'back' : 'line';
+  if (edge.kind === 'loops-back') return 'back';
+  return edge.kind === 'feeds' ? 'flow' : 'line';
 }
-const COLOURS = { line: LINE, back: BACK, shadow: SHADOW } as const;
+/** `flow` is a forward line's head, in the colour its gradient ends on. */
+const COLOURS = { flow: LINE_TO, line: LINE, back: BACK, shadow: SHADOW } as const;
 
 /**
  * A view's edges and fans, under its cards, with an arrowhead at each target card and each
@@ -45,6 +54,8 @@ export function OverviewEdges({
   bounds: Box;
 }): ReactElement {
   const fannedIn = new Set(fans.filter(fan => fan.into).map(fan => fan.group));
+  // Unique per mount: full screen remounts this SVG beside the page's.
+  const gradient = `${useId()}-flow`;
   return (
     <svg
       aria-hidden="true"
@@ -56,12 +67,24 @@ export function OverviewEdges({
         {(Object.keys(COLOURS) as (keyof typeof COLOURS)[]).map(id => (
           <HeadMarker key={id} id={`overview-head-${id}`} colour={COLOURS[id]} />
         ))}
+        {edges.map((edge, i) => {
+          const [from, to] = [edge.points[0], edge.points.at(-1)];
+          return colourOf(edge) !== 'flow' || from === undefined || to === undefined ? null : (
+            <FlowGradient
+              key={`${edge.from}->${edge.to}:${edge.kind}`}
+              id={`${gradient}-${i.toString()}`}
+              from={from}
+              to={to}
+            />
+          );
+        })}
       </defs>
-      {edges.map(edge => (
+      {edges.map((edge, i) => (
         <EdgeLine
           key={`${edge.from}->${edge.to}:${edge.kind}`}
           edge={edge}
           head={!fannedIn.has(edge.to)}
+          gradient={`${gradient}-${i.toString()}`}
         />
       ))}
       {fans.map(fan => (
@@ -81,27 +104,42 @@ export function OverviewEdges({
   );
 }
 
-function EdgeLine({ edge, head }: { edge: OverviewEdgePath; head: boolean }): ReactElement {
+/** One edge; a forward one is painted with its `gradient`, defined in the SVG's defs. */
+function EdgeLine({
+  edge,
+  head,
+  gradient,
+}: {
+  edge: OverviewEdgePath;
+  head: boolean;
+  gradient: string;
+}): ReactElement {
   const colour = colourOf(edge);
+  const flow = colour === 'flow';
   return (
     <path
       data-edge={edge.kind}
       d={rounded(edge.points)}
       fill="none"
-      stroke={COLOURS[colour]}
-      strokeWidth={STROKE}
+      stroke={flow ? `url(#${gradient})` : COLOURS[colour]}
+      strokeWidth={flow ? MAIN_STROKE : STROKE}
       strokeDasharray={DASH[edge.kind]}
+      strokeOpacity={colour === 'back' ? BACK_OPACITY : undefined}
       markerEnd={head ? `url(#overview-head-${colour})` : undefined}
     />
   );
 }
 
-/** A fan's bar and its stubs, in its edge's style; into the group, each stub ends in a head. */
+/**
+ * A fan's bar and its stubs, in its edge's style; into the group, each stub ends in a head. A
+ * forward fan is solid in the bright end of the flow: its pieces are too short for a gradient.
+ */
 function FanLines({ fan }: { fan: OverviewFan }): ReactElement {
+  const feeds = fan.kind === 'feeds';
   const stroke = {
     fill: 'none',
-    stroke: LINE,
-    strokeWidth: STROKE,
+    stroke: feeds ? LINE_TO : LINE,
+    strokeWidth: feeds ? MAIN_STROKE : STROKE,
     strokeDasharray: DASH[fan.kind],
   };
   return (
@@ -112,7 +150,7 @@ function FanLines({ fan }: { fan: OverviewFan }): ReactElement {
           key={stub.card}
           d={rounded([stub.from, stub.to])}
           {...stroke}
-          markerEnd={fan.into ? 'url(#overview-head-line)' : undefined}
+          markerEnd={fan.into ? `url(#overview-head-${feeds ? 'flow' : 'line'})` : undefined}
         />
       ))}
     </g>
