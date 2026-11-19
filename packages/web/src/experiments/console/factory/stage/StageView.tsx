@@ -7,6 +7,8 @@ import type { EntityView } from '../../store/cache';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed, type StageTab } from '../lib/views';
+import { FactoryLoading } from '../FactoryLoading';
+import { readFailed } from '../lib/deadline';
 import { readFailure } from '../lib/read-failure';
 import { ReadFailure } from '../ReadFailure';
 import { useFactoryItems } from '../useFactoryItems';
@@ -66,6 +68,7 @@ export function StageView({
         </p>
       </div>
       <StageTabs active={tab} onSelect={setTab} />
+      <ItemsReadNotice items={items} />
       {tab === 'does' ? (
         <>
           <p className={SOURCE}>The factory's summary of this stage, from its view file.</p>
@@ -90,7 +93,7 @@ export function StageView({
           )}
         </>
       ) : tab === 'items' ? (
-        <StageItemsTab projectId={projectId} view={view} stage={stage} live={live} items={items} />
+        <StageItemsTab projectId={projectId} view={view} stage={stage} live={live} />
       ) : (
         <>
           <p className={SOURCE}>Generated from the pack's workflow files; shows every step.</p>
@@ -158,19 +161,36 @@ function StageTabs({
   );
 }
 
-/** "Items here now": the stage's items, rule 6's empty state, or what failed with a Retry. */
+/**
+ * The one word every tab gets about the items read, above whichever tab is open: a read that
+ * failed says why with a Retry; one that failed after a good read says what follows is from
+ * that last read, so no tab passes old items off as here now; a slow one says it is trying
+ * again. The tabs draw no notice of their own.
+ */
+function ItemsReadNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElement | null {
+  const failed = readFailed(items.error);
+  if (failed !== undefined)
+    return (
+      <ReadFailure retry={items.refetch}>
+        {items.data === undefined
+          ? `Could not read the items in this stage: ${readFailure(failed)}`
+          : `Could not refresh the items, so this stage shows the last ones read: ${readFailure(failed)}`}
+      </ReadFailure>
+    );
+  return items.error === undefined ? null : <FactoryLoading read={items} />;
+}
+
+/** "Items here now": the stage's items, or rule 6's empty state. */
 function StageItemsTab({
   projectId,
   view,
   stage,
   live,
-  items,
 }: {
   projectId: string;
   view: Declaration;
   stage: FactoryStage;
   live: StageRead;
-  items: EntityView<FactoryItem[]>;
 }): ReactElement {
   return (
     <ItemsHere
@@ -179,12 +199,6 @@ function StageItemsTab({
       stage={stage}
       live={live}
       resting
-      failed={
-        <ReadFailure retry={items.refetch}>
-          Could not read the items in this stage
-          {items.error === undefined ? '.' : `: ${readFailure(items.error)}`}
-        </ReadFailure>
-      }
       empty={
         <EmptyNote
           icon={Inbox}

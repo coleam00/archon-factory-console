@@ -1,16 +1,14 @@
 import { useMemo, type ReactElement } from 'react';
-import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
 import type { FactoryItem } from '../../skills/factory';
 import type { EntityView } from '../../store/cache';
 import { FactoryLoading } from '../FactoryLoading';
 import { GraphSkeleton } from '../GraphSkeleton';
-import { readFailed } from '../lib/deadline';
 import { itemsOnStep, runningItems } from '../lib/items-on-step';
 import { stepInStage, type FactoryStage } from '../lib/stage-steps';
 import { stepGraph } from '../lib/step-graph';
 import { stepLabel } from '../lib/step-label';
 import type { FactoryViewListed } from '../lib/views';
-import { RunningItemLinks, RunningItemsFailure } from '../RunningItems';
+import { RunningItemLinks } from '../RunningItems';
 import { StepGraph } from '../StepGraph';
 import { useFactoryWorkflow, WorkflowReadFailure } from './useFactoryWorkflow';
 
@@ -95,18 +93,9 @@ function RunningNow({
     () => runningItems(items.data ?? [], workflow),
     [items.data, workflow]
   );
-  const failed = readFailed(items.error);
-  if (failed !== undefined) return <RunningItemsFailure error={failed} retry={items.refetch} />;
-  // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
-  if (items.error !== undefined)
-    return (
-      <FactoryLoading read={items}>
-        <SkeletonGroup label="Reading which items run here">
-          <SkeletonLine width="short" />
-        </SkeletonGroup>
-      </FactoryLoading>
-    );
-  if (onWorkflow.length === 0) return null;
+  // A failed or slow refresh leaves the last list no evidence of what runs; the stage view says
+  // so above the tabs, with a Retry.
+  if (items.error !== undefined || onWorkflow.length === 0) return null;
   return (
     <div className="flex flex-col gap-1">
       <h5 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">

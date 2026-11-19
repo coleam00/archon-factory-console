@@ -721,7 +721,11 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   the Overview stays mounted under it, so the page keeps its scroll and the map its pan, zoom
   and open details panel. Focus moves to the close button, stays in the modal, and returns to
   the stage that opened it. The `factory/stages/:stage` route shows the same content full page.
-  Under the stage's label and blurb, three tabs:
+  Under the stage's label and blurb, three tabs, and between the tabs and the open tab one
+  notice about the items read, which every tab reads from: a failed first read says why with a
+  Retry; a failed refresh says this stage shows the last items read, and why, with a Retry, so
+  no tab passes old items off as here now and none glows a step from them; a slow read says it
+  is trying again. No tab draws a notice of its own:
   - **What this stage does** (first when the view file gives the stage a drill-down), with the
     line "The factory's summary of this stage, from its view file.": numbered phase columns of
     plain cards, the loop as one labelled frame around the phases it repeats, a card glowing

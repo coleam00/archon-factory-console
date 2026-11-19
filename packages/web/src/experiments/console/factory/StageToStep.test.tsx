@@ -242,7 +242,7 @@ test('a failed refresh says so on the stage page and stops the glow; the graph s
       await new Promise(resolve => setTimeout(resolve, 0));
     });
     expect(container.textContent).toContain(
-      'Could not load which items are running: The items read failed.'
+      'Could not refresh the items, so this stage shows the last ones read: The items read failed.'
     );
     // The cache keeps the last list; it no longer says what runs.
     expect(stepButton(container, '·build').hasAttribute('data-running')).toBe(false);

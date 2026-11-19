@@ -361,6 +361,44 @@ describe('a stage opened over the Overview', () => {
     }
   });
 
+  test('a failed refresh after a good read says so once, above every tab, and Retry reads again', async () => {
+    const { container, unmount } = await mount(`${OVERVIEW}?stage=build`);
+    const alerts = (): string[] =>
+      [...(dialog()?.querySelectorAll('[role="alert"]') ?? [])].map(alert => alert.textContent);
+    try {
+      await click(inDialog('Items here now'));
+      const shown = dialog()?.querySelectorAll('li a[href*="/items/"]').length ?? 0;
+      expect(shown).toBeGreaterThan(0);
+      expect(alerts()).toEqual([]);
+      // The read the dashboard's events start, failing: the cache keeps the last list.
+      itemsAnswer = () => Response.json({ error: 'The refresh failed.' }, { status: 500 });
+      await act(async () => {
+        invalidate('factory-items');
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+      const stale = [
+        'Could not refresh the items, so this stage shows the last ones read: The refresh failed.Retry',
+      ];
+      // The old items stay drawn, under the one notice that says they are old.
+      expect(alerts()).toEqual(stale);
+      expect(dialog()?.querySelectorAll('li a[href*="/items/"]').length).toBe(shown);
+      // Every tab reads under the same notice, and none adds its own.
+      for (const tab of ['What this stage does', 'The real workflow']) {
+        await click(inDialog(tab));
+        await settle();
+        expect(alerts()).toEqual(stale);
+      }
+      itemsAnswer = itemsReadAnswer(items);
+      await click(inDialog('Retry'));
+      await settle();
+      expect(alerts()).toEqual([]);
+      expect(container.querySelector('[data-card="plan-build"]')).not.toBeNull();
+    } finally {
+      itemsAnswer = itemsReadAnswer([]);
+      await unmount();
+    }
+  });
+
   test('a stage with nothing in it says so and points at the board', async () => {
     const { container, unmount } = await mount(OVERVIEW, []);
     try {

@@ -222,7 +222,7 @@ test('a failed items read says so and lights no card', async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
     expect(container.textContent).toContain(
-      'Could not load which items are running: The items read failed.'
+      'Could not refresh the items, so this stage shows the last ones read: The items read failed.'
     );
     expect(liveCards(container)).toEqual([]);
   });
