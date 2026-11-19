@@ -102,6 +102,9 @@ const details = (container: HTMLElement, id: string): HTMLButtonElement => {
   if (button === null) throw new Error(`No details button for ${id}`);
   return button;
 };
+/** The hover text of the shadow badge by a stage's name on the map. */
+const shadowTitle = (container: HTMLElement, stage: string): string | null | undefined =>
+  container.querySelector(`[data-stage="${stage}"] [data-shadow-badge]`)?.getAttribute('title');
 const stagePage = (container: HTMLElement): string | null | undefined =>
   container.querySelector('[data-testid="stage-page"]')?.textContent;
 
@@ -520,6 +523,9 @@ test('before the items answer, every declared card and arrow is drawn with skele
       container.querySelector('aside[aria-label="Plan & build details"]');
     expect(panel()?.textContent).toContain('Items here · …');
     expect(panel()?.textContent).not.toContain('Nothing here now.');
+    // A shadow step's line says "…" too, never that it decided nothing.
+    expect(shadowTitle(container, 'checks')).toContain('Project checks · …');
+    expect(shadowTitle(container, 'checks')).not.toContain('nothing decided yet');
 
     // The answer fills the chips in on the same cards, and the open panel stays open.
     server.release();
@@ -533,6 +539,8 @@ test('before the items answer, every declared card and arrow is drawn with skele
     expect(after).toHaveLength(drawn.length);
     after.forEach((el, index) => expect(el).toBe(drawn[index]!));
     expect(panel()?.textContent).toContain('Items here · 2');
+    // These items carry no shadow decision: now it is true that none was decided.
+    expect(shadowTitle(container, 'checks')).toContain('Project checks · nothing decided yet');
     expect(details(container, 'plan-build').getAttribute('aria-pressed')).toBe('true');
   } finally {
     server.restore();
@@ -565,6 +573,11 @@ test('a first items read that fails says so over the map drawn from the declarat
     expect(panel?.textContent).toContain('Could not be read.');
     expect(panel?.textContent).not.toContain('Loading');
     expect(panel?.textContent).not.toContain('Nothing here now.');
+    expect(shadowTitle(container, 'checks')).toContain('Project checks · could not be read');
+    await act(async () => details(container, 'checks-review').click());
+    const checks = container.querySelector('aside[aria-label="Checks & review details"]');
+    expect(checks?.textContent).toContain('Project checks · could not be read');
+    expect(checks?.textContent).not.toContain('nothing decided yet');
   } finally {
     globalThis.fetch = originalFetch;
     await unmount();

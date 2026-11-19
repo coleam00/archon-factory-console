@@ -198,6 +198,60 @@ const mapSchema = z.strictObject({
     .optional(),
 });
 
+/** What a shadow step is and how a person reads it: the step, and a plain question for it. */
+const shadowStepShape = {
+  workflow: workflowNameSchema,
+  /** The step id as the engine records it: `rounds.checks` for a loop's body node. */
+  node: stepIdSchema,
+  /** A plain question or name for what it decides: "Would it start on its own". */
+  label: labelSchema,
+};
+
+/**
+ * One step the pack runs as a shadow: it decides what it would do, records it, and does
+ * nothing. A console reads each completed run of the step from its value (its structured
+ * output, else its text output parsed as JSON) and never shows it as having acted. `reads`
+ * says how the value is read:
+ * - `verdict`: one string at `pointer`, worded through `words` (value to plain words, "would
+ *   ask you first"); a value `words` lacks stays the pack's token. `why`, when given, is the
+ *   step's reason.
+ * - `checks`: a list of checks at `results`, each entry read through `entry`'s pointers.
+ * - `lists`: the lists at each `lists[].pointer`, counted, each count after its `words`
+ *   ("would file"); `why`, when given, is the step's own summary.
+ * A value that does not read so is shown as unreadable, never as a decision.
+ */
+const shadowSchema = z.discriminatedUnion('reads', [
+  z.strictObject({
+    ...shadowStepShape,
+    reads: z.literal('verdict'),
+    pointer: jsonPointerSchema,
+    words: z
+      .record(z.string().min(1), labelSchema)
+      .refine(words => Object.keys(words).length > 0, 'names at least one value'),
+    why: jsonPointerSchema.optional(),
+  }),
+  z.strictObject({
+    ...shadowStepShape,
+    reads: z.literal('checks'),
+    results: jsonPointerSchema,
+    entry: z.strictObject({
+      name: jsonPointerSchema,
+      passed: jsonPointerSchema,
+      seconds: jsonPointerSchema.optional(),
+      tail: jsonPointerSchema.optional(),
+    }),
+  }),
+  z.strictObject({
+    ...shadowStepShape,
+    reads: z.literal('lists'),
+    lists: z
+      .array(z.strictObject({ pointer: jsonPointerSchema, words: labelSchema }))
+      .min(1)
+      .max(6),
+    why: jsonPointerSchema.optional(),
+  }),
+]);
+
 const factoryViewShape = z.strictObject({
   version: z.literal(1),
   /** The pack this view draws: `owner/name` when installed, else its folder name. */
@@ -297,6 +351,13 @@ const factoryViewShape = z.strictObject({
       }),
     })
     .optional(),
+  /**
+   * The steps the pack runs as shadows (see `shadowSchema`), one entry per step. Each names
+   * a workflow a stage lists, or the `discoveries` workflow; `bun run check:factory-view`
+   * checks the step is real. When `discoveries` is given, its `shadow` flag and an entry
+   * here naming its workflow must agree.
+   */
+  shadows: z.array(shadowSchema).min(1).optional(),
   /** The run input whose title line (after any front matter) is the item's title. */
   itemTitle: z.strictObject({ input: z.string().min(1) }).optional(),
   /**
@@ -466,6 +527,51 @@ function drilldownIssues(view: FactoryViewShape): Issue[] {
   return issues;
 }
 
+/**
+ * Each shadow names a workflow a stage lists, or the `discoveries` workflow (its runs place no
+ * item, so no stage lists it, as in `workflowReferenceIssues`); no step is declared twice.
+ */
+function shadowReferenceIssues(view: FactoryViewShape): Issue[] {
+  const workflows = new Set(view.stages.flatMap(stage => stage.workflows));
+  if (view.discoveries !== undefined) workflows.add(view.discoveries.workflow);
+  const seen = new Set<string>();
+  const issues: Issue[] = [];
+  view.shadows?.forEach((shadow, index) => {
+    if (!workflows.has(shadow.workflow))
+      issues.push({
+        path: ['shadows', index, 'workflow'],
+        message: `names workflow "${shadow.workflow}", which no stage lists`,
+      });
+    const key = JSON.stringify([shadow.workflow, shadow.node]);
+    if (seen.has(key))
+      issues.push({
+        path: ['shadows', index, 'node'],
+        message: `step "${shadow.workflow}/${shadow.node}" is declared a shadow twice`,
+      });
+    seen.add(key);
+  });
+  return issues;
+}
+
+/**
+ * `discoveries.shadow` and `shadows` say the same thing about the drain, so they must agree:
+ * a shadow drain has an entry naming its workflow, and one that files for real has none.
+ */
+function discoveriesShadowIssues(view: FactoryViewShape): Issue[] {
+  const { discoveries } = view;
+  if (discoveries === undefined) return [];
+  const declared = (view.shadows ?? []).some(shadow => shadow.workflow === discoveries.workflow);
+  if (declared === discoveries.shadow) return [];
+  return [
+    {
+      path: ['discoveries', 'shadow'],
+      message: discoveries.shadow
+        ? `is true, but no entry of shadows names workflow "${discoveries.workflow}"`
+        : `is false, but shadows names workflow "${discoveries.workflow}"`,
+    },
+  ];
+}
+
 export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
   for (const issue of [
     ...stageReferenceIssues(view),
@@ -473,12 +579,16 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
     ...workflowReferenceIssues(view),
     ...verdictOverlapIssues(view),
     ...drilldownIssues(view),
+    ...shadowReferenceIssues(view),
+    ...discoveriesShadowIssues(view),
   ])
     ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
 });
 export type FactoryView = z.infer<typeof factoryViewSchema>;
 export type FactoryStage = FactoryView['stages'][number];
 export type FactoryDrilldown = NonNullable<FactoryStage['drilldown']>;
+export type FactoryShadow = NonNullable<FactoryView['shadows']>[number];
+export type FactoryShadowReads = FactoryShadow['reads'];
 
 /** Where a view was found: a pack's own file, or the project's file for a pack. */
 export const factoryViewSourceSchema = z.enum([...workflowSourceSchema.options, 'project-file']);

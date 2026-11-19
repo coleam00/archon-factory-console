@@ -9,10 +9,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryDeclaration } from './board';
+import { withShadowsField } from './fixtures/shadows-field';
 
 const read = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
-export const PAGE = read(join(import.meta.dir, '__fixtures__', 'items-page.json')) as {
+export const PAGE = withShadowsField(
+  read(join(import.meta.dir, '__fixtures__', 'items-page.json'))
+) as {
   items: FactoryItem[];
 };
 

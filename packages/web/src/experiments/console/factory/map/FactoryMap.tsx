@@ -16,6 +16,7 @@ import {
 import type { FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
+import { stageShadowLines, stageShadows, type ShadowItems } from '../lib/shadows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
@@ -110,7 +111,7 @@ function MapLiveCanvas({
   useEffect(() => {
     if (typeof live !== 'string') previous.current = live.positions;
   }, [live]);
-  return <MapCanvas {...inputs} live={live} />;
+  return <MapCanvas {...inputs} live={live} items={items ?? unread} />;
 }
 
 /** One stage's chips, why there are none yet, or empty when nothing sits there. */
@@ -121,7 +122,12 @@ function MapCanvas({
   projectId,
   view,
   live,
-}: Omit<MapInputs, 'attention'> & { live: MapLive | Unread }): ReactElement {
+  items,
+}: Omit<MapInputs, 'attention'> & {
+  live: MapLive | Unread;
+  /** Every item read, for what each shadow step decided lately; why there is none until then. */
+  items: ShadowItems;
+}): ReactElement {
   const layout = useMemo(() => layoutMap(view), [view]);
   const { cards, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
@@ -187,6 +193,7 @@ function MapCanvas({
                 key={card.id}
                 card={card}
                 stages={stagesOf(card.stages)}
+                shadows={stage => stageShadowLines(stage, view, items)}
                 live={stage => liveOf(live, stage)}
                 selected={card.id === selected}
                 stagePath={stagePath}
@@ -213,12 +220,16 @@ function MapCanvas({
               stage,
               live: liveOf(live, stage.id),
               notes: stageNotes(stage.id),
+              shadows: stageShadowLines(stage, view, items),
             }))}
             onClose={() => setSelected(null)}
           />
         )}
       </div>
-      <MapLegend tones={cards.map(card => card.tone)} />
+      <MapLegend
+        tones={cards.map(card => card.tone)}
+        shadow={view.stages.some(stage => stageShadows(stage, view).length > 0)}
+      />
       <MapNotOnMap
         projectId={projectId}
         view={view}

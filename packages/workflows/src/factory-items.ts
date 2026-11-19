@@ -36,6 +36,12 @@ import {
 } from './store/event-types';
 import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
 import { decidedIn, roundFacts, type DecisionPoint } from './factory-rounds';
+import {
+  factoryShadowDecisionSchema,
+  latestShadowDecisions,
+  shadowDecisions,
+  type FactoryShadowDecision,
+} from './factory-shadows';
 
 /**
  * How one round of the declared rounds loop ended, from declared data only: `returned` when
@@ -142,6 +148,11 @@ export const factoryItemProgressSchema = z.object({
       failedStep: z.string().nullable(),
     })
   ),
+  /**
+   * The newest decision of each shadow step the view declares (`shadows`) across the item's
+   * runs, a run of the discoveries workflow included; empty when none decided.
+   */
+  shadows: z.array(factoryShadowDecisionSchema),
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
@@ -192,6 +203,8 @@ export interface FactoryRunFacts {
    * workflow, did not complete with a result, or names none there (empty or not a string).
    */
   partOf: string | null;
+  /** What the shadow steps the view declares decided on this run, in recording order. */
+  shadows: FactoryShadowDecision[];
 }
 
 /** The event types `factoryRunFacts` reads. */
@@ -269,8 +282,21 @@ function partOfFact(
 }
 
 /**
- * What one run of a workflow `view` declares contributes to its item's progress, from the
- * run's events (`FACTORY_RUN_FACT_EVENT_TYPES`, in append order).
+ * Whether `run` is one the item's facts read: a run of a workflow a stage lists, or of one a
+ * shadow names (the discoveries workflow, which no stage lists).
+ */
+function factsRead(view: FactoryView, pack: string, run: WorkflowRun): boolean {
+  return (
+    declaredWorkflow(view, pack, run.workflow_name) !== null ||
+    (view.shadows ?? []).some(
+      shadow => factoryRunWorkflowName(pack, shadow.workflow) === run.workflow_name
+    )
+  );
+}
+
+/**
+ * What one run of a workflow `view` declares, or a shadow names, contributes to its item's
+ * progress, from the run's events (`FACTORY_RUN_FACT_EVENT_TYPES`, in append order).
  */
 export function factoryRunFacts(
   view: FactoryView,
@@ -300,6 +326,7 @@ export function factoryRunFacts(
       view.partOf !== undefined && view.partOf.workflow === workflow
         ? partOfFact(view.partOf.pointer, run, events)
         : null,
+    shadows: shadowDecisions(view, pack, run, events),
   };
 }
 
@@ -363,8 +390,8 @@ export type FactoryChangeState = (
 }>;
 
 /**
- * An item's progress from its runs (start order) and the facts of each declared run.
- * Runs without facts are not of a declared workflow.
+ * An item's progress from its runs (start order) and the facts of each run read. Only runs of
+ * a workflow a stage lists place the item; a run only a shadow names adds its decisions.
  */
 export async function factoryItemProgress(
   view: FactoryView,
@@ -375,9 +402,10 @@ export async function factoryItemProgress(
   /** The branch a run recorded; null when it recorded none. */
   branchOf: (run: WorkflowRun) => Promise<string | null>
 ): Promise<FactoryItemProgress> {
-  const declared = [...runs]
+  const read = [...runs]
     .filter(run => facts.has(run.id))
     .sort((a, b) => a.started_at.getTime() - b.started_at.getTime());
+  const declared = read.filter(run => declaredWorkflow(view, pack, run.workflow_name) !== null);
   const latest = <T>(pick: (run: WorkflowRun, fact: FactoryRunFacts) => T | null): T | null => {
     for (const run of [...declared].reverse()) {
       const fact = facts.get(run.id);
@@ -424,6 +452,7 @@ export async function factoryItemProgress(
       workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
       failedStep: facts.get(run.id)?.failedStep ?? null,
     })),
+    shadows: latestShadowDecisions(read.map(run => facts.get(run.id)?.shadows ?? [])),
   };
 }
 
@@ -509,6 +538,7 @@ export class FactoryRunFactsMemo {
       approves: view.approves,
       change: view.change,
       partOf: view.partOf,
+      shadows: view.shadows,
     };
     return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;
   }
@@ -542,7 +572,7 @@ export interface ReadFactoryItemsInput {
 
 type FoundItem = NonNullable<Awaited<ReturnType<typeof readItemRuns>>>;
 
-/** Facts for every declared run of `found`, loading events only for runs not memoised. */
+/** Facts for every run of `found` the facts read, loading events only for runs not memoised. */
 async function runFactsFor(
   source: ItemReadSource,
   input: ReadFactoryItemsInput,
@@ -552,7 +582,7 @@ async function runFactsFor(
   const facts = new Map<string, FactoryRunFacts>();
   const load: WorkflowRun[] = [];
   for (const run of found.flatMap(item => item.runs)) {
-    if (declaredWorkflow(view, pack, run.workflow_name) === null) continue;
+    if (!factsRead(view, pack, run)) continue;
     const memoised = memo.get(view, pack, run);
     if (memoised === undefined) load.push(run);
     else facts.set(run.id, memoised);
@@ -684,6 +714,11 @@ export const factoryItemRunSchema = z.object({
   costUsd: z.number().nullable(),
   /** The deepest running step while the run runs; null between steps and once it ended. */
   step: z.string().nullable(),
+  /**
+   * What the shadow steps the view declares decided on this run, in recording order; empty
+   * when none did, or its facts could not be read.
+   */
+  shadows: z.array(factoryShadowDecisionSchema),
   /** Null when the run is not of the rounds loop's workflow, or its facts could not be read. */
   rounds: z
     .object({
@@ -725,6 +760,7 @@ export async function readFactoryItem(
       costUsd: parseRunUsage(run.metadata).costUsd ?? null,
       step: run.status === 'running' ? (fact?.active ?? null) : null,
       rounds: fact?.rounds ?? null,
+      shadows: fact?.shadows ?? [],
     };
   });
   return { pack: input.pack, item, runs };

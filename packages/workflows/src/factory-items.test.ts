@@ -80,6 +80,20 @@ const deliver1 = fixture('item-1-deliver-c90ebf41');
 const deliver2 = fixture('item-2-deliver-934682d0');
 const deliver2Cut = fixture('item-2-deliver-934682d0-cut');
 
+/** A discoveries drain of item #70, as the shadow reader's tests copy it. */
+function drainFixture(): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  const raw = JSON.parse(
+    readFileSync(
+      join(import.meta.dir, '__fixtures__', 'factory-shadows', 'item-70-discoveries.json'),
+      'utf8'
+    )
+  ) as {
+    run: Record<string, unknown> & { started_at: string; completed_at: string | null };
+    events: WorkflowEventRow[];
+  };
+  return { run: hydrate({ ...raw.run, last_activity_at: null }), events: raw.events };
+}
+
 const factsOf = ({ run, events }: { run: WorkflowRun; events: WorkflowEventRow[] }) =>
   factoryRunFacts(view, PACK, run, events);
 
@@ -220,14 +234,18 @@ describe('the facts of one run', () => {
 
   test('triage and plan runs have no rounds, returns, change or work order', () => {
     for (const run of [triage1, plan1])
-      expect(factsOf(run)).toEqual({
+      expect({ ...factsOf(run), shadows: [] }).toEqual({
         active: null,
         rounds: null,
         returnCount: 0,
         failedStep: null,
         change: null,
         partOf: null,
+        shadows: [],
       });
+    // Triage's two shadow steps decided; plan has none.
+    expect(factsOf(triage1).shadows.map(decision => decision.node)).toEqual(['admit', 'split']);
+    expect(factsOf(plan1).shadows).toEqual([]);
   });
 
   test('a run recorded under the bare name is not the installed pack’s workflow', () => {
@@ -482,8 +500,22 @@ describe("an item's progress", () => {
         { runId: plan1.run.id, workflow: 'plan', failedStep: null },
         { runId: deliver1.run.id, workflow: 'deliver', failedStep: null },
       ],
+      shadows: factsOf(triage1).shadows,
     });
     expect(seen).toEqual([[PR10, factsOf(deliver1).change?.audits.length ?? -1]]);
+  });
+
+  test("a discoveries run adds its shadow decision, and nothing else, to the item's progress", async () => {
+    const drain = drainFixture();
+    const without = await progressOf([triage1, plan1, deliver1]);
+    const withDrain = await progressOf([triage1, plan1, deliver1, drain]);
+    // The drain's run is on no stage: it places nothing and lists in no run.
+    expect({ ...withDrain, shadows: without.shadows }).toEqual(without);
+    expect(withDrain.shadows.map(decision => [decision.workflow, decision.node])).toEqual([
+      ['triage', 'admit'],
+      ['triage', 'split'],
+      ['discoveries', 'result'],
+    ]);
   });
 
   test('returned counts every run that sent the item back; round and change are the latest run', async () => {
@@ -680,6 +712,10 @@ describe('the facts memo', () => {
         PACK,
         deliver1.run
       )
+    ).toBeUndefined();
+    // And which steps are shadows, and how each reads.
+    expect(
+      memo.get({ ...view, shadows: view.shadows?.slice(1) }, PACK, deliver1.run)
     ).toBeUndefined();
   });
 
@@ -889,6 +925,7 @@ describe('reading progress, and one item whole', () => {
         costUsd: null,
         step: 'rounds.review__review',
         rounds: factsOf(deliver2Cut).rounds,
+        shadows: [],
       },
     ]);
   });
@@ -945,6 +982,34 @@ describe('reading progress, and one item whole', () => {
       detail?.item.runs.map(run => run.cause)
     );
     expect(Object.hasOwn(detail?.runs[0] ?? {}, 'cause')).toBe(false);
+  });
+
+  test('a discoveries run, which no stage lists, gets facts: its shadow decision on its row', async () => {
+    const drain = drainFixture();
+    const source = pageSource({ queue: 0, loaded: [] });
+    const own = { ...drain.run, item_id: item1.id };
+    source.store.getItemRuns = async () => ({
+      item: item1,
+      runs: [...(runsOf['1'] ?? []), own],
+      descendantIds: [],
+    });
+    const listed = source.store.listEventsForRuns;
+    source.store.listEventsForRuns = async (ids, types) => {
+      const read = await listed(ids, types);
+      if (ids.includes(own.id)) read.set(own.id, drain.events);
+      return read;
+    };
+    const detail = await readFactoryItem(source, itemInput(unexpected), '1');
+    const row = detail?.runs.find(run => run.runId === own.id);
+    expect(row?.workflow).toBeNull();
+    expect(row?.shadows.map(decision => [decision.workflow, decision.node])).toEqual([
+      ['discoveries', 'result'],
+    ]);
+    expect(detail?.item.progress?.runs.map(run => run.workflow)).toEqual([
+      'triage',
+      'plan',
+      'deliver',
+    ]);
   });
 
   test('an unknown key reads null', async () => {

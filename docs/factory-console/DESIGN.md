@@ -501,6 +501,9 @@ pack is later work. The pack's `discoveries` drain runs after deliver but moves 
 declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
 `discoveries` field names the workflow instead, and where each completed drain's result lists
 what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
+Its `shadows` field names the steps the pack runs as shadows (admit, split, the project checks,
+the land gate and the drain) and how each one's value reads; the item timeline, stage pages,
+board and map show their decisions as shadows (#80).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -559,7 +562,8 @@ What those reads do not carry comes from **one read-only route file**,
   the returned count, the change URL from the declared pointer with its pull request number,
   the title, each declared run's workflow as the view names it with the step it failed at, and
   `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
-  its declared outcome names (an empty value there means none; a refused run is never read). Beside `progress`, `members` lists for each asked key the
+  its declared outcome names (an empty value there means none; a refused run is never read), and
+  `shadows`: the newest decision of each shadow step the view declares. Beside `progress`, `members` lists for each asked key the
   items with an active `part_of` link to it, so a member with no run yet counts. A key may name
   an item with no runs (a work order). The web joins each window page with it: one reader,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
@@ -572,8 +576,9 @@ What those reads do not carry comes from **one read-only route file**,
   declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
   timeline needs per run and neither read carries: the declared workflow, the run's cause, its
-  cost, its running step, and each round of the declared `rounds` loop with the steps that
-  recorded an outcome in it and the deciding step's summary.
+  cost, its running step, each round of the declared `rounds` loop with the steps that
+  recorded an outcome in it and the deciding step's summary, and what each shadow step decided
+  on the run (one per round in a loop; a drain's run included).
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The pull request is the one the run's forge records name, else the one on a branch
@@ -698,12 +703,21 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   now for any item glows, and above the graph each item running the workflow is named, linking
   to its item page. Clicking a step opens the step page.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
-  its blurb, the notes the view file places by it, the items in it (linking to each item), and
-  the workflows behind it with links to their steps.
+  its blurb, the notes the view file places by it, its shadow steps (below), the items in it
+  (linking to each item), and the workflows behind it with links to their steps.
+- A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
+  rule 10's badge: on a card of several stages at the start of its row's second line, so the
+  stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
+  says which: its hover, and the stage's details under "Shadow steps", give one line per
+  shadow step with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  "nothing decided yet"; before the items are read, "…", and "could not be read" once that
+  read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
   "Merged"), and draws each kind of line as the map does: solid, "Hands the item on"; dashed,
   "Sends it back, labelled where it returns to"; the running dot, "A dot moves along a line
-  while a run works an item there".
+  while a run works an item there". When a stage holds a shadow step, it shows the badge: "A
+  step that decides what it would do and does nothing; hover it for which and what it
+  decided".
 
 ## The board
 
@@ -739,7 +753,11 @@ A card, in this order:
    works it: its stage, the running step's name and the round when the step is of the declared
    rounds loop, "Checks · Code review · round 2", linking to the run in the console
    (`/console/p/:projectId/r/:runId`); the step's engine id shows on hover. Otherwise the label
-   of the stage it waits in ("Plan", "CI and review").
+   of the stage it waits in ("Plan", "CI and review"). Under it, on an item no run works, the
+   shadow line (rule 10): the badge and what the newest decision of a verdict shadow its stage's
+   workflows declare would do ("would ask you first"), its why on hover. For this pack it shows
+   in Ready to merge, from the land gate, and in Triage on an item whose triage run failed after
+   admit or split decided, from that decision (#80).
 4. "part of <order>" when the item is a member of a work order (see Work orders).
 5. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),

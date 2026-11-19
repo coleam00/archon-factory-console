@@ -14,6 +14,7 @@ import { showsCard, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, type ItemColumn } from './placement';
+import { boardShadowLine, type ShadowWords } from './shadows';
 import { runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
 import { membershipOf } from './work-orders';
@@ -98,6 +99,11 @@ export interface BoardCard {
   stopLine: string | null;
   /** The key of the work order the item is part of (`membershipOf`); null when none. */
   order: string | null;
+  /**
+   * What a shadow step of the item's stage would have done, as `boardShadowLine` picks it
+   * ("would ask you first"); null when none decided, and on a card a run works now.
+   */
+  shadow: ShadowWords | null;
 }
 
 /** The item page's path. */
@@ -180,6 +186,7 @@ export function cardFields(
     mergedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
     stopLine,
     order: membershipOf(item)?.order ?? null,
+    shadow: boardShadowLine(item, column !== null && 'stage' in column ? column.stage : null, view),
   };
 }
 

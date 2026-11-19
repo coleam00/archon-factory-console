@@ -5,7 +5,7 @@ import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { TONES } from '../tones';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
-import { MapStageRow } from './MapStageRow';
+import { MapShadowBadge, MapStageRow } from './MapStageRow';
 
 interface MapCardProps {
   card: PlacedCard;
@@ -21,6 +21,11 @@ interface MapCardProps {
   stagePath: (stage: string) => string;
   /** The details button: the map shows or hides this card's details panel. */
   onDetails: (card: string) => void;
+  /**
+   * A stage's shadow steps, each with what it decided lately (`stageShadowLines`): its name
+   * carries the badge, which says them on hover. Empty when it holds none.
+   */
+  shadows: (stage: FactoryStage) => readonly string[];
 }
 
 /** The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. */
@@ -40,6 +45,7 @@ export function MapCard({
   selected,
   stagePath,
   onDetails,
+  shadows,
 }: MapCardProps): ReactElement {
   const border = selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border';
   const [only] = stages;
@@ -70,7 +76,7 @@ export function MapCard({
           draggable={false}
           className={`${BOX} ${HOVER} ${border}`}
         >
-          {body(<OneStage stage={only} live={live(only.id)} />)}
+          {body(<OneStage stage={only} live={live(only.id)} shadows={shadows(only)} />)}
         </Link>
       ) : (
         <div className={`${BOX} ${HOVER} ${border}`}>
@@ -88,6 +94,7 @@ export function MapCard({
                   stage={stage}
                   live={live(stage.id)}
                   openTo={stagePath(stage.id)}
+                  shadows={shadows(stage)}
                 />
               ))}
             </>
@@ -124,12 +131,26 @@ function KindRow({ card }: { card: PlacedCard }): ReactElement {
   );
 }
 
-/** A card of one stage: its label, its short line (or its blurb, two lines), its chips. */
-function OneStage({ stage, live }: { stage: FactoryStage; live: StageRead }): ReactElement {
+/**
+ * A card of one stage: its label (with the shadow badge when it holds a shadow step), its
+ * short line (or its blurb, two lines), its chips.
+ */
+function OneStage({
+  stage,
+  live,
+  shadows,
+}: {
+  stage: FactoryStage;
+  live: StageRead;
+  shadows: readonly string[];
+}): ReactElement {
   return (
     <>
-      <span className="line-clamp-2 text-console-15 font-semibold leading-5 text-text-primary">
-        {stage.label}
+      <span className="flex items-start gap-2">
+        <span className="line-clamp-2 min-w-0 text-console-15 font-semibold leading-5 text-text-primary">
+          {stage.label}
+        </span>
+        <MapShadowBadge lines={shadows} />
       </span>
       <span className="line-clamp-2 text-console-13 leading-4.5 text-text-secondary">
         {stage.short ?? stage.blurb}

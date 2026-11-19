@@ -21,6 +21,7 @@ import { getWorkflowEventEmitter } from '../event-emitter';
 import { requireTerminalStatusWrite } from '../terminal-status-write';
 import { rootOutputFields, type DeclaredOutputPaths, type JsonValue } from '../output-ref';
 import { declaredOutcome, readCompletedOutcome } from '../completed-outcome';
+import { nodeResultValue } from '../node-result-value';
 import { readCompletedAsks } from '../completed-asks';
 import type { ItemAsk } from '../schemas/item-ask';
 import {
@@ -298,14 +299,9 @@ function keptAsksResult(
 function returnedValue(
   node: Extract<NodeOutput, { state: 'completed' | 'running' }>
 ): JsonValue | undefined {
-  if (node.structuredOutput !== undefined) return node.structuredOutput as JsonValue;
   // Output that is not JSON has no value to point into: a binding that reads it is
   // recorded as rejected on its receipt, naming the pointer.
-  try {
-    return JSON.parse(node.output) as JsonValue;
-  } catch {
-    return undefined;
-  }
+  return nodeResultValue(node.structuredOutput, node.output);
 }
 
 /**

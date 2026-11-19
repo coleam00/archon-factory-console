@@ -219,9 +219,10 @@ describe('factoryViewSchema', () => {
   });
 
   test('discoveries may name a workflow no stage lists; its pointers and keys are checked', () => {
+    // Not a shadow, so it needs no `shadows` entry (see "the discoveries flag and the shadows").
     const discoveries = {
       workflow: 'discoveries',
-      shadow: true,
+      shadow: false,
       filed: '/filed',
       held: '/held',
       dropped: '/dropped',
@@ -342,5 +343,92 @@ describe('factoryViewSchema columns', () => {
     expect(
       issuePaths(grouped([work(['plan']), { ...merged, stages: ['build', 'landed'] }]))
     ).toEqual(['columns.1.stages']);
+  });
+});
+
+describe('shadows', () => {
+  type Shadow = NonNullable<FactoryView['shadows']>[number];
+  const verdict = (workflow: string, node: string): Extract<Shadow, { reads: 'verdict' }> => ({
+    workflow,
+    node,
+    label: 'Would it start on its own',
+    reads: 'verdict',
+    pointer: '/admit',
+    why: '/why',
+    words: { auto: 'would start on its own', ask: 'would ask you first' },
+  });
+  const drain = {
+    workflow: 'discoveries',
+    shadow: true,
+    filed: '/filed',
+    held: '/held',
+    dropped: '/dropped',
+    entry: { title: '/title' },
+  };
+
+  test("the shipped declaration declares the pack's five shadow steps", async () => {
+    const parsed = factoryViewSchema.parse(JSON.parse(await readFile(SHIPPED, 'utf8')));
+    expect(parsed.shadows?.map(shadow => [shadow.workflow, shadow.node, shadow.reads])).toEqual([
+      ['triage', 'admit', 'verdict'],
+      ['triage', 'split', 'verdict'],
+      ['deliver', 'rounds.checks', 'checks'],
+      ['landgate', 'gate', 'verdict'],
+      ['discoveries', 'result', 'lists'],
+    ]);
+  });
+
+  test('each way of reading parses; a shadow may name the discoveries workflow', () => {
+    const view = minimal();
+    view.discoveries = drain;
+    view.shadows = [
+      verdict('plan', 'admit'),
+      {
+        workflow: 'build',
+        node: 'rounds.checks',
+        label: 'Project checks',
+        reads: 'checks',
+        results: '/results',
+        entry: { name: '/name', passed: '/passed', seconds: '/seconds' },
+      },
+      {
+        workflow: 'discoveries',
+        node: 'result',
+        label: 'What it would file',
+        reads: 'lists',
+        lists: [{ pointer: '/filed', words: 'would file' }],
+      },
+    ];
+    expect(factoryViewSchema.safeParse(view).error?.issues ?? []).toEqual([]);
+  });
+
+  test('a shadow naming a workflow no stage lists is rejected at its workflow', () => {
+    const view = minimal();
+    view.shadows = [verdict('triage', 'admit')];
+    expect(issuePaths(view)).toEqual(['shadows.0.workflow']);
+  });
+
+  test('a step declared a shadow twice is rejected at the second', () => {
+    const view = minimal();
+    view.shadows = [verdict('plan', 'admit'), verdict('plan', 'admit')];
+    expect(issuePaths(view)).toEqual(['shadows.1.node']);
+  });
+
+  test('a verdict with no words, or another way of reading, is rejected', () => {
+    expect(
+      issuePaths({ ...minimal(), shadows: [{ ...verdict('plan', 'admit'), words: {} }] })
+    ).toEqual(['shadows.0.words']);
+    expect(
+      issuePaths({ ...minimal(), shadows: [{ ...verdict('plan', 'admit'), reads: 'guess' }] })
+    ).toEqual(['shadows.0.reads']);
+  });
+
+  test('the discoveries flag and the shadows agree: a disagreeing flag is rejected', () => {
+    const flagged = minimal();
+    flagged.discoveries = drain;
+    expect(issuePaths(flagged)).toEqual(['discoveries.shadow']);
+    const real = minimal();
+    real.discoveries = { ...drain, shadow: false };
+    real.shadows = [{ ...verdict('discoveries', 'result') }];
+    expect(issuePaths(real)).toEqual(['discoveries.shadow']);
   });
 });

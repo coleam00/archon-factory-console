@@ -219,6 +219,34 @@ describe('factoryViewCoverage', () => {
     expect(findings(view)).toEqual([['unknown-workflow', 'discoveries.workflow']]);
   });
 
+  test('a shadow naming a step or a workflow the pack does not have is reported', () => {
+    const view = clean();
+    const shadow = (workflow: string, node: string) => ({
+      workflow,
+      node,
+      label: 'Would it',
+      reads: 'verdict' as const,
+      pointer: '/verdict',
+      words: { yes: 'would' },
+    });
+    // The discoveries workflow resolves, though no stage lists it.
+    view.shadows = [shadow('deliver', 'rounds.review__review'), shadow('discoveries', 'drain')];
+    expect(findings(view)).toEqual([]);
+    view.shadows = [
+      shadow('deliver', 'rounds.checks'),
+      shadow('triage', 'admit'),
+      shadow('discoveries', 'drain'),
+    ];
+    const found = factoryViewCoverage(view, graph()).filter(entry => entry.path[0] === 'shadows');
+    expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
+      ['unknown-step', 'shadows.0.node'],
+      ['unknown-workflow', 'shadows.1.workflow'],
+    ]);
+    expect(found[0]?.message).toBe(
+      'names step "rounds.checks", which workflow "deliver" does not have'
+    );
+  });
+
   test('a hand-off the pack starts and the view does not declare is reported', () => {
     const view = clean();
     view.map.arrows = view.map.arrows.filter(entry => entry.from !== entry.to);

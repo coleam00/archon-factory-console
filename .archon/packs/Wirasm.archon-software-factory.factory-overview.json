@@ -116,8 +116,8 @@
         },
         {
           "id": "landgate",
-          "title": "Land gate",
-          "text": "Says if it may merge; you merge it",
+          "title": "Merge gate",
+          "text": "Decides whether it would merge without asking you; nothing acts on it",
           "icon": "gavel",
           "kind": "gate",
           "col": 7,
@@ -134,7 +134,13 @@
         { "from": "ready", "to": "landed", "kind": "feeds" },
         { "from": "plan", "to": "you", "kind": "calls", "label": "asks" },
         { "from": "you", "to": "plan", "kind": "loops-back", "label": "your answer restarts it" },
-        { "from": "ready", "to": "landgate", "kind": "calls", "label": "may it merge?" },
+        {
+          "from": "ready",
+          "to": "landgate",
+          "kind": "calls",
+          "label": "would it merge?",
+          "shadow": true
+        },
         { "from": "checks", "to": "build", "kind": "loops-back", "label": "sent back to fix" },
         { "from": "ci", "to": "build", "kind": "loops-back", "label": "CI or a reviewer found something" },
         { "from": "build", "to": "plan", "kind": "loops-back", "label": "replan" },
