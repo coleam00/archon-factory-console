@@ -4,6 +4,26 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## Owner changes of 2026-11-19 (bind every later change; win over everything below, 2026-11-18 included)
+
+From the owner's review of the finished work order #64. The section is close; these make it presentable.
+
+1. **Less purple and pink, more green.** The brand magenta is an accent, not the page's colour. In the factory section and the ask card:
+   - the recommended option is marked in **green** (`--success` family, soft background, a "Recommended" badge in green), never in the accent;
+   - the option the person has **selected** gets its own selected state (accent border, check icon), and the recommended mark never looks selected, so two tiles never both look chosen;
+   - the Confirm button stays the accent pink but **toned down** (a softer fill, for example the accent at reduced strength or `--accent-soft` with accent text), never the full-strength magenta block;
+   - elsewhere, purple and pink are for one thing each (the running state, the active tab), not for card borders, headings or chips.
+2. **Text never leaves its box.** Every card, tile, chip and heading in the section wraps long unbroken text (paths, URLs, ids: `overflow-wrap: anywhere`, `min-width: 0` on flex and grid children) and clamps where the standard says. A test renders a long unbroken path in an ask card and asserts nothing overflows.
+3. **The Factory tab has two pages: Overview and Board.** Its sub-navigation drops Needs you (the project tab "Needs you" is that page) and How it works (the sidebar Factory entry is that page). Old links keep redirecting.
+4. **The board is tall enough to use.** At 1440x900 every column shows at least two full cards without scrolling the page; the work-order strip collapses to one line (expand on click) and the found-by panel stays one line.
+5. **A stage opens in place, not on its own page.** Clicking a stage on the Overview map opens a large modal over the Overview (Esc and the backdrop close it; the map keeps its position and zoom). The modal says plainly what it shows:
+   - "What this stage does": the view file's curated drill-down;
+   - "Items here now": the items in the stage, linking to their item pages;
+   - "The real workflow": the step graph read from the pack's workflow files, behind a clearly labelled tab with one sentence saying it is generated from the YAML.
+   The stage page route stays as a deep link that opens the same content. A failed read shows a retry, never a dead "Could not load".
+6. **How it works moves and comes alive.** The sidebar Factory page is the only home of How it works. Its canvas shows the flow as a quiet, looping animation: three dots leave An issue, A work order and Found by agents and travel into Triage, on through Plan, Build, Checks and CI and reviews; there one dot goes on to Merged and one returns along the "unrelated finds" lane to Found by agents; the loop repeats. Off under reduced motion, pausable. Each kind on the canvas has its own colour: "A check on the change" and "What comes out" must differ.
+7. **A look of its own, not the default.** The map and the How it works canvas get a considered visual identity: depth (soft shadow and a faint inner glow on cards), a subtle texture or grid on the canvas, light that follows the flow. Restraint is the rule: no neon, no heavy 3D, no motion that competes with the content, and nothing that slows rendering. If a treatment looks gimmicky at 1440x900 on a projector, it is out.
+
 ## Owner changes of 2026-11-18 (bind every later change; win over everything below, 2026-11-17 included)
 
 From the owner's beauty review and the meeting with the pack's author (Rasmus) on 2026-11-18. The
