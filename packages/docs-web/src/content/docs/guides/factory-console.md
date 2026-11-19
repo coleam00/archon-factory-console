@@ -33,7 +33,11 @@ by hand after them is not one). With nothing open, the tab says so, when somethi
 asked, and shows the newest answered.
 
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
-it. Inside it:
+it. Its sub-navigation, on the line of the view's title, has two pages: **Overview** and
+**Board**. Needs you is the project tab beside it, and How it works is the pack's page under
+**Factory** in the console's sidebar. The old `factory/needs-you` address redirects to the
+Needs you tab, and `factory/how-it-works` and `factory/overview` to the pack's How it works
+page, keeping the query string. Inside the tab:
 
 - **Overview**: the view's title and summary (on a phone, its first three lines and **More**),
   then a strip of numbers (its **need you** number is the Needs you tab's count), then the
@@ -51,7 +55,6 @@ it. Inside it:
   opening on the card with the most items in flight. Drag to pan, and scroll or use the buttons
   to zoom; **Fit** goes back to how it opened. Click a card, or a stage's row, for its stage
   page. A card's details button (ⓘ) shows each of its stages' items and workflows beside the map.
-- **Needs you**: the sub-navigation links to the project's Needs you tab, with the same count.
 - **Board**: one column per declared `columns` entry (one per stage when the view declares
   none), each item one card in the column holding the stage it is in. The board fills the
   screen and each column scrolls on its own under a header with its label, its `blurb` ("last 7 days" on the column holding the `landed` stage), its
@@ -69,10 +72,13 @@ it. Inside it:
   A **work order** is an item other items are `part_of`. An item's order is its active `part_of`
   link (`archon workflow link --item <member> --kind part_of --to <order>`), else the order its
   latest run of the `partOf` workflow that completed with its declared outcome named (a refused
-  run never makes it a member); a link wins. Above the columns, one row
-  per order with a member on the board names it (its own title, else "Work order <key>"), says how many of its members merged ("3 of 5 merged"), shows each member's
-  state as a dot, and lights its members on the board on demand; a member's "part of" chip does
-  the same. A row appears once one of the order's members has a run; until then the order and its
+  run never makes it a member); a link wins. The board's toolbar sums up the orders with a
+  member on the board in one line ("2 work orders · 1 open"; open means not every member
+  merged). Clicking it lists one row per order under the toolbar: its name (its own title, else
+  "Work order <key>"), how many of its members merged ("3 of 5 merged"), each member's state as
+  a dot, and a toggle that lights its members on the board; a member's "part of" chip does the
+  same. While an order is lit, the summary line says "highlighting <key>" with **Clear
+  highlight**. An order is listed once one of its members has a run; until then the order and its
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
@@ -106,10 +112,11 @@ it. Inside it:
 - **Step page**: the step by its name, with its engine id under it, the items on it now, when
   it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
   prompt, its YAML and the model it runs on.
-- **How it works**: the pack's [factory overview](#the-factory-overview), when it has one: a
-  hand-written picture of how the factory runs, for explaining it to someone who has never
-  seen it. It explains the pack, not the project, so the link opens the pack's page under
-  **Factory** in the console's sidebar.
+
+**How it works**, the pack's [factory overview](#the-factory-overview) when it has one, is a
+hand-written picture of how the factory runs, for explaining it to someone who has never seen
+it. It explains the pack, not the project, so it lives on the pack's page under **Factory** in
+the console's sidebar, not in the project's Factory tab.
 
 Views update within a few seconds of a run starting, changing step or ending, and of a
 question opening or closing.
@@ -140,7 +147,8 @@ questions and whether its change merged, taking the first rule that matches:
 2. Its change merged: the `landed` stage.
 3. Its last completed run's `workflow:outcome` is a key of `placement`, else its
    `workflow:*`: that stage. `workflow:*` also places a run that returns no outcome.
-4. Its last run's outcome is a key of `endings`: off the board, in a folded row under it.
+4. Its last run's outcome is a key of `endings`: off the board, counted at the end of the
+   board's toolbar ("1 closed by triage"), which opens a list of them.
 5. Its last run failed or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of its workflow.
 6. Otherwise the first stage.
@@ -348,8 +356,8 @@ is not live, not exhaustive, and never generated from the pack's workflows. The 
 on many projects, so the overview lives in the console's sidebar: **Factory** (shown once a pack
 has an overview file) lists every such pack with the projects that run it, and each pack's
 **How it works** page (`/console/factory/<pack key>/how-it-works`) draws its overview. With one
-pack, **Factory** opens its page directly. A project's Factory tab links to the page for its
-pack, and its old `factory/how-it-works` and `factory/overview` addresses still land there.
+pack, **Factory** opens its page directly. A project's old `factory/how-it-works` and
+`factory/overview` addresses land on the page for its pack.
 
 Beside How it works, the pack's **Settings** tab (`/console/factory/<pack key>/settings`) shows
 how the pack is configured, read-only: one card per setting the pack declares in its

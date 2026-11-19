@@ -10,7 +10,7 @@ import {
 } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
 import { orderSearch } from './lib/work-orders';
-import { CardAsk } from './BoardAskFace';
+import { CardAsk, shownAsk } from './BoardAskFace';
 import { ShadowBadge } from './ShadowBadge';
 import type { BoardAsks } from './useBoardAsks';
 
@@ -102,8 +102,13 @@ function CardBox({
   moved,
   dimmed = false,
   accent,
+  short = false,
   children,
-}: CardProps & { children: ReactNode }): ReactElement {
+}: CardProps & {
+  /** The card carries an ask's face: its title takes 2 lines, not 3, so the card stays short. */
+  short?: boolean;
+  children: ReactNode;
+}): ReactElement {
   return (
     <article
       data-card={card.key}
@@ -124,7 +129,7 @@ function CardBox({
       </div>
       <Link
         to={itemPath(projectId, card.key)}
-        className="line-clamp-3 text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0"
+        className={`${short ? 'line-clamp-2' : 'line-clamp-3'} text-console-15 font-semibold leading-snug text-text-primary after:absolute after:inset-0`}
       >
         {card.title}
       </Link>
@@ -140,11 +145,13 @@ function CardBox({
 export function BoardCard(props: CardProps & { asks: BoardAsks }): ReactElement {
   const { card } = props;
   return (
-    <CardBox {...props}>
+    <CardBox {...props} short={shownAsk(card, props.asks) !== null}>
       {card.run !== null ? (
         <RunLink run={card.run} />
       ) : card.stage === null ? null : (
-        <span className="text-console-13 text-text-secondary">{card.stage}</span>
+        <span title={card.stage} className="min-w-0 truncate text-console-13 text-text-secondary">
+          {card.stage}
+        </span>
       )}
       {card.shadow === null ? null : <ShadowLine shadow={card.shadow} />}
       {card.order === null ? null : <OrderChip order={card.order} />}
@@ -169,8 +176,8 @@ export function MergedCard(props: CardProps): ReactElement {
 }
 
 /**
- * The running run's line: stage, step name, round. Breaks between its parts, never inside
- * a name; a name too long for the card is cut with the whole line in the title.
+ * The running run's line: stage, step name, round, on one line (owner, 2026-11-19: the board
+ * fits two cards per column); the step name is cut first, with the whole line in the title.
  */
 function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactElement {
   return (
@@ -178,7 +185,7 @@ function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactEl
       to={run.href}
       title={engineIdTitle(run.text, run.step)}
       aria-label={run.text}
-      className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 text-console-13 ${statusTextClass.running}`}
+      className={`${INNER_LINK} flex min-w-0 flex-nowrap gap-x-1 overflow-hidden text-console-13 ${statusTextClass.running}`}
     >
       {run.parts.map((part, index) => (
         <span

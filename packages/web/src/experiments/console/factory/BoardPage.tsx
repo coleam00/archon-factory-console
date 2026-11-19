@@ -4,11 +4,12 @@ import { askNaming, itemTitles } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
-import { SegmentedControl } from '../components/SegmentedControl';
 import { BoardAskPopover } from './BoardAskPopover';
 import { BoardSkeleton } from './BoardSkeleton';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
+import { BoardToolbar } from './BoardToolbar';
+import { EndedRows } from './EndedRows';
 import { StaleRead } from './StaleRead';
 import { useFactoryItemsRead } from './useFactoryItems';
 import { WorkOrdersStrip } from './WorkOrdersStrip';
@@ -21,14 +22,7 @@ import {
   type BoardModel,
   type FactoryDeclaration,
 } from './lib/board';
-import {
-  BOARD_SHOW_LABEL,
-  parseBoardShow,
-  SHOW_PARAM,
-  TABLE_VIEW,
-  VIEW_PARAM,
-  type BoardShow,
-} from './lib/board-show';
+import { parseBoardShow, SHOW_PARAM, TABLE_VIEW, VIEW_PARAM } from './lib/board-show';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
@@ -100,6 +94,8 @@ export function Board({
   const showParam = params.get(SHOW_PARAM);
   const show = showParam === null ? undefined : parseBoardShow(showParam);
   const [query, setQuery] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
+  const lit = params.get(ORDER_PARAM);
   // Where each item sat on the last read: placement keeps a run between named steps where
   // it was, and the highlight compares against it.
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
@@ -143,33 +139,37 @@ export function Board({
   };
   return (
     <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="search"
-          value={query}
-          onChange={event => {
-            setQuery(event.target.value);
-          }}
-          placeholder="Filter by key, title or order"
-          aria-label="Filter by key, title or work order"
-          className="w-56 rounded border border-border bg-surface-inset px-2.5 py-1 text-console-13 text-text-primary outline-none placeholder:text-text-tertiary focus:border-border-bright"
-        />
-        <SegmentedControl
-          label="Board view"
-          active={table ? 'table' : 'pipeline'}
-          segments={[
-            { key: 'pipeline', label: 'Pipeline', onSelect: () => showView('pipeline') },
-            { key: 'table', label: 'Table', onSelect: () => showView('table') },
-          ]}
-        />
-        <ShowChip
-          param={showParam}
-          show={show}
-          onClear={() => {
-            setParam(SHOW_PARAM, null);
-          }}
-        />
-      </div>
+      <BoardToolbar
+        query={query}
+        onQuery={setQuery}
+        table={table}
+        onView={showView}
+        showParam={showParam}
+        show={show}
+        onClearShow={() => {
+          setParam(SHOW_PARAM, null);
+        }}
+      >
+        {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
+            height: the work orders' summary, the folded endings, the hidden-columns hint. */}
+        {table ? null : (
+          <>
+            <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
+            <span className="flex flex-wrap items-center gap-3 md:ml-auto">
+              {shown === undefined ? null : <EndedRows projectId={projectId} ended={shown.ended} />}
+              {hint === null ? null : (
+                // Only where the columns sit side by side: on a phone they stack and none is hidden.
+                <span
+                  className="hidden text-console-12 text-text-tertiary md:inline"
+                  aria-live="polite"
+                >
+                  {hint} →
+                </span>
+              )}
+            </span>
+          </>
+        )}
+      </BoardToolbar>
       <BoardBody
         projectId={projectId}
         view={view}
@@ -178,7 +178,8 @@ export function Board({
         table={table}
         moved={moved}
         orders={orders}
-        lit={params.get(ORDER_PARAM)}
+        lit={lit}
+        onHint={setHint}
         now={now ?? new Date()}
         // filterBoard returns its input unchanged when nothing narrows it, so this is its own
         // answer to "is the board narrowed", not a second copy of that condition.
@@ -208,6 +209,7 @@ function BoardBody({
   now,
   filtered,
   asks,
+  onHint,
 }: {
   projectId: string;
   view: FactoryDeclaration;
@@ -221,6 +223,7 @@ function BoardBody({
   now: Date;
   filtered: boolean;
   asks: BoardAsks;
+  onHint: (hint: string | null) => void;
 }): ReactElement {
   if (model === undefined) {
     const failed = readFailed(read.error);
@@ -242,55 +245,17 @@ function BoardBody({
       {table ? (
         <BoardTable projectId={projectId} model={model} moved={moved} asks={asks} />
       ) : (
-        <>
-          <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
-          <BoardPipeline
-            projectId={projectId}
-            model={model}
-            moved={moved}
-            lit={highlightedKeys(orders.find(order => order.key === lit))}
-            now={now}
-            filtered={filtered}
-            asks={asks}
-          />
-        </>
+        <BoardPipeline
+          projectId={projectId}
+          model={model}
+          moved={moved}
+          lit={highlightedKeys(orders.find(order => order.key === lit))}
+          now={now}
+          filtered={filtered}
+          asks={asks}
+          onHint={onHint}
+        />
       )}
     </>
-  );
-}
-
-/**
- * The number the board was opened from, with a way back to every item. A `show` no filter
- * has says so rather than quietly showing everything.
- */
-function ShowChip({
-  param,
-  show,
-  onClear,
-}: {
-  param: string | null;
-  show: BoardShow | undefined;
-  onClear: () => void;
-}): ReactElement | null {
-  if (param === null) return null;
-  return (
-    <span
-      role={show === undefined ? 'alert' : undefined}
-      className={`flex items-center gap-2 rounded border px-2 py-0.5 text-console-12 ${
-        show === undefined
-          ? 'border-error/40 bg-error/10 text-error'
-          : 'border-border bg-surface-elevated text-text-primary'
-      }`}
-    >
-      {show === undefined ? `Unknown filter "${param}"` : `Showing: ${BOARD_SHOW_LABEL[show]}`}
-      <button
-        type="button"
-        onClick={onClear}
-        className="text-text-tertiary hover:text-text-primary"
-        aria-label="Show every item"
-      >
-        Show all
-      </button>
-    </span>
   );
 }

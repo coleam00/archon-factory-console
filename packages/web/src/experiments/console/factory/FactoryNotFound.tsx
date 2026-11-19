@@ -4,16 +4,15 @@ import { Link, useParams } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
-import { needsYouPath } from '../lib/needs-you';
 import { factoryPath } from './lib/views';
 
-/** Every page of the section, and the project's Needs you tab, linked from a path it does not have. */
+/**
+ * The tab's two pages, linked from a path it does not have. Needs you is the project tab
+ * above, and How it works the sidebar Factory page; neither is a page of this tab.
+ */
 const PAGES: readonly { label: string; to: (projectId: string) => string }[] = [
   { label: 'Overview', to: projectId => factoryPath(projectId) },
   { label: 'Board', to: projectId => factoryPath(projectId, '/board') },
-  { label: 'Needs you', to: needsYouPath },
-  // Linked even without an overview file: How it works then says the pack has none.
-  { label: 'How it works', to: projectId => factoryPath(projectId, '/how-it-works') },
 ];
 
 /**

@@ -109,8 +109,8 @@ export function refreshOnAttentionChange(projectId: string): void {
 
 /**
  * A project's attention queue, kept live. Mounted once for every page of a project (by
- * `ProjectAttentionLayout`), so the Needs you tab's count, the Factory sub-navigation, the
- * Needs you page and the Overview share one fetch and one stream, which stays open across
+ * `ProjectAttentionLayout`), so the Needs you tab's count, the Needs you page and the
+ * Factory Overview share one fetch and one stream, which stays open across
  * the project's pages. The dashboard SSE's `invalidate('runs')` refreshes it too: the key
  * sits under `runs:`.
  */

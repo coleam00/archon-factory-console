@@ -42,7 +42,7 @@ export function ColumnHeader({
   return (
     <header
       data-column={id}
-      className="relative flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface px-3 pb-3 pt-4"
+      className="relative flex flex-col gap-1.5 overflow-hidden rounded-console-12 border border-border bg-surface px-3 pb-2 pt-3"
     >
       <span
         aria-hidden="true"

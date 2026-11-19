@@ -54,7 +54,7 @@ type Tile = TileValue & { to: string; label: string; icon: LucideIcon; title?: s
 /**
  * The five tiles, each a skeleton while `numbers` is not read (undefined). `waiting` is the
  * project's asks and waits (`needsYouCount`, undefined until the queue loads): the count the
- * Needs you tab, its heading and the sub-navigation show, so the tile links there.
+ * Needs you tab and its heading show, so the tile links there.
  */
 function tiles(
   projectId: string,

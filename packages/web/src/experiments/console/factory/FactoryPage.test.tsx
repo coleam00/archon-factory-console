@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryPacksRead, FactoryViews, FactoryWorkflow } from '../skills/factory';
+import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
@@ -137,29 +137,12 @@ describe('the Overview', () => {
       `/console/p/${ID}/factory Overview`,
     ]);
     expect(html).toContain(`href="/console/p/${ID}/factory/board"`);
-    // Needs you is the project's tab; the sub-navigation (and the numbers' tile) link there.
+    // Needs you is the project's tab; the numbers' tile links there, the sub-navigation not.
     expect(html).not.toContain(`href="/console/p/${ID}/factory/needs-you"`);
-    expect(html.split(`href="/console/p/${ID}/needs-you"`)).toHaveLength(4);
+    expect(html.split(`href="/console/p/${ID}/needs-you"`)).toHaveLength(3);
   });
 
-  test('the sub-navigation counts what needs you, on every Factory page', () => {
-    // The project tab and the sub-navigation entry: one count, the same on both.
-    const needsYouLinks = (html: string): string[] =>
-      [...html.matchAll(/<a [^>]*href="[^"]*\/p\/cb-1\/needs-you"[^>]*>(Needs you.*?)<\/a>/g)].map(
-        ([, body]) => (body ?? '').replace(/<span aria-hidden="true"[^>]*><\/span>/, '')
-      );
-    for (const page of ['', '/board']) {
-      const links = needsYouLinks(render(`/console/p/${ID}/factory${page}`, withView, asking));
-      expect(links).toHaveLength(2);
-      for (const link of links) expect(link).toContain('aria-label="1 waiting"');
-    }
-    expect(needsYouLinks(render(`/console/p/${ID}/factory`, withView, quiet))).toEqual([
-      'Needs you',
-      'Needs you',
-    ]);
-  });
-
-  test('the tab, the sub-navigation and the Overview number read one count: asks and waits', () => {
+  test('the tab and the Overview number read one count: asks and waits', () => {
     // Two asks on one item (#7) and a usage limit: 2 asks and waits, 3 queue items, 1 item.
     const queue: AttentionQueue = {
       items: [askItem({ ref: 'ask:a' }), askItem({ ref: 'ask:b' }), usageLimitItem()],
@@ -168,7 +151,7 @@ describe('the Overview', () => {
     };
     const html = render(`/console/p/${ID}/factory`, withView, queue);
     const badges = [...html.matchAll(/aria-label="(\d+) waiting"/g)].map(match => match[1]);
-    expect(badges).toEqual(['2', '2']);
+    expect(badges).toEqual(['2']);
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
     expect(strip.replace(/<[^>]*>/g, '')).toContain('need you2');
   });
@@ -232,28 +215,41 @@ describe('the Overview', () => {
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
   });
 
-  test("the sub-navigation's How it works opens the sidebar page, when the packs list the view's pack", () => {
-    const link = 'href="/console/factory/acme.kit/how-it-works"';
-    const withPacks = (packs: FactoryPacksRead['packs']): string => {
-      set(K.factoryPacks, { packs, errors: [], unreadProjects: [] });
-      return render(`/console/p/${ID}/factory`, withView);
-    };
-    const listed = (key: string) => ({
-      pack: key,
-      key,
-      overview: null,
-      readFrom: null,
-      projects: [],
+  test('the sub-navigation is Overview and Board only, on both pages', () => {
+    // The view's pack is listed and an ask waits: what used to add How it works and a
+    // counted Needs you link. Both live elsewhere now (the sidebar, the project tab).
+    set(K.factoryPacks, {
+      packs: [
+        {
+          pack: 'acme.kit',
+          key: 'acme.kit',
+          overview: null,
+          readFrom: null,
+          projects: [],
+          errors: [],
+        },
+      ],
       errors: [],
+      unreadProjects: [],
     });
-    // Another pack's listing: no entry, so the view's key is the one asked about.
-    expect(withPacks([listed('other.kit')])).not.toContain('How it works');
-    const html = withPacks([listed('acme.kit')]);
-    expect(html).toContain(link);
-    // It explains the pack, so it is never this project's current page.
-    expect(currentLinks(html)).toEqual([
+    const subNav = (html: string): string[] => {
+      const start = html.indexOf('aria-label="Factory"');
+      expect(start).toBeGreaterThan(-1);
+      return [
+        ...html
+          .slice(start, html.indexOf('</nav>', start))
+          .matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g),
+      ].map(([, href, body]) => `${href ?? ''} ${(body ?? '').replace(/<[^>]*>/g, '')}`);
+    };
+    const links = [`/console/p/${ID}/factory Overview`, `/console/p/${ID}/factory/board Board`];
+    const overview = render(`/console/p/${ID}/factory`, withView, asking);
+    expect(subNav(overview)).toEqual(links);
+    expect(overview).not.toContain('/console/factory/acme.kit');
+    const board = render(`/console/p/${ID}/factory/board`, withView, asking);
+    expect(subNav(board)).toEqual(links);
+    expect(currentLinks(board)).toEqual([
       `/console/p/${ID}/factory Factory`,
-      `/console/p/${ID}/factory Overview`,
+      `/console/p/${ID}/factory/board Board`,
     ]);
   });
 
@@ -406,7 +402,7 @@ describe('the step page', () => {
 });
 
 describe('Factory routes', () => {
-  test('an unknown path stays in the section, says so, and links every page', () => {
+  test('an unknown path stays in the section, says so, and links its two pages', () => {
     const html = render(`/console/p/${ID}/factory/how-it-work`, withView);
     expect(html).toContain('No page here');
     // The frame is intact: the view's title and the project's tabs still draw.
@@ -414,9 +410,10 @@ describe('Factory routes', () => {
     const start = html.indexOf('aria-label="Factory pages"');
     expect(start).toBeGreaterThan(-1);
     const links = html.slice(start, html.indexOf('</nav>', start));
-    for (const rest of ['', '/board', '/how-it-works'])
-      expect(links).toContain(`href="/console/p/${ID}/factory${rest}"`);
-    expect(links).toContain(`href="/console/p/${ID}/needs-you"`);
+    expect([...links.matchAll(/href="([^"]*)"/g)].map(([, href]) => href)).toEqual([
+      `/console/p/${ID}/factory`,
+      `/console/p/${ID}/factory/board`,
+    ]);
   });
 
   test('an unknown stage or item keeps its own page and message', () => {
