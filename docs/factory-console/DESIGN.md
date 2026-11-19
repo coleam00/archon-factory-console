@@ -221,7 +221,8 @@ the Overview, the item page and the board popover.
   20 px padding (`p-5`), 12 px between rows (`gap-3`). At most 760 px wide in a page; 480 px wide
   in the board popover.
 - Header row in the Meta role: the item key in mono, in neutral text (`--text-secondary`,
-  `--text-primary` on hover; never the accent), the stage, and the age on the right.
+  `--text-primary` on hover; never the accent) and always on one line (a long title beside it
+  truncates instead), the stage, and the age on the right.
 - Question: `--text-console-17`, semibold, at most 2 lines.
 - Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
   ClampedSummary pattern).

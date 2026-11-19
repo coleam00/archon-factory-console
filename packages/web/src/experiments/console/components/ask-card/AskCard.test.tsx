@@ -7,7 +7,7 @@ import type { NeedsYouItem } from '../../lib/needs-you';
 import { toRun } from '../../primitives/run';
 import { get, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import { AskCard } from './AskCard';
+import { AskCard, SubjectName } from './AskCard';
 import { AskGroup } from './AskGroup';
 import { ANSWERED_SHOWN_MS } from './useAnsweredHold';
 import { holding, LONG, wrapsAnywhere } from './wrap.test-fixtures';
@@ -262,6 +262,15 @@ const markOf = (el: Element | null | undefined): string | null =>
 /** A tile drawn as chosen: the selected border or the check. */
 const looksSelected = (tile: HTMLElement): boolean =>
   markOf(tile) === 'selected' || tile.querySelector('svg') !== null;
+/**
+ * The labels of the tiles that pass `which`, as strings: a failing `toEqual` on happy-dom
+ * elements makes bun hang printing the diff, so selection tests compare words, never elements.
+ */
+const labelsWhere = (container: HTMLElement, which: (tile: HTMLElement) => boolean): string[] =>
+  tiles(container)
+    .filter(which)
+    .map(tile => tile.querySelector('span > span')?.textContent ?? '');
+const pressed = (tile: HTMLElement): boolean => tile.getAttribute('aria-pressed') === 'true';
 
 test('before any pick nothing looks selected; the recommended tile is green with its badge', async () => {
   serve();
@@ -278,9 +287,12 @@ test('before any pick nothing looks selected; the recommended tile is green with
   try {
     const all = tiles(card.container);
     expect(all.length).toBe(4);
-    expect(all.filter(looksSelected)).toEqual([]);
+    expect(labelsWhere(card.container, looksSelected)).toEqual([]);
+    expect(labelsWhere(card.container, pressed)).toEqual([]);
     const recommended = all.filter(tile => tile.dataset.recommended === 'true');
-    expect(recommended.map(tile => tile.textContent?.startsWith('Use dev'))).toEqual([true]);
+    expect(labelsWhere(card.container, tile => tile.dataset.recommended === 'true')).toEqual([
+      'Use dev',
+    ]);
     expect(recommended[0]?.classList.contains('bg-[color:var(--success-soft)]')).toBe(true);
     expect(markOf(recommended[0])).toBe('recommended');
     expect(recommended[0]?.textContent).toContain('Recommended');
@@ -294,12 +306,11 @@ test('picking a tile the ask does not recommend: that tile alone looks selected'
   const card = await mount([askItem()]);
   try {
     await card.click('Use main');
-    const all = tiles(card.container);
-    const selected = all.filter(looksSelected);
-    expect(selected.map(tile => tile.textContent?.startsWith('Use main'))).toEqual([true]);
-    expect(all.filter(tile => tile.getAttribute('aria-pressed') === 'true')).toEqual(selected);
+    expect(labelsWhere(card.container, looksSelected)).toEqual(['Use main']);
+    expect(labelsWhere(card.container, pressed)).toEqual(['Use main']);
     // No other tile wears the chosen tile's look.
-    expect(all.filter(tile => tile.className === selected[0]?.className).length).toBe(1);
+    const chosen = card.button('Use main').className;
+    expect(tiles(card.container).filter(tile => tile.className === chosen).length).toBe(1);
     // The recommended tile keeps only its green mark.
     const recommended = card.button('Use dev');
     expect(looksSelected(recommended)).toBe(false);
@@ -315,7 +326,8 @@ test('picking the recommended tile: selected, keeping its badge, with one border
   try {
     await card.click('Use dev');
     const tile = card.button('Use dev');
-    expect(tiles(card.container).filter(looksSelected)).toEqual([tile]);
+    expect(labelsWhere(card.container, looksSelected)).toEqual(['Use dev']);
+    expect(labelsWhere(card.container, pressed)).toEqual(['Use dev']);
     expect(markOf(tile)).toBe('selected');
     expect(tile.textContent).toContain('Recommended');
   } finally {
@@ -416,6 +428,33 @@ test("the Overview's compact card wraps a long question and label, and marks the
     const tile = holding(article, label)[0]?.parentElement;
     expect(markOf(tile)).toBe('recommended');
     expect(tile?.className).not.toContain('accent');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+test('the item key never shrinks or wraps beside a long title; the title truncates', async () => {
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <SubjectName subject={{ key: '91', title: `title:${LONG}`, href: '/console/p/cb-1' }} />
+        </MemoryRouter>
+      )
+    );
+    const key = holding(container, '91').find(el => el.textContent === '91');
+    if (key === undefined) throw new Error('No key');
+    // A wrap class or a shrinkable key splits '91' into '9' over '1' (PR #97 review).
+    expect(key.className).not.toContain('overflow-wrap');
+    expect(key.className).not.toContain('break-');
+    expect(key.classList.contains('min-w-0')).toBe(false);
+    expect(key.classList.contains('shrink-0')).toBe(true);
+    expect(key.classList.contains('whitespace-nowrap')).toBe(true);
+    expect(holding(container, 'title:')[0]?.classList.contains('truncate')).toBe(true);
   } finally {
     await act(async () => root.unmount());
     container.remove();

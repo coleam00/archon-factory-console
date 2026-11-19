@@ -101,7 +101,8 @@ function AskHeader({ subject, where, ask }: AskCardProps): ReactNode {
 export function SubjectName({ subject }: { subject: AskSubject }): ReactElement {
   const words = (
     <>
-      <span className="min-w-0 font-mono [overflow-wrap:anywhere]">{subject.key}</span>
+      {/* The key is how a person names the item: it never shrinks or wraps; the title truncates. */}
+      <span className="shrink-0 whitespace-nowrap font-mono">{subject.key}</span>
       {subject.title === undefined ? null : (
         <span className="min-w-0 truncate text-text-secondary"> {subject.title}</span>
       )}
