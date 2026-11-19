@@ -702,7 +702,7 @@ async function memberKeys(source: ItemReadSource, itemId: string): Promise<strin
  */
 export const factoryItemRunSchema = z.object({
   runId: z.string(),
-  /** The workflow as the view declares it; null for a run of a workflow the view does not name. */
+  /** The workflow as the view names it (a stage's or its `discoveries` drain); else null. */
   workflow: z.string().nullable(),
   /**
    * What started the run, as `item.runs[].cause` reads it; absent for a start by hand. The
@@ -755,7 +755,7 @@ export async function readFactoryItem(
     const cause = causes.get(run.id) ?? null;
     return {
       runId: run.id,
-      workflow: declaredWorkflow(input.view, input.pack, run.workflow_name),
+      workflow: itemRunWorkflow(input.view, input.pack, run.workflow_name),
       ...(cause === null ? {} : { cause }),
       costUsd: parseRunUsage(run.metadata).costUsd ?? null,
       step: run.status === 'running' ? (fact?.active ?? null) : null,
@@ -764,6 +764,13 @@ export async function readFactoryItem(
     };
   });
   return { pack: input.pack, item, runs };
+}
+
+/** A run's workflow as the view names it, its `discoveries` drain too (on no stage: it places nothing). */
+function itemRunWorkflow(view: FactoryView, pack: string, recorded: string): string | null {
+  const drain = view.discoveries?.workflow;
+  if (drain !== undefined && factoryRunWorkflowName(pack, drain) === recorded) return drain;
+  return declaredWorkflow(view, pack, recorded);
 }
 
 async function itemProgress(

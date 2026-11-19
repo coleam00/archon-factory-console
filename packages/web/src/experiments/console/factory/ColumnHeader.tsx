@@ -2,6 +2,9 @@ import type { ReactElement } from 'react';
 import { PILL_LABEL, type Pill } from './lib/board';
 import type { ColumnTone } from './lib/board-columns';
 import { toneColor } from './tones';
+import { SkeletonFigure } from '../components/Skeleton';
+
+const CHECKING = { title: 'Checking which changes merged', word: 'checking' };
 
 /** A state chip: the state's colour as text on its soft background (rule 5). */
 export const CHIP_CLASS: Record<Exclude<Pill, 'landed'>, string> = {
@@ -14,7 +17,8 @@ export const CHIP_CLASS: Record<Exclude<Pill, 'landed'>, string> = {
 /**
  * One board column's header (Visual standard, rule 9): a bar in the column's colour, its
  * label, a one-line subtitle, its count, and a chip per state its cards are in. While the
- * count waits on a merge answer, a skeleton bar stands in for it.
+ * count is not known (a merge answer outstanding, or the items not read yet), a skeleton
+ * bar stands in for it.
  */
 export function ColumnHeader({
   id,
@@ -23,6 +27,7 @@ export function ColumnHeader({
   tone,
   count,
   chips,
+  waiting = CHECKING,
 }: {
   id: string;
   label: string;
@@ -31,6 +36,8 @@ export function ColumnHeader({
   /** Null while it is not known. */
   count: number | null;
   chips: readonly { pill: Exclude<Pill, 'landed'>; count: number }[];
+  /** Why a null count is not known: a merge answer outstanding, unless the items are unread. */
+  waiting?: { title: string; word: string };
 }): ReactElement {
   return (
     <header
@@ -52,12 +59,9 @@ export function ColumnHeader({
           </p>
         </div>
         {count === null ? (
-          <span data-count title="Checking which changes merged" className="flex items-center">
-            <span
-              aria-hidden="true"
-              className="h-5.5 w-12 rounded bg-surface-elevated motion-safe:animate-pulse"
-            />
-            <span className="sr-only">checking</span>
+          <span data-count title={waiting.title} className="flex items-center">
+            <SkeletonFigure />
+            <span className="sr-only">{waiting.word}</span>
           </span>
         ) : (
           <span data-count className="text-console-22 font-semibold tabular-nums text-text-primary">

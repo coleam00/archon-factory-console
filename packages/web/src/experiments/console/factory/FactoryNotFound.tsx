@@ -1,5 +1,8 @@
 import type { ReactElement } from 'react';
+import { FileQuestionMark } from 'lucide-react';
 import { Link, useParams } from 'react-router';
+import { EmptyNote } from '../components/EmptyNote';
+import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { needsYouPath } from '../lib/needs-you';
 import { factoryPath } from './lib/views';
@@ -22,19 +25,25 @@ export function FactoryNotFound(): ReactElement {
   return (
     <FactoryFrame section={null}>
       {() => (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-text-secondary">No page here.</p>
-          <nav aria-label="Factory pages" className="flex flex-wrap items-center gap-3">
-            {PAGES.map(({ label, to }) => (
-              <Link
-                key={label}
-                to={to(projectId)}
-                className="text-console-12 text-accent-bright underline"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
+        <div className="flex flex-col gap-6">
+          <BackLink to={factoryPath(projectId)} label="Overview" />
+          <EmptyNote
+            icon={FileQuestionMark}
+            sentence="No page here. The Factory has these pages:"
+            link={
+              <nav aria-label="Factory pages" className="flex flex-wrap items-center gap-3">
+                {PAGES.map(({ label, to }) => (
+                  <Link
+                    key={label}
+                    to={to(projectId)}
+                    className="text-accent-bright transition-colors duration-150 ease-out hover:underline"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+            }
+          />
         </div>
       )}
     </FactoryFrame>

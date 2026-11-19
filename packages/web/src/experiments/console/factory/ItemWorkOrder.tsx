@@ -57,12 +57,12 @@ export function WorkOrderOnly({
     <>
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="font-mono text-console-12 text-text-tertiary">{order.key}</span>
-          <h3 className="min-w-0 break-words text-base font-medium text-text-primary">
+          <span className="font-mono text-console-13 text-text-tertiary">{order.key}</span>
+          <h3 className="min-w-0 break-words text-console-17 font-semibold text-text-primary">
             {order.title}
           </h3>
         </div>
-        <p className="text-console-12 text-text-secondary">{WORK_ORDER_WORDS}</p>
+        <p className="text-console-13 text-text-secondary">{WORK_ORDER_WORDS}</p>
       </header>
       <OrderMembers projectId={projectId} order={order} />
     </>
@@ -79,12 +79,15 @@ export function OrderMembers({
 }): ReactElement {
   return (
     <div className="flex flex-col gap-1.5" aria-label={`Members of ${order.key}`}>
-      <p className="text-sm text-text-secondary">
+      <p className="text-console-14 text-text-secondary">
         Members: {order.landed} of {order.members.length} merged
       </p>
       <ul className="flex flex-col gap-1">
         {order.members.map(member => (
-          <li key={member.key} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <li
+            key={member.key}
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-console-14"
+          >
             <Link
               to={itemPath(projectId, member.key)}
               className="font-mono text-console-12 text-accent-bright hover:underline"
@@ -95,7 +98,7 @@ export function OrderMembers({
               <span className="min-w-0 truncate text-text-primary">{member.title}</span>
             )}
             <PillBadge pill={member.pill} />
-            <span className="text-console-12 text-text-tertiary">{member.where}</span>
+            <span className="text-console-13 text-text-tertiary">{member.where}</span>
           </li>
         ))}
       </ul>

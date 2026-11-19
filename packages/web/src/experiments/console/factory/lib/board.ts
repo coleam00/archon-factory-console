@@ -13,7 +13,7 @@ import { needsYou } from '../../lib/needs-you';
 import { showsCard, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
-import { pageItemColumn, type ItemColumn } from './placement';
+import { pageItemColumn, stageOfWorkflow, type ItemColumn } from './placement';
 import { boardShadowLine, type ShadowWords } from './shadows';
 import { runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
@@ -152,11 +152,16 @@ function changeField(progress: Progress | null): BoardCard['change'] {
   };
 }
 
-function failedLine(view: FactoryDeclaration, run: DeclaredRun): string {
-  if (run.status === 'cancelled') return `${run.workflow} was cancelled`;
+/**
+ * What stopped a failed run, naming its stage ("Build failed at Writes the change"), never the
+ * workflow: a run's workflow is the pack's full id, which a person does not read.
+ */
+function failedLine(view: FactoryDeclaration, run: DeclaredRun, placed: string | null): string {
+  const stage = stageOfWorkflow(view, run.workflow, run.failedStep)?.label ?? placed ?? 'The run';
+  if (run.status === 'cancelled') return `${stage} was cancelled`;
   return run.failedStep === null
-    ? `${run.workflow} failed`
-    : `${run.workflow} failed at ${stepLabel(view, run.workflow, run.failedStep)}`;
+    ? `${stage} failed`
+    : `${stage} failed at ${stepLabel(view, run.workflow, run.failedStep)}`;
 }
 
 /** An item's card, given where it was placed (`itemColumn`). */
@@ -169,7 +174,8 @@ export function cardFields(
   const { key } = item.item;
   const progress = item.progress;
   const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
-  const { pill, stopLine } = itemPill(view, item, landed);
+  const placed = column !== null && 'stage' in column ? column.stage.label : null;
+  const { pill, stopLine } = itemPill(view, item, landed, placed);
   const mergedAt = progress?.change?.mergedAt ?? null;
   return {
     key,
@@ -199,7 +205,9 @@ export function cardFields(
 export function itemPill(
   view: FactoryDeclaration,
   item: FactoryItem,
-  landed: boolean
+  landed: boolean,
+  /** The label of the stage the item is placed in, named when a failed run's stage is not known. */
+  placed: string | null = null
 ): Pick<BoardCard, 'pill' | 'stopLine'> {
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
   if (landed) return { pill: 'landed', stopLine: unread };
@@ -208,7 +216,7 @@ export function itemPill(
   if (item.progress?.running != null) return { pill: 'running', stopLine: null };
   const last = declaredRuns(item).at(-1);
   if (last !== undefined && ENDED_STATUSES.has(last.status))
-    return { pill: 'failed', stopLine: failedLine(view, last) };
+    return { pill: 'failed', stopLine: failedLine(view, last, placed) };
   return { pill: 'waiting', stopLine: unread };
 }
 

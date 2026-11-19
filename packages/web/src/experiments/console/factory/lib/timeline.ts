@@ -3,6 +3,8 @@ import { placedStage, stageOfWorkflow } from './placement';
 import { shadowOf, shadowWords, type ShadowWords } from './shadows';
 import { VERDICT_LABEL, type RoundVerdict } from './board';
 import { stepLabel } from './step-label';
+import { FOUND_BY_THE_FACTORY_LABEL } from './discoveries';
+import { boardSeats, isSendBack, type Seat } from './stage-direction';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -16,13 +18,15 @@ export type RoundStep = Round['steps'][number];
 type StartCause = RunFacts['cause'];
 
 /**
- * How a run started, in words. `mono` follows the words in mono: the trigger's id. `step`
- * is the step that started it, by name, with its engine id for the hover title. `runHref`
- * links the run that caused it.
+ * How a run started, in words. `mono` follows the words in mono: the outcome token of the
+ * run before, where the declaration does not word it. `title` is the hover text: the trigger's
+ * id, which no person reads on the page. `step` is the step that started it, by name, with its
+ * engine id for the hover title. `runHref` links the run that caused it.
  */
 export interface StartedText {
   text: string;
   mono: string | null;
+  title: string | null;
   step: { name: string; node: string } | null;
   runHref: string | null;
 }
@@ -44,6 +48,8 @@ export interface TimelineStep {
   /** The step's name (`stepLabel`); no round, as it sits under its round already. */
   name: string;
   outcome: OutcomeWords;
+  /** The verdict its outcome declares, for its chip's colour; null for an undeclared token. */
+  verdict: RoundVerdict | null;
   summary: string | null;
 }
 
@@ -76,16 +82,32 @@ export interface TimelineShadow {
   words: ShadowWords;
 }
 
+/**
+ * What a run's outcome did to the item, for its icon and colour. Derived from the same
+ * branches as its words, never from the words: `sent-on` and `returned` by where `placement`
+ * put the item, forward or back by the board's order (`isSendBack`, the map's rule), judged
+ * from the furthest stage the run works, a placement into that stage itself sent on
+ * (`placedKind`).
+ */
+export type RunKind = 'sent-on' | 'returned' | 'asked' | 'failed' | 'running' | 'stopped' | 'other';
+
+/** A stage group, for the run's dot; `shadow` for a run that only decides what it would do. */
+export type RunGroup = Declaration['stages'][number]['group'] | 'shadow';
+
 export interface TimelineRow {
   runId: string;
   href: string;
   /** The workflow as the view names it, else as the run recorded it. */
   workflow: string;
+  /** The declared stage it worked, or "Found by the factory" for a discoveries run. */
   stage: string | null;
+  /** The colour group of its dot; null for a run on no stage. */
+  group: RunGroup | null;
   started: StartedText;
   status: ItemRun['status'];
   /** How the run ended, or what it is doing (`runOutcome`). */
   outcome: OutcomeWords;
+  kind: RunKind;
   /** The questions this run left on the item, for the hover of an outcome that reads "asked you". */
   asked: string[];
   /** Null for a run that has not started executing. */
@@ -105,8 +127,20 @@ export const runHref = (projectId: string, runId: string): string =>
 
 const words = (text: string): OutcomeWords => ({ text, mono: false });
 
+/** An outcome's words with what it did to the item. */
+type Outcome = { words: OutcomeWords; kind: RunKind };
+const outcome = (text: string, kind: RunKind): Outcome => ({ words: words(text), kind });
+const token = (text: string): Outcome => ({ words: { text, mono: true }, kind: 'other' });
+
 /** The timeline's words for a run that stopped to ask, and for a step outcome meaning `asked`. */
 const ASKED_YOU = 'asked you';
+
+/** Each declared meaning as the verdict whose colour its chip takes. */
+const MEANING_VERDICT: Record<VerdictMeaning, RoundVerdict> = {
+  approved: 'approved',
+  returned: 'returned',
+  asked: 'undecided',
+};
 
 /** Each declared meaning in the board's round-dot words, and "asked you" for an ask. */
 const MEANING_WORDS: Record<VerdictMeaning, string> = {
@@ -146,17 +180,43 @@ const declaredAsked = (view: Declaration, workflow: string, outcome: string | nu
 function completedOutcome(
   view: Declaration,
   workflow: string | null,
-  outcome: string | null,
+  result: string | null,
   asked: readonly string[]
-) {
-  if (asked.length > 0 || (workflow !== null && declaredAsked(view, workflow, outcome)))
-    return words(ASKED_YOU);
-  const stage = workflow === null ? undefined : placedStage(view, workflow, outcome);
-  if (stage !== undefined) return words(`sent to ${stage.label}`);
-  if (outcome === null) return words('completed');
-  if (workflow === null) return { text: outcome, mono: true };
-  const ending = view.endings[`${workflow}:${outcome}`] ?? view.endings[`${workflow}:*`];
-  return ending === undefined ? { text: outcome, mono: true } : words(ending);
+): Outcome {
+  if (asked.length > 0 || (workflow !== null && declaredAsked(view, workflow, result)))
+    return outcome(ASKED_YOU, 'asked');
+  const stage = workflow === null ? undefined : placedStage(view, workflow, result);
+  if (workflow !== null && stage !== undefined)
+    return outcome(`sent to ${stage.label}`, placedKind(view, workflow, stage.id));
+  if (result === null) return outcome('completed', 'other');
+  if (workflow === null) return token(result);
+  const ending = view.endings[`${workflow}:${result}`] ?? view.endings[`${workflow}:*`];
+  return ending === undefined ? token(result) : outcome(ending, 'stopped');
+}
+
+/**
+ * Whether placing the item in `stage` after a run of `workflow` sent it back or on, by the
+ * board's order (`isSendBack`, the map's rule). A run is judged from the furthest stage its
+ * workflow works, since it may have reached any of them: `deliver:returned` lands in Build
+ * from Checks, `deliver:replan` in Plan. A placement into that furthest stage itself is no
+ * send-back: the land gate places the item in Ready to merge, the stage it works.
+ */
+function placedKind(view: Declaration, workflow: string, stage: string): RunKind {
+  const seats = boardSeats(view);
+  const to = seats.get(stage);
+  const from = view.stages
+    .filter(candidate => candidate.workflows.includes(workflow))
+    .map(candidate => seats.get(candidate.id))
+    .reduce<Seat | undefined>(
+      (furthest, seat) =>
+        seat === undefined || (furthest !== undefined && isSendBack(furthest, seat))
+          ? furthest
+          : seat,
+      undefined
+    );
+  if (from === undefined || to === undefined) return 'sent-on';
+  const same = from.card === to.card && from.row === to.row;
+  return !same && isSendBack(from, to) ? 'returned' : 'sent-on';
 }
 
 /** How a run ended, or what it is doing; `workflow` as the view names it, null if it does not. */
@@ -165,16 +225,17 @@ function runOutcome(
   workflow: string | null,
   run: ItemRun,
   asked: readonly string[]
-): OutcomeWords {
-  if (run.awaitingExecution !== null) return words('waiting to start');
+): Outcome {
+  if (run.awaitingExecution !== null) return outcome('waiting to start', 'other');
   switch (run.status) {
     case 'pending':
-      return words('waiting to start');
+      return outcome('waiting to start', 'other');
     case 'running':
     case 'paused':
+      return outcome(run.status, 'running');
     case 'failed':
     case 'cancelled':
-      return words(run.status);
+      return outcome(run.status, 'failed');
     case 'completed':
       return completedOutcome(view, workflow, run.outcome, asked);
   }
@@ -185,16 +246,24 @@ function runOutcome(
  * declares that step and outcome, its meaning's words where `verdicts` does, else the pack's
  * token as an identifier.
  */
-function stepOutcome(view: Declaration, workflow: string, step: RoundStep): OutcomeWords {
+function stepOutcome(
+  view: Declaration,
+  workflow: string,
+  step: RoundStep
+): { outcome: OutcomeWords; verdict: RoundVerdict | null } {
   const declares = (points: Declaration['returns']): boolean =>
     (points ?? []).some(
       point =>
         point.workflow === workflow && point.node === step.node && point.outcome === step.outcome
     );
-  if (declares(view.returns)) return words(VERDICT_LABEL.returned);
-  if (declares(view.approves)) return words(VERDICT_LABEL.approved);
+  if (declares(view.returns))
+    return { outcome: words(VERDICT_LABEL.returned), verdict: 'returned' };
+  if (declares(view.approves))
+    return { outcome: words(VERDICT_LABEL.approved), verdict: 'approved' };
   const meaning = view.verdicts?.[workflow]?.[step.node]?.[step.outcome];
-  return meaning === undefined ? { text: step.outcome, mono: true } : words(MEANING_WORDS[meaning]);
+  return meaning === undefined
+    ? { outcome: { text: step.outcome, mono: true }, verdict: null }
+    : { outcome: words(MEANING_WORDS[meaning]), verdict: MEANING_VERDICT[meaning] };
 }
 
 /** A round's steps grouped under the stage each belongs to, in the order they recorded. */
@@ -205,7 +274,7 @@ function groupSteps(view: Declaration, workflow: string, steps: readonly RoundSt
     const entry = {
       node: step.node,
       name: stepLabel(view, workflow, step.node),
-      outcome: stepOutcome(view, workflow, step),
+      ...stepOutcome(view, workflow, step),
       summary: step.summary,
     };
     const last = groups.at(-1);
@@ -254,6 +323,7 @@ type Row = Omit<TimelineRow, 'started'> & { cause: StartCause };
 const started = (text: string, runHref: string | null): StartedText => ({
   text,
   mono: null,
+  title: null,
   step: null,
   runHref,
 });
@@ -288,8 +358,40 @@ function startedText(
     case 'asks_settled':
       return started('After its questions were settled', runHref(projectId, cause.runId));
     case 'receipt':
-      return { ...started('Started by a trigger', null), mono: cause.sourceInstanceId };
+      return { ...started('Started by a trigger', null), title: cause.sourceInstanceId };
   }
+}
+
+/**
+ * Where a run sits on the timeline: the stage it worked and that stage's group, or, for a run
+ * of the view's discoveries workflow (on no stage), "Found by the factory", a shadow while the
+ * view says the drain only decides what it would file.
+ */
+function runPlace(
+  view: Declaration,
+  workflow: string | null,
+  liveStep: string | null
+): { stage: string | null; group: RunGroup | null } {
+  if (workflow === null) return { stage: null, group: null };
+  if (view.discoveries !== undefined && workflow === view.discoveries.workflow)
+    return {
+      stage: FOUND_BY_THE_FACTORY_LABEL,
+      group: view.discoveries.shadow ? 'shadow' : null,
+    };
+  const stage = stageOfWorkflow(view, workflow, liveStep);
+  return { stage: stage?.label ?? null, group: stage?.group ?? null };
+}
+
+/** The timeline's last entry once the change merged: when, as the change host said. */
+export interface TimelineMerged {
+  /** ISO time it merged; null when the host did not say. */
+  at: string | null;
+}
+
+/** The merged entry, when the item's change merged; null otherwise. */
+export function timelineMerged(detail: FactoryItemDetail): TimelineMerged | null {
+  const change = detail.item.progress?.change ?? null;
+  return change?.merged === true ? { at: change.mergedAt } : null;
 }
 
 /**
@@ -309,13 +411,15 @@ export function buildTimeline(
     const liveStep = run.status === 'running' ? (fact?.step ?? null) : null;
     const iteration = fact?.rounds?.rounds.at(-1)?.iteration;
     const asked = askedQuestions(detail, run.id);
+    const result = runOutcome(view, workflow, run, asked);
     return {
       runId: run.id,
       href: runHref(projectId, run.id),
       workflow: workflow ?? run.workflow,
-      stage: workflow === null ? null : (stageOfWorkflow(view, workflow, liveStep)?.label ?? null),
+      ...runPlace(view, workflow, liveStep),
       status: run.status,
-      outcome: runOutcome(view, workflow, run, asked),
+      outcome: result.words,
+      kind: result.kind,
       asked,
       durationMs: durationOf(run, now),
       costUsd: fact?.costUsd ?? null,

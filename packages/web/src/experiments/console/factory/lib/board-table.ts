@@ -1,4 +1,5 @@
 /** The board's Table view: one row per item with the card's fields, sortable by any of them. */
+import { ensureUtc } from '../../lib/format';
 import { PILL_LABEL, type BoardModel, type Pill, type PlacedCard } from './board';
 
 export const TABLE_COLUMNS = [
@@ -9,7 +10,6 @@ export const TABLE_COLUMNS = [
   { id: 'stage', label: 'Stage' },
   { id: 'state', label: 'State' },
   { id: 'round', label: 'Round' },
-  { id: 'run', label: 'Running step' },
   { id: 'returned', label: 'Returned' },
   { id: 'change', label: 'Change' },
   { id: 'merged', label: 'Merged' },
@@ -80,8 +80,6 @@ function sortValue(row: TableRow, by: TableColumnId): number | string {
       return PILL_ORDER.indexOf(card.pill);
     case 'round':
       return item.progress?.round?.iteration ?? 0;
-    case 'run':
-      return card.run?.text ?? '';
     case 'returned':
       return card.returned?.count ?? 0;
     case 'change':
@@ -107,5 +105,16 @@ export function sortRows(rows: readonly TableRow[], sort: TableSort): TableRow[]
         ? left - right
         : collator.compare(String(left), String(right));
     return sign * order;
+  });
+}
+
+/** A time in the Table's Merged cell: month, day, hour and minute, local ("Nov 17, 14:05"). */
+export function shortDateTime(iso: string): string {
+  return new Date(ensureUtc(iso)).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
   });
 }

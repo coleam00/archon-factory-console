@@ -128,7 +128,11 @@ describe('/console/factory', () => {
       ])
     );
     const cards = [...page.querySelectorAll('article')];
-    expect(cards.map(card => card.querySelector('h2')?.textContent)).toEqual(['Kit', 'Web']);
+    // Each card is titled by the pack's name, its overview's caption under it.
+    expect(cards.map(card => card.querySelector('h2')?.textContent)).toEqual([
+      'acme/kit',
+      'acme/web',
+    ]);
     expect(cards[0]?.textContent).toContain(OVERVIEW.caption);
     expect(cards[0]?.textContent).toContain('Runs on 1 project');
     expect(cards[1]?.textContent).toContain('Runs on 2 projects');
@@ -156,8 +160,8 @@ describe('/console/factory', () => {
     );
     const cards = [...page.querySelectorAll('article')];
     expect(cards).toHaveLength(2);
-    // With no overview, the card is titled by the pack's key and still opens its page.
-    expect(cards[1]?.querySelector('h2')?.textContent).toBe('acme.web');
+    // With no overview, the card is still titled by the pack's name and opens its page.
+    expect(cards[1]?.querySelector('h2')?.textContent).toBe('acme/web');
     expect(hrefs(cards[1])).toContain('/console/factory/acme.web/how-it-works');
   });
 });
@@ -170,8 +174,9 @@ describe('/console/factory/:pack/how-it-works', () => {
     const crumbs = [...page.querySelectorAll('nav[aria-label="Breadcrumb"] li')].map(li =>
       li.textContent?.replace('›', '').trim()
     );
+    // The overview's title heads the map (its breadcrumb's root); the page names the pack.
     expect(crumbs).toEqual(['Kit', 'Make']);
-    expect(page.querySelector('h1')?.textContent).toBe('Kit');
+    expect(page.querySelector('h1')?.textContent).toBe('acme/kit');
     const project = page.querySelector('header a[href="/console/p/cb-1/factory"]');
     expect(project?.textContent).toBe('web');
   });
@@ -200,7 +205,10 @@ describe('/console/factory/:pack/how-it-works', () => {
   test('an unknown pack says so and links every pack', async () => {
     const page = await mount('/console/factory/nope/how-it-works', two);
     expect(page.querySelector('[data-card]')).toBeNull();
-    expect(hrefs(page)).toContain('/console/factory');
+    expect(page.textContent).toContain('No installed pack keyed "nope"');
+    const back = page.querySelector('a[data-back-link]');
+    expect(back?.getAttribute('href')).toBe('/console/factory');
+    expect(back?.className).not.toContain('underline');
   });
 
   test("a broken pack file's error shows on its page", async () => {
@@ -301,6 +309,8 @@ describe('/console/factory/:pack/settings', () => {
     const page = await settingsPage();
     const active = page.querySelector('nav[aria-label="Pack"] [aria-current="page"]');
     expect(active?.getAttribute('href')).toBe('/console/factory/acme.kit/settings');
+    // Settings names the pack, never How it works' title.
+    expect(page.querySelector('h1')?.textContent).toBe('acme/kit');
     expect([...page.querySelectorAll('[data-setting] h2')].map(h => h.textContent)).toEqual([
       'Triage policy',
       'Land policy',

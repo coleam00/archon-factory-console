@@ -11,6 +11,7 @@ import { PILL_CLASS } from './BoardCard';
 import { itemPill } from './lib/board';
 import { askItem } from '../lib/needs-you.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
+import { formatDateTime } from '../lib/format';
 
 afterEach(() => {
   invalidate('factory-views');
@@ -73,7 +74,9 @@ describe('the item page', () => {
     // Each timeline row's own link: started-by and answer links carry the same hrefs.
     for (const run of itemDetail('3').item.runs)
       expect(html).toMatch(
-        new RegExp(`href="/console/p/${PROJECT}/r/${run.id}"[^>]*><span class="font-medium">`)
+        new RegExp(
+          `href="/console/p/${PROJECT}/r/${run.id}"[^>]*><span class="text-console-15 font-semibold`
+        )
       );
     // Each deliver run that asked reads "asked you", with the question it left on hover.
     const asks = itemDetail('3').item.answers.filter(answer => answer.kind === 'ask');
@@ -91,7 +94,84 @@ describe('the item page', () => {
     expect(words).toContain('No change yet');
     // Where the plan sent it, in the declaration's words; its duration runs to now, with its
     // units; its cost shows as a dash until the run records one.
-    expect(words).toMatch(/After Plan: sent to Build \d+ (s|min|h|d)( \d+ (min|h))? - /);
+    expect(words).toMatch(
+      /deliver · Writes the change running \d+ (s|min|h|d)( \d+ (min|h))? · - After Plan: sent to Build/
+    );
+  });
+
+  test('the timeline: a dot per run in its group colour, an icon per outcome, a chip per check', () => {
+    const html = render(itemDetail('1'));
+    // Triage and Plan are intake, deliver build; then the merged entry in the merged colour.
+    const dots = [...html.matchAll(/data-timeline-dot="true"[^>]*background-color:([^"]+)"/g)];
+    expect(dots.map(match => match[1])).toEqual([
+      'var(--node-prompt)',
+      'var(--node-prompt)',
+      'var(--node-wait)',
+      'var(--success)',
+    ]);
+    expect([...html.matchAll(/data-kind="([a-z-]+)"/g)].map(match => match[1])).toEqual([
+      'sent-on',
+      'sent-on',
+      'sent-on',
+      'merged',
+    ]);
+    // In local time, so the expectation is too: the fixture merged at 00:03 UTC.
+    expect(text(html)).toContain(`Merged ${formatDateTime('2026-11-17T00:03:14Z')}`);
+    // Each check a chip in its verdict's soft colours, the engine id on hover only.
+    expect(html).toContain('bg-[color:var(--error-soft)] text-error">');
+    expect(html).toContain('bg-[color:var(--success-soft)] text-success">');
+    expect(html).toMatch(/data-verdict="returned" title="rounds\./);
+    // Duration and cost right-aligned in mono.
+    expect(html).toMatch(/data-figures="true" class="[^"]*text-right font-mono[^"]*tabular-nums/);
+    // The trigger's id is the hover, never the words.
+    expect(text(html)).not.toContain('fc-start-triage');
+    expect(html).toContain('title="fc-start-triage"');
+    // Nothing on the item's own part of the page under the type floor (the project header
+    // above it is console chrome).
+    const page = html.slice(html.indexOf('data-back-link'));
+    expect(page).not.toMatch(/text-console-(9|10|11)\b|\btext-(xs|sm|base|lg)\b/);
+  });
+
+  test('the header: the PR as a button-style link, its merge state as a chip', () => {
+    const merged = render(itemDetail('1'));
+    expect(merged).toMatch(
+      /class="inline-flex[^"]*rounded-md border border-border[^"]*"><svg[^>]*lucide-git-pull-request/
+    );
+    expect(merged).toContain(
+      `data-merge-state="true" class="${'whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium'} ${PILL_CLASS.landed}">merged<`
+    );
+    expect(render(itemDetail('3'))).toContain('data-merge-state="unknown"');
+    const detail = itemDetail('3');
+    const change = detail.item.progress?.change;
+    if (change === undefined || change === null) throw new Error('item 3 has a change');
+    const withMerged = (value: typeof change.merged): FactoryItemDetail => ({
+      ...detail,
+      item: {
+        ...detail.item,
+        progress:
+          detail.item.progress === null
+            ? null
+            : { ...detail.item.progress, change: { ...change, merged: value } },
+      },
+    });
+    expect(render(withMerged(false))).toContain(`${PILL_CLASS.waiting}">open<`);
+    const pending = render(withMerged('pending'));
+    expect(pending).toContain('data-merge-state="pending"');
+    expect(pending).toContain('data-skeleton="line"');
+    expect(pending).toContain('<span class="sr-only">checking whether it merged</span>');
+  });
+
+  test('while the item is read: the header and three runs as skeletons, never Loading', () => {
+    set(K.factoryViews(PROJECT), listing);
+    set(K.projectAttention(PROJECT), quiet);
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/77`]}>
+        <Routes>{projectRoutes('/console/')}</Routes>
+      </MemoryRouter>
+    );
+    expect(html).toContain('<span class="sr-only">Loading the item</span>');
+    expect(html.match(/data-skeleton="block" class="[^"]*h-16/g)?.length).toBe(3);
+    expect(html).not.toContain('Loading…');
   });
 
   test("lists only this item's asks from the live queue, answerable, and says it needs you", () => {

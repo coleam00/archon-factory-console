@@ -1,9 +1,9 @@
 import type { ReactElement } from 'react';
-import { Link } from 'react-router';
 import { factoryTabShown } from '../factory/lib/views';
 import { useFactoryViews } from '../factory/useFactoryViews';
 import { needsYouCount } from '../lib/needs-you';
 import { useProjectAttention } from './ProjectAttention';
+import { TabLink } from './TabLink';
 
 type ProjectView = 'needs-you' | 'runs' | 'chat' | 'metrics' | 'factory';
 
@@ -23,8 +23,8 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
 /**
  * Needs you | Runs | Chat | Metrics tab control under a project, then Factory when a factory
  * view applies to the project. Needs you carries how many asks and waits need a person, in the
- * needs-you colour, while above zero. Active styling mirrors FilterChips (brand-bar
- * underline). Only meaningful when a project is scoped, so it is rendered only under
+ * needs-you colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the
+ * active one). Only meaningful when a project is scoped, so it is rendered only under
  * `ProjectAttentionLayout`, never on the All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
@@ -34,30 +34,12 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
   const tabs = factoryTabShown(factoryViews) ? [...TABS, FACTORY_TAB] : TABS;
   return (
     <div className="flex flex-wrap items-center gap-1">
-      {tabs.map(({ key, label, suffix }) => {
-        const isActive = key === active;
-        return (
-          <Link
-            key={key}
-            to={`/console/p/${projectId}${suffix}`}
-            aria-current={isActive ? 'page' : undefined}
-            className={`relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out ${
-              isActive
-                ? 'bg-surface-elevated text-text-primary'
-                : 'text-text-tertiary hover:text-text-primary'
-            }`}
-          >
-            {label}
-            {key === 'needs-you' && waiting > 0 ? <WaitingBadge count={waiting} /> : null}
-            {isActive ? (
-              <span
-                aria-hidden
-                className="brand-bar pointer-events-none absolute inset-x-1 -bottom-0.5 h-0.5 rounded-full"
-              />
-            ) : null}
-          </Link>
-        );
-      })}
+      {tabs.map(({ key, label, suffix }) => (
+        <TabLink key={key} to={`/console/p/${projectId}${suffix}`} active={key === active}>
+          {label}
+          {key === 'needs-you' && waiting > 0 ? <WaitingBadge count={waiting} /> : null}
+        </TabLink>
+      ))}
     </div>
   );
 }

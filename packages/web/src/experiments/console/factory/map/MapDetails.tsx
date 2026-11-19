@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { Link } from 'react-router';
+import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { StageRead } from '../lib/map-live';
@@ -95,7 +96,7 @@ function StageSection({
         {named ? (
           <h5 className="text-console-14 font-medium text-text-primary">{stage.label}</h5>
         ) : null}
-        <Link to={stagePath} className="text-console-12 text-accent-bright underline">
+        <Link to={stagePath} className="text-console-13 text-accent-bright hover:underline">
           Open stage
         </Link>
       </div>
@@ -110,7 +111,7 @@ function StageSection({
       <section className="flex flex-col gap-1.5">
         <h6 className={HEADING}>Workflows</h6>
         {stage.workflows.length === 0 ? (
-          <p className="text-console-12 text-text-tertiary">No workflow runs here.</p>
+          <p className="text-console-13 text-text-tertiary">No workflow runs here.</p>
         ) : (
           <ul className="flex flex-wrap gap-1.5">
             {stage.workflows.map(workflow => (
@@ -151,7 +152,8 @@ function ShadowSteps({ lines }: { lines: readonly string[] }): ReactElement | nu
 }
 
 /**
- * What sits in the stage now; "…" until the items are read, never "Nothing here now." early,
+ * What sits in the stage now; skeleton lines until the items are read (rule 6), never
+ * "Nothing here now." early,
  * and "Could not be read." once the first read failed (the alert above the map says why).
  */
 function ItemsHere({
@@ -168,10 +170,15 @@ function ItemsHere({
   if (typeof live === 'string')
     return (
       <section className="flex flex-col gap-1.5">
-        <h6 className={HEADING}>Items here{live === 'loading' ? ' · …' : ''}</h6>
-        <p className="text-console-12 text-text-tertiary">
-          {live === 'loading' ? 'Loading…' : 'Could not be read.'}
-        </p>
+        <h6 className={HEADING}>Items here</h6>
+        {live === 'loading' ? (
+          <SkeletonGroup label="Loading the items here" className="flex flex-col gap-2">
+            <SkeletonLine />
+            <SkeletonLine width="short" />
+          </SkeletonGroup>
+        ) : (
+          <p className="text-console-13 text-text-tertiary">Could not be read.</p>
+        )}
       </section>
     );
   const waiting = new Set(live.needYou.map(item => item.item.id));
@@ -179,7 +186,7 @@ function ItemsHere({
     <section className="flex flex-col gap-1.5">
       <h6 className={HEADING}>Items here · {live.pending ? 'checking…' : live.items.length}</h6>
       {live.items.length === 0 ? (
-        <p className="text-console-12 text-text-tertiary">Nothing here now.</p>
+        <p className="text-console-13 text-text-tertiary">Nothing here now.</p>
       ) : (
         <ul className="flex flex-col gap-1">
           {live.items.map(item => (
@@ -227,7 +234,7 @@ function ItemRow({
             {item.progress?.title ?? item.item.key}
           </span>
           {needsYou ? (
-            <span className="ml-auto shrink-0 rounded-full bg-warning/20 px-1.5 text-console-12 font-semibold text-warning">
+            <span className="ml-auto shrink-0 rounded-full bg-[color:var(--warning-soft)] px-2 text-console-12 font-semibold text-warning">
               Needs you
             </span>
           ) : null}

@@ -1,12 +1,14 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
-import { EmptyState } from '../../components/EmptyState';
+import { Factory } from 'lucide-react';
+import { EmptyNote } from '../../components/EmptyNote';
 import { errorDetail } from '../../lib/http';
 import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
 import type { FactoryPackListed } from '../lib/views';
 import { AllPacksLink, PackFrame, PacksFailed } from './PackFrame';
+import { PackSkeleton } from './PackSkeleton';
 
 /**
  * The pack a tab's URL names (`:pack`, its key), from the packs list every sidebar Factory
@@ -28,18 +30,24 @@ export function PackLookup({
       {failed !== undefined ? (
         <PacksFailed message={errorDetail(failed)} />
       ) : read.data === undefined ? (
-        <FactoryLoading read={read} />
+        <FactoryLoading read={read}>
+          <PackSkeleton />
+        </FactoryLoading>
       ) : (
-        <EmptyState
-          title="No factory pack here"
-          hint={`No installed pack keyed "${packKey}" has a factory overview file.`}
-          action={<AllPacksLink />}
-        />
+        <>
+          <AllPacksLink />
+          <EmptyNote
+            icon={Factory}
+            sentence={`No installed pack keyed "${packKey}" has a factory overview file.`}
+          />
+        </>
       )}
     </PackFrame>
   );
 }
 
-/** A pack page's title: its overview's, else its key. */
-export const packTitle = (pack: FactoryPackListed): string =>
-  pack.overview?.declaration.title ?? pack.key;
+/**
+ * A pack page's title, on every tab: the pack's name. The overview's own title heads How it
+ * works (its breadcrumb's root), so Settings never sits under it.
+ */
+export const packTitle = (pack: FactoryPackListed): string => pack.pack;

@@ -1,4 +1,5 @@
 import { Inbox } from 'lucide-react';
+import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../Skeleton';
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { readFailed } from '../../factory/lib/deadline';
@@ -163,12 +164,7 @@ function NothingNeedsYou({
             : `Last asked ${relativeTime(asked)}`}
         </p>
       )}
-      {loading ? (
-        <div
-          aria-hidden
-          className="h-3 w-2/5 rounded bg-surface-elevated motion-safe:animate-pulse"
-        />
-      ) : null}
+      {loading ? <SkeletonLine width="short" /> : null}
       <Link
         to={`/console/p/${projectId}`}
         className="text-console-13 text-accent-bright hover:underline"
@@ -182,16 +178,14 @@ function NothingNeedsYou({
 /** Skeletons of the three answered cards to come (Visual standard rule 6). */
 function AnsweredSkeletons(): ReactElement {
   return (
-    <div role="status" className="flex flex-col gap-3">
-      <span className="sr-only">Loading what was answered lately</span>
+    <SkeletonGroup
+      label="Loading what was answered lately"
+      className="flex max-w-3xl flex-col gap-3"
+    >
       {[0, 1, 2].map(index => (
-        <div
-          key={index}
-          aria-hidden
-          className="h-32 w-full max-w-3xl rounded-console-16 bg-surface-elevated motion-safe:animate-pulse"
-        />
+        <SkeletonBlock key={index} height="h-32" rounded="rounded-console-16" />
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 

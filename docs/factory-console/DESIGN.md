@@ -141,9 +141,10 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   `--node-script` (`factory/tones.ts`, which the board, the map and its legend all read).
 - Board columns (owner change 4): Intake takes intake's colour, Plan & build build's, Checks &
   review check's, Ready to merge land's, and Merged `--success`.
-- A group colour appears only as the accent bar, the icon and the legend swatch: never a fill or a
-  text colour. The one exception is the send-back line (rule 4), drawn in `--node-approval`; the
-  legend tells it apart by showing it as a dashed line, not a swatch.
+- A group colour appears only as the accent bar, the icon, the legend swatch and the item
+  timeline's dot (a swatch-sized marker): never a fill or a text colour. The one exception is the
+  send-back line (rule 4), drawn in `--node-approval`, which the timeline's returned icon shares;
+  the legend tells it apart by showing it as a dashed line, not a swatch.
 - State colours:
   - running: `--running` on `--running-soft`
   - needs you: `--warning` on `--warning-soft`
@@ -385,9 +386,9 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `/console/factory` | One card per pack with an overview file: its title, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
+  | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
-  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header naming the file it was read from, with the pack's tabs. `:pack` is the pack key (`owner.name` when installed). The pack's tabs are How it works and Settings |
+  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name (`owner/name`, on every tab; the overview's own title heads the map as the root of its breadcrumb) and naming the file it was read from, with the pack's tabs (underlined, as the project tabs). `:pack` is the pack key (`owner.name` when installed). The pack's tabs are How it works and Settings |
   | `/console/factory/:pack/settings` | Settings (owner change 8, read-only): one card per setting the pack's `.pack/pack.yaml` declares, in its order, with its name in sentence case, the key, the pack's description (clamped) and default, and each project's value from its `.archon/packs/<pack key>.yaml` ("pack default" when empty or unset). The overview file's `settings` map marks shadows (rule 10's badge) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks. Keys a project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
 
   Which file a pack page reads: the pack's own `.shared/factory-overview.json` (bundled, global
@@ -406,7 +407,7 @@ documents through Neon live queries.
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
-  | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind "Show the real steps"; a stage with no drill-down shows the graphs |
+  | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind its "Drill-down \| Real steps" control; a stage with no drill-down shows the graphs with no control |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview, Board, Needs you and How it works |
 
@@ -575,7 +576,8 @@ What those reads do not carry comes from **one read-only route file**,
   exact, over every item on the project), and how many they held and dropped; 404 when the view
   declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
-  timeline needs per run and neither read carries: the declared workflow, the run's cause, its
+  timeline needs per run and neither read carries: the workflow as the view names it (a
+  stage's, or the `discoveries` drain's, which places no item), the run's cause, its
   cost, its running step, each round of the declared `rounds` loop with the steps that
   recorded an outcome in it and the deciding step's summary, and what each shadow step decided
   on the run (one per round in a loop; a drain's run included).
@@ -600,13 +602,15 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 ## Overview page
 
-1. Title and the declaration's summary paragraph.
+1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
 2. **Numbers strip:** items in flight, need you (the Needs you tab's count of asks and waits,
-   linking there), merged today, merged in total ("N of M done"
-   where M excludes items closed by triage), median time from first run to merged. Until the
-   items read first answers, each tile shows a skeleton bar (Visual standard, rule 6) in place
-   of its number, above its label; while any item's merge state is pending, every number but
-   needs you shows the skeleton bar too, never a count that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
+   linking there), merged today, merged in total ("N of M merged", M excluding items closed by
+   triage), median time from first run to merged ("median to merged"). Each tile is a number
+   tile in the card language: a 16 px icon and its label in the Label role, then the figure at
+   `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
+   (Visual standard, rule 6) in place of its figure; while any item's merge state is pending,
+   every number but needs you and found by the factory shows the skeleton bar too, never a count
+   that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet and links to the board's panel; it has its
@@ -640,16 +644,10 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   the shipped file: Intake, Plan & build, Checks & review, Ready to merge, Merged. `col` and
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
-  fit the frame, the map pans sideways, opening on the busiest card: the one holding the stage
-  with the most items in flight, the leftmost on a tie. That card is centred as far as the row
-  allows; the row's edges never leave the frame's padding, so near either end of the row the
-  map opens clamped at that end (at 1440x900 the shipped map opens at its start, with Plan &
-  build in view). Merged items do not count (the Merged stage keeps every change ever merged,
-  so it would win every time), nor does a stage whose count still waits on a merge answer
-  (its chip says "checking…"); with nothing in flight it opens on the row's start. Whenever the
-  busiest card changes and the person has not moved the map, it re-opens there; Fit returns
-  there too. The shipped map is about
-  1226 px wide with its padding, so it pans a little at 1440x900 and more on smaller screens.
+  fit the frame, the map pans sideways, opening (and Fit returning) at the row's start, so the
+  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1226 px
+  wide with its padding, so at 1440x900 Intake shows whole and Merged is partly off the right;
+  it pans more on smaller screens.
 - **Cards in the card language** (rule 2), 184 px wide by 168 tall, every card one size so the
   lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
   label ("Intake", "Build", "Check", "Merge", "Merged"), then:
@@ -696,8 +694,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
 - **Click** a card or a stage's row: the stage page. It opens on the stage's drill-down: numbered phase columns
   of plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
   and naming the items on a step it covers now, and a click on a card listing the real steps
-  it stands for, each linking to its step page. Its "Show the real steps" toggle (or, for a
-  stage with no drill-down, the page itself) draws each workflow's steps
+  it stands for, each linking to its step page. A segmented control above it, "Drill-down |
+  Real steps", switches the page to each workflow's steps (a stage with no drill-down draws
+  them with no control), drawn
   as a graph (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed
   group labelled "up to N rounds"; included workflows as nested groups). A step that is running
   now for any item glows, and above the graph each item running the workflow is named, linking
@@ -769,7 +768,8 @@ A card, in this order:
    it and the Merged column show a skeleton bar (Visual standard, rule 6) instead of a count
    and no state chips; an empty column in that state shows skeleton cards, not its empty
    placeholder.
-7. For a failed item: one line saying what stopped it. For one that needs you, the approval
+7. For a failed item: one line saying what stopped it, naming its stage and the step it failed
+   at ("Build failed at Writes the change"), never the workflow id. For one that needs you, the approval
    card's face (owner change 3), from the project's attention queue Needs you reads
    (`itemAsks`): the ping, "N questions" when it holds several, the first one's question and
    the line Needs you shows for it ("Recommended: <label>"). Until that queue is read, one
@@ -795,8 +795,10 @@ A card is as wide as its column, and columns follow the Visual standard (rules 3
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
 columns. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item with the same fields as columns, a Work order, a Column and a Stage column among
-them, sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
-box narrows by key, title or work order key.
+them (a running item's step and round under its stage, as the card's stage line reads; Merged as
+a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
+box narrows by key, title or work order key. Until the items are read, the board draws its
+declared columns with skeleton counts and card shapes (Visual standard, rule 6).
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other
 items are `part_of`. An item's order is its newest active `part_of` link, else the order its
@@ -817,13 +819,24 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 
 ## The item page
 
-- Header: key, title, state pill, the change link, the column it is in. An item no run has
+- Header: key, title (Section heading role), state pill, the column it is in, and the change as
+  a button-style link ("PR #n") with its merge state as a rule 5 chip beside it (a skeleton line
+  while the host is still asked). An item no run has
   started yet (a member linked before its first run) says "Not started" instead of a state,
   column and change.
 - **Asks** it waits on, answerable in place (the ask card Needs you draws, always open).
-- **Timeline:** every run on the item in order: stage label, workflow, how it started (by hand,
-  or after which run's outcome), outcome, duration, cost, and for the rounds loop one row per
-  round with each check's verdict and what was returned. Each row links to its run. A check's
+- **Timeline:** a vertical timeline of every run on the item in order. Each run is a dot in its
+  stage group's colour (`--node-opaque` for a shadow run; a run of the discoveries workflow
+  reads "Found by the factory") on one connecting line, an icon for what its outcome did (sent
+  on, returned, asked you, failed, running, stopped), the stage label and workflow, the outcome,
+  and duration and cost right-aligned in mono; under it how it started (by hand, or after which
+  run's outcome; a trigger's id only on hover). For the rounds loop, one compact row per round:
+  "round N of M", its verdict, and a chip per check in its verdict's colours, with what was
+  returned on one line. Sent on and returned follow the board's order, judged from the furthest
+  stage the run's workflow works: a placement into an earlier column, or an earlier stage of
+  the same column, reads returned; a placement into a later stage, or into that furthest stage
+  itself (the land gate into Ready to merge), reads sent on. Once the change
+  merged, a last Merged entry gives when, in local time. Each row links to its run. A check's
   verdict reads in the board's words where the view declares its meaning (`returns`, `approves`,
   `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run
   that stopped to ask (a declared `asked` outcome, or asks it left on the item) reads "asked

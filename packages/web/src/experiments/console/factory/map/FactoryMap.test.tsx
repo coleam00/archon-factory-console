@@ -11,7 +11,7 @@ import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
-import { MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
+import { FIT_PAD, MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
@@ -373,27 +373,18 @@ function cameraOf(container: HTMLElement): { x: number; k: number } {
   return { x: Number(match[1]), k: Number(match[2]) };
 }
 
-/** Where the centre of a card lands in a frame, for camera `x` at scale 1. */
-function centreIn(id: string, x: number): number {
+/** Where the left edge of a card lands in a frame, for camera `x` at scale 1. */
+function leftIn(id: string, x: number): number {
   const box = layoutMap(shippedListed.declaration).cards.find(card => card.id === id)?.box;
   if (box === undefined) throw new Error(`No card ${id}`);
-  return box.x + box.w / 2 + x;
+  return box.x + x;
 }
 
-test('on a phone the live map pans at the readable scale, opening on the busiest card', async () => {
-  // Plan & build holds the most items in flight (Build's two), and it is not the first card.
+test('on a phone the live map pans at the readable scale, opening at the start of the row', async () => {
+  // Plan & build holds the most items in flight; the map still opens on Intake, whole.
   const camera = await atWidth(390, cameraOf);
   expect(camera.k).toBe(READABLE_K);
-  expect(centreIn('plan-build', camera.x)).toBe(390 / 2);
-});
-
-test('a stage whose count waits on a merge answer does not draw the map to it', async () => {
-  // Three items wait on Ready to merge with their merge state pending; one is on Build.
-  const pending = ['p1', 'p2', 'p3'].map(key =>
-    itemWith(key, [run('deliver', 'completed', 'ready')], 'pending')
-  );
-  const camera = await atWidth(390, cameraOf, [realItem('5'), ...pending]);
-  expect(centreIn('plan-build', camera.x)).toBe(390 / 2);
+  expect(leftIn('intake', camera.x)).toBe(FIT_PAD);
 });
 
 test('a stage with no short line shows its blurb, on a card of its own and in a row', async () => {
@@ -521,7 +512,8 @@ test('before the items answer, every declared card and arrow is drawn with skele
     await act(async () => details(container, 'plan-build').click());
     const panel = (): Element | null =>
       container.querySelector('aside[aria-label="Plan & build details"]');
-    expect(panel()?.textContent).toContain('Items here · …');
+    expect(panel()?.textContent).toContain('Items hereLoading the items here');
+    expect(panel()?.querySelector('[data-skeleton="line"]')).not.toBeNull();
     expect(panel()?.textContent).not.toContain('Nothing here now.');
     // A shadow step's line says "…" too, never that it decided nothing.
     expect(shadowTitle(container, 'checks')).toContain('Project checks · …');

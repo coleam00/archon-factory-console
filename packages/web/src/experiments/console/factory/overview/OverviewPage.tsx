@@ -124,7 +124,7 @@ function OverviewExplorer(props: ExplorerProps): ReactElement {
         <OverviewLegend overview={overview} />
         {/* Under the map, so the whole root view is in the first screen at 1440x900. */}
         {caption === undefined ? null : (
-          <p className="max-w-4xl text-sm leading-relaxed text-text-secondary">{caption}</p>
+          <p className="max-w-4xl text-console-14 leading-relaxed text-text-secondary">{caption}</p>
         )}
       </div>
     </div>

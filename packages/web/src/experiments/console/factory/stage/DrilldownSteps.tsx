@@ -35,7 +35,7 @@ export function DrilldownSteps({
     <section
       ref={panel}
       aria-label={`The real steps of ${card.title}`}
-      className="flex flex-col gap-3 rounded-console-16 border bg-surface p-4"
+      className="flex flex-col gap-3 rounded-console-12 border bg-surface p-4"
       // Inline: the console root's `* { border-color }` outranks a border colour utility.
       style={{ borderColor: 'var(--border-bright)' }}
     >
@@ -73,7 +73,7 @@ export function DrilldownSteps({
                     )}
                     state={{ fromStage: stage.id } satisfies StepPageState}
                     title={engineIdTitle(label, step)}
-                    className="text-console-15 text-accent-bright hover:underline"
+                    className="text-console-14 text-accent-bright hover:underline"
                   >
                     {label}
                   </Link>

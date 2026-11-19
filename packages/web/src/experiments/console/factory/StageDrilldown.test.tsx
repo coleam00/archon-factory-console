@@ -245,7 +245,7 @@ test('clicking a card lists its real steps by name, each opening its step page b
   });
 });
 
-test('the real step graph shows behind the toggle', async () => {
+test('Drill-down | Real steps switches between the drill-down and the real step graph', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
     const graphStep = (): HTMLButtonElement | undefined =>
@@ -253,11 +253,16 @@ test('the real step graph shows behind the toggle', async () => {
         candidate.textContent.startsWith('·fix')
       );
     expect(graphStep()).toBeUndefined();
-    const toggle = button(container, 'Show the real steps');
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    await click(toggle);
-    expect(toggle.textContent).toBe('Hide the real steps');
+    const drilldown = button(container, 'Drill-down');
+    const real = button(container, 'Real steps');
+    expect(drilldown.getAttribute('aria-pressed')).toBe('true');
+    expect(real.getAttribute('aria-pressed')).toBe('false');
+    await click(real);
+    expect(real.getAttribute('aria-pressed')).toBe('true');
     expect(graphStep()).toBeDefined();
+    expect(phaseLabels(container)).toHaveLength(0);
+    await click(drilldown);
+    expect(graphStep()).toBeUndefined();
     expect(phaseLabels(container)).toHaveLength(4);
   });
 });

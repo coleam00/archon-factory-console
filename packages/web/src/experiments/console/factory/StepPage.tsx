@@ -24,7 +24,9 @@ import { readFailure } from './lib/read-failure';
 import { conditionText } from './lib/step-graph';
 import { stepLabel } from './lib/step-label';
 import { factoryPath, type FactoryViewListed } from './lib/views';
+import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { FactoryLoading } from './FactoryLoading';
+import { GraphSkeleton } from './GraphSkeleton';
 
 type Declaration = FactoryViewListed['declaration'];
 type FactoryStep = FactoryWorkflow['steps'][number];
@@ -42,17 +44,17 @@ export function StepPage(): ReactElement {
   return (
     <FactoryFrame section={null}>
       {view => (
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-6">
           <StepBackLink
             projectId={projectId}
             stages={stagesOfWorkflow(view.declaration.stages, workflow)}
             stepKey={node}
           />
           <div className="flex flex-col gap-1">
-            <h3 className="text-console-15 font-semibold text-text-primary">
+            <h3 className="text-console-17 font-semibold text-text-primary">
               {stepLabel(view.declaration, workflow, node)}
             </h3>
-            <p className="text-console-12 text-text-tertiary">
+            <p className="text-console-13 text-text-tertiary">
               Engine id{' '}
               <code className="break-all font-mono text-text-secondary">
                 {workflow} · {node}
@@ -116,13 +118,11 @@ function StepBody({
   if (read.data === undefined) {
     const failed = readFailed(read.error);
     return failed === undefined ? (
-      <FactoryLoading
-        read={read}
-        label="Loading the step…"
-        className="text-console-12 text-text-tertiary"
-      />
+      <FactoryLoading read={read}>
+        <GraphSkeleton label="Loading the step" />
+      </FactoryLoading>
     ) : (
-      <p className="font-mono text-console-12 text-error">
+      <p className="font-mono text-console-13 text-error">
         Could not load the step: {readFailure(failed)}
       </p>
     );
@@ -130,7 +130,7 @@ function StepBody({
   const step = read.data.steps.find(candidate => candidate.key === stepKey);
   if (step === undefined)
     return (
-      <p className="text-sm text-text-secondary">
+      <p className="text-console-14 text-text-secondary">
         No step <span className="font-mono">{stepKey}</span> in{' '}
         <span className="font-mono">{workflow}</span>.
       </p>
@@ -147,7 +147,7 @@ function StepBody({
       <StepPrompt step={step} />
       <Section title="YAML">
         {step.yaml === null ? (
-          <p className="text-console-12 text-text-secondary">{step.yamlError}</p>
+          <p className="text-console-13 text-text-secondary">{step.yamlError}</p>
         ) : (
           // The whole block, at its own height, with long lines wrapped: a block runs to a
           // hundred lines, and a sideways scrollbar under the last one is out of sight.
@@ -182,9 +182,15 @@ function OnThisStep({
   if (failed !== undefined) return <RunningItemsFailure error={failed} />;
   // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
   if (items.error !== undefined || items.data === undefined)
-    return <FactoryLoading read={items} className="text-console-12 text-text-tertiary" />;
+    return (
+      <FactoryLoading read={items}>
+        <SkeletonGroup label="Reading which items are on this step">
+          <SkeletonLine width="short" />
+        </SkeletonGroup>
+      </FactoryLoading>
+    );
   if (onStep === undefined)
-    return <p className="text-console-12 text-text-secondary">No item is on this step now.</p>;
+    return <p className="text-console-14 text-text-secondary">No item is on this step now.</p>;
   return <RunningItemLinks view={view} projectId={projectId} items={onStep} />;
 }
 
@@ -208,7 +214,7 @@ function StepFacts({
 }): ReactElement {
   const runsCode = step.kind === 'bash' || step.kind === 'script';
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-console-14 sm:grid-cols-[max-content_1fr]">
       <Fact term="Kind">
         {KIND_WORDS[step.kind]}
         {step.includedFrom === null ? null : (
@@ -227,7 +233,7 @@ function StepFacts({
           {condition === null ? (
             // An expression the engine's parser did not take: this page is where engine detail
             // lives, so it shows as written rather than not at all.
-            <span className="break-all font-mono text-console-12">{step.when}</span>
+            <span className="break-all font-mono text-console-13">{step.when}</span>
           ) : (
             <span title={step.when}>{condition}</span>
           )}
@@ -257,9 +263,9 @@ function StepPrompt({ step }: { step: FactoryStep }): ReactElement {
           </ReactMarkdown>
         </div>
       ) : step.promptError !== null ? (
-        <p className="font-mono text-console-12 text-error">{step.promptError}</p>
+        <p className="font-mono text-console-13 text-error">{step.promptError}</p>
       ) : (
-        <p className="text-console-12 text-text-secondary">
+        <p className="text-console-14 text-text-secondary">
           {step.kind === 'bash' || step.kind === 'script'
             ? 'This step runs no prompt; its YAML below holds what it runs.'
             : 'This step runs no prompt.'}
@@ -272,7 +278,7 @@ function StepPrompt({ step }: { step: FactoryStep }): ReactElement {
 function Section({ title, children }: { title: string; children: ReactNode }): ReactElement {
   return (
     <section className="flex flex-col gap-2">
-      <h4 className="text-console-11 font-medium uppercase tracking-wider text-text-tertiary">
+      <h4 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         {title}
       </h4>
       {children}

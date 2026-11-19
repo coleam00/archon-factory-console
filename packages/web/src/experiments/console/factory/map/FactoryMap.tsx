@@ -5,7 +5,7 @@ import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
-import { busiestCard, layoutMap } from '../lib/map-layout';
+import { layoutMap } from '../lib/map-layout';
 import {
   EMPTY_STAGE_LIVE,
   stageLive,
@@ -82,7 +82,7 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
   const failed = readFailed(items.error);
   if (failed !== undefined)
     return (
-      <p role="alert" className="text-sm text-error">
+      <p role="alert" className="text-console-14 text-error">
         The factory's items could not be loaded: {errorDetail(failed)}
       </p>
     );
@@ -132,25 +132,7 @@ function MapCanvas({
   const { cards, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const selectedCard = cards.find(card => card.id === selected);
-  // By id, so the opening box keeps its identity until the busiest card changes. A stage whose
-  // count waits on a merge answer counts as empty: its chip says "checking…", not a number, and
-  // opening on it would move the map again once the answer lands.
-  const busiest =
-    typeof live === 'string'
-      ? undefined
-      : busiestCard(
-          cards,
-          stage => {
-            const here = live.stages.get(stage);
-            return here === undefined || here.pending ? 0 : here.items.length;
-          },
-          view.landed.stage
-        )?.id;
-  const open = useMemo(
-    () => cards.find(card => card.id === busiest)?.box ?? null,
-    [cards, busiest]
-  );
-  const camera = useMapCamera(bounds, selectedCard?.box ?? null, undefined, open);
+  const camera = useMapCamera(bounds, selectedCard?.box ?? null);
   const stagePath = (stage: string): string =>
     factoryPath(projectId, `/stages/${encodeURIComponent(stage)}`);
 

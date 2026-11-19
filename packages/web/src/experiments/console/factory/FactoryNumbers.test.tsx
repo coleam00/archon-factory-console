@@ -92,7 +92,7 @@ async function mount(projectId: string, items: FactoryItem[]) {
     )
   );
   const tile = (label: string): string | null | undefined =>
-    [...container.querySelectorAll('li')].find(li => li.textContent?.endsWith(label))?.textContent;
+    container.querySelector(`li[data-tile="${label}"]`)?.textContent;
   return {
     container,
     tile,
@@ -103,7 +103,7 @@ async function mount(projectId: string, items: FactoryItem[]) {
   };
 }
 
-test('before the reads answer, the five item tiles say "…" and the found tile a skeleton, never a count', async () => {
+test('before the reads answer, every tile shows a skeleton figure, never a count or "…"', async () => {
   // Held unanswered: the strip renders before its first read settles.
   const held = globalThis.fetch;
   globalThis.fetch = Object.assign(() => new Promise<Response>(() => undefined), {
@@ -121,15 +121,23 @@ test('before the reads answer, the five item tiles say "…" and the found tile 
       )
     );
     const tiles = [...container.querySelectorAll('[aria-label="Numbers"] li')];
+    // Each tile is its label, then a skeleton bar (Visual standard, rule 6) said as loading.
     expect(tiles.map(li => li.textContent)).toEqual([
-      '…Loadingin flight',
-      '…Loadingneed you',
-      '…Loadingmerged today',
-      '…Loadingdone',
-      '…Loadingmedian from first run to merged',
-      // Its own read, drawn as a skeleton bar (Visual standard, rule 6).
-      'Loadingfound by the factory',
+      'in flightLoading',
+      'need youLoading',
+      'merged todayLoading',
+      'mergedLoading',
+      'median to mergedLoading',
+      // Its own read.
+      'found by the factoryLoading',
     ]);
+    expect(
+      tiles.every(
+        li =>
+          li.querySelector('[data-skeleton="figure"]') !== null && li.querySelector('svg') !== null
+      )
+    ).toBe(true);
+    expect(container.textContent).not.toContain('…');
     expect(container.querySelector('[aria-label="Numbers"] [title="Loading"]')).not.toBeNull();
     expect(container.querySelector('[aria-label="Numbers"]')?.textContent).not.toMatch(/\d/);
   } finally {
@@ -144,16 +152,16 @@ test('while a merge state is pending, the counts it decides say loading, never z
   const items = [...PAGE.items, readyWithMerge('p', 'pending')];
   const { container, tile, unmount } = await mount('cb-pending', items);
   try {
-    for (const label of ['in flight', 'merged today', 'done', 'median from first run to merged'])
-      expect(tile(label)).toBe(`…Loading${label}`);
+    for (const label of ['in flight', 'merged today', 'merged', 'median to merged'])
+      expect(tile(label)).toBe(`${label}Checking which changes merged`);
     expect(container.textContent).not.toMatch(/\d+ of \d+/);
     expect(container.querySelector('[title="Loading"]')).toBeNull();
     // The asks and waits that need you do not wait on a merge answer: the queue counts them.
-    expect(tile('need you')).toBe('2need you');
+    expect(tile('need you')).toBe('need you2');
     // The answer arrives: real numbers replace the loading ones.
     await act(async () => set(K.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
-    expect(tile('done')).toBe('3 of 8done');
-    expect(container.textContent).not.toContain('Loading');
+    expect(tile('merged')).toBe('merged3 of 8');
+    expect(container.textContent).not.toContain('Checking');
   } finally {
     await unmount();
   }
@@ -165,8 +173,8 @@ test('a settled unknown is counted as the board places it, not loading', async (
     readyWithMerge('u', 'unknown'),
   ]);
   try {
-    expect(tile('done')).toBe('3 of 9done');
-    expect(container.textContent).not.toContain('Loading');
+    expect(tile('merged')).toBe('merged3 of 9');
+    expect(container.textContent).not.toContain('Checking');
   } finally {
     await unmount();
   }
@@ -181,7 +189,7 @@ test('a failed refresh says so and keeps the last numbers', async () => {
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       'Could not refresh: the server is down. Showing the last values read.'
     );
-    expect(tile('done')).toBe('3 of 8done');
+    expect(tile('merged')).toBe('merged3 of 8');
   } finally {
     await unmount();
   }
@@ -197,7 +205,7 @@ test('while pending it reads again on its own, and keeps trying after a failed r
     await turns();
     expect(fetches).toBeGreaterThan(before);
     // The read failed: the pending values stay loading, and the note says why.
-    expect(tile('done')).toBe('…Loadingdone');
+    expect(tile('merged')).toBe('mergedChecking which changes merged');
     expect(container.querySelector('[role="status"]')?.textContent).toContain('Could not refresh');
     // The failure scheduled the next re-read: a timer holds the key, so this one is a no-op.
     const after = fetches;
@@ -226,7 +234,7 @@ test('a view that declares discoveries adds a tile linking to the board panel; o
     );
     const found = [...container.querySelectorAll('[aria-label="Numbers"] li')].at(-1);
     // Two of the three findings: an item carries the third.
-    expect(found?.textContent).toBe('2found by the factory');
+    expect(found?.textContent).toBe('found by the factory2');
     expect(found?.querySelector('a')?.getAttribute('href')).toBe(
       '/console/p/cb-found/factory/board#found-by-the-factory'
     );

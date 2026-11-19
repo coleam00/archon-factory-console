@@ -70,16 +70,16 @@ test('a read that missed its deadline says so and retries itself, waiting longer
   const stall = stalled();
   function Stalled(): ReactElement {
     const read = useFactoryRead(key, within => within(stall.read));
-    return <FactoryLoading read={read} label="L" />;
+    return <FactoryLoading read={read}>L</FactoryLoading>;
   }
   const page = await mount();
   try {
     await page.show(<Stalled />);
     expect(page.text()).toBe('L');
     expect(stall.attempts()).toBe(1);
-    // The 8 s deadline passes: the page says so in place of its label.
+    // The 8 s deadline passes: the page says so above its skeleton.
     await advance(FACTORY_READ_DEADLINE_MS);
-    expect(page.text()).toBe(SLOW_READ_NOTICE);
+    expect(page.text()).toBe(`${SLOW_READ_NOTICE}L`);
     await advance(1_999);
     expect(stall.attempts()).toBe(1);
     await advance(1);
@@ -88,7 +88,7 @@ test('a read that missed its deadline says so and retries itself, waiting longer
     await advance(16_000);
     await advance(3_999);
     expect(stall.attempts()).toBe(2);
-    expect(page.text()).toBe(SLOW_READ_NOTICE);
+    expect(page.text()).toBe(`${SLOW_READ_NOTICE}L`);
     await advance(1);
     expect(stall.attempts()).toBe(3);
   } finally {
@@ -116,14 +116,18 @@ test('a read slower than the first deadline on every attempt still lands, on a l
   };
   function Slow(): ReactElement {
     const read = useFactoryRead(key, within => within(slowRead));
-    return read.data === undefined ? <FactoryLoading read={read} label="L" /> : <p>{read.data}</p>;
+    return read.data === undefined ? (
+      <FactoryLoading read={read}>L</FactoryLoading>
+    ) : (
+      <p>{read.data}</p>
+    );
   }
   const page = await mount();
   try {
     await page.show(<Slow />);
     expect(page.text()).toBe('L');
     await advance(FACTORY_READ_DEADLINE_MS);
-    expect(page.text()).toBe(SLOW_READ_NOTICE);
+    expect(page.text()).toBe(`${SLOW_READ_NOTICE}L`);
     // The retry, 2 s later, gets a 16 s deadline, which the 9 s answer meets.
     await advance(2_000);
     await advance(9_000);

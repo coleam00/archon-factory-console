@@ -22,7 +22,8 @@
  * Fit width: the shipped map is five cards of 184 and four gaps sized to their pills
  * (72 "build, narrow" stacked, 65 "built", 65 "ready", 72 "merged"), 920 + 274 = 1194, plus
  * twice `FIT_PAD`: 1226 px. The Overview's frame at 1440x900 is narrower, so there the map
- * pans a little at zoom 1, opening on the busiest card; at 1280x720 and on a phone it pans more.
+ * pans a little at zoom 1, opening at the row's start (Intake whole, Merged partly off the
+ * right); at 1280x720 and on a phone it pans more.
  */
 export const CARD_W = 184;
 /** A card of one stage, and of two. */

@@ -17,6 +17,7 @@ import {
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
 import { formatDateTime } from '../lib/format';
+import { boardColumns } from './lib/board-columns';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -108,6 +109,44 @@ const cardKeys = (container: HTMLElement): string[] =>
   [...container.querySelectorAll('article')].map(
     card => card.querySelector('.font-mono')?.textContent ?? ''
   );
+
+describe('before the items are read', () => {
+  test("the board draws the final layout's shape: a skeleton column per declared column", async () => {
+    const quietFetch = globalThis.fetch;
+    // A read that never answers: the board stays in its loading state.
+    globalThis.fetch = Object.assign(async (): Promise<Response> => new Promise(() => {}), {
+      preconnect: originalFetch.preconnect,
+    });
+    set(K.factoryDiscoveries(ID), DISCOVERIES);
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(
+          <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
+            <Board projectId={ID} view={VIEW} attention={QUIET} now={NOW} />
+          </MemoryRouter>
+        )
+      );
+      expect(headers(container)).toEqual(
+        boardColumns(VIEW).map(column => `${column.label}loading`)
+      );
+      const columns = [...container.querySelectorAll('section[aria-label]')].filter(section =>
+        section.querySelector('header[data-column]')
+      );
+      for (const column of columns)
+        expect(column.querySelectorAll('[data-skeleton="block"]')).toHaveLength(2);
+      expect(container.querySelector('[aria-label="Board view"]')).not.toBeNull();
+      expect(container.textContent).not.toContain('Loading…');
+      expect(container.textContent).not.toContain('…');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      globalThis.fetch = quietFetch;
+    }
+  });
+});
 
 describe('Found by the factory', () => {
   test('a view that declares discoveries draws the panel under the columns', async () => {
@@ -318,6 +357,33 @@ describe('the Table view', () => {
       expect(keys()).toEqual(['8', '7', '6', '5', '4', '3', '2', '1']);
       await act(async () => header('Returned').click());
       expect(keys()).toEqual(['5', '4', '6', '8', '7', '3', '2', '1']);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('the Merged cell is short, the full local time on hover', async () => {
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?view=table`
+    );
+    try {
+      const at = realItem('7').progress!.change!.mergedAt!;
+      const column = [...container.querySelectorAll('thead th')].findIndex(th =>
+        th.textContent?.startsWith('Merged')
+      );
+      const cell = [...container.querySelectorAll('tbody tr')]
+        .find(row => row.querySelector('td')?.textContent === '7')
+        ?.querySelectorAll('td')[column];
+      // Short on its own terms, not by the function the cell renders: no year, no seconds,
+      // and shorter than the full time. The Table fits 1440x900 only while this holds.
+      const text = cell?.textContent ?? '';
+      const year = new Date(at).getFullYear().toString();
+      expect(text).not.toContain(year);
+      expect(text).toMatch(/ \d{2}:\d{2}$/);
+      expect(text.length).toBeLessThan(formatDateTime(at).length);
+      expect(text.length).toBeLessThanOrEqual(14);
+      expect(cell?.querySelector('[title]')?.getAttribute('title')).toBe(formatDateTime(at));
     } finally {
       await unmount();
     }
@@ -655,7 +721,7 @@ test("the Table puts each row's column and stage under the Column and Stage head
   );
   try {
     const headers = [...container.querySelectorAll('thead th')].map(th =>
-      (th.textContent ?? '').replace(/ [↑↓]$/, '')
+      (th.textContent ?? '').replace(/ [↑↓]$/, '')
     );
     const column = headers.indexOf('Column');
     const stage = headers.indexOf('Stage');
@@ -667,7 +733,12 @@ test("the Table puts each row's column and stage under the Column and Stage head
           ?.querySelectorAll('td') ?? []),
       ].map(td => td.textContent ?? '');
     expect([cells('7')[column], cells('7')[stage]]).toEqual(['Merged', 'Merged']);
-    expect([cells('8')[column], cells('8')[stage]]).toEqual(['Checks & review', 'Checks']);
+    // A running item's step folds into its Stage cell, as the card's stage line reads.
+    expect(headers).not.toContain('Running step');
+    expect([cells('8')[column], cells('8')[stage]]).toEqual([
+      'Checks & review',
+      'ChecksProduct check · round 1',
+    ]);
     // A cell after them still sits under its own header.
     expect(cells('7')[headers.indexOf('State')]).toBe('Merged');
   } finally {

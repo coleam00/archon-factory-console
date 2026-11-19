@@ -6,9 +6,11 @@ import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
 import { useProjectAttention } from '../components/ProjectAttention';
 import { ProjectHeader } from '../components/ProjectHeader';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
-import { readFailed, SlowReadError } from '../factory/lib/deadline';
+import { readFailed } from '../factory/lib/deadline';
 import { currentView, type FactoryViewListed } from '../factory/lib/views';
-import { SLOW_READ_NOTICE } from '../factory/FactoryLoading';
+import { FactoryLoading } from '../factory/FactoryLoading';
+import { ProjectPathSkeleton } from '../factory/FactoryFrame';
+import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { useFactoryItems } from '../factory/useFactoryItems';
 import { useFactoryViews } from '../factory/useFactoryViews';
 import { groupBySubject } from '../lib/ask-card';
@@ -39,7 +41,10 @@ export function NeedsYouPage(): ReactElement {
   );
   return (
     <section className="flex h-full flex-col">
-      <ProjectHeader title={project?.name ?? 'Project'} subtitle={project?.path ?? 'Loading…'}>
+      <ProjectHeader
+        title={project?.name ?? 'Project'}
+        subtitle={project?.path ?? <ProjectPathSkeleton />}
+      >
         <ProjectViewTabs projectId={projectId} active="needs-you" />
       </ProjectHeader>
       <div className="flex-1 overflow-y-auto p-6">
@@ -76,10 +81,10 @@ function NeedsYouBody({ projectId }: { projectId: string }): ReactElement {
 function Heading({ queue }: { queue: AttentionQueue | undefined }): ReactElement {
   if (queue === undefined)
     return (
-      <div aria-hidden className="flex flex-col gap-2 motion-safe:animate-pulse">
-        <div className="h-5.5 w-3/5 rounded bg-surface-elevated" />
-        <div className="h-3 w-2/5 rounded bg-surface-elevated" />
-      </div>
+      <SkeletonGroup label="Counting what needs you" className="flex flex-col gap-2">
+        <SkeletonLine />
+        <SkeletonLine width="short" />
+      </SkeletonGroup>
     );
   const count = needsYouCount(queue);
   const subjects = needsYouSubjects(needsYou(queue.items));
@@ -106,7 +111,15 @@ function QueueState({ attention }: { attention: EntityView<AttentionQueue> }): R
           What needs you could not be loaded: {errorDetail(failed)}
         </p>
       );
-    return <CardSkeletons slow={error instanceof SlowReadError} />;
+    return (
+      <FactoryLoading read={attention}>
+        <SkeletonGroup label="Loading what needs you" className="flex max-w-3xl flex-col gap-3">
+          {[0, 1].map(index => (
+            <SkeletonBlock key={index} height="h-44" rounded="rounded-console-16" />
+          ))}
+        </SkeletonGroup>
+      </FactoryLoading>
+    );
   }
   if (data.degraded.length === 0) return null;
   return (
@@ -115,23 +128,6 @@ function QueueState({ attention }: { attention: EntityView<AttentionQueue> }): R
         ? 'One paused run could not be read, so what it waits on is not listed.'
         : `${data.degraded.length.toString()} paused runs could not be read, so what they wait on is not listed.`}
     </p>
-  );
-}
-
-/** Skeletons of the cards to come (Visual standard rule 6). */
-function CardSkeletons({ slow }: { slow: boolean }): ReactElement {
-  return (
-    <div role="status" className="flex flex-col gap-3">
-      <span className="sr-only">{slow ? SLOW_READ_NOTICE : 'Loading what needs you'}</span>
-      {slow ? <p className="text-console-13 text-text-tertiary">{SLOW_READ_NOTICE}</p> : null}
-      {[0, 1].map(index => (
-        <div
-          key={index}
-          aria-hidden
-          className="h-44 w-full max-w-3xl rounded-console-16 bg-surface-elevated motion-safe:animate-pulse"
-        />
-      ))}
-    </div>
   );
 }
 
