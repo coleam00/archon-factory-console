@@ -830,9 +830,10 @@ matches only older merges), else rule 9's "Nothing in <column> now".
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
 columns, at the end of the toolbar. The Pipeline's toolbar (the filter box, Pipeline/Table, a
-`?show=` chip, the work orders' summary, the folded endings, the hint) is one line at 1440x900,
-and at 1280x720 unless a `?show=` chip and a lit work order are both on it; then its last parts
-wrap to a second line and the columns still hold one full card. On a phone it wraps. The
+`?show=` chip, the work orders' summary, the folded endings, the hint) is one line at 1440x900.
+At 1280x720 it is one line on a board with no lit work order and no `?show=` chip; a lit work
+order or a `?show=` chip can push its last parts (the folded endings, the hint) to a second
+line, and the columns still hold one full card. On a phone it wraps. The
 columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item with the same fields as columns, a Work order, a Column and a Stage column among
 them (a running item's step and round under its stage, as the card's stage line reads; Merged as

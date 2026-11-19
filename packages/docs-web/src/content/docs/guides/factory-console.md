@@ -35,8 +35,9 @@ asked, and shows the newest answered.
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
 it. Its sub-navigation, on the line of the view's title, has two pages: **Overview** and
 **Board**. Needs you is the project tab beside it, and How it works is the pack's page under
-**Factory** in the console's sidebar; the old `factory/needs-you`, `factory/how-it-works` and
-`factory/overview` addresses redirect there, keeping the query string. Inside the tab:
+**Factory** in the console's sidebar. The old `factory/needs-you` address redirects to the
+Needs you tab, and `factory/how-it-works` and `factory/overview` to the pack's How it works
+page, keeping the query string. Inside the tab:
 
 - **Overview**: the view's title and summary (on a phone, its first three lines and **More**),
   then a strip of numbers (its **need you** number is the Needs you tab's count), then the
@@ -355,8 +356,8 @@ is not live, not exhaustive, and never generated from the pack's workflows. The 
 on many projects, so the overview lives in the console's sidebar: **Factory** (shown once a pack
 has an overview file) lists every such pack with the projects that run it, and each pack's
 **How it works** page (`/console/factory/<pack key>/how-it-works`) draws its overview. With one
-pack, **Factory** opens its page directly. A project's Factory tab links to the page for its
-pack, and its old `factory/how-it-works` and `factory/overview` addresses still land there.
+pack, **Factory** opens its page directly. A project's old `factory/how-it-works` and
+`factory/overview` addresses land on the page for its pack.
 
 Beside How it works, the pack's **Settings** tab (`/console/factory/<pack key>/settings`) shows
 how the pack is configured, read-only: one card per setting the pack declares in its
