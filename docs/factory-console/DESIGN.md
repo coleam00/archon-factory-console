@@ -282,7 +282,8 @@ the Overview, the item page and the board popover.
 - On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines, the
   line Needs you shows for it at `--text-console-12` ("Recommended: <label>" when the ask
   recommends one, on the recommended tile's green mark), and the ping. Both wrap long unbroken
-  text inside the card, as the Overview's compact card does with its question and tile.
+  text inside the card, as the Overview's compact card does with its question and tile (from
+  520 px wide, where the tile sits beside the question, it takes at most 45% of the row).
 - Owner change 2026-11-19, points 1 and 2: the recommended green, the selected state, the toned
   Confirm, the neutral item key and the wrapping above.
 
