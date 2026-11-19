@@ -190,6 +190,28 @@ test('the map draws one card per board column, a card of several stages a row fo
   }
 });
 
+test('a card is lit while it holds an item, the merged card never; the canvas carries its texture', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const boxes = [...container.querySelectorAll<HTMLElement>('[data-card] > .factory-card')];
+    // Every card is drawn in the card identity, each tinted in its group's colour.
+    expect(boxes.length).toBe(5);
+    for (const box of boxes) expect(box.style.getPropertyValue('--card-tone')).toMatch(/^var\(--/);
+    const lit = [...container.querySelectorAll<HTMLElement>('.factory-card[data-lit]')].map(
+      box => box.parentElement?.dataset.card
+    );
+    // Build and Checks hold items; Intake and Ready to merge hold none; Merged holds one for good.
+    expect(lit).toEqual(['plan-build', 'checks-review']);
+    expect(container.querySelector('[role="group"]')?.className).toContain('factory-canvas');
+    // The selected card is marked for its accent ring, and only it.
+    await act(async () => details(container, 'ready').click());
+    const selected = [...container.querySelectorAll<HTMLElement>('.factory-card[data-selected]')];
+    expect(selected.map(box => box.parentElement?.dataset.card)).toEqual(['ready']);
+  } finally {
+    await unmount();
+  }
+});
+
 test('a dot runs into a card a run works an item on, along the hand-off into it, and not under reduced motion', async () => {
   const { container, unmount } = await mount();
   try {
@@ -325,6 +347,12 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
     const declared = shippedListed.declaration.map.arrows.map((_, i) => `decl:${i.toString()}`);
     for (const g of container.querySelectorAll('g[data-arrow]'))
       expect(declared).toContain(g.getAttribute('data-arrow') ?? '');
+    // A forward line is 2 px, painted with its own gradient along the flow.
+    for (const path of container.querySelectorAll('g[data-arrow] > path')) {
+      expect(path.getAttribute('stroke-width')).toBe('2');
+      const id = /^url\(#(.+)\)$/.exec(path.getAttribute('stroke') ?? '')?.[1] ?? '';
+      expect(container.querySelector(`linearGradient[id="${id}"]`)).not.toBeNull();
+    }
     const lane = [...container.querySelectorAll('path[data-lane="feedback"]')];
     expect(lane.length).toBeGreaterThan(0);
     for (const path of lane) {

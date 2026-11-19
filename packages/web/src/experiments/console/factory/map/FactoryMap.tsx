@@ -144,7 +144,7 @@ function MapCanvas({
           style={{ height: camera.height }}
           aria-label="Factory map. Drag to move, scroll to zoom, click a stage to open it; its details button shows what is in it."
           role="group"
-          className="relative min-w-0 cursor-grab md:flex-1 touch-none select-none overflow-hidden rounded-console-12 border border-border bg-surface-inset active:cursor-grabbing"
+          className="relative min-w-0 cursor-grab md:flex-1 touch-none select-none overflow-hidden rounded-console-12 border border-border factory-canvas active:cursor-grabbing"
           {...camera.frameHandlers}
         >
           <div

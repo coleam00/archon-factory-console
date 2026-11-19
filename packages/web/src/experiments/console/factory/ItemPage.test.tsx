@@ -104,8 +104,8 @@ describe('the item page', () => {
     // Triage and Plan are intake, deliver build; then the merged entry in the merged colour.
     const dots = [...html.matchAll(/data-timeline-dot="true"[^>]*background-color:([^"]+)"/g)];
     expect(dots.map(match => match[1])).toEqual([
-      'var(--node-prompt)',
-      'var(--node-prompt)',
+      'var(--tone-intake)',
+      'var(--tone-intake)',
       'var(--node-wait)',
       'var(--success)',
     ]);

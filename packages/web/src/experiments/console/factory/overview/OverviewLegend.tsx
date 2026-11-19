@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { BACK, LINE, LINE_TO } from '../canvas-lines';
 import type { OverviewDeclaration, OverviewView } from '../lib/overview-nav';
 import { KINDS } from './overview-kinds';
 
@@ -9,9 +10,9 @@ const EDGES: Record<
   EdgeKind,
   { words: string; swatch: 'solid' | 'dotted' | 'dashed'; color: string }
 > = {
-  feeds: { words: 'hands work on', swatch: 'solid', color: 'var(--text-tertiary)' },
-  calls: { words: 'asks someone', swatch: 'dotted', color: 'var(--text-tertiary)' },
-  'loops-back': { words: 'sends work back', swatch: 'dashed', color: 'var(--node-approval)' },
+  feeds: { words: 'hands work on', swatch: 'solid', color: LINE_TO },
+  calls: { words: 'asks someone', swatch: 'dotted', color: LINE },
+  'loops-back': { words: 'sends work back', swatch: 'dashed', color: BACK },
 };
 
 const ITEM = 'flex items-center gap-1.5 text-console-12 text-text-secondary';

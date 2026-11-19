@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { BACK, BACK_DASH, LINE, STROKE } from '../canvas-lines';
+import { BACK, BACK_DASH, BACK_OPACITY, LINE_TO, MAIN_STROKE, STROKE } from '../canvas-lines';
 import type { ColumnTone } from '../lib/board-columns';
 import { SHADOW_MEANS } from '../lib/shadows';
 import { ShadowBadge } from '../ShadowBadge';
@@ -37,7 +37,7 @@ export function MapLegend({
       <ul aria-label="Lines" className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <li className={ITEM}>
           <svg aria-hidden="true" width="22" height="8" className="shrink-0">
-            <line x1="1" y1="4" x2="21" y2="4" stroke={LINE} strokeWidth={STROKE} />
+            <line x1="1" y1="4" x2="21" y2="4" stroke={LINE_TO} strokeWidth={MAIN_STROKE} />
           </svg>
           Hands the item on
         </li>
@@ -52,6 +52,7 @@ export function MapLegend({
               stroke={BACK}
               strokeWidth={STROKE}
               strokeDasharray={BACK_DASH}
+              strokeOpacity={BACK_OPACITY}
             />
           </svg>
           Sends it back, labelled where it returns to
@@ -60,7 +61,7 @@ export function MapLegend({
         <li className={`${ITEM} motion-reduce:hidden`}>
           <span
             aria-hidden="true"
-            className="inline-block size-2 rounded-full bg-[color:var(--running)]"
+            className="map-flow-swatch inline-block size-2.5 rounded-full bg-[color:var(--running)]"
           />
           A dot moves along a line while a run works an item there
         </li>

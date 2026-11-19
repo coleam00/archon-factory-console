@@ -68,6 +68,9 @@ export interface ArrowPath {
   lines: string[];
   /** The SVG path, in M and H, ending where the arrowhead points. */
   d: string;
+  /** Where the path starts and ends, for the line's gradient along the flow. */
+  start: Point;
+  end: Point;
   /** Where its label pill goes; undefined when it has no label. */
   pill: Box | undefined;
 }
@@ -188,6 +191,8 @@ export function layoutMap(view: Declaration): MapLayout {
         to: b.id,
         lines: pill?.lines ?? [],
         d: `M${x1.toString()},${mid.toString()} H${x2.toString()}`,
+        start: { x: x1, y: mid },
+        end: { x: x2, y: mid },
         pill:
           pill === undefined
             ? undefined

@@ -4,7 +4,7 @@ import type { PlacedCard } from '../lib/map-layout';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { StageModalLink } from '../lib/views';
-import { TONES } from '../tones';
+import { cardTone, TONES } from '../tones';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
 import { MapShadowBadge, MapStageRow } from './MapStageRow';
 
@@ -29,10 +29,28 @@ interface MapCardProps {
   shadows: (stage: FactoryStage) => readonly string[];
 }
 
-/** The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. */
+/**
+ * The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. Its
+ * fill, depth, light, border colour and hover are `.factory-card`'s (theme.css).
+ */
 const BOX =
-  'relative flex size-full flex-col gap-2 overflow-hidden rounded-console-12 border bg-surface px-3 pb-3 pt-4 transition-colors duration-150 ease-out';
-const HOVER = 'hover:border-border-bright hover:bg-surface-elevated';
+  'factory-card relative flex size-full flex-col gap-2 overflow-hidden rounded-console-12 border px-3 pb-3 pt-4';
+
+/**
+ * Whether the card is lit: one of its stages holds an item. Not the merged card, which holds
+ * every merged item for good, so its light would say nothing.
+ */
+function lit(
+  card: PlacedCard,
+  stages: readonly FactoryStage[],
+  live: MapCardProps['live']
+): boolean {
+  if (card.tone === 'merged') return false;
+  return stages.some(stage => {
+    const read = live(stage.id);
+    return typeof read !== 'string' && read.items.length > 0;
+  });
+}
 
 /**
  * One card on the map: a board column, in the card language. A card of one stage is that
@@ -48,8 +66,13 @@ export function MapCard({
   onDetails,
   shadows,
 }: MapCardProps): ReactElement {
-  const border = selected ? 'border-accent-bright ring-2 ring-accent-muted' : 'border-border';
   const [only] = stages;
+  const box = {
+    className: BOX,
+    style: cardTone(TONES[card.tone].color),
+    'data-lit': lit(card, stages, live) ? '' : undefined,
+    'data-selected': selected ? '' : undefined,
+  };
   const body = (children: ReactNode): ReactNode => (
     <>
       <span
@@ -76,12 +99,12 @@ export function MapCard({
           // A link is natively draggable: a pan that starts on the card would become a link
           // drag the map never sees.
           draggable={false}
-          className={`${BOX} ${HOVER} ${border}`}
+          {...box}
         >
           {body(<OneStage stage={only} live={live(only.id)} shadows={shadows(only)} />)}
         </Link>
       ) : (
-        <div className={`${BOX} ${HOVER} ${border}`}>
+        <div {...box}>
           {body(
             <>
               <span

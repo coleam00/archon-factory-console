@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import type { Box } from '../lib/map-layout';
 import { OVERVIEW_SMALL_TEXT, OVERVIEW_TEXT, OVERVIEW_TITLE_TEXT } from '../lib/overview-layout';
 import type { OverviewCard as Card } from '../lib/overview-nav';
+import { cardTone } from '../tones';
 import { ICONS, KINDS } from './overview-kinds';
 
 /*
@@ -54,12 +55,19 @@ export function OverviewCard({
       </span>
     </>
   );
+  // Fill, depth, border and hover are `.factory-card`'s (theme.css), tinted in the kind's colour.
   const frame =
-    'absolute flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-3 text-left';
-  const style = { left: box.x, top: box.y, width: box.w, height: box.h };
+    'factory-card absolute flex flex-col gap-2 overflow-hidden rounded-console-12 border p-3 text-left';
+  const style = {
+    ...cardTone(kind.color),
+    left: box.x,
+    top: box.y,
+    width: box.w,
+    height: box.h,
+  };
   if (card.opens === undefined)
     return (
-      <div data-card={card.id} className={frame} style={style}>
+      <div data-card={card.id} data-static="" className={frame} style={style}>
         {body}
       </div>
     );
@@ -70,7 +78,7 @@ export function OverviewCard({
       data-card={card.id}
       aria-label={`${card.title}: open a closer look`}
       onClick={() => onOpen(opens)}
-      className={`${frame} cursor-pointer transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated`}
+      className={`${frame} cursor-pointer`}
       style={style}
     >
       {body}

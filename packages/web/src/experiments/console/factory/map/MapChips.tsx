@@ -2,8 +2,12 @@ import type { ReactElement } from 'react';
 import { CHIP_CLASS } from '../ColumnHeader';
 import type { StageRead } from '../lib/map-live';
 
-/** A chip: a pill in the Label size, the state's colour on its soft background (rule 5). */
-const CHIP = 'inline-flex h-5 shrink-0 items-center gap-1 rounded-full px-2 text-console-12';
+/**
+ * A chip: a pill in the Label size, the state's colour on its soft background (rule 5), its
+ * count in tabular figures so it does not jitter as it changes.
+ */
+const CHIP =
+  'inline-flex h-5 shrink-0 items-center gap-1 rounded-full px-2 text-console-12 tabular-nums';
 
 /** The words a stage's chips say, for its link's accessible name. */
 export function chipWords(live: StageRead): string {

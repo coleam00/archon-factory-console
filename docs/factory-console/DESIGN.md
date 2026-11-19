@@ -80,6 +80,67 @@ Not ours to build: forge views of issues and PRs (Thomas works on those in the e
 YAML-to-graph generator for the detailed authoring view (Rasmus has one). Our view and overview files
 stay the curated, simplified ones.
 
+## Visual identity, 2026-11-19 (carries out owner change 7; binds the canvases)
+
+Binds the Overview map, the How it works canvas (root and every drill-down) and the cards of the
+stage modal's "What this stage does" (rule 2: one card language). The tokens live in
+`packages/web/src/experiments/console/theme.css`; the line constants in `factory/canvas-lines.tsx`.
+`factory/identity.test.ts` holds the canvas sources to them (no shadow utility, inline
+box-shadow, oklch or hex literal), and `factory/tones.test.ts` holds the group colours apart.
+
+**Why the canvases looked generic.** Every card was the same flat box: one 1 px border, one
+radius, a flat `--surface` fill, no light and no depth, so the cards read as outlines on a
+hole. The canvas was a flat `--surface-inset` box. Every line was the same 1.5 px grey, so the
+main flow did not lead the eye. The How it works flow dot was a 4 px off-white circle, easy to
+miss on a projector. Intake on the map was purple.
+
+**What is taken, and why each is not a gimmick.**
+
+- **Depth.** `.factory-card` carries `--card-depth`: a 1 px inner rim `oklch(1 0 0 / 0.05)` all
+  round (the 3 px accent bar covers the top edge, so it is not a top highlight), a 1 px contact
+  line `oklch(0 0 0 / 0.4)` and a fall-off `0 6px 16px -4px oklch(0 0 0 / 0.55)`. A clickable
+  card's hover takes `--card-depth-hover` (rim 0.07, fall-off `0 10px 24px -6px` at 0.65) and the
+  `--border-bright` border; nothing moves. *Static and small: on a dark canvas a card needs it to
+  read as a surface at all.*
+- **Tint.** The fill is `--card-tint`: the card's colour mixed 7% into `--surface` under the bar,
+  fading to `--surface` by 48 px. *It ties the bar to the card without colouring the text area.*
+- **Light.** A map card that holds an item is lit (`data-lit`): `--card-glow`, a 1 px ring of its
+  group colour at 30% and a glow `0 8px 28px -8px` at 45%. The Merged card is never lit: it holds
+  every merged item for good, so its light would say nothing. A stage drill-down card with items
+  on its steps (`data-running`) wears the step graph's running mark, the same as the loop pill
+  beside it: `--running-border` and `--running-ring` (a 3 px ring), the tokens StepGraph's
+  `RUNNING_GLOW` reads; its tint stays its kind's colour. How it works has no live
+  items; its light is the flow loop's glow round the card a dot rests on (rule 7). *Light
+  carries information, where work is, and nothing else.*
+- **Canvas.** Both viewports take `.factory-canvas`: `--canvas-texture`, a vignette
+  (`radial-gradient` to `oklch(0 0 0 / 0.3)` at the edge) over a 24 px dot grid
+  (`oklch(1 0 0 / 0.06)`, 1 px dots) on `--surface-inset`. The texture sits on the viewport, not
+  the panned layer. *Two static background layers: no image, no filter, nothing repainted while
+  panning, and the canvas reads as a surface.*
+- **Lines.** A forward line is 2 px (`MAIN_STROKE`) with a gradient along the flow from
+  `--border-bright` to `--text-secondary`, its head in the bright end. Send-backs stay 1.5 px
+  dashed at 0.85 opacity (`BACK_OPACITY`); asks and shadow lines are unchanged. *The main flow
+  leads the eye and the loops step back; no glow, no animation on lines.*
+- **Type.** Rule 1's hierarchy on a card (kind 12 uppercase tertiary, title 15 semibold, text 13
+  secondary) already holds. Only the map's live chips change, to `tabular-nums`, so a count does
+  not jitter. *No new sizes.*
+- **Colour.** Intake moves from `--node-prompt` (purple, hue 290) to `--tone-intake`
+  `oklch(0.8 0.15 112)`, a lime 27 degrees from warning and 28 from land. The canvases' one
+  accent use is the selected map card (a 2 px `--accent-muted` ring, the border unchanged); neither
+  canvas, nor the stage drill-down's cards, has purple: the drill-down's Agent kind moves from
+  `--node-prompt` to `--node-wait`, the teal How it works gives a stage
+  (`stage/drilldown-kinds.test.ts`). *Owner change 1: more green, purple and pink kept for one thing each.*
+- **Flow dot.** How it works: a dot 10 px across with a halo 20 px across at 0.28 opacity (a second circle in
+  the same moving group, not a blur), in the kind colour of the card it travels to, a shadow move
+  in `--node-opaque`. The glow round the card it rests on reaches 6 px out with a 12% fill. The
+  map's dot is 10 px across in `--running` with a soft halo (`.map-flow-dot`; the legend's swatch,
+  `.map-flow-swatch`, wears the same). *Presence on a projector (the #93 operator note), still
+  only position and opacity animate.*
+
+**Ruled out:** WebGL; SVG or CSS filters (blur, drop-shadow) on anything; noise images; animated
+backgrounds; card lift or translate on hover. These tokens are named "depth", "glow" and
+"tint", never "shadow": a shadow is a step that does nothing (rule 10).
+
 ## Visual standard (owner, 2026-11-18)
 
 From the owner's beauty audit of 2026-11-18 (every Factory page at 1440x900 on a copy of the live
@@ -93,7 +154,10 @@ live in two files: `packages/web/src/index.css` (`@theme inline`: `--text-consol
 `--radius-console-*`, `--tracking-console-*`; `:root`: `--node-command`, `--node-prompt`,
 `--node-bash`, `--node-loop`, `--node-approval`, `--node-wait`) and
 `packages/web/src/experiments/console/theme.css` (`.console-root`: surfaces, borders, text, accent,
-status colours, `--node-script`, `--node-cancel`, `--node-opaque`). Where no token exists yet, a
+status colours, `--node-script`, `--node-cancel`, `--node-opaque`, and the canvases' identity:
+`--tone-intake`, `--card-depth`, `--card-depth-hover`, `--canvas-texture`, the running mark
+(`--running-fill`, `--running-border`, `--running-ring`), and on `.factory-card`
+`--card-glow` and `--card-tint`). Where no token exists yet, a
 rule names the Tailwind utility or the value instead; the list closing this section names those
 gaps.
 
@@ -125,7 +189,9 @@ One card language for the map, How it works, the board, stage drill-downs, Needs
 card's option tiles (rule 9).
 
 - Box: `--radius-console-12` (`rounded-console-12`), 1 px `--border`, `--surface` background.
-  Hover: `--border-bright` border, `--surface-elevated` background.
+  Hover: `--border-bright` border, `--surface-elevated` background. On the map, How it works
+  and a stage's drill-down the box is `.factory-card` (theme.css) instead: depth, a top tint in
+  its colour and light when it holds work ("Visual identity, 2026-11-19").
 - Padding: 12 px (`p-3`); a drill-down card 16 px (`p-4`).
 - A 3 px top accent bar in the stage group's colour (rule 5), inside the radius.
 - Row 1: a 16 px icon and a kind label in the Label role ("AGENT · LARGE", as in 12-drill-build).
@@ -151,33 +217,39 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 
 ### 4. Lines
 
-- Stroke 1.5 px; 2 px when hovered or when the line belongs to the selected card. Bends have an
-  8 px corner radius.
+- Stroke 1.5 px; 2 px when hovered or when the line belongs to the selected card. A forward line
+  on the map and How it works is 2 px always ("Visual identity, 2026-11-19"). Bends have an 8 px
+  corner radius.
 - Arrowheads: a 6 px filled triangle in the line's colour.
 - Labels: `--text-console-12` on a pill (`--surface-inset` background, 1 px `--border`,
   `rounded-full`, 6 px by 2 px padding). A label never sits on a line.
-- Forward lines: solid, `--text-tertiary`.
+- Forward lines: solid, a gradient along the flow from `--border-bright` to `--text-secondary`,
+  the head in `--text-secondary`. A fan's short bar and stubs are solid `--text-secondary`.
 - Send-back lines: dashed `6 4`, all in one colour, `--node-approval` (the colour the How it works
-  lane already uses).
+  lane already uses), at 0.85 opacity.
 - Asks: dotted `2 3`, `--text-tertiary`.
 - No line crosses a card, a label or another line.
 
 ### 5. Colour
 
-- Group colours: intake `--node-prompt`, build `--node-wait`, check `--node-approval`, land
-  `--node-script` (`factory/tones.ts`, which the board, the map and its legend all read).
+- Group colours: intake `--tone-intake`, build `--node-wait`, check `--node-approval`, land
+  `--node-script` (`factory/tones.ts`, which the board, the item timeline, the map and its
+  legend all read). None is purple or pink, and each is at least 25 degrees of hue from the
+  others and from `--running` and `--warning` (`tones.test.ts`).
 - Board columns (owner change 4): Intake takes intake's colour, Plan & build build's, Checks &
   review check's, Ready to merge land's, and Merged `--success`.
-- A group colour appears only as the accent bar, the icon, the legend swatch and the item
-  timeline's dot (a swatch-sized marker): never a fill or a text colour. The one exception is the
+- A group colour appears only as the accent bar, the icon, the legend swatch, the item
+  timeline's dot (a swatch-sized marker), and on the canvases a card's faint top tint and its
+  light: never a solid fill or a text colour. The one exception is the
   send-back line (rule 4), drawn in `--node-approval`, which the timeline's returned icon shares;
   the legend tells it apart by showing it as a dashed line, not a swatch.
 - How it works kind colours (`overview/overview-kinds.ts`): input `--node-command`, stage
   `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
   `--success`. No two are less than 25 degrees of hue apart and none is purple or pink (owner
   changes 1 and 6 of 2026-11-19); `overview-kinds.test.ts` resolves each token to its oklch value
-  and holds both. Besides the uses listed below, a kind colour is the faint halo the flow loop draws
-  round a card while a dot rests on it (rule 7). The check swatch shares `--node-approval` with the
+  and holds both. Besides the uses listed below, a kind colour is a card's faint top tint, the
+  faint glow the flow loop draws round a card while a dot rests on it, and the flow dot travelling
+  to that card with its halo (rule 7). The check swatch shares `--node-approval` with the
   send-back lines, as the check group does above; the legend tells them apart the same way.
 - State colours:
   - running: `--running` on `--running-soft`
@@ -213,7 +285,8 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Card moved: an `--accent-soft` background held for 1.5 s, then fading over 300 ms.
 - Needs-you ping: `animate-ping` on an 8 px `--warning` dot.
 - How it works flow (the overview's flow loop): SVG (SMIL) animation of position and opacity only,
-  on one timeline per view, no frame loop and no filter; pausable. CSS cannot stop SMIL, so under
+  on one timeline per view, no frame loop and no filter; pausable. A dot's halo is a second,
+  faint circle moving with it, never a blur. CSS cannot stop SMIL, so under
   `prefers-reduced-motion` it is not rendered at all.
 - Every animation sits behind `motion-safe:` and is off under `prefers-reduced-motion`. There the
   moved highlight still shows for 1.5 s, statically, with no fade.
@@ -354,9 +427,11 @@ puts a card's accent on its left edge; ours is the top bar of rule 2).
 **Layout.** At 1440x900 the Overview shows Needs you and the top of the map in the first screen.
 At 390x844 columns stack and the map pans.
 
-**No token yet.** Spacing, motion (duration, easing), line stroke and dash, skeleton colour and
-icon size have no console token; the rules above name the Tailwind utility or the value. A later
-change may add a token when it first needs one, in the files named above.
+**No token yet.** Spacing, motion (duration, easing), skeleton colour and icon size have no
+console token; the rules above name the Tailwind utility or the value. Line strokes, dashes and
+colours are constants in `factory/canvas-lines.tsx`; card depth, tint, light and the canvas
+texture are tokens in theme.css ("Visual identity, 2026-11-19"). A later change may add a token
+when it first needs one, in the files named above.
 
 ## Owner changes of 2026-11-17 (bind every later change; win over older text below)
 
@@ -388,7 +463,9 @@ The section has **two separate things**, each with its own file:
    it follows is read from card and line kinds (`lib/overview-flow.ts`), never from ids; a view with
    no single input line has no flow. Drill-downs and the other send-back lines stay still. A
    "Pause flow" control beside Full screen stops and resumes it (a pause holds across full screen
-   and views); under `prefers-reduced-motion` neither the dots nor the control are drawn.
+   and views); under `prefers-reduced-motion` neither the dots nor the control are drawn. Each dot
+  is 10 px across with a faint halo 20 px across, in the kind colour of the card it travels to ("Visual
+  identity, 2026-11-19").
 2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
@@ -760,8 +837,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   plan answered) is a short U from the card's source leg into its stage's leg. Where runs
   overlap they are one line, drawn once. Pills sit under the lane, each on the first band down
   where it meets no other pill. Nothing crosses: no line crosses a card, a pill or another line.
-- **Flow** (the map's addition to rule 7): while a run works an item on a card, a small dot in
-  the running colour travels along the hand-off into that card, over and over, fading as it
+- **Flow** (the map's addition to rule 7): while a run works an item on a card, a 10 px dot in
+  the running colour, with a soft halo, travels along the hand-off into that card, over and over, fading as it
   arrives, where the running chip's pulsing dot holds it. The first card, with no hand-off into
   it, has none. Off under reduced motion.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.

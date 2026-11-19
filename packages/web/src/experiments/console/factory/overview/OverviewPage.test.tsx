@@ -8,6 +8,7 @@ import { overviewFlow } from '../lib/overview-flow';
 import { layoutOverview } from '../lib/overview-layout';
 import type { OverviewDeclaration, OverviewView } from '../lib/overview-nav';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
+import { KINDS } from './overview-kinds';
 import { OverviewBody } from './OverviewPage';
 
 // Opening a view and going back up need clicks, which static markup cannot reach.
@@ -250,6 +251,42 @@ describe('the flow on the root view', () => {
     await click(button(page, 'Play flow'));
     expect(button(page, 'Pause flow')?.getAttribute('aria-pressed')).toBe('false');
     expect(calls.at(-1)).toBe('unpause');
+  });
+
+  test('each dot takes the colour of the card it travels to, on a shadow line the shadow colour', async () => {
+    const top = OVERVIEW.views.top as OverviewView;
+    const kindOf = new Map(top.cards.map(card => [card.id, card.kind]));
+    const fills = (within: ParentNode): string[] =>
+      [...within.querySelectorAll('[data-flow-move]')].map(dot => dot.getAttribute('fill') ?? '');
+    const page = await mount();
+    const moves = dots(page);
+    expect(moves.length).toBeGreaterThan(0);
+    expect(fills(page)).toEqual(
+      moves.map(move => KINDS[kindOf.get(move.split('->')[1] ?? '') ?? 'stage'].color)
+    );
+    // The dot and its halo move as one: two circles in the moving group.
+    for (const dot of page.querySelectorAll('[data-flow-move]'))
+      expect(dot.querySelectorAll('circle')).toHaveLength(2);
+    // Every card is drawn in the card identity.
+    for (const card of page.querySelectorAll('[data-card]'))
+      expect(card.className).toContain('factory-card');
+    expect(page.querySelector('[role="group"]')?.className).toContain('factory-canvas');
+    await unmount?.();
+
+    const shadowed = await mount('/console/p/cb-1/factory/how-it-works', {
+      ...OVERVIEW,
+      views: {
+        ...OVERVIEW.views,
+        top: {
+          ...top,
+          edges: top.edges.map(edge =>
+            edge.from === 'in' && edge.to === 'make' ? { ...edge, shadow: true } : edge
+          ),
+        },
+      },
+    });
+    const into = [...shadowed.querySelectorAll('[data-flow-move="in->make"]')];
+    expect(into.map(dot => dot.getAttribute('fill'))).toEqual(['var(--node-opaque)']);
   });
 
   test('a pause holds across full screen, where the map mounts anew', async () => {

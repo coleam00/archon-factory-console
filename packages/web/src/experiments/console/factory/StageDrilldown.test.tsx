@@ -195,6 +195,12 @@ test('a card glows and names the items on a step it covers; a run between rounds
   await renderChecks(async container => {
     expect(liveCards(container)).toEqual([expect.stringContaining('Code review')]);
     const lit = container.querySelector('article[data-live]');
+    // It wears the step graph's running mark, its tint still its kind's colour.
+    expect(lit?.className).toContain('factory-card');
+    expect(lit?.hasAttribute('data-running')).toBe(true);
+    expect((lit as HTMLElement | null)?.style.getPropertyValue('--card-tone')).not.toBe(
+      'var(--running)'
+    );
     expect([...(lit?.querySelectorAll('a') ?? [])].map(link => link.getAttribute('href'))).toEqual([
       `/console/p/${ID}/factory/items/7`,
     ]);
