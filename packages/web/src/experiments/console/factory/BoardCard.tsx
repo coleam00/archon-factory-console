@@ -149,7 +149,9 @@ export function BoardCard(props: CardProps & { asks: BoardAsks }): ReactElement 
       {card.run !== null ? (
         <RunLink run={card.run} />
       ) : card.stage === null ? null : (
-        <span className="text-console-13 text-text-secondary">{card.stage}</span>
+        <span title={card.stage} className="min-w-0 truncate text-console-13 text-text-secondary">
+          {card.stage}
+        </span>
       )}
       {card.shadow === null ? null : <ShadowLine shadow={card.shadow} />}
       {card.order === null ? null : <OrderChip order={card.order} />}
@@ -174,8 +176,8 @@ export function MergedCard(props: CardProps): ReactElement {
 }
 
 /**
- * The running run's line: stage, step name, round. Breaks between its parts, never inside
- * a name; a name too long for the card is cut with the whole line in the title.
+ * The running run's line: stage, step name, round, on one line (owner, 2026-11-19: the board
+ * fits two cards per column); the step name is cut first, with the whole line in the title.
  */
 function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactElement {
   return (
@@ -183,7 +185,7 @@ function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactEl
       to={run.href}
       title={engineIdTitle(run.text, run.step)}
       aria-label={run.text}
-      className={`${INNER_LINK} flex min-w-0 flex-wrap gap-x-1 text-console-13 ${statusTextClass.running}`}
+      className={`${INNER_LINK} flex min-w-0 flex-nowrap gap-x-1 overflow-hidden text-console-13 ${statusTextClass.running}`}
     >
       {run.parts.map((part, index) => (
         <span
