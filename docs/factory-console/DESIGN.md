@@ -124,7 +124,7 @@ miss on a projector. Intake on the map was purple.
   not jitter. *No new sizes.*
 - **Colour.** Intake moves from `--node-prompt` (purple, hue 290) to `--tone-intake`
   `oklch(0.8 0.15 112)`, a lime 27 degrees from warning and 28 from land. The canvases' one
-  accent use is the selected map card (accent border and a 2 px `--accent-muted` ring); neither
+  accent use is the selected map card (a 2 px `--accent-muted` ring, the border unchanged); neither
   canvas has purple. *Owner change 1: more green, purple and pink kept for one thing each.*
 - **Flow dot.** How it works: a 5 px dot with a 10 px halo at 0.28 opacity (a second circle in
   the same moving group, not a blur), in the kind colour of the card it travels to, a shadow move
@@ -212,7 +212,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 
 ### 4. Lines
 
-- Stroke: a forward line 2 px, every other line 1.5 px. Bends have an 8 px corner radius.
+- Stroke 1.5 px; 2 px when hovered or when the line belongs to the selected card. A forward line
+  on the map and How it works is 2 px always ("Visual identity, 2026-11-19"). Bends have an 8 px
+  corner radius.
 - Arrowheads: a 6 px filled triangle in the line's colour.
 - Labels: `--text-console-12` on a pill (`--surface-inset` background, 1 px `--border`,
   `rounded-full`, 6 px by 2 px padding). A label never sits on a line.
@@ -240,8 +242,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
   `--success`. No two are less than 25 degrees of hue apart and none is purple or pink (owner
   changes 1 and 6 of 2026-11-19); `overview-kinds.test.ts` resolves each token to its oklch value
-  and holds both. Besides the uses listed below, a kind colour is the faint halo the flow loop draws
-  round a card while a dot rests on it (rule 7). The check swatch shares `--node-approval` with the
+  and holds both. Besides the uses listed below, a kind colour is a card's faint top tint, the
+  faint glow the flow loop draws round a card while a dot rests on it, and the flow dot travelling
+  to that card with its halo (rule 7). The check swatch shares `--node-approval` with the
   send-back lines, as the check group does above; the legend tells them apart the same way.
 - State colours:
   - running: `--running` on `--running-soft`

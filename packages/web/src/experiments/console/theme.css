@@ -258,10 +258,10 @@
   --card-light: var(--card-glow);
 }
 
-/* The selected map card: the canvases' one use of the accent (owner change 1). */
+/* A selected card: a muted accent ring, never an accent border (owner change 1). On the
+   canvases it is the one use of the accent. */
 .console-root .factory-card[data-selected] {
   --card-ring: 0 0 0 2px var(--accent-muted);
-  border-color: var(--accent-bright);
 }
 
 .console-root .factory-canvas {

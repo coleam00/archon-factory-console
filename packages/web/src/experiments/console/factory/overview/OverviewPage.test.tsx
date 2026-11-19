@@ -270,6 +270,7 @@ describe('the flow on the root view', () => {
     // Every card is drawn in the card identity.
     for (const card of page.querySelectorAll('[data-card]'))
       expect(card.className).toContain('factory-card');
+    expect(page.querySelector('[role="group"]')?.className).toContain('factory-canvas');
     await unmount?.();
 
     const shadowed = await mount('/console/p/cb-1/factory/how-it-works', {

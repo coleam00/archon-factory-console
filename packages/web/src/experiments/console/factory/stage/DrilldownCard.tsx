@@ -46,7 +46,7 @@ export function DrilldownCard({
     <article
       data-live={live ? 'true' : undefined}
       data-lit={live ? '' : undefined}
-      // A selected card keeps its accent border and ring; a lit one still glows.
+      // A selected card wears the accent ring; a lit one still glows.
       data-selected={selected ? '' : undefined}
       className="factory-card relative flex flex-col overflow-hidden rounded-console-12 border"
       style={cardTone(tone)}
