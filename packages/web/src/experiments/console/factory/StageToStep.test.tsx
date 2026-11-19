@@ -167,12 +167,12 @@ test('clicking a step on the stage graph opens its step page, which leads back t
   });
 });
 
-test('a stage with no drill-down draws its graphs, with no toggle', async () => {
+test('a stage with no drill-down opens on its real workflow', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
     expect(stepButton(container, '·fix')).toBeDefined();
-    const buttons = [...container.querySelectorAll('button')].map(button => button.textContent);
-    expect(buttons).not.toContain('Real steps');
+    const selected = container.querySelector('[role="tab"][aria-selected="true"]');
+    expect(selected?.textContent).toBe('The real workflow');
   });
 });
 

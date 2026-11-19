@@ -245,24 +245,37 @@ test('clicking a card lists its real steps by name, each opening its step page b
   });
 });
 
-test('Drill-down | Real steps switches between the drill-down and the real step graph', async () => {
+test('the tabs switch between the summary, the items and the real step graph', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
     const graphStep = (): HTMLButtonElement | undefined =>
       [...container.querySelectorAll('button')].find(candidate =>
         candidate.textContent.startsWith('·fix')
       );
+    const tabs = [...container.querySelectorAll('[role="tab"]')];
+    expect(tabs.map(tab => tab.textContent)).toEqual([
+      'What this stage does',
+      'Items here now',
+      'The real workflow',
+    ]);
+    const [does, items, real] = tabs as HTMLButtonElement[];
+    expect(does?.getAttribute('aria-selected')).toBe('true');
+    expect(container.textContent).toContain(
+      "The factory's summary of this stage, from its view file."
+    );
     expect(graphStep()).toBeUndefined();
-    const drilldown = button(container, 'Drill-down');
-    const real = button(container, 'Real steps');
-    expect(drilldown.getAttribute('aria-pressed')).toBe('true');
-    expect(real.getAttribute('aria-pressed')).toBe('false');
-    await click(real);
-    expect(real.getAttribute('aria-pressed')).toBe('true');
+    await click(real!);
+    expect(real?.getAttribute('aria-selected')).toBe('true');
+    expect(container.textContent).toContain(
+      "Generated from the pack's workflow files; shows every step."
+    );
     expect(graphStep()).toBeDefined();
     expect(phaseLabels(container)).toHaveLength(0);
-    await click(drilldown);
+    await click(items!);
+    expect(container.textContent).toContain('Nothing is in this stage now.');
     expect(graphStep()).toBeUndefined();
+    await click(does!);
     expect(phaseLabels(container)).toHaveLength(4);
+    expect(container.textContent).not.toMatch(/Drill-down|Real steps/);
   });
 });

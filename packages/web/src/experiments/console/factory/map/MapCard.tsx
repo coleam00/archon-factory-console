@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import type { PlacedCard } from '../lib/map-layout';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
+import type { StageModalLink } from '../lib/views';
 import { TONES } from '../tones';
 import { chipWords, HereChip, NeedsYouChip } from './MapChips';
 import { MapShadowBadge, MapStageRow } from './MapStageRow';
@@ -17,8 +18,8 @@ interface MapCardProps {
    */
   live: (stage: string) => StageRead;
   selected: boolean;
-  /** A stage page's path, which a click on its card or row opens. */
-  stagePath: (stage: string) => string;
+  /** The link a click on a stage's card or row follows: the stage, open over the map. */
+  stageLink: (stage: string) => StageModalLink;
   /** The details button: the map shows or hides this card's details panel. */
   onDetails: (card: string) => void;
   /**
@@ -35,15 +36,15 @@ const HOVER = 'hover:border-border-bright hover:bg-surface-elevated';
 
 /**
  * One card on the map: a board column, in the card language. A card of one stage is that
- * stage (its label, its short line, its chips) and opens its stage page; a card of several
- * lists them as rows, each opening its own stage page, under the column's label.
+ * stage (its label, its short line, its chips) and opens it; a card of several lists them as
+ * rows, each opening its own stage, under the column's label.
  */
 export function MapCard({
   card,
   stages,
   live,
   selected,
-  stagePath,
+  stageLink,
   onDetails,
   shadows,
 }: MapCardProps): ReactElement {
@@ -68,7 +69,8 @@ export function MapCard({
     >
       {stages.length === 1 && only !== undefined ? (
         <Link
-          to={stagePath(only.id)}
+          to={stageLink(only.id).to}
+          state={stageLink(only.id).state}
           data-stage={only.id}
           aria-label={`${only.label}: ${chipWords(live(only.id))}`}
           // A link is natively draggable: a pan that starts on the card would become a link
@@ -93,7 +95,7 @@ export function MapCard({
                   key={stage.id}
                   stage={stage}
                   live={live(stage.id)}
-                  openTo={stagePath(stage.id)}
+                  openTo={stageLink(stage.id)}
                   shadows={shadows(stage)}
                 />
               ))}

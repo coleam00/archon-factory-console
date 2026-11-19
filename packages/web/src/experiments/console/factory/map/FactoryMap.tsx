@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { errorDetail } from '../../lib/http';
 import type { AttentionQueue } from '../../skills/runs';
 import type { EntityView } from '../../store/cache';
@@ -6,15 +6,9 @@ import type { FactoryItem } from '../../skills/factory';
 import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
 import { layoutMap } from '../lib/map-layout';
-import {
-  EMPTY_STAGE_LIVE,
-  stageLive,
-  type MapLive,
-  type StageRead,
-  type Unread,
-} from '../lib/map-live';
+import { stageReadOf, type MapLive, type Unread } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
-import { factoryPath, type FactoryViewListed } from '../lib/views';
+import { stageModalLink, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
 import { stageShadowLines, stageShadows, type ShadowItems } from '../lib/shadows';
 import { MapCard } from './MapCard';
@@ -22,7 +16,9 @@ import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
+import { StageModal } from './StageModal';
 import { useMapCamera } from './useMapCamera';
+import { useStageLive } from '../stage/useStageLive';
 import { FactoryLoading } from '../FactoryLoading';
 import { readFailed, SlowReadError } from '../lib/deadline';
 
@@ -91,9 +87,8 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
 
 /**
  * The map over the items, drawn from the declaration before they are read (`items` undefined:
- * every chip a skeleton bar, or none once the read failed). It keeps where each item sat on the last
- * read, as the board does, so a run on a step no stage names holds its card where the board
- * holds its column.
+ * every chip a skeleton bar, or none once the read failed), and the stage `?stage=` opens over
+ * it, both from one live read. The modal is the canvas's sibling, outside the frame that pans.
  */
 function MapLiveCanvas({
   items,
@@ -101,22 +96,14 @@ function MapLiveCanvas({
   attention,
   ...inputs
 }: MapInputs & { items: FactoryItem[] | undefined; unread: Unread }): ReactElement {
-  const { view } = inputs;
-  const previous = useRef<ReadonlyMap<string, string>>(new Map());
-  const queue = attention.data?.items;
-  const live = useMemo(
-    () => (items === undefined ? unread : stageLive(view, items, queue ?? [], previous.current)),
-    [view, items, queue, unread]
+  const live = useStageLive(inputs.view, items, unread, attention.data?.items);
+  return (
+    <>
+      <MapCanvas {...inputs} live={live} items={items ?? unread} />
+      <StageModal projectId={inputs.projectId} view={inputs.view} live={live} />
+    </>
   );
-  useEffect(() => {
-    if (typeof live !== 'string') previous.current = live.positions;
-  }, [live]);
-  return <MapCanvas {...inputs} live={live} items={items ?? unread} />;
 }
-
-/** One stage's chips, why there are none yet, or empty when nothing sits there. */
-const liveOf = (live: MapLive | Unread, stage: string): StageRead =>
-  typeof live === 'string' ? live : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
 
 function MapCanvas({
   projectId,
@@ -133,8 +120,6 @@ function MapCanvas({
   const [selected, setSelected] = useState<string | null>(null);
   const selectedCard = cards.find(card => card.id === selected);
   const camera = useMapCamera(bounds, selectedCard?.box ?? null);
-  const stagePath = (stage: string): string =>
-    factoryPath(projectId, `/stages/${encodeURIComponent(stage)}`);
 
   useEffect(() => {
     if (selected === null) return;
@@ -176,9 +161,9 @@ function MapCanvas({
                 card={card}
                 stages={stagesOf(card.stages)}
                 shadows={stage => stageShadowLines(stage, view, items)}
-                live={stage => liveOf(live, stage)}
+                live={stage => stageReadOf(live, stage)}
                 selected={card.id === selected}
-                stagePath={stagePath}
+                stageLink={stage => stageModalLink(projectId, stage)}
                 onDetails={id => setSelected(current => (current === id ? null : id))}
               />
             ))}
@@ -200,7 +185,7 @@ function MapCanvas({
             title={selectedCard.label}
             stages={stagesOf(selectedCard.stages).map(stage => ({
               stage,
-              live: liveOf(live, stage.id),
+              live: stageReadOf(live, stage.id),
               notes: stageNotes(stage.id),
               shadows: stageShadowLines(stage, view, items),
             }))}

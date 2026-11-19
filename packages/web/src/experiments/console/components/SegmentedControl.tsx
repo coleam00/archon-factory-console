@@ -8,7 +8,7 @@ export type Segment =
 
 /**
  * A choice between two or more views of one thing, as one bordered group: the board's
- * Pipeline | Table, a stage page's Drill-down | Real steps. The active segment is raised.
+ * Pipeline | Table. The active segment is raised.
  */
 export function SegmentedControl({
   label,

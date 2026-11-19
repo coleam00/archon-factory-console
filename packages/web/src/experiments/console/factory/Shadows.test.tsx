@@ -15,6 +15,7 @@ import { MapCard } from './map/MapCard';
 import { MapDetails } from './map/MapDetails';
 import { MapLegend } from './map/MapLegend';
 import { DrilldownCard } from './stage/DrilldownCard';
+import { stageModalLink } from './lib/views';
 import type { BoardAsks } from './useBoardAsks';
 
 // The timeline's disclosure is a click, which static markup cannot reach.
@@ -201,7 +202,7 @@ describe('the map', () => {
           stages={stages}
           live={() => EMPTY_STAGE_LIVE}
           selected={false}
-          stagePath={stage => `/s/${stage}`}
+          stageLink={stage => stageModalLink('cb-1', stage)}
           onDetails={() => undefined}
           shadows={lines}
         />
