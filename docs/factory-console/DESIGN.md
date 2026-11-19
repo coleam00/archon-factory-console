@@ -220,7 +220,8 @@ the Overview, the item page and the board popover.
 - Box: `--radius-console-16` (`rounded-console-16`), 1 px `--border`, `--surface` background,
   20 px padding (`p-5`), 12 px between rows (`gap-3`). At most 760 px wide in a page; 480 px wide
   in the board popover.
-- Header row in the Meta role: the item key in mono, the stage, and the age on the right.
+- Header row in the Meta role: the item key in mono, in neutral text (`--text-secondary`,
+  `--text-primary` on hover; never the accent), the stage, and the age on the right.
 - Question: `--text-console-17`, semibold, at most 2 lines.
 - Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
   ClampedSummary pattern).
@@ -229,17 +230,31 @@ the Overview, the item page and the board popover.
   `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs
   (the option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
   clamped to 2 lines.
-- An ask with a `recommendation` moves the recommended tile first: `--accent-muted` border,
-  `--accent-soft` background, and a "Recommended" badge at `--text-console-12` in `--accent`.
-  Under its text, one line at `--text-console-13`, `--text-secondary` gives the recommendation's
-  `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
+- An ask with a `recommendation` moves the recommended tile first and marks it **green**: a
+  `--success` border at 40% (`border-success/40`), `--success-soft` background, and a
+  "Recommended" badge at `--text-console-12` in `--success`. The green mark never looks
+  selected. Under its text, one line at `--text-console-13`, `--text-secondary` gives the
+  recommendation's `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
   without a recommendation keeps its declared order and marks no tile.
+- **Selected** is its own state and depends only on the pick: a chosen tile gets a `--accent`
+  border and a check icon (`--accent`), on `--surface-elevated` (a chosen recommended tile keeps
+  its `--success-soft` background and its badge, and takes the accent border in place of the
+  green one). Before any pick no tile looks selected, and picking a tile the ask does not
+  recommend leaves exactly one tile looking chosen.
+- **Nothing leaves the card.** Every text field (question, context, option label, `does`, `cost`,
+  the recommendation's `why`, the confirm row's "Answer:" line) wraps long unbroken strings such as
+  paths and URLs (`overflow-wrap: anywhere`), flex children that hold text have `min-width: 0`, a
+  tile is never wider than its row (`max-width: 100%`), and the card never grows past its
+  container.
 - "Something else" is the ask's reserved `other` option, not a tile the card adds: it is drawn
   only when the ask carries that option (an ask declared `other: true`; the engine appends it
   last). Its tile reads "Something else" with "Write your own answer" under it, with a dashed
   `--border-bright` border. Choosing it opens a textarea in place (`--text-console-14`, 3 rows).
 - Choosing a tile does not send. A confirm row appears under the tiles: "Answer: <label>", a
-  Confirm button and a Cancel button. Once sent, the card reads "Answered: <label>" in place.
+  Confirm button and a Cancel button. Confirm is the accent at reduced strength, never a
+  full-strength block: `--accent-soft` fill, 1 px `--accent-muted` border, semibold `--accent`
+  text, `--accent-muted` fill on hover. Cancel stays quiet (`--text-secondary`, no fill). Once
+  sent, the card reads "Answered: <label>" in place.
 - **The card draws an answer; it does not define one.** Which choices an ask offers, how many
   may be chosen, which need text, and what is refused belong to the ask and its owners: for an
   attention ask, its declared `form`, `options`, `other` and `recommendation`, checked by
@@ -250,9 +265,8 @@ the Overview, the item page and the board popover.
   through the confirm row):
   - a choice is a tile, labelled by rule 8 (or by the label its owner gives it, such as
     `ApprovalPanel`'s "Continue" and "Accept & complete");
-  - a choice that takes several picks toggles its tiles: a chosen tile takes the recommended
-    tile's `--accent-muted` border and `--accent-soft` background, with a check icon, and the
-    confirm row lists the chosen labels ("Answer: <label>, <label>");
+  - a choice that takes several picks toggles its tiles: each chosen tile shows the selected
+    state above, and the confirm row lists the chosen labels ("Answer: <label>, <label>");
   - an answer in words, or a choice whose owner takes text with it (required or optional, as
     `ApprovalPanel`'s comment on approve and its reason on every other decision), opens the textarea in place
     (`--text-console-14`, 3 rows) above the confirm row, and an ask answered only in words has no
@@ -267,7 +281,10 @@ the Overview, the item page and the board popover.
 - The Needs you tab's heading reads "N things need you", in the Page title role.
 - On a board card (owner change 3): the question at `--text-console-13` clamped to 2 lines, the
   line Needs you shows for it at `--text-console-12` ("Recommended: <label>" when the ask
-  recommends one), and the ping.
+  recommends one, on the recommended tile's green mark), and the ping. Both wrap long unbroken
+  text inside the card, as the Overview's compact card does with its question and tile.
+- Owner change 2026-11-19, points 1 and 2: the recommended green, the selected state, the toned
+  Confirm, the neutral item key and the wrapping above.
 
 **The column header** (owner change 4), one per board column:
 

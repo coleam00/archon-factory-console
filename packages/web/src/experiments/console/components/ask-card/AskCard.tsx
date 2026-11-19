@@ -37,7 +37,7 @@ export interface AskCardProps {
 
 // console-token-exception max-w-[760px] -- Visual standard rule 9: an ask card is at most 760 px wide in a page.
 const WIDTH = 'max-w-[760px]';
-const BOX = `@container flex w-full ${WIDTH} flex-col gap-3 rounded-console-16 border border-border bg-surface p-5`;
+const BOX = `@container flex w-full min-w-0 ${WIDTH} flex-col gap-3 rounded-console-16 border border-border bg-surface p-5`;
 const FOLD = 'motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out';
 
 /**
@@ -64,11 +64,14 @@ export function AskCard(props: AskCardProps): ReactElement {
       className={`${BOX} ${FOLD} ${folding ? 'opacity-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
     >
       <AskHeader {...props} />
-      <h3 className="line-clamp-2 text-console-17 font-semibold text-text-primary">
+      <h3 className="line-clamp-2 text-console-17 font-semibold text-text-primary [overflow-wrap:anywhere]">
         {askQuestion(ask)}
       </h3>
       {answered !== undefined ? (
-        <p role="status" className="text-console-14 font-medium text-success">
+        <p
+          role="status"
+          className="text-console-14 font-medium text-success [overflow-wrap:anywhere]"
+        >
           Answered: {answered}
         </p>
       ) : (
@@ -87,7 +90,7 @@ function AskHeader({ subject, where, ask }: AskCardProps): ReactNode {
   return (
     <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 text-console-13 text-text-tertiary">
       {subject === undefined ? null : <SubjectName subject={subject} />}
-      <span className="ml-auto flex items-baseline gap-2">
+      <span className="ml-auto flex min-w-0 items-baseline gap-2">
         {where === undefined ? null : <span>{where}</span>}
         {ask.pausedAt === null ? null : <span>{relativeTime(ask.pausedAt)}</span>}
       </span>
@@ -98,7 +101,7 @@ function AskHeader({ subject, where, ask }: AskCardProps): ReactNode {
 export function SubjectName({ subject }: { subject: AskSubject }): ReactElement {
   const words = (
     <>
-      <span className="font-mono">{subject.key}</span>
+      <span className="min-w-0 font-mono [overflow-wrap:anywhere]">{subject.key}</span>
       {subject.title === undefined ? null : (
         <span className="min-w-0 truncate text-text-secondary"> {subject.title}</span>
       )}
@@ -109,7 +112,7 @@ export function SubjectName({ subject }: { subject: AskSubject }): ReactElement 
   ) : (
     <Link
       to={subject.href}
-      className="flex min-w-0 items-baseline gap-1 text-accent-bright hover:underline"
+      className="flex min-w-0 items-baseline gap-1 text-text-secondary hover:text-text-primary hover:underline"
     >
       {words}
     </Link>

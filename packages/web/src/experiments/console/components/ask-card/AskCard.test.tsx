@@ -7,8 +7,10 @@ import type { NeedsYouItem } from '../../lib/needs-you';
 import { toRun } from '../../primitives/run';
 import { get, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import { AskCard } from './AskCard';
 import { AskGroup } from './AskGroup';
 import { ANSWERED_SHOWN_MS } from './useAnsweredHold';
+import { holding, LONG, wrapsAnywhere } from './wrap.test-fixtures';
 
 // Choosing, confirming and folding re-render the card, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -244,5 +246,172 @@ test('a gate draws its decisions as tiles and responds through the gate, reasons
     ]);
   } finally {
     await card.unmount();
+  }
+});
+
+/** The option tiles, in the order drawn. */
+const tiles = (container: HTMLElement): HTMLButtonElement[] => [
+  ...container.querySelectorAll<HTMLButtonElement>('[aria-label="Options"] button'),
+];
+/** A tile drawn as chosen: the accent border (the whole class, not `border-accent-muted`) or the check. */
+const looksSelected = (tile: HTMLElement): boolean =>
+  tile.classList.contains('border-accent') || tile.querySelector('svg') !== null;
+
+test('before any pick nothing looks selected; the recommended tile is green with its badge', async () => {
+  serve();
+  const card = await mount([
+    askItem({
+      options: [
+        { id: 'use-main', label: 'Use main' },
+        { id: 'use-dev', label: 'Use dev' },
+        { id: 'use-next', label: 'Use next' },
+        { id: 'skip', label: 'Skip it' },
+      ],
+    }),
+  ]);
+  try {
+    const all = tiles(card.container);
+    expect(all.length).toBe(4);
+    expect(all.filter(looksSelected)).toEqual([]);
+    const recommended = all.filter(tile => tile.dataset.recommended === 'true');
+    expect(recommended.map(tile => tile.textContent?.startsWith('Use dev'))).toEqual([true]);
+    expect(recommended[0]?.classList.contains('bg-[color:var(--success-soft)]')).toBe(true);
+    expect(recommended[0]?.classList.contains('border-success/40')).toBe(true);
+    expect(recommended[0]?.textContent).toContain('Recommended');
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('picking a tile the ask does not recommend: that tile alone looks selected', async () => {
+  serve();
+  const card = await mount([askItem()]);
+  try {
+    await card.click('Use main');
+    const all = tiles(card.container);
+    const selected = all.filter(looksSelected);
+    expect(selected.map(tile => tile.textContent?.startsWith('Use main'))).toEqual([true]);
+    expect(all.filter(tile => tile.getAttribute('aria-pressed') === 'true')).toEqual(selected);
+    // No other tile wears the chosen tile's look.
+    expect(all.filter(tile => tile.className === selected[0]?.className).length).toBe(1);
+    // The recommended tile keeps only its green mark.
+    const recommended = card.button('Use dev');
+    expect(looksSelected(recommended)).toBe(false);
+    expect(recommended.classList.contains('border-success/40')).toBe(true);
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('picking the recommended tile: selected, keeping its badge, with one border colour', async () => {
+  serve();
+  const card = await mount([askItem()]);
+  try {
+    await card.click('Use dev');
+    const tile = card.button('Use dev');
+    expect(tiles(card.container).filter(looksSelected)).toEqual([tile]);
+    expect(tile.classList.contains('border-accent')).toBe(true);
+    expect(tile.classList.contains('border-success/40')).toBe(false);
+    expect(tile.textContent).toContain('Recommended');
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('Confirm is the accent at reduced strength, never the full-strength block', async () => {
+  serve();
+  const card = await mount([askItem()]);
+  try {
+    await card.click('Use main');
+    const confirm = card.button('Confirm');
+    expect(confirm.classList.contains('bg-[color:var(--accent-soft)]')).toBe(true);
+    expect(confirm.classList.contains('text-accent')).toBe(true);
+    expect(confirm.classList.contains('bg-accent')).toBe(false);
+    expect(confirm.classList.contains('text-white')).toBe(false);
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('a long unbroken path in every text field wraps inside its tile and the card', async () => {
+  serve();
+  const [question, context, label, does, cost, why] = [
+    'question',
+    'context',
+    'label',
+    'does',
+    'cost',
+    'why',
+  ].map(field => `${field}:${LONG}`) as [string, string, string, string, string, string];
+  const card = await mount([
+    askItem({
+      message: question,
+      context,
+      options: [
+        { id: 'long', label, does, cost },
+        { id: 'use-dev', label: 'Use dev' },
+      ],
+      recommendation: { option: 'use-dev', why },
+    }),
+  ]);
+  try {
+    const article = card.container.querySelector('article[data-ask]');
+    if (article === null) throw new Error('No card');
+    const tile = card.button(label);
+    const inTile = [label, does, cost];
+    for (const text of [question, context, label, does, cost, why]) {
+      const found = holding(article, text);
+      expect(found.length).toBeGreaterThan(0);
+      const box = inTile.includes(text) ? tile : article;
+      for (const el of found) expect([text, wrapsAnywhere(el, box)]).toEqual([text, true]);
+    }
+    expect(article.classList.contains('min-w-0')).toBe(true);
+    for (const each of tiles(card.container))
+      expect(each.classList.contains('max-w-full')).toBe(true);
+    // Chosen, the tile shows its words whole; they still wrap.
+    await card.click(label);
+    for (const text of inTile)
+      for (const el of holding(tile, text)) expect(wrapsAnywhere(el, tile)).toBe(true);
+  } finally {
+    await card.unmount();
+  }
+});
+
+test("the Overview's compact card wraps a long question and label, and marks the tile green", async () => {
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  const question = `question:${LONG}`;
+  const label = `label:${LONG}`;
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <AskCard
+            projectId="cb-1"
+            ask={askItem({
+              message: question,
+              options: [{ id: 'long', label }],
+              recommendation: { option: 'long', why: 'Why.' },
+            })}
+            queue={{ runs: [] }}
+            variant="compact"
+            openHref="/console/p/cb-1/needs-you"
+          />
+        </MemoryRouter>
+      )
+    );
+    const article = container.querySelector('article[data-ask]');
+    if (article === null) throw new Error('No card');
+    for (const text of [question, label])
+      for (const el of holding(article, text)) expect(wrapsAnywhere(el, article)).toBe(true);
+    expect(article.classList.contains('min-w-0')).toBe(true);
+    // The tile is not a control and nothing is chosen: green, never the accent.
+    const tile = holding(article, label)[0]?.parentElement;
+    expect(tile?.classList.contains('border-success/40')).toBe(true);
+    expect(tile?.className).not.toContain('accent');
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
   }
 });

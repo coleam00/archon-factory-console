@@ -167,7 +167,7 @@ function NothingNeedsYou({
       {loading ? <SkeletonLine width="short" /> : null}
       <Link
         to={`/console/p/${projectId}`}
-        className="text-console-13 text-accent-bright hover:underline"
+        className="text-console-13 text-text-secondary hover:text-text-primary hover:underline"
       >
         See this project's runs
       </Link>

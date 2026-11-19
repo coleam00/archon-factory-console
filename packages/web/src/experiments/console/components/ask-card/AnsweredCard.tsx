@@ -37,7 +37,7 @@ export function AnsweredCard({
   return (
     <article
       aria-label={`Answered on ${entry.itemKey}`}
-      className={`flex w-full ${WIDTH} flex-col gap-3 rounded-console-16 border border-border bg-surface p-5`}
+      className={`flex w-full min-w-0 ${WIDTH} flex-col gap-3 rounded-console-16 border border-border bg-surface p-5`}
     >
       <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1 text-console-13 text-text-tertiary">
         <SubjectName
@@ -55,11 +55,11 @@ export function AnsweredCard({
         <ul className="flex flex-col gap-2">
           {shown.map(ask => (
             <li key={ask.question} className="flex flex-col gap-0.5">
-              <h3 className="line-clamp-2 text-console-15 font-semibold text-text-primary">
+              <h3 className="line-clamp-2 text-console-15 font-semibold text-text-primary [overflow-wrap:anywhere]">
                 {ask.question}
               </h3>
               <p
-                className={`text-console-14 ${ask.withdrawn ? 'text-text-tertiary line-through' : 'text-text-secondary'}`}
+                className={`text-console-14 [overflow-wrap:anywhere] ${ask.withdrawn ? 'text-text-tertiary line-through' : 'text-text-secondary'}`}
               >
                 {ask.withdrawn ? 'Withdrawn' : `Answered: ${ask.answer}`}
               </p>
@@ -106,7 +106,7 @@ function Restart({
     <Link
       to={`/console/p/${projectId}/r/${restart.runId}`}
       title={restart.label}
-      className="text-accent-bright hover:underline"
+      className="text-text-secondary hover:text-text-primary hover:underline"
     >
       {shortWorkflow(restart.label)} started again ({STATUS_WORDS[restart.status]})
     </Link>
