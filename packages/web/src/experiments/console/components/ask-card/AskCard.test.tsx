@@ -253,9 +253,15 @@ test('a gate draws its decisions as tiles and responds through the gate, reasons
 const tiles = (container: HTMLElement): HTMLButtonElement[] => [
   ...container.querySelectorAll<HTMLButtonElement>('[aria-label="Options"] button'),
 ];
-/** A tile drawn as chosen: the accent border (the whole class, not `border-accent-muted`) or the check. */
+/**
+ * The mark drawn on `el` (its border is a style, which happy-dom cannot parse; tile-marks.tsx
+ * says why it is a style, and the browser check reads the computed colour).
+ */
+const markOf = (el: Element | null | undefined): string | null =>
+  el?.getAttribute('data-mark') ?? null;
+/** A tile drawn as chosen: the selected border or the check. */
 const looksSelected = (tile: HTMLElement): boolean =>
-  tile.classList.contains('border-accent') || tile.querySelector('svg') !== null;
+  markOf(tile) === 'selected' || tile.querySelector('svg') !== null;
 
 test('before any pick nothing looks selected; the recommended tile is green with its badge', async () => {
   serve();
@@ -276,7 +282,7 @@ test('before any pick nothing looks selected; the recommended tile is green with
     const recommended = all.filter(tile => tile.dataset.recommended === 'true');
     expect(recommended.map(tile => tile.textContent?.startsWith('Use dev'))).toEqual([true]);
     expect(recommended[0]?.classList.contains('bg-[color:var(--success-soft)]')).toBe(true);
-    expect(recommended[0]?.classList.contains('border-success/40')).toBe(true);
+    expect(markOf(recommended[0])).toBe('recommended');
     expect(recommended[0]?.textContent).toContain('Recommended');
   } finally {
     await card.unmount();
@@ -297,7 +303,7 @@ test('picking a tile the ask does not recommend: that tile alone looks selected'
     // The recommended tile keeps only its green mark.
     const recommended = card.button('Use dev');
     expect(looksSelected(recommended)).toBe(false);
-    expect(recommended.classList.contains('border-success/40')).toBe(true);
+    expect(markOf(recommended)).toBe('recommended');
   } finally {
     await card.unmount();
   }
@@ -310,8 +316,7 @@ test('picking the recommended tile: selected, keeping its badge, with one border
     await card.click('Use dev');
     const tile = card.button('Use dev');
     expect(tiles(card.container).filter(looksSelected)).toEqual([tile]);
-    expect(tile.classList.contains('border-accent')).toBe(true);
-    expect(tile.classList.contains('border-success/40')).toBe(false);
+    expect(markOf(tile)).toBe('selected');
     expect(tile.textContent).toContain('Recommended');
   } finally {
     await card.unmount();
@@ -326,6 +331,7 @@ test('Confirm is the accent at reduced strength, never the full-strength block',
     const confirm = card.button('Confirm');
     expect(confirm.classList.contains('bg-[color:var(--accent-soft)]')).toBe(true);
     expect(confirm.classList.contains('text-accent')).toBe(true);
+    expect(confirm.style.getPropertyValue('border-color')).toBe('var(--accent-muted)');
     expect(confirm.classList.contains('bg-accent')).toBe(false);
     expect(confirm.classList.contains('text-white')).toBe(false);
   } finally {
@@ -408,7 +414,7 @@ test("the Overview's compact card wraps a long question and label, and marks the
     expect(article.classList.contains('min-w-0')).toBe(true);
     // The tile is not a control and nothing is chosen: green, never the accent.
     const tile = holding(article, label)[0]?.parentElement;
-    expect(tile?.classList.contains('border-success/40')).toBe(true);
+    expect(markOf(tile)).toBe('recommended');
     expect(tile?.className).not.toContain('accent');
   } finally {
     await act(async () => root.unmount());

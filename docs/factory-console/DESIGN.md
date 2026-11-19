@@ -231,7 +231,7 @@ the Overview, the item page and the board popover.
   (the option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
   clamped to 2 lines.
 - An ask with a `recommendation` moves the recommended tile first and marks it **green**: a
-  `--success` border at 40% (`border-success/40`), `--success-soft` background, and a
+  `--success` border at 40% opacity, `--success-soft` background, and a
   "Recommended" badge at `--text-console-12` in `--success`. The green mark never looks
   selected. Under its text, one line at `--text-console-13`, `--text-secondary` gives the
   recommendation's `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask

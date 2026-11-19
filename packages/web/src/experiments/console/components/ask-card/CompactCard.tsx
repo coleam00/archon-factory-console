@@ -2,10 +2,13 @@ import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { askTile } from '../../lib/ask-card';
 import type { NeedsYouItem } from '../../lib/needs-you';
-import { RECOMMENDED, RecommendedBadge } from './tile-marks';
+import { markProps, RECOMMENDED_BG, RecommendedBadge } from './tile-marks';
 
 // console-token-exception max-w-[760px] -- Visual standard rule 9: an ask card is at most 760 px wide in a page.
 const WIDTH = 'max-w-[760px]';
+// Beside the question (520 px and up) a long unbroken label would take the whole row and
+// squeeze the question to nothing; it wraps within this share instead.
+const TILE_SHARE = '@min-[520px]:max-w-[45%]';
 
 /**
  * The ask card's compact variant (the Overview): one line of what it is about, then the
@@ -42,9 +45,10 @@ export function CompactCard({
         </h3>
         <div
           title={tile.detail}
-          className={`flex min-w-0 max-w-full items-baseline gap-2 self-start rounded-console-12 border px-3 py-1.5 @min-[520px]:self-auto ${
-            tile.recommended ? RECOMMENDED : 'border-border bg-surface'
+          className={`flex min-w-0 max-w-full ${TILE_SHARE} items-baseline gap-2 self-start rounded-console-12 border px-3 py-1.5 @min-[520px]:self-auto ${
+            tile.recommended ? RECOMMENDED_BG : 'border-border bg-surface'
           }`}
+          {...markProps(false, tile.recommended)}
         >
           <span className="line-clamp-2 min-w-0 text-console-14 font-semibold text-text-primary [overflow-wrap:anywhere]">
             {tile.label}

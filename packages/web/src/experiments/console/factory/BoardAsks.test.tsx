@@ -181,7 +181,7 @@ describe("a board card's ask", () => {
         for (const el of found) expect(wrapsAnywhere(el, button)).toBe(true);
       }
       const line = holding(button, label)[0];
-      expect(line?.classList.contains('border-success/40')).toBe(true);
+      expect(line?.getAttribute('data-mark')).toBe('recommended');
       expect(line?.className).not.toContain('accent');
     } finally {
       await unmount();

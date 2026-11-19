@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { RECOMMENDED } from '../components/ask-card/tile-marks';
+import { markProps, RECOMMENDED_BG } from '../components/ask-card/tile-marks';
 import type { BoardCard } from './lib/board';
 import type { BoardAskFace as Face } from './lib/board-ask';
 import type { BoardAsks } from './useBoardAsks';
@@ -80,8 +80,9 @@ function AskFace({
       <span
         title={face.tile.detail}
         className={`max-w-full rounded-console-12 border px-2 py-1 text-console-12 text-text-primary transition-colors duration-150 ease-out [overflow-wrap:anywhere] ${
-          face.tile.recommended ? RECOMMENDED : 'border-border hover:border-border-bright'
+          face.tile.recommended ? RECOMMENDED_BG : 'border-border hover:border-border-bright'
         }`}
+        {...markProps(false, face.tile.recommended)}
       >
         {face.line}
       </span>

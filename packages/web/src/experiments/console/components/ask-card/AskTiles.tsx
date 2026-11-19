@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 import type { ReactElement } from 'react';
-import { RECOMMENDED, RECOMMENDED_BG, RecommendedBadge, SELECTED_BORDER } from './tile-marks';
+import { markProps, RECOMMENDED_BG, RecommendedBadge } from './tile-marks';
 
 /** One choice an ask offers, as a tile draws it. */
 export interface AskTile {
@@ -24,13 +24,12 @@ const PLAIN = 'border-border bg-surface hover:border-border-bright hover:bg-surf
 const OTHER = 'border-dashed border-border-bright bg-surface hover:bg-surface-elevated';
 
 /**
- * Selected depends on the pick alone; the recommendation only adds its green (rule 9). Each
- * state names one border colour, so a picked recommended tile never carries two.
+ * Selected depends on the pick alone; the recommendation only adds its green (rule 9). The
+ * border colour of either mark comes from `markProps`.
  */
 function tileClass(tile: AskTile, picked: boolean): string {
-  if (picked)
-    return `${BASE} ${SELECTED_BORDER} ${tile.recommended ? RECOMMENDED_BG : 'bg-surface-elevated'}`;
-  if (tile.recommended) return `${BASE} ${RECOMMENDED}`;
+  if (picked) return `${BASE} ${tile.recommended ? RECOMMENDED_BG : 'bg-surface-elevated'}`;
+  if (tile.recommended) return `${BASE} ${RECOMMENDED_BG}`;
   return `${BASE} ${tile.other ? OTHER : PLAIN}`;
 }
 
@@ -72,6 +71,7 @@ export function AskTiles({
               onPick(tile.id);
             }}
             className={tileClass(tile, picked)}
+            {...markProps(picked, tile.recommended)}
           >
             <TileBody tile={tile} picked={picked} />
           </button>

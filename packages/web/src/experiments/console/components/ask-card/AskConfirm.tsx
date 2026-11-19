@@ -9,6 +9,10 @@ export interface ConfirmDraft {
   placeholder: string;
 }
 
+// A style, not `border-accent-muted`: theme.css's unlayered `.console-root *` border colour
+// outranks every border utility (tile-marks.tsx says more).
+const CONFIRM_BORDER = { borderColor: 'var(--accent-muted)' } as const;
+
 /**
  * Under the tiles (Visual standard rule 9): the textarea when the choice takes words, then
  * "Answer: <label>" with Confirm, the accent at reduced strength, and a quiet Cancel. Confirm
@@ -68,7 +72,8 @@ export function AskConfirm({
           type="button"
           onClick={onConfirm}
           disabled={busy || !accepted}
-          className="rounded-console-12 border border-accent-muted bg-[color:var(--accent-soft)] px-3 py-1.5 text-console-13 font-semibold text-accent transition-colors duration-150 ease-out hover:bg-[color:var(--accent-muted)] disabled:opacity-50"
+          style={CONFIRM_BORDER}
+          className="rounded-console-12 border bg-[color:var(--accent-soft)] px-3 py-1.5 text-console-13 font-semibold text-accent transition-colors duration-150 ease-out hover:bg-[color:var(--accent-muted)] disabled:opacity-50"
         >
           {busy ? 'Sending…' : 'Confirm'}
         </button>
