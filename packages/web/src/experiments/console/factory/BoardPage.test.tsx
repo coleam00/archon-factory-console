@@ -715,7 +715,7 @@ test("the Table puts each row's column and stage under the Column and Stage head
   );
   try {
     const headers = [...container.querySelectorAll('thead th')].map(th =>
-      (th.textContent ?? '').replace(/ [↑↓]$/, '')
+      (th.textContent ?? '').replace(/ [↑↓]$/, '')
     );
     const column = headers.indexOf('Column');
     const stage = headers.indexOf('Stage');

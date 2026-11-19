@@ -609,10 +609,12 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
    (Visual standard, rule 6) in place of its figure; while any item's merge state is pending,
    every number but needs you and found by the factory shows the skeleton bar too, never a count
-   that may be wrong. On a cold server the read that starts a change's merge lookup waits for it
-   only about 300 ms, so the first read answers at once with those changes pending and the
-   merge-independent tiles show their numbers; the console reads again on `pending`, joins the
-   running lookups, and the rest fill in as they settle. A first read that fails replaces the tiles with an alert saying so; a
+   that may be wrong. The read that starts a change's merge lookup waits for it only about
+   300 ms, then answers with that change pending, so the merge-independent tiles show their
+   numbers; the console reads again on `pending`, joins the running lookups, and the rest fill
+   in as they settle. Known gap: just after a server starts, starting the change host's lookups
+   holds the server for a few seconds (the forge host's warm-up, outside this section), so the
+   first read on a cold server still takes that long. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet and links to the board's panel; it has its

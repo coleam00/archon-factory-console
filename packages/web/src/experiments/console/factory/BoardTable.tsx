@@ -46,17 +46,18 @@ export function BoardTable({
                 aria-sort={
                   sort.by === column.id ? (sort.descending ? 'descending' : 'ascending') : undefined
                 }
-                className="whitespace-nowrap px-2 py-1.5 font-medium"
+                className="px-1.5 py-1.5 align-bottom font-medium"
               >
                 <button
                   type="button"
                   onClick={() => {
                     sortBy(column.id);
                   }}
-                  className="uppercase tracking-wider hover:text-text-primary"
+                  className="text-left uppercase tracking-wider hover:text-text-primary"
                 >
                   {column.label}
-                  {sort.by === column.id ? (sort.descending ? ' ↓' : ' ↑') : ''}
+                  {/* A no-break space keeps the arrow on its label's last line. */}
+                  {sort.by === column.id ? (sort.descending ? ' ↓' : ' ↑') : ''}
                 </button>
               </th>
             ))}
@@ -80,7 +81,7 @@ export function BoardTable({
 
 /** One cell, its content at the top of the row. */
 function Cell({ children, className = '' }: { children?: ReactNode; className?: string }) {
-  return <td className={`px-2 py-1.5 align-top ${className}`}>{children}</td>;
+  return <td className={`px-1.5 py-1.5 align-top ${className}`}>{children}</td>;
 }
 
 function BoardRow({
@@ -104,7 +105,7 @@ function BoardRow({
       <Cell>
         <ItemLink projectId={projectId} itemKey={card.key} />
       </Cell>
-      <Cell className="min-w-56 text-text-primary">{card.title}</Cell>
+      <Cell className="min-w-48 text-text-primary">{card.title}</Cell>
       <Cell>
         {card.order === null ? null : <ItemLink projectId={projectId} itemKey={card.order} />}
       </Cell>
@@ -127,7 +128,7 @@ function BoardRow({
         <MergedWhen full={card.mergedAt} iso={row.placed.item.progress?.change?.mergedAt} />
       </Cell>
       <Cell
-        className={`min-w-48 max-w-64 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
+        className={`min-w-40 max-w-56 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
       >
         <span title={card.stopLine ?? undefined} className="line-clamp-2">
           <RowAsk card={card} asks={asks} />
