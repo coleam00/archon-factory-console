@@ -85,8 +85,9 @@ export interface TimelineShadow {
 /**
  * What a run's outcome did to the item, for its icon and colour. Derived from the same
  * branches as its words, never from the words: `sent-on` and `returned` by where `placement`
- * put the item, forward or back by the board's order (`isSendBack`, the rule the map's arrows
- * follow).
+ * put the item, forward or back by the board's order (`isSendBack`, the map's rule), judged
+ * from the furthest stage the run works, a placement into that stage itself sent on
+ * (`placedKind`).
  */
 export type RunKind = 'sent-on' | 'returned' | 'asked' | 'failed' | 'running' | 'stopped' | 'other';
 

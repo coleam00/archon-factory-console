@@ -407,7 +407,7 @@ documents through Neon live queries.
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
   | `factory/items/:key` | One item: its timeline, asks, links and change |
-  | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind "Show the real steps"; a stage with no drill-down shows the graphs |
+  | `factory/stages/:stage` | One stage opened: what it does, told as the view file's drill-down (numbered phases of plain cards, live), with each workflow's step graph behind its "Drill-down \| Real steps" control; a stage with no drill-down shows the graphs with no control |
   | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview, Board, Needs you and How it works |
 
@@ -576,7 +576,8 @@ What those reads do not carry comes from **one read-only route file**,
   exact, over every item on the project), and how many they held and dropped; 404 when the view
   declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
-  timeline needs per run and neither read carries: the declared workflow, the run's cause, its
+  timeline needs per run and neither read carries: the workflow as the view names it (a
+  stage's, or the `discoveries` drain's, which places no item), the run's cause, its
   cost, its running step, each round of the declared `rounds` loop with the steps that
   recorded an outcome in it and the deciding step's summary, and what each shadow step decided
   on the run (one per round in a loop; a drain's run included).
@@ -831,8 +832,10 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
   and duration and cost right-aligned in mono; under it how it started (by hand, or after which
   run's outcome; a trigger's id only on hover). For the rounds loop, one compact row per round:
   "round N of M", its verdict, and a chip per check in its verdict's colours, with what was
-  returned on one line. Sent on and returned follow the map's direction rule (an earlier
-  column, or the same or an earlier stage of one column, is a send-back). Once the change
+  returned on one line. Sent on and returned follow the board's order, judged from the furthest
+  stage the run's workflow works: a placement into an earlier column, or an earlier stage of
+  the same column, reads returned; a placement into a later stage, or into that furthest stage
+  itself (the land gate into Ready to merge), reads sent on. Once the change
   merged, a last Merged entry gives when, in local time. Each row links to its run. A check's
   verdict reads in the board's words where the view declares its meaning (`returns`, `approves`,
   `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run

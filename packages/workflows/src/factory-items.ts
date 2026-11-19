@@ -766,7 +766,7 @@ export async function readFactoryItem(
   return { pack: input.pack, item, runs };
 }
 
-/** A run's workflow as the view names it, its `discoveries` drain included (placement skips it). */
+/** A run's workflow as the view names it, its `discoveries` drain too (on no stage: it places nothing). */
 function itemRunWorkflow(view: FactoryView, pack: string, recorded: string): string | null {
   const drain = view.discoveries?.workflow;
   if (drain !== undefined && factoryRunWorkflowName(pack, drain) === recorded) return drain;

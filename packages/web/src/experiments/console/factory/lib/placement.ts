@@ -13,7 +13,8 @@ type RunStatus = FactoryItem['runs'][number]['status'];
 
 /**
  * One of an item's runs as placement reads it, in start order. `workflow` is the workflow as
- * the view declares it, null for a run of a workflow the view does not name; `step` is the
+ * the view names it, null for a run of a workflow the view does not name (its `discoveries`
+ * drain is skipped too); `step` is the
  * deepest running step while it runs; `failedStep` the step a failed run failed at.
  */
 export interface PlacementRun {
@@ -125,8 +126,15 @@ const STOPPED: ReadonlySet<RunStatus> = new Set(['failed', 'cancelled']);
 
 type DeclaredRun = PlacementRun & { workflow: string };
 
-function declaredRuns(runs: readonly PlacementRun[]): DeclaredRun[] {
-  return runs.filter((run): run is DeclaredRun => run.workflow !== null);
+/**
+ * The runs placement reads: every run of a workflow the view names but its `discoveries`
+ * drain, which places no item (the item page names it). Running beside the land gate, it must
+ * not take the item off its column. A workflow no stage lists any more stays, so an item cached
+ * under an older view reads as having no column rather than landing in the first stage.
+ */
+function declaredRuns(view: Declaration, runs: readonly PlacementRun[]): DeclaredRun[] {
+  const drain = view.discoveries?.workflow;
+  return runs.filter((run): run is DeclaredRun => run.workflow !== null && run.workflow !== drain);
 }
 
 /** The ending label for a completed run, from `endings` (`workflow:outcome` or `workflow:*`). */
@@ -172,7 +180,7 @@ export function itemColumn(
   input: PlacementInput,
   previous?: string
 ): ItemColumn | null {
-  const runs = declaredRuns(input.runs);
+  const runs = declaredRuns(view, input.runs);
   const stageOf = (stage: FactoryStage | undefined): ItemColumn | null =>
     stage === undefined ? null : { stage };
   // 1. A run works it: the stage its running step is in.

@@ -87,6 +87,16 @@ describe('where an item sits', () => {
     );
   });
 
+  test('a running discoveries drain, which no stage lists, never takes the item off its column', () => {
+    // The shipped order: deliver ready starts the drain and the land gate; the gate ends first.
+    const runs = [
+      run('deliver', 'completed', 'ready'),
+      run('discoveries', 'running'),
+      run('landgate', 'completed'),
+    ];
+    expect(where(itemColumn(view, input(runs)))).toBe('ready');
+  });
+
   test('4. an ending: off the board with its label, wildcard or exact', () => {
     expect(where(itemColumn(view, input([run('triage', 'completed', 'duplicate')])))).toBe(
       'ended: Closed by triage'
