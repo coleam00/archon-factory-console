@@ -6,8 +6,7 @@ import { useFactoryRead } from './useFactoryRead';
 
 /**
  * Every pack with a factory overview file: the one reader of `K.factoryPacks`. The sidebar
- * entry, the pack pages and each project's How it works link read it, so they agree on which
- * packs have a page.
+ * entry and the pack pages read it, so they agree on which packs have a page.
  */
 export function useFactoryPacks(): EntityView<FactoryPacksRead> {
   return useFactoryRead(K.factoryPacks, within =>

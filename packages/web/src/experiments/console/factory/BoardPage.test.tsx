@@ -216,15 +216,18 @@ describe('the Pipeline view', () => {
     }
   });
 
-  /** 5 and 2 are part of 48 by their order runs' results; 4 is part of 8, an order with runs. */
-  const withOrders = (): FactoryItem[] => {
-    const named: Record<string, string> = { '5': '48', '2': '48', '4': '8' };
-    return PAGE.items.map(item =>
+  /**
+   * Items made members by their order runs' results; by default 5 and 2 are part of 48 and 4
+   * is part of 8, an order with runs.
+   */
+  const withOrders = (
+    named: Record<string, string> = { '5': '48', '2': '48', '4': '8' }
+  ): FactoryItem[] =>
+    PAGE.items.map(item =>
       item.item.key in named
         ? { ...item, progress: { ...item.progress!, partOf: named[item.item.key]! } }
         : item
     );
-  };
   /** The work orders' summary button in the toolbar. */
   const summary = (container: HTMLElement): HTMLButtonElement | undefined =>
     [...container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find(button =>
@@ -236,12 +239,11 @@ describe('the Pipeline view', () => {
     );
 
   test('the work orders fold to one summary line in the toolbar until it is clicked', async () => {
-    // 9 is linked to 48 and has no run yet: 48 still has a member on the board.
-    const { container, unmount } = await mount(withOrders(), undefined, { '48': ['9'] });
+    // 48's members 5 and 4 are running, so it is open; 8's only member, 2, merged, so it is not.
+    const { container, unmount } = await mount(withOrders({ '5': '48', '4': '48', '2': '8' }));
     try {
       const button = summary(container);
-      // 48 has 1 of 3 merged; 8's one member is still running.
-      expect(button?.textContent).toBe('2 work orders · 2 open');
+      expect(button?.textContent).toBe('2 work orders · 1 open');
       expect(button?.getAttribute('aria-expanded')).toBe('false');
       expect(container.querySelector('li[data-order]')).toBeNull();
       // It shares the filter's line rather than taking one of its own above the columns.

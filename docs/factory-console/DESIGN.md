@@ -40,6 +40,8 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    "Needs you", left of Runs, on every project** (factory or not): every open ask and paused wait
    on the project's items, from any workflow, answerable in place, its count on the tab. The
    Factory sub-navigation links to it with the same count; `factory/needs-you` redirects there.
+   *Superseded by owner change 3 of 2026-11-19: the sub-navigation no longer links to it; the
+   redirect stays.*
    The ask card is the one design used everywhere an ask is answered: question, context, option
    tiles with what each does and costs, the recommended option first and marked, "Something else"
    (free text), confirm in place.
@@ -57,7 +59,9 @@ file, no pack names in code) and reads well to someone who has never seen Archon
 5. **Where the factory lives.** Factory-wide things (How it works, and later the pack's settings)
    move to a **Factory** entry in the console's sidebar, next to Settings, one page per installed
    pack. The project's Factory tab keeps the live parts: Overview, Board, item, stage and step
-   pages; its How it works link opens the sidebar page for its pack.
+   pages; its How it works link opens the sidebar page for its pack. *Superseded by owner change
+   3 of 2026-11-19: the tab has no How it works link; `factory/how-it-works` redirects to the
+   sidebar page.*
 6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
    would do and do nothing (admit, split, the land gate's would-merge, discoveries filing, the
    project's declared checks, order linking). Wherever one appears (map, board, stage page, item
@@ -825,9 +829,11 @@ matches only older merges), else rule 9's "Nothing in <column> now".
 
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
-columns, at the end of the toolbar. The Pipeline's toolbar is one line at 1440x900 and
-1280x720 (the filter box, Pipeline/Table, a `?show=` chip, the work orders' summary, the folded
-endings, the hint), wrapping on a phone, so the columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
+columns, at the end of the toolbar. The Pipeline's toolbar (the filter box, Pipeline/Table, a
+`?show=` chip, the work orders' summary, the folded endings, the hint) is one line at 1440x900,
+and at 1280x720 unless a `?show=` chip and a lit work order are both on it; then its last parts
+wrap to a second line and the columns still hold one full card. On a phone it wraps. The
+columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item with the same fields as columns, a Work order, a Column and a Stage column among
 them (a running item's step and round under its stage, as the card's stage line reads; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
