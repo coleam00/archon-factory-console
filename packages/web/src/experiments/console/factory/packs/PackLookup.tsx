@@ -6,6 +6,7 @@ import { errorDetail } from '../../lib/http';
 import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
+import { packDisplayName } from '../lib/pack-name';
 import type { FactoryPackListed } from '../lib/views';
 import { AllPacksLink, PackFrame, PacksFailed } from './PackFrame';
 import { PackSkeleton } from './PackSkeleton';
@@ -47,7 +48,11 @@ export function PackLookup({
 }
 
 /**
- * A pack page's title, on every tab: the pack's name. The overview's own title heads How it
- * works (its breadcrumb's root), so Settings never sits under it.
+ * A pack page's header, on every tab: the pack's name as a person reads it, its id on hover.
+ * The overview's own title heads How it works (its breadcrumb's root), so neither tab repeats
+ * it and Settings never sits under it.
  */
-export const packTitle = (pack: FactoryPackListed): string => pack.pack;
+export const packHeading = (pack: FactoryPackListed): { title: string; titleHint: string } => ({
+  title: packDisplayName(pack.pack),
+  titleHint: pack.pack,
+});
