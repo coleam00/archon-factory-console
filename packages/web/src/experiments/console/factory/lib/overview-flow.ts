@@ -77,19 +77,7 @@ export function overviewFlow(view: OverviewView, layout: OverviewLayout): Overvi
   if (start === undefined || starts.length > 1 || !layout.cards.has(start.to)) return undefined;
 
   // Every input leaves at once and arrives at once, so the dots meet on the first card.
-  const fan = layout.fans.find(f => f.group === start.from && !f.into);
-  const legs =
-    fan === undefined
-      ? [{ from: start.from, points: start.points }]
-      : fan.stubs.map(stub => ({
-          from: stub.card,
-          points: distinct([
-            stub.from,
-            stub.to,
-            { x: stub.to.x, y: (start.points[0] as Point).y },
-            ...start.points.slice(1),
-          ]),
-        }));
+  const legs = inputLegs(start, layout);
   let t = Math.max(...legs.map(leg => travel(leg.points)));
   const moves: FlowMove[] = legs.map(leg => ({
     from: leg.from,
@@ -128,6 +116,27 @@ export function overviewFlow(view: OverviewView, layout: OverviewLayout): Overvi
 
   const last = Math.max(...moves.map(move => move.end), ...glows.map(glow => glow.end));
   return { period: last + FLOW_REST, moves, glows };
+}
+
+/**
+ * One leg per input: from each member of an input group, along its stub of the group's fan, down
+ * the bar to the line's row and on along the line; from an input card, along the line.
+ */
+function inputLegs(
+  start: OverviewLayout['edges'][number],
+  layout: OverviewLayout
+): { from: string; points: Point[] }[] {
+  const fan = layout.fans.find(f => f.group === start.from && !f.into);
+  if (fan === undefined) return [{ from: start.from, points: start.points }];
+  return fan.stubs.map(stub => ({
+    from: stub.card,
+    points: distinct([
+      stub.from,
+      stub.to,
+      { x: stub.to.x, y: (start.points[0] as Point).y },
+      ...start.points.slice(1),
+    ]),
+  }));
 }
 
 const pick = (edge: OverviewLayout['edges'][number]) => ({

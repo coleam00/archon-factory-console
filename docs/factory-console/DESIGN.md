@@ -165,6 +165,12 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   timeline's dot (a swatch-sized marker): never a fill or a text colour. The one exception is the
   send-back line (rule 4), drawn in `--node-approval`, which the timeline's returned icon shares;
   the legend tells it apart by showing it as a dashed line, not a swatch.
+- How it works kind colours (`overview/overview-kinds.ts`): input `--node-command`, stage
+  `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
+  `--success`. No two are less than 25 degrees of hue apart and none is purple or pink (owner
+  changes 1 and 6 of 2026-11-19); `overview-kinds.test.ts` resolves each token to its oklch value
+  and holds both. The check swatch shares `--node-approval` with the send-back lines, as the check
+  group does above; the legend tells them apart the same way.
 - State colours:
   - running: `--running` on `--running-soft`
   - needs you: `--warning` on `--warning-soft`
@@ -198,6 +204,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Running: `animate-pulse` on the running chip's dot only.
 - Card moved: an `--accent-soft` background held for 1.5 s, then fading over 300 ms.
 - Needs-you ping: `animate-ping` on an 8 px `--warning` dot.
+- How it works flow (the overview's flow loop): SVG (SMIL) animation of position and opacity only,
+  on one timeline per view, no frame loop and no filter; pausable. CSS cannot stop SMIL, so under
+  `prefers-reduced-motion` it is not rendered at all.
 - Every animation sits behind `motion-safe:` and is off under `prefers-reduced-motion`. There the
   moved highlight still shows for 1.5 s, statically, with no fade.
 
@@ -339,6 +348,18 @@ The section has **two separate things**, each with its own file:
    skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
    counts and its one line, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a
    full-screen mode over the whole screen with the legend docked bottom-left. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
+   **The flow loop** (owner change 6 of 2026-11-19), on the root view only: dots leave every input
+   card together (An issue, A work order, Found by agents) and reach the first stage (Triage) at the
+   same moment; one dot then carries on along the forward line (Plan, Build, Checks, CI and
+   reviews, Ready to merge, Merged), resting a beat on each card while a faint halo in the card's
+   kind colour shows round it. Where a send-back line returns to an input card, a second dot leaves
+   at the same moment and travels it in the shadow colour (CI and reviews, along "unrelated finds
+   would become new work", to Found by agents). The loop rests, then starts again. "On to Merged"
+   passes Ready to merge, because the dots follow the lines the page draws. Which cards and lines
+   it follows is read from card and line kinds (`lib/overview-flow.ts`), never from ids; a view with
+   no single input line has no flow. Drill-downs and the other send-back lines stay still. A
+   "Pause flow" control beside Full screen stops and resumes it (a pause holds across full screen
+   and views); under `prefers-reduced-motion` neither the dots nor the control are drawn.
 2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
