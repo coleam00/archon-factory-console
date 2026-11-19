@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
+import { markProps, RECOMMENDED_BG } from '../components/ask-card/tile-marks';
 import type { BoardCard } from './lib/board';
 import type { BoardAskFace as Face } from './lib/board-ask';
 import type { BoardAsks } from './useBoardAsks';
@@ -76,7 +77,7 @@ function AskFace({
       onClick={event => {
         asks.openFor(itemKey, event.currentTarget);
       }}
-      className="relative z-10 flex flex-col items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="relative z-10 flex min-w-0 max-w-full flex-col items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       <span className="flex w-full min-w-0 items-center gap-2">
         <Ping />
@@ -91,11 +92,10 @@ function AskFace({
       </span>
       <span
         title={face.tile.detail}
-        className={`rounded-console-12 border px-2 py-1 text-console-12 text-text-primary transition-colors duration-150 ease-out ${
-          face.tile.recommended
-            ? 'border-accent-muted bg-[color:var(--accent-soft)]'
-            : 'border-border hover:border-border-bright'
+        className={`max-w-full rounded-console-12 border px-2 py-1 text-console-12 text-text-primary transition-colors duration-150 ease-out [overflow-wrap:anywhere] ${
+          face.tile.recommended ? RECOMMENDED_BG : 'border-border hover:border-border-bright'
         }`}
+        {...markProps(false, face.tile.recommended)}
       >
         {face.line}
       </span>

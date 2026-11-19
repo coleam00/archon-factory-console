@@ -172,6 +172,13 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   timeline's dot (a swatch-sized marker): never a fill or a text colour. The one exception is the
   send-back line (rule 4), drawn in `--node-approval`, which the timeline's returned icon shares;
   the legend tells it apart by showing it as a dashed line, not a swatch.
+- How it works kind colours (`overview/overview-kinds.ts`): input `--node-command`, stage
+  `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
+  `--success`. No two are less than 25 degrees of hue apart and none is purple or pink (owner
+  changes 1 and 6 of 2026-11-19); `overview-kinds.test.ts` resolves each token to its oklch value
+  and holds both. Besides the uses listed below, a kind colour is the faint halo the flow loop draws
+  round a card while a dot rests on it (rule 7). The check swatch shares `--node-approval` with the
+  send-back lines, as the check group does above; the legend tells them apart the same way.
 - State colours:
   - running: `--running` on `--running-soft`
   - needs you: `--warning` on `--warning-soft`
@@ -205,6 +212,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Running: `animate-pulse` on the running chip's dot only.
 - Card moved: an `--accent-soft` background held for 1.5 s, then fading over 300 ms.
 - Needs-you ping: `animate-ping` on an 8 px `--warning` dot.
+- How it works flow (the overview's flow loop): SVG (SMIL) animation of position and opacity only,
+  on one timeline per view, no frame loop and no filter; pausable. CSS cannot stop SMIL, so under
+  `prefers-reduced-motion` it is not rendered at all.
 - Every animation sits behind `motion-safe:` and is off under `prefers-reduced-motion`. There the
   moved highlight still shows for 1.5 s, statically, with no fade.
 
@@ -227,7 +237,9 @@ the Overview, the item page and the board popover.
 - Box: `--radius-console-16` (`rounded-console-16`), 1 px `--border`, `--surface` background,
   20 px padding (`p-5`), 12 px between rows (`gap-3`). At most 760 px wide in a page; 480 px wide
   in the board popover.
-- Header row in the Meta role: the item key in mono, the stage, and the age on the right.
+- Header row in the Meta role: the item key in mono, in neutral text (`--text-secondary`,
+  `--text-primary` on hover; never the accent) and always on one line (a long title beside it
+  truncates instead), the stage, and the age on the right.
 - Question: `--text-console-17`, semibold, at most 2 lines.
 - Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
   ClampedSummary pattern).
@@ -236,17 +248,31 @@ the Overview, the item page and the board popover.
   `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs
   (the option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
   clamped to 2 lines.
-- An ask with a `recommendation` moves the recommended tile first: `--accent-muted` border,
-  `--accent-soft` background, and a "Recommended" badge at `--text-console-12` in `--accent`.
-  Under its text, one line at `--text-console-13`, `--text-secondary` gives the recommendation's
-  `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
+- An ask with a `recommendation` moves the recommended tile first and marks it **green**: a
+  `--success` border at 40% opacity, `--success-soft` background, and a
+  "Recommended" badge at `--text-console-12` in `--success`. The green mark never looks
+  selected. Under its text, one line at `--text-console-13`, `--text-secondary` gives the
+  recommendation's `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
   without a recommendation keeps its declared order and marks no tile.
+- **Selected** is its own state and depends only on the pick: a chosen tile gets a `--accent`
+  border and a check icon (`--accent`), on `--surface-elevated` (a chosen recommended tile keeps
+  its `--success-soft` background and its badge, and takes the accent border in place of the
+  green one). Before any pick no tile looks selected, and picking a tile the ask does not
+  recommend leaves exactly one tile looking chosen.
+- **Nothing leaves the card.** Every text field (question, context, option label, `does`, `cost`,
+  the recommendation's `why`, the confirm row's "Answer:" line) wraps long unbroken strings such as
+  paths and URLs (`overflow-wrap: anywhere`), flex children that hold text have `min-width: 0`, a
+  tile is never wider than its row (`max-width: 100%`), and the card never grows past its
+  container.
 - "Something else" is the ask's reserved `other` option, not a tile the card adds: it is drawn
   only when the ask carries that option (an ask declared `other: true`; the engine appends it
   last). Its tile reads "Something else" with "Write your own answer" under it, with a dashed
   `--border-bright` border. Choosing it opens a textarea in place (`--text-console-14`, 3 rows).
 - Choosing a tile does not send. A confirm row appears under the tiles: "Answer: <label>", a
-  Confirm button and a Cancel button. Once sent, the card reads "Answered: <label>" in place.
+  Confirm button and a Cancel button. Confirm is the accent at reduced strength, never a
+  full-strength block: `--accent-soft` fill, 1 px `--accent-muted` border, semibold `--accent`
+  text, `--accent-muted` fill on hover. Cancel stays quiet (`--text-secondary`, no fill). Once
+  sent, the card reads "Answered: <label>" in place.
 - **The card draws an answer; it does not define one.** Which choices an ask offers, how many
   may be chosen, which need text, and what is refused belong to the ask and its owners: for an
   attention ask, its declared `form`, `options`, `other` and `recommendation`, checked by
@@ -257,9 +283,8 @@ the Overview, the item page and the board popover.
   through the confirm row):
   - a choice is a tile, labelled by rule 8 (or by the label its owner gives it, such as
     `ApprovalPanel`'s "Continue" and "Accept & complete");
-  - a choice that takes several picks toggles its tiles: a chosen tile takes the recommended
-    tile's `--accent-muted` border and `--accent-soft` background, with a check icon, and the
-    confirm row lists the chosen labels ("Answer: <label>, <label>");
+  - a choice that takes several picks toggles its tiles: each chosen tile shows the selected
+    state above, and the confirm row lists the chosen labels ("Answer: <label>, <label>");
   - an answer in words, or a choice whose owner takes text with it (required or optional, as
     `ApprovalPanel`'s comment on approve and its reason on every other decision), opens the textarea in place
     (`--text-console-14`, 3 rows) above the confirm row, and an ask answered only in words has no
@@ -275,8 +300,12 @@ the Overview, the item page and the board popover.
 - On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping, the
   question at `--text-console-13` cut to that line (the whole question on hover and in the
   popover), and "N questions" when there are several; under it, the line Needs you shows for it
-  at `--text-console-12` ("Recommended: <label>" when the ask recommends one). The card's title
-  then takes 2 lines, not 3.
+  at `--text-console-12` ("Recommended: <label>" when the ask recommends one, on the recommended
+  tile's green mark), which wraps long unbroken text inside the card, as the Overview's compact
+  card does with its tile (from 520 px wide, where the tile sits beside the question, it takes
+  at most 45% of the row). The card's title then takes 2 lines, not 3.
+- Owner change 2026-11-19, points 1 and 2: the recommended green, the selected state, the toned
+  Confirm, the neutral item key and the wrapping above.
 
 **The column header** (owner change 4), one per board column:
 
@@ -348,6 +377,18 @@ The section has **two separate things**, each with its own file:
    skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
    counts and its one line, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a
    full-screen mode over the whole screen with the legend docked bottom-left. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
+   **The flow loop** (owner change 6 of 2026-11-19), on the root view only: dots leave every input
+   card together (An issue, A work order, Found by agents) and reach the first stage (Triage) at the
+   same moment; one dot then carries on along the forward line (Plan, Build, Checks, CI and
+   reviews, Ready to merge, Merged), resting a beat on each card while a faint halo in the card's
+   kind colour shows round it. Where a send-back line returns to an input card, a second dot leaves
+   at the same moment and travels it (CI and reviews, along "unrelated finds would become new
+   work", to Found by agents), in the shadow colour because that line is a shadow. The loop rests, then starts again. "On to Merged"
+   passes Ready to merge, because the dots follow the lines the page draws. Which cards and lines
+   it follows is read from card and line kinds (`lib/overview-flow.ts`), never from ids; a view with
+   no single input line has no flow. Drill-downs and the other send-back lines stay still. A
+   "Pause flow" control beside Full screen stops and resumes it (a pause holds across full screen
+   and views); under `prefers-reduced-motion` neither the dots nor the control are drawn.
 2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each

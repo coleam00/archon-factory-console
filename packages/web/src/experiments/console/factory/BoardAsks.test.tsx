@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import { holding, LONG, wrapsAnywhere } from '../components/ask-card/wrap.test-fixtures';
 import { askItem, gateItem } from '../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../skills/factory';
 import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
@@ -183,6 +184,38 @@ describe("a board card's ask", () => {
       expect(question?.classList.contains('truncate')).toBe(true);
       expect(question?.getAttribute('title')).toBe('Newer?');
       expect(line?.textContent).toBe('Newer?2 questions');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a long unbroken question and option label stay inside the card; the line is green', async () => {
+    const item = realItem('6');
+    const question = `question:${LONG}`;
+    const label = `label:${LONG}`;
+    const ask = askOn(item, {
+      message: question,
+      options: [{ id: 'long', label }],
+      recommendation: { option: 'long', why: 'Why.' },
+    });
+    const { container, unmount } = await mount([asking(item, [ask])], queueOf([ask]));
+    try {
+      const button = face(container, '6');
+      expect(button.classList.contains('min-w-0')).toBe(true);
+      expect(button.classList.contains('max-w-full')).toBe(true);
+      // The question is cut to its one line (the short ask card, #91), whole in the popover.
+      const asked = holding(button, question);
+      expect(asked.length).toBeGreaterThan(0);
+      for (const el of asked) {
+        expect(el.classList.contains('truncate')).toBe(true);
+        expect(el.classList.contains('min-w-0')).toBe(true);
+      }
+      const found = holding(button, label);
+      expect(found.length).toBeGreaterThan(0);
+      for (const el of found) expect(wrapsAnywhere(el, button)).toBe(true);
+      const line = holding(button, label)[0];
+      expect(line?.getAttribute('data-mark')).toBe('recommended');
+      expect(line?.className).not.toContain('accent');
     } finally {
       await unmount();
     }

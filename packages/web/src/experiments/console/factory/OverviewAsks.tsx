@@ -83,7 +83,7 @@ function MoreLink({ projectId, more }: { projectId: string; more: number }): Rea
   return (
     <Link
       to={needsYouPath(projectId)}
-      className="self-start text-console-13 text-accent-bright hover:underline"
+      className="self-start text-console-13 text-text-secondary hover:text-text-primary hover:underline"
     >
       {more.toString()} more on Needs you
     </Link>

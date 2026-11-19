@@ -160,7 +160,7 @@ function RecommendationWhy({ wait }: { wait: AttentionWait }): ReactElement | nu
   if (recommendation === undefined) return null;
   const matched = wait.options.some(option => option.id === recommendation.option);
   return (
-    <p className="text-console-13 text-text-secondary">
+    <p className="text-console-13 text-text-secondary [overflow-wrap:anywhere]">
       {matched ? '' : `Recommended: ${recommendedLabel(wait) ?? ''}. `}
       {recommendationWhy(recommendation)}
     </p>
