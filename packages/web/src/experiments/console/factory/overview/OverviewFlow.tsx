@@ -61,10 +61,11 @@ function opacityAnimation(
 /**
  * The flow of the root view, as a quiet loop on one SVG timeline (`lib/overview-flow.ts` says
  * which dots move where and when): a dot along each move's line, and a faint halo around each
- * card, in its kind's colour, while a dot rests on it. Drawn between the lines and the cards, so a dot slips under a
- * card's edge for its beat while the halo shows outside it. Only position and opacity animate,
- * in the browser's SMIL engine: no frame loop, no re-render, no filter. Paused through the SVG's
- * own `pauseAnimations`, applied again whenever the layer mounts (full screen remounts it).
+ * card, in its kind's colour, while a dot rests on it. Drawn between the lines and the cards, so
+ * a dot slips under a card's edge for its beat while the halo shows outside it. Only position and
+ * opacity animate, in the browser's SMIL engine: no frame loop, no re-render, no filter. Paused
+ * through the SVG's own `pauseAnimations`, applied again whenever the layer mounts (full screen
+ * remounts it).
  */
 export const OverviewFlow = memo(function OverviewFlow({
   flow,
