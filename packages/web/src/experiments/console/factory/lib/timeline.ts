@@ -173,9 +173,23 @@ const declaredAsked = (view: Declaration, workflow: string, outcome: string | nu
   (view.asked ?? []).some(key => key === `${workflow}:*` || key === `${workflow}:${outcome}`);
 
 /**
+ * The label of the `parked` entry a completed outcome takes, exactly or by `workflow:*`; as in
+ * `asked`, `*` takes every outcome, not a run that recorded none.
+ */
+const declaredParked = (
+  view: Declaration,
+  workflow: string,
+  outcome: string | null
+): string | undefined =>
+  outcome === null
+    ? undefined
+    : (view.parked?.[`${workflow}:${outcome}`] ?? view.parked?.[`${workflow}:*`])?.label;
+
+/**
  * A completed run's outcome: "asked you" when it stopped to ask (a declared `asked` outcome,
- * or asks it left on the item), else where `placement` sent the item ("sent to Plan"), the
- * label of the `endings` entry that closed it, else the pack's token as an identifier.
+ * or asks it left on the item), else the `parked` label when it kept the item open for later
+ * ("Parked by triage", not the stage it sits in), else where `placement` sent the item ("sent to
+ * Plan"), the label of the `endings` entry that closed it, else the pack's token as an identifier.
  */
 function completedOutcome(
   view: Declaration,
@@ -185,6 +199,8 @@ function completedOutcome(
 ): Outcome {
   if (asked.length > 0 || (workflow !== null && declaredAsked(view, workflow, result)))
     return outcome(ASKED_YOU, 'asked');
+  const parked = workflow === null ? undefined : declaredParked(view, workflow, result);
+  if (parked !== undefined) return outcome(parked, 'other');
   const stage = workflow === null ? undefined : placedStage(view, workflow, result);
   if (workflow !== null && stage !== undefined)
     return outcome(`sent to ${stage.label}`, placedKind(view, workflow, stage.id));

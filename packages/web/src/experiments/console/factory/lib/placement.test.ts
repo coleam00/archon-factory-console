@@ -98,11 +98,37 @@ describe('where an item sits', () => {
   });
 
   test('4. an ending: off the board with its label, wildcard or exact', () => {
-    expect(where(itemColumn(view, input([run('triage', 'completed', 'duplicate')])))).toBe(
+    const wildcard = { ...view, endings: { 'triage:*': 'Closed by triage' } };
+    expect(where(itemColumn(wildcard, input([run('triage', 'completed', 'duplicate')])))).toBe(
       'ended: Closed by triage'
     );
     expect(where(itemColumn(view, input([run('plan', 'completed', 'stop')])))).toBe(
       'ended: Stopped at planning'
+    );
+  });
+
+  test("each of triage's verbs: build and narrow go on, park stays open, the rest end", () => {
+    const placed: Record<string, string> = {
+      build: 'plan',
+      narrow: 'plan',
+      park: 'triage',
+      close: 'ended: Closed by triage',
+      decline: 'ended: Closed by triage',
+      deprecate: 'ended: Closed by triage',
+      fold: 'ended: Folded into another item',
+      recipe: 'ended: Handled another way',
+      native: 'ended: Handled another way',
+    };
+    for (const [verb, place] of Object.entries(placed))
+      expect([verb, where(itemColumn(view, input([run('triage', 'completed', verb)])))]).toEqual([
+        verb,
+        place,
+      ]);
+    // Parked is open: a run after it takes the item up, as after any placed outcome.
+    const parked = run('triage', 'completed', 'park');
+    expect(where(itemColumn(view, input([parked, run('triage', 'running')])))).toBe('triage');
+    expect(where(itemColumn(view, input([parked, run('triage', 'completed', 'close')])))).toBe(
+      'ended: Closed by triage'
     );
   });
 
@@ -135,7 +161,7 @@ describe('where an item sits', () => {
   });
 
   test('4 and 5 read the last declared run whatever its status: every status after an ending', () => {
-    const ended = run('triage', 'completed', 'reject');
+    const ended = run('triage', 'completed', 'close');
     const after = (status: PlacementRun['status'], outcome: string | null = null) =>
       where(itemColumn(view, input([ended, run('triage', status, outcome)])));
     // Taken up again: back on the board, where a running run works it, else the first stage.
@@ -146,7 +172,7 @@ describe('where an item sits', () => {
     expect(after('failed')).toBe('triage');
     expect(after('cancelled')).toBe('triage');
     // Ended again: off the board.
-    expect(after('completed', 'reject')).toBe('ended: Closed by triage');
+    expect(after('completed', 'close')).toBe('ended: Closed by triage');
     // An exact ending key with a newer pending run of the same workflow.
     const stopped = [run('plan', 'completed', 'stop'), run('plan', 'pending')];
     expect(where(itemColumn(view, input(stopped)))).toBe('order');
@@ -263,7 +289,7 @@ describe('placing items of the items read, first rule that matches', () => {
   });
 
   test('4: endings fold off the board, by workflow:* or an exact key on the last run', () => {
-    expect(placeOf(endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now'))).toBe(
+    expect(placeOf(endLastRun(keepRuns(realItem('6'), 1), 'completed', 'decline'))).toBe(
       'ended: Closed by triage'
     );
     // Plan stopped after triage said build: the last completed run is plan's, not triage's.

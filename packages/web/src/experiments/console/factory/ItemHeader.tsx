@@ -60,6 +60,14 @@ function ColumnWords({
 }): ReactNode {
   if (item.progress === null || column === null) return <span>Position unknown</span>;
   if ('ended' in column) return <span>{column.ended}</span>;
+  // A parked item sits in a stage, but says why it rests there; its reason on hover.
+  const { parked } = item.progress;
+  if (parked !== null)
+    return (
+      <span data-parked title={parked.why ?? undefined}>
+        {parked.label}
+      </span>
+    );
   return <span>In {column.stage.label}</span>;
 }
 

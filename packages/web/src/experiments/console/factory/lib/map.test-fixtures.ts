@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItem } from '../../skills/factory';
-import { withShadowsField } from './fixtures/shadows-field';
+import { withLaterFields } from './fixtures/later-fields';
 import type { ChangeMerged } from './merge-pending';
 
 const seeded = (
-  withShadowsField(
+  withLaterFields(
     JSON.parse(readFileSync(join(import.meta.dir, 'fixtures', 'map-items.json'), 'utf8'))
   ) as {
     items: FactoryItem[];

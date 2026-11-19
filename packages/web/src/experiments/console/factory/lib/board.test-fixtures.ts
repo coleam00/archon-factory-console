@@ -9,11 +9,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryDeclaration } from './board';
-import { withShadowsField } from './fixtures/shadows-field';
+import { withLaterFields } from './fixtures/later-fields';
 
 const read = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
-export const PAGE = withShadowsField(
+export const PAGE = withLaterFields(
   read(join(import.meta.dir, '__fixtures__', 'items-page.json'))
 ) as {
   items: FactoryItem[];
@@ -71,6 +71,23 @@ export function endLastRun(
       ...progress,
       running: null,
       runs: progress.runs.map(run => (run.runId === last.id ? { ...run, failedStep } : run)),
+    },
+  };
+}
+
+/**
+ * Real item 6 cut to its first run, a triage run, keyed `key`, as the server reads it once
+ * triage parked it: completed with `park`, and its progress carrying the declared label and
+ * the judge's reason.
+ */
+export function parkedByTriage(key = '6p'): FactoryItem {
+  const item = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'park');
+  return {
+    ...item,
+    item: { ...item.item, key },
+    progress: {
+      ...progressOf(item),
+      parked: { label: 'Parked by triage', why: 'Worth doing; measure it first.' },
     },
   };
 }

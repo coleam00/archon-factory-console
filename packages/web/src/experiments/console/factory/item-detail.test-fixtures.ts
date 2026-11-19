@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItemDetail } from '../skills/factory';
-import { withShadowsField } from './lib/fixtures/shadows-field';
+import { withLaterFields } from './lib/fixtures/later-fields';
 import type { FactoryViewListed } from './lib/views';
 
 /**
@@ -13,7 +13,7 @@ export function itemDetail(key: '1' | '2' | '3' | '6'): FactoryItemDetail {
   const raw = JSON.parse(
     readFileSync(join(import.meta.dir, '__fixtures__', `item-${key}.json`), 'utf8')
   ) as { response: FactoryItemDetail };
-  return withShadowsField(raw.response);
+  return withLaterFields(raw.response);
 }
 
 /** The declaration this repository ships for the pack the fixtures' runs come from. */

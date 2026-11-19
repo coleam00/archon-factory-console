@@ -23,6 +23,7 @@ export const PILL_CLASS: Record<Pill, string> = {
   running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
   'needs-you': 'bg-warning font-semibold text-surface-inset',
   failed: 'bg-[color:var(--error-soft)] text-error',
+  parked: 'bg-surface-inset text-text-secondary ring-1 ring-inset ring-border',
   waiting: 'bg-surface-inset text-text-tertiary',
   landed: 'bg-[color:var(--success-soft)] text-success',
 };

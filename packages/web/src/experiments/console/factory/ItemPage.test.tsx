@@ -304,6 +304,39 @@ describe('work orders on the item page', () => {
     expect(words).toContain('Members: 0 of 1 merged');
   });
 
+  test('a parked item: the Parked pill, the declared label with its reason on hover', () => {
+    const base = itemDetail('1');
+    const [triage] = base.item.runs;
+    const progress = base.item.progress;
+    if (triage === undefined || progress === null) throw new Error('item 1 has runs');
+    const why = 'Worth doing, but measure it first.';
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: base.runs.filter(run => run.runId === triage.id),
+      item: {
+        ...base.item,
+        runs: [{ ...triage, outcome: 'park' }],
+        questions: [],
+        progress: {
+          ...progress,
+          running: null,
+          round: null,
+          change: null,
+          runs: progress.runs.filter(run => run.runId === triage.id),
+          parked: { label: 'Parked by triage', why },
+        },
+      },
+    };
+    const html = render(detail);
+    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
+    expect(header).toContain(pill('parked', 'Parked'));
+    expect(text(header)).toContain('Parked Parked by triage No change yet');
+    expect(text(header)).not.toContain('In Triage');
+    expect(header).toContain(`title="${attribute(why)}">Parked by triage</span>`);
+    // The timeline reads the parking run in the same words, not "sent to Triage".
+    expect(text(html)).not.toContain('sent to Triage');
+  });
+
   test('a member with no run yet: Not started, no state, column or change', () => {
     const base = itemDetail('1');
     const detail: FactoryItemDetail = {

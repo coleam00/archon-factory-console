@@ -274,6 +274,67 @@ describe('factoryViewCoverage', () => {
   });
 });
 
+/** `graph()` with plan declaring the outcomes a run of it completes with. */
+const withPlanOutcomes = (...values: string[]): PackGraph => {
+  const of = graph();
+  const plan = of.stages[0];
+  if (plan === undefined) throw new Error('graph() has no plan stage');
+  plan.outcome = {
+    field: 'outcome',
+    form: 'enum',
+    values: values.map(value => ({ value, startsNothing: false })),
+  };
+  return of;
+};
+
+describe('outcomes: each one placed or ended, and only declared ones named', () => {
+  test('a view that places, ends or parks every declared outcome has no findings', () => {
+    const view = {
+      ...clean(),
+      placement: { 'plan:planned': 'build', 'plan:park': 'plan' },
+      endings: { 'plan:stop': 'Stopped at planning' },
+      parked: { 'plan:park': { label: 'Parked' } },
+      asked: ['plan:planned'],
+    };
+    expect(findings(view, withPlanOutcomes('planned', 'park', 'stop'))).toEqual([]);
+  });
+
+  test('a declared outcome neither placed nor ended is reported, one finding each', () => {
+    const view = { ...clean(), placement: { 'plan:planned': 'build' } };
+    expect(findings(view, withPlanOutcomes('planned', 'park', 'stop'))).toEqual([
+      ['unplaced-outcome', 'placement'],
+      ['unplaced-outcome', 'placement'],
+    ]);
+  });
+
+  test('workflow:* in placement or endings takes every outcome', () => {
+    const of = withPlanOutcomes('planned', 'park', 'stop');
+    expect(findings({ ...clean(), placement: { 'plan:*': 'plan' } }, of)).toEqual([]);
+    expect(findings({ ...clean(), endings: { 'plan:*': 'Stopped' } }, of)).toEqual([]);
+  });
+
+  test('an exact key naming an outcome the workflow does not declare is reported at its path', () => {
+    const view = {
+      ...clean(),
+      placement: { 'plan:planned': 'build', 'plan:parked': 'plan' },
+      endings: { 'plan:closed': 'Closed' },
+      parked: { 'plan:parked': { label: 'Parked' } },
+      asked: ['plan:asked'],
+    };
+    expect(findings(view, withPlanOutcomes('planned'))).toEqual([
+      ['unknown-outcome', 'placement.plan:parked'],
+      ['unknown-outcome', 'endings.plan:closed'],
+      ['unknown-outcome', 'parked.plan:parked'],
+      ['unknown-outcome', 'asked.0'],
+    ]);
+  });
+
+  test('a workflow that declares no outcome is not compared', () => {
+    const view = { ...clean(), placement: { 'deliver:anything': 'ship' } };
+    expect(findings(view)).toEqual([]);
+  });
+});
+
 describe('arrows back into their own stage, and arrows touching landed', () => {
   test('a declared loop the pack no longer starts is reported', () => {
     const stale = graph();

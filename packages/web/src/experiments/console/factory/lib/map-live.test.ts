@@ -63,7 +63,7 @@ describe('the live chips on each card', () => {
       view,
       [
         itemWith('ready', [run('deliver', 'completed', 'ready')]),
-        itemWith('skip', [run('triage', 'completed', 'skip')]),
+        itemWith('close', [run('triage', 'completed', 'close')]),
       ],
       []
     );

@@ -60,7 +60,7 @@ page, keeping the query string. Inside the tab:
   screen and each column scrolls on its own under a header with its label, its `blurb` ("last 7 days" on the column holding the `landed` stage), its
   count and a chip per state ("running 2", "needs you 1"). A card names its stage, or the
   stage and step running now ("Checks · Code review · round 2"), and shows the item's state
-  (Running, Needs you, Failed, Waiting, Merged), the round it is on, how often checks sent it
+  (Running, Needs you, Failed, Parked, Waiting, Merged), the round it is on, how often checks sent it
   back, its pull request, and the work order it is part of. The column holding the `landed`
   stage lists the items merged in the last 7 days (local time), newest first, with "N earlier
   · show all" opening the Table filtered to every merged item; its cards are compact (key,
@@ -125,10 +125,10 @@ question opening or closing.
 
 | Number | Counts |
 |---|---|
-| in flight | Items on the board outside the landed stage |
+| in flight | Items on the board outside the landed stage, parked items not included |
 | items need you | Items with an open question |
 | merged today | Items whose change merged today, in the browser's local time |
-| N of M done | N items merged out of M on the board, however long ago. Items an `endings` outcome closed are not in M |
+| N of M merged | N items merged out of M on the board, however long ago. Items an `endings` outcome closed are not in M; a parked item is |
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
 | found by the factory | Findings the discoveries drains decided to file that no item carries yet; shown only when the view declares `discoveries` |
 
@@ -148,7 +148,9 @@ questions and whether its change merged, taking the first rule that matches:
 3. Its last completed run's `workflow:outcome` is a key of `placement`, else its
    `workflow:*`: that stage. `workflow:*` also places a run that returns no outcome.
 4. Its last run's outcome is a key of `endings`: off the board, counted at the end of the
-   board's toolbar ("1 closed by triage"), which opens a list of them.
+   board's toolbar in one folded row per ending label ("1 closed by triage", "1 folded into
+   another item"), each opening a list of them. A `parked` outcome is never an ending: rule 3
+   places it, and the item stays open.
 5. Its last run failed or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of its workflow.
 6. Otherwise the first stage.
@@ -180,13 +182,14 @@ parse or validate shows on the Factory tab with its path and the error.
 | `stages` | yes | The stages an item moves through, left to right: the map's cards, the stage pages, and the board's columns when `columns` is absent. Each stage has an `id` (a lowercase slug), a `label`, a one-line `blurb`, an optional `short` line for its map card (at most 24 characters, what one row of a card holding several stages shows whole; without it the card shows the blurb, cut to fit), a colour `group` (`intake`, `build`, `check` or `land`), the `workflows` whose runs count in it (empty for a stage no run works, such as Merged), and optionally `nodes`: the steps that count in it while they run. A step matches a node equal to its id, or one its id begins with followed by `.`, so `rounds` matches `rounds.fix`. A step of an included workflow is `<include>__<node>`. A stage may carry a `drilldown`: what it does step by step, as numbered `phases` (each a `label` and one to six `cards`), and an optional `loop` (`label`, `from` and `to` phase numbers, and the loop group's `workflow` and `step`) around the phases a loop group repeats. A card has a `title`, one line of `text`, an `icon` (one of `inbox`, `scale`, `link`, `ruler`, `scissors`, `database`, `clipboard-list`, `pencil`, `wrench`, `git-branch`, `search-code`, `flask-conical`, `monitor-check`, `gavel`, `message-square`, `circle-alert`, `git-pull-request`, `flag`, `send`, `shield-check` or `git-merge`), a `kind` (`agent`, `check`, `script` or `you`), and `covers`: the real steps it stands for, as `{ "workflow", "steps" }` for a workflow its stage lists. The stage page draws it: the phases as numbered columns of cards, the loop as one labelled frame around its phases, and a card glows while an item is on a step it covers. Clicking a card lists its real steps; "Show the real steps" draws each workflow's step graph below. A stage without a drill-down shows the graphs. |
 | `columns` | no | The board's columns, left to right, each a group of stages: `{ "id", "label", "blurb", "stages": [<stage id>, ...] }`. The `blurb` is the header's one-line subtitle; name the column's stages in it. The column holding the `landed` stage always reads "last 7 days" there instead, and its `blurb` is not shown on the board. Every declared stage is in exactly one column, and the `landed` stage in a column of its own. Placement still decides an item's stage; the board puts its card in the column holding that stage, and the card names the stage. A column takes the colour of the `group` of its last stage, the one an item leaves it from; the `landed` stage's column takes the merged colour. Without `columns`, the board draws one column per stage. |
 | `placement` | yes | Where an item waits after a run ends: `workflow:outcome` to a stage id, or `workflow:*` for every completed run of the workflow no exact key takes, a run that returns no outcome (a gate that only records) included. |
-| `endings` | yes | Outcomes that end an item without a change: `workflow:outcome`, or `workflow:*` for every outcome `placement` does not take, to the label of the folded row. Use `{}` for none. |
+| `endings` | yes | Outcomes that end an item without a change: `workflow:outcome`, or `workflow:*` for every outcome `placement` does not take, to the label of the folded row. Use `{}` for none. Map outcomes that mean different things to their own labels rather than with one `workflow:*`: a wildcard also ends an outcome that keeps the item open. |
 | `landed` | yes | `{ "stage": <id> }`: the stage an item whose change merged sits in. |
 | `rounds` | no | `{ "workflow", "loop" }`: the loop whose iterations the board counts as rounds ("round 2 of 3"). |
 | `returns` | no | Steps whose outcome sends an item back: each `{ "workflow", "node", "outcome" }`. The board counts them as "returned ×N" and colours that round returned. |
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `verdicts` | no | What other steps' outcomes mean, so the item page's timeline words them: `{ "<workflow>": { "<step id>": { "<outcome>": "approved" } } }`, each meaning one of `approved`, `returned` or `asked`. A check's outcome then reads "approved", "returned" or "asked you", the words the board's round dots use. It decides nothing: only `returns` and `approves` decide a round, and an entry that restates one of theirs is rejected. An outcome no entry means reads as the pack's own token, in mono. The coverage check reports a step the workflow does not have. |
 | `asked` | no | Completed outcomes that stop to ask you: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one). A run that ended so reads "asked you" on the item page's timeline, as does any run that left asks on the item, with its questions on hover. `placement` still decides where the item waits. |
+| `parked` | no | Completed outcomes that keep an item open for later, not ended: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one), each to `{ "label", "why" }`. `label` is what the item reads ("Parked by triage") in its header and on its timeline, with the Parked state pill; `why`, optional, is the JSON pointer to the run's reason in its result, shown on hover. `placement` must take each key, since it still decides where the item sits, and an exact `endings` key may not name one. A parked item counts in "N of M merged" and not in flight. |
 | `change` | no | `{ "workflow", "pointer" }`: the JSON pointer to the pull request URL in that workflow's result. |
 | `partOf` | no | `{ "workflow", "pointer", "outcome" }`: the JSON pointer to the item's work order (an item key) in that workflow's result, read only from runs that completed with `outcome` (the one that accepts the item), so a refused run never makes an item a member. Read only for an item with no active `part_of` link; the newest such run decides, and an empty value there means none. |
 | `discoveries` | no | `{ "workflow", "shadow", "filed", "held", "dropped", "entry": { "title", "kind", "verified" } }`: the workflow that drains what agents noticed outside their work, and where each of its completed runs' result lists what it decided, as JSON pointers: `filed`, `held` and `dropped` into the result (each a list), `entry` into each entry of `filed` (`title` required, `kind` and `verified` optional). Its runs place no item, so no stage need list it. `shadow: true` says the drains only decide what they would file: the board's panel words them "would file" and marks them shadow. It must agree with `shadows`: `true` needs a `shadows` entry naming the drain's workflow, `false` forbids one. A result recorded as text holding JSON (a script's output) is read as that JSON. A run whose result has no list at a declared pointer, or a filed entry with no title, counts as a drain that could not be read. |
@@ -196,7 +199,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; each is drawn in the card of its board column, in the column's order, and the `col` and `row` an older file has are accepted and ignored), `arrows` are every arrow it draws (`from`, `to`, an optional `label`, and `person: true` for a step a person takes, such as a replan, that no hand-off of the pack starts), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. An arrow into an earlier card is a send-back, and so is one into its own stage or an earlier stage of its own card; one into a later stage of its own card is not drawn, since the card's rows show that order; a `back` flag an older file has is accepted and ignored. A forward arrow runs between neighbouring cards; one that would skip cards is drawn as part of the label of the hand-off from its card to the next ("fast → Merged"). Every send-back runs in one feedback lane under the row. The cards always take one row; the map pans where it does not fit. The map lists a stage's notes in its card's details; a `needs-you` note is not drawn yet. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
-`placement`, `endings`, `rounds`, `returns`, `approves`, `change` and `shadows` must be listed by
+`placement`, `endings`, `parked`, `rounds`, `returns`, `approves`, `change` and `shadows` must be listed by
 a stage; `discoveries` is the exception, and a shadow may name its workflow too.
 With `columns`, every declared stage must be in exactly one column and the `landed` stage in
 one of its own: a stage in no column, a stage in two, a column naming a stage `stages` does
@@ -237,9 +240,13 @@ pack declares. It reports, each with its path in the view file:
   not a trigger file on this machine installs it) that `map.arrows` does not declare, and
   every declared arrow no such hand-off backs, unless it is `person: true`, joins two different
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
-  own stage is a rerun only a hand-off starts, so it is always checked.
+  own stage is a rerun only a hand-off starts, so it is always checked;
+- every outcome a listed workflow declares that neither `placement` nor `endings` takes, exactly
+  or by `workflow:*`, and every exact `placement`, `endings`, `parked` or `asked` key naming an
+  outcome its workflow does not declare. A workflow that declares no outcome (a gate that only
+  records) is not compared.
 
-It compares only the workflows the view's stages list, steps and hand-offs alike (of the
+It compares only the workflows the view's stages list, steps, hand-offs and outcomes alike (of the
 `discoveries` workflow it checks only that the pack has it), and names
 the pack's other workflows on one informational line that is not a failure.
 

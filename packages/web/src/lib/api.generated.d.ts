@@ -11354,6 +11354,12 @@ export interface components {
             };
           };
           asked?: string[];
+          parked?: {
+            [key: string]: {
+              label: string;
+              why?: string;
+            };
+          };
           change?: {
             workflow: string;
             pointer: string;
@@ -12291,6 +12297,10 @@ export interface components {
                   reads: 'unreadable';
                 };
           }[];
+          parked: {
+            label: string;
+            why: string | null;
+          } | null;
         } | null;
       };
       runs: {
@@ -12445,6 +12455,10 @@ export interface components {
                   reads: 'unreadable';
                 };
           }[];
+          parked: {
+            label: string;
+            why: string | null;
+          } | null;
         } | null;
       };
       members: {

@@ -241,6 +241,7 @@ describe('the facts of one run', () => {
         failedStep: null,
         change: null,
         partOf: null,
+        parked: null,
         shadows: [],
       });
     // Triage's two shadow steps decided; plan has none.
@@ -383,6 +384,73 @@ describe("an item's work order, from its order runs' results", () => {
   });
 });
 
+/**
+ * A triage run: the triage fixture as run `id` at `at`, completed with `recommend` and its
+ * result giving `why`, as the live factory's triage runs record them.
+ */
+function triageRun(
+  id: string,
+  recommend: string,
+  why: unknown,
+  at: string
+): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  const run = {
+    ...triage1.run,
+    id,
+    completed_outcome: recommend,
+    started_at: new Date(at),
+  };
+  const events = triage1.events.map(row => {
+    if (row.event_type !== 'workflow_completed') return row;
+    const data = row.data as { terminal_record: { returns: Record<string, unknown> } };
+    return {
+      ...row,
+      workflow_run_id: id,
+      data: {
+        ...data,
+        terminal_record: {
+          ...data.terminal_record,
+          returns: { ...data.terminal_record.returns, value: { recommend, why } },
+        },
+      },
+    };
+  });
+  return { run, events };
+}
+
+describe('a parked item, from its last declared run', () => {
+  test('a triage run that parked it gives the declared label and its why, trimmed', async () => {
+    const park = triageRun('t1', 'park', ' Measure it first. ', '2026-11-16T00:00:00Z');
+    expect(factsOf(park).parked?.why).toBe('Measure it first.');
+    expect((await progressOf([park])).parked).toEqual({
+      label: 'Parked by triage',
+      why: 'Measure it first.',
+    });
+  });
+
+  test('a run after the parking one takes the item up: it is parked no more', async () => {
+    const park = triageRun('t1', 'park', 'Later.', '2026-11-16T00:00:00Z');
+    const again = triageRun('t2', 'build', 'Now.', '2026-11-17T00:00:00Z');
+    expect((await progressOf([park, again])).parked).toBeNull();
+    const running = { ...again, run: { ...again.run, status: 'running' as const } };
+    expect((await progressOf([park, running])).parked).toBeNull();
+  });
+
+  test('a why that is not a non-empty string is null; the item is still parked', async () => {
+    for (const why of [42, '  ', undefined]) {
+      const park = triageRun('t1', 'park', why, '2026-11-16T00:00:00Z');
+      expect((await progressOf([park])).parked).toEqual({ label: 'Parked by triage', why: null });
+    }
+  });
+
+  test('an outcome the view ends or places on is not parked', async () => {
+    for (const verb of ['close', 'fold', 'build'])
+      expect(
+        (await progressOf([triageRun('t1', verb, 'Why.', '2026-11-16T00:00:00Z')])).parked
+      ).toBeNull();
+  });
+});
+
 const notMerged: FactoryChangeState = async lookup => ({
   url: lookup.kind === 'url' ? lookup.url : null,
   merged: false,
@@ -501,6 +569,7 @@ describe("an item's progress", () => {
         { runId: deliver1.run.id, workflow: 'deliver', failedStep: null },
       ],
       shadows: factsOf(triage1).shadows,
+      parked: null,
     });
     expect(seen).toEqual([[PR10, factsOf(deliver1).change?.audits.length ?? -1]]);
   });
@@ -717,6 +786,8 @@ describe('the facts memo', () => {
     expect(
       memo.get({ ...view, shadows: view.shadows?.slice(1) }, PACK, deliver1.run)
     ).toBeUndefined();
+    // And which outcomes park an item, and where their reason is.
+    expect(memo.get({ ...view, parked: {} }, PACK, deliver1.run)).toBeUndefined();
   });
 
   test('is bounded, oldest out', () => {

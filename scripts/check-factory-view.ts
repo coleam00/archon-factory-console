@@ -20,8 +20,8 @@
  * every arrow is one the pack declares and no machine path reaches the snapshot.
  * `--write <pack key>` rewrites the snapshot from it after a reinstall.
  *
- * Only the workflows a view's stages list are compared, steps and hand-offs alike; the check
- * names the pack's other workflows on an informational line that is not a finding.
+ * Only the workflows a view's stages list are compared, steps, hand-offs and outcomes alike;
+ * the check names the pack's other workflows on an informational line that is not a finding.
  */
 import {
   cpSync,
@@ -181,7 +181,7 @@ export function runCheck({ packsDir, plugins, readInstalled }: CheckInput): Chec
   for (const file of files) {
     const { findings, unlisted } = checkOne(packsDir, file, plugins, readInstalled);
     if (findings.length === 0)
-      out.push(`${file}: covers every step and hand-off of the workflows its stages list`);
+      out.push(`${file}: covers every step, hand-off and outcome of the workflows its stages list`);
     else err.push(`${file}:`, ...findings.map(line => `  ${line}`));
     // Information, not a finding: no step or hand-off of these workflows is compared.
     if (unlisted.length > 0)

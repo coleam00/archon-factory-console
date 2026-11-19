@@ -21,6 +21,7 @@ import {
 } from './item-read';
 import { resolveJsonPointer } from './json-pointer';
 import type { JsonValue } from './output-ref';
+import { resultString, runParked } from './factory-parked';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
@@ -153,6 +154,13 @@ export const factoryItemProgressSchema = z.object({
    * runs, a run of the discoveries workflow included; empty when none decided.
    */
   shadows: z.array(factoryShadowDecisionSchema),
+  /**
+   * When the item's last declared run completed with an outcome the view declares `parked`
+   * (kept open for later, not ended): the declared label, and the reason at its `why` pointer
+   * in that run's result (null when it declares none or the result has no string there).
+   * Null otherwise; `placement` still decides where the item sits.
+   */
+  parked: z.object({ label: z.string(), why: z.string().nullable() }).nullable(),
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
@@ -203,6 +211,8 @@ export interface FactoryRunFacts {
    * workflow, did not complete with a result, or names none there (empty or not a string).
    */
   partOf: string | null;
+  /** What the run says when it parked its item (`runParked`); else null. */
+  parked: FactoryItemProgress['parked'];
   /** What the shadow steps the view declares decided on this run, in recording order. */
   shadows: FactoryShadowDecision[];
 }
@@ -266,21 +276,6 @@ function changeFacts(
   return { url: trimmed === '' ? null : trimmed, audits };
 }
 
-/** The trimmed, non-empty string at `pointer` in a completed run's result; else null. */
-function partOfFact(
-  pointer: string,
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[]
-): string | null {
-  if (run.status !== 'completed') return null;
-  const record = getTerminalRecord(run.status, events);
-  if (record?.returns.availability !== 'available') return null;
-  const value = resolveJsonPointer(record.returns.value as JsonValue, pointer);
-  if (typeof value !== 'string') return null;
-  const order = value.trim();
-  return order === '' ? null : order;
-}
-
 /**
  * Whether `run` is one the item's facts read: a run of a workflow a stage lists, or of one a
  * shadow names (the discoveries workflow, which no stage lists).
@@ -324,8 +319,9 @@ export function factoryRunFacts(
         : null,
     partOf:
       view.partOf !== undefined && view.partOf.workflow === workflow
-        ? partOfFact(view.partOf.pointer, run, events)
+        ? resultString(view.partOf.pointer, run, events)
         : null,
+    parked: runParked(view, workflow, run, events),
     shadows: shadowDecisions(view, pack, run, events),
   };
 }
@@ -406,6 +402,7 @@ export async function factoryItemProgress(
     .filter(run => facts.has(run.id))
     .sort((a, b) => a.started_at.getTime() - b.started_at.getTime());
   const declared = read.filter(run => declaredWorkflow(view, pack, run.workflow_name) !== null);
+  const last = declared.at(-1);
   const latest = <T>(pick: (run: WorkflowRun, fact: FactoryRunFacts) => T | null): T | null => {
     for (const run of [...declared].reverse()) {
       const fact = facts.get(run.id);
@@ -453,6 +450,8 @@ export async function factoryItemProgress(
       failedStep: facts.get(run.id)?.failedStep ?? null,
     })),
     shadows: latestShadowDecisions(read.map(run => facts.get(run.id)?.shadows ?? [])),
+    // Placement reads the same last run: one started after the parking one takes the item up.
+    parked: (last === undefined ? null : facts.get(last.id)?.parked) ?? null,
   };
 }
 
@@ -538,6 +537,7 @@ export class FactoryRunFactsMemo {
       approves: view.approves,
       change: view.change,
       partOf: view.partOf,
+      parked: view.parked,
       shadows: view.shadows,
     };
     return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;

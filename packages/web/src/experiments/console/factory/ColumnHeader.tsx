@@ -11,6 +11,7 @@ export const CHIP_CLASS: Record<Exclude<Pill, 'landed'>, string> = {
   running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
   'needs-you': 'bg-[color:var(--warning-soft)] text-warning',
   failed: 'bg-[color:var(--error-soft)] text-error',
+  parked: 'bg-surface-inset text-text-secondary ring-1 ring-inset ring-border',
   waiting: 'bg-surface-inset text-text-tertiary',
 };
 

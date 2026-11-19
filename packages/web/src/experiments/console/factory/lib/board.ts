@@ -43,12 +43,13 @@ function declaredRuns(item: FactoryItem): DeclaredRun[] {
 
 const ENDED_STATUSES: ReadonlySet<DeclaredRun['status']> = new Set(['failed', 'cancelled']);
 
-export type Pill = 'running' | 'needs-you' | 'failed' | 'waiting' | 'landed';
+export type Pill = 'running' | 'needs-you' | 'failed' | 'parked' | 'waiting' | 'landed';
 
 export const PILL_LABEL: Record<Pill, string> = {
   running: 'Running',
   'needs-you': 'Needs you',
   failed: 'Failed',
+  parked: 'Parked',
   waiting: 'Waiting',
   landed: 'Merged',
 };
@@ -198,7 +199,8 @@ export function cardFields(
 
 /**
  * The state pill, first that holds: landed (in the landed column), needs you (an open
- * ask), running, failed (the last run failed or was cancelled), else waiting; and the one
+ * ask), running, failed (the last run failed or was cancelled), parked (the last run kept it
+ * open for later, `progress.parked`), else waiting; and the one
  * line saying what an item that needs you asks, or what stopped a failed one. The board's
  * card and the item page's header both read it, so an item says the same in both.
  */
@@ -217,6 +219,7 @@ export function itemPill(
   const last = declaredRuns(item).at(-1);
   if (last !== undefined && ENDED_STATUSES.has(last.status))
     return { pill: 'failed', stopLine: failedLine(view, last, placed) };
+  if (item.progress?.parked != null) return { pill: 'parked', stopLine: null };
   return { pill: 'waiting', stopLine: unread };
 }
 
@@ -369,10 +372,10 @@ export function stageIdOf(placed: Pick<PlacedCard, 'column'>): string | null {
 }
 
 type ChipPill = Exclude<Pill, 'landed'>;
-const CHIP_PILLS: readonly ChipPill[] = ['running', 'needs-you', 'failed', 'waiting'];
+const CHIP_PILLS: readonly ChipPill[] = ['running', 'needs-you', 'failed', 'parked', 'waiting'];
 
 /**
- * A column header's state chips: how many of its cards run, need you, failed or wait, in
+ * A column header's state chips: how many of its cards run, need you, failed, are parked or wait, in
  * that order, each only while above 0. Merged cards get none: the count says it.
  */
 export function columnChips(cards: readonly PlacedCard[]): { pill: ChipPill; count: number }[] {
