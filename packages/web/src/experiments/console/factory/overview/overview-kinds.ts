@@ -23,14 +23,17 @@ import type { OverviewCard } from '../lib/overview-nav';
 /**
  * Each card kind's colour and its legend words. Keyed by the generated kind enum, so a kind the
  * schema gains fails type-check here until it has both. The colours are the console's node
- * tokens, as the live map's groups are.
+ * tokens, as the live map's groups are, kept apart by hue so no two kinds read alike, and none
+ * purple or pink (DESIGN.md, owner changes of 2026-11-19, points 1 and 6);
+ * `overview-kinds.test.ts` resolves each to its oklch value and holds both rules. The check
+ * shares the send-back lines' colour, as the live map's check group does (Visual standard rule 5).
  */
 export const KINDS: Record<OverviewCard['kind'], { color: string; label: string; words: string }> =
   {
     input: { color: 'var(--node-command)', label: 'Input', words: 'Where work comes from' },
     stage: { color: 'var(--node-wait)', label: 'Stage', words: 'A stage of the factory' },
-    check: { color: 'var(--node-loop)', label: 'Check', words: 'A check on the change' },
-    person: { color: 'var(--node-prompt)', label: 'You', words: 'A person steps in' },
+    check: { color: 'var(--node-approval)', label: 'Check', words: 'A check on the change' },
+    person: { color: 'var(--node-script)', label: 'You', words: 'A person steps in' },
     gate: { color: 'var(--node-bash)', label: 'Gate', words: 'A gate that decides' },
     outcome: { color: 'var(--success)', label: 'Outcome', words: 'What comes out' },
   };

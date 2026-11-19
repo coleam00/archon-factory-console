@@ -1,10 +1,12 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import type { OverviewDeclaration } from '../lib/overview-nav';
+import { overviewFlow } from '../lib/overview-flow';
+import { layoutOverview } from '../lib/overview-layout';
+import type { OverviewDeclaration, OverviewView } from '../lib/overview-nav';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
 import { OverviewBody } from './OverviewPage';
 
@@ -195,5 +197,85 @@ describe('the factory overview', () => {
     expect(page.querySelector('ul[aria-label="Legend"]')?.textContent).toContain(
       'would do it, does nothing yet'
     );
+  });
+});
+
+describe('the flow on the root view', () => {
+  const svgProto = dom.SVGSVGElement.prototype as unknown as {
+    pauseAnimations: () => void;
+    unpauseAnimations: () => void;
+  };
+  const original = {
+    pause: svgProto.pauseAnimations,
+    unpause: svgProto.unpauseAnimations,
+  };
+  let calls: string[] = [];
+  beforeEach(() => {
+    calls = [];
+    svgProto.pauseAnimations = function (this: Element) {
+      calls.push(`pause:${this.isConnected ? 'mounted' : 'detached'}`);
+    };
+    svgProto.unpauseAnimations = () => calls.push('unpause');
+  });
+  afterEach(() => {
+    svgProto.pauseAnimations = original.pause;
+    svgProto.unpauseAnimations = original.unpause;
+    dom.happyDOM.settings.device.prefersReducedMotion = 'no-preference';
+  });
+
+  const dots = (within: ParentNode): string[] =>
+    [...within.querySelectorAll('[data-flow-move]')].map(
+      dot => dot.getAttribute('data-flow-move') ?? ''
+    );
+
+  test('dots run the forward line on one SMIL timeline, and Pause flow stops it', async () => {
+    const page = await mount();
+    const flow = overviewFlow(
+      OVERVIEW.views.top as OverviewView,
+      layoutOverview(OVERVIEW.views.top as OverviewView)
+    );
+    expect(dots(page)).toEqual(flow?.moves.map(move => `${move.from}->${move.to}`) ?? []);
+    for (const motion of page.querySelectorAll('animateMotion')) {
+      // Paced (the default) would ignore the key times that hold a dot still outside its leg.
+      expect(motion.getAttribute('calcMode')).toBe('linear');
+      expect(motion.getAttribute('keyTimes')?.split(';')).toHaveLength(4);
+    }
+    expect(page.querySelector('svg[data-flow]')?.getAttribute('class')).toContain(
+      'motion-reduce:hidden'
+    );
+
+    await click(button(page, 'Pause flow'));
+    expect(button(page, 'Play flow')?.getAttribute('aria-pressed')).toBe('true');
+    expect(calls.at(-1)).toBe('pause:mounted');
+    await click(button(page, 'Play flow'));
+    expect(button(page, 'Pause flow')?.getAttribute('aria-pressed')).toBe('false');
+    expect(calls.at(-1)).toBe('unpause');
+  });
+
+  test('a pause holds across full screen, where the map mounts anew', async () => {
+    const page = await mount();
+    await click(button(page, 'Pause flow'));
+    calls = [];
+    await click(button(page, 'Full screen'));
+    const overlay = document.body.querySelector('[role="dialog"]') as Element;
+    expect(button(overlay, 'Play flow')?.getAttribute('aria-pressed')).toBe('true');
+    expect(overlay.querySelector('svg[data-flow]')?.getAttribute('data-flow')).toBe('paused');
+    expect(calls).toEqual(['pause:mounted']);
+    await click(button(overlay, 'Exit full screen'));
+  });
+
+  test('no dots and no control under reduced motion', async () => {
+    dom.happyDOM.settings.device.prefersReducedMotion = 'reduce';
+    const page = await mount();
+    expect(cards(page)).toEqual(['in', 'make', 'check']);
+    expect(dots(page)).toEqual([]);
+    expect(button(page, 'Pause flow')).toBeUndefined();
+  });
+
+  test('a drill-down stays still', async () => {
+    const page = await mount('/console/p/cb-1/factory/how-it-works?view=make');
+    expect(cards(page)).toEqual(['write', 'test']);
+    expect(dots(page)).toEqual([]);
+    expect(button(page, 'Pause flow')).toBeUndefined();
   });
 });
