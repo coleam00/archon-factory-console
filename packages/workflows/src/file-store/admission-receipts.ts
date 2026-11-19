@@ -110,6 +110,7 @@ export function createReceiptOperations(
               status: 'pending' as const,
               ownerId: null,
               error: null,
+              forgeRefusal: null,
               intent,
               requestIds: [],
             })),
@@ -121,6 +122,7 @@ export function createReceiptOperations(
               status: item.status,
               ownerId: null,
               error: item.reason,
+              forgeRefusal: null,
               intent: null,
               requestIds: [],
             })),
@@ -239,6 +241,7 @@ export function createReceiptOperations(
         const result = await tx.admit(preparedBindingStart(item.intent, input), runs);
         item.status = 'complete';
         item.error = null;
+        item.forgeRefusal = null;
         return result;
       }),
     failStartBindingPreparation: input =>
@@ -247,6 +250,7 @@ export function createReceiptOperations(
         if (!item) return false;
         item.status = input.retryable ? 'failed' : 'rejected';
         item.error = input.error;
+        item.forgeRefusal = input.forgeRefusal ?? null;
         return true;
       }),
     resetStartBindingPreparation: input =>

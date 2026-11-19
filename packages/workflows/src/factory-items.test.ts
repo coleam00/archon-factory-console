@@ -773,6 +773,8 @@ describe('reading progress, and one item whole', () => {
         getItemMerge: async () => null,
         listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
         listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+        getInstallHold: async () => null,
+        listHeldItemStarts: async () => [],
         listItemAsks: async () => [],
         listItemRulings: async () => [],
         listItemLinks: async () => [],

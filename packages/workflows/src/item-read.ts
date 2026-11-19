@@ -25,6 +25,7 @@ import {
   type IdentifiedAttentionDegraded,
 } from './schemas/attention-degraded';
 import { itemActFields } from './schemas/item-act';
+import { operatorPause, operatorPauseSchema } from './schemas/operator-pause';
 import {
   itemLinkDegradedSchema,
   itemLinkKindSchema,
@@ -57,6 +58,8 @@ import {
 } from './schemas/workflow-run';
 import type { WorkflowEventRow } from './schemas/workflow-event';
 import {
+  type InstallHold,
+  installHoldSchema,
   queuedItemStartSchema,
   type QueuedItemStart,
   readResourceStartReceiptId,
@@ -72,7 +75,8 @@ import {
 } from './resource-start-store';
 import { itemHolder, itemHolders } from './item-hold';
 import { runOwnerObservationSchema } from './schemas/workflow-run-listing';
-import { readCompletedRunResult } from './run-result';
+import { readCompletedRunResult, resultCommitOf } from './run-result';
+import { getTerminalRecord } from './terminal-record';
 
 let cachedLog: ReturnType<typeof createLogger> | undefined;
 function getLog(): ReturnType<typeof createLogger> {
@@ -106,9 +110,9 @@ export const itemRunSchema = z.object({
   /** Null while the run has not ended. */
   completedAt: z.string().datetime().nullable(),
   /**
-   * What started the run, read from the start receipt its start recorded: a run on this
-   * item that ended, a node that fired it, or another trigger source. Null for a start
-   * by hand, which has no receipt.
+   * What started the run, read from the start receipt its start recorded: a run that
+   * ended (on this item, or on an item linked to it), a node that fired it, or another
+   * trigger source. Null for a start by hand, which has no receipt.
    */
   cause: startCauseSchema.nullable(),
   /**
@@ -129,12 +133,24 @@ export const itemRunSchema = z.object({
    */
   heldBehind: itemHeldBehindSchema.nullable(),
   /**
+   * An operator's pause: requested on a running run, which pauses once its running nodes
+   * finish, or the pause a paused run is in. Null otherwise.
+   */
+  operatorPause: operatorPauseSchema.nullable(),
+  /**
    * The run completed with a readable `returns:` value: the value a `result_of` input
    * naming its workflow reads while it is the latest completed run. Read it with
    * `archon workflow get <id> --json` at `terminal_record.returns.value`, or from the run
    * detail API.
    */
   hasResult: z.boolean(),
+  /**
+   * The commit the run's result holds at, which an `at: checkout` input matches: the clean
+   * checkout its `returns:` node completed on, unchanged when the run completed. Null when the
+   * run has not completed, its result holds at no commit, or it was recorded before results
+   * held at commits.
+   */
+  resultCommit: z.string().nullable(),
 });
 export type ItemRun = z.infer<typeof itemRunSchema>;
 
@@ -161,6 +177,20 @@ export const itemSkippedStartSchema = z.object({
   heldBehind: itemHeldBehindSchema.nullable(),
 });
 export type ItemSkippedStart = z.infer<typeof itemSkippedStartSchema>;
+
+/**
+ * A start on the item that the install hold keeps from admission: a trigger's binding,
+ * not yet prepared, so it has no request or run. After the lift it is prepared and
+ * admitted, queued or skipped by its binding's `overlap`. `workflow` is null when the
+ * stored binding does not read.
+ */
+export const itemHeldStartSchema = z.object({
+  receiptId: z.string(),
+  bindingId: z.string(),
+  workflow: z.string().nullable(),
+  receivedAt: z.string(),
+});
+export type ItemHeldStart = z.infer<typeof itemHeldStartSchema>;
 
 /**
  * Where an answer was recorded. A field the event row does not carry is null, so an older
@@ -258,6 +288,8 @@ export type ItemReadLink = z.infer<typeof itemReadLinkSchema>;
  * whole run tree, because a question is often asked inside a child; each names the run
  * that holds it. `queued` are the item's starts still waiting, which have no run yet;
  * `archon trigger withdraw <requestId>` withdraws one. `skipped` are its refused starts.
+ * `hold` is the install hold while it is set, else null; `held` are the item's starts it
+ * keeps that are not yet `queued`, empty while no hold is set.
  * `degraded` names each part that could not be read: one of the item's own runs, a paused
  * run the queue could not read (`run_unreadable`, by `runId`), a ruling
  * (`ruling_unreadable`, by `rulingId`), a link (`link_unreadable`, by `linkId`), or the
@@ -270,6 +302,8 @@ export const itemReadSchema = z.object({
   runs: z.array(itemRunSchema),
   queued: z.array(itemQueuedStartSchema),
   skipped: z.array(itemSkippedStartSchema),
+  hold: installHoldSchema.nullable(),
+  held: z.array(itemHeldStartSchema),
   questions: z.array(attentionQueueItemSchema),
   answers: z.array(itemAnswerSchema),
   links: z.array(itemReadLinkSchema),
@@ -299,16 +333,25 @@ export interface ItemReadSource extends AttentionQueueSource {
       | 'getResourceStartRequest'
       | 'listQueuedItemStarts'
       | 'listSkippedItemStarts'
+      | 'getInstallHold'
+      | 'listHeldItemStarts'
     >;
 }
 
-function hasResult(run: WorkflowRun, events: readonly WorkflowEventRow[]): boolean {
+function readResult(
+  run: WorkflowRun,
+  events: readonly WorkflowEventRow[]
+): Pick<ItemRun, 'hasResult' | 'resultCommit'> {
   try {
-    return readCompletedRunResult(run, events).kind === 'result';
+    return {
+      hasResult: readCompletedRunResult(run, events).kind === 'result',
+      resultCommit:
+        run.status === 'completed' ? resultCommitOf(getTerminalRecord(run.status, events)) : null,
+    };
   } catch (error) {
     // One unreadable record must not fail the whole item read.
     getLog().warn({ err: error, workflowRunId: run.id }, 'item_read.terminal_record_unreadable');
-    return false;
+    return { hasResult: false, resultCommit: null };
   }
 }
 
@@ -359,7 +402,8 @@ function itemRun(
       outputTokens: usage.tokens?.output ?? null,
     },
     heldBehind,
-    hasResult: hasResult(run, terminalEvents.get(run.id) ?? []),
+    operatorPause: operatorPause(run),
+    ...readResult(run, terminalEvents.get(run.id) ?? []),
   };
 }
 
@@ -601,8 +645,13 @@ async function readItemFacts(source: ItemReadSource, itemId: string) {
   };
 }
 
-/** The item's queued and skipped starts, read for a whole page of items at once. */
+/**
+ * The install hold and the item's held, queued and skipped starts. The hold, queued and
+ * skipped starts are read for a whole page of items at once.
+ */
 interface ItemStarts {
+  hold: InstallHold | null;
+  held: ItemHeldStart[];
   waiting: readonly QueuedItemStart[];
   skipped: readonly SkippedItemStart[];
 }
@@ -618,8 +667,13 @@ export async function assembleItemReads(
   queue: ItemQueueRead
 ): Promise<(ItemRead | null)[]> {
   const ids = items.map(item => item.id);
-  // Queued starts first, then every item's runs: a start admitted between the two reads then
-  // shows in both (its run id is its request id), and is listed once as a run, never in neither.
+  // Held starts first, then queued starts, then every item's runs, the order a start moves
+  // through: one that moves on between two reads shows twice, never in neither. An admitted
+  // start shows in both queued and runs (its run id is its request id) and is listed once as
+  // a run. Held starts are read per item, and only while the install hold is set.
+  const hold = await source.store.getInstallHold();
+  const held = new Map<string, ItemHeldStart[]>();
+  if (hold) for (const id of ids) held.set(id, await source.store.listHeldItemStarts(id));
   const waiting = await source.store.listQueuedItemStarts(ids);
   const skipped = await source.store.listSkippedItemStarts(ids);
   const reads: (ItemRead | null)[] = [];
@@ -630,6 +684,8 @@ export async function assembleItemReads(
     await new Promise<void>(resolve => setImmediate(resolve));
     reads.push(
       await assembleItemRead(source, item, queue, {
+        hold,
+        held: held.get(item.id) ?? [],
         waiting: waiting.get(item.id) ?? [],
         skipped: skipped.get(item.id) ?? [],
       })
@@ -703,6 +759,8 @@ async function assembleItemRead(
     ),
     queued,
     skipped,
+    hold: starts.hold,
+    held: starts.held,
     questions,
     answers,
     links: facts.links,

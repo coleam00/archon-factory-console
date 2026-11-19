@@ -10,7 +10,7 @@
  */
 import type { AttentionRead } from './schemas/attention-degraded';
 import type { IResourceStartStore } from './resource-start-store';
-import type { SourceReceiptAcceptance } from './schemas/resource-start';
+import type { LinkedRunEndedStart, SourceReceiptAcceptance } from './schemas/resource-start';
 import type { CheckoutObservation } from './schemas/checkout-observation';
 import type { ProviderEventQuery, ProviderEventRecord } from './schemas/provider-event';
 import type { WorkflowEventRow } from './schemas/workflow-event';
@@ -55,6 +55,7 @@ import type { DagResumeSnapshot } from './store/resume-snapshot';
 import type { WorkflowRunFailureOptions } from './workflow-run-failure';
 import type {
   FanOutCancelReason,
+  OperatorPauseRequest,
   SourceReleaseWrite,
   WorkflowCancellationEventDetails,
   WorkflowWaitCompletion,
@@ -135,6 +136,8 @@ export interface MetricRecordRow {
   completedAt: string;
   /** The raw `structured_output.metrics` value; the engine parses it. */
   metrics: unknown;
+  /** The raw `structured_output.metric_dimensions` value, when the output has one. */
+  metricDimensions?: unknown;
 }
 
 /**
@@ -371,6 +374,8 @@ export interface IWorkflowStore
    * created without one. The claim records the calling process as the run's execution
    * owner (`currentExecutionOwner`). A store with items throws `WorkflowItemHeldError`,
    * writing nothing, while another run of the run's workflow holds its item (`holdsItem`).
+   * A store with the install hold throws `InstallHeldError`, writing nothing, while the hold
+   * is set and nothing admitted the run (a top-level run with no start request).
    */
   claimPendingWorkflowRun(id: string, workingPath?: string): Promise<WorkflowRun | null>;
   /**
@@ -545,6 +550,15 @@ export interface IWorkflowStore
    * completion is refused before it can write them again. A store without items refuses
    * a non-empty list.
    *
+   * `result.linkedStarts` are run-ended bindings whose stage starts on the items linked to
+   * the ended run's item. The store resolves them in the same transaction, after the
+   * completing write: one receipt on each item holding an active link of the named kind
+   * at the named end, so a link ended before the run completed causes nothing. A store
+   * without items refuses a non-empty list.
+   *
+   * It returns every receipt this call wrote, from both lists, and not those that replayed;
+   * the caller starts those.
+   *
    * `result.asks` is present when the run's workflow declares `returns.asks` and the run is
    * top-level. In the same transaction, and only when this call wins, the asks still open
    * from that workflow on the run's item close as `replaced`, and these open in their
@@ -558,9 +572,10 @@ export interface IWorkflowStore
     result?: {
       outcome?: RunCompletedOutcome;
       startReceipts?: readonly SourceReceiptAcceptance[];
+      linkedStarts?: readonly LinkedRunEndedStart[];
       asks?: readonly ItemAsk[];
     }
-  ): Promise<void>;
+  ): Promise<{ startReceipts: SourceReceiptAcceptance[] }>;
   /**
    * Atomically fail a pending or running run and persist its matching lifecycle event.
    * `failed` is false when the run was already terminal: a no-op that leaves the winning
@@ -609,6 +624,22 @@ export interface IWorkflowStore
     release: SourceReleaseWrite,
     beforePublish?: () => Promise<void>
   ): Promise<{ released: boolean }>;
+  /**
+   * Record an operator's pause request on a running run (`operatorPauseRequestWrite`),
+   * checked and written atomically: a request already pending is returned unchanged, so
+   * concurrent requests agree on one. Undefined when the run is missing or not running.
+   */
+  requestOperatorPause(
+    id: string,
+    requested: OperatorPauseRequest['requested']
+  ): Promise<OperatorPauseRequest | undefined>;
+  /**
+   * Claim-checked transition from running to paused for an operator's pending pause
+   * request (`operatorPauseWrite`): records when it paused, `pause_cause: operator`, and
+   * commits `operator_paused` in the same transaction. A run that is no longer running,
+   * carries another claim or has no pending request is left unchanged with no event.
+   */
+  pauseWorkflowRunForOperator(id: string, claimId: string | null): Promise<{ paused: boolean }>;
   /**
    * Pause a running run on a wait, committing `wait_started` for a new wait or
    * `wait_continued` (`waitContinuedEvent`) for one a resume reached again.

@@ -15,7 +15,7 @@ export type WorkflowRoute = CliRouteContext & { commands: WorkflowCommands; host
 
 /** `workflow wake|signal`, routed before the project gate. */
 export async function runWorkflowContinuation(
-  { positionals, values }: CliRouteContext,
+  { positionals, values, forgeTrustedEnv }: CliRouteContext,
   subcommand: 'wake' | 'signal'
 ): Promise<number> {
   // `workflow wake schedule` installs an OS timer and never opens the store or a provider.
@@ -27,7 +27,7 @@ export async function runWorkflowContinuation(
   if (wakeSchedule) return await workflowWakeScheduleCommand(positionals.slice(2), values);
   const { createCliWorkflowHost } = await import('../utils/workflow-host');
   return await workflowContinuationCommand(
-    await createCliWorkflowHost(true),
+    await createCliWorkflowHost({ forgeTrustedEnv }),
     subcommand,
     positionals.slice(2),
     values
@@ -108,7 +108,9 @@ export async function prepareWorkflowRoute(ctx: CliRouteContext): Promise<Workfl
   // execute a workflow initialize it first. A misconfigured App fails here,
   // before any run row exists; query commands stay usable without it.
   const executesWorkflow = subcommand === 'run' || isContinueSubcommand(subcommand);
-  const host = await createCliWorkflowHost(executesWorkflow);
+  const host = await createCliWorkflowHost(
+    executesWorkflow ? { forgeTrustedEnv: ctx.forgeTrustedEnv } : undefined
+  );
   return { ...ctx, commands, host };
 }
 
@@ -307,6 +309,18 @@ export async function runWorkflowResume(route: WorkflowRoute): Promise<number> {
     route.effectiveCwd,
     route.values.detach as boolean | undefined
   );
+}
+
+export async function runWorkflowPause(route: WorkflowRoute): Promise<number> {
+  const pauseRunId = route.positionals[2];
+  if (!pauseRunId) {
+    return await fail(route.json, 'Usage: archon workflow pause <run-id> [--as <name>]');
+  }
+  return await route.commands.workflowPauseCommand(route.host, pauseRunId, {
+    json: route.json,
+    cwd: route.effectiveCwd,
+    as: route.values.as as string | undefined,
+  });
 }
 
 export async function runWorkflowAbandon(route: WorkflowRoute): Promise<number> {
@@ -737,6 +751,6 @@ export async function runUnknownWorkflowSubcommand({
       : `Unknown workflow subcommand: ${subcommand}`;
   return await fail(
     json,
-    `${problem}\nAvailable: list, run, test, types, status, get, artifacts, logs, wait, runs, resume, cancel, abandon, end-turn, approve, reject, respond, answer, attention, rule, link, items, merged, cleanup, reset-sessions, event, notice, wake, signal`
+    `${problem}\nAvailable: list, run, test, types, status, get, artifacts, logs, wait, runs, pause, resume, cancel, abandon, end-turn, approve, reject, respond, answer, attention, rule, link, items, merged, cleanup, reset-sessions, event, notice, wake, signal`
   );
 }

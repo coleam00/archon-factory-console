@@ -194,3 +194,31 @@ test('a message wait has no tiles and opens with the textarea', () => {
   expect(html).toContain('<textarea');
   expect(html).toContain('Answer in words');
 });
+
+test('a message wait can be confirmed only while its text has a non-blank character', async () => {
+  const form = await mount(
+    <AttentionAnswerForm wait={{ form: 'message', options: [] }} submit={async () => {}} />
+  );
+  const type = async (value: string): Promise<void> => {
+    const box = form.container.querySelector('textarea');
+    if (box === null) throw new Error('No textarea opened');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(Object.getPrototypeOf(box) as object, 'value')?.set?.call(
+        box,
+        value
+      );
+      box.dispatchEvent(new dom.Event('input', { bubbles: true }) as unknown as Event);
+    });
+  };
+  try {
+    expect(form.button('Confirm').disabled).toBe(true);
+    await type('   ');
+    expect(form.button('Confirm').disabled).toBe(true);
+    await type('1, 3');
+    expect(form.button('Confirm').disabled).toBe(false);
+    await type('');
+    expect(form.button('Confirm').disabled).toBe(true);
+  } finally {
+    await form.unmount();
+  }
+});

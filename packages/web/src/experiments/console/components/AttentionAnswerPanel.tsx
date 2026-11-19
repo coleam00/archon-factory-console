@@ -66,7 +66,7 @@ function draftOf(
   picks: readonly string[]
 ): ConfirmDraft {
   const labels = picks.map(id => tiles.find(tile => tile.id === id)?.label ?? id);
-  if (wait.form === 'message') return { labels, text: 'optional', placeholder: 'Your answer' };
+  if (wait.form === 'message') return { labels, text: 'required', placeholder: 'Your answer' };
   if (takesText(wait, picks))
     return { labels, text: 'required', placeholder: 'Say what to do instead' };
   return { labels, text: 'optional', placeholder: 'Optional note with your answer' };
@@ -77,7 +77,8 @@ function draftOf(
  * Visual standard rule 9): one tile per option, the recommended one first and marked with
  * why; choosing a tile (or several, for multi_select) opens the confirm row, and Confirm
  * sends. An answer only in words has no tiles and opens with the textarea. Confirm is enabled
- * exactly when the engine would accept the answer (`answerProblem`). `submit` sends; a
+ * when the engine would accept the answer (`answerProblem`), and for an answer only in words
+ * only once its text has a non-blank character, which the engine does not require. `submit` sends; a
  * refusal shows in the server's own words. `onAnswered` hears the chosen words once sent.
  */
 export function AttentionAnswerForm({
@@ -139,7 +140,10 @@ export function AttentionAnswerForm({
           draft={draft}
           value={text}
           onChange={setText}
-          accepted={answerProblem(wait, { choose: picks, text }) === undefined}
+          accepted={
+            answerProblem(wait, { choose: picks, text }) === undefined &&
+            !(wait.form === 'message' && text.trim() === '')
+          }
           busy={busy}
           error={error}
           onConfirm={() => void confirm()}

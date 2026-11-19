@@ -33,6 +33,39 @@ inputs:
       that changes a matching path never merges on the auto lane: it merges only once a
       maintainer approved it at its head.
 
+# The forge operations the pack's scripts call. The engine checks them when a run of any
+# pack workflow starts, before a worktree, a slot or a node: the project's forge plugin
+# must advertise every one and have a credential. An operation only an agent calls from a
+# prompt is not listed; the host refuses that call by name on a plugin without it.
+forge:
+  operations:
+    - pr.view
+    - pr.create
+    - pr.edit-body
+    - pr.ready
+    - pr.draft
+    - pr.files
+    - pr.merge
+    - pr.merge-state
+    - pr.threads
+    - pr.thread.reply
+    - pr.thread.resolve
+    - comment.upsert
+    - checks.state
+    - checks.commit
+    - checks.rerun
+    - repo.file
+    - repo.labels.list
+    - repo.label.ensure
+    - workitem.view
+    - workitem.create
+    - workitem.edit-body
+    - workitem.close
+    - workitem.comments
+    - workitem.comment.upsert
+    - workitem.label.add
+    - workitem.label.remove
+
 # The trigger bindings the pack recommends. Nothing here starts a run: an operator writes
 # them for one repository with `archon pack bindings sdlc` and registers each file.
 # The README's setup guide says how. https://archon.diy/guides/sdlc-operations/ says,
@@ -83,22 +116,25 @@ bindings:
       action: { event: event.action }
       label: { event: label.name }
       label_actor: { event: label.actor.login }
+  # Nothing schedules a build: `archon-build-pick` fires this binding once per waiting
+  # issue, and the merge queue fires it for an item it returns. Each start is on the
+  # issue's item, where the engine admits one build run at a time; a start that finds
+  # the issue held or every slot busy is skipped, and the next pick fires it again.
   build-queue:
     workflow: archon-build-queue
     resource: build
     capacity: 10
     overlap: skip
     isolation: { kind: worktree }
-    schedule: { interval_seconds: 1800 }
+    item: { field: number, prefix: issue- }
     inputs:
       repo_host: { repo: host }
       repo_path: { repo: path }
-      build_queue_binding: { binding: build-queue }
   # The engine starts the routed issue's first round when its intake run ends, on the
   # issue's item, with no node that fires anything. It names the issue, and a named issue
   # is built whatever `orders_only` says: an install that builds only work orders leaves
   # this binding unregistered. A start that finds every slot busy is skipped, and the
-  # scheduled run picks the issue up.
+  # next pick starts the issue.
   build-after-intake:
     workflow: archon-build-queue
     resource: build
@@ -112,6 +148,31 @@ bindings:
       repo_host: { input: repo_host }
       repo_path: { input: repo_path }
       number: { input: number }
+  # Starts every waiting issue's build, in pickup order, and holds no build slot. One
+  # pick at a time, and a pick that finds one running is skipped.
+  build-pick:
+    workflow: archon-build-pick
+    resource: build-pick
+    overlap: skip
+    schedule: { interval_seconds: 1800 }
+    inputs:
+      repo_host: { repo: host }
+      repo_path: { repo: path }
+      build_queue_binding: { binding: build-queue }
+  # A build run that ends has freed a slot, and may have left its issue waiting for
+  # another round, so the engine starts a pick then instead of leaving both to the
+  # schedule. Queued, not skipped: a pick already running may have listed the items
+  # before this run recorded its decision.
+  build-pick-after-build:
+    workflow: archon-build-pick
+    resource: build-pick
+    overlap: queue
+    run_ended:
+      workflow: archon-build-queue
+      outcome: [parked, ready, continue, asked]
+    inputs:
+      repo_host: { input: repo_host }
+      repo_path: { input: repo_path }
       build_queue_binding: { binding: build-queue }
   split-queue:
     workflow: archon-split
