@@ -1,6 +1,9 @@
 import { getRunArtifactsDirForRoot, resolveRunStorageRoot } from '@archon/paths/archon-paths';
 import {
   type ArtifactManifest,
+  RESULT_COMMIT_METADATA_KEY,
+  resultCommitSchema,
+  type ResultCommit,
   RUN_GRAPH_METADATA_KEY,
   runGraphSchema,
   terminalRecordSchema,
@@ -362,15 +365,54 @@ function readWorktreeDisposition(
   }
 }
 
-function selectRecordedReturn({ graph, nodes, outputs }: NodeEventFold): TerminalRecord['returns'] {
-  const selected = graph?.returns;
+/**
+ * The executor samples a completed run's checkout and stores where its result holds in run
+ * metadata before the terminal write. Only a completed run has a result. A malformed value
+ * throws: it is engine-written, so it is damage, not "no commit".
+ */
+function readResultCommit(run: Pick<WorkflowRun, 'status' | 'metadata'>): ResultCommit | undefined {
+  if (run.status !== 'completed') return undefined;
+  const value = run.metadata?.[RESULT_COMMIT_METADATA_KEY];
+  return value === undefined ? undefined : resultCommitSchema.parse(value);
+}
+
+function selectRecordedReturn(folded: NodeEventFold): TerminalRecord['returns'] {
+  const selected = folded.graph?.returns;
   if (selected === undefined) {
     return {
       availability: 'unavailable',
       node_id: null,
-      reason: graph ? 'not_declared' : 'graph_unavailable',
+      reason: folded.graph ? 'not_declared' : 'graph_unavailable',
     };
   }
+  return returnOfNode(selected, folded);
+}
+
+/**
+ * The run's returned value, as its terminal record and a run-ended or asks-settled binding
+ * read it. `returnsNode` is the workflow's `returns:` node. Its node events decide it:
+ *
+ * - it did not complete: no value (`node_not_completed`);
+ * - it carries structured output (`output_format`): that value, whatever its size, since
+ *   structured output is persisted whole;
+ * - its text fits the persisted output cap: the text, as a string, whether or not it is
+ *   JSON. Typed data travels through `output_format`, never by sniffing text;
+ * - its text passed the cap: no value, reported `truncated` with the spill path and the
+ *   original size. The spill file is never read: it exists only on the host that ran
+ *   the node, and the value must read the same everywhere.
+ */
+export function recordedReturn(
+  run: Pick<WorkflowRun, 'id' | 'metadata'>,
+  events: readonly TerminalRecordEvent[],
+  returnsNode: string
+): TerminalRecord['returns'] {
+  return returnOfNode(returnsNode, foldNodeEvents(run, events));
+}
+
+function returnOfNode(
+  selected: string,
+  { nodes, outputs }: NodeEventFold
+): TerminalRecord['returns'] {
   const data = outputs.get(selected);
   if (nodes.get(selected)?.state !== 'completed') {
     return { availability: 'unavailable', node_id: selected, reason: 'node_not_completed' };
@@ -456,6 +498,7 @@ export function buildTerminalRecord(input: {
   const folded = foldNodeEvents(run, events);
   const { nodes, failureOrder } = folded;
   const worktreeDisposition = readWorktreeDisposition(run);
+  const resultCommit = readResultCommit(run);
   return terminalRecordSchema.parse({
     run_id: run.id,
     status: terminalStatusSchema.parse(run.status),
@@ -467,6 +510,7 @@ export function buildTerminalRecord(input: {
     returns: selectRecordedReturn(folded),
     artifacts,
     ...(worktreeDisposition ? { worktree_disposition: worktreeDisposition } : {}),
+    ...(resultCommit ? { result_commit: resultCommit } : {}),
   });
 }
 

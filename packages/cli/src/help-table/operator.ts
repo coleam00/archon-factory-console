@@ -26,6 +26,12 @@ export const operatorHelp: HelpGroup = {
       description: 'Start configured workflows and inspect durable resource admission',
     },
     {
+      command: 'hold',
+      spec: 'hold <set|lift>',
+      description:
+        'Hold all new runs on this install, or lift the hold and start what it kept;\nrunning runs continue',
+    },
+    {
       command: 'pack',
       subcommand: 'graph',
       spec: 'pack graph <pack>',
@@ -58,7 +64,8 @@ export const operatorHelp: HelpGroup = {
         },
         {
           spec: '--config <file>',
-          description: 'A run config every written binding launches with (model aliases)',
+          description:
+            "Default run config for the bindings' starts (model aliases); an item keeps its own",
         },
         {
           spec: '--workflow-source <dir>',

@@ -596,6 +596,16 @@ export class SqliteAdapter implements IDatabase {
         from_node_path TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
+      -- An item tracker destination's activation and pass holder; see migrations/000_combined.sql.
+      CREATE TABLE IF NOT EXISTS remote_agent_item_tracker_destinations (
+        destination TEXT PRIMARY KEY,
+        activated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        pass_owner_host TEXT,
+        pass_owner_pid INTEGER,
+        pass_owner_instance TEXT,
+        pass_started_at TEXT,
+        pass_requested INTEGER NOT NULL DEFAULT 0
+      );
       -- Links between items, one row per link, ended not deleted; see migrations/000_combined.sql.
       CREATE TABLE IF NOT EXISTS remote_agent_item_links (
         -- Recording order; timestamps tie and the id is random.
@@ -690,6 +700,7 @@ export class SqliteAdapter implements IDatabase {
         preparation_status TEXT NOT NULL CHECK (preparation_status IN ('pending', 'preparing', 'failed', 'rejected', 'unmatched', 'complete')),
         preparation_owner TEXT,
         preparation_error TEXT,
+        forge_refusal TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
         PRIMARY KEY (receipt_id, binding_id)
@@ -699,6 +710,12 @@ export class SqliteAdapter implements IDatabase {
         resource_key TEXT PRIMARY KEY,
         capacity INTEGER NOT NULL DEFAULT 1 CHECK (capacity >= 1),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS remote_agent_install_hold (
+        id TEXT PRIMARY KEY,
+        set_by TEXT NOT NULL,
+        set_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
 
       ${resourceSlotHoldersTable('remote_agent_resource_slot_holders')}
@@ -864,8 +881,14 @@ export const sqliteDialect: SqlDialect = {
   },
 
   jsonMerge(column: string, paramIndex: number): string {
-    // Use $N placeholder (not raw ?) so convertPlaceholders can reorder params correctly
-    return `json_patch(${column}, $${String(paramIndex)})`;
+    // Top-level, as Postgres `||`: json_patch is RFC 7396, which recurses and deletes a
+    // null at any depth, so a stored input that resolved to null was lost (#5939).
+    // `->` copies each kept value whole; $N (not ?) lets convertPlaceholders bind each use.
+    const patch = `$${String(paramIndex)}`;
+    return `(SELECT json_group_object(key, json(v)) FROM (
+      SELECT key, ${column} -> fullkey AS v FROM json_each(${column})
+        WHERE key NOT IN (SELECT key FROM json_each(${patch}))
+      UNION ALL SELECT key, ${patch} -> fullkey FROM json_each(${patch}) WHERE type <> 'null'))`;
   },
 
   nowMinusDays(paramIndex: number): string {

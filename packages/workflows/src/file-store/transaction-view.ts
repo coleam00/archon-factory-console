@@ -44,6 +44,8 @@ import {
   EXECUTION_CLAIM_METADATA_KEY,
   currentExecutionOwner,
   sourceReleasedEvent,
+  operatorPauseRequestWrite,
+  operatorPauseWrite,
 } from '../store';
 import { EXECUTION_OWNER_METADATA_KEY } from '../schemas/run-metadata';
 import {
@@ -344,9 +346,13 @@ export function createTransactionView(
       result
     ): ReturnType<IWorkflowStore['completeWorkflowRun']> => {
       validateWorkflowWaitMetadata(metadata);
-      // A start receipt and an ask name an item, and items are refused here before a run
-      // starts, so neither can reach this write.
-      if ((result?.startReceipts?.length ?? 0) > 0 || (result?.asks?.length ?? 0) > 0)
+      // A start receipt, a linked start and an ask name an item, and items are refused here
+      // before a run starts, so none can reach this write.
+      if (
+        (result?.startReceipts?.length ?? 0) > 0 ||
+        (result?.linkedStarts?.length ?? 0) > 0 ||
+        (result?.asks?.length ?? 0) > 0
+      )
         throw new FileStoreUnsupportedError('items');
       const run = structuredClone(row(id));
       if (run.status !== 'running') throw new Error('Run not in running state');
@@ -360,6 +366,7 @@ export function createTransactionView(
         event_type: TERMINAL_RUN_EVENT_TYPE.completed,
         data: completion,
       });
+      return { startReceipts: [] };
     },
     failWorkflowRun: async (id, error, options): ReturnType<IWorkflowStore['failWorkflowRun']> => {
       const run = prepareWorkflowRunFailure(id, runs.get(id), error, options);
@@ -583,6 +590,23 @@ export function createTransactionView(
       Object.assign(run.metadata, sourceReleaseMetadata(release, new Date().toISOString()));
       record(sourceReleasedEvent(id, release));
       return { released: true };
+    },
+    requestOperatorPause: async (id, requested) => {
+      const run = runs.get(id);
+      if (!run) return undefined;
+      const write = operatorPauseRequestWrite(run, requested);
+      if (write?.metadata) Object.assign(run.metadata, structuredClone(write.metadata));
+      return write?.request;
+    },
+    pauseWorkflowRunForOperator: async (id, claimId) => {
+      const run = runs.get(id);
+      const write = run && operatorPauseWrite(run, claimId, new Date().toISOString());
+      if (!run || write === undefined) return { paused: false };
+      run.status = 'paused';
+      run.last_activity_at = new Date();
+      Object.assign(run.metadata, write.metadata);
+      record(write.event);
+      return { paused: true };
     },
     pauseWorkflowRunForWait: async (id, wait, pause) => {
       const run = row(id);

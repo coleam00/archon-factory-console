@@ -7,11 +7,8 @@ import { z } from 'zod';
 import type { SkippedItemStart } from '@archon/workflows/resource-start-store';
 import type { QueuedItemStart } from '@archon/workflows/schemas/resource-start';
 import { getDatabase } from './connection';
+import { parseStoredJson } from './resource-starts';
 import { toHydratedTimestamp } from './timestamps';
-
-function parseStoredJson(value: unknown): unknown {
-  return typeof value === 'string' ? JSON.parse(value) : value;
-}
 
 /** `$1, $2, ...`, one for each of `values`. */
 function placeholderList(values: readonly unknown[]): string {
@@ -56,7 +53,7 @@ export async function listSkippedItemStarts(
 const storedWorkflowNameSchema = z.object({ run: z.object({ workflow_name: z.string() }) });
 
 /** The launch's workflow name, or null when the stored launch does not read. */
-function storedWorkflowName(launch: unknown): string | null {
+export function storedWorkflowName(launch: unknown): string | null {
   try {
     const parsed = storedWorkflowNameSchema.safeParse(parseStoredJson(launch));
     return parsed.success ? parsed.data.run.workflow_name : null;

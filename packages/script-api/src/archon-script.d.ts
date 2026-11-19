@@ -1484,6 +1484,32 @@ declare module 'archon:script' {
         readonly bodyDigest: string;
       };
     };
+    'attachment.put': {
+      readonly request: {
+        readonly repo: {
+          readonly host: string;
+          readonly path: string;
+          readonly hostClaim?: true;
+        };
+        readonly contentType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+        readonly content: string;
+      };
+      readonly result: {
+        readonly target: {
+          readonly host: string;
+          readonly path: string;
+          readonly hostClaim?: true;
+        };
+        readonly outcome: 'applied';
+        readonly changed: boolean;
+        readonly attachment: {
+          readonly url: string;
+          readonly digest: string;
+          readonly bytes: number;
+          readonly contentType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+        };
+      };
+    };
     'metadata': {
       readonly request: {
         readonly host: string;
@@ -1538,7 +1564,7 @@ declare module 'archon:script' {
       readonly exitCode?: number | null;
     };
     readonly mutation?: {
-      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body';
+      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
       readonly target: {
         readonly repo: {
           readonly host: string;
@@ -1631,7 +1657,7 @@ declare module 'archon:script' {
         readonly descriptionDigest: string;
       };
     } | {
-      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body';
+      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
       readonly target: {
         readonly repo: {
           readonly host: string;
@@ -1738,7 +1764,7 @@ declare module 'archon:script' {
       };
       readonly leaveBehind: string;
     } | {
-      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body';
+      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
       readonly target: {
         readonly repo: {
           readonly host: string;
@@ -2078,7 +2104,25 @@ declare module 'archon:script' {
         readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
         readonly owner: 'reachable' | 'unreachable' | 'unknown' | null;
       } | null;
+      readonly operatorPause: {
+        readonly state: 'requested' | 'paused';
+        readonly requested: {
+          readonly at: string;
+          readonly via: string;
+          readonly by: {
+            readonly declared: string;
+          } | {
+            readonly userId: string;
+          } | null;
+          readonly fromRun: {
+            readonly runId: string;
+            readonly nodePath: string;
+          } | null;
+        };
+        readonly pausedAt: string | null;
+      } | null;
       readonly hasResult: boolean;
+      readonly resultCommit: string | null;
     }>;
     readonly queued: ReadonlyArray<{
       readonly requestId: string;
@@ -2104,6 +2148,16 @@ declare module 'archon:script' {
         readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
         readonly owner: 'reachable' | 'unreachable' | 'unknown' | null;
       } | null;
+    }>;
+    readonly hold: {
+      readonly setBy: string;
+      readonly setAt: string;
+    } | null;
+    readonly held: ReadonlyArray<{
+      readonly receiptId: string;
+      readonly bindingId: string;
+      readonly workflow: string | null;
+      readonly receivedAt: string;
     }>;
     readonly questions: ReadonlyArray<{
       readonly kind: 'attention';
@@ -2519,7 +2573,25 @@ declare module 'archon:script' {
           readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
           readonly owner: 'reachable' | 'unreachable' | 'unknown' | null;
         } | null;
+        readonly operatorPause: {
+          readonly state: 'requested' | 'paused';
+          readonly requested: {
+            readonly at: string;
+            readonly via: string;
+            readonly by: {
+              readonly declared: string;
+            } | {
+              readonly userId: string;
+            } | null;
+            readonly fromRun: {
+              readonly runId: string;
+              readonly nodePath: string;
+            } | null;
+          };
+          readonly pausedAt: string | null;
+        } | null;
         readonly hasResult: boolean;
+        readonly resultCommit: string | null;
       }>;
       readonly queued: ReadonlyArray<{
         readonly requestId: string;
@@ -2545,6 +2617,16 @@ declare module 'archon:script' {
           readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
           readonly owner: 'reachable' | 'unreachable' | 'unknown' | null;
         } | null;
+      }>;
+      readonly hold: {
+        readonly setBy: string;
+        readonly setAt: string;
+      } | null;
+      readonly held: ReadonlyArray<{
+        readonly receiptId: string;
+        readonly bindingId: string;
+        readonly workflow: string | null;
+        readonly receivedAt: string;
       }>;
       readonly questions: ReadonlyArray<{
         readonly kind: 'attention';

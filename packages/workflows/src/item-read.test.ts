@@ -193,6 +193,8 @@ const source: ItemReadSource = {
     getResourceStartRequest: async () => null,
     listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
     listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+    getInstallHold: async () => null,
+    listHeldItemStarts: async () => [],
     listStartReceiptSources: async ids =>
       new Map(
         ids
@@ -286,7 +288,9 @@ describe('reading an item', () => {
         awaitingExecution: null,
         spend: { usd: 0.42, inputTokens: 1200, outputTokens: 300 },
         heldBehind: null,
+        operatorPause: null,
         hasResult: false,
+        resultCommit: null,
       },
       {
         id: 'second',
@@ -299,7 +303,9 @@ describe('reading an item', () => {
         awaitingExecution: null,
         spend: { usd: null, inputTokens: null, outputTokens: null },
         heldBehind: null,
+        operatorPause: null,
         hasResult: false,
+        resultCommit: null,
       },
     ]);
     // The children's questions are the item's, under their own run ids, oldest first; the
@@ -372,6 +378,8 @@ describe('reading an item', () => {
       runs: [],
       queued: [],
       skipped: [],
+      hold: null,
+      held: [],
       questions: [],
       answers: rulings,
       merged: merge,

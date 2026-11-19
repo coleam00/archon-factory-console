@@ -275,6 +275,7 @@ export function createInMemoryResourceStartStore(
             status: 'pending' as const,
             ownerId: null,
             error: null,
+            forgeRefusal: null,
             intent: structuredClone(intent),
             requestStatus: null,
             disposition: null,
@@ -287,6 +288,7 @@ export function createInMemoryResourceStartStore(
             status: item.status,
             ownerId: null,
             error: item.reason,
+            forgeRefusal: null,
             intent: null,
             requestStatus: null,
             disposition: null,
@@ -342,6 +344,14 @@ export function createInMemoryResourceStartStore(
           )
           .slice(0, limit)
       ),
+    // The install hold is proved against the SQL store; this one is never held.
+    getInstallHold: async () => null,
+    setInstallHold: async () => {
+      throw new Error('The test store has no install hold');
+    },
+    liftInstallHold: async () => null,
+    listHeldStarts: async () => [],
+    listHeldItemStarts: async () => [],
     listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
     listWaitedItemHolders: async () => [],
     getResourceStartRequest: async (
@@ -386,6 +396,7 @@ export function createInMemoryResourceStartStore(
       const result = await admit(preparedBindingStart(item.intent, input));
       item.status = 'complete';
       item.error = null;
+      item.forgeRefusal = null;
       item.disposition = result;
       return result;
     },
@@ -396,6 +407,7 @@ export function createInMemoryResourceStartStore(
       if (!item) return false;
       item.status = input.retryable ? 'failed' : 'rejected';
       item.error = input.error;
+      item.forgeRefusal = input.forgeRefusal ? structuredClone(input.forgeRefusal) : null;
       return true;
     },
     resetStartBindingPreparation: async (

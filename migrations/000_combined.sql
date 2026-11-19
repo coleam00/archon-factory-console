@@ -610,6 +610,7 @@ CREATE TABLE IF NOT EXISTS remote_agent_start_receipt_bindings (
   preparation_status VARCHAR(20) NOT NULL CHECK (preparation_status IN ('pending', 'preparing', 'failed', 'rejected', 'unmatched', 'complete')),
   preparation_owner TEXT,
   preparation_error TEXT,
+  forge_refusal TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   PRIMARY KEY (receipt_id, binding_id)
@@ -619,6 +620,13 @@ CREATE TABLE IF NOT EXISTS remote_agent_resource_slots (
   resource_key TEXT PRIMARY KEY,
   capacity INTEGER NOT NULL DEFAULT 1 CHECK (capacity >= 1),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- The install hold (#5911): a row means no new run is admitted until an operator lifts it.
+CREATE TABLE IF NOT EXISTS remote_agent_install_hold (
+  id TEXT PRIMARY KEY,
+  set_by TEXT NOT NULL,
+  set_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS remote_agent_resource_slot_holders (
@@ -738,6 +746,10 @@ ALTER TABLE remote_agent_start_receipt_bindings ADD COLUMN IF NOT EXISTS checkou
 -- item_key, if any. One receipt can start several bindings, not all on an item.
 ALTER TABLE remote_agent_start_receipt_bindings ADD COLUMN IF NOT EXISTS item_key TEXT;
 
+-- A binding refused for its pack's forge needs: the typed reasons and remedies, beside
+-- preparation_error, which keeps only the failed boundary.
+ALTER TABLE remote_agent_start_receipt_bindings ADD COLUMN IF NOT EXISTS forge_refusal TEXT;
+
 -- The durable thing runs are about: a key within a project, and when it was first named.
 -- No status, stage or config; where an item stands is derived from its runs. project_key
 -- is the engine's project identity, the one remote_agent_state_revisions scopes by.
@@ -800,6 +812,22 @@ CREATE TABLE IF NOT EXISTS remote_agent_item_merges (
   from_run_id TEXT,
   from_node_path TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+-- One row per item tracker destination ('tracker:<project>'). The row exists once the
+-- destination's activation baseline is committed, so a later activation does not baseline
+-- again. The pass_owner_* columns name the process running the destination's pass, NULL
+-- when none: one pass writes at a time across processes. pass_requested is 1 when a
+-- process found the pass held and asked the holder for one more. What the tracker showed
+-- stays in its attention_notice_sent ledger, not here.
+CREATE TABLE IF NOT EXISTS remote_agent_item_tracker_destinations (
+  destination TEXT PRIMARY KEY,
+  activated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  pass_owner_host TEXT,
+  pass_owner_pid INTEGER,
+  pass_owner_instance TEXT,
+  pass_started_at TIMESTAMP WITH TIME ZONE,
+  pass_requested INTEGER NOT NULL DEFAULT 0
 );
 
 -- Links between items: accepted, directed relations, read from from_item_id to to_item_id.

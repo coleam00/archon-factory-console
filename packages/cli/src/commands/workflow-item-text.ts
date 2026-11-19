@@ -4,15 +4,18 @@
  * and its refused starts, links, open questions, and answers with rulings, each oldest
  * first. Built from the same `ItemRead` that `--json` prints.
  */
+import { describeInstallHold } from '@archon/workflows/schemas/resource-start';
 import type {
   ItemAnswer,
   ItemHeldBehind,
+  ItemHeldStart,
   ItemQueuedStart,
   ItemRead,
   ItemReadLink,
   ItemRun,
   ItemSkippedStart,
 } from '@archon/workflows/item-read';
+import { describeOperatorPause } from '@archon/workflows/schemas/operator-pause';
 import { answererText, attentionItemLines } from './workflow-attention-text';
 
 /** A recorded time to the minute, or the stored text when it does not parse. */
@@ -101,7 +104,14 @@ function runLines(run: ItemRun): string[] {
   const lines = [
     `  ${run.id.slice(0, 8)}  ${run.status.padEnd(9)}  ${run.workflow}${outcome}  ${minute(run.startedAt)}${ended}${causeText(run.cause)}`,
   ];
-  if (run.hasResult) lines.push(`            result: archon workflow get ${run.id} --json`);
+  // A result can hold at a commit without being readable (a truncated untyped result).
+  const holds = run.resultCommit ? `holds at ${run.resultCommit.slice(0, 12)}` : null;
+  if (run.hasResult)
+    lines.push(
+      `            result: archon workflow get ${run.id} --json${holds ? `, ${holds}` : ''}`
+    );
+  else if (holds) lines.push(`            result: ${holds}`);
+  if (run.operatorPause) lines.push(`            ${describeOperatorPause(run.operatorPause)}`);
   const waiting = run.awaitingExecution;
   if (waiting)
     lines.push(
@@ -133,10 +143,22 @@ function queuedLines(start: ItemQueuedStart): string[] {
   return lines;
 }
 
-/** The item's starts with no run: those waiting to start, then any that were refused. */
+function heldLine(start: ItemHeldStart): string {
+  return `  receipt ${start.receiptId}  ${start.workflow ?? '(binding unreadable)'}  binding ${start.bindingId}, received ${minute(start.receivedAt)}, waits for the install hold`;
+}
+
+/**
+ * The item's starts with no run: those waiting to start, held ones first, then any that
+ * were refused.
+ */
 function startSectionLines(read: ItemRead): string[] {
   const lines = ['', 'Waiting to start:'];
-  if (read.queued.length === 0) lines.push('  none');
+  if (read.hold)
+    lines.push(
+      `  New runs are held on this install (${describeInstallHold(read.hold)}); nothing starts until archon hold lift.`
+    );
+  for (const start of read.held) lines.push(heldLine(start));
+  if (read.queued.length === 0 && read.held.length === 0) lines.push('  none');
   for (const start of read.queued) lines.push(...queuedLines(start));
   if (read.skipped.length > 0) {
     lines.push('', 'Refused starts:');

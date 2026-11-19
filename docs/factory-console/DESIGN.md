@@ -225,8 +225,9 @@ the Overview, the item page and the board popover.
   attention ask, its declared `form`, `options`, `other` and `recommendation`, checked by
   `attentionAnswerProblem` (`packages/workflows/src/schemas/run-wait.ts`) and answered today by
   `AttentionAnswerPanel`; for a paused gate (kind `awaiting_response`), the decisions the gate
-  declares and the flow `ApprovalPanel` gives them. The card sends and accepts exactly what those
-  owners do, and draws it in the anatomy above (every choice still goes through the confirm row):
+  declares and the flow `ApprovalPanel` gives them. The card sends and accepts what those owners
+  do, with one exception named below, and draws it in the anatomy above (every choice still goes
+  through the confirm row):
   - a choice is a tile, labelled by rule 8 (or by the label its owner gives it, such as
     `ApprovalPanel`'s "Continue" and "Accept & complete");
   - a choice that takes several picks toggles its tiles: a chosen tile takes the recommended
@@ -236,7 +237,9 @@ the Overview, the item page and the board popover.
     `ApprovalPanel`'s comment on approve and its reason on every other decision), opens the textarea in place
     (`--text-console-14`, 3 rows) above the confirm row, and an ask answered only in words has no
     tiles and opens with the textarea;
-  - Confirm is enabled exactly when the owner would accept the answer.
+  - Confirm is enabled when the owner would accept the answer, with one exception: an ask
+    answered only in words also needs a non-blank character in its text, although the engine
+    accepts blank text (Archon #5903), so a blank answer cannot be sent by mistake.
 - A paused run the console cannot answer here (kind `owner_lost` or `unreadable`) has no tiles:
   the context says what happened, and the confirm row is replaced by a link to the run, where it
   is resumed or abandoned.

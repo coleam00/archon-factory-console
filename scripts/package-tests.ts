@@ -5,6 +5,8 @@ import {
   partitionTestGroups,
   resolvePackageTestConcurrency,
   resolvePackageTestGroups,
+  discoverPackageTestFiles,
+  selectWindowsTestFiles,
 } from './package-test-groups';
 import { bunTestCommand, bunTestEnv } from './bun-test-command';
 import { parseTestArguments, resolveRequestedTestGroups } from './package-test-requests';
@@ -34,6 +36,9 @@ import { runReportedGroup, writeCombinedReport, type TestReport } from './packag
  * package's `testConcurrency`. Each group ends with a
  * `◀ <package> <first selector> <seconds>s` line, which `update-test-weights.ts` reads back
  * from a CI run to refresh the weights.
+ *
+ * `--windows` runs only the package's files marked `WINDOWS_TEST_DIRECTIVE`, each named by its
+ * exact path, in the package's isolation groups. A package with none runs nothing and passes.
  */
 
 const packageDir = process.cwd();
@@ -50,6 +55,7 @@ const run = async (args: string[]): Promise<number> => {
 };
 
 const requested = Bun.argv.slice(2);
+const windowsSet = requested.length === 1 && requested[0] === '--windows';
 
 const packageName =
   typeof manifest === 'object' && manifest !== null && 'name' in manifest
@@ -59,19 +65,35 @@ const weights: Record<string, Record<string, number>> = await Bun.file(
   join(import.meta.dir, 'test-weights.json')
 ).json();
 const request =
-  requested.length > 0 ? resolveRequestedTestGroups(packageDir, manifest, requested) : undefined;
+  requested.length > 0 && !windowsSet
+    ? resolveRequestedTestGroups(packageDir, manifest, requested)
+    : undefined;
 const part =
-  request === undefined || !request.selectsFiles
+  !windowsSet && (request === undefined || !request.selectsFiles)
     ? parseTestPart(process.env.ARCHON_TEST_PART)
     : undefined;
+/**
+ * The marked files, as `./` paths: Bun reads a `./` argument as that one file, where a bare
+ * path is a substring filter that also runs any file whose path ends the same way.
+ */
+const windowsGroups = (): string[][] => {
+  const marked = selectWindowsTestFiles(packageDir, discoverPackageTestFiles(packageDir));
+  if (marked.length === 0) return [];
+  return resolvePackageTestGroups(packageDir, manifest, marked)
+    .filter(group => group.length > 0)
+    .map(group => group.map(file => `./${file}`));
+};
+/** Whether every selected group runs even after one fails, as a requested run does. */
+const finishEveryGroup = request !== undefined || windowsSet;
 const suitePart = (): string[][] =>
   partitionTestGroups(
     resolvePackageTestGroups(packageDir, manifest),
     weights[packageName] ?? {},
     part?.count ?? 1
   )[(part?.index ?? 1) - 1];
-const groups =
-  request === undefined
+const groups = windowsSet
+  ? windowsGroups()
+  : request === undefined
     ? suitePart()
     : part === undefined
       ? request.groups
@@ -79,6 +101,7 @@ const groups =
 const concurrency =
   parseTestConcurrency(process.env.ARCHON_TEST_CONCURRENCY) ??
   resolvePackageTestConcurrency(manifest);
+if (windowsSet && groups.length === 0) console.log(`${packageName}: no file in the Windows set`);
 if (part !== undefined) {
   console.log(`Part ${String(part.index)}/${String(part.count)}: ${String(groups.length)} groups`);
 }
@@ -145,14 +168,14 @@ async function runGroups(): Promise<number> {
     for (const group of groups) {
       const code = await timed(group, run);
       if (firstFailure === 0) firstFailure = code;
-      if (code !== 0 && request === undefined) return code;
+      if (code !== 0 && !finishEveryGroup) return code;
     }
     return firstFailure;
   }
   let next = 0;
   let firstFailure = 0;
   const worker = async (): Promise<void> => {
-    while ((request !== undefined || firstFailure === 0) && next < groups.length) {
+    while ((finishEveryGroup || firstFailure === 0) && next < groups.length) {
       const code = await timed(groups[next++], runBuffered);
       if (firstFailure === 0) firstFailure = code;
     }
