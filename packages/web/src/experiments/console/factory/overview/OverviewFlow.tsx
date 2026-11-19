@@ -11,8 +11,12 @@ import { useReducedMotion } from './useReducedMotion';
 const DOT_R = 4;
 const GLOW_PAD = 4;
 const GLOW_OPACITY = 0.45;
-/** How long a dot or a glow takes to fade in and out, in ms. */
-const FADE = 150;
+/**
+ * How long a glow and a dot take to fade in and out, in ms. A dot's is shorter: a hop between
+ * neighbours lasts 400 ms, and the dot should be at full strength for most of it.
+ */
+const GLOW_FADE = 150;
+const DOT_FADE = 80;
 
 /**
  * The view's flow when it has one, motion is allowed and `animate` asks for it (the root view
@@ -49,9 +53,10 @@ function opacityAnimation(
   start: number,
   end: number,
   peak: number,
-  period: number
+  period: number,
+  fadeMs: number
 ): { values: string; keyTimes: string } {
-  const fade = Math.min(FADE, (end - start) / 2);
+  const fade = Math.min(fadeMs, (end - start) / 2);
   return {
     values: `0;0;${peak.toString()};${peak.toString()};0;0`,
     keyTimes: keyTimes([start, start + fade, end - fade, end], period),
@@ -101,7 +106,7 @@ export const OverviewFlow = memo(function OverviewFlow({
         const box = cards.get(glow.card);
         const kind = kindOf.get(glow.card);
         if (box === undefined || kind === undefined) return null;
-        const fade = opacityAnimation(glow.start, glow.end, GLOW_OPACITY, flow.period);
+        const fade = opacityAnimation(glow.start, glow.end, GLOW_OPACITY, flow.period, GLOW_FADE);
         return (
           <rect
             key={`${glow.card}@${glow.start.toString()}`}
@@ -142,7 +147,7 @@ function FlowDot({
   period: number;
   dur: string;
 }): ReactElement {
-  const fade = opacityAnimation(move.start, move.end, 1, period);
+  const fade = opacityAnimation(move.start, move.end, 1, period, DOT_FADE);
   return (
     <circle
       data-flow-move={`${move.from}->${move.to}`}

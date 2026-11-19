@@ -169,8 +169,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
   `--success`. No two are less than 25 degrees of hue apart and none is purple or pink (owner
   changes 1 and 6 of 2026-11-19); `overview-kinds.test.ts` resolves each token to its oklch value
-  and holds both. The check swatch shares `--node-approval` with the send-back lines, as the check
-  group does above; the legend tells them apart the same way.
+  and holds both. Besides the uses listed below, a kind colour is the faint halo the flow loop draws
+  round a card while a dot rests on it (rule 7). The check swatch shares `--node-approval` with the
+  send-back lines, as the check group does above; the legend tells them apart the same way.
 - State colours:
   - running: `--running` on `--running-soft`
   - needs you: `--warning` on `--warning-soft`
@@ -353,8 +354,8 @@ The section has **two separate things**, each with its own file:
    same moment; one dot then carries on along the forward line (Plan, Build, Checks, CI and
    reviews, Ready to merge, Merged), resting a beat on each card while a faint halo in the card's
    kind colour shows round it. Where a send-back line returns to an input card, a second dot leaves
-   at the same moment and travels it in the shadow colour (CI and reviews, along "unrelated finds
-   would become new work", to Found by agents). The loop rests, then starts again. "On to Merged"
+   at the same moment and travels it (CI and reviews, along "unrelated finds would become new
+   work", to Found by agents), in the shadow colour because that line is a shadow. The loop rests, then starts again. "On to Merged"
    passes Ready to merge, because the dots follow the lines the page draws. Which cards and lines
    it follows is read from card and line kinds (`lib/overview-flow.ts`), never from ids; a view with
    no single input line has no flow. Drill-downs and the other send-back lines stay still. A
