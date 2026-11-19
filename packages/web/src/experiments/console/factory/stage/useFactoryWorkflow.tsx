@@ -6,6 +6,7 @@ import { K } from '../../store/keys';
 import { readFailed } from '../lib/deadline';
 import { retryOnceOnNetworkFailure } from '../lib/network-retry';
 import { readFailure } from '../lib/read-failure';
+import { ReadFailure } from '../ReadFailure';
 import { useFactoryRead } from '../useFactoryRead';
 
 /** A workflow's steps as the stage graph and the step page read them, and what to show if it failed. */
@@ -56,18 +57,9 @@ export function WorkflowReadFailure({
   retry: () => void;
 }): ReactElement {
   return (
-    <div role="alert" className="flex flex-wrap items-center gap-3">
-      <p className="min-w-0 text-console-14 text-error [overflow-wrap:anywhere]">
-        Could not read the workflow <span className="font-mono">{workflow}</span>:{' '}
-        {readFailure(error)}
-      </p>
-      <button
-        type="button"
-        onClick={retry}
-        className="rounded-md border border-border bg-surface px-2.5 py-1 text-console-13 text-text-primary transition-colors duration-150 ease-out hover:bg-surface-hover"
-      >
-        Retry
-      </button>
-    </div>
+    <ReadFailure retry={retry}>
+      Could not read the workflow <span className="font-mono">{workflow}</span>:{' '}
+      {readFailure(error)}
+    </ReadFailure>
   );
 }

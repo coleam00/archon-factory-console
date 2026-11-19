@@ -17,9 +17,10 @@ const HEADING = 'text-console-12 font-medium uppercase tracking-console-label te
  * stage's "Items here now" both draw it from the one `StageRead` the map's chips draw from, so
  * the two never disagree. Every item says when it needs you and what run works it; with
  * `resting`, one that neither holds says its state too (merged, failed, waiting), which the
- * details panel leaves out, as every item on the Merged card would repeat it. Skeleton lines until the items are read (rule 6),
- * never `empty` early, and "Could not be read." once the first read failed (the alert above the
- * map says why).
+ * details panel leaves out, as every item on the Merged card would repeat it. Skeleton lines
+ * until the items are read (rule 6), never `empty` early, and `failed` once the first read
+ * failed: the stage's tab says why with a Retry; the details panel says "Could not be read.",
+ * as the alert above the map says why.
  */
 export function ItemsHere({
   projectId,
@@ -28,6 +29,7 @@ export function ItemsHere({
   live,
   empty,
   resting,
+  failed = <p className="text-console-13 text-text-tertiary">Could not be read.</p>,
 }: {
   projectId: string;
   view: Declaration;
@@ -37,6 +39,8 @@ export function ItemsHere({
   empty: ReactNode;
   /** Whether an item no run works and no ask holds says its state. */
   resting: boolean;
+  /** What it says once the first items read failed. */
+  failed?: ReactNode;
 }): ReactElement {
   if (typeof live === 'string')
     return (
@@ -48,7 +52,7 @@ export function ItemsHere({
             <SkeletonLine width="short" />
           </SkeletonGroup>
         ) : (
-          <p className="text-console-13 text-text-tertiary">Could not be read.</p>
+          failed
         )}
       </section>
     );

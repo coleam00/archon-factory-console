@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { RunningDot } from '../components/LiveDot';
 import type { ItemOnStep } from './lib/items-on-step';
 import { readFailure } from './lib/read-failure';
+import { ReadFailure } from './ReadFailure';
 import { roundOfStep, stepLabel } from './lib/step-label';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 
@@ -66,10 +67,17 @@ export function RunningItemLinks({
 }
 
 /** A failed items read, said where the running items would show. */
-export function RunningItemsFailure({ error }: { error: Error }): ReactElement {
+export function RunningItemsFailure({
+  error,
+  retry,
+}: {
+  error: Error;
+  /** Reads the items again. */
+  retry: () => void;
+}): ReactElement {
   return (
-    <p className="font-mono text-console-12 text-error">
+    <ReadFailure retry={retry}>
       Could not load which items are running: {readFailure(error)}
-    </p>
+    </ReadFailure>
   );
 }

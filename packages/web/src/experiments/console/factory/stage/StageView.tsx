@@ -2,9 +2,13 @@ import { useState, type ReactElement } from 'react';
 import { BookOpen, GitMerge, Inbox } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyNote } from '../../components/EmptyNote';
+import type { FactoryItem } from '../../skills/factory';
+import type { EntityView } from '../../store/cache';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed, type StageTab } from '../lib/views';
+import { readFailure } from '../lib/read-failure';
+import { ReadFailure } from '../ReadFailure';
 import { useFactoryItems } from '../useFactoryItems';
 import { ItemsHere } from './StageItems';
 import { StageDrilldown } from './StageDrilldown';
@@ -86,27 +90,7 @@ export function StageView({
           )}
         </>
       ) : tab === 'items' ? (
-        <ItemsHere
-          projectId={projectId}
-          view={view}
-          stage={stage}
-          live={live}
-          resting
-          empty={
-            <EmptyNote
-              icon={Inbox}
-              sentence="Nothing is in this stage now."
-              link={
-                <Link
-                  to={factoryPath(projectId, '/board')}
-                  className="text-accent-bright hover:underline"
-                >
-                  See every item on the board
-                </Link>
-              }
-            />
-          }
-        />
+        <StageItemsTab projectId={projectId} view={view} stage={stage} live={live} items={items} />
       ) : (
         <>
           <p className={SOURCE}>Generated from the pack's workflow files; shows every step.</p>
@@ -171,5 +155,50 @@ function StageTabs({
         );
       })}
     </div>
+  );
+}
+
+/** "Items here now": the stage's items, rule 6's empty state, or what failed with a Retry. */
+function StageItemsTab({
+  projectId,
+  view,
+  stage,
+  live,
+  items,
+}: {
+  projectId: string;
+  view: Declaration;
+  stage: FactoryStage;
+  live: StageRead;
+  items: EntityView<FactoryItem[]>;
+}): ReactElement {
+  return (
+    <ItemsHere
+      projectId={projectId}
+      view={view}
+      stage={stage}
+      live={live}
+      resting
+      failed={
+        <ReadFailure retry={items.refetch}>
+          Could not read the items in this stage
+          {items.error === undefined ? '.' : `: ${readFailure(items.error)}`}
+        </ReadFailure>
+      }
+      empty={
+        <EmptyNote
+          icon={Inbox}
+          sentence="Nothing is in this stage now."
+          link={
+            <Link
+              to={factoryPath(projectId, '/board')}
+              className="text-accent-bright hover:underline"
+            >
+              See every item on the board
+            </Link>
+          }
+        />
+      }
+    />
   );
 }

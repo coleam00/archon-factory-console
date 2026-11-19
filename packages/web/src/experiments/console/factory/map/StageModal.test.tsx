@@ -12,6 +12,7 @@ import { shippedListed } from '../item-detail.test-fixtures';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { PILL_LABEL } from '../lib/board';
+import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { cancelRereads } from '../merge-reread';
 import { FactoryMap } from './FactoryMap';
 
@@ -30,9 +31,12 @@ const originalFetch = globalThis.fetch;
 /** What each workflow read gets, in turn; the last answer repeats. */
 let workflowReads: (() => Response | Promise<Response>)[] = [];
 let workflowFetches = 0;
+/** What the items read gets, for a test that leaves the items cold. */
+let itemsAnswer: (url: string) => Response = itemsReadAnswer([]);
 globalThis.fetch = Object.assign(
   async (input: RequestInfo | URL): Promise<Response> => {
     const url = String(input);
+    if (isItemsRead(url)) return itemsAnswer(url);
     if (!url.includes('/api/factory/workflow')) throw new Error(`the modal test fetched ${url}`);
     const answer = workflowReads[Math.min(workflowFetches, workflowReads.length - 1)];
     workflowFetches++;
@@ -78,8 +82,9 @@ const attention: EntityView<AttentionQueue> = {
 };
 
 /** The Overview's map at `path`, in a router whose history a test can walk. */
-async function mount(path = OVERVIEW, read: FactoryItem[] = items) {
-  set(K.factoryItems(ID), { items: read, members: {} });
+async function mount(path = OVERVIEW, read: FactoryItem[] | null = items) {
+  // null leaves the items cold, so they are read through `itemsAnswer`.
+  if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
   const router = createMemoryRouter(
     [
       {
@@ -332,6 +337,26 @@ describe('a stage opened over the Overview', () => {
         'The real workflow'
       );
     } finally {
+      await unmount();
+    }
+  });
+
+  test('a failed items read says why in Items here now, and Retry reads them again', async () => {
+    itemsAnswer = () => Response.json({ error: 'The items read failed.' }, { status: 500 });
+    const { container, unmount } = await mount(`${OVERVIEW}?stage=build`, null);
+    try {
+      await settle();
+      await click(inDialog('Items here now'));
+      const alert = dialog()?.querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain('The items read failed.');
+      itemsAnswer = itemsReadAnswer(items);
+      await click(inDialog('Retry'));
+      await settle();
+      expect(dialog()?.querySelector('[role="alert"]')).toBeNull();
+      expect(dialog()?.querySelectorAll('li a[href*="/items/"]').length).toBeGreaterThan(0);
+      expect(container.querySelector('[data-card="plan-build"]')).not.toBeNull();
+    } finally {
+      itemsAnswer = itemsReadAnswer([]);
       await unmount();
     }
   });

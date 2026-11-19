@@ -167,7 +167,7 @@ function OnThisStep({
   );
   // A failed refresh keeps the last list in the cache; it is no longer evidence of what runs.
   const failed = readFailed(items.error);
-  if (failed !== undefined) return <RunningItemsFailure error={failed} />;
+  if (failed !== undefined) return <RunningItemsFailure error={failed} retry={items.refetch} />;
   // A slow refresh, like a failed one, leaves the last list no evidence: retry and say so.
   if (items.error !== undefined || items.data === undefined)
     return (

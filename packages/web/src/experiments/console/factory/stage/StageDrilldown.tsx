@@ -77,7 +77,9 @@ export function StageDrilldown({
   const card = selected === null ? undefined : phases[selected.phase]?.cards[selected.card];
   return (
     <div className="flex flex-col gap-4">
-      {items.error === undefined ? null : <RunningItemsFailure error={items.error} />}
+      {items.error === undefined ? null : (
+        <RunningItemsFailure error={items.error} retry={items.refetch} />
+      )}
       <div
         className={`flex flex-col gap-4 md:grid md:items-start ${loop === undefined ? '' : 'pb-4'}`}
         style={{ gridTemplateColumns: `repeat(${String(phases.length)}, minmax(0, 20rem))` }}
