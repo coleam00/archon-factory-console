@@ -706,10 +706,12 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   its blurb, the notes the view file places by it, its shadow steps (below), the items in it
   (linking to each item), and the workflows behind it with links to their steps.
 - A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
-  rule 10's badge beside its name. The badge marks a step of the stage, not the stage, so it
+  rule 10's badge: on a card of several stages at the start of its row's second line, so the
+  stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
   says which: its hover, and the stage's details under "Shadow steps", give one line per
   shadow step with what it decided lately ("Project checks · last 5: all passed ×5"), or
-  "nothing decided yet".
+  "nothing decided yet"; before the items are read, "…", and "could not be read" once that
+  read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
   "Merged"), and draws each kind of line as the map does: solid, "Hands the item on"; dashed,
   "Sends it back, labelled where it returns to"; the running dot, "A dot moves along a line

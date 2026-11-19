@@ -16,7 +16,7 @@ import {
 import type { FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
-import { stageShadowLines, stageShadows } from '../lib/shadows';
+import { stageShadowLines, stageShadows, type ShadowItems } from '../lib/shadows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
@@ -111,14 +111,12 @@ function MapLiveCanvas({
   useEffect(() => {
     if (typeof live !== 'string') previous.current = live.positions;
   }, [live]);
-  return <MapCanvas {...inputs} live={live} items={items ?? NO_ITEMS} />;
+  return <MapCanvas {...inputs} live={live} items={items ?? unread} />;
 }
 
 /** One stage's chips, why there are none yet, or empty when nothing sits there. */
 const liveOf = (live: MapLive | Unread, stage: string): StageRead =>
   typeof live === 'string' ? live : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
-
-const NO_ITEMS: readonly FactoryItem[] = [];
 
 function MapCanvas({
   projectId,
@@ -127,8 +125,8 @@ function MapCanvas({
   items,
 }: Omit<MapInputs, 'attention'> & {
   live: MapLive | Unread;
-  /** Every item read, for what each shadow step decided lately; empty before the first read. */
-  items: readonly FactoryItem[];
+  /** Every item read, for what each shadow step decided lately; why there is none until then. */
+  items: ShadowItems;
 }): ReactElement {
   const layout = useMemo(() => layoutMap(view), [view]);
   const { cards, bounds } = layout;

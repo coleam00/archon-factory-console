@@ -8,8 +8,9 @@ import { chipWords, HereChip, NeedsYouChip } from './MapChips';
 
 /**
  * One stage inside a card of several, two 20 px lines (map-sizes.ts sizes the card from them):
- * its label (with the shadow badge when it holds a shadow step) with how many sit there, then
- * who needs you there, or else its short line. A click opens its stage page.
+ * its label with how many sit there, then the shadow badge when it holds a shadow step and who
+ * needs you there, or else its short line. The badge sits on the second line so the label
+ * keeps its width; the short line gives way instead. A click opens its stage page.
  */
 export function MapStageRow({
   stage,
@@ -37,12 +38,12 @@ export function MapStageRow({
         <span className="min-w-0 truncate text-console-13 font-medium text-text-primary">
           {stage.label}
         </span>
-        <MapShadowBadge lines={shadows} />
         <span className="ml-auto flex">
           <HereChip live={live} />
         </span>
       </span>
-      <span className="flex h-5 min-w-0 items-center">
+      <span className="flex h-5 min-w-0 items-center gap-1.5">
+        <MapShadowBadge lines={shadows} />
         {typeof live !== 'string' && live.needYou.length > 0 ? (
           <NeedsYouChip live={live} />
         ) : (
@@ -56,7 +57,7 @@ export function MapStageRow({
 }
 
 /**
- * The shadow badge beside a stage's name on the map (rule 10). It marks a step of the stage,
+ * The shadow badge on a stage's row on the map (rule 10). It marks a step of the stage,
  * not the stage, so its hover names each shadow step and what it decided lately; the stage's
  * details list the same lines.
  */

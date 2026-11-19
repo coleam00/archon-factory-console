@@ -123,19 +123,30 @@ export function stageShadows(stage: FactoryStage, view: Declaration): FactorySha
 /** What a shadow badge marks, said once wherever it needs saying. */
 export const SHADOW_MEANS = 'decides what it would do and does nothing';
 
+/** What the map knows of the items: their read, or why there is none yet. */
+export type ShadowItems = readonly FactoryItem[] | 'loading' | 'failed';
+
 /**
  * A stage's shadow steps as the map says them, one line each: the step's label and what it
  * decided lately ("Project checks · last 5: all passed ×5"), or that it has decided nothing
- * yet. Empty when the stage holds none.
+ * yet. Before the items are read it says "…", and "could not be read" once the read failed,
+ * never "nothing decided yet" early (as the details' items list does). Empty when the stage
+ * holds none.
  */
 export function stageShadowLines(
   stage: FactoryStage,
   view: Declaration,
-  items: readonly FactoryItem[]
+  items: ShadowItems
 ): string[] {
-  return stageShadows(stage, view).map(
-    shadow => `${shadow.label} · ${recentTally(items, shadow) ?? 'nothing decided yet'}`
-  );
+  return stageShadows(stage, view).map(shadow => {
+    const said =
+      items === 'loading'
+        ? '…'
+        : items === 'failed'
+          ? 'could not be read'
+          : (recentTally(items, shadow) ?? 'nothing decided yet');
+    return `${shadow.label} · ${said}`;
+  });
 }
 
 const newestFirst = (a: ShadowDecision, b: ShadowDecision): number =>

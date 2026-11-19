@@ -163,6 +163,11 @@ describe('where the shipped view holds shadows', () => {
       'Project checks · last 1: all passed ×1',
     ]);
     expect(stageShadowLines(checks, VIEW, [])).toEqual(['Project checks · nothing decided yet']);
+    // Before the items are read, or once the read failed, it claims no decision either way.
+    expect(stageShadowLines(checks, VIEW, 'loading')).toEqual(['Project checks · …']);
+    expect(stageShadowLines(checks, VIEW, 'failed')).toEqual([
+      'Project checks · could not be read',
+    ]);
     const plan = VIEW.stages.find(stage => stage.id === 'plan');
     if (plan === undefined) throw new Error('the shipped view has a plan stage');
     expect(stageShadowLines(plan, VIEW, [idleWithEveryDecision()])).toEqual([]);
