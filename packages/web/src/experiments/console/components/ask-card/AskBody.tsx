@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ownerLostMessage } from '../../lib/needs-you';
+import { overdueWaitMessage, ownerLostMessage } from '../../lib/needs-you';
 import { answerByRef, AttentionAnswerForm, isLegacyAttention } from '../AttentionAnswerPanel';
 import type { AskCardProps } from './AskCard';
 import { GateAnswer } from './GateAnswer';
@@ -43,6 +43,17 @@ export function AskBody({ projectId, ask, queue, onAnswered }: AskCardProps): Re
       return <Unanswerable projectId={projectId} runId={ask.run.id} what={ownerLostMessage(ask)} />;
     case 'unreadable':
       return <Unanswerable projectId={projectId} runId={ask.run.id} what={ask.detail} />;
+    case 'overdue_wait':
+      return (
+        <>
+          <p className="text-console-14 text-text-secondary [overflow-wrap:anywhere]">
+            {overdueWaitMessage(ask)}
+          </p>
+          <RunLink projectId={projectId} runId={ask.waitingIn.runId}>
+            Look at it on the run
+          </RunLink>
+        </>
+      );
   }
 }
 

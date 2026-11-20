@@ -526,6 +526,55 @@
       ]
     },
     {
+      "name": "Wirasm/archon-software-factory:landed",
+      "returns": "landed",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "clear",
+            "startsNothing": true
+          },
+          {
+            "value": "broken_here",
+            "startsNothing": true
+          },
+          {
+            "value": "broken_before",
+            "startsNothing": true
+          },
+          {
+            "value": "unclear",
+            "startsNothing": true
+          },
+          {
+            "value": "waiting",
+            "startsNothing": true
+          },
+          {
+            "value": "not_landed",
+            "startsNothing": true
+          },
+          {
+            "value": "none",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": false,
+      "nodes": [
+        {
+          "id": "landed",
+          "kind": "agent",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        }
+      ]
+    },
+    {
       "name": "Wirasm/archon-software-factory:landgate",
       "returns": "gate",
       "outcome": null,
@@ -1002,6 +1051,19 @@
     },
     {
       "from": {
+        "stage": "Wirasm/archon-software-factory:landed",
+        "outcome": "broken_here"
+      },
+      "to": "Wirasm/archon-software-factory:order",
+      "active": false,
+      "declared": {
+        "binding": "order-after-landed",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
         "stage": "Wirasm/archon-software-factory:deliver",
         "outcome": "ready"
       },
@@ -1042,7 +1104,22 @@
     {
       "from": {
         "stage": "Wirasm/archon-software-factory:deliver",
-        "settled": "answered"
+        "settled": "answered",
+        "option": "replan"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": false,
+      "declared": {
+        "binding": "plan-after-deliver-replan",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:deliver",
+        "settled": "answered",
+        "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:deliver",
       "active": false,

@@ -175,6 +175,8 @@ export function askQuestion(ask: NeedsYouItem): string {
       return 'This paused run could not be read';
     case 'owner_lost':
       return 'A run lost its owner';
+    case 'overdue_wait':
+      return 'A stage is still waiting past its deadline';
     default:
       return ask.message;
   }
@@ -211,5 +213,7 @@ export function askTile(ask: NeedsYouItem): AskTile {
     case 'owner_lost':
     case 'unreadable':
       return { label: 'Resume or abandon it on the run', recommended: false };
+    case 'overdue_wait':
+      return { label: 'Look at it on the run', recommended: false };
   }
 }

@@ -1,7 +1,7 @@
 /**
  * The start requests the item read lists beside an item's runs: its queued and its refused
- * (`skipped`) starts. Each reads a whole page of items in one statement, since the requests
- * table has no index on `item_id` and every read of it is a scan.
+ * (`skipped`) starts. Each reads a whole page of items in one statement, through the
+ * `(item_id, status)` index on the requests table.
  */
 import { z } from 'zod';
 import type { SkippedItemStart } from '@archon/workflows/resource-start-store';
@@ -20,6 +20,25 @@ function emptyListsFor<T>(ids: readonly string[]): Map<string, T[]> {
   return new Map(ids.map(id => [id, []]));
 }
 
+/** The skipped starts of `count` items, `$1..$count` their ids. Named so a test can plan it. */
+export function skippedItemStartsSqlFor(count: number): string {
+  return `SELECT item_id, id, resource_key, blocker_kind, blocker_run_id, launch
+       FROM remote_agent_resource_start_requests
+      WHERE item_id IN (${placeholderList(Array.from({ length: count }))}) AND status = 'skipped'
+      ORDER BY queue_position`;
+}
+
+/** The queued starts of `count` items, `$1..$count` their ids. Named so a test can plan it. */
+export function queuedItemStartsSqlFor(count: number): string {
+  return `SELECT r.item_id, r.id, r.resource_key, r.host_id, r.launch, r.created_at,
+       (SELECT COUNT(*) FROM remote_agent_resource_start_requests q
+         WHERE q.resource_key = r.resource_key AND q.host_id = r.host_id
+           AND q.status = 'queued' AND q.queue_position < r.queue_position) AS ahead
+       FROM remote_agent_resource_start_requests r
+      WHERE r.item_id IN (${placeholderList(Array.from({ length: count }))}) AND r.status = 'queued'
+      ORDER BY r.queue_position`;
+}
+
 export async function listSkippedItemStarts(
   itemIds: readonly string[]
 ): Promise<ReadonlyMap<string, SkippedItemStart[]>> {
@@ -33,13 +52,7 @@ export async function listSkippedItemStarts(
     blocker_kind: string | null;
     blocker_run_id: string | null;
     launch: unknown;
-  }>(
-    `SELECT item_id, id, resource_key, blocker_kind, blocker_run_id, launch
-       FROM remote_agent_resource_start_requests
-      WHERE item_id IN (${placeholderList(ids)}) AND status = 'skipped'
-      ORDER BY queue_position`,
-    ids
-  );
+  }>(skippedItemStartsSqlFor(ids.length), ids);
   for (const row of result.rows)
     byItem.get(row.item_id)?.push({
       requestId: row.id,
@@ -77,16 +90,7 @@ export async function listQueuedItemStarts(
     launch: unknown;
     created_at: string | Date;
     ahead: number | string;
-  }>(
-    `SELECT r.item_id, r.id, r.resource_key, r.host_id, r.launch, r.created_at,
-       (SELECT COUNT(*) FROM remote_agent_resource_start_requests q
-         WHERE q.resource_key = r.resource_key AND q.host_id = r.host_id
-           AND q.status = 'queued' AND q.queue_position < r.queue_position) AS ahead
-       FROM remote_agent_resource_start_requests r
-      WHERE r.item_id IN (${placeholderList(ids)}) AND r.status = 'queued'
-      ORDER BY r.queue_position`,
-    ids
-  );
+  }>(queuedItemStartsSqlFor(ids.length), ids);
   for (const row of result.rows)
     byItem.get(row.item_id)?.push({
       requestId: row.id,

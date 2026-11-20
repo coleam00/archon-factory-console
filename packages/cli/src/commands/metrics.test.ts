@@ -366,6 +366,7 @@ test('with --project, the item metrics a pack declares are reported over the win
     },
     listItemRulings: async () => [],
     getItemMerge: async (id: string) => merged(id.slice('item-'.length)),
+    getItemLanding: async () => null,
     listQueuedItemStarts: async (itemIds: readonly string[]) =>
       new Map(itemIds.map(id => [id, []])),
     listSkippedItemStarts: async (itemIds: readonly string[]) =>
