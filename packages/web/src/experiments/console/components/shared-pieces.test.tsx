@@ -31,7 +31,9 @@ describe('the section-wide pieces of the Visual standard', () => {
   test('an empty note is an icon, one sentence and its link', () => {
     const html = routed(<EmptyNote sentence="Nothing here yet" link={<a href="/x">More</a>} />);
     expect(html).toContain('<svg');
-    expect(html).toContain('text-console-14 text-text-secondary">Nothing here yet</p>');
+    expect(html).toContain(
+      'min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]">Nothing here yet</p>'
+    );
     expect(html).toContain('text-console-13');
   });
 

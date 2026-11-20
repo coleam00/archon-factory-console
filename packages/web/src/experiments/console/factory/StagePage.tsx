@@ -1,13 +1,16 @@
 import type { ReactElement } from 'react';
-import { useParams } from 'react-router';
+import { FileQuestionMark } from 'lucide-react';
+import { Link, useParams } from 'react-router';
+import { EmptyNote } from '../components/EmptyNote';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
+import { WAY_ON_LINK } from './FactoryNotFound';
 import { readFailed } from './lib/deadline';
 import { stageReadOf } from './lib/map-live';
 import type { FactoryStage } from './lib/stage-steps';
-import { factoryPath, type FactoryViewListed } from './lib/views';
+import { factoryPath, stageModalLink, type FactoryViewListed } from './lib/views';
 import { StageView } from './stage/StageView';
 import { useStageLive } from './stage/useStageLive';
 import { useFactoryItems } from './useFactoryItems';
@@ -29,9 +32,11 @@ export function StagePage(): ReactElement {
           <div className="flex flex-col gap-6">
             <BackLink to={factoryPath(projectId)} label="Back to the overview" />
             {stage === undefined ? (
-              <p className="text-console-14 text-text-secondary">
-                This factory has no stage <span className="font-mono">{stageId}</span>.
-              </p>
+              <StageNotFound
+                projectId={projectId}
+                stageId={stageId}
+                stages={view.declaration.stages}
+              />
             ) : (
               <LiveStage
                 key={stage.id}
@@ -45,6 +50,40 @@ export function StagePage(): ReactElement {
         );
       }}
     </FactoryFrame>
+  );
+}
+
+/** A stage id the view does not declare: the Overview, and each stage it does, as the ways on. */
+function StageNotFound({
+  projectId,
+  stageId,
+  stages,
+}: {
+  projectId: string;
+  stageId: string;
+  stages: FactoryStage[];
+}): ReactElement {
+  return (
+    <EmptyNote
+      icon={FileQuestionMark}
+      sentence={`There is no stage ${stageId} in this factory.`}
+      link={
+        <nav aria-label="Stages" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Link to={factoryPath(projectId)} className={WAY_ON_LINK}>
+            Open the Overview
+          </Link>
+          {stages.map(stage => (
+            <Link
+              key={stage.id}
+              to={stageModalLink(projectId, stage.id).to}
+              className={WAY_ON_LINK}
+            >
+              {stage.label}
+            </Link>
+          ))}
+        </nav>
+      }
+    />
   );
 }
 

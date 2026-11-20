@@ -356,10 +356,14 @@ describe('the stage page', () => {
     );
   });
 
-  test('a stage the view does not declare says so', () => {
-    expect(render(`/console/p/${ID}/factory/stages/nope`, withView)).toContain(
-      'This factory has no stage'
-    );
+  test('a stage the view does not declare says so, with the Overview and its stages as ways on', () => {
+    const html = render(`/console/p/${ID}/factory/stages/nope`, withView);
+    expect(html).toContain('There is no stage nope in this factory.');
+    const start = html.indexOf('aria-label="Stages"');
+    expect(start).toBeGreaterThan(-1);
+    const links = [...html.slice(start, html.indexOf('</nav>', start)).matchAll(/href="([^"]*)"/g)];
+    expect(links.map(([, href]) => href)[0]).toBe(`/console/p/${ID}/factory`);
+    expect(links.map(([, href]) => href)).toContain(`/console/p/${ID}/factory?stage=build`);
   });
 });
 
@@ -397,8 +401,11 @@ describe('the step page', () => {
     expect(html).toContain(`href="/console/p/${ID}/factory?stage=checks"`);
   });
 
-  test('a step the workflow does not have says so', () => {
-    expect(render(`/console/p/${ID}/factory/steps/deliver/nope`, withView)).toContain('No step');
+  test('a step the workflow does not have says so, and leads to its stage', () => {
+    const html = render(`/console/p/${ID}/factory/steps/deliver/nope`, withView);
+    expect(html).toContain('There is no step nope in deliver.');
+    expect(html.replace(/<[^>]*>/g, '')).toContain('Open Build');
+    expect(html).toContain(`href="/console/p/${ID}/factory?stage=build"`);
   });
 });
 
@@ -419,7 +426,7 @@ describe('Factory routes', () => {
 
   test('an unknown stage or item keeps its own page and message', () => {
     const stage = render(`/console/p/${ID}/factory/stages/nope`, withView);
-    expect(stage).toContain('This factory has no stage');
+    expect(stage).toContain('There is no stage nope in this factory.');
     expect(stage).not.toContain('No page here');
     expect(render(`/console/p/${ID}/factory/items/nope`, withView)).not.toContain('No page here');
   });

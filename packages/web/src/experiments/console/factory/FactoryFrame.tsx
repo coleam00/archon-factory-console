@@ -15,7 +15,10 @@ import { K } from '../store/keys';
 import { ClampedSummary } from './ClampedSummary';
 import { useFactoryRead } from './useFactoryRead';
 import { useFactoryViews } from './useFactoryViews';
-import { readFailed, SlowReadError } from './lib/deadline';
+import { SlowReadError } from './lib/deadline';
+import { readFailure } from './lib/read-failure';
+import { ReadFailure } from './ReadFailure';
+import { useReadRetry } from './useReadRetry';
 import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 import { BackLink } from './BackLink';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
@@ -131,9 +134,13 @@ function FactoryAbsent({
   listing: EntityView<FactoryViews>;
 }): ReactNode {
   const listing = read.data;
-  const failed = readFailed(read.error);
+  const { failed, retry } = useReadRetry(read);
   if (failed !== undefined)
-    return <EmptyState title="The factory view could not be loaded" hint={failed.message} />;
+    return (
+      <ReadFailure retry={retry}>
+        The factory view could not be read: {readFailure(failed)}
+      </ReadFailure>
+    );
   if (listing === undefined)
     return (
       <FactoryLoading read={read}>

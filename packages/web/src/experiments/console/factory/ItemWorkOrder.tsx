@@ -3,13 +3,14 @@ import { Link } from 'react-router';
 import { HttpError } from '../lib/http';
 import { PillBadge } from './BoardCard';
 import { boardModel, itemPath, type FactoryDeclaration } from './lib/board';
-import { readFailed } from './lib/deadline';
 import { workOrders, type WorkOrder } from './lib/work-orders';
 import { useFactoryItemsRead } from './useFactoryItems';
+import { useReadRetry, type ReadRetry } from './useReadRetry';
 
 /**
  * The project's work orders, from the items read every Factory page shares (no request of its
- * own): `orders` is undefined until that read lands, `failed` once it failed without a value.
+ * own): `orders` is undefined until that read lands, with `failed` and its Retry once it failed
+ * (`useReadRetry`; called with the item page, so an error held then is an earlier visit's).
  * `own` is the open item's key and the keys its own read links to it as `part_of`: the items
  * read asks only about orders an item on the board names, so an order whose members have not
  * started is known from its own read.
@@ -18,8 +19,10 @@ export function useWorkOrders(
   view: FactoryDeclaration,
   projectId: string,
   own?: { key: string; members: readonly string[] }
-): { orders: WorkOrder[] | undefined; failed: boolean } {
-  const { data, error } = useFactoryItemsRead(projectId);
+): { orders: WorkOrder[] | undefined } & ReadRetry {
+  const read = useFactoryItemsRead(projectId);
+  const { data } = read;
+  const retry = useReadRetry(read);
   const ownKey = own?.key;
   // A string, so a new array of the same keys on each render does not re-derive.
   const ownMembers = own === undefined ? undefined : JSON.stringify(own.members);
@@ -31,10 +34,15 @@ export function useWorkOrders(
         : { ...data.members, [ownKey]: JSON.parse(ownMembers) as string[] };
     return workOrders(data.items, boardModel(view, projectId, data.items, new Map()), members);
   }, [view, projectId, data, ownKey, ownMembers]);
-  return { orders, failed: data === undefined && readFailed(error) !== undefined };
+  return { orders, ...retry };
 }
 
-/** The item read answered that the project has no item under the key. */
+/**
+ * The item read answered that the project has no item under the key. The route also answers 404
+ * for an unknown project or one no view applies to, but the item page renders inside
+ * `FactoryFrame` only once the project's view has loaded, so there a 404 is the item's. Read by
+ * status, never by the server's message text.
+ */
 export function isNoSuchItem(error: Error | undefined): boolean {
   return error instanceof HttpError && error.status === 404;
 }

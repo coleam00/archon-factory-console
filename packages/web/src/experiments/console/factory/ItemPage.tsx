@@ -4,7 +4,6 @@ import { AskGroup } from '../components/ask-card/AskGroup';
 import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
 import { CircleCheck } from 'lucide-react';
 import { EmptyNote } from '../components/EmptyNote';
-import { EmptyState } from '../components/EmptyState';
 import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { askNaming } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
@@ -30,6 +29,10 @@ import { membershipOf } from './lib/work-orders';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
 import { FactoryLoading } from './FactoryLoading';
+import { ItemNotFound } from './ItemMissing';
+import { readFailure } from './lib/read-failure';
+import { ReadFailure } from './ReadFailure';
+import { useReadRetry } from './useReadRetry';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
 export function ItemPage(): ReactElement {
@@ -101,7 +104,15 @@ function ItemRead({
     if (column !== undefined) previous.current = { key: itemKey, stage: stageIdOf(column) };
   }, [column, itemKey]);
   if (data === undefined)
-    return <ItemUnread projectId={projectId} itemKey={itemKey} read={read} orders={orders} />;
+    return (
+      <ItemUnread
+        key={itemKey}
+        projectId={projectId}
+        itemKey={itemKey}
+        read={read}
+        orders={orders}
+      />
+    );
   const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
   // The placement every view shares, and the board's pill, so the header says what the
@@ -143,9 +154,8 @@ function incomingMembers(item: FactoryItemDetail['item']): string[] {
 }
 
 /**
- * The page while the item read has no value: loading, or why it failed. A work order only a
- * member's order run named has no item row, so the item read answers 404 and the page is the
- * order's, from the items read.
+ * The page while the item read has no value: loading, why it failed with a Retry, or that there
+ * is no such item. Keyed by the item, so a held failure of another key is never shown.
  */
 function ItemUnread({
   projectId,
@@ -158,15 +168,46 @@ function ItemUnread({
   read: EntityView<FactoryItemDetail>;
   orders: ReturnType<typeof useWorkOrders>;
 }): ReactElement {
-  const failed = readFailed(read.error);
-  if (isNoSuchItem(failed)) {
-    const order = orders.orders?.find(entry => entry.key === itemKey);
-    if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
-    if (orders.orders === undefined && !orders.failed) return <ItemSkeleton read={read} />;
-  }
+  const { failed, retry } = useReadRetry(read);
+  if (isNoSuchItem(failed))
+    return <NoSuchItem projectId={projectId} itemKey={itemKey} read={read} orders={orders} />;
   if (failed !== undefined)
-    return <EmptyState title={`Item ${itemKey} could not be read`} hint={errorDetail(failed)} />;
+    return (
+      <ReadFailure retry={retry}>
+        Item <span className="font-mono">{itemKey}</span> could not be read: {readFailure(failed)}
+      </ReadFailure>
+    );
   return <ItemSkeleton read={read} />;
+}
+
+/**
+ * The item read answered 404. A work order only a member's order run named has no item row, so
+ * the page is the order's, from the items read. Until that read lands the page cannot say there
+ * is no item, and if it failed, it says the item could not be checked, with a Retry.
+ */
+function NoSuchItem({
+  projectId,
+  itemKey,
+  read,
+  orders,
+}: {
+  projectId: string;
+  itemKey: string;
+  read: EntityView<FactoryItemDetail>;
+  orders: ReturnType<typeof useWorkOrders>;
+}): ReactElement {
+  if (orders.orders === undefined)
+    return orders.failed === undefined ? (
+      <ItemSkeleton read={read} />
+    ) : (
+      <ReadFailure retry={orders.retry}>
+        Item <span className="font-mono">{itemKey}</span> could not be checked: the items could not
+        be read to look for it: {readFailure(orders.failed)}
+      </ReadFailure>
+    );
+  const order = orders.orders.find(entry => entry.key === itemKey);
+  if (order !== undefined) return <WorkOrderOnly projectId={projectId} order={order} />;
+  return <ItemNotFound projectId={projectId} itemKey={itemKey} />;
 }
 
 /** The item page's shape while it loads (rule 6): the header's lines and pill, three runs. */
