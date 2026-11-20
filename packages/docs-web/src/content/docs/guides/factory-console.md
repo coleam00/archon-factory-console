@@ -93,12 +93,14 @@ page, keeping the query string. Inside the tab:
   view marks the drains `shadow`, the panel carries a "shadow" badge and says the factory
   decides what it would file and files nothing yet. The panel only reads: it files, starts
   and dismisses nothing.
-- **Item page**: one item's state, open asks, a timeline of every run and round, its links to
+- **Item page**: one item's state (a parked item reads its declared `parked` label, "Parked by
+  triage", with its run's reason on hover), open asks, a timeline of every run and round, its links to
   other items (on a work order, its members with their state and how many merged; an item no run
   has started yet says "Not started"), and the
   rulings and answers given on it. The timeline words an outcome from the
   declaration: a run that ended in an `asked` outcome, or that left asks on the item, reads
-  "asked you" (its questions on hover); otherwise a run outcome in `placement` reads as where it
+  "asked you" (its questions on hover); a run outcome in `parked` reads as its label; otherwise
+  a run outcome in `placement` reads as where it
   sent the item ("sent to Plan"), and one in `endings` as its label. A step outcome in `returns`
   or `approves` reads "returned" or "approved", and one in `verdicts` as its meaning's words
   ("approved", "returned", "asked you"). An outcome the declaration does not map shows as the

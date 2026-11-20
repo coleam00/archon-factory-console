@@ -726,7 +726,9 @@ What those reads do not carry comes from **one read-only route file**,
   the title, each declared run's workflow as the view names it with the step it failed at, and
   `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
   its declared outcome names (an empty value there means none; a refused run is never read), and
-  `shadows`: the newest decision of each shadow step the view declares. Beside `progress`, `members` lists for each asked key the
+  `shadows`: the newest decision of each shadow step the view declares, and `parked`: the
+  declared label and the reason at its `why` pointer when the item's last declared run completed
+  with a declared `parked` outcome, else null. Beside `progress`, `members` lists for each asked key the
   items with an active `part_of` link to it, so a member with no run yet counts. A key may name
   an item with no runs (a work order). The web joins each window page with it: one reader,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
