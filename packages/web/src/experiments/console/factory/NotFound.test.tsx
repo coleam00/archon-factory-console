@@ -63,7 +63,7 @@ const notFound = (error: string) => (): Response => Response.json({ error }, { s
 
 interface Answers {
   views: () => Response;
-  item: () => Response;
+  item: () => Response | Promise<Response>;
   items: (url: string) => Response;
   workflow: () => Response;
 }
@@ -184,10 +184,20 @@ describe('an item', () => {
       const alert = container.querySelector('[role="alert"]');
       expect(alert?.textContent).toContain('Item 3 could not be read: the server did not answer');
       expect(words(container)).not.toContain('There is no item');
+      // While the retry waits, the held failure gives way to the page's loading shape.
+      let fail: (error: Error) => void = () => undefined;
+      answers.item = () =>
+        new Promise<Response>((_resolve, reject) => {
+          fail = reject;
+        });
       const before = fetches.item;
       await click(alert?.querySelector('button'));
       expect(fetches.item).toBe(before + 1);
-      // Still offline: the new failure shows again, so Retry visibly did something.
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+      expect(words(container)).toContain('Loading the item');
+      // Still offline: the new failure shows.
+      await act(async () => fail(new TypeError('Failed to fetch')));
+      await settle();
       expect(container.querySelector('[role="alert"]')?.textContent).toContain(
         'the server did not answer'
       );
