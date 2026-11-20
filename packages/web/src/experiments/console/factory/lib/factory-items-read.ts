@@ -1,4 +1,4 @@
-import { getFactoryProgress, type FactoryItem } from '../../skills/factory';
+import { getFactoryProgress, type FactoryItem, type FactoryProgress } from '../../skills/factory';
 import { listItemWindow, type ItemRead, type ItemWindow } from '../../skills/items';
 import type { WithinDeadline } from './deadline';
 import { membershipOf } from './work-orders';
@@ -10,7 +10,7 @@ import { membershipOf } from './work-orders';
  */
 const EVERY_ITEM_SINCE = '1970-01-01T00:00:00Z';
 /** The most items one window page holds (`ITEM_WINDOW_MAX_LIMIT` on the server). */
-const PAGE_LIMIT = 100;
+export const PAGE_LIMIT = 100;
 
 export interface FactoryItemsReads {
   listWindow: typeof listItemWindow;
@@ -110,6 +110,23 @@ export async function readEveryFactoryItem(
   }
   items.sort((a, b) => activityOf(b) - activityOf(a) || a.item.id.localeCompare(b.item.id));
   return { items, members };
+}
+
+/**
+ * `read` with the progress of every item `answer` names, and its members merged in: what a
+ * keyed progress read changes. A key the answer names as `null` takes it (the server could
+ * not derive that item's progress); an item the answer omits stays as it was. The order is
+ * kept: a progress read changes no item's activity.
+ */
+export function withProgress(read: FactoryItemsRead, answer: FactoryProgress): FactoryItemsRead {
+  return {
+    items: read.items.map(item =>
+      Object.hasOwn(answer.progress, item.item.key)
+        ? { ...item, progress: answer.progress[item.item.key] ?? null }
+        : item
+    ),
+    members: { ...read.members, ...answer.members },
+  };
 }
 
 /** Every work order an item is part of (`membershipOf`: its link, else its order run's result). */

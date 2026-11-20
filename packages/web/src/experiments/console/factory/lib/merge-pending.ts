@@ -3,8 +3,9 @@
  * state `pending` while its first lookup still runs (`GET /api/factory/progress`), and the
  * console re-reads until it settles. Until then the item may belong in the landed column, so
  * no count that rule 2 of placement decides is shown as a number. A settled `unknown`, an
- * item whose progress could not be read and one with no change are final reads, not pending:
- * they are counted where placement puts them, and the card says so.
+ * item whose progress could not be read and one with no change are not pending: they are
+ * counted where placement puts them, and the card says so. A settled `false` or `unknown`
+ * is still asked about again on an interval (`awaitingMerge`).
  */
 import type { FactoryItem } from '../../skills/factory';
 
@@ -22,6 +23,22 @@ export function mergePending(item: FactoryItem): boolean {
 
 export function anyMergePending(items: readonly FactoryItem[]): boolean {
   return items.some(mergePending);
+}
+
+/**
+ * Whether the item has a change the forge has not reported merged: `false`, or `unknown`
+ * after a failed lookup that may recover. A merge on the forge is no run event, so the page
+ * asks again on an interval while one is left (`merge-watch.ts`). `pending` is not here: the
+ * short re-read owns that state until the server answers (`merge-reread.ts`).
+ */
+export function awaitingMerge(item: FactoryItem): boolean {
+  const merged = item.progress?.change?.merged;
+  return merged === false || merged === 'unknown';
+}
+
+/** The keys of the items that `awaitingMerge`. */
+export function awaitingMergeKeys(items: readonly FactoryItem[]): string[] {
+  return items.filter(awaitingMerge).map(item => item.item.key);
 }
 
 /**

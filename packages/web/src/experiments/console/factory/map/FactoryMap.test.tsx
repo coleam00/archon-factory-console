@@ -15,6 +15,7 @@ import { FIT_PAD, MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
+import { cancelMergeWatches } from '../merge-watch';
 import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
@@ -37,6 +38,7 @@ afterAll(async () => {
 });
 afterEach(() => {
   cancelRereads();
+  cancelMergeWatches();
   invalidate('factory-items');
 });
 

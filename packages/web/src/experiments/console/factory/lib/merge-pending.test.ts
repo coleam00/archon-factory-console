@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { delivering, progressOf, readyWithMerge, realItem } from './board.test-fixtures';
-import { mergePending, stageCountPending } from './merge-pending';
+import { awaitingMerge, awaitingMergeKeys, mergePending, stageCountPending } from './merge-pending';
 
 describe('mergePending', () => {
   test('an idle item whose merge state the server is still asking waits', () => {
@@ -34,5 +34,22 @@ describe('stageCountPending', () => {
     expect(stageCountPending('landed', 'landed', [], true)).toBe(true);
     expect(stageCountPending('build', 'landed', [realItem('6')], true)).toBe(false);
     expect(stageCountPending('landed', 'landed', [], false)).toBe(false);
+  });
+});
+
+describe('awaitingMerge', () => {
+  test('a change not merged, or whose lookup failed, waits; merged, pending and none do not', () => {
+    const noChange = { ...realItem('6'), item: { ...realItem('6').item, key: 'e' } };
+    noChange.progress = { ...progressOf(noChange), change: null };
+    const items = [
+      readyWithMerge('a', true),
+      readyWithMerge('b', false),
+      readyWithMerge('c', 'unknown'),
+      readyWithMerge('d', 'pending'),
+      noChange,
+      { ...realItem('6'), item: { ...realItem('6').item, key: 'f' }, progress: null },
+    ];
+    expect(items.map(awaitingMerge)).toEqual([false, true, true, false, false, false]);
+    expect(awaitingMergeKeys(items)).toEqual(['b', 'c']);
   });
 });

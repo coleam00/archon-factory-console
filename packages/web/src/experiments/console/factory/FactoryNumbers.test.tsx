@@ -1,4 +1,4 @@
-import { afterAll, afterEach, expect, test } from 'bun:test';
+import { afterAll, afterEach, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -9,6 +9,7 @@ import { FactoryNumbers } from './FactoryNumbers';
 import { PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads, MERGE_REREAD_MS, scheduleReread } from './merge-reread';
+import { cancelMergeWatches, MERGE_WATCH_MS, mergeWatchHeld } from './merge-watch';
 
 // A failed read lands after the first render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -35,6 +36,8 @@ globalThis.fetch = Object.assign(
 afterEach(() => {
   // A pending read schedules a re-read; it must not fire into the next test.
   cancelRereads();
+  cancelMergeWatches();
+  jest.useRealTimers();
   invalidate('factory-items');
 });
 
@@ -178,6 +181,71 @@ test('a settled unknown is counted as the board places it, not loading', async (
   } finally {
     await unmount();
   }
+});
+
+test('a merge on the forge reaches the numbers on the watch interval, with no run event', async () => {
+  const mergedAt = new Date().toISOString();
+  const waiting = readyWithMerge('w', false);
+  const asked: string[] = [];
+  const held = globalThis.fetch;
+  globalThis.fetch = Object.assign(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname !== '/api/factory/progress') throw new Error('the server is down');
+      asked.push(url.searchParams.getAll('keys').join(','));
+      const answer = readyWithMerge('w', true).progress;
+      if (answer?.change) answer.change.mergedAt = mergedAt;
+      return Response.json({ pack: 'p', progress: { w: answer }, members: {} });
+    },
+    { preconnect: originalFetch.preconnect }
+  );
+  // The watch's interval is the only clock here: nothing invalidates the key.
+  jest.useFakeTimers();
+  const items = [...PAGE.items, waiting];
+  const { tile, unmount } = await mount('cb-watch', items);
+  try {
+    expect(tile('merged')).toBe('merged3 of 9');
+    expect(tile('merged today')).toBe('merged today0');
+    jest.advanceTimersByTime(MERGE_WATCH_MS - 1);
+    expect(asked).toEqual([]);
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+      for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+    });
+    for (let turn = 0; turn < 5 && tile('merged') !== 'merged4 of 9'; turn++)
+      await act(async () => Promise.resolve());
+    // Only the keys whose change is not merged were asked about, not the whole board.
+    expect(asked).toEqual(['8,3,w']);
+    expect(tile('merged')).toBe('merged4 of 9');
+    expect(tile('merged today')).toBe('merged today1');
+  } finally {
+    globalThis.fetch = held;
+    await unmount();
+  }
+});
+
+test('the page holds the merge watch only while a change waits on a merge', async () => {
+  const { unmount } = await mount('cb-held', [readyWithMerge('m', true)]);
+  const items = async (list: FactoryItem[]) =>
+    act(async () => set(K.factoryItems('cb-held'), { items: list, members: {} }));
+  try {
+    expect(mergeWatchHeld('cb-held')).toBe(false);
+    await items([readyWithMerge('m', true), readyWithMerge('w', false)]);
+    expect(mergeWatchHeld('cb-held')).toBe(true);
+    // It merges.
+    await items([readyWithMerge('m', true), readyWithMerge('w', true)]);
+    expect(mergeWatchHeld('cb-held')).toBe(false);
+    await items([readyWithMerge('w', 'unknown')]);
+    expect(mergeWatchHeld('cb-held')).toBe(true);
+    // It leaves the board.
+    await items([readyWithMerge('m', true)]);
+    expect(mergeWatchHeld('cb-held')).toBe(false);
+    await items([readyWithMerge('w', false)]);
+  } finally {
+    await unmount();
+  }
+  // The last reader gone, nothing holds it.
+  expect(mergeWatchHeld('cb-held')).toBe(false);
 });
 
 test('a failed refresh says so and keeps the last numbers', async () => {
