@@ -8,9 +8,9 @@ import { awaitingMergeKeys } from './lib/merge-pending';
 /**
  * How often the page asks again about changes the forge has not reported merged. A merge on
  * the forge is no run event, so nothing else asks once an item's last run ended. The server
- * keeps a not-merged answer for 60 s and serves it while it refreshes, so a merge shows
- * within about two of these (typically 60 to 90 s, at worst about 2 min); a shorter interval
- * would mostly re-read the server's cached answer.
+ * keeps a not-merged answer for 60 s, then serves it once more while it refreshes, so a
+ * merge shows on the ask after the one that started the refresh: typically 60 to 90 s after
+ * it, at worst about 2 min. A shorter interval would mostly re-read the server's cached answer.
  */
 export const MERGE_WATCH_MS = 30_000;
 

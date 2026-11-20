@@ -3,8 +3,9 @@
  * state `pending` while its first lookup still runs (`GET /api/factory/progress`), and the
  * console re-reads until it settles. Until then the item may belong in the landed column, so
  * no count that rule 2 of placement decides is shown as a number. A settled `unknown`, an
- * item whose progress could not be read and one with no change are final reads, not pending:
- * they are counted where placement puts them, and the card says so.
+ * item whose progress could not be read and one with no change are not pending: they are
+ * counted where placement puts them, and the card says so. A settled `false` or `unknown`
+ * is still asked about again on an interval (`awaitingMerge`).
  */
 import type { FactoryItem } from '../../skills/factory';
 
