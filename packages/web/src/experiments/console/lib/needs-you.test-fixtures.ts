@@ -3,6 +3,7 @@ import type { AttentionQueueItem } from '../skills/runs';
 type Ask = Extract<AttentionQueueItem, { kind: 'attention' }>;
 type Gate = Extract<AttentionQueueItem, { kind: 'awaiting_response' }>;
 type UsageLimit = Extract<AttentionQueueItem, { kind: 'usage_limit' }>;
+type OverdueWait = Extract<AttentionQueueItem, { kind: 'overdue_wait' }>;
 
 const project = { key: 'acme', codebaseId: 'cb-1', name: 'acme' };
 const runRef = (id: string): NonNullable<Ask['run']> => ({
@@ -85,6 +86,23 @@ export function unreadableItem(overrides: Partial<Unreadable> = {}): Unreadable 
     run,
     reason: 'child_run_missing',
     detail: 'The child run this one waits on is gone.',
+    ...overrides,
+  };
+}
+
+/** A stage still waiting for a check past its deadline, on item `#9`. */
+export function overdueWaitItem(overrides: Partial<OverdueWait> = {}): OverdueWait {
+  return {
+    kind: 'overdue_wait',
+    ref: 'wait:1',
+    project,
+    item: { id: 'item-9', projectKey: 'acme', key: '#9' },
+    revision: 1,
+    labels: {},
+    pausedAt: '2026-11-16T08:00:00.000Z',
+    waitingIn: { runId: 'run-wait', workflow: 'deliver' },
+    waits: [{ event: 'check_completed', about: 'CI on the change' }],
+    deadline: '2026-11-16T08:40:00.000Z',
     ...overrides,
   };
 }

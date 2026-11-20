@@ -1,11 +1,15 @@
 import { describe, expect, test } from 'bun:test';
-import { askItem, gateItem, usageLimitItem } from './needs-you.test-fixtures';
+import { askItem, gateItem, overdueWaitItem, usageLimitItem } from './needs-you.test-fixtures';
+import { askQuestion, askTile } from './ask-card';
 import {
+  askRunId,
+  askWorkflow,
   needsYou,
   needsYouCount,
   needsYouPath,
   needsYouSubjectWords,
   needsYouSubjects,
+  overdueWaitMessage,
 } from './needs-you';
 
 describe('needsYou', () => {
@@ -57,5 +61,23 @@ describe('needsYouCount and needsYouSubjects', () => {
   test('the tab path carries the ask it brings forward, encoded', () => {
     expect(needsYouPath('cb-1')).toBe('/console/p/cb-1/needs-you');
     expect(needsYouPath('cb-1', 'ask:a/b')).toBe('/console/p/cb-1/needs-you?ask=ask%3Aa%2Fb');
+  });
+});
+
+describe('an overdue wait', () => {
+  test('names what the stage waits for and the run holding the wait', () => {
+    const wait = overdueWaitItem();
+    expect(overdueWaitMessage(wait)).toBe(
+      'The deliver run is still waiting for CI on the change past its deadline.'
+    );
+    expect(askRunId(wait)).toBe('run-wait');
+    expect(askWorkflow(wait)).toBe('deliver');
+    expect(askQuestion(wait)).toBe('A stage is still waiting past its deadline');
+    expect(askTile(wait)).toEqual({ label: 'Look at it on the run', recommended: false });
+  });
+
+  test('an item-less wait counts as its run', () => {
+    const wait = overdueWaitItem({ item: undefined });
+    expect(needsYouSubjects([wait])).toEqual({ items: 0, runs: 1 });
   });
 });
