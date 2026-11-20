@@ -498,3 +498,53 @@ describe('the workflow read never dead-ends', () => {
     }
   });
 });
+
+describe('the modal is sized by what it shows', () => {
+  const width = (): string | undefined => dialog()?.style.getPropertyValue('--stage-modal-w');
+  const desktop = async (): Promise<void> => {
+    await act(async () => dom.happyDOM.setViewport({ width: 1440, height: 900 }));
+  };
+  afterEach(async () => {
+    await act(async () => dom.happyDOM.setViewport({ width: 1024, height: 768 }));
+  });
+
+  test('a stage of one phase and one card, like Plan, opens compact', async () => {
+    await desktop();
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'plan'));
+      expect(width()).toBe('640px');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a stage of many phases, like Checks, opens wide and stops at 90% of the window', async () => {
+    await desktop();
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'triage'));
+      expect(width()).toBe('744px');
+      await click(inDialog('Close'));
+      await click(stageLink(container, 'checks'));
+      expect(width()).toBe('1296px');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('the real workflow widens it to the cap, and going back narrows it again', async () => {
+    workflowReads = [steps];
+    await desktop();
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'plan'));
+      await click(inDialog('The real workflow'));
+      expect(width()).toBe('1296px');
+      await click(inDialog('What this stage does'));
+      expect(width()).toBe('640px');
+    } finally {
+      await unmount();
+    }
+  });
+});
