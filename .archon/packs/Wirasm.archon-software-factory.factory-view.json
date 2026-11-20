@@ -370,6 +370,7 @@
     "order:ready": "triage",
     "triage:build": "plan",
     "triage:narrow": "plan",
+    "triage:park": "triage",
     "plan:planned": "build",
     "plan:ask": "plan",
     "deliver:ready": "ready",
@@ -384,7 +385,12 @@
   },
   "endings": {
     "order:refused": "Refused at intake",
-    "triage:*": "Closed by triage",
+    "triage:close": "Closed by triage",
+    "triage:decline": "Closed by triage",
+    "triage:deprecate": "Closed by triage",
+    "triage:fold": "Folded into another item",
+    "triage:recipe": "Handled another way",
+    "triage:native": "Handled another way",
     "plan:stop": "Stopped at planning",
     "land:stop": "Stopped before merging"
   },
@@ -405,6 +411,7 @@
     }
   },
   "asked": ["plan:ask", "deliver:ask", "land:ask"],
+  "parked": { "triage:park": { "label": "Parked by triage", "why": "/why" } },
   "change": { "workflow": "deliver", "pointer": "/change" },
   "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
   "discoveries": {

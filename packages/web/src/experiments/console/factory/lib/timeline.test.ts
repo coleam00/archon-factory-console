@@ -296,9 +296,22 @@ describe('an outcome the declaration says nothing about', () => {
     if (triage === undefined) throw new Error('item 1 has runs');
     const rows = timeline({
       ...detail,
-      item: { ...detail.item, runs: [{ ...triage, outcome: 'skip' }, ...rest] },
+      item: { ...detail.item, runs: [{ ...triage, outcome: 'fold' }, ...rest] },
     });
-    expect(rows[0]?.outcome).toEqual(said(shippedView.endings['triage:*'] ?? ''));
+    expect(rows[0]?.outcome).toEqual(said('Folded into another item'));
+    expect(rows[0]?.kind).toBe('stopped');
+  });
+
+  test('a parked outcome reads as its declared label, not the stage it sits in', () => {
+    const detail = itemDetail('1');
+    const [triage] = detail.item.runs;
+    if (triage === undefined) throw new Error('item 1 has runs');
+    const rows = timeline({
+      ...detail,
+      item: { ...detail.item, runs: [{ ...triage, outcome: 'park' }] },
+    });
+    expect(rows[0]?.outcome).toEqual(said('Parked by triage'));
+    expect(rows[0]?.kind).toBe('other');
   });
 });
 
@@ -548,7 +561,7 @@ describe('what each run did to the item, for its icon', () => {
     if (triage === undefined) throw new Error('item 1 has runs');
     const ended = timeline({
       ...detail,
-      item: { ...detail.item, runs: [{ ...triage, outcome: 'skip' }, ...rest] },
+      item: { ...detail.item, runs: [{ ...triage, outcome: 'decline' }, ...rest] },
     });
     expect(ended[0]?.kind).toBe('stopped');
   });

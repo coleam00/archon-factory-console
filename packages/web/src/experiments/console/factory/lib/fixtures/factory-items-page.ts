@@ -59,6 +59,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           { runId: 'c9773ff3-36bf-413e-a3b3-45ce93a77087', workflow: 'deliver', failedStep: null },
         ],
         shadows: [],
+        parked: null,
       },
     },
     {
@@ -135,6 +136,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           { runId: '624c763f-4f33-46ea-aa65-bb1ba78c1eec', workflow: 'deliver', failedStep: null },
         ],
         shadows: [],
+        parked: null,
       },
     },
     {
@@ -188,6 +190,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           { runId: '585ed621-5f63-4148-bb95-92cfb4c7f52a', workflow: 'deliver', failedStep: null },
         ],
         shadows: [],
+        parked: null,
       },
     },
     {
@@ -257,6 +260,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           { runId: 'f4e603d9-bdeb-4614-a411-77e76eb77777', workflow: 'deliver', failedStep: null },
         ],
         shadows: [],
+        parked: null,
       },
     },
   ],

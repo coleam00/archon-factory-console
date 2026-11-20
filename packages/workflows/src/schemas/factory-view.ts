@@ -309,6 +309,18 @@ const factoryViewShape = z.strictObject({
    * decides where the item waits.
    */
   asked: z.array(outcomeKeySchema).optional(),
+  /**
+   * Completed outcomes that leave the item open and idle by choice (`workflow:outcome`, or
+   * `workflow:*`): kept for later, not ended. `label` words it ("Parked by triage"); `why`, when
+   * given, points at the run's reason in its result. `placement` must take each key, since it
+   * still decides where the item sits, and no exact `endings` key may name one.
+   */
+  parked: z
+    .record(
+      outcomeKeySchema,
+      z.strictObject({ label: labelSchema, why: jsonPointerSchema.optional() })
+    )
+    .optional(),
   /** Where the change's URL is in a run's result, as a JSON pointer. */
   change: z
     .strictObject({
@@ -468,6 +480,23 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   view.asked?.forEach((key, index) => {
     refer(['asked', index], workflowOf(key));
   });
+  for (const key of Object.keys(view.parked ?? {})) refer(['parked', key], workflowOf(key));
+  return issues;
+}
+
+/**
+ * A `parked` outcome is placed, never ended: `placement` takes it (exactly or by `workflow:*`),
+ * and no exact `endings` key names it, which placement, checked first, would leave dead.
+ */
+function parkedIssues(view: FactoryViewShape): Issue[] {
+  const issues: Issue[] = [];
+  for (const key of Object.keys(view.parked ?? {})) {
+    const workflow = key.slice(0, key.lastIndexOf(':'));
+    if (view.placement[key] === undefined && view.placement[`${workflow}:*`] === undefined)
+      issues.push({ path: ['parked', key], message: 'a parked outcome must be placed' });
+    if (view.endings[key] !== undefined)
+      issues.push({ path: ['endings', key], message: 'is declared parked; a parked item is open' });
+  }
   return issues;
 }
 
@@ -578,6 +607,7 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
     ...columnIssues(view),
     ...workflowReferenceIssues(view),
     ...verdictOverlapIssues(view),
+    ...parkedIssues(view),
     ...drilldownIssues(view),
     ...shadowReferenceIssues(view),
     ...discoveriesShadowIssues(view),

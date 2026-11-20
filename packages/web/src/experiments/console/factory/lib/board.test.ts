@@ -18,6 +18,7 @@ import {
   keepRuns,
   landRunning,
   PAGE,
+  parkedByTriage,
   progressOf,
   realItem,
   VIEW,
@@ -213,7 +214,7 @@ describe('card fields, in order', () => {
 
 describe('the board', () => {
   test('columns are the declared columns in order, Merged among them, with the folded endings', () => {
-    const ended = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now');
+    const ended = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'close');
     const model = boardModel(
       VIEW,
       PROJECT,
@@ -372,6 +373,17 @@ describe('grouped columns', () => {
     expect(model.ended.map(group => [group.label, group.cards.map(p => p.card.key)])).toEqual([
       [UNPLACED_LABEL, ['8']],
     ]);
+  });
+
+  test('a parked item is a card in Intake with the Parked pill, not a folded ending', () => {
+    const model = boardModel(VIEW, PROJECT, [parkedByTriage()], new Map());
+    const intake = model.columns.find(column => column.id === 'intake');
+    expect(
+      intake?.cards.map(placed => [placed.card.key, placed.card.pill, placed.card.stage])
+    ).toEqual([['6p', 'parked', 'Triage']]);
+    expect(model.ended).toEqual([]);
+    expect(model.positions.get('6p')).toBe('triage');
+    expect(columnChips(intake?.cards ?? [])).toEqual([{ pill: 'parked', count: 1 }]);
   });
 
   test("a column's chips count its cards by state, only states above 0", () => {

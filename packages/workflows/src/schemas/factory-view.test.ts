@@ -260,6 +260,46 @@ describe('factoryViewSchema', () => {
     ).toEqual(['verdicts.deliver', 'asked.0']);
   });
 
+  test('a parked outcome is accepted when placed, exactly or by workflow:*', () => {
+    const parked = { 'plan:park': { label: 'Parked by planning', why: '/why' } };
+    expect(
+      factoryViewSchema.safeParse({
+        ...minimal(),
+        placement: { 'plan:planned': 'build', 'plan:park': 'plan' },
+        parked,
+      }).success
+    ).toBe(true);
+    expect(
+      factoryViewSchema.safeParse({
+        ...minimal(),
+        placement: { 'plan:*': 'plan' },
+        endings: {},
+        parked: { 'plan:park': { label: 'Parked' } },
+      }).success
+    ).toBe(true);
+  });
+
+  test('a parked outcome no placement takes, or one also ended, is rejected', () => {
+    expect(issuePaths({ ...minimal(), parked: { 'plan:park': { label: 'Parked' } } })).toEqual([
+      'parked.plan:park',
+    ]);
+    expect(
+      issuePaths({
+        ...minimal(),
+        placement: { 'plan:park': 'plan' },
+        endings: { 'plan:park': 'Stopped' },
+        parked: { 'plan:park': { label: 'Parked' } },
+      })
+    ).toEqual(['endings.plan:park']);
+    expect(
+      issuePaths({
+        ...minimal(),
+        placement: { 'plan:planned': 'build', 'deliver:park': 'plan' },
+        parked: { 'deliver:park': { label: 'Parked' } },
+      })
+    ).toEqual(['placement.deliver:park', 'parked.deliver:park']);
+  });
+
   test('a verdict meaning outside the closed set is rejected', () => {
     const verdicts = { build: { 'rounds.tests': { sound: 'passed' } } };
     expect(issuePaths({ ...minimal(), verdicts })).toEqual(['verdicts.build.rounds.tests.sound']);

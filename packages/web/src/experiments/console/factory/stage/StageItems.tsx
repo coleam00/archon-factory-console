@@ -132,7 +132,7 @@ function ItemRow({
 
 /**
  * The state of an item no run works and no ask holds, in the board card's words
- * (`itemPill`): merged, failed, or waiting. Whether it needs you is the attention queue's to
+ * (`itemPill`): merged, failed, parked, or waiting. Whether it needs you is the attention queue's to
  * say, as on the map's chip: an ask only the item's own read lists reads as waiting here.
  */
 function RestingState({
@@ -146,9 +146,15 @@ function RestingState({
 }): ReactElement {
   const pill = rested(itemPill(view, item, stage.id === view.landed.stage, stage.label).pill);
   const tone =
-    pill === 'failed' ? 'text-error' : pill === 'landed' ? 'text-success' : 'text-text-tertiary';
+    pill === 'failed'
+      ? 'text-error'
+      : pill === 'landed'
+        ? 'text-success'
+        : pill === 'parked'
+          ? 'text-text-secondary'
+          : 'text-text-tertiary';
   return <span className={`text-console-12 ${tone}`}>{PILL_LABEL[pill]}</span>;
 }
 
-const rested = (pill: Pill): 'landed' | 'failed' | 'waiting' =>
-  pill === 'landed' || pill === 'failed' ? pill : 'waiting';
+const rested = (pill: Pill): 'landed' | 'failed' | 'parked' | 'waiting' =>
+  pill === 'landed' || pill === 'failed' || pill === 'parked' ? pill : 'waiting';

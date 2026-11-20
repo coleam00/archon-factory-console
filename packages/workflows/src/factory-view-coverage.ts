@@ -1,8 +1,9 @@
 /**
  * Whether a factory view tells the truth about its pack: every real step of a workflow the
  * view lists is covered by exactly one drill-down card (or loop), every step the view names
- * (shadows included) is real, and the map's arrows are exactly the hand-offs the pack graph reports between the
- * workflows the view lists. A workflow no stage lists is not compared (`unlistedWorkflows`
+ * (shadows included) is real, the map's arrows are exactly the hand-offs the pack graph reports between the
+ * workflows the view lists, and every outcome such a workflow declares is placed or ended while
+ * every outcome the view names is one it declares. A workflow no stage lists is not compared (`unlistedWorkflows`
  * names them). The schema cannot see the pack's workflows; this check reads them as the pack
  * graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
@@ -17,6 +18,8 @@ export type CoverageFindingKind =
   | 'unknown-workflow'
   | 'undeclared-hand-off'
   | 'unbacked-arrow'
+  | 'unplaced-outcome'
+  | 'unknown-outcome'
   | 'graph-incomplete';
 
 export interface CoverageFinding {
@@ -299,6 +302,69 @@ function shadowFindings(view: FactoryView, graph: PackGraph): CoverageFinding[] 
   return findings;
 }
 
+/** The outcomes the graph says a run of the stage can complete with; null when it declares none. */
+const outcomesOf = (graphStage: GraphStage): Set<string> | null =>
+  graphStage.outcome === null ? null : new Set(graphStage.outcome.values.map(entry => entry.value));
+
+const outcomeKey = (key: string): { workflow: string; outcome: string } => {
+  const at = key.lastIndexOf(':');
+  return { workflow: key.slice(0, at), outcome: key.slice(at + 1) };
+};
+
+/**
+ * Every outcome a listed workflow declares is placed or ended, exactly or by `workflow:*`, so a
+ * completed run never leaves its item where no rule put it on purpose. A workflow whose stage
+ * declares no outcome (a gate that only records) is not compared.
+ */
+function unplacedOutcomeFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  const taken = (key: string): boolean =>
+    view.placement[key] !== undefined || view.endings[key] !== undefined;
+  return [...stages].flatMap(([workflow, graphStage]) =>
+    [...(outcomesOf(graphStage) ?? [])]
+      .filter(outcome => !taken(`${workflow}:${outcome}`) && !taken(`${workflow}:*`))
+      .map(
+        (outcome): CoverageFinding => ({
+          kind: 'unplaced-outcome',
+          path: ['placement'],
+          message: `outcome "${workflow}:${outcome}" is neither placed nor ended`,
+        })
+      )
+  );
+}
+
+/**
+ * Every exact `workflow:outcome` key of `placement`, `endings`, `parked` and `asked` names an
+ * outcome the workflow declares. A `*` key, and a workflow whose stage declares no outcome, are
+ * not compared; a workflow the graph lacks is reported as unknown-workflow.
+ */
+function unknownOutcomeFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  const keys: [ViewPath, string][] = [
+    ...Object.keys(view.placement).map((key): [ViewPath, string] => [['placement', key], key]),
+    ...Object.keys(view.endings).map((key): [ViewPath, string] => [['endings', key], key]),
+    ...Object.keys(view.parked ?? {}).map((key): [ViewPath, string] => [['parked', key], key]),
+    ...(view.asked ?? []).map((key, index): [ViewPath, string] => [['asked', index], key]),
+  ];
+  return keys.flatMap(([path, key]): CoverageFinding[] => {
+    const { workflow, outcome } = outcomeKey(key);
+    const graphStage = stages.get(workflow);
+    const declared = graphStage === undefined ? null : outcomesOf(graphStage);
+    if (outcome === '*' || declared === null || declared.has(outcome)) return [];
+    return [
+      {
+        kind: 'unknown-outcome',
+        path,
+        message: `names outcome "${outcome}", which workflow "${workflow}" does not declare`,
+      },
+    ];
+  });
+}
+
 /** Every way `view` disagrees with the pack's real workflows and hand-offs; empty when none. */
 export function factoryViewCoverage(view: FactoryView, graph: PackGraph): CoverageFinding[] {
   const stages = graphStagesOf(view, graph);
@@ -339,5 +405,7 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
     ...namedStepFindings(view, stages),
     ...arrowFindings(view, graph),
     ...shadowFindings(view, graph),
+    ...unplacedOutcomeFindings(view, stages),
+    ...unknownOutcomeFindings(view, stages),
   ];
 }

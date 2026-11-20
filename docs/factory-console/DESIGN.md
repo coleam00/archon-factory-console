@@ -257,6 +257,8 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   - failed: `--error` on `--error-soft`
   - merged, done: `--success` on `--success-soft`
   - waiting: `--text-tertiary` on `--surface-inset`
+  - parked: `--text-secondary` on `--surface-inset`, with a 1 px `--border` ring, so it reads
+    apart from waiting while staying neutral
   - shadow: `--node-opaque` (rule 10)
 - A state pill or chip is the state's colour as text on its soft background.
 - **"Needs you" is the one loud colour.** A card's Needs you state pill is the only filled pill
@@ -601,14 +603,19 @@ present itself without the console knowing it. Shape (validated with zod in
   ],                                               // absent: one column per stage
   "placement": {                                    // where an idle item sits after a run ended
     "order:ready": "triage",
-    "triage:build": "plan", "triage:narrow": "plan",
+    "triage:build": "plan", "triage:narrow": "plan", "triage:park": "triage",
     "plan:planned": "build", "plan:ask": "plan",
     "deliver:ready": "ready", "deliver:waiting": "host", "deliver:returned": "build",
     "deliver:replan": "plan", "deliver:ask": "build",
     "landgate:*": "ready"                           // workflow:* takes every completed run no
   },                                                // exact key does, one with no outcome too
-  "endings": { "triage:*": "Closed by triage", "order:refused": "Refused at intake" },
+  "endings": { "triage:close": "Closed by triage", "triage:fold": "Folded into another item",
+               "triage:recipe": "Handled another way", "order:refused": "Refused at intake" },
                                                    // outcomes that end an item without a change
+  "parked": { "triage:park": { "label": "Parked by triage", "why": "/why" } },
+                                                   // outcomes that keep an item open for later:
+                                                   // placed (placement must take each), never
+                                                   // ended; `why` points at the run's reason
   "landed": { "stage": "landed" },                 // the column for an item whose change merged
   "rounds": { "workflow": "deliver", "loop": "rounds" },
   "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
@@ -667,7 +674,11 @@ not; owner ruling of 2026-11-17) that the view does not declare, and on a declar
 such hand-off backs, unless it is marked `person: true` (a replan, a landing), joins two
 different stages of one workflow (its steps), or runs into the Merged column (the `landed` stage). An arrow back into its own stage is a rerun only
 a hand-off starts, so it is never exempt. The same check fails on a real step no drill-down card
-covers or two cover, and on a step or workflow the view names that the pack does not have.
+covers or two cover, and on a step or workflow the view names that the pack does not have. It
+fails, too, on an outcome a listed workflow declares that neither `placement` nor `endings` takes
+(exactly or by `workflow:*`), so a completed run never leaves its item where no rule put it, and on
+an exact `placement`, `endings`, `parked` or `asked` key naming an outcome its workflow does not
+declare (#100).
 
 ## Data
 
@@ -715,7 +726,9 @@ What those reads do not carry comes from **one read-only route file**,
   the title, each declared run's workflow as the view names it with the step it failed at, and
   `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
   its declared outcome names (an empty value there means none; a refused run is never read), and
-  `shadows`: the newest decision of each shadow step the view declares. Beside `progress`, `members` lists for each asked key the
+  `shadows`: the newest decision of each shadow step the view declares, and `parked`: the
+  declared label and the reason at its `why` pointer when the item's last declared run completed
+  with a declared `parked` outcome, else null. Beside `progress`, `members` lists for each asked key the
   items with an active `part_of` link to it, so a member with no run yet counts. A key may name
   an item with no runs (a work order). The web joins each window page with it: one reader,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
@@ -754,11 +767,12 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## Overview page
 
 1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
-2. **Numbers strip:** items in flight, need you (the Needs you tab's count of asks and waits,
-   linking there), merged today, merged in total ("N of M merged", M excluding items closed by
-   triage), median time from first run to merged ("median to merged"). Each tile is a number
-   tile in the card language: a 16 px icon and its label in the Label role, then the figure at
-   `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
+2. **Numbers strip:** items in flight (on the board, not merged and not parked), need you (the
+   Needs you tab's count of asks and waits, linking there), merged today, merged in total ("N of
+   M merged", M every item on the board: not the items an ending took off it, but a parked item,
+   which is open), median time from first run to merged ("median to merged"). Each tile is a
+   number tile in the card language: a 16 px icon and its label in the Label role, then the
+   figure at `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
    (Visual standard, rule 6) in place of its figure; while any item's merge state is pending,
    every number but needs you and found by the factory shows the skeleton bar too, never a count
    that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
@@ -862,7 +876,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     and that the real workflow shows its steps.
   - **Items here now**: the items in the stage, from the same read as the card's chips, each
     linking to its item page with its state (needs you, the run line of the run working it, or
-    the board's merged, failed or waiting); rule 6's empty state when there are none.
+    the board's merged, failed, parked or waiting); rule 6's empty state when there are none.
   - **The real workflow** (first when the stage has no drill-down), with the line "Generated
     from the pack's workflow files; shows every step.": each workflow's steps drawn as a graph
     (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed group
@@ -911,9 +925,12 @@ first rule that matches. The board, the map and the item page all place through 
 2. Its change **merged**: the Merged column.
 3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
    also places a run that returns no outcome, such as the pack's `landgate`): that stage.
-4. Its last run's outcome is in `endings`: not on the board; counted in a folded row
-   "N closed by triage" at the end of the board's toolbar, opening a list over the board, each
-   linking to its item.
+4. Its last run's outcome is in `endings`: not on the board; counted in a folded row per ending
+   label ("N closed by triage", "N folded into another item") at the end of the board's toolbar,
+   each opening a list over the board, each linking to its item. The view maps each outcome by
+   itself, never one wildcard over outcomes that mean different things (#100). A `parked` outcome
+   is no ending: rule 3 places it (for this pack, in Triage, in the Intake column), and the item
+   counts as open.
 5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
@@ -921,7 +938,8 @@ first rule that matches. The board, the map and the item page all place through 
 A card, in this order:
 
 1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
-   **Failed**, **Waiting** (queued or idle between stages), **Merged**.
+   **Failed**, **Parked** (its last run kept it open for later: a declared `parked` outcome),
+   **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the declared run input's title line: the first non-empty line after any `---`
    front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines;
    2 on a card showing an ask's face (rule 7).
@@ -1006,8 +1024,9 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 ## The item page
 
 - Header: key, title (Section heading role), state pill, the column it is in (not for a merged
-  item: its pill says so), and the change as a button-style link ("PR #n") with its merge state
-  as quiet tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line
+  item: its pill says so; for a parked item, the declared label, "Parked by triage", with the
+  reason its run gave on hover), and the change as a button-style link ("PR #n") with its merge
+  state as quiet tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line
   while the host is still asked). The pill is the header's one coloured state. An item no run has
   started yet (a member linked before its first run) says "Not started" instead of a state,
   column and change.
@@ -1027,7 +1046,8 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
   verdict reads in the board's words where the view declares its meaning (`returns`, `approves`,
   `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run
   that stopped to ask (a declared `asked` outcome, or asks it left on the item) reads "asked
-  you", with its questions on hover, not the stage it would send the item to.
+  you", with its questions on hover, not the stage it would send the item to. A run that parked
+  the item reads the declared `parked` label ("Parked by triage"), not "sent to Triage".
 - **Links:** depends on, part of, duplicate of, from the engine's item links. A member its order
   run placed without a link says "Part of <order>, as its order run recorded". On a work order,
   its members stand for their links: each with its title, state pill and where it sits, under

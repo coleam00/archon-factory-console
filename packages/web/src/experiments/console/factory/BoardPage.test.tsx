@@ -348,11 +348,11 @@ describe('the Pipeline view', () => {
   });
 
   test('an item an ending took off the board is in the folded row, linking to its page', async () => {
-    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'not-now');
+    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
     const { container, unmount } = await mount([closed, realItem('7')]);
     try {
       const folded = container.querySelector('details');
-      expect(folded?.querySelector('summary')?.textContent).toBe('1 closed by triage');
+      expect(folded?.querySelector('summary')?.textContent).toBe('1 folded into another item');
       expect(folded?.querySelector('a')?.getAttribute('href')).toBe(
         `/console/p/${ID}/factory/items/6`
       );
