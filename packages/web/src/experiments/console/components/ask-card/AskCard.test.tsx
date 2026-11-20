@@ -474,6 +474,7 @@ const dryRunAsk = (overrides: Partial<Parameters<typeof askItem>[0]> = {}): Need
       'The review and the product check disagree on whether the empty state is in scope. Which stands?',
     context: DRY_RUN_CONTEXT,
     options: DRY_RUN_ROUTES,
+    other: true,
     recommendation: { option: 'send-back', why: DRY_RUN_WHY },
     ...overrides,
   });
@@ -523,7 +524,7 @@ test('what the stage offered shows whole between the question and the tiles, the
   }
 });
 
-test('with an offered list, the answer box asks which of them is meant', async () => {
+test("with an offered list, a tile pick's note asks which of them is meant", async () => {
   serve();
   const card = await mount([dryRunAsk()]);
   try {
@@ -531,6 +532,10 @@ test('with an offered list, the answer box asks which of them is meant', async (
     expect(card.container.querySelector('textarea')?.placeholder).toBe(
       'Say which the stage offered you mean: Build it or Leave it'
     );
+    // Something else is answered in words, so it keeps its own prompt.
+    await card.click('Cancel');
+    await card.click('Something else');
+    expect(card.container.querySelector('textarea')?.placeholder).toBe('Say what to do instead');
   } finally {
     await card.unmount();
   }

@@ -326,8 +326,9 @@ the Overview, the item page and the board popover.
   `--border`, holding its name (rule 8) at `--text-console-14` semibold, then what it does and
   costs at `--text-console-13`, `--text-secondary`. The option a recommendation's `why` names
   (`The stage recommends "<id>".`) wears the tiles' green mark and badge. While the list shows,
-  the textarea's placeholder asks which of those options is meant, on any pick. The console
-  matches only that marker line and that prefix; any other wording leaves the card as above.
+  a pick's optional note asks which of those options is meant ("Something else" keeps its own
+  prompt). The console matches only that marker line and that prefix; any other wording leaves
+  the card as above.
 - Option tiles: a wrapping row, 8 px apart (`gap-2`), one tile per option the ask carries, in
   its declared order. Each tile is at least 176 px wide, `--radius-console-12`, 1 px `--border`,
   `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs

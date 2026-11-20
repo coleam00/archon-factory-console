@@ -62,8 +62,9 @@ function tilesOf(wait: AttentionWait): AskTile[] {
 
 /**
  * What the confirm row asks for, given the picks so far. While the card shows what the stage
- * offered, the textarea asks which of those is meant, on every pick: the routes are the pack's,
- * and the console names none of them (rule 1). Whether text is required does not change.
+ * offered, a pick's optional note asks which of those is meant, on every tile: the routes are
+ * the pack's, and the console names none of them (rule 1). An answer in words keeps its own
+ * prompt, and whether text is required does not change.
  */
 function draftOf(
   wait: AttentionWait,
@@ -72,21 +73,12 @@ function draftOf(
   offered: Offered | null
 ): ConfirmDraft {
   const labels = picks.map(id => tiles.find(tile => tile.id === id)?.label ?? id);
-  const draft = baseDraft(wait, picks);
-  return {
-    labels,
-    ...draft,
-    ...(offered === null ? {} : { placeholder: offeredPlaceholder(offered) }),
-  };
-}
-
-function baseDraft(
-  wait: AttentionWait,
-  picks: readonly string[]
-): Pick<ConfirmDraft, 'text' | 'placeholder'> {
-  if (wait.form === 'message') return { text: 'required', placeholder: 'Your answer' };
-  if (takesText(wait, picks)) return { text: 'required', placeholder: 'Say what to do instead' };
-  return { text: 'optional', placeholder: 'Optional note with your answer' };
+  if (wait.form === 'message') return { labels, text: 'required', placeholder: 'Your answer' };
+  if (takesText(wait, picks))
+    return { labels, text: 'required', placeholder: 'Say what to do instead' };
+  const placeholder =
+    offered === null ? 'Optional note with your answer' : offeredPlaceholder(offered);
+  return { labels, text: 'optional', placeholder };
 }
 
 /**
