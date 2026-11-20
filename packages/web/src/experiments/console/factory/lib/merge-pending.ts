@@ -25,6 +25,22 @@ export function anyMergePending(items: readonly FactoryItem[]): boolean {
 }
 
 /**
+ * Whether the item has a change the forge has not reported merged: `false`, or `unknown`
+ * after a failed lookup that may recover. A merge on the forge is no run event, so the page
+ * asks again on an interval while one is left (`merge-watch.ts`). `pending` is not here: the
+ * short re-read owns that state until the server answers (`merge-reread.ts`).
+ */
+export function awaitingMerge(item: FactoryItem): boolean {
+  const merged = item.progress?.change?.merged;
+  return merged === false || merged === 'unknown';
+}
+
+/** The keys of the items that `awaitingMerge`. */
+export function awaitingMergeKeys(items: readonly FactoryItem[]): string[] {
+  return items.filter(awaitingMerge).map(item => item.item.key);
+}
+
+/**
  * Whether a stage's count waits on a merge answer: it holds an item that waits, or it is the
  * landed stage and any item waits (the answer may move it there). The board's columns and
  * the map's cards both ask here, so they agree.

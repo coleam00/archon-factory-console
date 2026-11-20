@@ -13,6 +13,7 @@ import { realItem, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { itemWith, run, settledItem } from './lib/map.test-fixtures';
 import { cancelRereads } from './merge-reread';
+import { cancelMergeWatches } from './merge-watch';
 
 // The popover opens, closes and moves focus on events, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -54,6 +55,7 @@ const ID = 'cb-1';
 const NOW = new Date(2026, 10, 18, 12, 0);
 afterEach(() => {
   cancelRereads();
+  cancelMergeWatches();
   invalidate('factory-items');
 });
 

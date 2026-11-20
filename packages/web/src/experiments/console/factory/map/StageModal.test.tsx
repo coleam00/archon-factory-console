@@ -14,6 +14,7 @@ import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { PILL_LABEL } from '../lib/board';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { cancelRereads } from '../merge-reread';
+import { cancelMergeWatches } from '../merge-watch';
 import { FactoryMap } from './FactoryMap';
 
 // Opening, closing, keys, focus and Back are events, which static markup cannot reach.
@@ -60,6 +61,7 @@ afterAll(async () => {
 });
 afterEach(() => {
   cancelRereads();
+  cancelMergeWatches();
   invalidate('factory-items');
   invalidate('factory-workflow');
   workflowReads = [steps];

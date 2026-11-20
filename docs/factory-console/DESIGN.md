@@ -520,7 +520,9 @@ documents through Neon live queries.
    cache and skills layer, and the dashboard SSE for live updates. Copy patterns from existing
    pages (RunsPage, RunDetailPage, RunGraphPanel, MetricsPage) before inventing new ones.
 5. **Live within 5 seconds.** When a run starts, changes step or ends, or an ask opens or
-   closes, every Factory view that shows it updates within 5 s without a reload.
+   closes, every Factory view that shows it updates within 5 s without a reload. A merge on the
+   forge is no run event: while a change is not merged, the board and Overview ask about it
+   every 30 s (not while the tab is hidden), so a merge shows within about two minutes.
 6. **Never start a server on the live factory's home.** Use `bun run dev:console` (a throwaway
    home seeded with a read-only copy of the live database). See ENGINEERING.md.
 

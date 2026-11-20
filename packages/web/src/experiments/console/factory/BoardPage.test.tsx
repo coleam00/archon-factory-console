@@ -16,6 +16,7 @@ import {
 } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
+import { cancelMergeWatches } from './merge-watch';
 import { formatDateTime } from '../lib/format';
 import { boardColumns } from './lib/board-columns';
 
@@ -59,6 +60,7 @@ const QUIET = {
 const NOW = new Date(2026, 10, 18, 12, 0);
 afterEach(() => {
   cancelRereads();
+  cancelMergeWatches();
   invalidate('factory-items');
 });
 

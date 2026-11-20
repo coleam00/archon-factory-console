@@ -2,7 +2,13 @@ import { afterEach, expect, jest, mock, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemWindow } from '../../skills/items';
 import { deadlineOf, FACTORY_READ_DEADLINE_MS, SlowReadError } from './deadline';
-import { readEveryFactoryItem, readEveryItem, type FactoryItemsReads } from './factory-items-read';
+import { readyWithMerge } from './board.test-fixtures';
+import {
+  readEveryFactoryItem,
+  readEveryItem,
+  withProgress,
+  type FactoryItemsReads,
+} from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
@@ -217,4 +223,26 @@ test('with no factory view it walks the window alone, never the progress read, n
   expect(items[0]).not.toHaveProperty('progress');
   expect(windowCalls).toHaveLength(2);
   expect(progressCalls).toEqual([]);
+});
+
+test('withProgress takes the answered keys, null included, and keeps the rest and the order', () => {
+  const [a, b, c] = [
+    readyWithMerge('a', false),
+    readyWithMerge('b', false),
+    readyWithMerge('c', 'unknown'),
+  ];
+  const merged = readyWithMerge('a', true).progress;
+  const read = { items: [a, b, c], members: { a: ['x'] } };
+  const next = withProgress(read, {
+    pack: 'p',
+    progress: { a: merged, c: null },
+    members: { c: ['y'] },
+  });
+  expect(next.items.map(item => item.item.key)).toEqual(['a', 'b', 'c']);
+  expect(next.items[0]?.progress).toBe(merged);
+  expect(next.items[1]).toBe(b);
+  expect(next.items[2]?.progress).toBeNull();
+  expect(next.members).toEqual({ a: ['x'], c: ['y'] });
+  // The value read before is unchanged: the cache compares by identity.
+  expect(read.items[0]).toBe(a);
 });
