@@ -8,6 +8,7 @@ import { FactoryErrors } from '../FactoryFrame';
 import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
+import { packDisplayName } from '../lib/pack-name';
 import { factoryPackPath, factoryPath, type FactoryPackListed } from '../lib/views';
 import { PackFrame, PacksFailed } from './PackFrame';
 import { PackSkeleton } from './PackSkeleton';
@@ -106,8 +107,8 @@ function PackCard({ pack }: { pack: FactoryPackListed }): ReactElement {
         <span className="truncate">Pack</span>
       </p>
       <h2 className="line-clamp-2 text-console-15 font-semibold text-text-primary">
-        <Link to={factoryPackPath(pack.key)} className="hover:underline">
-          {pack.pack}
+        <Link to={factoryPackPath(pack.key)} title={pack.pack} className="hover:underline">
+          {packDisplayName(pack.pack)}
         </Link>
       </h2>
       {pack.overview === null ? (

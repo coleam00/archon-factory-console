@@ -421,7 +421,9 @@ describe('grouped columns', () => {
       ['Checks & review', 'Checks'],
       ['Checks & review', 'CI and review'],
       ['Ready to merge', 'Ready to merge'],
-      ['Merged', 'Merged'],
+      // A merged row's Stage is empty, as its board card's is: Column and State already say
+      // so. It still sorts after every live stage.
+      ['Merged', null],
     ]);
   });
 });

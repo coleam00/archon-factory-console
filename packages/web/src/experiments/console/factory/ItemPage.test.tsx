@@ -64,7 +64,10 @@ describe('the item page', () => {
     expect(html).not.toContain(shippedView.summary);
     expect(words).toContain('In Build');
     expect(words).toContain('PR #14');
-    expect(words).toContain('merge state unknown');
+    // A live item's merge state is a quiet suffix after its PR, never a chip.
+    expect(html).toContain(
+      'data-merge-state="unknown" class="whitespace-nowrap text-console-13 text-text-tertiary">merge state unknown<'
+    );
     expect(words.match(/Build deliver/g)?.length).toBe(2);
     expect(words).toContain('round 2 of 3 · needs a decision');
     expect(words).toContain('Ask answered');
@@ -132,13 +135,17 @@ describe('the item page', () => {
     expect(page).not.toMatch(/text-console-(9|10|11)\b|\btext-(xs|sm|base|lg)\b/);
   });
 
-  test('the header: the PR as a button-style link, its merge state as a chip', () => {
+  test('the header: the PR as a button-style link, its merge state as quiet words', () => {
     const merged = render(itemDetail('1'));
     expect(merged).toMatch(
       /class="inline-flex[^"]*rounded-md border border-border[^"]*"><svg[^>]*lucide-git-pull-request/
     );
+    // A merged item says so once: its pill, then the PR with a quiet "merged". No "In Merged",
+    // which only repeated the pill.
+    expect(merged).toContain(pill('landed', 'Merged'));
+    expect(text(merged)).not.toContain('In Merged');
     expect(merged).toContain(
-      `data-merge-state="true" class="${'whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium'} ${PILL_CLASS.landed}">merged<`
+      'data-merge-state="true" class="whitespace-nowrap text-console-13 text-text-tertiary">merged<'
     );
     expect(render(itemDetail('3'))).toContain('data-merge-state="unknown"');
     const detail = itemDetail('3');
@@ -154,7 +161,9 @@ describe('the item page', () => {
             : { ...detail.item.progress, change: { ...change, merged: value } },
       },
     });
-    expect(render(withMerged(false))).toContain(`${PILL_CLASS.waiting}">open<`);
+    expect(render(withMerged(false))).toContain(
+      'data-merge-state="false" class="whitespace-nowrap text-console-13 text-text-tertiary">open<'
+    );
     const pending = render(withMerged('pending'));
     expect(pending).toContain('data-merge-state="pending"');
     expect(pending).toContain('data-skeleton="line"');

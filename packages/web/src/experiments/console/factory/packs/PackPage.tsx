@@ -4,11 +4,11 @@ import { FactoryErrors } from '../FactoryFrame';
 import { OverviewBody } from '../overview/OverviewPage';
 import { factoryPath, type FactoryPackListed } from '../lib/views';
 import { PackFrame } from './PackFrame';
-import { PackLookup, packTitle } from './PackLookup';
+import { PackLookup, packHeading } from './PackLookup';
 
 /**
  * `/console/factory/:pack/how-it-works`: How it works for one pack, from the overview file the
- * server chose (the pack's own, else a project's, named under the title). A pack explains the
+ * server chose (the pack's own, else a project's, named behind the header's Source toggle). A pack explains the
  * factory on every project that runs it, so its page lives in the sidebar, not in a project.
  */
 export function PackPage(): ReactElement {
@@ -18,8 +18,8 @@ export function PackPage(): ReactElement {
 function HowItWorks({ pack }: { pack: FactoryPackListed }): ReactElement {
   return (
     <PackFrame
-      title={packTitle(pack)}
-      subtitle={<ReadFrom pack={pack} />}
+      {...packHeading(pack)}
+      source={<ReadFrom pack={pack} />}
       tabs={{ packKey: pack.key, active: 'how-it-works' }}
     >
       <FactoryErrors errors={pack.errors} />

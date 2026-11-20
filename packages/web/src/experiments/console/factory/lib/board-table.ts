@@ -23,7 +23,10 @@ export interface TableRow {
   column: string;
   /** Left to right on the board; folded items after every column. */
   columnOrder: number;
-  /** The label of the stage it sits in; null for a folded item, which is in none. */
+  /**
+   * The stage its board card names: null for a folded item, which is in none, and for a merged
+   * one, whose Column and State already say so (`cardFields` leaves its card's stage empty).
+   */
   stage: string | null;
   /** The stage's place on the board: columns left to right, then stages within one. */
   stageOrder: number;
@@ -44,7 +47,7 @@ export function tableRows(model: BoardModel): TableRow[] {
         placed: card,
         column: column.label,
         columnOrder: order,
-        stage: stage?.label ?? null,
+        stage: card.card.stage,
         stageOrder: stage === null ? stages.length : stages.indexOf(stage.id),
       };
     })

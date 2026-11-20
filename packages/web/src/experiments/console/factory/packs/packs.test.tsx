@@ -128,11 +128,10 @@ describe('/console/factory', () => {
       ])
     );
     const cards = [...page.querySelectorAll('article')];
-    // Each card is titled by the pack's name, its overview's caption under it.
-    expect(cards.map(card => card.querySelector('h2')?.textContent)).toEqual([
-      'acme/kit',
-      'acme/web',
-    ]);
+    // Each card is titled by the pack's name as a person reads it (its id on hover), its
+    // overview's caption under it.
+    expect(cards.map(card => card.querySelector('h2')?.textContent)).toEqual(['Kit', 'Web']);
+    expect(cards[0]?.querySelector('h2 a')?.getAttribute('title')).toBe('acme/kit');
     expect(cards[0]?.textContent).toContain(OVERVIEW.caption);
     expect(cards[0]?.textContent).toContain('Runs on 1 project');
     expect(cards[1]?.textContent).toContain('Runs on 2 projects');
@@ -161,30 +160,58 @@ describe('/console/factory', () => {
     const cards = [...page.querySelectorAll('article')];
     expect(cards).toHaveLength(2);
     // With no overview, the card is still titled by the pack's name and opens its page.
-    expect(cards[1]?.querySelector('h2')?.textContent).toBe('acme/web');
+    expect(cards[1]?.querySelector('h2')?.textContent).toBe('Web');
     expect(hrefs(cards[1])).toContain('/console/factory/acme.web/how-it-works');
   });
 });
 
 describe('/console/factory/:pack/how-it-works', () => {
-  const two = listing([pack('acme.kit', 'Kit'), pack('acme.web', 'Web', { readFrom: null })]);
+  const two = listing([
+    pack('acme.kit', 'How the kit works'),
+    pack('acme.web', 'Web', { readFrom: null }),
+  ]);
 
-  test('draws the overview with ?view= open, and names the project it was read from', async () => {
+  test("draws the overview with ?view= open, under the pack's readable name", async () => {
     const page = await mount('/console/factory/acme.kit/how-it-works?view=make', two);
     const crumbs = [...page.querySelectorAll('nav[aria-label="Breadcrumb"] li')].map(li =>
       li.textContent?.replace('›', '').trim()
     );
-    // The overview's title heads the map (its breadcrumb's root); the page names the pack.
-    expect(crumbs).toEqual(['Kit', 'Make']);
-    expect(page.querySelector('h1')?.textContent).toBe('acme/kit');
-    const project = page.querySelector('header a[href="/console/p/cb-1/factory"]');
-    expect(project?.textContent).toBe('web');
+    // The overview's title heads the map (its breadcrumb's root); the page names the pack,
+    // its raw id only on hover.
+    expect(crumbs).toEqual(['How the kit works', 'Make']);
+    const h1 = page.querySelector('h1');
+    expect(h1?.textContent).toBe('Kit');
+    expect(h1?.getAttribute('title')).toBe('acme/kit');
+  });
+
+  test('the file it was read from is a detail behind Source, not a line of the header', async () => {
+    const page = await mount('/console/factory/acme.kit/how-it-works', two);
+    const header = page.querySelector('header');
+    // Closed: the header names neither the project nor the file.
+    expect(header?.textContent).not.toContain('factory-overview.json');
+    expect(header?.querySelector('a[href="/console/p/cb-1/factory"]')).toBeNull();
+    const toggle = header?.querySelector('button[aria-expanded]');
+    expect(toggle?.textContent).toBe('Source');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    await act(async () => {
+      (toggle as HTMLElement).click();
+    });
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    const source = document.getElementById(toggle?.getAttribute('aria-controls') ?? '');
+    expect(source?.querySelector('a[href="/console/p/cb-1/factory"]')?.textContent).toBe('web');
+    expect(source?.textContent).toContain('acme.kit.factory-overview.json');
   });
 
   test("the pack's own file names no project", async () => {
     const page = await mount('/console/factory/acme.web/how-it-works', two);
-    const header = hrefs(page.querySelector('header'));
-    expect(header.filter(href => href.startsWith('/console/p/'))).toEqual([]);
+    // The source sits behind the Source toggle: open it, then read what it says.
+    const toggle = page.querySelector<HTMLElement>('header button[aria-expanded]');
+    await act(async () => {
+      toggle?.click();
+    });
+    const source = document.getElementById(toggle?.getAttribute('aria-controls') ?? '');
+    expect(source?.textContent).toContain("the pack's own overview file");
+    expect(hrefs(source).filter(href => href.startsWith('/console/p/'))).toEqual([]);
   });
 
   test('has two tabs, How it works and Settings', async () => {
@@ -227,7 +254,7 @@ describe('/console/factory/:pack/how-it-works', () => {
 });
 
 describe('/console/factory/:pack/settings', () => {
-  const packs = listing([pack('acme.kit', 'Kit')]);
+  const packs = listing([pack('acme.kit', 'How the kit works')]);
   type ProjectSettings = FactoryPackSettings['projects'][number];
   const file = (
     display: string,
@@ -309,8 +336,10 @@ describe('/console/factory/:pack/settings', () => {
     const page = await settingsPage();
     const active = page.querySelector('nav[aria-label="Pack"] [aria-current="page"]');
     expect(active?.getAttribute('href')).toBe('/console/factory/acme.kit/settings');
-    // Settings names the pack, never How it works' title.
-    expect(page.querySelector('h1')?.textContent).toBe('acme/kit');
+    // Settings names the pack as How it works does, never the overview's title.
+    expect(page.querySelector('h1')?.textContent).toBe('Kit');
+    expect(page.querySelector('h1')?.getAttribute('title')).toBe('acme/kit');
+    expect(page.querySelector('header button[aria-expanded]')?.textContent).toBe('Source');
     expect([...page.querySelectorAll('[data-setting] h2')].map(h => h.textContent)).toEqual([
       'Triage policy',
       'Land policy',

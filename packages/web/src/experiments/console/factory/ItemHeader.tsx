@@ -2,13 +2,16 @@ import type { ReactElement, ReactNode } from 'react';
 import { GitPullRequest } from 'lucide-react';
 import { SkeletonLine } from '../components/Skeleton';
 import type { FactoryItem } from '../skills/factory';
-import { PILL_CLASS, PillBadge } from './BoardCard';
+import { PillBadge } from './BoardCard';
 import type { Pill } from './lib/board';
 import type { ItemColumn } from './lib/placement';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import { NOT_STARTED, orderTitle } from './lib/work-orders';
 
-/** The item's key, title, state, column and change: the same pill its board card shows. */
+/**
+ * The item's key, title, state, column and change: the same pill its board card shows. A merged
+ * item says so once, in its pill; its column ("In Merged") would only repeat it.
+ */
 export function ItemHeader({
   item,
   pill,
@@ -43,7 +46,7 @@ export function ItemHeader({
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-console-13 text-text-secondary">
           <PillBadge pill={pill} />
-          <ColumnWords item={item} column={column} />
+          {pill === 'landed' ? null : <ColumnWords item={item} column={column} />}
           <ChangeLink change={item.progress?.change ?? null} />
         </div>
       )}
@@ -73,14 +76,17 @@ function ColumnWords({
 
 type Change = NonNullable<NonNullable<FactoryItem['progress']>['change']>;
 
-/** Rule 5's chip for each merge state the host answered. */
-function mergeChip(merged: true | false | 'unknown'): { text: string; className: string } {
-  if (merged === true) return { text: 'merged', className: PILL_CLASS.landed };
-  if (merged === false) return { text: 'open', className: PILL_CLASS.waiting };
-  return { text: 'merge state unknown', className: 'text-text-tertiary' };
+/** What the change's merge state reads, once the host answered. */
+function mergeWords(merged: true | false | 'unknown'): string {
+  if (merged === true) return 'merged';
+  if (merged === false) return 'open';
+  return 'merge state unknown';
 }
 
-/** Whether the change merged, as a chip; while the host is asked, a skeleton line. */
+/**
+ * Whether the change merged, as quiet words after its link (the pill is the one coloured
+ * state); while the host is asked, a skeleton line.
+ */
 function MergeState({ merged }: { merged: Change['merged'] }): ReactElement {
   if (merged === 'pending')
     return (
@@ -89,13 +95,12 @@ function MergeState({ merged }: { merged: Change['merged'] }): ReactElement {
         <span className="sr-only">checking whether it merged</span>
       </span>
     );
-  const chip = mergeChip(merged);
   return (
     <span
       data-merge-state={String(merged)}
-      className={`whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium ${chip.className}`}
+      className="whitespace-nowrap text-console-13 text-text-tertiary"
     >
-      {chip.text}
+      {mergeWords(merged)}
     </span>
   );
 }

@@ -210,6 +210,21 @@ test('the step page lists the items on the step now, and says when there are non
   });
 });
 
+test("the step page's YAML pane reads at the type floor: its label and Copy at 12 px", async () => {
+  serve(itemsReadAnswer(capturedItemsPage.items));
+  await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async container => {
+    const label = [...container.querySelectorAll('span')].find(
+      span => span.textContent === 'YAML · read-only'
+    );
+    const pane = label?.closest('header');
+    expect(pane?.querySelector('button')?.textContent).toBe('Copy');
+    // The pane's header: nothing in it under the floor, and both its texts at 12 px.
+    expect(pane?.innerHTML).not.toMatch(/text-console-(9|10|11)\b/);
+    expect(label?.className).toContain('text-console-12');
+    expect(pane?.querySelector('button')?.className).toContain('text-console-12');
+  });
+});
+
 test('a dashboard event moves an item onto the step page it is now on', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async container => {
