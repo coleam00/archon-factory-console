@@ -558,9 +558,9 @@ documents through Neon live queries.
   | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
-  | `factory/items/:key` | One item: its timeline, asks, links and change |
-  | `factory/stages/:stage` | One stage, full page, as a deep link: the same content the Overview's stage modal shows (its label, blurb and the tabs "What this stage does \| Items here now \| The real workflow"), under a back link to the Overview |
-  | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on |
+  | `factory/items/:key` | One item: its timeline, asks, links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
+  | `factory/stages/:stage` | One stage, full page, as a deep link: the same content the Overview's stage modal shows (its label, blurb and the tabs "What this stage does \| Items here now \| The real workflow"), under a back link to the Overview. An id the view does not declare says "There is no stage <id> in this factory" and links the Overview and each declared stage |
+  | `factory/steps/:workflow/:node` | One step: the items on it now, its prompt (command file), its YAML, the model it runs on. A workflow no stage runs, or a step its workflow does not have, says so in plain words and links the step's stage, else the Overview; a read that failed says why, with a Retry |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
 - Inside the Factory tab a small sub-navigation, on the line of the view's title, switches

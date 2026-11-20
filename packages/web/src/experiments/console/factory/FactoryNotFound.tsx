@@ -6,6 +6,10 @@ import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { factoryPath } from './lib/views';
 
+/** A way on from a page that is not there: here, and on a missing item, stage or step. */
+export const WAY_ON_LINK =
+  'text-accent-bright transition-colors duration-150 ease-out hover:underline';
+
 /**
  * The tab's two pages, linked from a path it does not have. Needs you is the project tab
  * above, and How it works the sidebar Factory page; neither is a page of this tab.
@@ -32,11 +36,7 @@ export function FactoryNotFound(): ReactElement {
             link={
               <nav aria-label="Factory pages" className="flex flex-wrap items-center gap-3">
                 {PAGES.map(({ label, to }) => (
-                  <Link
-                    key={label}
-                    to={to(projectId)}
-                    className="text-accent-bright transition-colors duration-150 ease-out hover:underline"
-                  >
+                  <Link key={label} to={to(projectId)} className={WAY_ON_LINK}>
                     {label}
                   </Link>
                 ))}

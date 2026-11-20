@@ -11,7 +11,7 @@ export function EmptyNote({
   link,
   className = 'flex flex-col items-start gap-2',
 }: {
-  sentence: string;
+  sentence: ReactNode;
   icon?: LucideIcon;
   link?: ReactNode;
   className?: string;
@@ -19,7 +19,9 @@ export function EmptyNote({
   return (
     <div className={className}>
       <Icon aria-hidden="true" className="size-5 shrink-0 text-text-tertiary" />
-      <p className="text-console-14 text-text-secondary">{sentence}</p>
+      <p className="min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]">
+        {sentence}
+      </p>
       {link === undefined ? null : <div className="text-console-13">{link}</div>}
     </div>
   );

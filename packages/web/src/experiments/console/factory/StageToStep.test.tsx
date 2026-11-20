@@ -314,7 +314,7 @@ test('the step page tries its workflow read again, and Retry reads it after two 
       expect(workflowFetches).toBe(2);
       const alert = container.querySelector('[role="alert"]');
       expect(alert?.textContent).toContain('deliver');
-      expect(alert?.textContent).toContain('Failed to fetch');
+      expect(alert?.textContent).toContain('the server did not answer');
       await act(async () => {
         alert?.querySelector('button')?.click();
         await new Promise(resolve => setTimeout(resolve, 0));
