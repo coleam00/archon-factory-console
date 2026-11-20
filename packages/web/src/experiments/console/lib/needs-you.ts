@@ -4,6 +4,19 @@ import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
 /** A queue item a person acts on: everything but a usage limit. */
 export type NeedsYouItem = Exclude<AttentionQueueItem, { kind: 'usage_limit' }>;
 
+/** What an `overdue_wait` entry says: a stage is still waiting for an event past its deadline. */
+export function overdueWaitMessage(item: Extract<NeedsYouItem, { kind: 'overdue_wait' }>): string {
+  const what = item.waits.map(wait => wait.about || wait.event).join(', ');
+  return `The ${item.waitingIn.workflow} run is still waiting for ${what || 'an event'} past its deadline.`;
+}
+
+/** The run an entry sits on, whatever its kind: the run holding the wait or the ask. */
+export function entryRun(entry: NeedsYouItem): { id: string; workflow: string } | undefined {
+  if (entry.kind === 'overdue_wait')
+    return { id: entry.waitingIn.runId, workflow: entry.waitingIn.workflow };
+  return entry.run;
+}
+
 /** What an `owner_lost` entry says: a run holds its item with no process to carry it on. */
 export function ownerLostMessage(item: Extract<NeedsYouItem, { kind: 'owner_lost' }>): string {
   return `The ${item.run.workflow} run lost its owner and still holds ${item.item?.key ?? 'its item'}.`;
@@ -64,7 +77,7 @@ export function needsYouSubjects(entries: readonly NeedsYouItem[]): {
   const runs = new Set<string>();
   for (const entry of entries) {
     if (entry.item !== undefined) items.add(entry.item.id);
-    else runs.add(entry.run?.id ?? entry.ref);
+    else runs.add(entryRun(entry)?.id ?? entry.ref);
   }
   return { items: items.size, runs: runs.size };
 }
@@ -88,11 +101,12 @@ export function needsYouPath(projectId: string, ask?: string): string {
 /** The workflow an ask or wait came from: the run that asked, else the run holding the wait. */
 export function askWorkflow(entry: NeedsYouItem): string | undefined {
   if (entry.kind === 'attention' && entry.askedIn !== undefined) return entry.askedIn.workflow;
-  return entry.run?.workflow;
+  return entryRun(entry)?.workflow;
 }
 
 /** The run an ask or wait belongs to: the run holding the wait, else the run that asked. */
 export function askRunId(entry: NeedsYouItem): string | undefined {
-  if (entry.run !== undefined) return entry.run.id;
+  const run = entryRun(entry);
+  if (run !== undefined) return run.id;
   return entry.kind === 'attention' ? entry.askedIn?.runId : undefined;
 }

@@ -10,6 +10,8 @@ import { LEGACY_VENDOR_ALIASES } from '@archon/providers/credential-catalog';
 import { getSchemaSQL } from '../bundled-schema';
 import { runEventsSql } from '../run-events-sql';
 import { metricRecordsSql } from '../workflow-metrics';
+import { queuedItemStartsSqlFor, skippedItemStartsSqlFor } from '../item-starts';
+import { receiptBindingsSql } from '../resource-starts';
 import { SqliteAdapter, sqliteDialect } from './sqlite';
 import { isSqliteSchemaCurrent } from './sqlite-schema-state';
 import { prepareAll, prepareGet } from './sqlite-statements';
@@ -560,5 +562,35 @@ describe('idx_workflow_events_run_type', () => {
       detail: string;
     }[];
     expect(plan.map(row => row.detail).join('\n')).toContain('idx_workflow_events_run_type');
+  });
+});
+
+describe('item start indexes', () => {
+  test('are created on an existing database and serve the item reads', async () => {
+    const path = await upgradeFixturePath();
+    await new SqliteAdapter(path).close();
+    const raw = new Database(path);
+    try {
+      raw.run('DROP INDEX idx_resource_start_item');
+      raw.run('DROP INDEX idx_resource_start_receipt');
+    } finally {
+      raw.close();
+    }
+
+    await new SqliteAdapter(path).close();
+
+    const plan = (sql: string): string =>
+      (raw_query(path, `EXPLAIN QUERY PLAN ${sql}`) as { detail: string }[])
+        .map(row => row.detail)
+        .join('\n');
+    expect(plan(skippedItemStartsSqlFor(1))).toContain(
+      'USING INDEX idx_resource_start_item (item_id=? AND status=?)'
+    );
+    expect(plan(queuedItemStartsSqlFor(1))).toContain(
+      'USING INDEX idx_resource_start_item (item_id=? AND status=?)'
+    );
+    expect(plan(receiptBindingsSql)).toContain(
+      'USING INDEX idx_resource_start_receipt (receipt_id=? AND binding_id=?)'
+    );
   });
 });

@@ -31,7 +31,6 @@ import type {
   ResourceStartBindingIntent,
   ResourceStartDisposition,
   ResourceStartIntent,
-  SourceReceiptAcceptance,
 } from '@archon/workflows/schemas/resource-start';
 import {
   sourceReceiptInputSchema,
@@ -62,7 +61,6 @@ import { holdsItem, itemHolder, itemHolders } from '@archon/workflows/item-hold'
 import type { WorkflowRun } from '@archon/workflows/schemas/workflow-run';
 import { ensureItem } from './items';
 import { WorkflowStatusReadError } from './workflow-run-reads';
-import { insertStartReceipt } from './start-receipt-writes';
 import { InstallHeldError } from '@archon/workflows/store';
 
 interface RequestRow {
@@ -293,12 +291,6 @@ export async function hasStartReceiptForDelivery(
   return found.rows.length > 0;
 }
 
-export async function acceptStartReceipt(
-  input: SourceReceiptAcceptance
-): Promise<{ receiptId: string; replay: boolean }> {
-  return getDatabase().withTransaction(query => insertStartReceipt(query, input));
-}
-
 export function parseStoredJson(value: unknown): unknown {
   return typeof value === 'string' ? JSON.parse(value) : value;
 }
@@ -412,7 +404,7 @@ export async function listStartReceiptSources(
 ): Promise<ReadonlyMap<string, StartReceiptSource>> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map();
-  // By primary key alone: the bindings join in `getStartReceipt` scans every start request.
+  // By primary key alone: the cause fields need no bindings join.
   const result = await getDatabase().query<Record<string, unknown>>(
     `SELECT id, source_instance_id, source_actor FROM remote_agent_start_receipts
       WHERE id IN (${placeholderList(unique)})`,
@@ -421,21 +413,20 @@ export async function listStartReceiptSources(
   return new Map(result.rows.map(row => [String(row.id), receiptSource(row)]));
 }
 
+export const receiptBindingsSql = `SELECT b.*, r.id AS request_id, r.status AS request_status,
+            r.blocker_run_id AS request_blocker_id, r.blocker_kind AS request_blocker_kind
+       FROM remote_agent_start_receipt_bindings b
+       LEFT JOIN remote_agent_resource_start_requests r
+         ON r.receipt_id = b.receipt_id AND r.binding_id = b.binding_id
+      WHERE b.receipt_id = $1 ORDER BY b.binding_id`;
+
 export async function getStartReceipt(id: string): Promise<StartReceiptInspection | null> {
   const receipt = await getDatabase().query<Record<string, unknown>>(
     'SELECT * FROM remote_agent_start_receipts WHERE id = $1',
     [id]
   );
   if (!receipt.rows[0]) return null;
-  const bindings = await getDatabase().query<Record<string, unknown>>(
-    `SELECT b.*, r.id AS request_id, r.status AS request_status,
-            r.blocker_run_id AS request_blocker_id, r.blocker_kind AS request_blocker_kind
-       FROM remote_agent_start_receipt_bindings b
-       LEFT JOIN remote_agent_resource_start_requests r
-         ON r.receipt_id = b.receipt_id AND r.binding_id = b.binding_id
-      WHERE b.receipt_id = $1 ORDER BY b.binding_id`,
-    [id]
-  );
+  const bindings = await getDatabase().query<Record<string, unknown>>(receiptBindingsSql, [id]);
   const row = receipt.rows[0];
   const source = receiptSource(row);
   return {

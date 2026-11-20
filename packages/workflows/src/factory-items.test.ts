@@ -842,6 +842,8 @@ describe('reading progress, and one item whole', () => {
         getCodebase: async () => null,
         getItem: async () => null,
         getItemMerge: async () => null,
+        getItemLanding: async () => null,
+        listOpenItemWaits: async () => [],
         listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
         listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
         getInstallHold: async () => null,

@@ -296,6 +296,8 @@ function degradedWords(report: FactoryItem['degraded'][number]): string {
       return `A link (${report.linkId}) could not be read.`;
     case 'merge_unreadable':
       return 'The merge record of this item could not be read.';
+    case 'landing_unresolved':
+      return report.message;
     default:
       return report.runId === undefined
         ? 'Part of this item could not be read.'
