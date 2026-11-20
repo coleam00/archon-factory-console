@@ -40,9 +40,10 @@ function sameLocalDay(iso: string, now: Date): boolean {
 
 /**
  * Whether the filter `show` keeps `placed`. In flight: on the board, outside the landed
- * stage, and not parked (open, but nothing works it until someone takes it up). Needs you: its pill says so. Landed: in the landed stage. Landed today: landed,
- * its change merged on `now`'s local day. An item an ending took off the board, or one
- * placement found no column for, is none.
+ * stage, and not parked (open, but nothing works it until someone takes it up). Needs you: its
+ * pill says so. Landed: in the landed stage. Landed today: landed, its change merged on `now`'s
+ * local day. An item an ending took off the board, or one placement found no column for, is
+ * none.
  */
 export function showsCard(
   show: BoardShow,

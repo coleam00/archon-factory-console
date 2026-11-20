@@ -765,11 +765,12 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## Overview page
 
 1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
-2. **Numbers strip:** items in flight (on the board, not merged and not parked), need you (the Needs you tab's count of asks and waits,
-   linking there), merged today, merged in total ("N of M merged", M every item on the board:
-   not the items an ending took off it, but a parked item, which is open), median time from first run to merged ("median to merged"). Each tile is a number
-   tile in the card language: a 16 px icon and its label in the Label role, then the figure at
-   `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
+2. **Numbers strip:** items in flight (on the board, not merged and not parked), need you (the
+   Needs you tab's count of asks and waits, linking there), merged today, merged in total ("N of
+   M merged", M every item on the board: not the items an ending took off it, but a parked item,
+   which is open), median time from first run to merged ("median to merged"). Each tile is a
+   number tile in the card language: a 16 px icon and its label in the Label role, then the
+   figure at `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
    (Visual standard, rule 6) in place of its figure; while any item's merge state is pending,
    every number but needs you and found by the factory shows the skeleton bar too, never a count
    that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
