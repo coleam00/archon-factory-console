@@ -538,13 +538,13 @@ documents through Neon live queries.
   |---|---|
   | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
-  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name (`owner/name`, on every tab; the overview's own title heads the map as the root of its breadcrumb) and naming the file it was read from, with the pack's tabs (underlined, as the project tabs). `:pack` is the pack key (`owner.name` when installed). The pack's tabs are How it works and Settings |
+  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the same on every tab and on the index's card; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header), and with the pack's tabs (underlined, as the project tabs). `:pack` is the pack key (`owner.name` when installed). The pack's tabs are How it works and Settings |
   | `/console/factory/:pack/settings` | Settings (owner change 8, read-only): one card per setting the pack's `.pack/pack.yaml` declares, in its order, with its name in sentence case, the key, the pack's description (clamped) and default, and each project's value from its `.archon/packs/<pack key>.yaml` ("pack default" when empty or unset). The overview file's `settings` map marks shadows (rule 10's badge) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks. Keys a project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
 
   Which file a pack page reads: the pack's own `.shared/factory-overview.json` (bundled, global
   or installed) when it ships one; else the first project, by name, whose own files give one
   (`.archon/packs/<pack key>.factory-overview.json`, or a pack folder in its checkout), named on
-  the page as "Read from <project>". A broken pack file falls back to a project's file and its
+  the page as "Read from <project>" behind the header's Source toggle. A broken pack file falls back to a project's file and its
   error stays listed on the page; a pack whose files are all broken shows only their errors.
   One read-only route lists all of this (`GET /api/factory/packs`).
 - Routes, all under `/console/p/:projectId/factory`:
@@ -978,7 +978,8 @@ order or a `?show=` chip can push its last parts (the folded endings, the hint) 
 line, and the columns still hold one full card. On a phone it wraps. The
 columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item with the same fields as columns, a Work order, a Column and a Stage column among
-them (a running item's step and round under its stage, as the card's stage line reads; Merged as
+them (a running item's step and round under its stage, as the card's stage line reads; a merged
+item's Stage empty, as its card names no stage; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
 box narrows by key, title or work order key. Until the items are read, the board draws its
 declared columns with skeleton counts and card shapes (Visual standard, rule 6).
@@ -1004,9 +1005,10 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 
 ## The item page
 
-- Header: key, title (Section heading role), state pill, the column it is in, and the change as
-  a button-style link ("PR #n") with its merge state as a rule 5 chip beside it (a skeleton line
-  while the host is still asked). An item no run has
+- Header: key, title (Section heading role), state pill, the column it is in (not for a merged
+  item: its pill says so), and the change as a button-style link ("PR #n") with its merge state
+  as quiet tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line
+  while the host is still asked). The pill is the header's one coloured state. An item no run has
   started yet (a member linked before its first run) says "Not started" instead of a state,
   column and change.
 - **Asks** it waits on, answerable in place (the ask card Needs you draws, always open).

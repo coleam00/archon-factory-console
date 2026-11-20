@@ -9,7 +9,7 @@ import { readFailed } from '../lib/deadline';
 import type { FactoryPackListed } from '../lib/views';
 import { useFactoryPackSettings } from '../useFactoryPackSettings';
 import { PackFrame } from './PackFrame';
-import { PackLookup, packTitle } from './PackLookup';
+import { PackLookup, packHeading } from './PackLookup';
 import { SettingCard, UndeclaredCard } from './SettingCard';
 
 /**
@@ -28,8 +28,8 @@ function PackSettings({ pack }: { pack: FactoryPackListed }): ReactElement {
   const data = read.data;
   return (
     <PackFrame
-      title={packTitle(pack)}
-      subtitle={data === undefined ? "The pack's settings" : <ReadFrom settings={data} />}
+      {...packHeading(pack)}
+      source={data === undefined ? undefined : <ReadFrom settings={data} />}
       tabs={{ packKey: pack.key, active: 'settings' }}
     >
       {data !== undefined ? (

@@ -809,7 +809,8 @@ test("the Table puts each row's column and stage under the Column and Stage head
           .find(row => row.querySelector('td')?.textContent === key)
           ?.querySelectorAll('td') ?? []),
       ].map(td => td.textContent ?? '');
-    expect([cells('7')[column], cells('7')[stage]]).toEqual(['Merged', 'Merged']);
+    // A merged row's Stage is empty: its Column and State already say merged.
+    expect([cells('7')[column], cells('7')[stage]]).toEqual(['Merged', '']);
     // A running item's step folds into its Stage cell, as the card's stage line reads.
     expect(headers).not.toContain('Running step');
     expect([cells('8')[column], cells('8')[stage]]).toEqual([
