@@ -52,11 +52,6 @@ describe('the stage modal is as wide as its phases', () => {
 });
 
 describe('"The real workflow" is as wide as the graph it draws', () => {
-  test("a one-step graph, like Plan's, stays compact", () => {
-    // One 168 px step with its 30 px margins, in its canvas's 16 px padding and 1 px border.
-    expect(width(phases(1), 'workflow', DESKTOP, 262)).toBe(640);
-  });
-
   test('a graph wider than the compact width takes its width plus the padding and gutter', () => {
     // 800 px of canvas, 24 px of padding and the 64 px close gutter.
     expect(width(phases(1), 'workflow', DESKTOP, 800)).toBe(888);

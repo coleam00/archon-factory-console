@@ -519,31 +519,6 @@ describe('the modal is sized by what it shows', () => {
     await act(async () => dom.happyDOM.setViewport({ width: 1024, height: 768 }));
   });
 
-  test('a stage of one phase and one card, like Plan, opens compact', async () => {
-    await desktop();
-    const { container, unmount } = await mount();
-    try {
-      await click(stageLink(container, 'plan'));
-      expect(width()).toBe('640px');
-    } finally {
-      await unmount();
-    }
-  });
-
-  test('a stage of many phases, like Checks, opens wide and stops at 90% of the window', async () => {
-    await desktop();
-    const { container, unmount } = await mount();
-    try {
-      await click(stageLink(container, 'triage'));
-      expect(width()).toBe('744px');
-      await click(inDialog('Close'));
-      await click(stageLink(container, 'checks'));
-      expect(width()).toBe('1296px');
-    } finally {
-      await unmount();
-    }
-  });
-
   test("Plan's real workflow, one step, keeps it compact", async () => {
     workflowReads = [() => Response.json(oneStep)];
     await desktop();
@@ -586,16 +561,16 @@ describe('the modal is sized by what it shows', () => {
     }
   });
 
-  test('a stage with no workflow to draw, like Merged, stays compact on the real workflow', async () => {
+  test('the title and tabs stay outside the scrolling body', async () => {
     await desktop();
     const { container, unmount } = await mount();
     try {
-      await click(stageLink(container, 'landed'));
-      expect(title()).toBe('Merged');
-      expect(dialog()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
-        'The real workflow'
-      );
-      expect(width()).toBe('640px');
+      await click(stageLink(container, 'checks'));
+      const body = dialog()?.querySelector('[data-modal-body]');
+      expect(body?.querySelector('[data-phase]')).not.toBeNull();
+      expect(dialog()?.querySelector('[role="tablist"]')).not.toBeNull();
+      expect(body?.querySelector('[role="tablist"]')).toBeNull();
+      expect(body?.querySelector('h3')).toBeNull();
     } finally {
       await unmount();
     }

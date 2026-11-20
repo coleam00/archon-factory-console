@@ -212,6 +212,7 @@ function ModalShell({
               {/* Its content's padding gives a card's focus ring and glow room inside the clip. */}
               <div
                 ref={scrollerRef}
+                data-modal-body=""
                 className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
               >
                 <div ref={contentRef} className="flex flex-col gap-4 p-1">
