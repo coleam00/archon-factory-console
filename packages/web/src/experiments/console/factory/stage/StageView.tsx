@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { BookOpen, GitMerge, Inbox } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyNote } from '../../components/EmptyNote';
@@ -27,13 +27,38 @@ const TABS: readonly { key: StageTab; label: string }[] = [
 /** The line under a tab saying where what it shows comes from. */
 const SOURCE = 'text-console-13 text-text-tertiary';
 
+/** How a caller lays out the stage's parts: its title and tabs, then the open tab's body. */
+export type StageFrame = (parts: { head: ReactNode; body: ReactNode }) => ReactElement;
+
+/** The page's layout: one column, the body under the tabs. */
+const COLUMN: StageFrame = ({ head, body }) => (
+  <div className="flex min-w-0 flex-col gap-4">
+    {head}
+    {body}
+  </div>
+);
+
+/**
+ * The tab a stage shows. It opens on the tab the link named, else on the summary when the view
+ * file gives one, else on the workflow, which is then the most this stage can say about itself.
+ * Held by whoever mounts `StageView` (the modal sizes itself by the open tab), so call it in a
+ * component keyed by stage: the tab picked on one stage is not on the next.
+ */
+export function useStageTab(
+  stage: FactoryStage,
+  initialTab?: StageTab
+): [StageTab, (tab: StageTab) => void] {
+  return useState<StageTab>(
+    () => initialTab ?? (stage.drilldown === undefined ? 'workflow' : 'does')
+  );
+}
+
 /**
  * One stage opened, as the Overview's modal and the stage page both show it: its label and
  * blurb, then three tabs. "What this stage does" is the view file's summary, "Items here now"
- * what sits in it, and "The real workflow" the step graph of each workflow behind it. It opens
- * on the summary when the view file gives one, else on the workflow, which is then the most
- * this stage can say about itself. Mount it keyed by stage, so the tab picked on one stage is
- * not on the next.
+ * what sits in it, and "The real workflow" the step graph of each workflow behind it. The
+ * caller holds the tab (`useStageTab`). `frame` lays out the head and the body; the modal
+ * passes one that scrolls the body alone under a fixed head, the page the default column.
  */
 export function StageView({
   projectId,
@@ -41,7 +66,9 @@ export function StageView({
   stage,
   live,
   titleId,
-  initialTab,
+  tab,
+  onTab,
+  frame = COLUMN,
 }: {
   projectId: string;
   view: Declaration;
@@ -50,73 +77,103 @@ export function StageView({
   live: StageRead;
   /** The id its title carries, for the dialog that names itself by it. */
   titleId?: string;
-  /** The tab it opens on, when the link that opened it named one. */
-  initialTab?: StageTab;
+  tab: StageTab;
+  onTab: (tab: StageTab) => void;
+  frame?: StageFrame;
 }): ReactElement {
   const items = useFactoryItems(projectId);
-  const [tab, setTab] = useState<StageTab>(
-    initialTab ?? (stage.drilldown === undefined ? 'workflow' : 'does')
-  );
-  return (
-    <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <h3 id={titleId} className="text-console-17 font-semibold text-text-primary">
-          {stage.label}
-        </h3>
-        <p className="max-w-3xl text-console-14 leading-relaxed text-text-secondary">
-          {stage.blurb}
-        </p>
-      </div>
-      <StageTabs active={tab} onSelect={setTab} />
-      <ItemsReadNotice items={items} />
-      {tab === 'does' ? (
-        <>
-          <p className={SOURCE}>The factory's summary of this stage, from its view file.</p>
-          {stage.drilldown === undefined ? (
-            <EmptyNote
-              icon={BookOpen}
-              sentence={
-                // Point at the real workflow only when there is one to read.
-                stage.workflows.length === 0
-                  ? 'This stage has no summary and no workflow runs in it. An item arrives here when its change merges.'
-                  : 'This stage has no summary. The real workflow shows its steps.'
-              }
-            />
-          ) : (
-            <StageDrilldown
+  return frame({
+    head: (
+      <>
+        <div className="flex flex-col gap-2">
+          <h3 id={titleId} className="text-console-17 font-semibold text-text-primary">
+            {stage.label}
+          </h3>
+          <p className="max-w-3xl text-console-14 leading-relaxed text-text-secondary">
+            {stage.blurb}
+          </p>
+        </div>
+        <StageTabs active={tab} onSelect={onTab} />
+        <ItemsReadNotice items={items} />
+      </>
+    ),
+    body: (
+      <TabBody
+        projectId={projectId}
+        view={view}
+        stage={stage}
+        live={live}
+        tab={tab}
+        items={items}
+      />
+    ),
+  });
+}
+
+/** The open tab: the summary, the items, or the step graph of each workflow. */
+function TabBody({
+  projectId,
+  view,
+  stage,
+  live,
+  tab,
+  items,
+}: {
+  projectId: string;
+  view: Declaration;
+  stage: FactoryStage;
+  live: StageRead;
+  tab: StageTab;
+  items: EntityView<FactoryItem[]>;
+}): ReactElement {
+  if (tab === 'items')
+    return <StageItemsTab projectId={projectId} view={view} stage={stage} live={live} />;
+  if (tab === 'workflow')
+    return (
+      <>
+        <p className={SOURCE}>Generated from the pack's workflow files; shows every step.</p>
+        {stage.workflows.length === 0 ? (
+          <EmptyNote
+            icon={GitMerge}
+            sentence="No workflow runs in this stage. An item arrives here when its change merges."
+          />
+        ) : (
+          stage.workflows.map(workflow => (
+            <StageWorkflow
+              key={workflow}
               projectId={projectId}
               view={view}
               stage={stage}
-              drilldown={stage.drilldown}
+              workflow={workflow}
               items={items}
             />
-          )}
-        </>
-      ) : tab === 'items' ? (
-        <StageItemsTab projectId={projectId} view={view} stage={stage} live={live} />
+          ))
+        )}
+      </>
+    );
+  return (
+    <>
+      <p className={SOURCE}>The factory's summary of this stage, from its view file.</p>
+      {stage.drilldown === undefined ? (
+        <EmptyNote
+          icon={BookOpen}
+          sentence={
+            // Point at the real workflow only when there is one to read.
+            stage.workflows.length === 0
+              ? 'This stage has no summary and no workflow runs in it. An item arrives here when its change merges.'
+              : 'This stage has no summary. The real workflow shows its steps.'
+          }
+        />
       ) : (
-        <>
-          <p className={SOURCE}>Generated from the pack's workflow files; shows every step.</p>
-          {stage.workflows.length === 0 ? (
-            <EmptyNote
-              icon={GitMerge}
-              sentence="No workflow runs in this stage. An item arrives here when its change merges."
-            />
-          ) : (
-            stage.workflows.map(workflow => (
-              <StageWorkflow
-                key={workflow}
-                projectId={projectId}
-                view={view}
-                stage={stage}
-                workflow={workflow}
-                items={items}
-              />
-            ))
-          )}
-        </>
+        <StageDrilldown
+          projectId={projectId}
+          view={view}
+          stage={stage}
+          drilldown={stage.drilldown}
+          items={items}
+        />
       )}
-    </div>
+    </>
   );
 }
 

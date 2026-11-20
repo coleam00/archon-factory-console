@@ -11,7 +11,7 @@ import { readFailed } from './lib/deadline';
 import { stageReadOf } from './lib/map-live';
 import type { FactoryStage } from './lib/stage-steps';
 import { factoryPath, stageModalLink, type FactoryViewListed } from './lib/views';
-import { StageView } from './stage/StageView';
+import { StageView, useStageTab } from './stage/StageView';
 import { useStageLive } from './stage/useStageLive';
 import { useFactoryItems } from './useFactoryItems';
 
@@ -91,7 +91,7 @@ function StageNotFound({
   );
 }
 
-/** The stage over its live items, read here as the map reads them for its chips. */
+/** The stage over its live items, read here as the map reads them for its chips. Keyed by stage. */
 function LiveStage({
   projectId,
   view,
@@ -110,7 +110,15 @@ function LiveStage({
     readFailed(items.error) === undefined ? 'loading' : 'failed',
     attention.data?.items
   );
+  const [tab, setTab] = useStageTab(stage);
   return (
-    <StageView projectId={projectId} view={view} stage={stage} live={stageReadOf(live, stage.id)} />
+    <StageView
+      projectId={projectId}
+      view={view}
+      stage={stage}
+      live={stageReadOf(live, stage.id)}
+      tab={tab}
+      onTab={setTab}
+    />
   );
 }

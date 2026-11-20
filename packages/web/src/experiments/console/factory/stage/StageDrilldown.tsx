@@ -7,6 +7,7 @@ import type { ItemOnStep } from '../lib/items-on-step';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed } from '../lib/views';
 import { cardShadows, recentTally } from '../lib/shadows';
+import { PHASE_COLUMN_REM, PHASE_GAP_REM } from '../lib/stage-modal-size';
 import { RUNNING_GLOW } from '../StepGraph';
 import { DrilldownCard } from './DrilldownCard';
 import { DrilldownSteps } from './DrilldownSteps';
@@ -24,8 +25,10 @@ const NO_ITEMS: readonly FactoryItem[] = [];
 /*
  * Laid out in CSS, not on a canvas: at most a handful of phases fit the page at full size,
  * which a projected screen needs. From `md` up the phases are equal grid columns (each at most
- * 20rem, so a one-phase stage does not stretch a card across the page), and the loop frame is a
- * subgrid spanning its phases, so they keep the same columns as the rest. Below `md` they stack.
+ * `PHASE_COLUMN_REM`, so a one-phase stage does not stretch a card across the page), and the
+ * loop frame is a subgrid spanning its phases, so they keep the same columns as the rest. Below
+ * `md` they stack. The column and the gap come from lib/stage-modal-size.ts, which sizes the
+ * stage modal by them.
  */
 
 /**
@@ -77,8 +80,11 @@ export function StageDrilldown({
   return (
     <div className="flex flex-col gap-4">
       <div
-        className={`flex flex-col gap-4 md:grid md:items-start ${loop === undefined ? '' : 'pb-4'}`}
-        style={{ gridTemplateColumns: `repeat(${String(phases.length)}, minmax(0, 20rem))` }}
+        className={`flex flex-col md:grid md:items-start ${loop === undefined ? '' : 'pb-4'}`}
+        style={{
+          gap: `${String(PHASE_GAP_REM)}rem`,
+          gridTemplateColumns: `repeat(${String(phases.length)}, minmax(0, ${String(PHASE_COLUMN_REM)}rem))`,
+        }}
       >
         {loop === undefined ? (
           all.map(p => phase(p))
