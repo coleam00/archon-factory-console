@@ -346,7 +346,8 @@ the Overview, the item page and the board popover.
   green one). Before any pick no tile looks selected, and picking a tile the ask does not
   recommend leaves exactly one tile looking chosen.
 - **Nothing leaves the card.** Every text field (question, context, option label, `does`, `cost`,
-  the recommendation's `why`, the confirm row's "Answer:" line) wraps long unbroken strings such as
+  an offered option's name, `does` and `cost`, the recommendation's `why`, the confirm row's
+  "Answer:" line) wraps long unbroken strings such as
   paths and URLs (`overflow-wrap: anywhere`), flex children that hold text have `min-width: 0`, a
   tile is never wider than its row (`max-width: 100%`), and the card never grows past its
   container.
