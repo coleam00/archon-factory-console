@@ -438,7 +438,9 @@ describe('the workflow read never dead-ends', () => {
       await openBuildWorkflow(container);
       await settle(1_100);
       const alert = dialog()?.querySelector('[role="alert"]');
-      expect(alert?.textContent).toContain('Could not read the workflow deliver: Failed to fetch');
+      expect(alert?.textContent).toContain(
+        'Could not read the workflow deliver: the server did not answer'
+      );
       await click(inDialog('Retry'));
       expect(dialog()?.querySelector('[role="alert"]')).toBeNull();
       await settle();

@@ -96,7 +96,8 @@ test("an order no item row holds, named by a member's order run: its page from t
   expect(words).not.toContain('could not be read');
 });
 
-test('a key that is no item and no order still reads as unreadable', async () => {
+test('a key that is no item and no order says there is none, and offers the board', async () => {
   const words = await mount('404', [member('48')]);
-  expect(words).toContain('Item 404 could not be read');
+  expect(words).toContain('There is no item 404 in this project.');
+  expect(words).not.toContain('could not be read');
 });

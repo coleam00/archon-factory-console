@@ -2,12 +2,16 @@ import { useMemo, type ReactElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
-import { useLocation, useParams } from 'react-router';
+import { FileQuestionMark } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router';
 import { YamlPreview } from '../builder/components/YamlPreview';
+import { EmptyNote } from '../components/EmptyNote';
+import { HttpError } from '../lib/http';
 import type { FactoryWorkflow } from '../skills/factory';
 import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
+import { WAY_ON_LINK } from './FactoryNotFound';
 import { RunningItemLinks, RunningItemsFailure } from './RunningItems';
 import { useFactoryItems } from './useFactoryItems';
 import { itemsOnStep } from './lib/items-on-step';
@@ -71,9 +75,22 @@ export function StepPage(): ReactElement {
 }
 
 /**
- * Back to the stage the step was opened from, open over the Overview; on a direct load, the
- * stage that works this step, else the first naming its workflow, else the overview.
+ * The stage a step page leads back to: the stage it was opened from, else the stage that works
+ * this step, else the first naming its workflow; undefined when no stage runs the workflow.
  */
+function stepHomeStage(
+  stages: FactoryStage[],
+  fromStage: string | undefined,
+  stepKey: string
+): FactoryStage | undefined {
+  return (
+    stages.find(candidate => candidate.id === fromStage) ??
+    stages.find(candidate => stepInStage(candidate, stepKey)) ??
+    stages[0]
+  );
+}
+
+/** Back to the step's home stage (`stepHomeStage`), open over the Overview; else the overview. */
 function StepBackLink({
   projectId,
   stages,
@@ -83,16 +100,58 @@ function StepBackLink({
   stages: FactoryStage[];
   stepKey: string;
 }): ReactElement {
-  const fromStage = stepPageFromStage(useLocation().state);
-  const stage =
-    stages.find(candidate => candidate.id === fromStage) ??
-    stages.find(candidate => stepInStage(candidate, stepKey)) ??
-    stages[0];
+  const stage = stepHomeStage(stages, stepPageFromStage(useLocation().state), stepKey);
   if (stage === undefined)
     return <BackLink to={factoryPath(projectId)} label="Back to the overview" />;
   // The stage's home is its modal over the Overview. No `stageModal` state: closing it then
   // drops `?stage=` in place, rather than going back to this step page.
   return <BackLink to={stageModalLink(projectId, stage.id).to} label={`Back to ${stage.label}`} />;
+}
+
+/**
+ * A step or workflow this factory does not have, in plain words, with the way on: the step's
+ * home stage, else the Overview.
+ */
+function StepNotFound({
+  projectId,
+  stages,
+  stepKey,
+  sentence,
+}: {
+  projectId: string;
+  stages: FactoryStage[];
+  stepKey: string;
+  sentence: ReactNode;
+}): ReactElement {
+  const stage = stepHomeStage(stages, stepPageFromStage(useLocation().state), stepKey);
+  return (
+    <EmptyNote
+      icon={FileQuestionMark}
+      sentence={sentence}
+      link={
+        stage === undefined ? (
+          <Link to={factoryPath(projectId)} className={WAY_ON_LINK}>
+            Open the Overview
+          </Link>
+        ) : (
+          <Link to={stageModalLink(projectId, stage.id).to} className={WAY_ON_LINK}>
+            Open {stage.label}
+          </Link>
+        )
+      }
+    />
+  );
+}
+
+/**
+ * The workflow read answered that no stage of this factory runs `workflow`. The route answers
+ * 404 for that and for a stage's workflow its pack does not provide here (its words say why and
+ * what to do), so only a workflow no declared stage names is not found; the other stays a
+ * failure to show. The step page renders inside `FactoryFrame` once the project's view has loaded, so the
+ * route's 404 for an unknown project does not reach here.
+ */
+function isNoSuchWorkflow(error: Error, stages: FactoryStage[]): boolean {
+  return error instanceof HttpError && error.status === 404 && stages.length === 0;
 }
 
 function StepBody({
@@ -107,21 +166,43 @@ function StepBody({
   stepKey: string;
 }): ReactElement {
   const { read, failed, retry } = useFactoryWorkflow(projectId, workflow);
-  if (read.data === undefined)
-    return failed === undefined ? (
-      <FactoryLoading read={read}>
-        <GraphSkeleton label="Loading the step" />
-      </FactoryLoading>
-    ) : (
-      <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />
-    );
+  const stages = stagesOfWorkflow(view.stages, workflow);
+  if (read.data === undefined) {
+    if (failed === undefined)
+      return (
+        <FactoryLoading read={read}>
+          <GraphSkeleton label="Loading the step" />
+        </FactoryLoading>
+      );
+    if (isNoSuchWorkflow(failed, stages))
+      return (
+        <StepNotFound
+          projectId={projectId}
+          stages={stages}
+          stepKey={stepKey}
+          sentence={
+            <>
+              There is no workflow <span className="font-mono">{workflow}</span> in this factory.
+            </>
+          }
+        />
+      );
+    return <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />;
+  }
   const step = read.data.steps.find(candidate => candidate.key === stepKey);
   if (step === undefined)
     return (
-      <p className="text-console-14 text-text-secondary">
-        No step <span className="font-mono">{stepKey}</span> in{' '}
-        <span className="font-mono">{workflow}</span>.
-      </p>
+      <StepNotFound
+        projectId={projectId}
+        stages={stages}
+        stepKey={stepKey}
+        sentence={
+          <>
+            There is no step <span className="font-mono">{stepKey}</span> in{' '}
+            <span className="font-mono">{workflow}</span>.
+          </>
+        }
+      />
     );
   return (
     <>
