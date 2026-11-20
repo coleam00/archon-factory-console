@@ -1,5 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
+import type { Offered } from '../../lib/ask-offered';
 import { overdueWaitMessage, ownerLostMessage } from '../../lib/needs-you';
 import { answerByRef, AttentionAnswerForm, isLegacyAttention } from '../AttentionAnswerPanel';
 import type { AskCardProps } from './AskCard';
@@ -11,7 +12,13 @@ const runPath = (projectId: string, runId: string): string => `/console/p/${proj
  * Under the question: the tiles and confirm row for what the console can answer here, else
  * what happened and a link to the run, where it is resumed, abandoned or answered.
  */
-export function AskBody({ projectId, ask, queue, onAnswered }: AskCardProps): ReactNode {
+export function AskBody({
+  projectId,
+  ask,
+  queue,
+  onAnswered,
+  offered,
+}: AskCardProps & { offered: Offered | null }): ReactNode {
   const answered = (label: string): void => onAnswered?.(ask, label);
   switch (ask.kind) {
     case 'attention':
@@ -21,7 +28,14 @@ export function AskBody({ projectId, ask, queue, onAnswered }: AskCardProps): Re
             Paused before answers existed; resume it from the run
           </RunLink>
         );
-      return <AttentionAnswerForm wait={ask} submit={answerByRef(ask.ref)} onAnswered={answered} />;
+      return (
+        <AttentionAnswerForm
+          wait={ask}
+          submit={answerByRef(ask.ref)}
+          onAnswered={answered}
+          offered={offered}
+        />
+      );
     case 'awaiting_response': {
       const run = queue.runs.find(candidate => candidate.id === ask.run.id);
       const attention = run?.attention;

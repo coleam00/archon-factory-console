@@ -2,6 +2,12 @@ import { afterAll, afterEach, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
+import {
+  DRY_RUN_CONTEXT,
+  DRY_RUN_ROUTES,
+  DRY_RUN_WHY,
+  MARKER,
+} from '../../lib/ask-offered.test-fixtures';
 import { askItem, gateItem } from '../../lib/needs-you.test-fixtures';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import { toRun } from '../../primitives/run';
@@ -458,5 +464,112 @@ test('the item key never shrinks or wraps beside a long title; the title truncat
   } finally {
     await act(async () => root.unmount());
     container.remove();
+  }
+});
+
+/** An ask of the shape the pack's delivery leaves: four routes, the stage's own options in the context. */
+const dryRunAsk = (overrides: Partial<Parameters<typeof askItem>[0]> = {}): NeedsYouItem =>
+  askItem({
+    message:
+      'The review and the product check disagree on whether the empty state is in scope. Which stands?',
+    context: DRY_RUN_CONTEXT,
+    options: DRY_RUN_ROUTES,
+    recommendation: { option: 'send-back', why: DRY_RUN_WHY },
+    ...overrides,
+  });
+
+test('what the stage offered shows whole between the question and the tiles, the recommended one marked', async () => {
+  serve();
+  const card = await mount([dryRunAsk()]);
+  try {
+    const article = card.container.querySelector('article[data-ask]');
+    const offered = card.container.querySelector('section[aria-label="What the stage offered"]');
+    const question = article?.querySelector('h3');
+    const options = card.container.querySelector('[role=group][aria-label=Options]');
+    if (!article || !offered || !question || !options) throw new Error('Missing part of the card');
+    const follows = (a: Node, b: Node): boolean =>
+      (a.compareDocumentPosition(b) & dom.Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect([follows(question, offered), follows(offered, options)]).toEqual([true, true]);
+
+    expect(offered.textContent).toContain('What the stage offered');
+    for (const text of [
+      'Build it',
+      'Build the empty state now.',
+      'Cost: One more round.',
+      'Leave it',
+      'Leave it for a follow-up item.',
+      'Cost: The board shows a blank column until then.',
+    ])
+      expect([text, offered.textContent?.includes(text)]).toEqual([text, true]);
+    // Never the raw id, and nothing in it is clamped.
+    expect(offered.textContent).not.toContain('build-it');
+    expect(offered.querySelectorAll('[class*="line-clamp"]').length).toBe(0);
+
+    // The rest of the context keeps its clamp and loses the list.
+    const clamped = article.querySelector('p.line-clamp-3');
+    expect(clamped?.textContent).toBe(
+      'Review says the item asks for it; product says it was never mentioned. (Left by: verdict.)'
+    );
+
+    const rows = [...offered.querySelectorAll('li')];
+    expect(rows.map(row => [markOf(row), row.textContent?.includes('Recommended')])).toEqual([
+      ['recommended', true],
+      [null, false],
+    ]);
+    expect(rows[0]?.classList.contains('bg-[color:var(--success-soft)]')).toBe(true);
+    expect(offered.querySelectorAll('button').length).toBe(0);
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('with an offered list, the answer box asks which of them is meant', async () => {
+  serve();
+  const card = await mount([dryRunAsk()]);
+  try {
+    await card.click('Send back');
+    expect(card.container.querySelector('textarea')?.placeholder).toBe(
+      'Say which the stage offered you mean: Build it or Leave it'
+    );
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('an ask without the marker draws its whole context clamped and no offered list', async () => {
+  serve();
+  const card = await mount([askItem()]);
+  try {
+    expect(card.container.querySelector('section[aria-label="What the stage offered"]')).toBeNull();
+    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(
+      'The branch was cut from main but the item names dev.'
+    );
+    await card.click('Use main');
+    expect(card.container.querySelector('textarea')?.placeholder).toBe(
+      'Optional note with your answer'
+    );
+  } finally {
+    await card.unmount();
+  }
+});
+
+test("a long unbroken path in an offered option's words wraps inside the card", async () => {
+  serve();
+  const [does, cost] = [`does:${LONG}`, `cost:${LONG}`] as const;
+  const card = await mount([
+    dryRunAsk({ context: `${MARKER}\n- long-one: ${does} (cost: ${cost})` }),
+  ]);
+  try {
+    const article = card.container.querySelector('article[data-ask]');
+    if (article === null) throw new Error('No card');
+    // Only the list, so no clamped rest above it.
+    expect(article.querySelector('p.line-clamp-3')).toBeNull();
+    for (const text of [does, cost]) {
+      const found = holding(article, text);
+      expect(found.length).toBeGreaterThan(0);
+      for (const el of found) expect([text, wrapsAnywhere(el, article)]).toEqual([text, true]);
+    }
+  } finally {
+    await card.unmount();
   }
 });

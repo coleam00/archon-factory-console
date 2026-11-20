@@ -318,6 +318,16 @@ the Overview, the item page and the board popover.
 - Question: `--text-console-17`, semibold, at most 2 lines.
 - Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
   ClampedSummary pattern).
+- **What the stage offered.** When the context carries the pack's list of what a stage offered in
+  its own words (the one marker line "The stage offered these, in its own words; say which in your
+  answer:" and the `- id: does (cost: ...)` lines under it), the card takes that list out of the
+  clamp and shows it whole between the context and the tiles: a heading "What the stage offered"
+  in the Label role, then one plain row per option (not a button), `--radius-console-12`, 1 px
+  `--border`, holding its name (rule 8) at `--text-console-14` semibold, then what it does and
+  costs at `--text-console-13`, `--text-secondary`. The option a recommendation's `why` names
+  (`The stage recommends "<id>".`) wears the tiles' green mark and badge. While the list shows,
+  the textarea's placeholder asks which of those options is meant, on any pick. The console
+  matches only that marker line and that prefix; any other wording leaves the card as above.
 - Option tiles: a wrapping row, 8 px apart (`gap-2`), one tile per option the ask carries, in
   its declared order. Each tile is at least 176 px wide, `--radius-console-12`, 1 px `--border`,
   `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs
