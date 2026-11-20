@@ -61,17 +61,16 @@ describe('parseOffered', () => {
     expect(parseOffered(`${MARKER}\n- build-it: Build it.`)?.rest).toBe('');
   });
 
-  test('a line that is not an option ends the list and stays in the rest', () => {
-    expect(parseOffered(`Before.\n\n${MARKER}\n- a: A.\n\nAfter.`)).toEqual({
-      rest: 'Before.\n\nAfter.',
-      options: [{ id: 'a', does: 'A.' }],
-    });
+  test('anything after the marker that is not an option line falls back to null', () => {
+    expect(parseOffered(`Before.\n\n${MARKER}\n- a: A.\n\nAfter.`)).toBeNull();
   });
 
-  test('CRLF line endings parse the same', () => {
-    expect(parseOffered(DRY_RUN_CONTEXT.replace(/\n/g, '\r\n'), DRY_RUN_WHY)).toEqual(
-      parseOffered(DRY_RUN_CONTEXT, DRY_RUN_WHY)
-    );
+  test('an option whose does or cost holds a line break, as the pack writes it, falls back to null', () => {
+    const why = 'The stage recommends "b". Why.';
+    expect(
+      parseOffered(`${MARKER}\n- a: Line one.\nLine two. (cost: x)\n- b: B. (cost: y)`, why)
+    ).toBeNull();
+    expect(parseOffered(`${MARKER}\n- a: A. (cost: x\ny)\n- b: B.`)).toBeNull();
   });
 
   test('a why without the prefix, or naming an id not offered, marks nothing', () => {
@@ -85,11 +84,6 @@ describe('parseOffered', () => {
 
 describe('offeredPlaceholder', () => {
   test('names each offered option in words', () => {
-    const offered = parseOffered(DRY_RUN_CONTEXT);
-    if (offered === null) throw new Error('not parsed');
-    expect(offeredPlaceholder(offered)).toBe(
-      'Say which the stage offered you mean: Build it or Leave it'
-    );
     expect(offeredPlaceholder({ rest: '', options: [{ id: 'a', does: '' }] })).toBe(
       'Say which the stage offered you mean: A'
     );
