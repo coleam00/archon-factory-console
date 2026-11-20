@@ -11,7 +11,7 @@ export function EmptyNote({
   link,
   className = 'flex flex-col items-start gap-2',
 }: {
-  sentence: string;
+  sentence: ReactNode;
   icon?: LucideIcon;
   link?: ReactNode;
   className?: string;

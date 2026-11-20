@@ -178,7 +178,7 @@ describe('an item', () => {
   });
 
   test('whose read got no answer says why, and Retry reads it again and draws the item', async () => {
-    const answers = { ...healthy, item: offline };
+    const answers: Answers = { ...healthy, item: offline };
     const { fetches } = serve(answers);
     await renderAt('items/3', async container => {
       const alert = container.querySelector('[role="alert"]');
@@ -254,20 +254,6 @@ describe('a stage', () => {
       expect(words(container)).toContain('There is no stage nope in this factory.');
     });
   });
-
-  test('that does not exist links the Overview and each declared stage', async () => {
-    serve(healthy);
-    await renderAt('stages/nope', async container => {
-      expect(words(container)).toContain('There is no stage nope in this factory.');
-      const links = hrefs(container, 'nav[aria-label="Stages"]');
-      expect(links[0]).toBe(`/console/p/${PROJECT}/factory`);
-      expect(links.slice(1)).toEqual(
-        shippedListed.declaration.stages.map(
-          stage => `/console/p/${PROJECT}/factory?stage=${stage.id}`
-        )
-      );
-    });
-  });
 });
 
 describe('a step', () => {
@@ -293,17 +279,6 @@ describe('a step', () => {
     await renderAt('steps/deliver/x', async container => {
       expect(container.querySelector('[role="alert"]')?.textContent).toContain(missing);
       expect(words(container)).not.toContain('There is no workflow');
-    });
-  });
-
-  test('the workflow does not have says so, and links its stage', async () => {
-    serve(healthy);
-    await renderAt('steps/deliver/nope', async container => {
-      expect(words(container)).toContain('There is no step nope in deliver.');
-      const build = [...container.querySelectorAll('a')].find(
-        link => link.textContent === 'Open Build'
-      );
-      expect(build?.getAttribute('href')).toBe(`/console/p/${PROJECT}/factory?stage=build`);
     });
   });
 

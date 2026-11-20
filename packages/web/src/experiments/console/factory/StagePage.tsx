@@ -66,7 +66,11 @@ function StageNotFound({
   return (
     <EmptyNote
       icon={FileQuestionMark}
-      sentence={`There is no stage ${stageId} in this factory.`}
+      sentence={
+        <>
+          There is no stage <span className="font-mono">{stageId}</span> in this factory.
+        </>
+      }
       link={
         <nav aria-label="Stages" className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Link to={factoryPath(projectId)} className={WAY_ON_LINK}>

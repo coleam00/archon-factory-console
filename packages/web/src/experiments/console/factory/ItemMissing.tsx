@@ -22,7 +22,11 @@ export function ItemNotFound({
   return (
     <EmptyNote
       icon={FileQuestionMark}
-      sentence={`There is no item ${itemKey} in this project.`}
+      sentence={
+        <>
+          There is no item <span className="font-mono">{itemKey}</span> in this project.
+        </>
+      }
       className="flex w-full max-w-xl flex-col items-start gap-2"
       link={
         <div className="flex w-full flex-col gap-3">

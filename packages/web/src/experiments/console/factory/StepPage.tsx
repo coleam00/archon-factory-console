@@ -121,7 +121,7 @@ function StepNotFound({
   projectId: string;
   stages: FactoryStage[];
   stepKey: string;
-  sentence: string;
+  sentence: ReactNode;
 }): ReactElement {
   const stage = stepHomeStage(stages, stepPageFromStage(useLocation().state), stepKey);
   return (
@@ -180,7 +180,11 @@ function StepBody({
           projectId={projectId}
           stages={stages}
           stepKey={stepKey}
-          sentence={`There is no workflow ${workflow} in this factory.`}
+          sentence={
+            <>
+              There is no workflow <span className="font-mono">{workflow}</span> in this factory.
+            </>
+          }
         />
       );
     return <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />;
@@ -192,7 +196,12 @@ function StepBody({
         projectId={projectId}
         stages={stages}
         stepKey={stepKey}
-        sentence={`There is no step ${stepKey} in ${workflow}.`}
+        sentence={
+          <>
+            There is no step <span className="font-mono">{stepKey}</span> in{' '}
+            <span className="font-mono">{workflow}</span>.
+          </>
+        }
       />
     );
   return (
