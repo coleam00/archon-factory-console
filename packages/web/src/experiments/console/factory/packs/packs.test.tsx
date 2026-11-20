@@ -204,8 +204,14 @@ describe('/console/factory/:pack/how-it-works', () => {
 
   test("the pack's own file names no project", async () => {
     const page = await mount('/console/factory/acme.web/how-it-works', two);
-    const header = hrefs(page.querySelector('header'));
-    expect(header.filter(href => href.startsWith('/console/p/'))).toEqual([]);
+    // The source sits behind the Source toggle: open it, then read what it says.
+    const toggle = page.querySelector<HTMLElement>('header button[aria-expanded]');
+    await act(async () => {
+      toggle?.click();
+    });
+    const source = document.getElementById(toggle?.getAttribute('aria-controls') ?? '');
+    expect(source?.textContent).toContain("the pack's own overview file");
+    expect(hrefs(source).filter(href => href.startsWith('/console/p/'))).toEqual([]);
   });
 
   test('has two tabs, How it works and Settings', async () => {
