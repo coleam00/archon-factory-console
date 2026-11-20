@@ -519,6 +519,17 @@ describe('the modal is sized by what it shows', () => {
     await act(async () => dom.happyDOM.setViewport({ width: 1024, height: 768 }));
   });
 
+  test('a stage of many phases, like Checks, stops at 90% of the window', async () => {
+    await desktop();
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'checks'));
+      expect(width()).toBe('1296px');
+    } finally {
+      await unmount();
+    }
+  });
+
   test("Plan's real workflow, one step, keeps it compact", async () => {
     workflowReads = [() => Response.json(oneStep)];
     await desktop();
