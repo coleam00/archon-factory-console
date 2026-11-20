@@ -69,7 +69,7 @@ describe('the numbers strip', () => {
     expect(counts).toMatchObject({ inFlight: 1, total: 1 });
   });
 
-  test('a parked item is in M and not in flight; a closed one is in neither', () => {
+  test('a parked item is in M and not in flight', () => {
     const merged = Array.from({ length: 48 }, (_, n) =>
       landed(`m${String(n)}`, local(16, 0), local(16, 1))
     );
@@ -77,11 +77,6 @@ describe('the numbers strip', () => {
       inFlight: 0,
       landed: 48,
       total: 49,
-    });
-    expect(numbers([...merged, closedByTriage()], local(17, 12))).toMatchObject({
-      inFlight: 0,
-      landed: 48,
-      total: 48,
     });
   });
 

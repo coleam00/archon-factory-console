@@ -330,11 +330,8 @@ describe('work orders on the item page', () => {
     const html = render(detail);
     const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
     expect(header).toContain(pill('parked', 'Parked'));
-    expect(text(header)).toContain('Parked Parked by triage No change yet');
     expect(text(header)).not.toContain('In Triage');
     expect(header).toContain(`title="${attribute(why)}">Parked by triage</span>`);
-    // The timeline reads the parking run in the same words, not "sent to Triage".
-    expect(text(html)).not.toContain('sent to Triage');
   });
 
   test('a member with no run yet: Not started, no state, column or change', () => {

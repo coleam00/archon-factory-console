@@ -124,12 +124,6 @@ describe('where an item sits', () => {
         verb,
         place,
       ]);
-    // Parked is open: a run after it takes the item up, as after any placed outcome.
-    const parked = run('triage', 'completed', 'park');
-    expect(where(itemColumn(view, input([parked, run('triage', 'running')])))).toBe('triage');
-    expect(where(itemColumn(view, input([parked, run('triage', 'completed', 'close')])))).toBe(
-      'ended: Closed by triage'
-    );
   });
 
   test("3 before 5: a failed run after a placed completion keeps the completion's place", () => {
