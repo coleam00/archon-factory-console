@@ -17,10 +17,9 @@ const width = (
   drilldown: FactoryDrilldown | undefined,
   tab: StageTab = 'does',
   viewport = DESKTOP,
-  workflows = ['deliver']
+  graphWidth?: number
 ): number =>
-  stageModalSize({ stage: { drilldown, workflows }, tab, naturalHeight: undefined, viewport })
-    .width;
+  stageModalSize({ drilldown, tab, graphWidth, naturalHeight: undefined, viewport }).width;
 
 describe('the stage modal is as wide as its phases', () => {
   test('a one-phase stage, like Plan, opens at the compact width', () => {
@@ -45,27 +44,6 @@ describe('the stage modal is as wide as its phases', () => {
     expect(width(phases(2), 'items')).toBe(width(phases(2), 'does'));
   });
 
-  test('"The real workflow" takes the cap when it has a graph to draw, whatever the phases', () => {
-    expect(width(phases(1), 'workflow')).toBe(1296);
-    expect(width(undefined, 'workflow')).toBe(1296);
-  });
-
-  test('"The real workflow" of a stage with no workflow, like Merged, stays compact', () => {
-    expect(width(undefined, 'workflow', DESKTOP, [])).toBe(640);
-    expect(width(phases(2), 'workflow', DESKTOP, [])).toBe(744);
-  });
-
-  test('a stage the factory does not have opens compact', () => {
-    expect(
-      stageModalSize({
-        stage: undefined,
-        tab: 'workflow',
-        naturalHeight: undefined,
-        viewport: DESKTOP,
-      }).width
-    ).toBe(640);
-  });
-
   test('a narrower window lowers the cap the phases stop at', () => {
     const narrow = { width: 800, height: 900 };
     expect(width(phases(1), 'does', narrow)).toBe(640);
@@ -73,11 +51,54 @@ describe('the stage modal is as wide as its phases', () => {
   });
 });
 
+describe('"The real workflow" is as wide as the graph it draws', () => {
+  test("a one-step graph, like Plan's, stays compact", () => {
+    // One 168 px step with its 30 px margins, in its canvas's 16 px padding and 1 px border.
+    expect(width(phases(1), 'workflow', DESKTOP, 262)).toBe(640);
+  });
+
+  test('a graph wider than the compact width takes its width plus the padding and gutter', () => {
+    // 800 px of canvas, 24 px of padding and the 64 px close gutter.
+    expect(width(phases(1), 'workflow', DESKTOP, 800)).toBe(888);
+  });
+
+  test('a graph wider than the window stops at 90% of it', () => {
+    expect(width(phases(2), 'workflow', DESKTOP, 2000)).toBe(1296);
+  });
+
+  test('the graph sets the width even when the phases are wider', () => {
+    expect(width(checksDrilldown, 'workflow', DESKTOP, 262)).toBe(640);
+  });
+
+  test("until a graph is drawn, or with none to draw, it keeps the phases' width", () => {
+    expect(width(phases(2), 'workflow')).toBe(744);
+    expect(width(undefined, 'workflow')).toBe(640);
+  });
+
+  test("a scrollbar's gutter widens it, so the graph is not scrolled sideways under it", () => {
+    expect(
+      stageModalSize({
+        drilldown: phases(1),
+        tab: 'workflow',
+        graphWidth: 800,
+        scrollbarPx: 15,
+        naturalHeight: undefined,
+        viewport: DESKTOP,
+      }).width
+    ).toBe(903);
+  });
+
+  test('a graph drawn on another tab does not widen it', () => {
+    expect(width(phases(1), 'does', DESKTOP, 2000)).toBe(640);
+  });
+});
+
 describe('the stage modal is as tall as its content', () => {
   const height = (naturalHeight: number | undefined): number | undefined =>
     stageModalSize({
-      stage: { drilldown: phases(1), workflows: ['plan'] },
+      drilldown: phases(1),
       tab: 'does',
+      graphWidth: undefined,
       naturalHeight,
       viewport: DESKTOP,
     }).height;

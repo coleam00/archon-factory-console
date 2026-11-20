@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useLayoutEffect,
   useRef,
   useState,
@@ -6,12 +7,8 @@ import {
   type CSSProperties,
   type RefObject,
 } from 'react';
-import {
-  MODAL_CLOSE_GUTTER_REM,
-  MODAL_PAD_REM,
-  stageModalSize,
-  type StageShape,
-} from '../lib/stage-modal-size';
+import type { FactoryDrilldown } from '../lib/drilldown-live';
+import { MODAL_CLOSE_GUTTER_REM, MODAL_PAD_REM, stageModalSize } from '../lib/stage-modal-size';
 import type { StageTab } from '../lib/views';
 
 /** The custom properties the modal's panel reads from md up. */
@@ -48,17 +45,21 @@ function onResize(changed: () => void): () => void {
 
 /**
  * The stage modal's size, as custom properties for its panel. The width is the size rule's
- * alone (`stageModalSize`). The height follows a measure, because the body's content arrives
+ * (`stageModalSize`), from the drill-down and, on "The real workflow", the graph widths its
+ * `StepGraph`s report through `tellGraphWidth` (laid out, not measured), plus the scrollbar
+ * gutter the body keeps. The height follows a measure, because the body's content arrives
  * after the modal opens (the step graph, the items): the panel's height less the scroller's is
  * the fixed chrome, and adding the content's full height gives the panel's natural height.
  * Setting the panel to that height leaves the sum unchanged, so it settles in one step. Where
  * there is no `ResizeObserver` (a test DOM) nothing is measured and the height is the content's.
  */
 export function useStageModalSize(
-  stage: StageShape | undefined,
+  drilldown: FactoryDrilldown | undefined,
   tab: StageTab
 ): {
   panelStyle: CSSProperties & PanelVars;
+  /** For `StepGraphWidths`: each drawn graph's width by workflow, undefined when it goes. */
+  tellGraphWidth: (workflow: string, width: number | undefined) => void;
   panelRef: RefObject<HTMLDivElement | null>;
   scrollerRef: RefObject<HTMLDivElement | null>;
   contentRef: RefObject<HTMLDivElement | null>;
@@ -68,6 +69,17 @@ export function useStageModalSize(
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [naturalHeight, setNaturalHeight] = useState<number>();
+  const [scrollbarPx, setScrollbarPx] = useState(0);
+  const [graphWidths, setGraphWidths] = useState<ReadonlyMap<string, number>>(new Map());
+  const tellGraphWidth = useCallback((workflow: string, width: number | undefined): void => {
+    setGraphWidths(current => {
+      if (current.get(workflow) === width) return current;
+      const next = new Map(current);
+      if (width === undefined) next.delete(workflow);
+      else next.set(workflow, width);
+      return next;
+    });
+  }, []);
   useLayoutEffect(() => {
     const panel = panelRef.current;
     const scroller = scrollerRef.current;
@@ -77,6 +89,9 @@ export function useStageModalSize(
     // Fractional heights, not offsetHeight's whole pixels: a rounded-down body would scroll by
     // a pixel, and the scrollbar it brings would rewrap the content.
     const measure = (): void => {
+      // The scroller keeps its scrollbar's gutter whether it scrolls or not, so this is the
+      // same on every measure and cannot feed back into the width it adds to.
+      setScrollbarPx(scroller.offsetWidth - scroller.clientWidth);
       setNaturalHeight(
         panel.getBoundingClientRect().height -
           scroller.getBoundingClientRect().height +
@@ -90,10 +105,12 @@ export function useStageModalSize(
     return (): void => observer.disconnect();
   }, []);
   const { width, height } = stageModalSize({
-    stage,
+    drilldown,
     tab,
+    graphWidth: graphWidths.size === 0 ? undefined : Math.max(...graphWidths.values()),
     naturalHeight,
     viewport: { width: viewport.width, height: viewport.height },
+    scrollbarPx,
     remPx: viewport.remPx,
   });
   return {
@@ -103,6 +120,7 @@ export function useStageModalSize(
       '--modal-pad': `${String(MODAL_PAD_REM)}rem`,
       '--modal-gutter': `${String(MODAL_CLOSE_GUTTER_REM)}rem`,
     },
+    tellGraphWidth,
     panelRef,
     scrollerRef,
     contentRef,

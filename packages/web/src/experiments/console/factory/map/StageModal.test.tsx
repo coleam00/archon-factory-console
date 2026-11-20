@@ -499,6 +499,17 @@ describe('the workflow read never dead-ends', () => {
   });
 });
 
+/** A workflow of one step, Plan's real shape: the fixture's first step, on its own. */
+const oneStep = {
+  ...deliverJson,
+  name: 'plan',
+  runName: `${shippedListed.declaration.pack}:plan`,
+  steps: [{ ...deliverJson.steps[0], key: 'plan', label: 'plan', group: null, includedFrom: null }],
+  groups: [],
+};
+/** The modal over the deliver fixture's graph: its laid-out canvas plus the padding and gutter. */
+const DELIVER_WIDTH = '931px';
+
 describe('the modal is sized by what it shows', () => {
   const width = (): string | undefined => dialog()?.style.getPropertyValue('--stage-modal-w');
   const desktop = async (): Promise<void> => {
@@ -533,16 +544,43 @@ describe('the modal is sized by what it shows', () => {
     }
   });
 
-  test('the real workflow widens it to the cap, and going back narrows it again', async () => {
-    workflowReads = [steps];
+  test("Plan's real workflow, one step, keeps it compact", async () => {
+    workflowReads = [() => Response.json(oneStep)];
     await desktop();
     const { container, unmount } = await mount();
     try {
       await click(stageLink(container, 'plan'));
       await click(inDialog('The real workflow'));
-      expect(width()).toBe('1296px');
-      await click(inDialog('What this stage does'));
+      await settle();
+      expect(dialog()?.querySelector('button[title*="engine id: plan"]')).not.toBeNull();
       expect(width()).toBe('640px');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a wide graph widens it once it arrives, and going back narrows it again', async () => {
+    let answer: () => void = () => {};
+    workflowReads = [
+      () =>
+        new Promise<Response>(resolve => {
+          answer = () => resolve(steps());
+        }),
+    ];
+    await desktop();
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'build'));
+      expect(width()).toBe('744px');
+      await click(inDialog('The real workflow'));
+      // While the steps load, the phases' width holds: nothing is drawn to size it by.
+      expect(width()).toBe('744px');
+      answer();
+      await settle();
+      expect(graphStep()).toBeDefined();
+      expect(width()).toBe(DELIVER_WIDTH);
+      await click(inDialog('What this stage does'));
+      expect(width()).toBe('744px');
     } finally {
       await unmount();
     }

@@ -6,7 +6,8 @@ import { stageReadOf, type MapLive, type Unread } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed, StageModalLink, StageTab } from '../lib/views';
 import { StageView, useStageTab, type StageFrame } from '../stage/StageView';
-import type { StageShape } from '../lib/stage-modal-size';
+import type { FactoryDrilldown } from '../lib/drilldown-live';
+import { StepGraphWidths } from '../StepGraph';
 import { useStageModalSize } from './useStageModalSize';
 
 /**
@@ -54,7 +55,7 @@ export function StageModal({
   const stage = view.stages.find(candidate => candidate.id === stageId);
   if (stage === undefined)
     return (
-      <ModalShell titleId={titleId} close={close} stage={undefined} tab="does">
+      <ModalShell titleId={titleId} close={close} drilldown={undefined} tab="does">
         {frame =>
           frame({
             head: (
@@ -105,7 +106,7 @@ function OpenStage({
 }): ReactElement {
   const [tab, setTab] = useStageTab(stage, initialTab);
   return (
-    <ModalShell titleId={titleId} close={close} stage={stage} tab={tab}>
+    <ModalShell titleId={titleId} close={close} drilldown={stage.drilldown} tab={tab}>
       {frame => (
         <StageView
           projectId={projectId}
@@ -129,27 +130,32 @@ const FOCUSABLE =
 /**
  * The dialog: a backdrop and a panel, portalled to the body (it carries `console-root` itself,
  * as the body is outside the console's theme). From md up the panel is centred and sized to
- * its content by `useStageModalSize`, at most 90% of the window each way, and a size change
- * between tabs animates for 150 ms (snapping under reduced motion); under md it is the whole
- * screen. The head (title and tabs) stays put while the body scrolls on its own, and
+ * its content by `useStageModalSize` (on "The real workflow", to the graphs it draws), at most
+ * 90% of the window each way, and a size change animates for 150 ms (snapping under reduced
+ * motion); under md it is the whole screen. The head (title and tabs) stays put while the body scrolls on its own, and
  * `overscroll-contain` keeps a scroll that reaches its end from scrolling the Overview under it.
  * The panel draws its edge as a ring, which takes no width, so the size rule has no border in it.
  */
 function ModalShell({
   titleId,
   close,
-  stage,
+  drilldown,
   tab,
   children,
 }: {
   titleId: string;
   close: () => void;
-  /** What the size rule reads of the stage; undefined for a stage the factory has not. */
-  stage: StageShape | undefined;
+  drilldown: FactoryDrilldown | undefined;
   tab: StageTab;
   children: (frame: StageFrame) => ReactNode;
 }): ReactElement {
-  const { panelStyle, panelRef: panel, scrollerRef, contentRef } = useStageModalSize(stage, tab);
+  const {
+    panelStyle,
+    tellGraphWidth,
+    panelRef: panel,
+    scrollerRef,
+    contentRef,
+  } = useStageModalSize(drilldown, tab);
   const closeButton = useRef<HTMLButtonElement>(null);
   const closeRef = useRef(close);
   closeRef.current = close;
@@ -206,10 +212,10 @@ function ModalShell({
               {/* Its content's padding gives a card's focus ring and glow room inside the clip. */}
               <div
                 ref={scrollerRef}
-                className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
               >
                 <div ref={contentRef} className="flex flex-col gap-4 p-1">
-                  {body}
+                  <StepGraphWidths.Provider value={tellGraphWidth}>{body}</StepGraphWidths.Provider>
                 </div>
               </div>
             </div>

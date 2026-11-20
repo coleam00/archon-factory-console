@@ -1,4 +1,4 @@
-import type { FactoryStage } from './stage-steps';
+import type { FactoryDrilldown } from './drilldown-live';
 import type { StageTab } from './views';
 
 /*
@@ -20,9 +20,6 @@ export const MODAL_MIN_REM = 40;
 /** The share of the window the modal may take at most, in each direction. */
 export const MODAL_CAP = 0.9;
 
-/** What of a stage its modal's width depends on: its phases, and whether it has a graph to draw. */
-export type StageShape = Pick<FactoryStage, 'drilldown' | 'workflows'>;
-
 export interface StageModalSize {
   /** The panel's width in px. */
   width: number;
@@ -31,37 +28,45 @@ export interface StageModalSize {
 }
 
 /**
- * The stage modal's size from md up: as wide as its drill-down's phases (at least
- * `MODAL_MIN_REM`), "The real workflow" as wide as the cap when the stage has a workflow to
- * draw (a stage with none shows one sentence there, which needs no canvas), as tall as its
- * content, and each at most `MODAL_CAP` of the window. "Items here now" takes the phases' width too, so moving
- * between the summary and the items does not resize the panel. `naturalHeight` is the panel's
- * height with its whole body showing, which only the browser can measure.
+ * The stage modal's size from md up, each way at most `MODAL_CAP` of the window and at least
+ * `MODAL_MIN_REM` wide. "What this stage does" and "Items here now" are as wide as the
+ * drill-down's phases, so moving between them does not resize the panel. "The real workflow"
+ * is as wide as the widest graph it draws (`graphWidth`, its canvas included); until a graph is
+ * drawn, or when the stage has none, it keeps the phases' width. The height is the content's:
+ * `naturalHeight`, the panel's height with its whole body showing, which only the browser can
+ * measure.
  */
 export function stageModalSize({
-  stage,
+  drilldown,
   tab,
+  graphWidth,
   naturalHeight,
   viewport,
+  scrollbarPx = 0,
   remPx = 16,
 }: {
-  stage: StageShape | undefined;
+  drilldown: FactoryDrilldown | undefined;
   tab: StageTab;
+  /** The widest drawn graph's width in px, canvas included; undefined while none is drawn. */
+  graphWidth: number | undefined;
   naturalHeight: number | undefined;
   viewport: { width: number; height: number };
+  /** The width the body's scroller keeps for its scrollbar; 0 where scrollbars overlay. */
+  scrollbarPx?: number;
   remPx?: number;
 }): StageModalSize {
   const capWidth = Math.floor(viewport.width * MODAL_CAP);
   const capHeight = Math.floor(viewport.height * MODAL_CAP);
-  const phases = stage?.drilldown?.phases.length ?? 0;
+  const chromeRem = MODAL_PAD_REM + MODAL_CLOSE_GUTTER_REM;
+  const phases = drilldown?.phases.length ?? 0;
   const phasesRem = phases === 0 ? 0 : phases * PHASE_COLUMN_REM + (phases - 1) * PHASE_GAP_REM;
-  const panelRem = phasesRem + MODAL_PAD_REM + MODAL_CLOSE_GUTTER_REM;
-  const drawsGraph = tab === 'workflow' && (stage?.workflows.length ?? 0) > 0;
-  const width = drawsGraph
-    ? capWidth
-    : Math.min(capWidth, Math.max(MODAL_MIN_REM, panelRem) * remPx);
+  const contentPx = tab === 'workflow' && graphWidth !== undefined ? graphWidth : phasesRem * remPx;
+  const width = Math.min(
+    capWidth,
+    Math.max(MODAL_MIN_REM * remPx, contentPx + scrollbarPx + chromeRem * remPx)
+  );
   return {
-    width,
+    width: Math.ceil(width),
     height: naturalHeight === undefined ? undefined : Math.min(Math.ceil(naturalHeight), capHeight),
   };
 }
