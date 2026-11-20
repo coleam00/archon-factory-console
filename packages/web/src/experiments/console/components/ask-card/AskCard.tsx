@@ -2,11 +2,13 @@ import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ClampedSummary } from '../../factory/ClampedSummary';
 import { askQuestion } from '../../lib/ask-card';
+import { parseOffered, type Offered } from '../../lib/ask-offered';
 import { relativeTime } from '../../lib/format';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import type { AttentionQueue } from '../../skills/runs';
 import { AskBody } from './AskBody';
 import { CompactCard } from './CompactCard';
+import { OfferedBlock } from './OfferedBlock';
 
 /** The item (or run) an ask is about, as its card's header names and links it. */
 export interface AskSubject {
@@ -56,6 +58,7 @@ export function AskCard(props: AskCardProps): ReactElement {
         openHref={props.openHref}
       />
     );
+  const offered = offeredOf(ask);
   return (
     <article
       aria-label={askQuestion(ask)}
@@ -76,8 +79,8 @@ export function AskCard(props: AskCardProps): ReactElement {
         </p>
       ) : (
         <>
-          <AskContext ask={ask} />
-          <AskBody {...props} />
+          <AskContext ask={ask} offered={offered} />
+          <AskBody {...props} offered={offered} />
         </>
       )}
     </article>
@@ -120,11 +123,26 @@ export function SubjectName({ subject }: { subject: AskSubject }): ReactElement 
   );
 }
 
-/** The ask's context, clamped to three lines with More; what happened, for a run it cannot answer. */
-function AskContext({ ask }: { ask: NeedsYouItem }): ReactNode {
-  if (ask.kind === 'attention')
-    return ask.context === undefined ? null : (
-      <ClampedSummary key={ask.context} text={ask.context} lines={3} />
-    );
-  return null;
+/** What the stage offered, when an ask's context carries the pack's list of it. */
+function offeredOf(ask: NeedsYouItem): Offered | null {
+  if (ask.kind !== 'attention' || ask.context === undefined) return null;
+  return parseOffered(ask.context, ask.recommendation?.why);
+}
+
+/**
+ * The ask's context, clamped to three lines with More; what happened, for a run it cannot
+ * answer. When the context carries what the stage offered, the rest of it keeps the clamp and
+ * the offered list shows whole under it (`OfferedBlock`).
+ */
+function AskContext({ ask, offered }: { ask: NeedsYouItem; offered: Offered | null }): ReactNode {
+  if (ask.kind !== 'attention' || ask.context === undefined) return null;
+  if (offered === null) return <ClampedSummary key={ask.context} text={ask.context} lines={3} />;
+  return (
+    <>
+      {offered.rest === '' ? null : (
+        <ClampedSummary key={offered.rest} text={offered.rest} lines={3} />
+      )}
+      <OfferedBlock offered={offered} />
+    </>
+  );
 }

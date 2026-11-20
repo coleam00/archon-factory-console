@@ -10,6 +10,7 @@ import {
   tileOrder,
   type AttentionWait,
 } from '../lib/ask-card';
+import { offeredPlaceholder, type Offered } from '../lib/ask-offered';
 import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
 import { invalidate } from '../store/cache';
@@ -59,17 +60,25 @@ function tilesOf(wait: AttentionWait): AskTile[] {
   }));
 }
 
-/** What the confirm row asks for, given the picks so far. */
+/**
+ * What the confirm row asks for, given the picks so far. While the card shows what the stage
+ * offered, a pick's optional note asks which of those is meant, on every tile: the routes are
+ * the pack's, and the console names none of them (rule 1). An answer in words keeps its own
+ * prompt, and whether text is required does not change.
+ */
 function draftOf(
   wait: AttentionWait,
   tiles: readonly AskTile[],
-  picks: readonly string[]
+  picks: readonly string[],
+  offered: Offered | null
 ): ConfirmDraft {
   const labels = picks.map(id => tiles.find(tile => tile.id === id)?.label ?? id);
   if (wait.form === 'message') return { labels, text: 'required', placeholder: 'Your answer' };
   if (takesText(wait, picks))
     return { labels, text: 'required', placeholder: 'Say what to do instead' };
-  return { labels, text: 'optional', placeholder: 'Optional note with your answer' };
+  const placeholder =
+    offered === null ? 'Optional note with your answer' : offeredPlaceholder(offered);
+  return { labels, text: 'optional', placeholder };
 }
 
 /**
@@ -80,22 +89,25 @@ function draftOf(
  * when the engine would accept the answer (`answerProblem`), and for an answer only in words
  * only once its text has a non-blank character, which the engine does not require. `submit` sends; a
  * refusal shows in the server's own words. `onAnswered` hears the chosen words once sent.
+ * `offered`, from the ask card, is what the stage offered in its own words (`parseOffered`).
  */
 export function AttentionAnswerForm({
   wait,
   submit,
   onAnswered,
+  offered = null,
 }: {
   wait: AttentionWait;
   submit: SubmitAnswer;
   onAnswered?: (label: string) => void;
+  offered?: Offered | null;
 }): ReactElement {
   const [picks, setPicks] = useState<string[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const tiles = tilesOf(wait);
-  const draft = draftOf(wait, tiles, picks);
+  const draft = draftOf(wait, tiles, picks, offered);
   const open = wait.form === 'message' || picks.length > 0;
 
   const reset = (): void => {
