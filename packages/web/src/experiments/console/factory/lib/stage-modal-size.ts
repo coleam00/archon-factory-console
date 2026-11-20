@@ -1,4 +1,4 @@
-import type { FactoryDrilldown } from './drilldown-live';
+import type { FactoryStage } from './stage-steps';
 import type { StageTab } from './views';
 
 /*
@@ -20,6 +20,9 @@ export const MODAL_MIN_REM = 40;
 /** The share of the window the modal may take at most, in each direction. */
 export const MODAL_CAP = 0.9;
 
+/** What of a stage its modal's width depends on: its phases, and whether it has a graph to draw. */
+export type StageShape = Pick<FactoryStage, 'drilldown' | 'workflows'>;
+
 export interface StageModalSize {
   /** The panel's width in px. */
   width: number;
@@ -29,19 +32,20 @@ export interface StageModalSize {
 
 /**
  * The stage modal's size from md up: as wide as its drill-down's phases (at least
- * `MODAL_MIN_REM`), "The real workflow" as wide as the cap, as tall as its content, and each
- * at most `MODAL_CAP` of the window. "Items here now" takes the phases' width too, so moving
+ * `MODAL_MIN_REM`), "The real workflow" as wide as the cap when the stage has a workflow to
+ * draw (a stage with none shows one sentence there, which needs no canvas), as tall as its
+ * content, and each at most `MODAL_CAP` of the window. "Items here now" takes the phases' width too, so moving
  * between the summary and the items does not resize the panel. `naturalHeight` is the panel's
  * height with its whole body showing, which only the browser can measure.
  */
 export function stageModalSize({
-  drilldown,
+  stage,
   tab,
   naturalHeight,
   viewport,
   remPx = 16,
 }: {
-  drilldown: FactoryDrilldown | undefined;
+  stage: StageShape | undefined;
   tab: StageTab;
   naturalHeight: number | undefined;
   viewport: { width: number; height: number };
@@ -49,11 +53,13 @@ export function stageModalSize({
 }): StageModalSize {
   const capWidth = Math.floor(viewport.width * MODAL_CAP);
   const capHeight = Math.floor(viewport.height * MODAL_CAP);
-  const phases = drilldown?.phases.length ?? 0;
+  const phases = stage?.drilldown?.phases.length ?? 0;
   const phasesRem = phases === 0 ? 0 : phases * PHASE_COLUMN_REM + (phases - 1) * PHASE_GAP_REM;
   const panelRem = phasesRem + MODAL_PAD_REM + MODAL_CLOSE_GUTTER_REM;
-  const width =
-    tab === 'workflow' ? capWidth : Math.min(capWidth, Math.max(MODAL_MIN_REM, panelRem) * remPx);
+  const drawsGraph = tab === 'workflow' && (stage?.workflows.length ?? 0) > 0;
+  const width = drawsGraph
+    ? capWidth
+    : Math.min(capWidth, Math.max(MODAL_MIN_REM, panelRem) * remPx);
   return {
     width,
     height: naturalHeight === undefined ? undefined : Math.min(Math.ceil(naturalHeight), capHeight),

@@ -16,8 +16,11 @@ const phases = (count: number): FactoryDrilldown => ({
 const width = (
   drilldown: FactoryDrilldown | undefined,
   tab: StageTab = 'does',
-  viewport = DESKTOP
-): number => stageModalSize({ drilldown, tab, naturalHeight: undefined, viewport }).width;
+  viewport = DESKTOP,
+  workflows = ['deliver']
+): number =>
+  stageModalSize({ stage: { drilldown, workflows }, tab, naturalHeight: undefined, viewport })
+    .width;
 
 describe('the stage modal is as wide as its phases', () => {
   test('a one-phase stage, like Plan, opens at the compact width', () => {
@@ -42,9 +45,25 @@ describe('the stage modal is as wide as its phases', () => {
     expect(width(phases(2), 'items')).toBe(width(phases(2), 'does'));
   });
 
-  test('"The real workflow" takes the cap, whatever the phases', () => {
+  test('"The real workflow" takes the cap when it has a graph to draw, whatever the phases', () => {
     expect(width(phases(1), 'workflow')).toBe(1296);
     expect(width(undefined, 'workflow')).toBe(1296);
+  });
+
+  test('"The real workflow" of a stage with no workflow, like Merged, stays compact', () => {
+    expect(width(undefined, 'workflow', DESKTOP, [])).toBe(640);
+    expect(width(phases(2), 'workflow', DESKTOP, [])).toBe(744);
+  });
+
+  test('a stage the factory does not have opens compact', () => {
+    expect(
+      stageModalSize({
+        stage: undefined,
+        tab: 'workflow',
+        naturalHeight: undefined,
+        viewport: DESKTOP,
+      }).width
+    ).toBe(640);
   });
 
   test('a narrower window lowers the cap the phases stop at', () => {
@@ -56,7 +75,12 @@ describe('the stage modal is as wide as its phases', () => {
 
 describe('the stage modal is as tall as its content', () => {
   const height = (naturalHeight: number | undefined): number | undefined =>
-    stageModalSize({ drilldown: phases(1), tab: 'does', naturalHeight, viewport: DESKTOP }).height;
+    stageModalSize({
+      stage: { drilldown: phases(1), workflows: ['plan'] },
+      tab: 'does',
+      naturalHeight,
+      viewport: DESKTOP,
+    }).height;
 
   test('content shorter than the window sets the height, rounded up to a whole pixel', () => {
     expect(height(300)).toBe(300);

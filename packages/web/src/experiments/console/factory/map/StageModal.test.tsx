@@ -547,4 +547,19 @@ describe('the modal is sized by what it shows', () => {
       await unmount();
     }
   });
+
+  test('a stage with no workflow to draw, like Merged, stays compact on the real workflow', async () => {
+    await desktop();
+    const { container, unmount } = await mount();
+    try {
+      await click(stageLink(container, 'landed'));
+      expect(title()).toBe('Merged');
+      expect(dialog()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+        'The real workflow'
+      );
+      expect(width()).toBe('640px');
+    } finally {
+      await unmount();
+    }
+  });
 });

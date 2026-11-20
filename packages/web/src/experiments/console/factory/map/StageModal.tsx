@@ -3,10 +3,10 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { stageReadOf, type MapLive, type Unread } from '../lib/map-live';
-import type { FactoryDrilldown } from '../lib/drilldown-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed, StageModalLink, StageTab } from '../lib/views';
 import { StageView, useStageTab, type StageFrame } from '../stage/StageView';
+import type { StageShape } from '../lib/stage-modal-size';
 import { useStageModalSize } from './useStageModalSize';
 
 /**
@@ -54,7 +54,7 @@ export function StageModal({
   const stage = view.stages.find(candidate => candidate.id === stageId);
   if (stage === undefined)
     return (
-      <ModalShell titleId={titleId} close={close} drilldown={undefined} tab="does">
+      <ModalShell titleId={titleId} close={close} stage={undefined} tab="does">
         {frame =>
           frame({
             head: (
@@ -105,7 +105,7 @@ function OpenStage({
 }): ReactElement {
   const [tab, setTab] = useStageTab(stage, initialTab);
   return (
-    <ModalShell titleId={titleId} close={close} drilldown={stage.drilldown} tab={tab}>
+    <ModalShell titleId={titleId} close={close} stage={stage} tab={tab}>
       {frame => (
         <StageView
           projectId={projectId}
@@ -138,22 +138,18 @@ const FOCUSABLE =
 function ModalShell({
   titleId,
   close,
-  drilldown,
+  stage,
   tab,
   children,
 }: {
   titleId: string;
   close: () => void;
-  drilldown: FactoryDrilldown | undefined;
+  /** What the size rule reads of the stage; undefined for a stage the factory has not. */
+  stage: StageShape | undefined;
   tab: StageTab;
   children: (frame: StageFrame) => ReactNode;
 }): ReactElement {
-  const {
-    panelStyle,
-    panelRef: panel,
-    scrollerRef,
-    contentRef,
-  } = useStageModalSize(drilldown, tab);
+  const { panelStyle, panelRef: panel, scrollerRef, contentRef } = useStageModalSize(stage, tab);
   const closeButton = useRef<HTMLButtonElement>(null);
   const closeRef = useRef(close);
   closeRef.current = close;

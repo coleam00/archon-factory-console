@@ -6,8 +6,12 @@ import {
   type CSSProperties,
   type RefObject,
 } from 'react';
-import type { FactoryDrilldown } from '../lib/drilldown-live';
-import { MODAL_CLOSE_GUTTER_REM, MODAL_PAD_REM, stageModalSize } from '../lib/stage-modal-size';
+import {
+  MODAL_CLOSE_GUTTER_REM,
+  MODAL_PAD_REM,
+  stageModalSize,
+  type StageShape,
+} from '../lib/stage-modal-size';
 import type { StageTab } from '../lib/views';
 
 /** The custom properties the modal's panel reads from md up. */
@@ -51,7 +55,7 @@ function onResize(changed: () => void): () => void {
  * there is no `ResizeObserver` (a test DOM) nothing is measured and the height is the content's.
  */
 export function useStageModalSize(
-  drilldown: FactoryDrilldown | undefined,
+  stage: StageShape | undefined,
   tab: StageTab
 ): {
   panelStyle: CSSProperties & PanelVars;
@@ -86,7 +90,7 @@ export function useStageModalSize(
     return (): void => observer.disconnect();
   }, []);
   const { width, height } = stageModalSize({
-    drilldown,
+    stage,
     tab,
     naturalHeight,
     viewport: { width: viewport.width, height: viewport.height },
