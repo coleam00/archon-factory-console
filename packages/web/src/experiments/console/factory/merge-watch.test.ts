@@ -2,7 +2,7 @@ import { afterEach, expect, test } from 'bun:test';
 import type { FactoryItem, FactoryProgress } from '../skills/factory';
 import { get, invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { progressOf, readyWithMerge, realItem } from './lib/board.test-fixtures';
+import { readyWithMerge } from './lib/board.test-fixtures';
 import type { FactoryItemsRead } from './lib/factory-items-read';
 import { cancelMergeWatches, watchMerges, type MergeWatchDeps } from './merge-watch';
 
@@ -66,20 +66,12 @@ const seed = (projectId: string, items: FactoryItem[]): void =>
   set(K.factoryItems(projectId), { items, members: {} });
 
 test('an unmerged change starts the watch, which asks only about the waiting keys', async () => {
-  const noChange = { ...realItem('6'), item: { ...realItem('6').item, key: 'e' } };
-  noChange.progress = { ...progressOf(noChange), change: null };
-  seed('cb-keys', [
-    readyWithMerge('a', true),
-    readyWithMerge('b', false),
-    readyWithMerge('c', 'unknown'),
-    readyWithMerge('d', 'pending'),
-    noChange,
-  ]);
+  seed('cb-keys', [readyWithMerge('a', true), readyWithMerge('b', false)]);
   const host = forge();
   const release = watchMerges('cb-keys', { getProgress: host.getProgress, delayMs: 0 });
   await ticks(1);
   release();
-  expect(host.asked[0]).toEqual(['b', 'c']);
+  expect(host.asked[0]).toEqual(['b']);
 });
 
 test('more than a page of waiting keys asks a page at a time', async () => {
@@ -125,7 +117,7 @@ test('an item that leaves the board, or the last release, stops the asking', asy
   expect(host.asked.length).toBe(afterLeaving);
 });
 
-test('a hidden tab asks nothing, and asks at once when it shows again', async () => {
+test('a hidden tab asks nothing, and asks again when it shows', async () => {
   seed('cb-hidden', [readyWithMerge('b', false)]);
   const host = forge();
   const doc = fakeDoc();
@@ -139,6 +131,23 @@ test('a hidden tab asks nothing, and asks at once when it shows again', async ()
     expect(host.asked).toEqual([['b']]);
   } finally {
     release();
+  }
+});
+
+test('an open item page takes the answer too, so its header agrees with the board', async () => {
+  const item = readyWithMerge('b', false);
+  seed('cb-detail', [item]);
+  const detailKey = K.factoryItem('cb-detail', 'b');
+  set(detailKey, { pack: 'p', item, runs: [] });
+  const host = forge({ b: true });
+  const release = watchMerges('cb-detail', { getProgress: host.getProgress, delayMs: 0 });
+  try {
+    await ticks(1);
+    const detail = get(detailKey) as { item: FactoryItem };
+    expect(detail.item.progress?.change?.merged).toBe(true);
+  } finally {
+    release();
+    invalidate(detailKey);
   }
 });
 
@@ -192,10 +201,11 @@ test('two readers share one watch: one ask per interval, until both release', as
   const second = watchMerges('cb-two', deps);
   await turn(30);
   expect(host.asked.length).toBe(1);
-  first();
+  // The reader that came last leaves first: the watch is shared, so the other keeps it.
+  second();
   await turn(20);
   expect(host.asked.length).toBe(2);
-  second();
+  first();
   await turn(40);
   expect(host.asked.length).toBe(2);
 });

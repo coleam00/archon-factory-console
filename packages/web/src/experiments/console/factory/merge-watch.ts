@@ -1,4 +1,8 @@
-import { getFactoryProgress, type FactoryProgress } from '../skills/factory';
+import {
+  getFactoryProgress,
+  type FactoryItemDetail,
+  type FactoryProgress,
+} from '../skills/factory';
 import { get, patch } from '../store/cache';
 import { K } from '../store/keys';
 import { FACTORY_READ_DEADLINE_MS, withDeadline } from './lib/deadline';
@@ -58,6 +62,11 @@ export function watchMerges(projectId: string, deps: MergeWatchDeps = DEFAULT_DE
     held.readers--;
     if (held.readers === 0) stop(projectId, held);
   };
+}
+
+/** Whether a watch on `projectId` is held; for tests of the readers that hold it. */
+export function mergeWatchHeld(projectId: string): boolean {
+  return watches.has(projectId);
 }
 
 /** Stops every watch; for tests, so a timer never fires into the next one. */
@@ -123,14 +132,19 @@ function waitUntilVisible(
 
 /**
  * Asks about the waiting keys, a page of them per request, and patches every answer in at
- * once. A whole-board read that landed meanwhile is newer than this ask, so the answer is
- * dropped then.
+ * once: into the items every Factory page reads, and into each waiting item's own read that
+ * is cached (the item page's header), so the two never disagree on a merge. A read that
+ * landed meanwhile is newer than this ask, so the answer is dropped for that value.
  */
 async function readWaiting(projectId: string, watch: Watch): Promise<void> {
   const key = K.factoryItems(projectId);
   const before = get(key) as FactoryItemsRead | undefined;
   if (before === undefined) return;
   const keys = awaitingMergeKeys(before.items);
+  const details = keys.map(itemKey => {
+    const detailKey = K.factoryItem(projectId, itemKey);
+    return { itemKey, detailKey, detail: get(detailKey) as FactoryItemDetail | undefined };
+  });
   const answers: FactoryProgress[] = [];
   for (let start = 0; start < keys.length; start += PAGE_LIMIT) {
     const page = keys.slice(start, start + PAGE_LIMIT);
@@ -140,6 +154,20 @@ async function readWaiting(projectId: string, watch: Watch): Promise<void> {
       )
     );
   }
-  if (answers.length === 0 || !live(projectId, watch) || get(key) !== before) return;
-  patch(key, () => answers.reduce(withProgress, before));
+  if (answers.length === 0 || !live(projectId, watch)) return;
+  if (get(key) === before) patch(key, () => answers.reduce(withProgress, before));
+  patchDetails(details, answers);
+}
+
+/** Each cached item read, as it was before the ask, takes the progress the answers give it. */
+function patchDetails(
+  details: { itemKey: string; detailKey: string; detail: FactoryItemDetail | undefined }[],
+  answers: readonly FactoryProgress[]
+): void {
+  for (const { itemKey, detailKey, detail } of details) {
+    const answer = answers.find(page => Object.hasOwn(page.progress, itemKey));
+    if (detail === undefined || answer === undefined || get(detailKey) !== detail) continue;
+    const progress = answer.progress[itemKey] ?? null;
+    patch(detailKey, () => ({ ...detail, item: { ...detail.item, progress } }));
+  }
 }
