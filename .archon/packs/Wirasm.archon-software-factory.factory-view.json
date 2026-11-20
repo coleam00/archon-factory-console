@@ -524,7 +524,7 @@
       { "from": "ready", "to": "landed", "label": "merged" },
       { "from": "checks", "to": "build", "label": "returned" },
       { "from": "host", "to": "build", "label": "returned" },
-      { "from": "checks", "to": "plan", "label": "replan", "person": true },
+      { "from": "host", "to": "plan", "label": "replan", "person": true },
       { "from": "plan", "to": "plan", "label": "answers" }
     ],
     "notes": [{ "text": "You answer asks here", "near": "needs-you" }]
