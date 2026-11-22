@@ -536,6 +536,20 @@
             "label": "Round ends (stage)",
             "cards": [
               {
+                "title": "Post the review",
+                "text": "Posts the checks' findings on the pull request",
+                "icon": "message-square",
+                "kind": "script",
+                "covers": [
+                  {
+                    "workflow": "stage-check",
+                    "steps": [
+                      "rounds"
+                    ]
+                  }
+                ]
+              },
+              {
                 "title": "Count the round",
                 "text": "Records the round and the rounds allowed",
                 "icon": "ruler",
@@ -544,7 +558,6 @@
                   {
                     "workflow": "stage-check",
                     "steps": [
-                      "rounds",
                       "allowance"
                     ]
                   }
