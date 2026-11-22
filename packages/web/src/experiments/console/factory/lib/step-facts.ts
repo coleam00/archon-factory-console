@@ -11,6 +11,7 @@ import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
 type FactoryStep = FactoryWorkflow['steps'][number];
+type FactoryGroup = FactoryWorkflow['groups'][number];
 type DrilldownCard = NonNullable<
   Declaration['stages'][number]['drilldown']
 >['phases'][number]['cards'][number];
@@ -25,6 +26,8 @@ export interface StepFact {
   label: string;
   text?: string;
   chips?: string[];
+  /** Outcomes: what each does in words, then the outcome id as the pack writes it. */
+  outcomes?: { words: string; id: string }[];
   lines?: string[];
   title?: string;
   /** The value is engine text as written (an expression no parser took). */
@@ -42,17 +45,26 @@ export function modelWords(model: readonly string[]): string {
 
 /** What an outcome's declared meaning does, in words. */
 const MEANING_WORDS: Record<Meaning, string> = {
-  approved: 'approves it',
-  returned: 'sends it back',
-  asked: 'asks you',
+  approved: 'Approves it',
+  returned: 'Sends it back',
+  asked: 'Asks you',
 };
+
+/** A loop by name, with the most rounds it runs: "Rounds, up to 3 rounds". */
+export function loopWords(name: string, maxRounds: number | null): string {
+  return maxRounds === null ? name : `${name}, up to ${maxRounds.toString()} rounds`;
+}
 
 /**
  * The outcomes the view file declares for this step, with what each means: its `verdicts`, and
  * the `returns` and `approves` that name it. Only declared ones: a `when:` that compares this
  * step's output drops the field it reads, so its values are not provably outcomes.
  */
-function declaredOutcomes(view: Declaration, workflow: string, key: string): string[] {
+function declaredOutcomes(
+  view: Declaration,
+  workflow: string,
+  key: string
+): { words: string; id: string }[] {
   const meanings = new Map<string, Meaning>(Object.entries(view.verdicts?.[workflow]?.[key] ?? {}));
   const point = (list: Declaration['returns'], meaning: Meaning): void => {
     for (const entry of list ?? [])
@@ -60,24 +72,26 @@ function declaredOutcomes(view: Declaration, workflow: string, key: string): str
   };
   point(view.returns, 'returned');
   point(view.approves, 'approved');
-  return [...meanings].map(([outcome, meaning]) => `${outcome}: ${MEANING_WORDS[meaning]}`);
+  return [...meanings].map(([id, meaning]) => ({ words: MEANING_WORDS[meaning], id }));
 }
 
 /**
  * The aside's facts for `step` of `workflow`. `stepName` is `stepLabel` for that workflow; the
- * other steps are the workflow's, for what starts after this one.
+ * workflow's steps and loop groups say what starts after this one.
  */
 export function stepFacts({
   step,
   view,
   workflow,
   steps,
+  groups,
   stepName,
 }: {
   step: FactoryStep;
   view: Declaration;
   workflow: string;
   steps: readonly FactoryStep[];
+  groups: readonly FactoryGroup[];
   stepName: (key: string) => string;
 }): StepFact[] {
   const facts: StepFact[] = [
@@ -117,22 +131,29 @@ export function stepFacts({
       lines: outputs.map(ref => referenceLabel(ref, stepName)),
     });
   const outcomes = declaredOutcomes(view, workflow, step.key);
-  if (outcomes.length > 0) facts.push({ key: 'outcomes', label: 'Can end with', chips: outcomes });
-  const then = steps.filter(other => other.dependsOn.includes(step.key));
+  if (outcomes.length > 0) facts.push({ key: 'outcomes', label: 'Can end with', outcomes });
+  // A step or a loop waits on this one: the loop starts its first round after it.
+  const then = [
+    ...steps
+      .filter(other => other.dependsOn.includes(step.key))
+      .map(other => ({ name: stepName(other.key), whenClauses: other.whenClauses })),
+    ...groups
+      .filter(group => group.kind === 'loop' && group.dependsOn.includes(step.key))
+      .map(group => ({
+        name: loopWords(stepName(group.id), group.maxRounds),
+        whenClauses: group.whenClauses,
+      })),
+  ];
   if (then.length > 0)
     facts.push({
       key: 'then',
       label: 'Then starts',
-      lines: then.map(other => {
-        const condition =
-          other.whenClauses?.some(clause =>
-            clause.some(atom => atom.reads.kind === 'step' && atom.reads.key === step.key)
-          ) === true
-            ? conditionText(other.whenClauses, stepName)
-            : null;
-        return condition === null
-          ? `${stepName(other.key)}, after this step`
-          : `${stepName(other.key)}, ${condition}`;
+      lines: then.map(({ name, whenClauses }) => {
+        const readsThis = whenClauses?.some(clause =>
+          clause.some(atom => atom.reads.kind === 'step' && atom.reads.key === step.key)
+        );
+        const condition = readsThis === true ? conditionText(whenClauses, stepName) : null;
+        return condition === null ? `${name}, after this step` : `${name}, ${condition}`;
       }),
     });
   return facts;

@@ -142,6 +142,7 @@ export function StepDocument({
                     view,
                     workflow: workflow.name,
                     steps: workflow.steps,
+                    groups: workflow.groups,
                     stepName,
                   }).map(fact => ({
                     key: fact.key,
@@ -174,8 +175,19 @@ export function StepDocument({
   );
 }
 
-/** A fact's value: one text, one line each, or short chips. */
+/** A fact's value: one text, one line each, short chips, or outcomes with their ids. */
 function FactValue({ fact }: { fact: StepFact }): ReactElement {
+  if (fact.outcomes !== undefined)
+    return (
+      <ul className="flex flex-col gap-0.5">
+        {fact.outcomes.map(outcome => (
+          <li key={outcome.id} className="flex flex-wrap items-baseline gap-x-2">
+            {outcome.words}
+            <IdTag id={outcome.id} />
+          </li>
+        ))}
+      </ul>
+    );
   if (fact.chips !== undefined)
     return (
       <ul className="flex flex-wrap gap-1.5">

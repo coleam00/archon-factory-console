@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import type { FactoryWorkflow } from '../../skills/factory';
 import { Panel, type ToneColor } from '../document';
 import { stepPagePath, type StepPageState } from '../lib/stage-steps';
+import { loopWords } from '../lib/step-facts';
 import { KIND_TONES } from '../lib/step-kinds';
 
 type Group = FactoryWorkflow['groups'][number];
@@ -75,13 +76,7 @@ export function StepWorkflowList({
               style={indent(row.depth)}
               className="pt-1.5 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary"
             >
-              {row.group.kind === 'loop'
-                ? `${row.group.label}${
-                    row.group.maxRounds === null
-                      ? ''
-                      : `, up to ${row.group.maxRounds.toString()} rounds`
-                  }`
-                : row.group.label}
+              {loopWords(row.group.label, row.group.maxRounds)}
             </li>
           ) : (
             <li key={row.step.key} style={indent(row.depth)} className="min-w-0">

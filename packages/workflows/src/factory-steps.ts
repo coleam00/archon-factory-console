@@ -360,7 +360,6 @@ export function promptReferences(
   const found = new Map<string, FactoryStepReference>();
   for (const match of prompt.matchAll(pattern)) {
     const token = match[0];
-    if (found.has(token)) continue;
     // Groups: 2 the input's name; 4 and 5 the prior form's node and path; 7 and 8 the current's.
     if (match[2] !== undefined) {
       found.set(token, { kind: 'input', token, name: match[2] });

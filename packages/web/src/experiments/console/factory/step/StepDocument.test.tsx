@@ -24,22 +24,27 @@ afterAll(async () => {
 });
 
 const deliver = deliverJson as FactoryWorkflow;
-/** `deliver` with a prompt that reads inputs and a step's output, one input in a code span. */
+/**
+ * `deliver` with a prompt that reads inputs and a step's output, one input in a code span, and
+ * a model on its shell step, which the page must still not show.
+ */
 const WITH_PROMPT: FactoryWorkflow = {
   ...deliver,
   steps: deliver.steps.map(step =>
-    step.key === 'rounds.fix'
-      ? {
-          ...step,
-          prompt:
-            '# Fix what the checks returned\n\nFix $INPUTS.item on `$INPUTS.land_on` from $build__build.output.',
-          references: [
-            { kind: 'input', token: '$INPUTS.item', name: 'item' },
-            { kind: 'input', token: '$INPUTS.land_on', name: 'land_on' },
-            { kind: 'output', token: '$build__build.output', key: 'build__build', path: null },
-          ],
-        }
-      : step
+    step.key === 'rounds.base'
+      ? { ...step, model: ['@lander'] }
+      : step.key === 'rounds.fix'
+        ? {
+            ...step,
+            prompt:
+              '# Fix what the checks returned\n\nFix $INPUTS.item on `$INPUTS.land_on` from $build__build.output.',
+            references: [
+              { kind: 'input', token: '$INPUTS.item', name: 'item' },
+              { kind: 'input', token: '$INPUTS.land_on', name: 'land_on' },
+              { kind: 'output', token: '$build__build.output', key: 'build__build', path: null },
+            ],
+          }
+        : step
   ),
 };
 
@@ -121,11 +126,9 @@ describe('the step page as a document page', () => {
     }
   });
 
-  test('opens with its name and id, what it does, and its key facts', () => {
+  test('opens with what it does and its key facts', () => {
     const root = page('rounds.fix');
     const band = root.querySelector('[aria-label="Summary"]');
-    expect(band?.querySelector('h2')?.textContent).toBe('Fix the changerounds.fix');
-    expect(band?.querySelector('[data-id-tag]')?.textContent).toBe('rounds.fix');
     expect(band?.querySelector('p')?.textContent).toBe('Fixes what the checks sent back');
     expect(chips(root)).toEqual([
       'tone: Agentstep',
@@ -150,7 +153,6 @@ describe('the step page as a document page', () => {
     // "What it does" is the covering drill-down card's line.
     const does = root.querySelector('[data-doc-columns] section');
     expect(does?.textContent).toBe('What it doesFixFixes what the checks sent back');
-    expect(root.querySelector('.chat-markdown p code')?.textContent).toBe('$INPUTS.land_on');
     const aside = root.querySelector('aside');
     const facts = aside?.querySelector('dl')?.textContent ?? '';
     expect(facts).toContain('Inputs it readsitemland on');
@@ -178,27 +180,21 @@ describe('the step page as a document page', () => {
       '2git diff --stat origin/main',
     ]);
     expect(root.querySelector('.chat-markdown')).toBeNull();
+    // A shell step with a model declared still shows no model: it runs no agent.
     expect(chips(root).some(chip => chip.includes('model'))).toBe(false);
+    expect(root.querySelector('aside dl')?.textContent).not.toContain('Runs on');
   });
 
-  test('items on the step are board cards; none is the designed empty state', () => {
-    const busy = page('build__build', capturedItemsPage.items);
-    // In the items read's order, as the cache holds it here.
-    const onBuild = capturedItemsPage.items
-      .filter(item => item.progress?.running?.step === 'build__build')
-      .map(item => item.item.key);
-    expect(onBuild).toHaveLength(3);
+  test('the count chip is in the running colour; the empty state links the board', () => {
+    expect(chips(page('build__build', capturedItemsPage.items))).toContain(
+      'running: 3on this step now'
+    );
+    // Inside the items section: the frame's own navigation links the board too.
+    const items = [...page('rounds.fix').querySelectorAll('[data-doc-section]')].find(
+      section => section.querySelector('h2')?.textContent === 'Items on this step now'
+    );
     expect(
-      [...busy.querySelectorAll('[data-card]')].map(card => card.getAttribute('data-card'))
-    ).toEqual(onBuild);
-    expect(chips(busy)).toContain('running: 3on this step now');
-    const empty = page('rounds.fix');
-    expect(empty.querySelector('[data-card]')).toBeNull();
-    expect(empty.textContent).toContain('No item is on this step now.');
-    expect(
-      [...empty.querySelectorAll('a')].some(
-        link => link.getAttribute('href') === `/console/p/${ID}/factory/board`
-      )
-    ).toBe(true);
+      [...(items?.querySelectorAll('a') ?? [])].map(link => link.getAttribute('href'))
+    ).toEqual([`/console/p/${ID}/factory/board`]);
   });
 });

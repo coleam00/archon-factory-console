@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryWorkflow } from '../../skills/factory';
+import deliverJson from './fixtures/deliver-workflow.json';
 import { coveringCard, modelWords, stepFacts } from './step-facts';
 import type { FactoryViewListed } from './views';
 
@@ -69,7 +70,7 @@ const VIEW = {
 const name = (key: string): string => `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
 
 const facts = (target: FactoryStep, steps: FactoryStep[] = [target]) =>
-  stepFacts({ step: target, view: VIEW, workflow: 'land', steps, stepName: name });
+  stepFacts({ step: target, view: VIEW, workflow: 'land', steps, groups: [], stepName: name });
 
 describe('stepFacts', () => {
   test('leaves out every row it knows nothing for: a lone script step is only its kind', () => {
@@ -80,10 +81,11 @@ describe('stepFacts', () => {
 
   test('a step the view declares outcomes for says what each does', () => {
     const outcomes = facts(step('gate')).find(fact => fact.key === 'outcomes');
-    expect(outcomes?.chips).toEqual([
-      'ask: asks you',
-      'return: sends it back',
-      'land: approves it',
+    // Plain words first, the pack's outcome id second.
+    expect(outcomes?.outcomes).toEqual([
+      { words: 'Asks you', id: 'ask' },
+      { words: 'Sends it back', id: 'return' },
+      { words: 'Approves it', id: 'land' },
     ]);
   });
 
@@ -101,6 +103,21 @@ describe('stepFacts', () => {
       'End, after this step',
       'Notify, if Land = landed',
     ]);
+  });
+
+  test('a loop that waits on the step starts after it, by its name and rounds', () => {
+    const deliver = deliverJson as FactoryWorkflow;
+    const build = deliver.steps.find(candidate => candidate.key === 'build__build');
+    if (build === undefined) throw new Error('the fixture has no build step');
+    const then = stepFacts({
+      step: build,
+      view: VIEW,
+      workflow: 'deliver',
+      steps: deliver.steps,
+      groups: deliver.groups,
+      stepName: name,
+    }).find(fact => fact.key === 'then');
+    expect(then?.lines).toEqual(['Rounds, up to 3 rounds, after this step']);
   });
 
   test('lists the inputs and step outputs its prompt reads, by name', () => {
