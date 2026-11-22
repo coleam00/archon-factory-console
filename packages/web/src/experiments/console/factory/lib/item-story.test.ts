@@ -179,6 +179,25 @@ describe("the console's clauses", () => {
   });
 });
 
+describe("a panel's details", () => {
+  test("a run that works several stages: each panel its own stretch, the cost the whole run's", () => {
+    const detail = itemDetail('111');
+    const deliver = detail.item.runs.find(run => run.workflow.endsWith(':deliver'));
+    const panels = stagePanels(detail).filter(panel =>
+      ['build', 'checks', 'host'].includes(panel.stage.id)
+    );
+    expect(panels.map(panel => panel.stage.id)).toEqual(['build', 'checks', 'host']);
+    // Back to back, from the run's start to its end.
+    expect(panels[0]?.details.start).toBe(deliver?.startedAt ?? '');
+    expect(panels[0]?.details.end).toBe(panels[1]?.details.start);
+    expect(panels[1]?.details.end).toBe(panels[2]?.details.start);
+    expect(panels[2]?.details.end).toBe(deliver?.completedAt ?? null);
+    expect(panels.every(panel => panel.details.wholeRun)).toBe(true);
+    // A run of one stage is all its panel's.
+    expect(stagePanels(detail)[0]?.details.wholeRun).toBe(false);
+  });
+});
+
 describe('the last panels', () => {
   test('a change a person merged: a Merged panel that does not say the factory merged it', () => {
     const last = story(itemDetail('111')).at(-1);

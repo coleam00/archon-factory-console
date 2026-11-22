@@ -44,7 +44,7 @@ export function RoundsGrid({ grid }: { grid: Grid }): ReactElement {
         <span className="font-medium text-text-primary">Approved</span>: the check passed.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-max border-collapse text-left">
+        <table className="w-full min-w-lg border-collapse text-left">
           <caption className="sr-only">Check rounds</caption>
           <thead>
             <tr>
@@ -85,8 +85,8 @@ function Row({ row }: { row: GridRow }): ReactElement {
         scope="row"
         className={`py-2 pr-4 text-console-13 font-medium ${row.shadow ? 'text-text-tertiary' : 'text-text-primary'}`}
       >
-        <span className="flex items-center gap-2">
-          {row.label}
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="whitespace-nowrap">{row.label}</span>
           {row.shadow ? <ShadowBadge /> : null}
         </span>
       </th>
@@ -116,9 +116,9 @@ function Cell({ cell, absent = false }: { cell: GridCell; absent?: boolean }): R
     <span
       data-cell={absent ? 'absent' : cell.meaning}
       title={cell.title ?? undefined}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap text-console-13 ${className} ${
+      className={`inline-flex items-start gap-1.5 text-console-13 ${className} ${
         cell.meaning === 'token' && !absent ? 'font-mono' : 'font-medium'
-      }`}
+      } ${cell.meaning === 'shadow' ? '' : 'whitespace-nowrap'}`}
     >
       <Icon aria-hidden="true" className="size-4 shrink-0" />
       {cell.text}

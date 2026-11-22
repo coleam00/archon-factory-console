@@ -157,12 +157,13 @@ function detailRows(details: PanelDetails, merged: string | null) {
   rows.push({
     key: 'cost',
     label: 'Cost',
-    value: details.costUsd === null ? 'Not recorded' : formatCost(details.costUsd),
+    value: costWords(details),
   });
   if (details.models.length > 0)
     rows.push({
       key: 'models',
-      label: details.models.length === 1 ? 'Model' : 'Models',
+      label:
+        details.models.length === 1 ? 'Model' : details.wholeRun ? 'Models (whole run)' : 'Models',
       value: <span className="font-mono text-console-13">{details.models.join(', ')}</span>,
     });
   rows.push({
@@ -171,6 +172,13 @@ function detailRows(details: PanelDetails, merged: string | null) {
     value: <RunLinks runs={details.runs} />,
   });
   return rows;
+}
+
+/** The cost, said to be the whole run's when the run worked other stages too. */
+function costWords(details: PanelDetails): string {
+  if (details.costUsd === null) return 'Not recorded';
+  const cost = formatCost(details.costUsd);
+  return details.wholeRun ? `${cost} for the whole run, across its stages` : cost;
 }
 
 function RunLinks({ runs }: { runs: PanelDetails['runs'] }): ReactElement {

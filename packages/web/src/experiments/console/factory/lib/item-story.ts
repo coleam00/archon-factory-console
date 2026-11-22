@@ -53,6 +53,11 @@ export interface PanelDetails {
   end: string | null;
   durationMs: number | null;
   costUsd: number | null;
+  /**
+   * A run of this panel worked other stages too (a loop-form delivery): its cost and models are
+   * the whole run's, recorded once per run, so they cannot be split by stage.
+   */
+  wholeRun: boolean;
   models: string[];
   runs: { id: string; href: string }[];
 }
@@ -258,18 +263,50 @@ function lastAnswer(answered: readonly AnsweredAsk[], panel: StoryVisit): string
   return answered.filter(answer => answer.runId === last).at(-1)?.chosen ?? null;
 }
 
-function details(ctx: StoryContext, runIds: readonly string[]): PanelDetails {
+/** When a stretch of work started and ended, as ISO times; a null end while it goes on. */
+interface Span {
+  start: string;
+  end: string | null;
+}
+
+/** The runs' own span: the first start to the last end. */
+function runsSpan(ctx: StoryContext, runIds: readonly string[]): Span {
   const runs = runIds.flatMap(id => ctx.runs.get(id) ?? []);
-  const costs = runIds.flatMap(id => ctx.facts.get(id)?.costUsd ?? []);
-  const start = runs[0]?.startedAt ?? '';
   const ends = runs.map(run => run.completedAt);
-  const end = ends.includes(null) ? null : (ends.at(-1) ?? null);
-  const until = end === null ? ctx.now : Date.parse(end);
   return {
-    start,
-    end,
-    durationMs: start === '' ? null : Math.max(0, until - Date.parse(start)),
+    start: runs[0]?.startedAt ?? '',
+    end: ends.includes(null) ? null : (ends.at(-1) ?? null),
+  };
+}
+
+/**
+ * A panel's span: from its first position, to where the item moved on when its last run went
+ * on to the next panel (a run that works several stages), else to its runs' end.
+ */
+function panelSpan(ctx: StoryContext, panel: StoryVisit, next: StoryVisit | undefined): Span {
+  const own = runsSpan(ctx, panel.allRunIds);
+  const first = panel.positions[0]?.at;
+  const start = first === undefined ? own.start : new Date(first).toISOString();
+  const last = panel.allRunIds.at(-1);
+  const onward = next?.positions[0]?.at;
+  if (last !== undefined && onward !== undefined && next?.allRunIds.includes(last))
+    return { start, end: new Date(onward).toISOString() };
+  return { start, end: own.end };
+}
+
+function details(
+  ctx: StoryContext,
+  runIds: readonly string[],
+  span: Span,
+  wholeRun: boolean
+): PanelDetails {
+  const costs = runIds.flatMap(id => ctx.facts.get(id)?.costUsd ?? []);
+  const until = span.end === null ? ctx.now : Date.parse(span.end);
+  return {
+    ...span,
+    durationMs: span.start === '' ? null : Math.max(0, until - Date.parse(span.start)),
     costUsd: costs.length === 0 ? null : costs.reduce((sum, cost) => sum + cost, 0),
+    wholeRun,
     models: [...new Set(runIds.flatMap(id => ctx.facts.get(id)?.models ?? []))],
     runs: runIds.map(id => ({ id, href: runHref(ctx.projectId, id) })),
   };
@@ -306,7 +343,8 @@ function stagePanel(
   ctx: StoryContext,
   panel: StoryVisit,
   next: StoryVisit | undefined,
-  firsts: Map<string, string>
+  firsts: Map<string, string>,
+  shared: boolean
 ): StagePanel {
   const grid = roundsGrid(ctx.view, ctx.detail, [...ctx.rows.values()], panel, next);
   const named = panel.allRunIds.find(id => firsts.has(id));
@@ -326,7 +364,7 @@ function stagePanel(
     youSaid: lastAnswer(answered, panel),
     runIds: panel.allRunIds,
     grid,
-    details: details(ctx, panel.allRunIds),
+    details: details(ctx, panel.allRunIds, panelSpan(ctx, panel, next), shared),
     shadows: panelShadows(ctx, panel, grid),
     merged:
       panel.stage.id === ctx.view.landed.stage && change?.merged === true
@@ -352,7 +390,7 @@ function drainPanels(ctx: StoryContext): (DrainPanel & { at: number })[] {
           'The factory looked for other work',
         mono: null,
       },
-      details: details(ctx, [run.id]),
+      details: details(ctx, [run.id], runsSpan(ctx, [run.id]), false),
       shadows: ctx.rows.get(run.id)?.shadows ?? [],
     }));
 }
@@ -379,8 +417,15 @@ export function itemStory(
   };
   const visits = storyVisits(view, detail);
   const firsts = firstNamers(detail);
+  const panelsOf = (id: string) => visits.filter(visit => visit.allRunIds.includes(id)).length;
   const stages = visits.map((visit, index) => ({
-    panel: stagePanel(ctx, visit, visits[index + 1], firsts),
+    panel: stagePanel(
+      ctx,
+      visit,
+      visits[index + 1],
+      firsts,
+      visit.allRunIds.some(id => panelsOf(id) > 1)
+    ),
     at: visit.positions[0]?.at ?? 0,
   }));
   const ordered = [...stages, ...drainPanels(ctx).map(panel => ({ panel, at: panel.at }))]

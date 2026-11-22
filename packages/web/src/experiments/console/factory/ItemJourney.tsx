@@ -16,7 +16,7 @@ export function ItemJourney({ journey }: { journey: Journey }): ReactElement {
   return (
     <Panel as="section" aria-label="Journey" className="p-4 lg:col-span-2">
       <div className="overflow-x-auto">
-        <ol className="flex min-w-max gap-3">
+        <ol className="flex w-full min-w-max gap-3">
           {journey.segments.map(segment => (
             <Segment key={segment.id} segment={segment} />
           ))}
@@ -40,7 +40,7 @@ function Segment({ segment }: { segment: JourneySegment }): ReactElement {
       data-lit={segment.lit ? '' : undefined}
       data-static=""
       style={cardTone(toneColor(segment.tone))}
-      className={`factory-card relative flex w-48 shrink-0 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 ${
+      className={`factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 ${
         segment.reached ? '' : 'opacity-60'
       }`}
     >
