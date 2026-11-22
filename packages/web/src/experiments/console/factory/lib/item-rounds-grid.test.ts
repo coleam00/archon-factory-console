@@ -108,3 +108,31 @@ describe('a cell', () => {
     expect([cell?.meaning, cell?.text]).toEqual(['token', 'replan']);
   });
 });
+
+describe('round numbers on the item, not as each run recorded them', () => {
+  /** Item 125 with its second stage-check run recording round 1 again, as 119's runs did. */
+  function repeated(): FactoryItemDetail {
+    const detail = structuredClone(itemDetail('125'));
+    const second = detail.runs.find(run => run.runId.startsWith('bb11ef33'));
+    const round = second?.rounds?.rounds[0];
+    if (round === undefined) throw new Error('125 has a second round');
+    round.iteration = 1;
+    return detail;
+  }
+
+  test('two runs that both record round 1: the columns read 1, 2, 3, 4; each allowance its own', () => {
+    const grid = checksGrid(repeated());
+    expect(grid?.columns.map(column => [column.number, column.max])).toEqual([
+      [1, 3],
+      [2, 3],
+      [3, 3],
+      [4, 4],
+    ]);
+    // The round as the run recorded it stays, for matching what was decided in it.
+    expect(grid?.columns.map(column => column.iteration)).toEqual([1, 1, 3, 4]);
+  });
+
+  test('a loop-form delivery counts its iterations in order', () => {
+    expect(checksGrid(itemDetail('111'))?.columns.map(column => column.number)).toEqual([1, 2]);
+  });
+});

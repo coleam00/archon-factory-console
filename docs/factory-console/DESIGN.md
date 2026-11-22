@@ -1287,8 +1287,11 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   on such a run's panels the cost reads "for the whole run, across its stages", or "for its N
   runs, across their stages" when the panel holds several.
 - **Check rounds as a grid:** in a Checks panel, a table whose columns are the rounds (a
-  loop-form delivery's iterations, or one per stage-form run, numbered and bounded by its own
-  result: "Round 4 of 4") and whose rows are: each step with a declared meaning (`returns`,
+  loop-form delivery's iterations, or one per stage-form run, numbered by their order on the
+  item since it was last planned, the count starting over at a run on an intake-group stage,
+  and bounded by the allowance the round's run recorded: "Round 4 of 4"; never the number a run
+  recorded, which can repeat; the reasons under the grid take the same numbers) and whose rows
+  are: each step with a declared meaning (`returns`,
   `approves`, `verdicts`), named as the view names it, in the order the view's `steps` lists
   them; the builder's fixes (a loop's fix step, or a folded build run), in the column of the
   round they answered; the next check stage's runs (CI and the reviews), stacked in the last

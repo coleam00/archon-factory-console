@@ -112,7 +112,7 @@ page, keeping the query string. Inside the tab:
   why it sent the item back once, on its last panel. A build that fixed what a check sent back
   folds into that check's panel. A Checks panel shows its rounds as a grid: a row per check whose outcome the
   declaration means (`returns`, `approves`, `verdicts`), the builder's fixes, what CI and the
-  reviews said after the last round, and the shadow steps' decisions; a column per round; each
+  reviews said after the last round, and the shadow steps' decisions; a column per round, numbered by its order since the item was last planned and bounded by the allowance its run recorded; each
   cell an icon and a word ("Sent back", "Approved", "Fixed", "Not run"), with a legend and, for
   each round sent back, why in one sentence (the rest behind "More"). An ask sits in the panel
   of the stage that asked it: the question, the option chosen, who chose it and what that

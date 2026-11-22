@@ -68,7 +68,7 @@ export function RoundsGrid({ grid }: { grid: Grid }): ReactElement {
                   scope="col"
                   className="py-1.5 pr-4 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary"
                 >
-                  Round {column.iteration}
+                  Round {column.number}
                   {column.max === null ? '' : ` of ${column.max}`}
                 </th>
               ))}
@@ -143,7 +143,7 @@ function Reasons({ grid }: { grid: Grid }): ReactElement | null {
       {returned.map(column => (
         <Reason
           key={`${column.runId}|${column.iteration}`}
-          lead={`Round ${column.iteration.toString()}`}
+          lead={`Round ${column.number.toString()}`}
           text={column.reason ?? ''}
         />
       ))}

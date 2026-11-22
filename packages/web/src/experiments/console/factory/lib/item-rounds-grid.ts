@@ -44,7 +44,15 @@ export interface GridCell {
 }
 
 export interface GridColumn {
+  /**
+   * The round's place among the item's rounds since it was last planned (1, 2, 3...), the
+   * number a person reads. Never the number a run recorded: a stage-form run's `/round` can
+   * repeat one (two runs that both recorded round 1), so the grid counts them itself.
+   */
+  number: number;
+  /** The round as the run recorded it: a loop's iteration, or a stage-form run's `/round`. */
   iteration: number;
+  /** The allowance the round's run recorded; null when it recorded none. */
   max: number | null;
   verdict: Round['verdict'];
   runId: string;
@@ -134,6 +142,31 @@ interface GridContext {
   facts: ReadonlyMap<string, RunFacts>;
   rows: ReadonlyMap<string, TimelineRow>;
   order: ReadonlyMap<string, number>;
+  /** Each round's number on the item (`roundNumbers`), by `roundKey`. */
+  numbers: ReadonlyMap<string, number>;
+}
+
+const roundKey = (runId: string, iteration: number): string => `${runId}|${iteration.toString()}`;
+
+/**
+ * Each check round's number on the item: its place, in run order, among the rounds since the
+ * item was last planned. A run on an intake-group stage (the item taken in, judged or planned
+ * again) starts the count over; a fix's own steps are no round. Both delivery shapes count
+ * alike: a loop's iterations in order, and one round per stage-form run.
+ */
+function roundNumbers(view: Declaration, detail: FactoryItemDetail): Map<string, number> {
+  const numbers = new Map<string, number>();
+  const facts = new Map(detail.runs.map(run => [run.runId, run]));
+  let count = 0;
+  for (const run of detail.item.runs) {
+    const fact = facts.get(run.id);
+    const workflow = fact?.workflow ?? null;
+    if (workflow === null) continue;
+    if (stageOfWorkflow(view, workflow, null)?.group === 'intake') count = 0;
+    for (const round of fact?.rounds?.rounds ?? [])
+      numbers.set(roundKey(run.id, round.iteration), ++count);
+  }
+  return numbers;
 }
 
 /** The rounds the panel's own runs recorded on the panel's stage, in order. */
@@ -150,6 +183,7 @@ function gridColumns(
       .filter(round => roundStage(ctx.view, workflow, round) === panel.stage.id)
       .map(round => ({
         column: {
+          number: ctx.numbers.get(roundKey(runId, round.iteration)) ?? round.iteration,
           iteration: round.iteration,
           max,
           verdict: round.verdict,
@@ -302,6 +336,7 @@ export function roundsGrid(
     facts: new Map(detail.runs.map(run => [run.runId, run])),
     rows: new Map(timeline.map(row => [row.runId, row])),
     order: new Map(detail.item.runs.map((run, index) => [run.id, index])),
+    numbers: roundNumbers(view, detail),
   };
   const columns = gridColumns(ctx, panel);
   if (columns.length === 0) return null;

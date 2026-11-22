@@ -229,6 +229,20 @@ describe('the item page', () => {
     expect(ci).toContain('Build fixed what CI and the reviews raised');
   });
 
+  test('rounds read by their order on the item, though two runs recorded round 1', () => {
+    const detail = structuredClone(itemDetail('125'));
+    const round = detail.runs.find(run => run.runId.startsWith('bb11ef33'))?.rounds?.rounds[0];
+    if (round === undefined) throw new Error('125 has a second round');
+    round.iteration = 1;
+    const checks = panel(render(detail), 'checks');
+    expect(
+      [...checks.matchAll(/scope="col"[^>]*>(.*?)<\/th>/g)].map(m => text(m[1] ?? '').trim())
+    ).toEqual(['Check', 'Round 1 of 3', 'Round 2 of 3', 'Round 3 of 3', 'Round 4 of 4']);
+    // The reasons under the grid take the same numbers.
+    const reasons = text(checks).match(/Round \d+:/g);
+    expect(reasons).toEqual(['Round 1:', 'Round 2:', 'Round 3:']);
+  });
+
   test('a panel that sent the item back ends its sentence on why, the rest behind More', () => {
     const detail = structuredClone(itemDetail('125'));
     const third = detail.item.runs.findIndex(run => run.id.startsWith('bb11ef33'));
