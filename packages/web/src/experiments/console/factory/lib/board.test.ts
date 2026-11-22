@@ -181,8 +181,9 @@ describe('card fields, in order', () => {
       text: 'first round running',
       dots: [{ iteration: 1, verdict: 'running', label: 'first round: running' }],
     });
-    // A run of a workflow with no stage-form rounds (deliver's loop counts its own) adds none.
-    item.progress = { ...progress, running: { ...running, workflow: 'stage-build' } };
+    // A deliver run going now, not yet in its loop, adds none: deliver's loop is a loop-form
+    // source, which numbers its own rounds, so its card reads as it always has.
+    item.progress = { ...progress, running: { ...running, workflow: 'deliver' } };
     expect(newRoundRunning(VIEW, item.progress)).toBe(false);
     expect(card(item).round?.text).toBe('round 2 of 3');
   });

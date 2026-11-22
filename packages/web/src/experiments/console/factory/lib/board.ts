@@ -114,11 +114,11 @@ export function itemPath(projectId: string, key: string): string {
 
 /**
  * Whether a run of a stage-form rounds workflow works the item now: a round its result has
- * not numbered yet, so it is none of `progress.round`'s.
+ * not numbered yet. It is never one of `progress.round`'s, which only completed runs give.
  */
 export function newRoundRunning(view: FactoryDeclaration, progress: Progress | null): boolean {
   const running = progress?.running;
-  if (running == null || running.runId === progress?.round?.runId) return false;
+  if (running == null) return false;
   return roundsSources(view).some(
     source => !('loop' in source) && source.workflow === running.workflow
   );
