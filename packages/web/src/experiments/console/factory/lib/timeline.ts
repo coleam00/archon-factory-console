@@ -412,7 +412,8 @@ export function timelineMerged(detail: FactoryItemDetail): TimelineMerged | null
 
 /**
  * The item page's timeline: one row per run in the item read's order (start order), each
- * with the declared rounds loop's rounds and its shadow decisions under it.
+ * with its declared check rounds (a loop's iterations, or a stage-form run's one round) and
+ * its shadow decisions under it.
  */
 export function buildTimeline(
   view: Declaration,

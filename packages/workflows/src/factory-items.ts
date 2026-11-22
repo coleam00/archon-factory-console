@@ -44,7 +44,8 @@ import {
 } from './factory-shadows';
 
 /**
- * How one round of the declared rounds loop ended, from declared data only: `returned` when
+ * How one declared check round ended (an iteration of a loop-form rounds source, or one run
+ * of a stage-form source, numbered by its result), from declared data only: `returned` when
  * a declared return point in the loop sent the item back that round, `approved` when a
  * declared approval point approved it, `undecided` when the round completed with neither
  * (an ask, a replan, or a view that declares no approval: the round's `outcome` says
@@ -173,7 +174,8 @@ export const factoryItemProgressSchema = z.object({
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
 /**
- * One round of the declared rounds loop on one run, with what its steps recorded. `outcome`
+ * One declared check round on one run (a loop-form source's iteration, or a stage-form
+ * source's run, which is one round), with what its steps recorded. `outcome`
  * and `summary` are the declared return or approval step's that decided the round; `steps` are the
  * loop's steps that completed that round with a structured `outcome`, in recording order.
  * `outcome` and `summary` are read by name from a step's structured output, as the workflow
