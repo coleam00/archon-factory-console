@@ -241,7 +241,8 @@ describe('answered lately', () => {
     expect(text(aside?.querySelector('[data-skeleton="true"]'))).toBe(
       'Loading what was answered lately'
     );
-    expect(aside?.querySelectorAll('[data-skeleton="line"]').length).toBeGreaterThan(0);
+    // Lines a shade off the panel's fill, so they show on it.
+    expect(aside?.querySelectorAll('.bg-surface-hover').length).toBeGreaterThan(0);
   });
 });
 
@@ -275,7 +276,7 @@ describe('the empty state', () => {
     const empty = render(none, quiet, 'unread').querySelector(
       'section[aria-label="Nothing needs you"]'
     );
-    expect(empty?.querySelector('[data-skeleton="line"]')).not.toBeNull();
+    expect(empty?.querySelector('[data-skeleton="line"] .bg-surface-hover')).not.toBeNull();
     expect(text(empty)).not.toContain('appears here to answer');
   });
 });

@@ -3,7 +3,7 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import { Panel } from '../../factory/document';
 import { relativeTime } from '../../lib/format';
-import { SkeletonLine } from '../Skeleton';
+import { SkeletonInnerLine } from '../Skeleton';
 
 const LINK = 'text-console-13 text-text-secondary hover:text-text-primary hover:underline';
 
@@ -43,7 +43,12 @@ export function NothingNeedsYou({
       </span>
       <div className="flex flex-col gap-1">
         <h2 className="text-console-17 font-semibold text-text-primary">Nothing needs you</h2>
-        {loading ? <SkeletonLine width="short" /> : null}
+        {loading ? (
+          // An inner line: on the panel's fill a plain skeleton bar would not show.
+          <span aria-hidden="true" data-skeleton="line" className="motion-safe:animate-pulse">
+            <SkeletonInnerLine width="short" />
+          </span>
+        ) : null}
         {lastAsked === undefined ? null : (
           <p className="text-console-14 text-text-secondary">
             {lastAsked === null

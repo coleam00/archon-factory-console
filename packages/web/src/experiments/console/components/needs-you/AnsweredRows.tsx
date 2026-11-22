@@ -5,7 +5,7 @@ import { Panel, SectionHeading } from '../../factory/document';
 import type { AnsweredRow } from '../../factory/lib/answered';
 import { relativeTime } from '../../lib/format';
 import { errorDetail } from '../../lib/http';
-import { SkeletonGroup, SkeletonLine } from '../Skeleton';
+import { SkeletonGroup, SkeletonInnerLine } from '../Skeleton';
 import { SubjectName } from '../ask-card/AskCard';
 
 type Restart = NonNullable<AnsweredRow['restart']>;
@@ -84,11 +84,15 @@ function AnsweredBody({
     );
   if (rows === undefined)
     return (
-      <SkeletonGroup label="Loading what was answered lately" className="flex flex-col gap-4 py-3">
+      // Inner lines: a panel is the skeleton block's own fill, so a plain bar would not show.
+      <SkeletonGroup
+        label="Loading what was answered lately"
+        className="flex flex-col gap-4 py-3 motion-safe:animate-pulse"
+      >
         {[0, 1, 2].map(index => (
           <span key={index} className="flex flex-col gap-2">
-            <SkeletonLine />
-            <SkeletonLine width="short" />
+            <SkeletonInnerLine />
+            <SkeletonInnerLine width="short" />
           </span>
         ))}
       </SkeletonGroup>
