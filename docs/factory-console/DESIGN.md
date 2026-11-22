@@ -963,7 +963,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
   fit the frame, the map pans sideways, opening (and Fit returning) at the row's start, so the
-  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1226 px
+  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1275 px
   wide with its padding, so at 1440x900 Intake shows whole and Merged is partly off the right;
   it pans more on smaller screens.
 - **Cards in the card language** (rule 2), 184 px wide by 168 tall, every card one size so the

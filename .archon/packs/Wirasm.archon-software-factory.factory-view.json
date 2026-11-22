@@ -1219,11 +1219,11 @@
       "tests__tests": "Test check",
       "product__product": "Product check",
       "verdict__verdict": "Verdict",
-      "rounds": "Counts the round",
+      "rounds": "Posts the review",
       "allowance": "Reads the rounds allowed",
       "exhausted": "Rounds ran out",
       "end": "Hands the change on",
-      "reported": "Posts the review"
+      "reported": "Reports the ending"
     },
     "stage-host": {
       "rounds__host": "Reads CI and PR reviews",
