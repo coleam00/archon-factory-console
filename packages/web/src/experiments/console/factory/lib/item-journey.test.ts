@@ -99,3 +99,24 @@ describe('item 125: the three-stage delivery', () => {
     expect(of.segments.reduce((sum, entry) => sum + entry.ms, 0)).toBe(of.totalMs);
   });
 });
+
+describe('an item whose last stage run failed', () => {
+  test('stops there, even when a discoveries drain ran after it', () => {
+    const detail = structuredClone(itemDetail('113'));
+    const deliver = detail.item.runs.find(run => run.id.startsWith('2fd6990d'));
+    if (deliver === undefined || detail.item.progress === null) throw new Error('113 delivered');
+    const drain = detail.item.runs.find(run => run.workflow.endsWith(':discoveries'));
+    if (drain === undefined) throw new Error('113 drained');
+    deliver.status = 'failed';
+    deliver.outcome = null;
+    // The drain is the item's last run; the landgate after it never started.
+    detail.item.runs = detail.item.runs.slice(0, detail.item.runs.indexOf(drain) + 1);
+    detail.item.progress = { ...detail.item.progress, change: null, running: null };
+    const of = journey(detail);
+    expect(of.until).toBe('stop');
+    expect(of.segments.find(entry => entry.stopped !== null)?.stopped).toBe('Failed');
+    expect(of.totalMs).toBe(
+      Date.parse(deliver.completedAt ?? '') - Date.parse(detail.item.runs[0]?.startedAt ?? '')
+    );
+  });
+});

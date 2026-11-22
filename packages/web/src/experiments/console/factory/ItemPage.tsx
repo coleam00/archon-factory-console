@@ -156,7 +156,7 @@ function ItemRead({
       <section
         data-doc-section=""
         aria-labelledby="item-about"
-        className="flex min-w-0 flex-col gap-4"
+        className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start"
       >
         <SectionHeading
           id="item-about"

@@ -166,15 +166,21 @@ function statusSentence(ctx: StoryContext, label: string, run: ItemRun): string 
 
 /**
  * The checks' rounds in a sentence: how often they sent it back, and how the last round ended.
- * Null for a last round that neither approved, returned nor asked (one that stopped).
+ * A round with neither a return nor an approval reads "asked you" only when one of its checks
+ * recorded an outcome the view means as asked; a replan, or a round that stopped, is null, so
+ * the run's own sentence tells it.
  */
 function roundsSentence(label: string, grid: RoundsGrid): string | null {
   const last = grid.columns.at(-1)?.verdict;
+  const index = grid.columns.length - 1;
+  const asked = grid.rows.some(
+    row => !row.shadow && row.cells[index]?.some(cell => cell.meaning === 'asked') === true
+  );
   const back = grid.columns.filter(column => column.verdict === 'returned').length;
   if (last === 'returned') return `${label} sent it back${back > 1 ? ` ${times(back)}` : ''}`;
   const then = back === 0 ? `${label} ` : `${label} sent it back ${times(back)}, then `;
   if (last === 'approved') return `${then}approved it`;
-  if (last === 'undecided') return `${then}asked you`;
+  if (last === 'undecided' && asked) return `${then}asked you`;
   return null;
 }
 

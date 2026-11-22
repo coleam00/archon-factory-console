@@ -75,6 +75,7 @@ function marks(view: Declaration, detail: FactoryItemDetail): Mark[] {
 
 /** Where the time ends: the merge, the last run's end when the item stopped, else now. */
 function endOf(
+  view: Declaration,
   detail: FactoryItemDetail,
   stopped: boolean,
   now: number
@@ -82,17 +83,30 @@ function endOf(
   const change = detail.item.progress?.change;
   if (change?.merged === true && change.mergedAt !== null)
     return { at: Date.parse(change.mergedAt), until: 'merge' };
-  const last = detail.item.runs.at(-1)?.completedAt ?? null;
+  const last = lastStageRun(view, detail)?.completedAt ?? null;
   if (stopped && last !== null) return { at: Date.parse(last), until: 'stop' };
   return { at: now, until: 'now' };
 }
 
+/**
+ * The item's last run of a workflow a stage lists: the one placement reads, so a discoveries
+ * drain that ran after it never hides where the item stopped.
+ */
+function lastStageRun(view: Declaration, detail: FactoryItemDetail) {
+  const facts = new Map(detail.runs.map(run => [run.runId, run]));
+  return detail.item.runs.filter(run => stageWorkflow(view, facts.get(run.id)) !== null).at(-1);
+}
+
 /** What stopped the item where it is, in the view's words; null for an item in flight. */
-export function stopWords(detail: FactoryItemDetail, column: ItemColumn | null): string | null {
+export function stopWords(
+  view: Declaration,
+  detail: FactoryItemDetail,
+  column: ItemColumn | null
+): string | null {
   if (column !== null && 'ended' in column) return column.ended;
   const parked = detail.item.progress?.parked;
   if (parked != null) return parked.label;
-  const last = detail.item.runs.at(-1);
+  const last = lastStageRun(view, detail);
   if (detail.item.progress?.running != null || last === undefined) return null;
   if (last.status === 'failed') return 'Failed';
   if (last.status === 'cancelled') return 'Stopped';
@@ -135,8 +149,8 @@ export function itemJourney(
 ): Journey {
   const columns = boardColumns(view);
   const columnOf = new Map(columns.flatMap((entry, index) => entry.stages.map(id => [id, index])));
-  const stopped = stopWords(detail, column);
-  const end = endOf(detail, stopped !== null, now);
+  const stopped = stopWords(view, detail, column);
+  const end = endOf(view, detail, stopped !== null, now);
   const all = marks(view, detail).filter(mark => mark.at <= end.at);
   const segments: JourneySegment[] = columns.map(entry => ({
     id: entry.id,

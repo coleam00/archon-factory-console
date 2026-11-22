@@ -120,6 +120,12 @@ describe('one plain sentence per outcome', () => {
     };
     expect(sentence({ status: 'running', outcome: null })).toBe('Plan is working on it now');
     expect(sentence({ status: 'failed', outcome: null })).toBe('Plan failed');
+    const failedAt = oneRun('plan', { status: 'failed', outcome: null });
+    failedAt.item.progress?.runs.push({ runId: 'r1', workflow: 'plan', failedStep: 'plan' });
+    const [failed] = story(failedAt);
+    expect(failed?.kind === 'stage' ? failed.sentence.text : null).toBe(
+      'Plan failed at Writes the plan'
+    );
     expect(sentence({ status: 'cancelled', outcome: null })).toBe('Plan was stopped');
     expect(sentence({ status: 'pending', outcome: null })).toBe('Plan is waiting to start');
   });
@@ -144,6 +150,24 @@ describe("the console's clauses", () => {
     );
     expect(checks?.reason?.short).toBe(firstSentence(checks?.reason?.full ?? ''));
     expect((checks?.reason?.short.length ?? 0) < (checks?.reason?.full.length ?? 0)).toBe(true);
+  });
+
+  test('a last round that replanned does not read "asked you": the run tells it', () => {
+    const detail = structuredClone(itemDetail('125'));
+    const last = detail.item.runs.find(run => run.id.startsWith('02e5f706'));
+    const facts = detail.runs.find(run => run.runId.startsWith('02e5f706'));
+    const round = facts?.rounds?.rounds[0];
+    if (last === undefined || round === undefined) throw new Error('125 has a fourth round');
+    detail.item.runs = detail.item.runs.slice(0, detail.item.runs.indexOf(last) + 1);
+    detail.item.answers = [];
+    last.outcome = 'replan';
+    round.outcome = 'replan';
+    round.steps = round.steps.map(step => ({
+      ...step,
+      outcome: step.outcome === 'ask' ? 'replan' : step.outcome,
+    }));
+    const checks = stagePanels(detail).find(panel => panel.stage.id === 'checks');
+    expect(checks?.sentence.text).toBe('The checks sent it back to planning');
   });
 
   test('a send-back from CI: the run said why', () => {
