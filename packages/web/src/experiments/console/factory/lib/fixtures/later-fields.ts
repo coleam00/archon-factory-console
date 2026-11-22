@@ -14,6 +14,11 @@ const STORY_FACTS: Record<string, () => unknown> = {
   steps: () => [],
 };
 
+function fillStoryFacts(record: Record<string, unknown>): void {
+  for (const [key, empty] of Object.entries(STORY_FACTS))
+    if (!(key in record)) record[key] = empty();
+}
+
 export function withLaterFields<T>(json: T): T {
   const walk = (value: unknown): void => {
     if (Array.isArray(value)) {
@@ -26,9 +31,7 @@ export function withLaterFields<T>(json: T): T {
     const runFacts = ['runId', 'costUsd', 'step', 'rounds'].every(key => key in record);
     if ((progress || runFacts) && !('shadows' in record)) record.shadows = [];
     if (progress && !('parked' in record)) record.parked = null;
-    if (runFacts)
-      for (const [key, empty] of Object.entries(STORY_FACTS))
-        if (!(key in record)) record[key] = empty();
+    if (runFacts) fillStoryFacts(record);
     for (const entry of Object.values(record)) walk(entry);
   };
   walk(json);

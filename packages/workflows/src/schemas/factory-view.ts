@@ -8,6 +8,7 @@
  * project may present a pack it cannot edit with `.archon/packs/<pack key>.factory-view.json`.
  */
 import { z } from 'zod';
+import { storyReferenceIssues } from './factory-view-story';
 import { workflowSourceSchema } from './workflow';
 
 export const FACTORY_VIEW_FILE = 'factory-view.json';
@@ -330,16 +331,12 @@ const shadowSchema = z.discriminatedUnion('reads', [
 const sentenceSchema = z.string().trim().min(1).max(160);
 
 /**
- * The item page's story: what each run did, as one plain sentence. `outcomes` words a
- * completed run by `workflow:outcome`, or `workflow:*` for every completed run of it no exact
- * key takes, a run that recorded no outcome included (as in `placement`: a gate that only
- * records). `steps` words the part of a run that works several stages, by the step it starts
- * that part on (a loop-form delivery's build, fix and host steps), for the earlier stages of
- * such a run. `said` points, in order, at where a run's result says in its own words what it
- * did (the reason a page gives behind "More"). Each sentence is static text; a console adds
- * only its own clauses (the pull request opened, the reason sent back, what you answered).
- * `bun run check:factory-view` fails on an outcome a listed workflow declares that no key
- * takes, and on a key or step its workflow does not have.
+ * The item page's story, one plain sentence per run. `outcomes`: by `workflow:outcome`, or
+ * `workflow:*` for every completed run no exact key takes, one with no outcome included (as in
+ * `placement`). `steps`: the earlier stages of a run that works several, by the step each
+ * starts on. `said`: pointers, in order, to what a run's result says in its own words. A
+ * sentence is static text; a console adds only its own clauses (the pull request, why it was
+ * sent back, what you answered). Checked by `storyReferenceIssues` and the coverage check.
  */
 const storySchema = z.strictObject({
   outcomes: z.record(outcomeKeySchema, sentenceSchema),
@@ -478,10 +475,7 @@ const factoryViewShape = z.strictObject({
    * reads as its cleaned id. `bun run check:factory-view` reports a key naming no real step.
    */
   steps: z.record(workflowNameSchema, z.record(stepIdSchema, labelSchema)).optional(),
-  /**
-   * How an item's page tells what each run did, in one plain sentence per stage it worked
-   * (`storySchema`). Absent, a console words a run from `placement` and `endings` alone.
-   */
+  /** What the item page says each run did (`storySchema`); absent, it words runs itself. */
   story: storySchema.optional(),
   map: mapSchema,
 });
@@ -627,25 +621,6 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
     refer(['asked', index], workflowOf(key));
   });
   for (const key of Object.keys(view.parked ?? {})) refer(['parked', key], workflowOf(key));
-  return issues;
-}
-
-/**
- * The story words workflows the view reads: an outcome key names a workflow a stage lists or
- * the `discoveries` drain (whose runs the item page tells too); a step key names a listed one.
- */
-function storyReferenceIssues(view: FactoryViewShape): Issue[] {
-  if (view.story === undefined) return [];
-  const workflows = new Set(view.stages.flatMap(stage => stage.workflows));
-  const issues: Issue[] = [];
-  const refer = (path: Issue['path'], workflow: string, drain: boolean): void => {
-    if (workflows.has(workflow) || (drain && workflow === view.discoveries?.workflow)) return;
-    issues.push({ path, message: `names workflow "${workflow}", which no stage lists` });
-  };
-  for (const key of Object.keys(view.story.outcomes))
-    refer(['story', 'outcomes', key], key.slice(0, key.lastIndexOf(':')), true);
-  for (const workflow of Object.keys(view.story.steps ?? {}))
-    refer(['story', 'steps', workflow], workflow, false);
   return issues;
 }
 
