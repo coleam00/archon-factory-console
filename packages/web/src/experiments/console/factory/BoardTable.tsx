@@ -164,7 +164,7 @@ function BoardRow({
         ) : null}
       </Cell>
       <Cell
-        className={`min-w-40 max-w-56 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
+        className={`min-w-32 max-w-56 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
       >
         <span title={card.stopLine ?? undefined} className="line-clamp-2">
           <RowAsk card={card} asks={asks} />

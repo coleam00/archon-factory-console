@@ -61,7 +61,7 @@ describe('the map camera', () => {
     expect(MAP_ROOM_Y).toBe(48);
     const { pad, minK, maxK } = LIVE_FITTING;
     // The frame at 390x844, 1440x900 and 1920x1080 (measured in the browser).
-    for (const width of [358, 1100, 1580]) {
+    for (const width of [356, 1110, 1590]) {
       const frame = { width, height: fittedHeight(bounds, width, pad, minK, maxK) };
       const camera = fitCamera(bounds, frame, pad, minK, maxK);
       const top = camera.y + bounds.y * camera.k;
