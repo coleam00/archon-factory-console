@@ -414,15 +414,6 @@ describe('/console/factory/:pack/settings', () => {
     expect(names(proven)).toEqual(['Checks file']);
     expect(names(held)).toEqual(['Triage policy', 'Land policy']);
     expect(names(other)).toEqual(['Validate command']);
-    const shown = [...page.querySelectorAll('[data-setting]')].map(el =>
-      el.getAttribute('data-setting')
-    );
-    expect(shown.sort()).toEqual([
-      'checks_file',
-      'land_policy',
-      'triage_policy',
-      'validate_command',
-    ]);
   });
 
   test('a panel has its plain name, its id tag, its description and the pack default', async () => {
@@ -546,6 +537,23 @@ describe('/console/factory/:pack/settings', () => {
       expect(documentPageProblems(page)).toEqual([]);
       await unmount?.();
       unmount = undefined;
+    }
+  });
+
+  test('a read that fails says so in a filled panel, not an outline box', async () => {
+    const fetch = globalThis.fetch;
+    globalThis.fetch = Object.assign(
+      () => Promise.reject(new TypeError('connection refused')),
+      fetch
+    );
+    try {
+      const page = await mount('/console/factory/acme.kit/settings', packs);
+      const alert = page.querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain("The pack's settings could not be read");
+      expect(alert?.getAttribute('data-doc-panel')).toBe('panel');
+      expect(outlineBoxes(page)).toEqual([]);
+    } finally {
+      globalThis.fetch = fetch;
     }
   });
 

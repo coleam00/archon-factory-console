@@ -73,7 +73,13 @@ describe('factoryOverviewSchema', () => {
       import.meta.dir,
       '../../../../.archon/packs/Wirasm.archon-software-factory.factory-overview.json'
     );
-    expect(issues(JSON.parse(readFileSync(file, 'utf8')))).toEqual([]);
+    const overview = JSON.parse(readFileSync(file, 'utf8')) as FactoryOverview;
+    expect(issues(overview)).toEqual([]);
+    // The Settings page says what changes when a shadow goes live; this file gives every one.
+    const unexplained = Object.entries(overview.settings ?? {})
+      .filter(([, setting]) => setting.shadow === true && setting.when_live === undefined)
+      .map(([name]) => name);
+    expect(unexplained).toEqual([]);
   });
 
   test('rejects an unknown key, so a misspelled field is not silently dropped', () => {

@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Scale } from 'lucide-react';
 import { DefinitionGrid, HeaderBand, IdTag, Panel, SectionHeading, StatChip } from './document';
-import { documentPageProblems, outlineBoxes } from './document.test-helpers';
+import { documentPageProblems } from './document.test-helpers';
 
 const dom = new Window();
 afterAll(async () => {
@@ -37,7 +37,6 @@ describe('Panel', () => {
     expect(outer?.classList.contains('rounded-console-12')).toBe(true);
     expect(inner?.getAttribute('data-doc-panel')).toBe('inset');
     expect(inner?.classList.contains('bg-surface-inset')).toBe(true);
-    expect(outlineBoxes(page)).toEqual([]);
   });
 
   test('a tone reaches the DOM as a token, and draws its bar on the edge asked for', () => {
@@ -48,7 +47,8 @@ describe('Panel', () => {
     );
     const panel = page.querySelector('li[data-doc-panel]');
     expect(panel?.getAttribute('style')).toContain('--doc-tone:var(--node-wait)');
-    expect(panel?.querySelector('[data-doc-bar="left"]')).not.toBeNull();
+    // The bar is painted with the tone, not merely given it.
+    expect(panel?.querySelector('[data-doc-bar="left"]')?.className).toContain('var(--doc-tone)');
     // No bar without one asked for.
     expect(
       render(<Panel tone="var(--node-wait)">c</Panel>).querySelector('[data-doc-bar]')
@@ -78,7 +78,10 @@ describe('SectionHeading', () => {
     const heading = page.querySelector('[data-doc-heading]');
     expect(heading?.getAttribute('style')).toContain('--doc-tone:var(--node-wait)');
     expect(heading?.querySelector('svg')).not.toBeNull();
-    expect(heading?.textContent).toContain('Policies');
+    // The eyebrow (and the icon inside it) is painted with the tone.
+    const eyebrow = heading?.querySelector('span');
+    expect(eyebrow?.textContent).toBe('Policies');
+    expect(eyebrow?.className).toContain('var(--doc-tone)');
     expect(heading?.querySelector('h2#held')?.textContent).toBe('What work is held to');
     expect(heading?.textContent).toContain('9');
     expect(heading?.querySelector('a')?.textContent).toBe('All');

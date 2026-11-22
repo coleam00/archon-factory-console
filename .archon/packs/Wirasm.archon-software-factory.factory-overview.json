@@ -419,7 +419,7 @@
       "section": "ahead",
       "when_live": "Would let an item this policy admits start without asking you; today the judgment is only recorded."
     },
-    "land_policy": { "points_to": "policy", "shadow": true, "section": "ahead" },
+    "land_policy": { "points_to": "policy", "section": "ahead" },
     "validate_command": { "section": "proven" },
     "checks_file": {
       "points_to": "checks",

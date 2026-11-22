@@ -74,7 +74,6 @@ describe('settingCounts', () => {
       project({ plan_policy: set, admit_policy: set, new_policy: { state: 'empty' } })
     );
     expect(counts).toEqual({ total: 6, set: 2, packDefault: 4, shadows: 2 });
-    expect((counts.set ?? 0) + (counts.packDefault ?? 0)).toBe(counts.total);
   });
 
   test('a project whose file could not be read, or none, gives no set or default figures', () => {
