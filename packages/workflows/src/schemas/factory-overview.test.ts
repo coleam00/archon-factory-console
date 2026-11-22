@@ -73,7 +73,13 @@ describe('factoryOverviewSchema', () => {
       import.meta.dir,
       '../../../../.archon/packs/Wirasm.archon-software-factory.factory-overview.json'
     );
-    expect(issues(JSON.parse(readFileSync(file, 'utf8')))).toEqual([]);
+    const overview = JSON.parse(readFileSync(file, 'utf8')) as FactoryOverview;
+    expect(issues(overview)).toEqual([]);
+    // The Settings page says what changes when a shadow goes live; this file gives every one.
+    const unexplained = Object.entries(overview.settings ?? {})
+      .filter(([, setting]) => setting.shadow === true && setting.when_live === undefined)
+      .map(([name]) => name);
+    expect(unexplained).toEqual([]);
   });
 
   test('rejects an unknown key, so a misspelled field is not silently dropped', () => {
@@ -93,6 +99,53 @@ describe('factoryOverviewSchema', () => {
       issues({ ...valid(), settings: { ...settings, more_checks: { points_to: 'checks' } } })
     ).toEqual(['settings.more_checks.points_to more_checks checks_file']);
     expect(issues({ ...valid(), settings: { '1st': { shadow: true } } })).toEqual(['settings.1st']);
+  });
+
+  test('accepts setting sections, and rejects a twice-listed section, an unknown one, or when_live off a shadow', () => {
+    const setting_sections = [
+      {
+        id: 'held',
+        eyebrow: 'Policies',
+        title: 'What work is held to',
+        kind: 'stage' as const,
+        icon: 'scale' as const,
+      },
+      {
+        id: 'proven',
+        eyebrow: 'Checks',
+        title: 'How a change is proven',
+        kind: 'check' as const,
+        icon: 'flask' as const,
+      },
+    ];
+    const settings = {
+      plan_policy: { points_to: 'policy' as const, section: 'held' },
+      checks_file: {
+        points_to: 'checks' as const,
+        shadow: true,
+        section: 'proven',
+        when_live: 'Would send a change back',
+      },
+      validate_command: {},
+    };
+    expect(issues({ ...valid(), setting_sections, settings })).toEqual([]);
+    expect(
+      issues({ ...valid(), setting_sections: [...setting_sections, setting_sections[0]], settings })
+    ).toEqual(['setting_sections.2.id held']);
+    expect(
+      issues({
+        ...valid(),
+        setting_sections,
+        settings: { ...settings, plan_policy: { section: 'gone' } },
+      })
+    ).toEqual(['settings.plan_policy.section gone']);
+    expect(
+      issues({
+        ...valid(),
+        setting_sections,
+        settings: { ...settings, plan_policy: { when_live: 'Would act' } },
+      })
+    ).toEqual(['settings.plan_policy.when_live']);
   });
 
   test('rejects a root that names no view', () => {

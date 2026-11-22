@@ -291,3 +291,12 @@
     0 0 0 3px color-mix(in oklch, var(--running) 22%, transparent),
     0 0 10px 1px color-mix(in oklch, var(--running) 45%, transparent);
 }
+
+/*
+ * A document page's panel (factory/document.tsx; DESIGN.md, owner change 5 of 2026-11-21): the
+ * canvases' card depth, so a panel sits above the page as a card does. An inset row box sits in
+ * its panel and takes none.
+ */
+.console-root [data-doc-panel="panel"] {
+  box-shadow: var(--card-depth);
+}

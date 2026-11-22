@@ -11,6 +11,7 @@ import {
   type FoundPackDeclaration,
 } from './factory-pack-settings';
 import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
+import type { FactoryOverview } from './schemas/factory-overview';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 const track = trackTempRoots();
@@ -80,22 +81,32 @@ async function declared(): Promise<FoundPackDeclaration> {
 }
 
 const MAP = {
-  zeta_policy: { points_to: 'policy' as const, shadow: true },
-  alpha_policy: { points_to: 'policy' as const },
+  zeta_policy: {
+    points_to: 'policy' as const,
+    shadow: true,
+    section: 'held',
+    when_live: 'Would act on it',
+  },
+  alpha_policy: { points_to: 'policy' as const, section: 'held' },
   checks_file: { points_to: 'checks' as const, shadow: true },
 };
 
 async function read(
   projects: Awaited<ReturnType<typeof project>>[],
-  map: Record<string, { shadow?: boolean; points_to?: 'policy' | 'checks' }> = MAP
+  map: NonNullable<FactoryOverview['settings']> = MAP
 ): Promise<FactoryPackSettings> {
   return readFactoryPackSettings({
     packKey: 'kit',
     declaration: await declared(),
     map,
+    sections: SECTIONS,
     projects,
   });
 }
+
+const SECTIONS: NonNullable<FactoryOverview['setting_sections']> = [
+  { id: 'held', eyebrow: 'Policies', title: 'What work is held to', kind: 'stage', icon: 'scale' },
+];
 
 const projectNamed = (read: FactoryPackSettings, name: string) =>
   read.projects.find(p => p.name === name);
@@ -131,13 +142,16 @@ describe('findPackDeclaration', () => {
 
 describe('readFactoryPackSettings', () => {
   test('lists the settings in order with what the overview map says of them', async () => {
-    const settings = (await read([])).settings;
-    expect(settings.map(s => [s.name, s.shadow, s.pointsTo, s.default])).toEqual([
-      ['zeta_policy', true, 'policy', ''],
-      ['alpha_policy', false, 'policy', null],
-      ['checks_file', true, 'checks', ''],
-      ['command', false, null, 'make test'],
+    const result = await read([]);
+    expect(
+      result.settings.map(s => [s.name, s.shadow, s.pointsTo, s.default, s.section, s.whenLive])
+    ).toEqual([
+      ['zeta_policy', true, 'policy', '', 'held', 'Would act on it'],
+      ['alpha_policy', false, 'policy', null, 'held', null],
+      ['checks_file', true, 'checks', '', null, null],
+      ['command', false, null, 'make test', null, null],
     ]);
+    expect(result.sections).toEqual(SECTIONS);
   });
 
   test('reads set, empty and unset values, and a missing settings file as all unset', async () => {
@@ -259,6 +273,7 @@ describe('readFactoryPackSettings', () => {
     });
     expect(result).toMatchObject({
       declaration: { path: '/p/.pack/pack.yaml', error: 'not valid YAML' },
+      sections: [],
       settings: [],
       mapErrors: [],
       projects: [],

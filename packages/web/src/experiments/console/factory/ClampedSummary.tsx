@@ -1,16 +1,17 @@
 import { useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 
 /** Tailwind sees whole class names only, so each clamp is written out. */
-const CLAMP = { 2: 'line-clamp-2', 3: 'line-clamp-3' } as const;
+const CLAMP = { 1: 'line-clamp-1', 2: 'line-clamp-2', 3: 'line-clamp-3' } as const;
 
 /**
  * A paragraph clamped to `lines` lines at every width, with a More toggle: the factory's
  * summary at two lines, so the numbers sit high in the Overview's first screen, and an ask's
- * context or a setting's description at three (Visual standard, rule 9). Line breaks in the
+ * context at three (Visual standard, rule 9), and a setting's description at one (owner change 6
+ * of 2026-11-21). Line breaks in the
  * text are kept. The toggle shows only when it does something: while expanded, or when the
  * clamped text overflows, measured on mount and on every resize.
  */
-export function ClampedSummary({ text, lines }: { text: string; lines: 2 | 3 }): ReactElement {
+export function ClampedSummary({ text, lines }: { text: string; lines: 1 | 2 | 3 }): ReactElement {
   const ref = useRef<HTMLParagraphElement | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);

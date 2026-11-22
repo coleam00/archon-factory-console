@@ -11887,8 +11887,36 @@ export interface components {
                 shadow?: boolean;
                 /** @enum {string} */
                 points_to?: 'policy' | 'checks';
+                section?: string;
+                when_live?: string;
               };
             };
+            setting_sections?: {
+              id: string;
+              eyebrow: string;
+              title: string;
+              /** @enum {string} */
+              kind: 'input' | 'stage' | 'check' | 'person' | 'gate' | 'outcome';
+              /** @enum {string} */
+              icon:
+                | 'inbox'
+                | 'issue'
+                | 'order'
+                | 'search'
+                | 'scale'
+                | 'map'
+                | 'list'
+                | 'hammer'
+                | 'git-pull-request'
+                | 'check'
+                | 'flask'
+                | 'eye'
+                | 'sparkles'
+                | 'gavel'
+                | 'users'
+                | 'flag'
+                | 'rotate';
+            }[];
           };
         } | null;
         readFrom: {
@@ -11927,6 +11955,32 @@ export interface components {
         error: string | null;
       } | null;
       settingsFile: string;
+      sections: {
+        id: string;
+        eyebrow: string;
+        title: string;
+        /** @enum {string} */
+        kind: 'input' | 'stage' | 'check' | 'person' | 'gate' | 'outcome';
+        /** @enum {string} */
+        icon:
+          | 'inbox'
+          | 'issue'
+          | 'order'
+          | 'search'
+          | 'scale'
+          | 'map'
+          | 'list'
+          | 'hammer'
+          | 'git-pull-request'
+          | 'check'
+          | 'flask'
+          | 'eye'
+          | 'sparkles'
+          | 'gavel'
+          | 'users'
+          | 'flag'
+          | 'rotate';
+      }[];
       settings: {
         name: string;
         description: string | null;
@@ -11936,6 +11990,8 @@ export interface components {
         shadow: boolean;
         /** @enum {string|null} */
         pointsTo: 'policy' | 'checks' | null;
+        section: string | null;
+        whenLive: string | null;
       }[];
       mapErrors: string[];
       projects: {

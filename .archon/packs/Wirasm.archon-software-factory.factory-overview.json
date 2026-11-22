@@ -404,17 +404,35 @@
     }
   },
   "settings": {
-    "triage_policy": { "points_to": "policy" },
-    "plan_policy": { "points_to": "policy" },
-    "build_policy": { "points_to": "policy" },
-    "review_policy": { "points_to": "policy" },
-    "test_policy": { "points_to": "policy" },
-    "host_policy": { "points_to": "policy" },
-    "admit_policy": { "points_to": "policy", "shadow": true },
-    "land_policy": { "points_to": "policy", "shadow": true },
-    "discoveries_policy": { "points_to": "policy" },
-    "checks_file": { "points_to": "checks", "shadow": true },
-    "propose_policy": { "points_to": "policy" },
-    "product_policy": { "points_to": "policy" }
-  }
+    "triage_policy": { "points_to": "policy", "section": "held" },
+    "plan_policy": { "points_to": "policy", "section": "held" },
+    "split_policy": { "points_to": "policy", "section": "held" },
+    "build_policy": { "points_to": "policy", "section": "held" },
+    "review_policy": { "points_to": "policy", "section": "held" },
+    "test_policy": { "points_to": "policy", "section": "held" },
+    "product_policy": { "points_to": "policy", "section": "held" },
+    "propose_policy": { "points_to": "policy", "section": "held" },
+    "host_policy": { "points_to": "policy", "section": "held" },
+    "admit_policy": {
+      "points_to": "policy",
+      "shadow": true,
+      "section": "ahead",
+      "when_live": "Would let an item this policy admits start without asking you; today the judgment is only recorded."
+    },
+    "land_policy": { "points_to": "policy", "section": "ahead" },
+    "validate_command": { "section": "proven" },
+    "checks_file": {
+      "points_to": "checks",
+      "shadow": true,
+      "section": "proven",
+      "when_live": "Would count its results in the check round; today they are recorded and never fail it."
+    },
+    "discoveries_policy": { "points_to": "policy", "section": "filed" }
+  },
+  "setting_sections": [
+    { "id": "held", "eyebrow": "Policies", "title": "What work is held to", "kind": "stage", "icon": "scale" },
+    { "id": "ahead", "eyebrow": "Gates", "title": "What may go ahead without you", "kind": "gate", "icon": "gavel" },
+    { "id": "proven", "eyebrow": "Checks", "title": "How a change is proven", "kind": "check", "icon": "flask" },
+    { "id": "filed", "eyebrow": "Discoveries", "title": "What gets filed", "kind": "outcome", "icon": "flag" }
+  ]
 }

@@ -26,7 +26,7 @@ test("the factory console guide's overview example is a valid factory overview",
 });
 
 test("the guide's overview fields table lists exactly the overview's fields", () => {
-  const fields = [...section('Overview fields').matchAll(/^\| `([A-Za-z]+)` \|/gm)].map(
+  const fields = [...section('Overview fields').matchAll(/^\| `([A-Za-z_]+)` \|/gm)].map(
     match => match[1]
   );
   expect(fields.sort()).toEqual(Object.keys(factoryOverviewSchema.shape).sort());
