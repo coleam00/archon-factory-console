@@ -10,7 +10,13 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Panel } from './document';
-import type { CellMeaning, GridCell, GridRow, RoundsGrid as Grid } from './lib/item-rounds-grid';
+import {
+  MEANING_WORD,
+  type CellMeaning,
+  type GridCell,
+  type GridRow,
+  type RoundsGrid as Grid,
+} from './lib/item-rounds-grid';
 import { firstSentence } from './lib/item-story';
 import { ShadowBadge } from './ShadowBadge';
 
@@ -39,9 +45,11 @@ export function RoundsGrid({ grid }: { grid: Grid }): ReactElement {
   return (
     <Panel inset className="flex flex-col gap-3 p-3">
       <p className="text-console-13 text-text-secondary">
-        <span className="font-medium text-text-primary">Sent back</span>: a check found something to
-        fix and returned the change to the builder.{' '}
-        <span className="font-medium text-text-primary">Approved</span>: the check passed.
+        {/* The legend names the words the cells use, so the two cannot drift. */}
+        <span className="font-medium text-text-primary">{MEANING_WORD.returned}</span>: a check
+        found something to fix and returned the change to the builder.{' '}
+        <span className="font-medium text-text-primary">{MEANING_WORD.approved}</span>: the check
+        passed.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-lg border-collapse text-left">

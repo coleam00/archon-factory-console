@@ -120,3 +120,34 @@ describe('an item whose last stage run failed', () => {
     );
   });
 });
+
+describe('an item that stopped by the view or by your answer', () => {
+  test("ended by a declared ending: it stops where it was, in the ending's words", () => {
+    const detail = structuredClone(itemDetail('86'));
+    const triage = detail.item.runs.at(-1);
+    if (triage === undefined || detail.item.progress === null) throw new Error('86 triaged');
+    triage.outcome = 'close';
+    detail.item.progress = { ...detail.item.progress, parked: null };
+    const of = journey(detail);
+    expect(segment(of, 'intake').stopped).toBe('Closed by triage');
+    expect([of.stopped, of.until]).toEqual(['Closed by triage', 'stop']);
+    expect(of.segments.some(entry => entry.lit)).toBe(false);
+  });
+
+  test('held: every ask answered, nothing started, nothing running; it stops there', () => {
+    // Item 3: two deliveries that asked, each answered, and nothing started after the last.
+    const of = journey(itemDetail('3'));
+    expect([of.stopped, of.until]).toEqual(['Held after your answer', 'stop']);
+    expect(of.segments.some(entry => entry.lit)).toBe(false);
+    expect(of.segments.find(entry => entry.stopped !== null)?.id).toBe('plan-build');
+  });
+
+  test('not held while the answer has started a run, or an ask is still open', () => {
+    expect(journey(itemDetail('113')).stopped).toBeNull();
+    const open = structuredClone(itemDetail('3'));
+    open.item.questions = [
+      { kind: 'attention', ref: 'ask:open', message: 'Which?' },
+    ] as unknown as FactoryItemDetail['item']['questions'];
+    expect(journey(open).stopped).toBeNull();
+  });
+});

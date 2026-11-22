@@ -14,6 +14,7 @@ import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import { formatDateTime } from '../lib/format';
 import { Window } from 'happy-dom';
 import { documentPageProblems } from './document.test-helpers';
+import { firstSentence } from './lib/item-story';
 
 afterEach(() => {
   invalidate('factory-views');
@@ -69,9 +70,23 @@ const sentences = (html: string): string[][] =>
     m[1] ?? '',
     text(m[2] ?? '')
       .replace(/\s+([.:;,])/g, '$1')
-      .replace(/ (Less|More)$/, '')
-      .trim(),
+      .trim()
+      .replace(/ (Less|More)$/, ''),
   ]);
+
+/** The band's stat chips, as a person reads each. */
+const chips = (html: string): string[] =>
+  [...section(html, 'Summary').matchAll(/data-stat-chip="[a-z-]+"[^>]*>(.*?)<\/li>/g)].map(m =>
+    text(m[1] ?? '').trim()
+  );
+
+/** What each cell of a grid row reads, as words. */
+const words = (html: string, row: string): string[] =>
+  [
+    ...(new RegExp(`data-grid-row="${row}"([^]*?)</tr>`).exec(html)?.[1] ?? '').matchAll(
+      /<td[^>]*>([\s\S]*?)<\/td>/g
+    ),
+  ].map(m => text(m[1] ?? '').trim());
 
 /** What each cell of a grid row says, by its meaning; `absent` for "Not run". */
 const cells = (html: string, row: string): string[] =>
@@ -144,8 +159,16 @@ describe('the item page', () => {
       // Merged by a person: no run told it, so the console says only that it merged.
       ['merged', `The change merged ${formatDateTime('2026-11-20T21:29:51Z')}.`],
     ]);
-    // A stage's details: its model, in a definition grid.
+    // A stage's details: when, how long, cost and model, in a definition grid.
     expect(text(html)).toContain('Model claude-opus-5-5');
+    const order = text(panel(html, 'order'));
+    expect(order).toContain('Took 14 s');
+    expect(order).toContain('Cost Not recorded');
+    // The deliver run's one cost, on each panel it worked, said to be the whole run's.
+    expect(text(panel(html, 'build'))).toContain('Took 20 min');
+    expect(text(panel(html, 'build'))).toContain(
+      'Cost $18.14 for the whole run, across its stages'
+    );
   });
 
   test("item 111's checks as a grid: icon and word per cell, the legend, why round 1 came back", () => {
@@ -157,9 +180,11 @@ describe('the item page', () => {
     expect(cells(html, 'Verdict')).toEqual(['returned', 'approved']);
     expect(cells(html, 'Build')).toEqual(['fixed', 'absent']);
     expect(cells(html, 'CI and review')).toEqual(['absent', 'approved']);
+    // Each cell is an icon and a word, never a colour alone.
+    expect(words(html, 'Code review')).toEqual(['Sent back', 'Approved']);
+    expect(words(html, 'Build')).toEqual(['Fixed', 'Not run']);
     expect(text(html)).toMatch(/Round 1: \S/);
-    // The chip rows are gone: no round line, no verdict chip.
-    expect(html).not.toContain('data-verdict=');
+    // The chip rows are gone: no round line.
     expect(text(html)).not.toContain('round 1 of 3 ·');
   });
 
@@ -169,6 +194,11 @@ describe('the item page', () => {
     expect(build).toMatch(/data-id-tag=""[^>]*>send-back</);
     expect(text(build)).toContain('by cole-owner');
     expect(build).toContain('data-started="Build started again"');
+    const ask = itemDetail('113').item.answers.find(answer => answer.kind === 'ask');
+    expect(text(build)).toContain(ask?.kind === 'ask' ? ask.question : 'no question');
+    // Two deliveries on one panel: its cost is theirs, not "the whole run".
+    expect(text(build)).toContain('for its 2 runs, across their stages');
+    expect(chips(render(itemDetail('113')))).toContain('1 ask answered');
   });
 
   test('item 125, the three-stage delivery: four rounds, then the asks that took it on', () => {
@@ -185,6 +215,24 @@ describe('the item page', () => {
     const strip = section(html, 'Journey');
     expect(text(strip)).toContain('sent back 4x to Plan & build');
     expect(strip).toContain('data-journey-pause="answered"');
+    // A pause says how long it waited.
+    expect(text(strip)).toMatch(/waited on you \d+ min/);
+    // A stage met again is its own panel, numbered.
+    expect(html).toMatch(/<h2 id="story-plan:2"[^>]*>Plan \(2\)<\/h2>/);
+    expect(html).toMatch(/<h2 id="story-triage:2"[^>]*>Triage \(2\)<\/h2>/);
+  });
+
+  test('a panel that sent the item back ends its sentence on why, the rest behind More', () => {
+    const detail = structuredClone(itemDetail('125'));
+    const third = detail.item.runs.findIndex(run => run.id.startsWith('bb11ef33'));
+    detail.item.runs = detail.item.runs.slice(0, third + 1);
+    detail.item.answers = [];
+    const summary =
+      detail.runs.find(run => run.runId.startsWith('bb11ef33'))?.rounds?.rounds[0]?.summary ?? '';
+    const [, checks] = sentences(render(detail)).find(([stage]) => stage === 'checks') ?? [];
+    expect(checks).toBe(
+      `Checks sent it back twice: ${firstSentence(summary).replace(/[.!?…]$/, '')}.`
+    );
   });
 
   test('item 86, parked: the journey stops in Intake, saying so; the rest not reached', () => {
@@ -193,6 +241,7 @@ describe('the item page', () => {
     const strip = text(section(html, 'Journey'));
     expect(strip).toContain('Stopped here: Parked by triage');
     expect(strip.match(/Not reached/g)).toHaveLength(4);
+    expect(chips(html)[0]).toBe('1 min order to where it stopped');
     expect(sentences(html)).toContainEqual(['triage', 'Triage parked it for later.']);
   });
 
@@ -204,6 +253,15 @@ describe('the item page', () => {
       'Build is working on it now: Writes the change.',
     ]);
     expect(text(html)).toContain('No change yet');
+    expect(chips(html)[0]).toMatch(/ order to now$/);
+  });
+
+  test('item 3, held: every ask answered and nothing started; it stops there, saying so', () => {
+    const html = render(itemDetail('3'));
+    expect(text(section(html, 'Summary'))).toContain('Held after your answer, in Build.');
+    expect(chips(html)[0]).toMatch(/ order to where it stopped$/);
+    expect(text(section(html, 'Journey'))).toContain('Stopped here: Held after your answer');
+    expect(section(html, 'Journey')).not.toContain('data-lit');
   });
 
   test('the header: the PR as a button-style link, its merge state as quiet words', () => {

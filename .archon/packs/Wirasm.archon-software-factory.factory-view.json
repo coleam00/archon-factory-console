@@ -1282,10 +1282,7 @@
     },
     "steps": {
       "deliver": {
-        "build__build": "Build wrote the change",
-        "rounds.fix": "Build fixed what the checks sent back",
-        "hostrounds.host__host": "CI and the reviews were read",
-        "hostrounds.hostfix": "Build fixed what CI and the reviews raised"
+        "build__build": "Build wrote the change"
       }
     },
     "said": [

@@ -91,12 +91,14 @@ describe('one plain sentence per outcome', () => {
         const sentence = told(workflow, outcome);
         // A declared outcome always has one: `check:factory-view` fails otherwise.
         if (outcome !== null) expect(sentence).toBeDefined();
-        if (sentence === undefined) return;
         const [panel] = story(oneRun(workflow, { outcome }));
-        expect(panel?.kind === 'merged' ? null : panel?.sentence).toEqual({
-          text: sentence,
-          mono: null,
-        });
+        if (panel === undefined || panel.kind === 'merged') throw new Error('no panel');
+        // A run with no outcome, where the view has no `workflow:*` sentence: the neutral one.
+        if (sentence === undefined)
+          expect(panel.kind === 'stage' && panel.sentence.text).toStartWith(
+            `${panel.kind === 'stage' ? panel.stage.label : ''} finished`
+          );
+        else expect(panel.sentence).toEqual({ text: sentence, mono: null });
       });
 
   test('an outcome the view does not tell falls back to a neutral sentence', () => {
@@ -203,6 +205,79 @@ describe("the console's clauses", () => {
   });
 });
 
+describe('a run that works several stages tells its own facts once, on its last panel', () => {
+  /** Item 111 cut after its deliver run, which ends so. */
+  function delivered(run: Partial<ItemRun>, answered = false): FactoryItemDetail {
+    const detail = structuredClone(itemDetail('111'));
+    const at = detail.item.runs.findIndex(entry => entry.id.startsWith('aba8f7aa'));
+    const deliver = detail.item.runs[at];
+    if (deliver === undefined || detail.item.progress === null) throw new Error('111 delivered');
+    Object.assign(deliver, run);
+    detail.item.runs = detail.item.runs.slice(0, at + 1);
+    detail.item.progress = { ...detail.item.progress, change: null, running: null };
+    const ask = itemDetail('113').item.answers.find(entry => entry.kind === 'ask');
+    detail.item.answers =
+      answered && ask !== undefined ? [{ ...ask, runId: deliver.id } as typeof ask] : [];
+    return detail;
+  }
+  const deliverPanels = (detail: FactoryItemDetail) =>
+    stagePanels(detail).filter(panel => ['build', 'checks', 'host'].includes(panel.stage.id));
+
+  test('an answered ask: on the last panel only, with its "you said"', () => {
+    const panels = deliverPanels(delivered({ outcome: 'ask' }, true));
+    expect(panels.map(panel => [panel.stage.id, panel.answered.length, panel.youSaid])).toEqual([
+      ['build', 0, null],
+      ['checks', 0, null],
+      ['host', 1, 'Send back'],
+    ]);
+    // Open asks of the run show in that panel alone.
+    expect(panels.map(panel => panel.runIds.length)).toEqual([0, 0, 1]);
+  });
+
+  test('a run that failed: only its last panel says it failed', () => {
+    const panels = deliverPanels(delivered({ status: 'failed', outcome: null }));
+    expect(panels.map(panel => panel.sentence.text)).toEqual([
+      'Build wrote the change',
+      'Checks sent it back once, then approved it',
+      'CI and review failed',
+    ]);
+  });
+
+  test('a run that sent the item back: the reason on its last panel, not on Build', () => {
+    const detail = delivered({ outcome: 'returned' });
+    const facts = detail.runs.find(run => run.runId.startsWith('aba8f7aa'));
+    if (facts === undefined) throw new Error('111 delivered');
+    facts.said = 'The host found a red CI check. More words follow here.';
+    expect(deliverPanels(detail).map(panel => panel.reason?.short ?? null)).toEqual([
+      null,
+      null,
+      'The host found a red CI check. More words follow here.',
+    ]);
+  });
+});
+
+describe('a check round running after one that sent the item back', () => {
+  test("the panel says what runs now, with no earlier round's reason", () => {
+    const detail = structuredClone(itemDetail('125'));
+    // Round 1 returned, the build fixed it; round 2 is running its product check.
+    const fix = detail.item.runs.findIndex(run => run.id.startsWith('8d95ba65'));
+    const round2 = detail.item.runs[fix + 1];
+    const facts = detail.runs.find(run => run.runId === round2?.id);
+    if (round2 === undefined || facts === undefined || detail.item.progress === null)
+      throw new Error('125 has a second round');
+    detail.item.runs = detail.item.runs.slice(0, fix + 2);
+    Object.assign(round2, { status: 'running', outcome: null, completedAt: null });
+    Object.assign(facts, { rounds: null, step: 'product__product' });
+    detail.item.answers = [];
+    const checks = stagePanels(detail).find(panel => panel.stage.id === 'checks');
+    expect(checks?.sentence.text).toBe('Checks is working on it now: Product check');
+    expect(checks?.reason).toBeNull();
+    // The returned round's reason stays under the grid.
+    expect(checks?.grid?.columns.map(column => column.verdict)).toEqual(['returned']);
+    expect(checks?.grid?.columns[0]?.reason).not.toBeNull();
+  });
+});
+
 describe("a panel's details", () => {
   test("a run that works several stages: each panel its own stretch, the cost the whole run's", () => {
     const detail = itemDetail('111');
@@ -239,6 +314,9 @@ describe('the last panels', () => {
       'The factory merged it'
     );
     expect(panels.at(-1)?.merged).toBe(itemDetail('125').item.progress?.change?.mergedAt ?? null);
+    // The Merged stage's own run tells it: no second, console-made Merged panel.
+    expect(story(itemDetail('125')).some(panel => panel.kind === 'merged')).toBe(false);
+    expect(story(itemDetail('125')).at(-1)?.kind).toBe('stage');
   });
 
   test('the discoveries drain is told on its own quiet panel, in start order', () => {

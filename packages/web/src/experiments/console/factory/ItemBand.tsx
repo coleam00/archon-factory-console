@@ -51,7 +51,11 @@ export function ItemBand({
         </>
       }
       sentence={
-        workOrder ? WORK_ORDER_WORDS : started ? whereWords(item, pill, column) : NOT_STARTED
+        workOrder
+          ? WORK_ORDER_WORDS
+          : started
+            ? whereWords(item, pill, column, journey.stopped)
+            : NOT_STARTED
       }
       aside={
         workOrder || !started ? undefined : (
@@ -99,13 +103,20 @@ function BandChips({
 }
 
 /** Where the item is, in one sentence: merged, ended, parked, or the stage it is in. */
-function whereWords(item: FactoryItem, pill: Pill, column: ItemColumn | null): string {
+function whereWords(
+  item: FactoryItem,
+  pill: Pill,
+  column: ItemColumn | null,
+  stopped: string | null
+): string {
   if (pill === 'landed') return 'Its change merged.';
   if (item.progress === null || column === null) return 'Where it is could not be worked out.';
   if ('ended' in column) return `${column.ended}.`;
   const { parked } = item.progress;
   if (parked !== null)
     return parked.why === null ? `${parked.label}.` : `${parked.label}: ${parked.why}`;
+  // Failed, stopped or held: it rests in its stage until someone starts it again.
+  if (stopped !== null) return `${stopped}, in ${column.stage.label}.`;
   return `In ${column.stage.label} now.`;
 }
 

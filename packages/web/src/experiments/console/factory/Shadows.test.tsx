@@ -127,6 +127,12 @@ describe("the item's story", () => {
     expect(row?.outerHTML).not.toMatch(STATE_COLOUR);
     // Shown in the grid, so not again as a line under the panel.
     expect(page.querySelector('[data-shadow]')).toBeNull();
+    // Nor on the Build panel the same deliver run opened: it sits with its own stage.
+    const build = await render(
+      <StageStoryPanel view={shippedView} panel={stagePanel('build')} asks={null} />
+    );
+    expect(build.querySelector('[data-shadow]')).toBeNull();
+    expect(build.textContent).not.toContain('Project checks');
   });
 });
 

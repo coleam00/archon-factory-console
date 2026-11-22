@@ -8,6 +8,7 @@
  */
 import type { FactoryItemDetail } from '../../skills/factory';
 import { boardColumns, type ColumnTone } from './board-columns';
+import { restartOf } from './answered';
 import { itemPositions, stageWorkflow } from './item-visits';
 import { placedStage, type ItemColumn } from './placement';
 import type { FactoryViewListed } from './views';
@@ -48,6 +49,8 @@ export interface Journey {
   totalMs: number;
   /** How the total ends: merged, stopped where it is, or still going. */
   until: 'merge' | 'stop' | 'now';
+  /** Why it stopped, in the view's words or the console's ("Held after your answer"); else null. */
+  stopped: string | null;
 }
 
 interface Mark {
@@ -110,7 +113,24 @@ export function stopWords(
   if (detail.item.progress?.running != null || last === undefined) return null;
   if (last.status === 'failed') return 'Failed';
   if (last.status === 'cancelled') return 'Stopped';
-  return null;
+  return held(view, detail, last.id) ? HELD : null;
+}
+
+/** What a held item reads where it stopped. */
+export const HELD = 'Held after your answer';
+
+/**
+ * Held: the last stage run asked, every ask is settled, nothing waits on you, and settling them
+ * started nothing (`restartOf`, the same reading Needs you's "Nothing started" uses). Nothing
+ * runs, so the item rests where it is until someone starts it again.
+ */
+function held(view: Declaration, detail: FactoryItemDetail, runId: string): boolean {
+  const settled = detail.item.answers.some(
+    answer => answer.kind === 'asks_settled' && answer.runId === runId
+  );
+  return (
+    settled && detail.item.questions.length === 0 && restartOf(view, detail.item, runId) === null
+  );
 }
 
 /** Each ask the item waited on, by the run that asked: from its end to the answer, or to now. */
@@ -176,7 +196,7 @@ export function itemJourney(
   placePauses(view, detail, segments, columnOf, now);
   markNow(segments, columnOf, column, stopped, all.at(-1));
   const first = all[0]?.at ?? end.at;
-  return { segments, totalMs: Math.max(0, end.at - first), until: end.until };
+  return { segments, totalMs: Math.max(0, end.at - first), until: end.until, stopped };
 }
 
 function addLoop(segment: JourneySegment, to: string): void {

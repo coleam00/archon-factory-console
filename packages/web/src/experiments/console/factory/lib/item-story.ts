@@ -80,7 +80,7 @@ export interface StagePanel extends PanelBase {
   answered: AnsweredAsk[];
   /** What you answered the panel's last run, for the sentence's "; you said" clause. */
   youSaid: string | null;
-  /** The runs whose open asks show in this panel. */
+  /** The runs whose open asks show in this panel: those whose last panel it is. */
   runIds: string[];
   grid: RoundsGrid | null;
   /** When the change merged, on the Merged stage's panel. */
@@ -109,6 +109,12 @@ interface StoryContext {
   facts: ReadonlyMap<string, RunFacts>;
   rows: ReadonlyMap<string, TimelineRow>;
   now: number;
+  /**
+   * Each run's last panel, by index: where the run ended, or is now. A run that works several
+   * stages tells its status, its asks and answers and why it sent the item back there only;
+   * its earlier panels tell what it did on their stage.
+   */
+  home: ReadonlyMap<string, number>;
 }
 
 const MAX_SHORT = 140;
@@ -210,22 +216,49 @@ function runSentence(ctx: StoryContext, panel: StoryVisit, run: ItemRun): Senten
   return { text: told ?? `${panel.stage.label} did its part`, mono: null };
 }
 
-function panelSentence(ctx: StoryContext, panel: StoryVisit, grid: RoundsGrid | null): Sentence {
+/** The runs whose last panel this is (`StoryContext.home`). */
+const ownRuns = (ctx: StoryContext, panel: StoryVisit, index: number): string[] =>
+  panel.allRunIds.filter(id => ctx.home.get(id) === index);
+
+/** Whether the panel's last run has not finished: waiting, running or paused. */
+function stillGoing(ctx: StoryContext, panel: StoryVisit): boolean {
+  const run = ctx.runs.get(panel.runIds.at(-1) ?? '');
+  if (run === undefined) return false;
+  return run.awaitingExecution !== null || ['pending', 'running', 'paused'].includes(run.status);
+}
+
+function panelSentence(
+  ctx: StoryContext,
+  panel: StoryVisit,
+  index: number,
+  grid: RoundsGrid | null
+): Sentence {
   const runId = panel.runIds.at(-1) ?? '';
   const run = ctx.runs.get(runId);
   if (run === undefined) return { text: panel.stage.label, mono: null };
-  const status = statusSentence(ctx, panel.stage.label, run);
+  const own = ctx.home.get(runId) === index;
+  const status = own ? statusSentence(ctx, panel.stage.label, run) : null;
   if (status !== null) return { text: status, mono: null };
   const rounds = grid === null ? null : roundsSentence(panel.stage.label, grid);
   return rounds === null ? runSentence(ctx, panel, run) : { text: rounds, mono: null };
 }
 
-/** Why the panel sent the item back, when its last run or round did: the round's or run's words. */
-function panelReason(ctx: StoryContext, panel: StoryVisit, grid: RoundsGrid | null): Reason | null {
+/**
+ * Why the panel sent the item back, when it ended so: its last round's words, else its last
+ * run's, when that run ended here. Nothing while its last run is still going: an earlier
+ * round's reason is not what the running check is doing.
+ */
+function panelReason(
+  ctx: StoryContext,
+  panel: StoryVisit,
+  index: number,
+  grid: RoundsGrid | null
+): Reason | null {
+  if (stillGoing(ctx, panel)) return null;
   const last = grid?.columns.at(-1);
   if (last !== undefined) return last.verdict === 'returned' ? reasonOf(last.reason) : null;
   const runId = panel.runIds.at(-1) ?? '';
-  if (ctx.rows.get(runId)?.kind !== 'returned') return null;
+  if (ctx.home.get(runId) !== index || ctx.rows.get(runId)?.kind !== 'returned') return null;
   return reasonOf(ctx.facts.get(runId)?.said);
 }
 
@@ -243,8 +276,8 @@ const prLabel = (url: string): string => {
   return number === undefined ? 'the change' : `PR #${number}`;
 };
 
-function answeredAsks(ctx: StoryContext, panel: StoryVisit): AnsweredAsk[] {
-  const runs = new Set(panel.allRunIds);
+function answeredAsks(ctx: StoryContext, ownIds: readonly string[]): AnsweredAsk[] {
+  const runs = new Set(ownIds);
   return ctx.detail.item.answers
     .filter((answer): answer is AskAnswer => answer.kind === 'ask' && !answer.withdrawn)
     .filter(answer => answer.runId !== null && runs.has(answer.runId))
@@ -348,27 +381,29 @@ function panelShadows(
 function stagePanel(
   ctx: StoryContext,
   panel: StoryVisit,
+  index: number,
   next: StoryVisit | undefined,
   firsts: Map<string, string>,
   shared: boolean
 ): StagePanel {
+  const own = ownRuns(ctx, panel, index);
   const grid = roundsGrid(ctx.view, ctx.detail, [...ctx.rows.values()], panel, next);
   const named = panel.allRunIds.find(id => firsts.has(id));
   const url = named === undefined ? undefined : firsts.get(named);
   if (named !== undefined) firsts.delete(named);
   const change = ctx.detail.item.progress?.change;
-  const answered = answeredAsks(ctx, panel);
+  const answered = answeredAsks(ctx, own);
   return {
     kind: 'stage',
     key: `${panel.stage.id}:${panel.number.toString()}`,
     stage: panel.stage,
     number: panel.number,
-    sentence: panelSentence(ctx, panel, grid),
+    sentence: panelSentence(ctx, panel, index, grid),
     pr: url === undefined ? null : { url, label: prLabel(url) },
-    reason: panelReason(ctx, panel, grid),
+    reason: panelReason(ctx, panel, index, grid),
     answered,
     youSaid: lastAnswer(answered, panel),
-    runIds: panel.allRunIds,
+    runIds: own,
     grid,
     details: details(ctx, panel.allRunIds, panelSpan(ctx, panel, next), shared),
     shadows: panelShadows(ctx, panel, grid),
@@ -412,6 +447,11 @@ export function itemStory(
   timeline: readonly TimelineRow[],
   now: number
 ): StoryPanel[] {
+  const visits = storyVisits(view, detail);
+  const home = new Map<string, number>();
+  visits.forEach((visit, index) => {
+    for (const id of visit.allRunIds) home.set(id, index);
+  });
   const ctx: StoryContext = {
     view,
     projectId,
@@ -420,14 +460,15 @@ export function itemStory(
     facts: new Map(detail.runs.map(run => [run.runId, run])),
     rows: new Map(timeline.map(row => [row.runId, row])),
     now,
+    home,
   };
-  const visits = storyVisits(view, detail);
   const firsts = firstNamers(detail);
   const panelsOf = (id: string) => visits.filter(visit => visit.allRunIds.includes(id)).length;
   const stages = visits.map((visit, index) => ({
     panel: stagePanel(
       ctx,
       visit,
+      index,
       visits[index + 1],
       firsts,
       visit.allRunIds.some(id => panelsOf(id) > 1)

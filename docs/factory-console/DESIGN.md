@@ -1243,8 +1243,11 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   Each move into an earlier column is counted on the column it left, as a dashed loop in the
   send-back colour, "sent back 2x to Plan & build". Each ask it waited on is a pause on the
   column the asking run left it in, "waited on you 12 min" (to now, in the needs-you colour,
-  while the ask is open). An item that was parked, ended or failed ends where it stopped,
-  saying so ("Stopped here: Parked by triage"); its time ends with its last run.
+  while the ask is open). An item that was parked, ended, failed or held ends where it
+  stopped, saying so ("Stopped here: Parked by triage"), and its time ends with its last run.
+  Held: its last stage run asked, every ask is settled, none is open, and settling them started
+  nothing (the "Nothing started" Needs you shows): "Held after your answer". The band says the
+  same ("Held after your answer, in Build.").
 - **The story:** one panel per stage visit in the order it ran: a stage the item met again is
   its own panel, numbered ("Plan (2)"). A run of a workflow one stage lists works that stage; a
   run of a workflow several stages list (a loop-form delivery) moves to a stage when a step the
@@ -1264,12 +1267,20 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
     last stage the run worked, `story.steps` (by the step it started the stage on) for an
     earlier one, and, when the view tells neither, a neutral sentence: "Plan finished: sent to
     Build", or the pack's token in mono.
+  A run that works several stages tells what concerns the whole run (that it is running,
+  failed or was stopped, the asks it left and what you answered, why it sent the item back, its
+  open ask cards) only on the panel holding its last position; its earlier panels say what it
+  did on their stage ("Build wrote the change").
   The console adds only clauses about its own concepts: " and opened PR #n" on the panel of the
   run that named that pull request first, ": <why>" when the panel ended by sending the item
-  back (the returning round's summary, else the run's words at `story.said`, cut to a sentence
-  of about 140 characters with the rest behind "More"), and "; you said <option>" when the
-  panel's last run asked and was answered. Then its details as a definition grid: when, how
-  long, cost, the models its runs recorded, and each run linked.
+  back and its last run has finished (the returning round's summary, else the run's words at
+  `story.said`, cut to a sentence of about 140 characters with the rest behind "More"; while a
+  new round runs, an earlier round's reason stays under the grid only), and "; you said
+  <option>" when the panel's last run asked and was answered. Then its details as a definition
+  grid: when, how long (the panel's own stretch of a run that works several stages), cost, the
+  models its runs recorded, and each run linked. A run records one cost for all its stages, so
+  on such a run's panels the cost reads "for the whole run, across its stages", or "for its N
+  runs, across their stages" when the panel holds several.
 - **Check rounds as a grid:** in a Checks panel, a table whose columns are the rounds (a
   loop-form delivery's iterations, or one per stage-form run, numbered and bounded by its own
   result: "Round 4 of 4") and whose rows are: each step with a declared meaning (`returns`,
@@ -1283,7 +1294,8 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   cell's hover. A one-line legend above it says what "Sent back" and "Approved" mean; under
   it, each round that sent the change back says why in one sentence, the full text behind
   "More". A step whose outcome only restates the verdict has no meaning declared and no row.
-- **Asks in the story:** an answered ask sits in the panel of the run that asked it: the
+- **Asks in the story:** an answered ask sits in the panel of the run that asked it (its last
+  panel, for a run that works several stages): the
   question, "You said <option>" with the option's id as a tag and its own words, who answered
   and when, and what that started ("Build started again", the stage of the run whose cause
   names the settled asks, else "Nothing started"). An open ask is the ask card Needs you
