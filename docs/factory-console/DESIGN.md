@@ -456,7 +456,7 @@ the Overview, the item page and the board popover.
   answer:" and the `- id: does (cost: ...)` lines under it), the card takes that list out of the
   clamp and shows it whole between the context and the tiles: a heading "What the stage offered"
   in the Label role, then one plain row per option (not a button), `--radius-console-12`, 1 px
-  `--border`, holding its name (rule 8) at `--text-console-14` semibold, then what it does and
+  `--border` on `--surface-inset` (owner change 5: a box differs from what it sits on), holding its name (rule 8) at `--text-console-14` semibold, then what it does and
   costs at `--text-console-13`, `--text-secondary`. The option a recommendation's `why` names
   (`The stage recommends "<id>".`) wears the tiles' green mark and badge. While the list shows,
   a pick's optional note asks which of those options is meant ("Something else" keeps its own
@@ -958,7 +958,8 @@ tertiary without a factory view) and drawn as the ask card without its own box, 
 through `POST /api/attention/answer` (a paused gate through its run's respond route); an
 answered ask says so for 5 s before it folds away. A stage waiting past its deadline
 (`overdue_wait`) sits under **Paused** in its own section, with the bar and no ping. The aside,
-**Answered lately**, is one quiet panel of compact rows, the eight newest answers: the item,
+**Answered lately**, is one quiet panel of compact rows, the eight newest answers among the
+asks items settled: the item,
 the question on one line, the option chosen as a pill, who answered and when, and what settling
 its set started ("Plan started again", in the run's state colour with its state in words,
 linking to the run; the workflow in words on a project with no factory view), or "Nothing

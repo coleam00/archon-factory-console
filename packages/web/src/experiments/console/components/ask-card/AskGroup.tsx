@@ -6,10 +6,11 @@ import { useAnsweredHold, type AnsweredHold } from './useAnsweredHold';
 
 /**
  * One item's asks: the item named once, then a card per ask. It takes the asks and the
- * queue's runs and needs no page around it, so the Needs you tab, the item page (which
- * leaves out `subject`: the page is the item) and a popover over a board card all draw it.
- * A page that groups several items passes its own `hold`, so an item whose last ask was just
- * answered keeps its group while the answer shows; alone, the group holds its own.
+ * queue's runs and needs no page around it, so the item page (which leaves out `subject`:
+ * the page is the item) and a popover over a board card both draw it; the Needs you tab
+ * draws its own panels (`ItemAskPanel`). A caller that holds answers itself passes its
+ * `hold`, so the asks it shows keep their answers while they show; alone, the group holds its
+ * own.
  */
 export function AskGroup({
   projectId,

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, describe, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -14,6 +14,7 @@ import type { ItemRead } from '../../skills/items';
 import type { AttentionQueue } from '../../skills/runs';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import { ANSWERED_SHOWN_MS } from '../ask-card/useAnsweredHold';
 
 const ID = 'cb-needs-design';
 const dom = new Window({ url: 'http://localhost' });
@@ -316,7 +317,19 @@ describe('the page holds to the document-page rule', () => {
     });
 });
 
-test('a history read that fails says so in the aside, and answered today is unknown, not 0', async () => {
+/**
+ * `NeedsYouContent` mounted in a live DOM, for what static markup cannot reach: a read that
+ * fails after the first render, an answer and its hold. `fetch` answers every request.
+ */
+async function mountLive(
+  queue: AttentionQueue,
+  fetch: (url: string) => Promise<Response>
+): Promise<{
+  container: HTMLElement;
+  rerender: (next: AttentionQueue) => Promise<void>;
+  click: (label: string) => Promise<void>;
+  done: () => Promise<void>;
+}> {
   const originalFetch = globalThis.fetch;
   const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
   const descriptors = new Map(
@@ -324,27 +337,59 @@ test('a history read that fails says so in the aside, and answered today is unkn
   );
   for (const [key, value] of Object.entries(globals))
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  globalThis.fetch = Object.assign(
-    async (): Promise<Response> => {
-      throw new Error('the server is down');
-    },
-    { preconnect: originalFetch.preconnect }
-  );
+  globalThis.fetch = Object.assign(async (input: RequestInfo | URL) => fetch(String(input)), {
+    preconnect: originalFetch.preconnect,
+  });
   const { createRoot } = await import('react-dom/client');
   const { NeedsYouContent } = await import('./NeedsYouLayout');
   const container = dom.document.createElement('div') as unknown as HTMLElement;
   dom.document.body.append(container as never);
   const root = createRoot(container);
-  try {
-    await act(async () =>
+  const draw = async (current: AttentionQueue): Promise<void> =>
+    act(async () =>
       root.render(
         <MemoryRouter>
-          <NeedsYouContent projectId="cb-failing" view={undefined} queue={quiet} />
+          <NeedsYouContent projectId="cb-live" view={undefined} queue={current} />
         </MemoryRouter>
       )
     );
-    for (let turn = 0; turn < 5 && container.querySelector('[role="alert"]') === null; turn++)
-      await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+  await draw(queue);
+  for (let turn = 0; turn < 5; turn++)
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+  return {
+    container,
+    rerender: draw,
+    click: async label => {
+      const button = [...container.querySelectorAll('button')].find(candidate =>
+        candidate.textContent?.startsWith(label)
+      );
+      if (button === undefined) throw new Error(`No button "${label}"`);
+      await act(async () => {
+        button.click();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    },
+    done: async () => {
+      jest.useRealTimers();
+      await act(async () => root.unmount());
+      container.remove();
+      invalidate('factory-items');
+      globalThis.fetch = originalFetch;
+      for (const [key, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    },
+  };
+}
+
+test('a history read that fails says so in the aside, and answered today is unknown, not 0', async () => {
+  const page = await mountLive(quiet, async () => {
+    throw new Error('the server is down');
+  });
+  try {
+    const { container } = page;
     const alert = text(
       container.querySelector('section[aria-label="Answered lately"] [role="alert"]')
     );
@@ -353,12 +398,33 @@ test('a history read that fails says so in the aside, and answered today is unkn
     expect(chipWords(chip(container, 'answered today'))).toBe('? answered today');
     expect(text(container)).not.toContain('appears here to answer');
   } finally {
-    await act(async () => root.unmount());
-    container.remove();
-    globalThis.fetch = originalFetch;
-    for (const [key, descriptor] of descriptors) {
-      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-      else Reflect.deleteProperty(globalThis, key);
-    }
+    await page.done();
+  }
+});
+
+test('answering the last ask keeps it in its panel, saying so, before the empty state', async () => {
+  const page = await mountLive(queueOf(askItem({ ref: 'ask:1', item: seven })), async url =>
+    url.includes('/api/attention/answer')
+      ? Response.json({ success: true })
+      : Response.json({ error: 'not in this test' }, { status: 404 })
+  );
+  try {
+    const { container } = page;
+    jest.useFakeTimers();
+    await page.click('Use dev');
+    await page.click('Confirm');
+    // The queue refreshes without the ask; its panel stays, saying what was answered.
+    await page.rerender(quiet);
+    const panel = container.querySelector('[aria-label="Asks on #7"]');
+    expect(text(panel?.querySelector('[role="status"]'))).toBe('Answered: Use dev');
+    expect(container.querySelector('section[aria-label="Nothing needs you"]')).toBeNull();
+    expect(chipWords(chip(container, 'waiting now'))).toBe('0 waiting now');
+    await act(async () => {
+      jest.advanceTimersByTime(ANSWERED_SHOWN_MS);
+    });
+    expect(container.querySelector('[aria-label="Asks on #7"]')).toBeNull();
+    expect(container.querySelector('section[aria-label="Nothing needs you"]')).not.toBeNull();
+  } finally {
+    await page.done();
   }
 });
