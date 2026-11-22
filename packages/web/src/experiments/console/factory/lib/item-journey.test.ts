@@ -137,15 +137,15 @@ describe('an item that stopped by the view or by your answer', () => {
     expect(of.segments.some(entry => entry.lit)).toBe(false);
   });
 
-  test('held: every ask answered, nothing started, nothing running; it stops there', () => {
+  test('resting: every ask answered, nothing started, nothing running; it stops there', () => {
     // Item 3: two deliveries that asked, each answered, and nothing started after the last.
     const of = journey(itemDetail('3'));
-    expect([of.stopped, of.until]).toEqual(['Held after your answer', 'stop']);
+    expect([of.stopped, of.until]).toEqual(['Nothing started after your answer', 'stop']);
     expect(of.segments.some(entry => entry.lit)).toBe(false);
     expect(of.segments.find(entry => entry.stopped !== null)?.id).toBe('plan-build');
   });
 
-  test('a held item whose change then merged ends merged, not held', () => {
+  test('a resting item whose change then merged ends merged', () => {
     const detail = structuredClone(itemDetail('3'));
     const change = detail.item.progress?.change;
     if (detail.item.progress === null || change == null) throw new Error('3 has a change');
@@ -160,12 +160,34 @@ describe('an item that stopped by the view or by your answer', () => {
     expect(of.segments.filter(entry => entry.lit).map(entry => entry.id)).toEqual(['merged']);
   });
 
-  test('not held while the answer has started a run, or an ask is still open', () => {
-    expect(journey(itemDetail('113')).stopped).toBeNull();
+  test('not resting while the answer has started a run, or an ask is still open', () => {
+    // Item 113, unmerged, between the run its answer started and the next: in flight.
+    const between = structuredClone(itemDetail('113'));
+    const started = between.item.runs.findIndex(run => run.id.startsWith('2fd6990d'));
+    const change = between.item.progress?.change;
+    if (between.item.progress === null || change == null) throw new Error('113 has a change');
+    between.item.runs = between.item.runs.slice(0, started + 1);
+    between.item.progress = {
+      ...between.item.progress,
+      change: { ...change, merged: false, mergedAt: null },
+      running: null,
+    };
+    expect([journey(between).stopped, journey(between).until]).toEqual([null, 'now']);
     const open = structuredClone(itemDetail('3'));
     open.item.questions = [
       { kind: 'attention', ref: 'ask:open', message: 'Which?' },
     ] as unknown as FactoryItemDetail['item']['questions'];
     expect(journey(open).stopped).toBeNull();
+  });
+
+  test('not resting while the start the answer made waits for a slot or the install hold', () => {
+    const queued = structuredClone(itemDetail('3'));
+    queued.item.queued = [
+      { workflow: 'deliver', ahead: 2 },
+    ] as unknown as FactoryItemDetail['item']['queued'];
+    expect([journey(queued).stopped, journey(queued).until]).toEqual([null, 'now']);
+    const kept = structuredClone(itemDetail('3'));
+    kept.item.held = [{ workflow: 'deliver' }] as unknown as FactoryItemDetail['item']['held'];
+    expect([journey(kept).stopped, journey(kept).until]).toEqual([null, 'now']);
   });
 });

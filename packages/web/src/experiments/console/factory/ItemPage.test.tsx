@@ -222,6 +222,13 @@ describe('the item page', () => {
     expect(html).toMatch(/<h2 id="story-triage:2"[^>]*>Triage \(2\)<\/h2>/);
   });
 
+  test('item 125: the CI panel says why CI sent it back and how the builder fixed it', () => {
+    const ci = text(panel(render(itemDetail('125')), 'host'));
+    expect(ci).toContain('CI and the reviews passed.');
+    expect(ci).toMatch(/Sent back: \S/);
+    expect(ci).toContain('Build fixed what CI and the reviews raised');
+  });
+
   test('a panel that sent the item back ends its sentence on why, the rest behind More', () => {
     const detail = structuredClone(itemDetail('125'));
     const third = detail.item.runs.findIndex(run => run.id.startsWith('bb11ef33'));
@@ -256,11 +263,15 @@ describe('the item page', () => {
     expect(chips(html)[0]).toMatch(/ order to now$/);
   });
 
-  test('item 3, held: every ask answered and nothing started; it stops there, saying so', () => {
+  test('item 3: every ask answered and nothing started; it stops there, saying so', () => {
     const html = render(itemDetail('3'));
-    expect(text(section(html, 'Summary'))).toContain('Held after your answer, in Build.');
+    expect(text(section(html, 'Summary'))).toContain(
+      'Nothing started after your answer, in Build.'
+    );
     expect(chips(html)[0]).toMatch(/ order to where it stopped$/);
-    expect(text(section(html, 'Journey'))).toContain('Stopped here: Held after your answer');
+    expect(text(section(html, 'Journey'))).toContain(
+      'Stopped here: Nothing started after your answer'
+    );
     expect(section(html, 'Journey')).not.toContain('data-lit');
   });
 

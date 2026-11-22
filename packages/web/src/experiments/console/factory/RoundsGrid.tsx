@@ -143,7 +143,7 @@ function Reasons({ grid }: { grid: Grid }): ReactElement | null {
       {returned.map(column => (
         <Reason
           key={`${column.runId}|${column.iteration}`}
-          round={column.iteration}
+          lead={`Round ${column.iteration.toString()}`}
           text={column.reason ?? ''}
         />
       ))}
@@ -151,16 +151,15 @@ function Reasons({ grid }: { grid: Grid }): ReactElement | null {
   );
 }
 
-export function Reason({ round, text }: { round: number | null; text: string }): ReactElement {
+/** One reason as a list row: a lead in bold ("Round 2", "Sent back"), its first sentence, More. */
+export function Reason({ lead, text }: { lead: string | null; text: string }): ReactElement {
   const [open, setOpen] = useState(false);
   const short = firstSentence(text);
   const more = short !== text.trim();
   return (
     <li className="flex min-w-0 flex-col gap-1 text-console-13 text-text-secondary">
       <p className="break-words">
-        {round === null ? null : (
-          <span className="font-medium text-text-primary">Round {round}: </span>
-        )}
+        {lead === null ? null : <span className="font-medium text-text-primary">{lead}: </span>}
         {open ? text : short}{' '}
         {more ? (
           <button

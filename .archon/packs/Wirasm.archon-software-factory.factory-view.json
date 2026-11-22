@@ -1282,7 +1282,8 @@
     },
     "steps": {
       "deliver": {
-        "build__build": "Build wrote the change"
+        "build__build": "Build wrote the change",
+        "hostrounds.host__host": "CI and the reviews were read"
       }
     },
     "said": [

@@ -278,6 +278,99 @@ describe('a check round running after one that sent the item back', () => {
   });
 });
 
+describe('a loop-form delivery in its fix step', () => {
+  /**
+   * Item 111's deliver cut after its first round, now in `rounds.fix` (on Build), ended so:
+   * the fix visit is the run's last panel, Build (2).
+   */
+  function inFix(run: Partial<ItemRun>, extra: string[] = []): FactoryItemDetail {
+    const detail = structuredClone(itemDetail('111'));
+    const at = detail.item.runs.findIndex(entry => entry.id.startsWith('aba8f7aa'));
+    const deliver = detail.item.runs[at];
+    const facts = detail.runs.find(entry => entry.runId === deliver?.id);
+    if (deliver === undefined || facts === undefined || facts.rounds === null)
+      throw new Error('111 delivered');
+    if (detail.item.progress === null) throw new Error('111 has progress');
+    const cut = facts.steps.findIndex(step => step.node === 'rounds.fix');
+    facts.steps = [
+      ...facts.steps.slice(0, cut + 1),
+      ...extra.map(node => ({ node, startedAt: '2026-11-20T21:20:00.000Z' })),
+    ];
+    facts.rounds = { ...facts.rounds, rounds: facts.rounds.rounds.slice(0, 1) };
+    facts.shadows = [];
+    Object.assign(deliver, { completedAt: null, outcome: null }, run);
+    detail.item.runs = detail.item.runs.slice(0, at + 1);
+    detail.item.progress = { ...detail.item.progress, change: null, running: null };
+    detail.item.answers = [];
+    return detail;
+  }
+  const states: [string, Partial<ItemRun>][] = [
+    ['running', { status: 'running' }],
+    ['failed', { status: 'failed' }],
+    ['cancelled', { status: 'cancelled' }],
+    ['asked', { status: 'completed', outcome: 'ask', completedAt: '2026-11-20T21:30:00.000Z' }],
+    [
+      'returned',
+      { status: 'completed', outcome: 'returned', completedAt: '2026-11-20T21:30:00.000Z' },
+    ],
+  ];
+
+  for (const [state, run] of states)
+    test(`${state}: the first Build says what it did; Checks keeps its round's reason`, () => {
+      const panels = stagePanels(inFix(run));
+      expect(panels.map(panel => panel.key).slice(-3)).toEqual(['build:1', 'checks:1', 'build:2']);
+      expect(panels.find(panel => panel.key === 'build:1')?.sentence.text).toBe(
+        'Build wrote the change'
+      );
+      const checks = panels.find(panel => panel.key === 'checks:1');
+      expect(checks?.sentence.text).toBe('Checks sent it back');
+      expect(checks?.reason?.full).toStartWith('Return.');
+    });
+
+  for (const [state, run] of states.slice(0, 2))
+    test(`${state} in its CI fix: CI and review says what it did there`, () => {
+      const panels = stagePanels(
+        inFix(run, ['rounds.base', 'hostrounds', 'hostrounds.host__host', 'hostrounds.hostfix'])
+      );
+      expect(panels.find(panel => panel.stage.id === 'host')?.sentence.text).toBe(
+        'CI and the reviews were read'
+      );
+    });
+});
+
+describe('after the merge', () => {
+  test('a failed run of the Merged stage does not read as a failed merge', () => {
+    const detail = structuredClone(itemDetail('125'));
+    const landed = detail.item.runs.at(-1);
+    if (landed === undefined || detail.item.progress === null) throw new Error('125 landed');
+    Object.assign(landed, { status: 'failed', outcome: null });
+    detail.item.progress.runs = detail.item.progress.runs.map(entry =>
+      entry.runId === landed.id ? { ...entry, failedStep: 'landed' } : entry
+    );
+    const merged = stagePanels(detail).at(-1);
+    expect(merged?.stage.id).toBe('landed');
+    expect(merged?.sentence.text).toBe(
+      'The change merged; then the factory failed at Checks the branch after the merge'
+    );
+  });
+});
+
+describe('a send-back from CI and the reviews, then a pass', () => {
+  test('the CI panel tells why it was sent back, and the fix, before its last run', () => {
+    const ci = stagePanels(itemDetail('125')).find(panel => panel.stage.id === 'host');
+    const said = itemDetail('125').runs.find(run => run.runId.startsWith('52f46ea3'))?.said ?? '';
+    expect(ci?.sentence.text).toBe('CI and the reviews passed');
+    expect(
+      ci?.happened.map(event => (event.kind === 'fixed' ? event.text : event.reason.full))
+    ).toEqual([said, 'Build fixed what CI and the reviews raised']);
+  });
+
+  test('a panel with a rounds grid lists nothing more: its grid tells its rounds', () => {
+    const checks = stagePanels(itemDetail('125')).find(panel => panel.stage.id === 'checks');
+    expect(checks?.happened).toEqual([]);
+  });
+});
+
 describe("a panel's details", () => {
   test("a run that works several stages: each panel its own stretch, the cost the whole run's", () => {
     const detail = itemDetail('111');

@@ -1,6 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Telescope } from 'lucide-react';
+import { Telescope, Wrench } from 'lucide-react';
 import { formatCost, formatDateTime } from '../lib/format';
 import { DefinitionGrid, Panel, SectionHeading } from './document';
 import { boardColumns, type ColumnTone } from './lib/board-columns';
@@ -10,13 +10,15 @@ import type {
   DrainPanel,
   MergedPanel,
   PanelDetails,
+  PanelEvent,
   Reason,
   Sentence,
   StagePanel,
 } from './lib/item-story';
 import type { TimelineShadow } from './lib/timeline';
 import type { FactoryViewListed } from './lib/views';
-import { RoundsGrid } from './RoundsGrid';
+import { MEANING_WORD } from './lib/item-rounds-grid';
+import { Reason as ReasonLine, RoundsGrid } from './RoundsGrid';
 import { ShadowRow } from './ShadowRow';
 import { AnsweredAskBlock } from './StoryAsks';
 import { TONES, toneColor } from './tones';
@@ -66,6 +68,7 @@ export function StageStoryPanel({
       />
       <StorySentence panel={panel} />
       {panel.grid === null ? null : <RoundsGrid grid={panel.grid} />}
+      <Happened events={panel.happened} />
       {panel.answered.map(ask => (
         <AnsweredAskBlock key={`${ask.runId}|${ask.at}|${ask.question}`} ask={ask} />
       ))}
@@ -73,6 +76,32 @@ export function StageStoryPanel({
       <DefinitionGrid rows={detailRows(panel.details, panel.merged)} />
       <Shadows shadows={panel.shadows} />
     </Panel>
+  );
+}
+
+/**
+ * A panel's send-backs and folded fixes before its last run, without a grid (CI and the reviews
+ * sent it back, the builder fixed it): each in one sentence, a reason's rest behind "More".
+ */
+function Happened({ events }: { events: readonly PanelEvent[] }): ReactNode {
+  if (events.length === 0) return null;
+  return (
+    <ul aria-label="What happened here before" className="flex flex-col gap-2">
+      {events.map(event =>
+        event.kind === 'sent-back' ? (
+          <ReasonLine key={event.runId} lead={MEANING_WORD.returned} text={event.reason.full} />
+        ) : (
+          <li
+            key={event.runId}
+            data-fixed=""
+            className="flex items-center gap-1.5 text-console-13 text-text-secondary"
+          >
+            <Wrench aria-hidden="true" className="size-4 shrink-0 text-text-tertiary" />
+            {event.text}
+          </li>
+        )
+      )}
+    </ul>
   );
 }
 

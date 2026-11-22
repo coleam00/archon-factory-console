@@ -49,7 +49,7 @@ export interface Journey {
   totalMs: number;
   /** How the total ends: merged, stopped where it is, or still going. */
   until: 'merge' | 'stop' | 'now';
-  /** Why it stopped, in the view's words or the console's ("Held after your answer"); else null. */
+  /** Why it stopped, in the view's words or the console's ("Nothing started after your answer"); else null. */
   stopped: string | null;
 }
 
@@ -116,23 +116,34 @@ export function stopWords(
   if (detail.item.progress?.running != null || last === undefined) return null;
   if (last.status === 'failed') return 'Failed';
   if (last.status === 'cancelled') return 'Stopped';
-  return held(view, detail, last.id) ? HELD : null;
+  return resting(view, detail, last.id) ? RESTING : null;
 }
 
 /** What a held item reads where it stopped. */
-export const HELD = 'Held after your answer';
+/**
+ * What an item that rests after your answer reads where it stopped. It says what is known:
+ * nothing started. The answer's route (hold, take as is) is not on the item read, so the page
+ * does not claim the item was held.
+ */
+export const RESTING = 'Nothing started after your answer';
 
 /**
- * Held: the last stage run asked, every ask is settled, nothing waits on you, and settling them
- * started nothing (`restartOf`, the same reading Needs you's "Nothing started" uses). Nothing
- * runs, so the item rests where it is until someone starts it again.
+ * Resting after your answer: the last stage run asked, every ask is settled, nothing waits on
+ * you, settling them started no run (`restartOf`, the reading behind Needs you's "Nothing
+ * started"), and no start waits for one either: none queued for a slot, none kept back by the
+ * install hold. Nothing runs, so the item rests where it is until someone starts it again.
  */
-function held(view: Declaration, detail: FactoryItemDetail, runId: string): boolean {
-  const settled = detail.item.answers.some(
+function resting(view: Declaration, detail: FactoryItemDetail, runId: string): boolean {
+  const { item } = detail;
+  const settled = item.answers.some(
     answer => answer.kind === 'asks_settled' && answer.runId === runId
   );
   return (
-    settled && detail.item.questions.length === 0 && restartOf(view, detail.item, runId) === null
+    settled &&
+    item.questions.length === 0 &&
+    item.queued.length === 0 &&
+    item.held.length === 0 &&
+    restartOf(view, item, runId) === null
   );
 }
 

@@ -10,7 +10,7 @@ import type { FactoryItemDetail } from '../../skills/factory';
 import { answerWords, restartOf } from './answered';
 import { answererName } from './item-answers';
 import { gridShadowKeys, roundsGrid, type RoundsGrid } from './item-rounds-grid';
-import { runPositions, storyVisits, type RunFacts, type StoryVisit } from './item-visits';
+import { storyVisits, type RunFacts, type StoryVisit } from './item-visits';
 import { stageOfWorkflow } from './placement';
 import { stepLabel } from './step-label';
 import { runHref, type TimelineRow, type TimelineShadow } from './timeline';
@@ -83,6 +83,12 @@ export interface StagePanel extends PanelBase {
   /** The runs whose open asks show in this panel: those whose last panel it is. */
   runIds: string[];
   grid: RoundsGrid | null;
+  /**
+   * On a panel with no rounds grid that went round more than once (CI and the reviews sent the
+   * change back, the builder fixed it, they looked again): each earlier send-back with its reason,
+   * and each folded fix in the view's words, in the order they ran. Empty otherwise.
+   */
+  happened: PanelEvent[];
   /** When the change merged, on the Merged stage's panel. */
   merged: string | null;
 }
@@ -100,6 +106,11 @@ export interface MergedPanel {
 }
 
 export type StoryPanel = StagePanel | DrainPanel | MergedPanel;
+
+/** A send-back or a fix inside one panel without a grid. */
+export type PanelEvent =
+  | { kind: 'sent-back'; runId: string; reason: Reason }
+  | { kind: 'fixed'; runId: string; text: string };
 
 interface StoryContext {
   view: Declaration;
@@ -171,6 +182,21 @@ function statusSentence(ctx: StoryContext, label: string, run: ItemRun): string 
 }
 
 /**
+ * A run not finished, on its stage. On the Merged stage the stage's name is an outcome, not who
+ * acts ("Merged failed" would read as if the merge failed), so the factory is the subject, after
+ * the merge itself: "The change merged; then the factory failed at <step>".
+ */
+function stageStatus(ctx: StoryContext, stage: FactoryStage, run: ItemRun): string | null {
+  if (stage.id !== ctx.view.landed.stage) return statusSentence(ctx, stage.label, run);
+  const status = statusSentence(ctx, 'the factory', run);
+  if (status === null) return null;
+  const merged = ctx.detail.item.progress?.change?.merged === true;
+  return merged ? `The change merged; then ${status}` : capitalised(status);
+}
+
+const capitalised = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
  * The checks' rounds in a sentence: how often they sent it back, and how the last round ended.
  * A round with neither a return nor an approval reads "asked you" only when one of its checks
  * recorded an outcome the view means as asked; a replan, or a round that stopped, is null, so
@@ -195,7 +221,7 @@ function roundsSentence(label: string, grid: RoundsGrid): string | null {
  * stage the run worked; for an earlier stage of a run that works several, the view's for the
  * step it started that stage on; else the neutral words.
  */
-function runSentence(ctx: StoryContext, panel: StoryVisit, run: ItemRun): Sentence {
+function runSentence(ctx: StoryContext, panel: StoryVisit, index: number, run: ItemRun): Sentence {
   const facts = ctx.facts.get(run.id);
   const workflow = facts?.workflow ?? null;
   const row = ctx.rows.get(run.id);
@@ -204,8 +230,9 @@ function runSentence(ctx: StoryContext, panel: StoryVisit, run: ItemRun): Senten
       ? { text: `${panel.stage.label} finished:`, mono: row.outcome.text }
       : { text: `${panel.stage.label} finished: ${row?.outcome.text ?? 'done'}`, mono: null };
   if (workflow === null) return neutral;
-  const last = runPositions(ctx.view, run, facts).at(-1)?.stage.id === panel.stage.id;
-  if (last) {
+  // The run's outcome is told on its home panel only: a run whose fix step put it back on Build
+  // ends there, not on its first Build panel.
+  if (ctx.home.get(run.id) === index) {
     const told = toldOutcome(ctx.view, workflow, run.outcome);
     return told === undefined ? neutral : { text: told, mono: null };
   }
@@ -220,10 +247,14 @@ function runSentence(ctx: StoryContext, panel: StoryVisit, run: ItemRun): Senten
 const ownRuns = (ctx: StoryContext, panel: StoryVisit, index: number): string[] =>
   panel.allRunIds.filter(id => ctx.home.get(id) === index);
 
-/** Whether the panel's last run has not finished: waiting, running or paused. */
-function stillGoing(ctx: StoryContext, panel: StoryVisit): boolean {
-  const run = ctx.runs.get(panel.runIds.at(-1) ?? '');
-  if (run === undefined) return false;
+/**
+ * Whether the panel's last run has not finished (waiting, running or paused) here: a run that
+ * went on to another panel goes on there, and this panel's round reasons stand.
+ */
+function stillGoing(ctx: StoryContext, panel: StoryVisit, index: number): boolean {
+  const runId = panel.runIds.at(-1) ?? '';
+  const run = ctx.runs.get(runId);
+  if (run === undefined || ctx.home.get(runId) !== index) return false;
   return run.awaitingExecution !== null || ['pending', 'running', 'paused'].includes(run.status);
 }
 
@@ -237,10 +268,10 @@ function panelSentence(
   const run = ctx.runs.get(runId);
   if (run === undefined) return { text: panel.stage.label, mono: null };
   const own = ctx.home.get(runId) === index;
-  const status = own ? statusSentence(ctx, panel.stage.label, run) : null;
+  const status = own ? stageStatus(ctx, panel.stage, run) : null;
   if (status !== null) return { text: status, mono: null };
   const rounds = grid === null ? null : roundsSentence(panel.stage.label, grid);
-  return rounds === null ? runSentence(ctx, panel, run) : { text: rounds, mono: null };
+  return rounds === null ? runSentence(ctx, panel, index, run) : { text: rounds, mono: null };
 }
 
 /**
@@ -254,7 +285,7 @@ function panelReason(
   index: number,
   grid: RoundsGrid | null
 ): Reason | null {
-  if (stillGoing(ctx, panel)) return null;
+  if (stillGoing(ctx, panel, index)) return null;
   const last = grid?.columns.at(-1);
   if (last !== undefined) return last.verdict === 'returned' ? reasonOf(last.reason) : null;
   const runId = panel.runIds.at(-1) ?? '';
@@ -378,6 +409,30 @@ function panelShadows(
     .filter(shadow => here.has(shadow.key) && !shown.has(shadow.key));
 }
 
+/**
+ * What happened inside a panel with no grid, before its last run: each run that sent the item
+ * back with its own words (`story.said`), and each fix folded into the panel with its outcome's
+ * sentence. The panel's last run tells its own ending in the sentence.
+ */
+function panelEvents(ctx: StoryContext, panel: StoryVisit, grid: RoundsGrid | null): PanelEvent[] {
+  if (grid !== null) return [];
+  const last = panel.runIds.at(-1);
+  return panel.allRunIds.flatMap((runId): PanelEvent[] => {
+    if (runId === last) return [];
+    const run = ctx.runs.get(runId);
+    const workflow = ctx.facts.get(runId)?.workflow;
+    if (run === undefined || workflow == null) return [];
+    if (panel.fixRunIds.includes(runId) && !panel.runIds.includes(runId)) {
+      const told =
+        run.status === 'completed' ? toldOutcome(ctx.view, workflow, run.outcome) : undefined;
+      return told === undefined ? [] : [{ kind: 'fixed', runId, text: told }];
+    }
+    if (ctx.rows.get(runId)?.kind !== 'returned') return [];
+    const reason = reasonOf(ctx.facts.get(runId)?.said);
+    return reason === null ? [] : [{ kind: 'sent-back', runId, reason }];
+  });
+}
+
 function stagePanel(
   ctx: StoryContext,
   panel: StoryVisit,
@@ -405,6 +460,7 @@ function stagePanel(
     youSaid: lastAnswer(answered, panel),
     runIds: own,
     grid,
+    happened: panelEvents(ctx, panel, grid),
     details: details(ctx, panel.allRunIds, panelSpan(ctx, panel, next), shared),
     shadows: panelShadows(ctx, panel, grid),
     merged:

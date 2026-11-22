@@ -3,7 +3,9 @@
  * item's progress and on each run of an item read: an empty list where no shadow step decided
  * anything. `parked`, on an item's progress: null where the item is not parked. On each run of
  * an item read, its story facts: `change` and `said` null, `models` and `steps` empty (a run
- * that named no change, said nothing, and whose step starts were not captured). A captured
+ * that named no change, said nothing, and whose step starts were not captured). On an item
+ * read, its starts that have no run yet: `queued` and `held` empty and `hold` null (nothing
+ * waiting for a slot or kept back by the install hold). A captured
  * response without them reads as those values. A test of any adds its own value.
  */
 /** Each run's story facts, as a run that recorded none of them reads. */
@@ -13,6 +15,17 @@ const STORY_FACTS: Record<string, () => unknown> = {
   models: () => [],
   steps: () => [],
 };
+
+/** An item read's waiting starts, as an item with none reads. */
+const WAITING_STARTS: Record<string, () => unknown> = {
+  queued: () => [],
+  held: () => [],
+  hold: () => null,
+};
+
+function fillAbsent(record: Record<string, unknown>, fields: Record<string, () => unknown>): void {
+  for (const [key, empty] of Object.entries(fields)) if (!(key in record)) record[key] = empty();
+}
 
 function fillStoryFacts(record: Record<string, unknown>): void {
   for (const [key, empty] of Object.entries(STORY_FACTS))
@@ -32,6 +45,8 @@ export function withLaterFields<T>(json: T): T {
     if ((progress || runFacts) && !('shadows' in record)) record.shadows = [];
     if (progress && !('parked' in record)) record.parked = null;
     if (runFacts) fillStoryFacts(record);
+    if (['questions', 'answers', 'links'].every(key => key in record))
+      fillAbsent(record, WAITING_STARTS);
     for (const entry of Object.values(record)) walk(entry);
   };
   walk(json);

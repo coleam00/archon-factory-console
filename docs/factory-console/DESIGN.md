@@ -1245,9 +1245,12 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   column the asking run left it in, "waited on you 12 min" (to now, in the needs-you colour,
   while the ask is open). An item that was parked, ended, failed or held ends where it
   stopped, saying so ("Stopped here: Parked by triage"), and its time ends with its last run.
-  Held: its last stage run asked, every ask is settled, none is open, and settling them started
-  nothing (the "Nothing started" Needs you shows): "Held after your answer". The band says the
-  same ("Held after your answer, in Build.").
+  Held, as the page can see it: its last stage run asked, every ask is settled, none is open,
+  settling them started no run (the "Nothing started" Needs you shows), and no start waits for
+  one either (none queued for a slot, none kept back by the install hold). The answer's route
+  is not on the item read, so it reads what is known: "Nothing started after your answer". The
+  band says the same ("Nothing started after your answer, in Build."). A merged change wins:
+  the strip then lights Merged.
 - **The story:** one panel per stage visit in the order it ran: a stage the item met again is
   its own panel, numbered ("Plan (2)"). A run of a workflow one stage lists works that stage; a
   run of a workflow several stages list (a loop-form delivery) moves to a stage when a step the
@@ -1260,7 +1263,9 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   colour (the column's label as the eyebrow, the stage as the heading) and opens with one plain
   sentence of what happened:
   - a run not finished, in the stage's name: "Build is working on it now: Writes the change",
-    "Plan is waiting to start", "Plan failed at <step>", "Plan was stopped";
+    "Plan is waiting to start", "Plan failed at <step>", "Plan was stopped". On the Merged
+    stage, whose name is an outcome, the factory is the subject, after the merge: "The change
+    merged; then the factory failed at <step>";
   - a Checks panel with rounds, from its rounds: "Checks sent it back twice, then approved it",
     "... then asked you", "Checks approved it";
   - else the view's `story` sentence for the panel's last run: `story.outcomes` when this is the
@@ -1294,6 +1299,11 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   cell's hover. A one-line legend above it says what "Sent back" and "Approved" mean; under
   it, each round that sent the change back says why in one sentence, the full text behind
   "More". A step whose outcome only restates the verdict has no meaning declared and no row.
+- **A panel that went round without a grid** (CI and the reviews sent the change back, the
+  builder fixed it, they looked again) lists, under its sentence and before its last run, each
+  send-back with its reason ("Sent back: <first sentence>", the rest behind "More", from the
+  run's words at `story.said`) and each folded fix in the view's words ("Build fixed what CI and
+  the reviews raised"). Its sentence tells how its last run ended.
 - **Asks in the story:** an answered ask sits in the panel of the run that asked it (its last
   panel, for a run that works several stages): the
   question, "You said <option>" with the option's id as a tag and its own words, who answered
