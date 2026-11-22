@@ -1,7 +1,7 @@
 /**
  * Each colour group's look and words, one record for every place that draws a group: the
- * board's column headers and columns, the item timeline's dots, the map's cards and the map's
- * legend. Keyed by `ColumnTone`, the stage groups the schema declares plus the merged column's
+ * board's column headers and columns, the item page's panels and journey strip, the map's
+ * cards and its legend. Keyed by `ColumnTone`, the stage groups the schema declares plus the merged column's
  * own, so a group the schema gains fails type-check here until it has a colour. The colours are
  * green, teal and warm, none purple or pink (owner change 1 of 2026-11-19), and keep clear of
  * the status colours the chips use (running, needs you); the merged column takes the done

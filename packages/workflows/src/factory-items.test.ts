@@ -960,7 +960,7 @@ describe('reading progress, and one item whole', () => {
     throw new Error(`unexpected failure for ${id}: ${String(error)}`);
   };
 
-  test("one item: its read and progress, plus each run's timeline facts", async () => {
+  test("one item: its read and progress, plus each run's story facts", async () => {
     const counts = { queue: 0, loaded: [] as string[][] };
     const detail = factoryItemDetailSchema.parse(
       await readFactoryItem(pageSource(counts), itemInput(unexpected), '1')

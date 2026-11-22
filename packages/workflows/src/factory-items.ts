@@ -6,7 +6,7 @@
  *
  * The derivation is pure (`factoryRunFacts`, `factoryItemProgress`); `readFactoryProgress`
  * reads the store once for a set of items and feeds them, and `readFactoryItem` reads one
- * item whole, adding each run's timeline facts (`FactoryItemRun`). Whether a change merged,
+ * item whole, adding what its page tells of each run (`FactoryItemRun`). Whether a change merged,
  * and which pull request a run that named no URL delivered, is the caller's lookup
  * (`changeState`), since only the server reaches the forge.
  */
@@ -673,7 +673,7 @@ async function memberKeys(source: ItemReadSource, itemId: string): Promise<strin
 }
 
 /**
- * What one of an item's runs shows on its timeline beyond the item read's run: the workflow
+ * What the item page tells of one of an item's runs beyond the item read's run: the workflow
  * as the view declares it, its cost, its running step, and the declared rounds loop's rounds
  * on it with each round's steps.
  */
@@ -721,7 +721,7 @@ export const factoryItemDetailSchema = z.object({
 });
 export type FactoryItemDetail = z.infer<typeof factoryItemDetailSchema>;
 
-/** The item `key` names, its read and progress, with each run's timeline facts. */
+/** The item `key` names, its read and progress, with each run's story facts. */
 export async function readFactoryItem(
   source: ItemReadSource,
   input: ReadFactoryItemsInput,

@@ -3,7 +3,7 @@ import type { TimelineShadow } from './lib/timeline';
 import { ShadowBadge } from './ShadowBadge';
 
 /**
- * One shadow decision under its run on the item's timeline (rule 10): the badge, what decided
+ * One shadow decision in its stage's panel of the item's story (rule 10): the badge, what decided
  * it, and what it would have done, in the tertiary text colour and never a state colour,
  * since nothing acted on it. Its why, or the failed checks' output, opens below.
  */

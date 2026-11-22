@@ -67,12 +67,13 @@ export function asksSettledRunId(cause: unknown): string | null {
   return typeof cause.runId === 'string' ? cause.runId : null;
 }
 
-function restartOf(
+/** The run settling `askingRunId`'s asks started, named by its stage; null until one has. */
+export function restartOf(
   view: Declaration | null,
   item: AnsweredSource,
-  settled: Settled
+  askingRunId: string
 ): SettledAsks['restart'] {
-  const run = item.runs.find(entry => asksSettledRunId(entry.cause) === settled.runId);
+  const run = item.runs.find(entry => asksSettledRunId(entry.cause) === askingRunId);
   if (run === undefined) return null;
   // The view names workflows as the progress read reports them.
   const workflow = item.progress?.runs.find(entry => entry.runId === run.id)?.workflow;
@@ -86,7 +87,7 @@ function restartOf(
 }
 
 /** What an ask was answered with, in words: the chosen option humanised, else the text. */
-function answerWords(answer: AskAnswer): string {
+export function answerWords(answer: AskAnswer): string {
   if (answer.withdrawn) return 'withdrawn';
   if (answer.chosen !== null)
     return answer.chosen.id === 'other' ? 'Something else' : humaniseId(answer.chosen.id);
@@ -130,7 +131,7 @@ export function recentlySettled(
       at: settled.at,
       askedAt: item.runs.find(run => run.id === settled.runId)?.completedAt ?? null,
       asks: asksOf(item, settled),
-      restart: restartOf(view, item, settled),
+      restart: restartOf(view, item, settled.runId),
     }));
 }
 

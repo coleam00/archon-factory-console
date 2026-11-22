@@ -364,15 +364,16 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 ### 5. Colour
 
 - Group colours: intake `--tone-intake`, build `--node-wait`, check `--node-approval`, land
-  `--node-script` (`factory/tones.ts`, which the board, the item timeline, the map and its
+  `--node-script` (`factory/tones.ts`, which the board, the item page, the map and its
   legend all read). None is purple or pink, and each is at least 25 degrees of hue from the
   others and from `--running` and `--warning` (`tones.test.ts`).
 - Board columns (owner change 4): Intake takes intake's colour, Plan & build build's, Checks &
   review check's, Ready to merge land's, and Merged `--success`.
-- A group colour appears only as the accent bar, the icon, the legend swatch, the item
-  timeline's dot (a swatch-sized marker), and on the canvases a card's faint top tint and its
-  light: never a solid fill or a text colour. The one exception is the
-  send-back line (rule 4), drawn in `--node-approval`, which the timeline's returned icon shares;
+- A group colour appears only as the accent bar, the icon, the legend swatch, and on the
+  canvases (and the item page's journey strip) a card's faint top tint and its light: never a
+  solid fill or a text colour. The one exception is the
+  send-back line (rule 4), drawn in `--node-approval`, which the item page's "Sent back" cells
+  and send-back loops share;
   the legend tells it apart by showing it as a dashed line, not a swatch.
 - How it works kind colours (`overview/overview-kinds.ts`): input `--node-command`, stage
   `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
@@ -706,7 +707,7 @@ documents through Neon live queries.
   | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
-  | `factory/items/:key` | One item: its timeline, asks, links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
+  | `factory/items/:key` | One item: its story (header band, journey strip, a panel per stage with its rounds grid and asks), links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
   | `factory/stages/:stage` | One stage, full page, as a deep link: the same content the Overview's stage modal shows (its label, blurb and the tabs "What this stage does \| Items here now \| The real workflow"), under a back link to the Overview. An id the view does not declare says "There is no stage <id> in this factory" and links the Overview and each declared stage |
   | `factory/steps/:workflow/:node` | One step, as a document page (owner change 7 of 2026-11-21): a header band with its name and id tag, the drill-down card's line for what it does (else its kind and workflow), and chips for its kind in its kind colour, the model in words ("Lander tier, else medium"), its workflow, the stage that works it (opening that stage's modal) and how many items are on it now. The main column: "What it does" (the covering drill-down card's title and line, which the header's sentence also is: the view file gives one line per step), its prompt as markdown with each `$INPUTS.x` and `$node.output` reference as a named chip (the server finds them with the engine's grammar; a code span that is exactly one reference is its chip too, the raw token on hover, while a longer code span or a code block stays code), folded after 30 lines, or a bash or script step's script on a numbered code panel (a named script read from its file); the items on it now as board cards, or an empty state linking the board; its YAML behind a closed "Show the YAML". The aside: a definition grid of its kind, model, condition, the inputs and step outputs its prompt reads, the outcomes the view file declares for it (`verdicts`, `returns`, `approves`), each in words with its outcome id as a tag, and what starts after it (the steps and loops that wait on it, and a step whose condition reads its result, "next round" when that step comes earlier in the same loop), each row left out when nothing says it; then its workflow down one line, inside its loops, this step marked and every other a link to its own page. A workflow no stage runs, or a step its workflow does not have, says so in plain words and links the step's stage, else the Overview; a read that failed says why, with a Retry |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
@@ -789,6 +790,15 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // only runs that completed with `outcome`;
                                                    // read only without a part_of link
   "itemTitle": { "input": "item" },                // item title = title line of this run input
+  "story": {                                       // the item page's one sentence per stage
+    "outcomes": { "triage:build": "Triage judged it worth building",
+                  "landgate:*": "The merge gate read the change" },  // workflow:* takes a run
+                                                   // with no outcome too, as placement does
+    "steps": { "deliver": { "build__build": "Build wrote the change" } },  // an earlier stage
+                                                   // of a run that works several, by the step
+                                                   // that starts it
+    "said": ["/summary", "/why"]                   // where a result says what it did, for "More"
+  },
   "map": {
     "cards": [ { "stage": "build" } ],              // the stages the map shows, each in its
                                                    // column's card, one row
@@ -817,7 +827,8 @@ declaration names no stage for it: runs of a workflow no stage lists do not plac
 what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
 Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of
 `deliver` and of `stage-check`, and the drain; not the land gate, which acts) and how each one's
-value reads; the item timeline, stage pages, board and map show their decisions as shadows (#80).
+value reads; the item page, stage pages, board and map show their decisions as shadows (#80).
+Its `story` field gives the item page one plain sentence per outcome (#122).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -897,11 +908,14 @@ What those reads do not carry comes from **one read-only route file**,
   exact, over every item on the project), and how many they held and dropped; 404 when the view
   declares none.
 - `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
-  timeline needs per run and neither read carries: the workflow as the view names it (a
+  story needs per run and neither read carries: the workflow as the view names it (a
   stage's, or the `discoveries` drain's, which places no item), the run's cause, its
   cost, its running step, each round of the declared `rounds` loop with the steps that
-  recorded an outcome in it and the deciding step's summary, and what each shadow step decided
-  on the run (one per round in a loop; a drain's run included).
+  recorded an outcome in it and the deciding step's summary, what each shadow step decided
+  on the run (one per round in a loop; a drain's run included), the pull request it named at
+  the declared `change` pointer, what it said in its own words at the `story.said` pointers,
+  the models its steps recorded, and when each of its steps started (the step id as the engine
+  records it; the web places each step, so placement stays in one place).
 - Whether a change merged comes from the change host through Archon's forge seam (the same
   `pull request view` operation the packs use), read by the server and cached for at least
   60 s. The pull request is the one the run's forge records name, else the one on a branch
@@ -1205,40 +1219,90 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 
 ## The item page
 
-- Header: key, title (Section heading role), state pill, the column it is in (not for a merged
-  item: its pill says so; for a parked item, the declared label, "Parked by triage", with the
-  reason its run gave on hover), and the change as a button-style link ("PR #n") with its merge
-  state as quiet tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line
-  while the host is still asked). The pill is the header's one coloured state. An item no run has
-  started yet (a member linked before its first run) says "Not started" instead of a state,
-  column and change.
-- **Asks** it waits on, answerable in place (the ask card Needs you draws, always open).
-- **Timeline:** a vertical timeline of every run on the item in order. Each run is a dot in its
-  stage group's colour (`--node-opaque` for a shadow run; a run of the discoveries workflow
-  reads "Found by the factory") on one connecting line, an icon for what its outcome did (sent
-  on, returned, asked you, failed, running, stopped), the stage label and workflow, the outcome,
-  and duration and cost right-aligned in mono; under it how it started (by hand, or after which
-  run's outcome; a trigger's id only on hover). For the rounds loop, one compact row per round
-  (a `stage-check` run is one round, numbered by its result):
-  "round N of M", its verdict, and a chip per check in its verdict's colours, with what was
-  returned on one line. Sent on and returned follow the board's order, judged from the furthest
-  stage the run's workflow works: a placement into an earlier column, or an earlier stage of
-  the same column, reads returned; a placement into a later stage, or into that furthest stage
-  itself (the land gate into Ready to merge), reads sent on. Once the change
-  merged, a last Merged entry gives when, in local time. Each row links to its run. A check's
-  verdict reads in the board's words where the view declares its meaning (`returns`, `approves`,
-  `verdicts`): "approved", "returned", "asked you"; an undeclared one stays its mono token. A run
-  that stopped to ask (a declared `asked` outcome, or asks it left on the item) reads "asked
-  you", with its questions on hover, not the stage it would send the item to. A run that parked
-  the item reads the declared `parked` label ("Parked by triage"), not "sent to Triage".
-- **Links:** depends on, part of, duplicate of, from the engine's item links. A member its order
-  run placed without a link says "Part of <order>, as its order run recorded". On a work order,
-  its members stand for their links: each with its title, state pill and where it sits, under
-  "Members: N of M merged". An order with no run of its own has no column or state; its header
-  says it is a work order, not worked by the factory itself, and without a title of its own it
-  reads "Work order <key>" (the key stays the mono label). An order only a result names has
-  no item row: its page is its key, that title and its members, from the items read.
-- **Rulings and answers** given on the item.
+A document page (owner change 5 of 2026-11-21) that tells the story of one item (owner change
+8): a header band and the journey strip across the full width, then the story in the main
+column and the item's records in the aside. At 390 px the strip scrolls sideways and the
+panels stack. Everything on it is derived in `factory/lib/` from the item read and the view
+declaration: where the item went (`item-visits.ts`), the strip (`item-journey.ts`), the panels
+and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts`).
+
+- **Header band:** `#<key>` and the title, the state pill the board card shows (the band's one
+  coloured state), the change as a button-style link ("PR #n") with its merge state as quiet
+  tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line while the
+  host is still asked), one sentence of where the item is ("In Checks now.", the `endings`
+  label, the `parked` label with the reason its run gave, "Its change merged."), and stat
+  chips: the time from its first run to its merge ("order to merge"), to where it stopped, or
+  to now; its cost; "N of M check rounds" from the board's round; and how many asks were
+  answered. An item no run has started yet (a member linked before its first run) says "Not
+  started" instead, with no chips; a work order with no run of its own says it is a work order.
+- **Journey strip:** one segment per board column, in the column's colour, with the time the
+  item spent there (every visit together), or "Not reached". Where it was comes from each
+  stage its runs worked, as their steps started, and from where `placement` left the item when
+  each run completed, so the strip, the board and the story place alike. The column its board
+  card is in now is lit as the map lights a card ("It is here now"); for a merged item, Merged.
+  Each move into an earlier column is counted on the column it left, as a dashed loop in the
+  send-back colour, "sent back 2x to Plan & build". Each ask it waited on is a pause on the
+  column the asking run left it in, "waited on you 12 min" (to now, in the needs-you colour,
+  while the ask is open). An item that was parked, ended or failed ends where it stopped,
+  saying so ("Stopped here: Parked by triage"); its time ends with its last run.
+- **The story:** one panel per stage visit in the order it ran: a stage the item met again is
+  its own panel, numbered ("Plan (2)"). A run of a workflow one stage lists works that stage; a
+  run of a workflow several stages list (a loop-form delivery) moves to a stage when a step the
+  stage's `nodes` name starts; a step no stage names (a loop group) leaves it where it was, and
+  so do a completed run's closing steps when its outcome places the item back on the stage it
+  worked before them (a build that stopped to ask still runs the delivery's ending steps). A
+  build visit between two visits of one check stage is that stage's fix and folds into its
+  panel, so build and check ping-pong (a stage-form delivery's runs, or a loop's fix step) reads
+  as one Checks panel. Each panel has a 3 px bar and a section heading in its board column's
+  colour (the column's label as the eyebrow, the stage as the heading) and opens with one plain
+  sentence of what happened:
+  - a run not finished, in the stage's name: "Build is working on it now: Writes the change",
+    "Plan is waiting to start", "Plan failed at <step>", "Plan was stopped";
+  - a Checks panel with rounds, from its rounds: "Checks sent it back twice, then approved it",
+    "... then asked you", "Checks approved it";
+  - else the view's `story` sentence for the panel's last run: `story.outcomes` when this is the
+    last stage the run worked, `story.steps` (by the step it started the stage on) for an
+    earlier one, and, when the view tells neither, a neutral sentence: "Plan finished: sent to
+    Build", or the pack's token in mono.
+  The console adds only clauses about its own concepts: " and opened PR #n" on the panel of the
+  run that named that pull request first, ": <why>" when the panel ended by sending the item
+  back (the returning round's summary, else the run's words at `story.said`, cut to a sentence
+  of about 140 characters with the rest behind "More"), and "; you said <option>" when the
+  panel's last run asked and was answered. Then its details as a definition grid: when, how
+  long, cost, the models its runs recorded, and each run linked.
+- **Check rounds as a grid:** in a Checks panel, a table whose columns are the rounds (a
+  loop-form delivery's iterations, or one per stage-form run, numbered and bounded by its own
+  result: "Round 4 of 4") and whose rows are: each step with a declared meaning (`returns`,
+  `approves`, `verdicts`), named as the view names it, in the order the view's `steps` lists
+  them; the builder's fixes (a loop's fix step, or a folded build run), in the column of the
+  round they answered; the next check stage's runs (CI and the reviews), stacked in the last
+  round's column; and each shadow step's decision as a shadow row (rule 10). Each cell is an
+  icon and a word in its colour: "Sent back" in the send-back colour, "Approved" in success,
+  "Asked you" in needs-you, "Fixed" neutral, "Not run" tertiary with a dash; an outcome the
+  view does not word stays the pack's token in mono; the step's id and what it said are the
+  cell's hover. A one-line legend above it says what "Sent back" and "Approved" mean; under
+  it, each round that sent the change back says why in one sentence, the full text behind
+  "More". A step whose outcome only restates the verdict has no meaning declared and no row.
+- **Asks in the story:** an answered ask sits in the panel of the run that asked it: the
+  question, "You said <option>" with the option's id as a tag and its own words, who answered
+  and when, and what that started ("Build started again", the stage of the run whose cause
+  names the settled asks, else "Nothing started"). An open ask is the ask card Needs you
+  draws, answerable in place, in its run's panel; one no panel holds waits on a "Waiting on
+  you" panel at the top of the story, which also shows a skeleton while the asks are read.
+- **Shadows** sit in the panel of the stage their step is on, in the shadow style (rule 10),
+  quieter than the real steps; a round's project checks are the grid's shadow row. A run of the
+  `discoveries` drain, on no stage, is a quiet panel of its own, "Found by the factory", in
+  start order.
+- **Merged:** the Merged stage's panel gives when the change merged; when no run of that stage
+  tells it (a person merged it), a last panel says only "The change merged <time>", never that
+  the factory merged it. Only the view's sentence for a landing run says the factory did.
+- **Aside:** Links (depends on, part of, duplicate of, from the engine's item links; a member
+  its order run placed without a link says "Part of <order>, as its order run recorded"; on a
+  work order, its members stand for their links: each with its title, state pill and where it
+  sits, under "Members: N of M merged") and Rulings and answers given on the item, each on a
+  panel. An order with no run of its own has no column or state; without a title of its own it
+  reads "Work order <key>". An order only a result names has no item row: its page is its key,
+  that title and its members, from the items read.
 
 ## Testing
 

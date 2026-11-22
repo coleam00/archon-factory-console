@@ -1,30 +1,28 @@
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useParams } from 'react-router';
-import { AskGroup } from '../components/ask-card/AskGroup';
-import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
-import { CircleCheck } from 'lucide-react';
-import { EmptyNote } from '../components/EmptyNote';
+import { BookOpen, Info } from 'lucide-react';
 import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
-import { askNaming } from '../lib/ask-naming';
-import { errorDetail } from '../lib/http';
 import * as skill from '../skills';
 import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { useFactoryRead } from './useFactoryRead';
-import { readFailed } from './lib/deadline';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
-import { ItemHeader } from './ItemHeader';
+import { Panel, SectionHeading } from './document';
+import { ItemBand } from './ItemBand';
+import { ItemJourney } from './ItemJourney';
+import { ItemStory } from './ItemStory';
 import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { isNoSuchItem, useWorkOrders, WorkOrderOnly } from './ItemWorkOrder';
-import { ItemTimeline, SectionTitle } from './ItemTimeline';
 import { itemPill } from './lib/board';
 import { mergePending } from './lib/merge-pending';
-import { itemAsks, type NeedsYouItem } from '../lib/needs-you';
+import { itemAsks } from '../lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
-import { buildTimeline, timelineMerged } from './lib/timeline';
+import { itemJourney } from './lib/item-journey';
+import { itemStory } from './lib/item-story';
+import { buildTimeline } from './lib/timeline';
 import { membershipOf } from './lib/work-orders';
 import { factoryPath, type FactoryViewListed } from './lib/views';
 import { scheduleReread } from './merge-reread';
@@ -115,34 +113,70 @@ function ItemRead({
     );
   const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
-  // The placement every view shares, and the board's pill, so the header says what the
-  // item's card says.
+  // The placement every view shares, and the board's pill, so the band says what the item's
+  // card says and the strip lights the card's column.
   const landed = stageIdOf(column ?? null) === declaration.landed.stage;
+  const now = Date.now();
+  const journey = itemJourney(declaration, data, column ?? null, now);
+  const timeline = buildTimeline(declaration, data);
   return (
-    <>
-      <ItemHeader
-        item={data.item}
+    <div data-doc-page="" className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+      <ItemBand
+        detail={data}
         pill={itemPill(declaration, data.item, landed).pill}
         column={column ?? null}
+        journey={journey}
         workOrder={
           data.item.runs.length === 0 &&
           (order !== undefined || incomingMembers(data.item).length > 0)
         }
       />
-      <ItemAsks projectId={projectId} view={view} asks={asks} attention={attention} />
-      <ItemTimeline
-        rows={buildTimeline(declaration, projectId, data, Date.now())}
-        merged={timelineMerged(data)}
-      />
-      <ItemLinks
-        projectId={projectId}
-        links={data.item.links}
-        membership={membershipOf(data.item)}
-        order={order}
-      />
-      <ItemAnswers projectId={projectId} answers={data.item.answers} />
-      <Degraded degraded={data.item.degraded} />
-    </>
+      {data.item.runs.length === 0 ? null : <ItemJourney journey={journey} />}
+      <section
+        data-doc-section=""
+        aria-labelledby="item-story"
+        className="flex min-w-0 flex-col gap-4"
+      >
+        <SectionHeading
+          id="item-story"
+          icon={BookOpen}
+          eyebrow="What happened"
+          title="The story"
+          tone="var(--text-tertiary)"
+        />
+        <ItemStory
+          projectId={projectId}
+          view={view}
+          panels={itemStory(declaration, projectId, data, timeline, now)}
+          asks={asks}
+          questions={data.item.questions.length}
+          attention={attention}
+        />
+      </section>
+      <section
+        data-doc-section=""
+        aria-labelledby="item-about"
+        className="flex min-w-0 flex-col gap-4"
+      >
+        <SectionHeading
+          id="item-about"
+          icon={Info}
+          eyebrow="Around it"
+          title="About this item"
+          tone="var(--text-tertiary)"
+        />
+        <div className="flex flex-col gap-4">
+          <ItemLinks
+            projectId={projectId}
+            links={data.item.links}
+            membership={membershipOf(data.item)}
+            order={order}
+          />
+          <ItemAnswers projectId={projectId} answers={data.item.answers} />
+          <Degraded degraded={data.item.degraded} />
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -230,61 +264,20 @@ function ItemSkeleton({ read }: { read: EntityView<FactoryItemDetail> }): ReactE
   );
 }
 
-/** The item's open asks, each as the ask card Needs you draws, always open; the page names the item. */
-function ItemAsks({
-  projectId,
-  view,
-  asks,
-  attention,
-}: {
-  projectId: string;
-  view: FactoryViewListed;
-  asks: NeedsYouItem[];
-  attention: EntityView<AttentionQueue>;
-}): ReactElement {
-  const queue = attention.data;
-  const failed = readFailed(attention.error);
-  // Held here, not in the group: the item's last ask answered would otherwise unmount it.
-  const hold = useAnsweredHold(asks);
-  return (
-    <section className="flex flex-col gap-2.5">
-      <SectionTitle>Asks</SectionTitle>
-      {queue === undefined ? (
-        failed === undefined ? (
-          <FactoryLoading read={attention}>
-            <SkeletonGroup label="Loading what waits on you">
-              <SkeletonBlock height="h-32" rounded="rounded-console-16" />
-            </SkeletonGroup>
-          </FactoryLoading>
-        ) : (
-          <p className="text-console-13 text-text-tertiary">
-            What waits on you could not be loaded: {errorDetail(failed)}
-          </p>
-        )
-      ) : hold.asks.length === 0 ? (
-        <EmptyNote icon={CircleCheck} sentence="Nothing on this item is waiting on you." />
-      ) : (
-        <AskGroup
-          projectId={projectId}
-          asks={hold.asks}
-          hold={hold}
-          queue={queue}
-          where={askNaming(projectId, view).where}
-        />
-      )}
-    </section>
-  );
-}
-
 /** Each part of the item that could not be read, one muted line each. */
 function Degraded({ degraded }: { degraded: FactoryItem['degraded'] }): ReactNode {
   if (degraded.length === 0) return null;
   return (
-    <ul className="flex flex-col gap-1 text-console-13 text-text-tertiary">
-      {degraded.map(report => (
-        <li key={JSON.stringify(report)}>{degradedWords(report)}</li>
-      ))}
-    </ul>
+    <Panel className="p-4">
+      <ul
+        aria-label="What could not be read"
+        className="flex flex-col gap-1 text-console-13 text-text-tertiary"
+      >
+        {degraded.map(report => (
+          <li key={JSON.stringify(report)}>{degradedWords(report)}</li>
+        ))}
+      </ul>
+    </Panel>
   );
 }
 

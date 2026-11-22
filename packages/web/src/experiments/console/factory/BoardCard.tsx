@@ -28,7 +28,7 @@ export const PILL_CLASS: Record<Pill, string> = {
   landed: 'bg-[color:var(--success-soft)] text-success',
 };
 
-/** A round's verdict colour, as a dot on the card and as its words on the item's timeline. */
+/** A round's verdict colour, as a dot on the card. */
 const VERDICT_DOT_CLASS: Record<RoundVerdict, string> = {
   approved: 'bg-success',
   returned: 'bg-error',
