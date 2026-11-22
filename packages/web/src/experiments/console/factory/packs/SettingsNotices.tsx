@@ -31,12 +31,37 @@ export function SettingsErrors({ settings }: { settings: FactoryPackSettings }):
         {errors.map(error => (
           <li key={error.key} className="text-console-13 text-text-secondary">
             {error.path === null ? null : (
-              <span className="block break-all font-mono text-text-primary">{error.path}</span>
+              <span className="block font-mono [overflow-wrap:anywhere] text-text-primary">
+                {error.path}
+              </span>
             )}
             <span className="block [overflow-wrap:anywhere]">{error.text}</span>
           </li>
         ))}
       </ul>
+    </Panel>
+  );
+}
+
+/**
+ * The project in focus whose settings file could not be read: said once, under the band, with
+ * the reader's message, which names the file and the reason. Its setting panels then only say "Not read".
+ */
+export function ProjectUnreadable({ project }: { project: ProjectSettings }): ReactNode {
+  if (project.error === null) return null;
+  return (
+    <Panel
+      role="alert"
+      tone="var(--error)"
+      bar="top"
+      className="flex flex-col gap-2 px-5 pt-5 pb-4"
+    >
+      <p className="text-console-14 font-medium text-error">
+        {project.name}&apos;s settings file could not be read, so this page shows none of its values
+      </p>
+      <p className="text-console-13 text-text-secondary [overflow-wrap:anywhere]">
+        {project.error}
+      </p>
     </Panel>
   );
 }
@@ -87,7 +112,7 @@ export function Undeclared({
           {setting.name}
         </span>
       ),
-      value: <span className="break-all font-mono">{setting.value}</span>,
+      value: <span className="font-mono [overflow-wrap:anywhere]">{setting.value}</span>,
     }))
   );
   if (rows.length === 0) return null;

@@ -21,19 +21,17 @@ export function SettingValue({
   project: ProjectSettings | undefined;
 }): ReactNode {
   if (project === undefined) return <PackDefault setting={setting} />;
-  if (project.error !== null)
-    return (
-      <p className="text-console-13 text-error [overflow-wrap:anywhere]">
-        {project.name}&apos;s settings file could not be read: {project.error}
-      </p>
-    );
+  // The page says why once, under its band (`ProjectUnreadable`); each panel only says so.
+  if (project.error !== null) return <p className="text-console-13 text-error">Not read</p>;
   const value = project.values[setting.name];
   // The server gives every declared setting a value; a missing one reads as unset.
   if (value === undefined || value.state !== 'set') return <DefaultPill />;
   return (
     <div className="flex min-w-0 flex-col gap-2">
       {value.file === null ? (
-        <span className="break-all font-mono text-console-14 text-text-primary">{value.value}</span>
+        <span className="font-mono [overflow-wrap:anywhere] text-console-14 text-text-primary">
+          {value.value}
+        </span>
       ) : (
         <FileValue file={value.file} />
       )}
@@ -61,7 +59,9 @@ function DefaultPill(): ReactElement {
 function PackDefault({ setting }: { setting: Setting }): ReactElement {
   if (setting.default === null || setting.default === '') return <DefaultPill />;
   return (
-    <span className="break-all font-mono text-console-14 text-text-primary">{setting.default}</span>
+    <span className="font-mono [overflow-wrap:anywhere] text-console-14 text-text-primary">
+      {setting.default}
+    </span>
   );
 }
 
@@ -73,7 +73,7 @@ function FileValue({ file }: { file: SettingFile }): ReactElement {
         <FileText aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-text-tertiary" />
         <span
           title={file.full}
-          className="min-w-0 break-all font-mono text-console-14 text-text-primary"
+          className="min-w-0 font-mono [overflow-wrap:anywhere] text-console-14 text-text-primary"
         >
           {file.display}
         </span>
@@ -91,7 +91,11 @@ function FileValue({ file }: { file: SettingFile }): ReactElement {
             rows={file.checks.map(check => ({
               key: check.name,
               label: <span className="font-mono text-text-secondary">{check.name}</span>,
-              value: <span className="break-all font-mono text-console-13">{check.run}</span>,
+              value: (
+                <span className="font-mono [overflow-wrap:anywhere] text-console-13">
+                  {check.run}
+                </span>
+              ),
             }))}
           />
         </Panel>

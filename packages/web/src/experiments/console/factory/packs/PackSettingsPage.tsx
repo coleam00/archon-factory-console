@@ -14,7 +14,13 @@ import { PackFrame } from './PackFrame';
 import { PackLookup, packHeading } from './PackLookup';
 import { SettingsHeader } from './SettingsHeader';
 import { SETTINGS_GRID, SettingsSections } from './SettingsSections';
-import { NoSettings, SettingsErrors, Undeclared, UnknownProject } from './SettingsNotices';
+import {
+  NoSettings,
+  ProjectUnreadable,
+  SettingsErrors,
+  Undeclared,
+  UnknownProject,
+} from './SettingsNotices';
 
 /**
  * `/console/factory/:pack/settings`: how a project has set up the pack, read-only, as a document
@@ -75,6 +81,7 @@ function SettingsBody({
     <div data-doc-page="" className="flex flex-col gap-6">
       <SettingsHeader settings={settings} packName={packName} project={project} />
       {unknown === null ? null : <UnknownProject id={unknown} projects={settings.projects} />}
+      {project === undefined ? null : <ProjectUnreadable project={project} />}
       <SettingsErrors settings={settings} />
       <SettingsSections settings={settings} project={project} />
       <Undeclared projects={settings.projects} focus={project} />

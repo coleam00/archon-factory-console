@@ -375,8 +375,10 @@ declares in its `.pack/pack.yaml`, how many the project sets in its
 shadows today. Below it the settings are grouped into sections by what they govern, as the
 overview's `setting_sections` and each setting's `section` say; a setting no section names is
 shown under "Other settings". Each setting is a panel with its plain name, its id, one line of
-the pack's description (the rest behind More), the pack's default, and what the project sets: a
-path to a file, a command, or "Pack default" when the project leaves it empty or unset. A
+the pack's description (the rest behind More), the pack's declared default when it is not
+empty, and what the project sets: a path to a file, a command, or "Pack default" when the
+project leaves it empty or unset. When the project's file cannot be read, one error under the
+band says why, and each setting says "Not read". A
 setting the overview's `settings` map marks as a policy or the checks file shows the path, says
 "file not found" when the project has no such file, and lists a checks file's checks by name and
 command. A shadow setting carries the shadow badge and, when the map gives one, the line saying

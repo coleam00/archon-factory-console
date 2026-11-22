@@ -12,7 +12,7 @@ type ProjectSettings = FactoryPackSettings['projects'][number];
 /**
  * One setting as a compact panel (owner change 6 of 2026-11-21): its plain name with the id
  * beside it, one line of what it does, what the project in focus sets as the most prominent
- * thing, and the pack's default as meta. Its bar is the section's colour, or `--node-opaque` on
+ * thing, and the pack's declared default as meta when it has one. Its bar is the section's colour, or `--node-opaque` on
  * a shadow (Visual standard, rule 10), which also says what would change once it is live.
  */
 export function SettingPanel({
@@ -48,12 +48,11 @@ export function SettingPanel({
       {setting.shadow && setting.whenLive !== null ? (
         <p className="text-console-13 text-text-tertiary">{setting.whenLive}</p>
       ) : null}
-      {project === undefined ? null : (
+      {/* An empty declared default is the pack's own policy or none; the pill already says the
+          pack applies, so only a real value is worth a line. */}
+      {project === undefined || setting.default === null || setting.default === '' ? null : (
         <p className="text-console-12 text-text-tertiary [overflow-wrap:anywhere]">
-          Pack default:{' '}
-          <span className="font-mono">
-            {setting.default === null || setting.default === '' ? 'none' : setting.default}
-          </span>
+          Pack default: <span className="font-mono">{setting.default}</span>
         </p>
       )}
     </Panel>

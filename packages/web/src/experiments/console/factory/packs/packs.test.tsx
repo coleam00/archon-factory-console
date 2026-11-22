@@ -416,19 +416,34 @@ describe('/console/factory/:pack/settings', () => {
     expect(names(other)).toEqual(['Validate command']);
   });
 
-  test('a panel has its plain name, its id tag, its description and the pack default', async () => {
+  test('a panel has its plain name, its id tag, its description, and a declared default as meta', async () => {
+    const [triage, ...rest] = SETTINGS.settings;
+    const page = await settingsPage({
+      ...SETTINGS,
+      settings: [{ ...(triage ?? setting('triage_policy')), default: 'policy/triage.md' }, ...rest],
+    });
+    const panel = card(page, 'triage_policy');
+    expect(panel?.querySelector('h3')?.textContent).toBe('Triage policy');
+    expect(panel?.querySelector('[data-id-tag]')?.textContent).toBe('triage_policy');
+    expect(panel?.textContent).toContain('Path to the triage policy.');
+    expect(panel?.textContent).toContain('Pack default: policy/triage.md');
+  });
+
+  test('an empty declared default adds no meta line under the "Pack default" pill', async () => {
     const page = await settingsPage();
-    const triage = card(page, 'triage_policy');
-    expect(triage?.querySelector('h3')?.textContent).toBe('Triage policy');
-    expect(triage?.querySelector('[data-id-tag]')?.textContent).toBe('triage_policy');
-    expect(triage?.textContent).toContain('Path to the triage policy.');
-    expect(triage?.textContent).toContain('Pack default: none');
+    // The pill says the pack applies; "Pack default: none" under it would contradict it.
+    expect(card(page, 'triage_policy')?.textContent).not.toContain('Pack default:');
+    expect(card(page, 'validate_command')?.textContent).not.toContain('Pack default:');
   });
 
   test('an empty or unset value is the "Pack default" pill; a set value is shown as it is', async () => {
     const page = await settingsPage();
     expect(card(page, 'triage_policy')?.querySelector('[data-pack-default]')).not.toBeNull();
     expect(value(page, 'validate_command')).toBe('bun test');
+    // A command wraps at its spaces (overflow-wrap: anywhere), never mid-word (break-all).
+    const command = card(page, 'validate_command')?.querySelector('[data-setting-value] span');
+    expect(command?.className).toContain('[overflow-wrap:anywhere]');
+    expect(command?.className).not.toContain('break-all');
     await unmount?.();
     unmount = undefined;
     const other = await settingsPage(SETTINGS, '?project=cb-2');
@@ -501,11 +516,26 @@ describe('/console/factory/:pack/settings', () => {
       mapErrors: ['The factory overview presents setting "gone", which the pack does not declare'],
       projects: [{ ...web, error: 'not valid YAML', values: {} }, api],
     });
-    expect(page.querySelector('[role="alert"]')?.textContent).toContain('"gone"');
-    expect(value(page, 'triage_policy')).toBe(
-      "web's settings file could not be read: not valid YAML"
-    );
+    const alerts = [...page.querySelectorAll('[role="alert"]')].map(alert => alert.textContent);
+    expect(alerts).toHaveLength(2);
+    expect(alerts[0]).toContain("web's settings file could not be read");
+    expect(alerts[0]).toContain('not valid YAML');
+    expect(alerts[1]).toContain('"gone"');
     expect(chips(page)).toEqual(['4settings', '2shadows today']);
+  });
+
+  test('an unreadable project file is said once, and each panel only says "Not read"', async () => {
+    const page = await settingsPage({
+      ...SETTINGS,
+      projects: [{ ...web, error: '/repo/.archon/packs/acme.kit.yaml: not valid YAML' }],
+    });
+    const alerts = page.querySelectorAll('[role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.getAttribute('data-doc-panel')).toBe('panel');
+    expect(alerts[0]?.textContent).toContain('/repo/.archon/packs/acme.kit.yaml: not valid YAML');
+    expect(page.textContent?.split('not valid YAML')).toHaveLength(2);
+    for (const name of ['triage_policy', 'land_policy', 'checks_file', 'validate_command'])
+      expect(value(page, name)).toBe('Not read');
   });
 
   test('a pack that declares nothing says so', async () => {
