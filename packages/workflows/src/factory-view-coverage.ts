@@ -26,6 +26,7 @@ export type CoverageFindingKind =
   | 'undeclared-hand-off'
   | 'unbacked-arrow'
   | 'unplaced-outcome'
+  | 'untold-outcome'
   | 'unknown-outcome'
   | 'no-result'
   | 'graph-incomplete';
@@ -396,7 +397,52 @@ function unplacedOutcomeFindings(
 }
 
 /**
- * Every exact `workflow:outcome` key of `placement`, `endings`, `parked` and `asked` names an
+ * With a `story`, every outcome a listed workflow declares has its sentence, exactly or by
+ * `workflow:*`, so the item page never falls back to its neutral words for a declared outcome.
+ */
+function untoldOutcomeFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  const { story } = view;
+  if (story === undefined) return [];
+  const told = (key: string): boolean => story.outcomes[key] !== undefined;
+  return [...stages].flatMap(([workflow, graphStage]) =>
+    [...(outcomesOf(graphStage) ?? [])]
+      .filter(outcome => !told(`${workflow}:${outcome}`) && !told(`${workflow}:*`))
+      .map(
+        (outcome): CoverageFinding => ({
+          kind: 'untold-outcome',
+          path: ['story', 'outcomes'],
+          message: `outcome "${workflow}:${outcome}" has no story sentence`,
+        })
+      )
+  );
+}
+
+/** Every step `story.steps` words is a real step of its workflow. */
+function storyStepFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  return Object.entries(view.story?.steps ?? {}).flatMap(([workflow, byStep]) => {
+    const graphStage = stages.get(workflow);
+    if (graphStage === undefined) return [];
+    return Object.keys(byStep)
+      .filter(step => !graphStage.nodes.some(node => node.id === step))
+      .map(
+        (step): CoverageFinding => ({
+          kind: 'unknown-step',
+          path: ['story', 'steps', workflow, step],
+          message: `names step "${step}", which workflow "${workflow}" does not have`,
+        })
+      );
+  });
+}
+
+/**
+ * Every exact `workflow:outcome` key of `placement`, `endings`, `parked`, `asked` and
+ * `story.outcomes` names an
  * outcome the workflow declares. A `*` key, and a workflow whose stage declares no outcome, are
  * not compared; a workflow the graph lacks is reported as unknown-workflow.
  */
@@ -409,6 +455,10 @@ function unknownOutcomeFindings(
     ...Object.keys(view.endings).map((key): [ViewPath, string] => [['endings', key], key]),
     ...Object.keys(view.parked ?? {}).map((key): [ViewPath, string] => [['parked', key], key]),
     ...(view.asked ?? []).map((key, index): [ViewPath, string] => [['asked', index], key]),
+    ...Object.keys(view.story?.outcomes ?? {}).map((key): [ViewPath, string] => [
+      ['story', 'outcomes', key],
+      key,
+    ]),
   ];
   return keys.flatMap(([path, key]): CoverageFinding[] => {
     const { workflow, outcome } = outcomeKey(key);
@@ -468,5 +518,7 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
     ...shadowFindings(view, graph),
     ...unplacedOutcomeFindings(view, stages),
     ...unknownOutcomeFindings(view, stages),
+    ...untoldOutcomeFindings(view, stages),
+    ...storyStepFindings(view, stages),
   ];
 }

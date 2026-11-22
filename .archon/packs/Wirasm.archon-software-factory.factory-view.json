@@ -1017,11 +1017,6 @@
       },
       "rounds.verdict__verdict": {
         "ask": "asked"
-      },
-      "rounds.shown": {
-        "approve": "approved",
-        "return": "returned",
-        "ask": "asked"
       }
     },
     "stage-check": {
@@ -1041,11 +1036,6 @@
         "ask": "asked"
       },
       "verdict__verdict": {
-        "ask": "asked"
-      },
-      "rounds": {
-        "approve": "approved",
-        "return": "returned",
         "ask": "asked"
       }
     }
@@ -1242,6 +1232,66 @@
     "land": {
       "end": "Hands on the merge's answer"
     }
+  },
+  "story": {
+    "outcomes": {
+      "order:ready": "Order took the work order and made it an item",
+      "order:refused": "Order refused the work order",
+      "triage:build": "Triage judged it worth building",
+      "triage:narrow": "Triage judged it worth building, in a narrower form",
+      "triage:split": "Triage judged it is more than one change",
+      "triage:recipe": "Triage judged it is handled another way",
+      "triage:native": "Triage judged it is handled another way",
+      "triage:fold": "Triage folded it into another item",
+      "triage:park": "Triage parked it for later",
+      "triage:deprecate": "Triage closed it",
+      "triage:decline": "Triage closed it",
+      "triage:close": "Triage closed it",
+      "split:whole": "Split kept it as one change",
+      "split:split": "Split cut it into pieces",
+      "split:waiting": "Split is waiting before it can cut it",
+      "plan:planned": "Plan wrote the approach",
+      "plan:ask": "Plan asked you before writing the approach",
+      "plan:stop": "Plan stopped it",
+      "deliver:ready": "The checks and CI passed; it is ready to merge",
+      "deliver:returned": "Delivery sent it back to the builder",
+      "deliver:waiting": "Delivery is waiting on CI",
+      "deliver:replan": "Delivery sent it back to planning",
+      "deliver:ask": "Delivery asked you",
+      "stage-build:built": "Build wrote the change",
+      "stage-build:built_for_host": "Build fixed what CI and the reviews raised",
+      "stage-build:replan": "Build sent it back to planning",
+      "stage-build:ask": "Build asked you",
+      "stage-check:approve": "The checks approved it",
+      "stage-check:return": "The checks sent it back",
+      "stage-check:replan": "The checks sent it back to planning",
+      "stage-check:ask": "The checks asked you",
+      "stage-host:ready": "CI and the reviews passed",
+      "stage-host:return": "CI or a review sent it back",
+      "stage-host:waiting": "Waiting on CI",
+      "stage-host:ask": "CI and review asked you",
+      "landgate:land": "The merge gate said land",
+      "landgate:ask": "The merge gate asked you",
+      "landgate:*": "The merge gate read the change",
+      "land:landed": "The factory merged it",
+      "land:returned": "Merging sent it back to the builder",
+      "land:stop": "Merging stopped it",
+      "land:ask": "Merging asked you",
+      "landed:*": "The factory checked the branch after the merge",
+      "discoveries:*": "The factory looked for other work it noticed"
+    },
+    "steps": {
+      "deliver": {
+        "build__build": "Build wrote the change",
+        "rounds.fix": "Build fixed what the checks sent back",
+        "hostrounds.host__host": "CI and the reviews were read",
+        "hostrounds.hostfix": "Build fixed what CI and the reviews raised"
+      }
+    },
+    "said": [
+      "/summary",
+      "/why"
+    ]
   },
   "map": {
     "cards": [
