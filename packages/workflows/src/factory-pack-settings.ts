@@ -3,9 +3,10 @@
  * declares (`<pack>/.pack/pack.yaml`, `inputs:`, in its order), and what each project that
  * runs it sets (`.archon/packs/<pack key>.yaml`, `settings:`). Nothing here names a setting:
  * the declaration gives the names, defaults and descriptions, and the factory overview's
- * `settings` map (`schemas/factory-overview.ts`) says which run as a shadow and which point to
- * a file. A file a setting points to is looked up in the project's checkout; the checks file
- * is read and listed.
+ * `settings` map (`schemas/factory-overview.ts`) says which run as a shadow (and what changes
+ * when one stops being one), which point to a file, and which of the overview's
+ * `setting_sections` each is shown in. A file a setting points to is looked up in the
+ * project's checkout; the checks file is read and listed.
  *
  * This only reads, and only for display: a run resolves its settings itself
  * (`pack-settings.ts`), and refuses a project file this page still shows.
@@ -23,7 +24,11 @@ import {
 } from './pack-settings';
 import { PACK_DECLARATION_PATH } from './packaged-workflow';
 import { factoryChecksFileSchema } from './schemas/factory-checks';
-import type { FactoryOverview } from './schemas/factory-overview';
+import {
+  type FactoryOverview,
+  factoryOverviewIconSchema,
+  factoryOverviewKindSchema,
+} from './schemas/factory-overview';
 import type { PackSettingSpec } from './schemas/pack-settings';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
@@ -66,6 +71,19 @@ export const factoryPackSettingsSchema = z.object({
   declaration: z.object({ path: z.string(), error: z.string().nullable() }).nullable(),
   /** Where each project sets the pack's values, relative to the project. */
   settingsFile: z.string(),
+  /**
+   * The overview's sections for the page, in its order (`setting_sections`); empty when it
+   * lists none.
+   */
+  sections: z.array(
+    z.object({
+      id: z.string(),
+      eyebrow: z.string(),
+      title: z.string(),
+      kind: factoryOverviewKindSchema,
+      icon: factoryOverviewIconSchema,
+    })
+  ),
   /** Every setting the pack declares, in the declaration's order. */
   settings: z.array(
     z.object({
@@ -75,6 +93,10 @@ export const factoryPackSettingsSchema = z.object({
       type: z.enum(['string', 'bool', 'list', 'enum']),
       shadow: z.boolean(),
       pointsTo: pointsToSchema.nullable(),
+      /** The section the overview shows it in; null when it names none. */
+      section: z.string().nullable(),
+      /** A shadow's line on what changes when it stops being one; null when the map gives none. */
+      whenLive: z.string().nullable(),
     })
   ),
   /** Keys of the factory overview's `settings` map that the declaration does not declare. */
@@ -140,9 +162,11 @@ export async function readFactoryPackSettings(input: {
   packKey: string;
   declaration: FoundPackDeclaration | null;
   map: FactoryOverview['settings'];
+  sections?: FactoryOverview['setting_sections'];
   projects: readonly ProjectCheckout[];
 }): Promise<FactoryPackSettings> {
   const { packKey, declaration, map = {} } = input;
+  const sections = input.sections ?? [];
   const settingsFile = `.archon/packs/${packKey}.yaml`;
   const head = {
     pack: packKey,
@@ -154,11 +178,18 @@ export async function readFactoryPackSettings(input: {
   };
   // Without the declaration there is nothing to read a project's values against.
   if (declaration !== null && 'error' in declaration)
-    return { ...head, settings: [], mapErrors: [], projects: [] };
+    return { ...head, sections: [], settings: [], mapErrors: [], projects: [] };
 
   const declared = (declaration?.settings ?? []).map(([name, spec]) => {
     const shown = Object.hasOwn(map, name) ? map[name] : undefined;
-    return { name, spec, shadow: shown?.shadow === true, pointsTo: shown?.points_to ?? null };
+    return {
+      name,
+      spec,
+      shadow: shown?.shadow === true,
+      pointsTo: shown?.points_to ?? null,
+      section: shown?.section ?? null,
+      whenLive: shown?.when_live ?? null,
+    };
   });
   const names = new Set(declared.map(({ name }) => name));
   const declaredIn = declaration?.path ?? `no ${PACK_DECLARATION_PATH}`;
@@ -171,15 +202,17 @@ export async function readFactoryPackSettings(input: {
   const projects = await Promise.all(
     input.projects.map(project => readProject(project, packKey, declared))
   );
-  const settings = declared.map(({ name, spec, shadow, pointsTo }) => ({
+  const settings = declared.map(({ name, spec, shadow, pointsTo, section, whenLive }) => ({
     name,
     description: spec.description ?? null,
     default: spec.default ?? null,
     type: spec.type,
     shadow,
     pointsTo,
+    section,
+    whenLive,
   }));
-  return { ...head, settings, mapErrors, projects };
+  return { ...head, sections, settings, mapErrors, projects };
 }
 
 async function readProject(

@@ -114,6 +114,21 @@ const factoryOverviewSettingSchema = z.strictObject({
    * list of checks (`schemas/factory-checks.ts`). A pack declares at most one checks file.
    */
   points_to: z.enum(['policy', 'checks']).optional(),
+  /** The section of the Settings page it is shown in: an id from `setting_sections`. */
+  section: slugSchema.optional(),
+  /** A shadow setting only: what changes once it stops being a shadow, in one plain line. */
+  when_live: z.string().min(1).max(160).optional(),
+});
+
+/** One section of the Settings page: settings grouped by what they govern. */
+const factoryOverviewSettingSectionSchema = z.strictObject({
+  id: slugSchema,
+  /** The short label above the title, in the section's colour. */
+  eyebrow: z.string().min(1).max(24),
+  title: z.string().min(1).max(60),
+  /** The section's colour, as a card of that kind has it. */
+  kind: factoryOverviewKindSchema,
+  icon: factoryOverviewIconSchema,
 });
 
 const factoryOverviewShape = z.strictObject({
@@ -141,6 +156,12 @@ const factoryOverviewShape = z.strictObject({
   settings: z
     .record(z.string().regex(INPUT_NAME_PATTERN, 'a setting name'), factoryOverviewSettingSchema)
     .optional(),
+  /**
+   * The Settings page's sections, in page order. A setting names its section in `settings`;
+   * a declared setting that names none is shown in a trailing "Other" section, so a pack
+   * update never hides one.
+   */
+  setting_sections: z.array(factoryOverviewSettingSectionSchema).optional(),
 });
 
 type FactoryOverviewShape = z.infer<typeof factoryOverviewShape>;
@@ -231,15 +252,39 @@ function loopIssues(overview: FactoryOverviewShape): Issue[] {
   ];
 }
 
-/** A pack declares one checks file, so at most one setting points to it. */
+/**
+ * A pack declares one checks file, so at most one setting points to it. A setting's section is
+ * a listed one, and only a shadow says what changes when it stops being one.
+ */
 function settingsIssues(overview: FactoryOverviewShape): Issue[] {
-  const checks = Object.entries(overview.settings ?? {}).filter(
-    ([, setting]) => setting.points_to === 'checks'
-  );
-  return checks.slice(1).map(([name]) => ({
+  const settings = Object.entries(overview.settings ?? {});
+  const checks = settings.filter(([, setting]) => setting.points_to === 'checks');
+  const issues: Issue[] = checks.slice(1).map(([name]) => ({
     path: ['settings', name, 'points_to'],
     message: `"${name}" points to the checks file, which "${checks[0]?.[0] ?? ''}" already does`,
   }));
+  const sections = new Set<string>();
+  overview.setting_sections?.forEach((section, index) => {
+    if (sections.has(section.id))
+      issues.push({
+        path: ['setting_sections', index, 'id'],
+        message: `section "${section.id}" is listed twice`,
+      });
+    sections.add(section.id);
+  });
+  for (const [name, setting] of settings) {
+    if (setting.section !== undefined && !sections.has(setting.section))
+      issues.push({
+        path: ['settings', name, 'section'],
+        message: `names section "${setting.section}", which is not in setting_sections`,
+      });
+    if (setting.when_live !== undefined && setting.shadow !== true)
+      issues.push({
+        path: ['settings', name, 'when_live'],
+        message: 'says what changes when it stops being a shadow, and it is not one',
+      });
+  }
+  return issues;
 }
 
 export const factoryOverviewSchema = factoryOverviewShape.superRefine((overview, ctx) => {

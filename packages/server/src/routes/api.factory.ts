@@ -516,6 +516,7 @@ async function packSettings(
     packKey: key,
     declaration,
     map: pack.overview?.declaration.settings,
+    sections: pack.overview?.declaration.setting_sections,
     projects,
   });
 }

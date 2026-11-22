@@ -18,6 +18,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import type { ToneColor } from '../document';
 import type { OverviewCard } from '../lib/overview-nav';
 
 /**
@@ -28,15 +29,17 @@ import type { OverviewCard } from '../lib/overview-nav';
  * `overview-kinds.test.ts` resolves each to its oklch value and holds both rules. The check
  * shares the send-back lines' colour, as the live map's check group does (Visual standard rule 5).
  */
-export const KINDS: Record<OverviewCard['kind'], { color: string; label: string; words: string }> =
-  {
-    input: { color: 'var(--node-command)', label: 'Input', words: 'Where work comes from' },
-    stage: { color: 'var(--node-wait)', label: 'Stage', words: 'A stage of the factory' },
-    check: { color: 'var(--node-approval)', label: 'Check', words: 'A check on the change' },
-    person: { color: 'var(--node-script)', label: 'You', words: 'A person steps in' },
-    gate: { color: 'var(--node-bash)', label: 'Gate', words: 'A gate that decides' },
-    outcome: { color: 'var(--success)', label: 'Outcome', words: 'What comes out' },
-  };
+export const KINDS: Record<
+  OverviewCard['kind'],
+  { color: ToneColor; label: string; words: string }
+> = {
+  input: { color: 'var(--node-command)', label: 'Input', words: 'Where work comes from' },
+  stage: { color: 'var(--node-wait)', label: 'Stage', words: 'A stage of the factory' },
+  check: { color: 'var(--node-approval)', label: 'Check', words: 'A check on the change' },
+  person: { color: 'var(--node-script)', label: 'You', words: 'A person steps in' },
+  gate: { color: 'var(--node-bash)', label: 'Gate', words: 'A gate that decides' },
+  outcome: { color: 'var(--success)', label: 'Outcome', words: 'What comes out' },
+};
 
 /** Every icon a card may name. Keyed by the generated icon enum, so a new one fails type-check until mapped. */
 export const ICONS: Record<OverviewCard['icon'], LucideIcon> = {
