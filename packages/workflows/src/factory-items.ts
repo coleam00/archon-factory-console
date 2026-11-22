@@ -19,15 +19,8 @@ import {
   readItemRuns,
   type ItemReadSource,
 } from './item-read';
-import { resolveJsonPointer } from './json-pointer';
-import type { JsonValue } from './output-ref';
 import { resultString, runParked } from './factory-parked';
-import {
-  changeSources,
-  isLoopRounds,
-  roundsSources,
-  type FactoryView,
-} from './schemas/factory-view';
+import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
 import { parseRunUsage } from './schemas/run-usage';
@@ -40,16 +33,9 @@ import {
   type NodeStateEventType,
   type WorkflowEventType,
 } from './store/event-types';
-import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
-import {
-  decidedIn,
-  roundFacts,
-  stageRoundFacts,
-  stageRoundsOf,
-  type DecisionPoint,
-  type DecisionPoints,
-  type Outcomes,
-} from './factory-rounds';
+import { buildNodeOutcomes } from './terminal-record';
+import { runChange } from './factory-change';
+import { decidedIn, itemRound, runRounds, type DecisionPoint } from './factory-rounds';
 import {
   factoryShadowDecisionSchema,
   latestShadowDecisions,
@@ -286,22 +272,6 @@ function deepestActiveStep(events: readonly WorkflowEventRow[]): string | null {
   return deepest ?? null;
 }
 
-function changeFacts(
-  pointer: string,
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[]
-): FactoryRunFacts['change'] {
-  const record = getTerminalRecord(run.status, events);
-  if (record?.returns.availability !== 'available') return null;
-  const url = resolveJsonPointer(record.returns.value as JsonValue, pointer);
-  if (typeof url !== 'string') return null;
-  const audits = events
-    .filter(row => row.event_type === 'integration_operation')
-    .map(row => row.data);
-  const trimmed = url.trim();
-  return { url: trimmed === '' ? null : trimmed, audits };
-}
-
 /**
  * Whether `run` is one the item's facts read: a run of a workflow a stage lists, or of one a
  * shadow names (the discoveries workflow, which no stage lists).
@@ -313,33 +283,6 @@ function factsRead(view: FactoryView, pack: string, run: WorkflowRun): boolean {
       shadow => factoryRunWorkflowName(pack, shadow.workflow) === run.workflow_name
     )
   );
-}
-
-/** The run's check rounds, read by the rounds source naming its workflow; null when none does. */
-function runRounds(
-  view: FactoryView,
-  workflow: string | null,
-  points: DecisionPoints,
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[],
-  outcomes: Outcomes
-): FactoryRunFacts['rounds'] {
-  const source = roundsSources(view).find(entry => entry.workflow === workflow);
-  if (source === undefined) return null;
-  return isLoopRounds(source)
-    ? roundFacts(source.loop, points, run, events, outcomes)
-    : stageRoundFacts(source, points, run, events, outcomes);
-}
-
-/** The run's change, at the pointer of the change source naming its workflow; null when none does. */
-function runChange(
-  view: FactoryView,
-  workflow: string | null,
-  run: WorkflowRun,
-  events: readonly WorkflowEventRow[]
-): FactoryRunFacts['change'] {
-  const source = changeSources(view).find(entry => entry.workflow === workflow);
-  return source === undefined ? null : changeFacts(source.pointer, run, events);
 }
 
 /**
@@ -471,7 +414,7 @@ export async function factoryItemProgress(
   return {
     title: itemTitle(view, runs),
     running,
-    round: itemRound(view, pack, declared, facts),
+    round: itemRound(view, declared, facts, run => declaredWorkflow(view, pack, run.workflow_name)),
     partOf: workOrderOf(view, pack, declared, facts),
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change: await changeOf(declared, latest, changeState, branchOf),
@@ -484,54 +427,6 @@ export async function factoryItemProgress(
     // Placement reads the same last run: one started after the parking one takes the item up.
     parked: (last === undefined ? null : facts.get(last.id)?.parked) ?? null,
   };
-}
-
-/**
- * The item's rounds, from the rounds source of the newest declared run that recorded one: the
- * loop on that run, or the stage rounds gathered across the runs of its workflow.
- */
-function itemRound(
-  view: FactoryView,
-  pack: string,
-  declared: readonly WorkflowRun[],
-  facts: ReadonlyMap<string, FactoryRunFacts>
-): FactoryItemProgress['round'] {
-  const newestFirst = [...declared].reverse();
-  const workflowOf = (run: WorkflowRun): string | null =>
-    declaredWorkflow(view, pack, run.workflow_name);
-  // The board's contract: each round's verdict and decision, not its steps.
-  const board = (
-    rounds: readonly FactoryRound[]
-  ): NonNullable<FactoryItemProgress['round']>['rounds'] =>
-    rounds.map(({ iteration, verdict, outcome }) => ({ iteration, verdict, outcome }));
-  for (const run of newestFirst) {
-    const rounds = facts.get(run.id)?.rounds;
-    const last = rounds?.rounds.at(-1);
-    if (rounds == null || last === undefined) continue;
-    const workflow = workflowOf(run);
-    const source = roundsSources(view).find(entry => entry.workflow === workflow);
-    if (source === undefined || isLoopRounds(source))
-      return {
-        runId: run.id,
-        iteration: last.iteration,
-        max: rounds.max,
-        rounds: board(rounds.rounds),
-      };
-    const taken = stageRoundsOf(
-      newestFirst
-        .filter(other => workflowOf(other) === workflow)
-        .map(other => ({ runId: other.id, rounds: facts.get(other.id)?.rounds ?? null }))
-    );
-    const newest = taken.at(-1);
-    if (newest === undefined) return null;
-    return {
-      runId: newest.runId,
-      iteration: newest.round.iteration,
-      max: newest.max,
-      rounds: board(taken.map(entry => entry.round)),
-    };
-  }
-  return null;
 }
 
 /**
