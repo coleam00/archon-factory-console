@@ -369,14 +369,21 @@ pack, **Factory** opens its page directly. A project's old `factory/how-it-works
 `factory/overview` addresses land on the page for its pack.
 
 Beside How it works, the pack's **Settings** tab (`/console/factory/<pack key>/settings`) shows
-how the pack is configured, read-only: one card per setting the pack declares in its
-`.pack/pack.yaml`, in the pack's order, with its name, the pack's description and default, and
-what each project that runs the pack sets in its `.archon/packs/<pack key>.yaml`. A setting a
-project leaves empty or unset reads "pack default". A setting the overview's `settings` map
-marks as a policy or the checks file shows the path, says "file not found" when the project
-has no such file, and lists a checks file's checks by name and command. A key a project sets
-that the pack does not declare is listed under "Not declared by the pack". To change a value,
-edit the project's file.
+how one project has set up the pack, read-only. A header band counts the settings the pack
+declares in its `.pack/pack.yaml`, how many the project sets in its
+`.archon/packs/<pack key>.yaml`, how many fall back to the pack's default, and how many are
+shadows today. Below it the settings are grouped into sections by what they govern, as the
+overview's `setting_sections` and each setting's `section` say; a setting no section names is
+shown under "Other settings". Each setting is a panel with its plain name, its id, one line of
+the pack's description (the rest behind More), the pack's default, and what the project sets: a
+path to a file, a command, or "Pack default" when the project leaves it empty or unset. A
+setting the overview's `settings` map marks as a policy or the checks file shows the path, says
+"file not found" when the project has no such file, and lists a checks file's checks by name and
+command. A shadow setting carries the shadow badge and, when the map gives one, the line saying
+what changes once it is no longer a shadow. With several projects running the pack, the band
+links to each (`?project=<codebase id>`); with none, the page shows the pack's defaults. A key
+the project sets that the pack does not declare is listed under "Not declared by the pack". To
+change a value, edit the project's file.
 
 It is a root view and drill-downs. Each view lays out cards on a grid, in labelled groups,
 joined by lines; a card marked ⤢ opens a closer look. A sidebar lists every view with its
@@ -421,7 +428,8 @@ names, is drawn as parallel: a line into or out of the group branches to each ca
 | `caption` | yes | One paragraph in plain words, shown under the root view's map on the page. Full screen does not show it: whoever presents says it. |
 | `root` | yes | The id of the view the page opens on. |
 | `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), an optional `label`, and optionally `shadow: true` for a line the pack would act on but does nothing about yet, which is drawn in the shadow style with "shadow" on its label. Every view but the root is opened by exactly one card. |
-| `settings` | no | How the Settings tab presents the pack's settings, by setting name: `shadow: true` for a setting whose stage runs as a shadow (it carries the shadow badge), and `points_to`: `policy` for a path to a document in the project, or `checks` for the path to the project's checks file (at most one setting). Every key must be a setting the pack's `.pack/pack.yaml` declares; the Settings tab lists any other as an error. |
+| `settings` | no | How the Settings tab presents the pack's settings, by setting name: `shadow: true` for a setting whose stage runs as a shadow (it carries the shadow badge); `points_to`: `policy` for a path to a document in the project, or `checks` for the path to the project's checks file (at most one setting); `section`, the id of the `setting_sections` entry it is shown under; and, on a shadow only, `when_live`, one line (at most 160 characters) saying what changes once it stops being a shadow. Every key must be a setting the pack's `.pack/pack.yaml` declares; the Settings tab lists any other as an error. |
+| `setting_sections` | no | The Settings tab's sections, in page order. Each has an `id` (a lowercase slug, unique), an `eyebrow` (at most 24 characters), a `title` (at most 60), a `kind` and an `icon` as a card has them, which set its colour and icon. A declared setting whose `section` is not given is shown in a trailing "Other settings" section. |
 
 The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
 `git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.

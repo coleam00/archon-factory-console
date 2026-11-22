@@ -300,7 +300,12 @@ describe('GET /api/factory/pack-settings', () => {
         ],
       },
     },
-    settings: { land_policy: { points_to: 'policy', shadow: true } },
+    settings: {
+      land_policy: { points_to: 'policy', shadow: true, section: 'ahead', when_live: 'Would land' },
+    },
+    setting_sections: [
+      { id: 'ahead', eyebrow: 'Gates', title: 'What may go ahead', kind: 'gate', icon: 'gavel' },
+    ],
   };
 
   async function read(query: string): Promise<{ status: number; body: unknown; cwd: string }> {
@@ -333,10 +338,13 @@ describe('GET /api/factory/pack-settings', () => {
       expect(status).toBe(200);
       const settings = factoryPackSettingsResponseSchema.parse(body);
       expect(settings.declaration).toEqual({ path: join(pack, '.pack', 'pack.yaml'), error: null });
-      expect(settings.settings.map(s => [s.name, s.shadow, s.pointsTo])).toEqual([
-        ['land_policy', true, 'policy'],
-        ['command', false, null],
+      expect(
+        settings.settings.map(s => [s.name, s.shadow, s.pointsTo, s.section, s.whenLive])
+      ).toEqual([
+        ['land_policy', true, 'policy', 'ahead', 'Would land'],
+        ['command', false, null, null, null],
       ]);
+      expect(settings.sections).toEqual(overview.setting_sections);
       const [project] = settings.projects;
       expect(project?.name).toBe('web');
       const land = project?.values.land_policy;
