@@ -146,12 +146,18 @@ describe('the step page as a document page', () => {
       [...root.querySelectorAll('[data-ref-label]')].map(chip =>
         chip.getAttribute('data-ref-label')
       )
-    ).toEqual(['item', 'build output']);
+    ).toEqual(['item', 'Build output', 'item', 'Build output']);
+    // "What it does" is the prompt's opening paragraph, its references chips there too.
+    const does = root.querySelector('[data-doc-columns] section');
+    expect(does?.textContent).toContain('What it does');
+    expect(does?.querySelector('.chat-markdown')?.textContent).toBe(
+      'Fix item on $INPUTS.land_on from Build output.'
+    );
     expect(root.querySelector('.chat-markdown p code')?.textContent).toBe('$INPUTS.land_on');
     const aside = root.querySelector('aside');
     const facts = aside?.querySelector('dl')?.textContent ?? '';
     expect(facts).toContain('Inputs it readsitemland on');
-    expect(facts).toContain('Reads from stepsbuild output');
+    expect(facts).toContain('Reads from stepsBuild output');
   });
 
   test('its workflow marks this step and links every other to its own page', () => {

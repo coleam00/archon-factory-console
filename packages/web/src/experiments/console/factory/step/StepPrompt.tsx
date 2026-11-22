@@ -25,6 +25,32 @@ const COMPONENTS: Components = {
   },
 };
 
+/** Prompt markdown at a readable measure, each reference the server found as a named chip. */
+export function PromptMarkdown({
+  text,
+  chips,
+  className = 'text-console-14',
+}: {
+  text: string;
+  chips: readonly ReferenceChip[];
+  className?: string;
+}): ReactElement {
+  const remarkPlugins = useMemo(() => [remarkGfm, referenceChips(chips)], [chips]);
+  return (
+    <div
+      className={`chat-markdown max-w-[80ch] leading-relaxed text-text-secondary [&_h1]:text-text-primary [&_h2]:text-text-primary [&_h3]:text-text-primary [&_strong]:text-text-primary ${className}`}
+    >
+      <ReactMarkdown
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={REHYPE_PLUGINS}
+        components={COMPONENTS}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 /**
  * A prompt as a readable document (owner change 7 of 2026-11-21): its headings, lists and code
  * as markdown, each reference the server found as a named chip, at a readable measure. A prompt
@@ -38,7 +64,6 @@ export function StepPrompt({
   prompt: string;
   chips: readonly ReferenceChip[];
 }): ReactElement {
-  const remarkPlugins = useMemo(() => [remarkGfm, referenceChips(chips)], [chips]);
   const folds = foldsPrompt(prompt);
   const [open, setOpen] = useState(false);
   const folded = folds && !open;
@@ -48,15 +73,7 @@ export function StepPrompt({
         data-prompt-fold={folds ? (open ? 'open' : 'folded') : undefined}
         className={folded ? 'relative max-h-150 overflow-hidden' : ''}
       >
-        <div className="chat-markdown max-w-[80ch] text-console-14 leading-relaxed text-text-secondary [&_h1]:text-text-primary [&_h2]:text-text-primary [&_h3]:text-text-primary [&_strong]:text-text-primary">
-          <ReactMarkdown
-            remarkPlugins={remarkPlugins}
-            rehypePlugins={REHYPE_PLUGINS}
-            components={COMPONENTS}
-          >
-            {prompt}
-          </ReactMarkdown>
-        </div>
+        <PromptMarkdown text={prompt} chips={chips} />
         {folded ? (
           <div
             aria-hidden="true"
