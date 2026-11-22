@@ -93,8 +93,8 @@ function SettingsSkeleton({
           <SkeletonInnerLine width="short" />
           <SkeletonInnerLine />
         </SkeletonBlock>
-        {/* console-token-exception min-[1800px]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px. */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1800px]:grid-cols-3">
+        {/* console-token-exception min-[112.5rem]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px (112.5rem; in rem so it sorts after md:, which a px value does not). */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[112.5rem]:grid-cols-3">
           {['a', 'b', 'c', 'd'].map(key => (
             <SkeletonBlock key={key} height="h-40">
               <SkeletonInnerLine width="short" />

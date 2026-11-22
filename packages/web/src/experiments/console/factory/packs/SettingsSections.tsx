@@ -57,8 +57,8 @@ function SettingsSection({
       className="flex flex-col gap-3"
     >
       <SectionHeading id={headingId} {...look} count={group.settings.length} />
-      {/* console-token-exception min-[1800px]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px. */}
-      <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1800px]:grid-cols-3">
+      {/* console-token-exception min-[112.5rem]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px (112.5rem; in rem so it sorts after md:, which a px value does not). */}
+      <ul className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 min-[112.5rem]:grid-cols-3">
         {group.settings.map(setting => (
           <SettingPanel key={setting.name} setting={setting} project={project} tone={look.tone} />
         ))}

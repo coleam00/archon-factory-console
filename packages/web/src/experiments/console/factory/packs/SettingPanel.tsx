@@ -49,7 +49,7 @@ export function SettingPanel({
         <p className="text-console-13 text-text-tertiary">{setting.whenLive}</p>
       ) : null}
       {project === undefined ? null : (
-        <p className="mt-auto text-console-12 text-text-tertiary [overflow-wrap:anywhere]">
+        <p className="text-console-12 text-text-tertiary [overflow-wrap:anywhere]">
           Pack default:{' '}
           <span className="font-mono">
             {setting.default === null || setting.default === '' ? 'none' : setting.default}
