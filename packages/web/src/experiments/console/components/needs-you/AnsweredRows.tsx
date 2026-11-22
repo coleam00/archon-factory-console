@@ -46,12 +46,10 @@ export function AnsweredLately({
   return (
     <section
       data-doc-section=""
-      aria-labelledby="answered-lately"
       aria-label="Answered lately"
       className={`flex min-w-0 flex-col gap-3 ${className}`}
     >
       <SectionHeading
-        id="answered-lately"
         icon={CheckCheck}
         eyebrow="Answered lately"
         title="What was decided"
