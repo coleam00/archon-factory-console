@@ -107,6 +107,9 @@ export function stopWords(
   column: ItemColumn | null
 ): string | null {
   if (column !== null && 'ended' in column) return column.ended;
+  // A merged change is where the item ends, however it rested before (a held item a person
+  // merged by hand): the strip lights Merged.
+  if (detail.item.progress?.change?.merged === true) return null;
   const parked = detail.item.progress?.parked;
   if (parked != null) return parked.label;
   const last = lastStageRun(view, detail);
