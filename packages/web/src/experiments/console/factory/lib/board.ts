@@ -10,7 +10,7 @@ import { formatDateTime } from '../../lib/format';
 import type { FactoryItem } from '../../skills/factory';
 import { askQuestion } from '../../lib/ask-card';
 import { needsYou } from '../../lib/needs-you';
-import { showsCard, type BoardShow } from './board-show';
+import { BOARD_SHOW, showsCard, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, stageOfWorkflow, type ItemColumn } from './placement';
@@ -362,8 +362,9 @@ export function boardModel(
 /**
  * The board narrowed to the cards `query` finds by key, title or work order and, when given, to the
  * cards `show` picks (the numbers strip's links). While `show` narrows it, the folded
- * endings are hidden: no number counts them. `positions` keeps every item, so narrowing
- * never reads as a card moving.
+ * endings are hidden: no number counts them. A show that narrows nothing (Found opens a
+ * panel) leaves the board to the query. `positions` keeps every item, so narrowing never
+ * reads as a card moving.
  */
 export function filterBoard(
   model: BoardModel,
@@ -371,19 +372,20 @@ export function filterBoard(
   show?: BoardShow,
   now: Date = new Date()
 ): BoardModel {
-  if (query.trim() === '' && show === undefined) return model;
+  const narrowing = show !== undefined && BOARD_SHOW[show].narrows ? show : undefined;
+  if (query.trim() === '' && narrowing === undefined) return model;
   const landed = model.landedStage;
   const keep = (cards: PlacedCard[]): PlacedCard[] =>
     cards.filter(
       placed =>
         cardMatches(placed.card, query) &&
-        (show === undefined || showsCard(show, placed, landed, now))
+        (narrowing === undefined || showsCard(narrowing, placed, landed, now))
     );
   return {
     ...model,
     columns: model.columns.map(column => ({ ...column, cards: keep(column.cards) })),
     ended:
-      show === undefined
+      narrowing === undefined
         ? model.ended
             .map(group => ({ ...group, cards: keep(group.cards) }))
             .filter(group => group.cards.length > 0)

@@ -1,4 +1,5 @@
 import type { FactoryWorkflow } from '../../skills/factory';
+import type { StepWorker } from './stage-steps';
 
 type WorkflowStep = FactoryWorkflow['steps'][number];
 type WorkflowGroup = FactoryWorkflow['groups'][number];
@@ -17,8 +18,8 @@ export interface StepGraphNode {
    * graph prints that step by. Null when the parser gave no comparisons; the title says it.
    */
   condition: string | null;
-  /** False for a step of the workflow that another stage works. */
-  inStage: boolean;
+  /** The stage that works it: the open one, another one, or none the view names. */
+  worker: StepWorker;
 }
 
 export type StepGraphGroup = Pick<
@@ -47,7 +48,7 @@ export interface StepGraph {
  */
 export function stepGraph(
   workflow: Pick<FactoryWorkflow, 'steps' | 'groups'>,
-  inStage: (stepKey: string) => boolean,
+  workerOf: (stepKey: string) => StepWorker,
   stepName: (stepKey: string) => string
 ): StepGraph {
   return {
@@ -58,7 +59,7 @@ export function stepGraph(
       group: step.group,
       when: step.when,
       condition: conditionText(step.whenClauses, stepName),
-      inStage: inStage(step.key),
+      worker: workerOf(step.key),
     })),
     groups: workflow.groups.map(({ id, kind, parent, label, maxRounds, when, whenClauses }) => ({
       id,

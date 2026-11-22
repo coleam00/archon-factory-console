@@ -20,6 +20,8 @@ import type { ItemOnStep } from './lib/items-on-step';
 import type { StepPageState } from './lib/stage-steps';
 import { engineIdTitle } from './lib/step-label';
 import { factoryPath } from './lib/views';
+import { StepTags } from './StepTags';
+import { toneColor } from './tones';
 
 interface StepGraphProps {
   projectId: string;
@@ -65,9 +67,10 @@ function runningFor(onStep: readonly ItemOnStep[]): string {
 /**
  * One workflow's steps, top to bottom (RunGraphPanel's canvas, nodes and connectors), with
  * each loop group framed and labelled with its rounds and each included workflow framed in
- * dashes. A step another stage works is dimmed, and so is the label of a frame holding none
- * of this stage's steps, unless an item is on it now: a running step, or a loop between its
- * bodies, glows whichever stage works it. Clicking a step opens its page.
+ * dashes. Every step is drawn at full strength (owner change 4 of 2026-11-21): the open stage's
+ * own steps carry a ring in its group's colour, and each step's tag names the stage that works
+ * it (`StepTags`). A running step, or a loop between its bodies, glows whichever stage works
+ * it. Clicking a step opens its page.
  */
 export function StepGraph({
   projectId,
@@ -78,7 +81,6 @@ export function StepGraph({
 }: StepGraphProps): ReactElement {
   const navigate = useNavigate();
   const laid = useMemo(() => layoutStepGraph(graph), [graph]);
-  const framesInStage = useMemo(() => groupsHoldingStageSteps(graph), [graph]);
   const size = {
     width: Math.max(laid.width, STEP_W + STEP_GRAPH_PADDING * 2),
     height: Math.max(laid.height, STEP_H + STEP_GRAPH_PADDING * 2),
@@ -126,7 +128,6 @@ export function StepGraph({
             key={group.group.id}
             group={group}
             onStep={running?.get(group.group.id) ?? NOT_RUNNING}
-            inStage={framesInStage.has(group.group.id)}
           />
         ))}
         {laid.steps.map(step => (
@@ -145,31 +146,18 @@ export function StepGraph({
             }}
           />
         ))}
+        <StepTags projectId={projectId} steps={laid.steps} />
       </div>
     </div>
   );
 }
 
-/** The groups that hold, at any depth, a step of the stage drawing the graph. */
-function groupsHoldingStageSteps(graph: StepGraphData): Set<string> {
-  const parents = new Map(graph.groups.map(group => [group.id, group.parent]));
-  const held = new Set<string>();
-  for (const node of graph.nodes) {
-    if (!node.inStage) continue;
-    for (let id = node.group; id !== null; id = parents.get(id) ?? null) held.add(id);
-  }
-  return held;
-}
-
 function GroupFrame({
   group,
   onStep,
-  inStage,
 }: {
   group: LaidOutGroup;
   onStep: readonly ItemOnStep[];
-  /** Whether the frame holds a step of this stage; its label dims when it does not. */
-  inStage: boolean;
 }): ReactElement {
   const loop = group.group.kind === 'loop';
   // Only a loop is ever the running step: between its bodies, the deepest step is the loop.
@@ -192,9 +180,7 @@ function GroupFrame({
       <div
         // A label wider than a narrow frame runs past its edge on its backing rather than cut
         // off the condition, which must read without hovering.
-        className={`relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-12 ${
-          inStage || glows ? '' : 'opacity-50'
-        }`}
+        className="relative ml-1.5 mt-1 inline-flex items-baseline gap-1.5 whitespace-nowrap rounded bg-surface px-1 text-console-12"
         title={group.group.when === null ? undefined : `Runs when ${group.group.when}`}
       >
         {loop ? (
@@ -250,8 +236,7 @@ function StepButton({
 }): ReactElement {
   const { node } = step;
   const glows = onStep.length > 0;
-  // The opened stage's steps stand out; another stage's step recedes, unless it runs now.
-  const lit = node.inStage || glows;
+  const { worker } = node;
   // The name in full, as the box may cut it, then the engine id.
   const title = [
     engineIdTitle(node.label, node.key),
@@ -266,16 +251,18 @@ function StepButton({
       onClick={onOpen}
       data-running={glows ? '' : undefined}
       title={title}
-      data-in-stage={node.inStage ? '' : undefined}
-      className={`absolute flex items-center gap-2.5 overflow-hidden rounded-lg border bg-surface-elevated px-3.5 text-left transition-colors hover:brightness-110 ${
-        lit ? 'border-border-bright' : 'border-border opacity-35'
-      }`}
+      data-worker={worker.kind}
+      className="absolute flex items-center gap-2.5 overflow-hidden rounded-lg border border-border-bright bg-surface-elevated px-3.5 text-left transition-colors hover:brightness-110"
       style={{
         left: step.x,
         top: step.y,
         width: step.width,
         height: step.height,
         ...(glows ? RUNNING_GLOW : {}),
+        // An outline, not a shadow, so it composes with the running glow's ring.
+        ...(worker.kind === 'this'
+          ? { outline: `2px solid ${toneColor(worker.stage.group)}`, outlineOffset: 2 }
+          : {}),
       }}
     >
       <span
@@ -285,11 +272,7 @@ function StepButton({
         {kindGlyph(node.kind)}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span
-          className={`truncate text-console-13 font-semibold ${
-            lit ? 'text-text-primary' : 'text-text-tertiary'
-          }`}
-        >
+        <span className="truncate text-console-13 font-semibold text-text-primary">
           {node.label}
         </span>
         {node.condition === null ? null : (

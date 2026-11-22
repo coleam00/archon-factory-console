@@ -21,6 +21,15 @@ for (const [key, value] of Object.entries(globals)) {
   Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 }
 const { createRoot } = await import('react-dom/client');
+
+/** What a tile says before where it goes: the link's last span, for a screen reader only. */
+const shown = (el: Element | null | undefined): string | null | undefined => {
+  if (el === null || el === undefined) return el;
+  const copy = el.cloneNode(true) as Element;
+  const opens = copy.querySelector('a')?.lastElementChild;
+  if (opens?.classList.contains('sr-only') === true) opens.remove();
+  return copy.textContent;
+};
 /** The project's asks and waits, as the Overview hands them down. */
 const WAITING = 2;
 const originalFetch = globalThis.fetch;
@@ -95,7 +104,7 @@ async function mount(projectId: string, items: FactoryItem[]) {
     )
   );
   const tile = (label: string): string | null | undefined =>
-    container.querySelector(`li[data-tile="${label}"]`)?.textContent;
+    shown(container.querySelector(`li[data-tile="${label}"]`));
   return {
     container,
     tile,
@@ -125,7 +134,7 @@ test('before the reads answer, every tile shows a skeleton figure, never a count
     );
     const tiles = [...container.querySelectorAll('[aria-label="Numbers"] li')];
     // Each tile is its label, then a skeleton bar (Visual standard, rule 6) said as loading.
-    expect(tiles.map(li => li.textContent)).toEqual([
+    expect(tiles.map(li => shown(li))).toEqual([
       'in flightLoading',
       'need youLoading',
       'merged todayLoading',
@@ -302,10 +311,9 @@ test('a view that declares discoveries adds a tile linking to the board panel; o
     );
     const found = [...container.querySelectorAll('[aria-label="Numbers"] li')].at(-1);
     // Two of the three findings: an item carries the third.
-    expect(found?.textContent).toBe('found by the factory2');
-    expect(found?.querySelector('a')?.getAttribute('href')).toBe(
-      '/console/p/cb-found/factory/board#found-by-the-factory'
-    );
+    expect(shown(found)).toBe('found by the factory2');
+    const link = found?.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/console/p/cb-found/factory/board?show=found');
     await act(async () =>
       root.render(
         <MemoryRouter>

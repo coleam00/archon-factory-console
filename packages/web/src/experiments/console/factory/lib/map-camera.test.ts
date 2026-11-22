@@ -3,6 +3,7 @@ import {
   clampK,
   fitCamera,
   fittedHeight,
+  MAP_ROOM_Y,
   MAX_ZOOM,
   MIN_FRAME_HEIGHT,
   FIT_PAD,
@@ -13,6 +14,7 @@ import {
 } from './map-camera';
 import { layoutMap } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
+import { LIVE_FITTING } from '../map/useMapCamera';
 
 const world = { x: 0, y: -10, w: 1000, h: 200 };
 
@@ -53,6 +55,24 @@ describe('the map camera', () => {
     expect(at(fitWidth).x).toBe(FIT_PAD - bounds.x);
     expect(at(fitWidth - 1).x).toBe(FIT_PAD - bounds.x);
     expect(at(fitWidth + 100).x).toBe(FIT_PAD + 50 - bounds.x);
+  });
+
+  test('the live map keeps 48 px of canvas above and below its drawing, and still opens at its start', () => {
+    expect(MAP_ROOM_Y).toBe(48);
+    const { pad, minK, maxK } = LIVE_FITTING;
+    // The frame at 390x844, 1440x900 and 1920x1080 (measured in the browser).
+    for (const width of [356, 1110, 1590]) {
+      const frame = { width, height: fittedHeight(bounds, width, pad, minK, maxK) };
+      const camera = fitCamera(bounds, frame, pad, minK, maxK);
+      const top = camera.y + bounds.y * camera.k;
+      const bottom = frame.height - (camera.y + (bounds.y + bounds.h) * camera.k);
+      expect(top).toBeGreaterThanOrEqual(MAP_ROOM_Y);
+      expect(bottom).toBeGreaterThanOrEqual(MAP_ROOM_Y);
+    }
+    // Sideways the pad is unchanged: too narrow to fit, it opens at the drawing's start.
+    expect(fitCamera(bounds, { width: 1100, height: 800 }, LIVE_FITTING.pad).x).toBe(
+      FIT_PAD - bounds.x
+    );
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {

@@ -3,7 +3,7 @@ import type { FactoryWorkflow } from '../../skills/factory';
 import deliverJson from './fixtures/deliver-workflow.json';
 import { stepGraph } from './step-graph';
 import { layoutStepGraph, type Box, type Point } from './step-graph-layout';
-import { stepInStage } from './stage-steps';
+import { stepWorker, type FactoryStage, type StepWorker } from './stage-steps';
 import { VIEW } from './board.test-fixtures';
 import { stepLabel } from './step-label';
 
@@ -25,8 +25,20 @@ const checks = {
   ],
 };
 
+const NONE: StepWorker = { kind: 'none' };
+// The view's stages, Checks listing the steps this fixture of deliver has.
+const stages = VIEW.stages.map(stage => (stage.id === 'checks' ? { ...stage, ...checks } : stage));
+const stageOf = (id: string): FactoryStage => {
+  const stage = stages.find(candidate => candidate.id === id);
+  if (stage === undefined) throw new Error(`the view has no stage ${id}`);
+  return stage;
+};
 const name = (key: string): string => stepLabel(VIEW, 'deliver', key);
-const graph = stepGraph(deliver, key => stepInStage(checks, key), name);
+const graph = stepGraph(
+  deliver,
+  key => stepWorker(stages, stageOf('checks'), 'deliver', key),
+  name
+);
 const groupOf = (key: string): string | null =>
   graph.nodes.find(node => node.key === key)?.group ?? null;
 
@@ -102,7 +114,7 @@ describe('stepGraph on deliver', () => {
       ],
       [{ reads: step('rounds.tests__tests'), operator: '>=' as const, value: '80' }],
     ];
-    const drawn = stepGraph({ steps: [{ ...fix, whenClauses }], groups: [] }, () => true, name);
+    const drawn = stepGraph({ steps: [{ ...fix, whenClauses }], groups: [] }, () => NONE, name);
     expect(drawn.nodes[0]?.condition).toBe(
       'if Writes the change ≠ empty and mode = fast or Test check ≥ 80'
     );
@@ -113,7 +125,7 @@ describe('stepGraph on deliver', () => {
     if (fix === undefined) throw new Error('fixture has no rounds.fix');
     const bare = stepGraph(
       { steps: [{ ...fix, whenClauses: null }], groups: [] },
-      () => true,
+      () => NONE,
       name
     );
     expect(bare.nodes[0]?.condition).toBeNull();
@@ -130,8 +142,42 @@ describe('stepGraph on deliver', () => {
     );
   });
 
-  test("only the Checks stage's steps are in it", () => {
-    expect(graph.nodes.filter(node => node.inStage).map(node => node.key)).toEqual(checks.nodes);
+  test("only the Checks stage's steps are its own", () => {
+    expect(graph.nodes.filter(node => node.worker.kind === 'this').map(node => node.key)).toEqual(
+      checks.nodes
+    );
+  });
+
+  test('every other step names the stage that works it, from the view file', () => {
+    const workers = new Map(graph.nodes.map(node => [node.key, node.worker]));
+    expect(workers.get('build__build')).toEqual({
+      kind: 'other',
+      stage: { id: 'build', label: stageOf('build').label, group: 'build' },
+    });
+    expect(workers.get('hostrounds.host__host')).toMatchObject({
+      kind: 'other',
+      stage: { id: 'host' },
+    });
+    expect([...workers.values()].filter(worker => worker.kind === 'none')).toEqual([]);
+  });
+});
+
+describe('stepWorker', () => {
+  test("a step is the open stage's own, another stage's, or none the view names", () => {
+    const build = stageOf('build');
+    expect(stepWorker(stages, build, 'deliver', 'build__build')).toMatchObject({ kind: 'this' });
+    expect(stepWorker(stages, build, 'deliver', 'rounds.review__review')).toMatchObject({
+      kind: 'other',
+      stage: { id: 'checks', label: stageOf('checks').label },
+    });
+    expect(stepWorker(stages, build, 'deliver', 'unlisted')).toEqual(NONE);
+  });
+
+  test('a stage that works its whole workflow marks no step', () => {
+    const whole = stages.find(stage => stage.nodes === undefined && stage.workflows.length > 0);
+    if (whole === undefined) throw new Error('the view has no whole-workflow stage');
+    const [workflow] = whole.workflows;
+    expect(stepWorker(stages, whole, workflow ?? '', 'any')).toEqual(NONE);
   });
 });
 
@@ -166,7 +212,7 @@ describe('layoutStepGraph on deliver', () => {
 
 describe('edges of the deliver graph keep out of frames they do not belong to', () => {
   // Every step of every stage, as the stage pages draw them.
-  const laid = layoutStepGraph(stepGraph(deliver, () => true, name));
+  const laid = layoutStepGraph(stepGraph(deliver, () => NONE, name));
   const groups = new Map(laid.groups.map(group => [group.group.id, group]));
   const stepGroup = new Map(laid.steps.map(step => [step.node.key, step.node.group]));
   /** The groups a step is drawn in, innermost first. */

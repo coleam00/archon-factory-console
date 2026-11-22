@@ -44,8 +44,8 @@ const passing = (name: string, seconds: number) => ({ name, passed: true, second
 describe('shadowWords', () => {
   test("a verdict reads through the declaration's words, with its why as the detail", () => {
     const words = shadowWords(
-      shadow('landgate', 'gate'),
-      decision('landgate', 'gate', verdict('ask', 'Nothing shows the operator looked at it.'))
+      shadow('triage', 'admit'),
+      decision('triage', 'admit', verdict('ask', 'Nothing shows the operator looked at it.'))
     );
     expect(words).toEqual({
       line: 'would ask you first',
@@ -60,7 +60,7 @@ describe('shadowWords', () => {
 
   test('a verdict the words do not name stays the pack token, in mono', () => {
     expect(
-      shadowWords(shadow('landgate', 'gate'), decision('landgate', 'gate', verdict('maybe')))
+      shadowWords(shadow('triage', 'admit'), decision('triage', 'admit', verdict('maybe')))
     ).toMatchObject({ line: 'maybe', mono: true });
   });
 
@@ -143,14 +143,13 @@ describe('where the shipped view holds shadows', () => {
       ['Would it start on its own', 'admit'],
       ['Project checks', 'rounds.checks'],
       ['Project checks', 'checks'],
-      ['Merge gate', 'gate'],
     ]);
   });
 
-  test('the stages holding one: triage, checks and ready to merge', () => {
+  test('the stages holding one: triage and checks; the merge gate acts, so it is none', () => {
     expect(
       VIEW.stages.filter(stage => stageShadows(stage, VIEW).length > 0).map(stage => stage.id)
-    ).toEqual(['triage', 'checks', 'ready']);
+    ).toEqual(['triage', 'checks']);
   });
 
   test("the map's lines for a stage: each shadow step's label and what it decided lately", () => {
@@ -191,7 +190,10 @@ describe('where the shipped view holds shadows', () => {
   });
 });
 
-/** An idle real item carrying every shipped shadow's decision. */
+/**
+ * An idle real item carrying every shipped shadow's decision, and one of the merge gate, which
+ * recorded decisions while it was a shadow and is not one now.
+ */
 function idleWithEveryDecision(): FactoryItem {
   const item = structuredClone(
     PAGE.items.find(entry => entry.progress !== null && entry.progress.running === null)
@@ -232,7 +234,7 @@ describe('boardShadowLine', () => {
       ['build', null],
       ['checks', null],
       ['host', null],
-      ['ready', 'would ask you first'],
+      ['ready', null],
       ['landed', null],
     ]);
   });
@@ -268,10 +270,14 @@ describe('boardShadowLine', () => {
   test('the newest of the stage’s verdict decisions wins', () => {
     const item = idleWithEveryDecision();
     item.progress?.shadows.push(
-      decision('landgate', 'gate', verdict('auto'), '2026-11-18T09:00:00.000Z')
+      decision('triage', 'admit', verdict('auto'), '2026-11-18T09:00:00.000Z')
     );
-    const ready = VIEW.stages.find(stage => stage.id === 'ready') ?? null;
-    expect(boardShadowLine(item, ready, VIEW)?.line).toBe('would ask you first');
+    const triage = VIEW.stages.find(stage => stage.id === 'triage') ?? null;
+    expect(boardShadowLine(item, triage, VIEW)?.line).toBe('would ask you first');
+    item.progress?.shadows.push(
+      decision('triage', 'admit', verdict('auto'), '2026-11-18T11:00:00.000Z')
+    );
+    expect(boardShadowLine(item, triage, VIEW)?.line).toBe('would start on its own');
   });
 });
 
@@ -317,6 +323,6 @@ describe('recentTally', () => {
   });
 
   test('null when no item has a decision of it', () => {
-    expect(recentTally(PAGE.items, [shadow('landgate', 'gate')])).toBeNull();
+    expect(recentTally(PAGE.items, [shadow('discoveries', 'result')])).toBeNull();
   });
 });

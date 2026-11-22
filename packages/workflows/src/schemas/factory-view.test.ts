@@ -475,13 +475,12 @@ describe('shadows', () => {
     entry: { title: '/title' },
   };
 
-  test("the shipped declaration declares the pack's shadow steps, project checks in both deliveries", async () => {
+  test("the shipped declaration declares the pack's shadow steps, project checks in both deliveries; the merge gate acts", async () => {
     const parsed = factoryViewSchema.parse(JSON.parse(await readFile(SHIPPED, 'utf8')));
     expect(parsed.shadows?.map(shadow => [shadow.workflow, shadow.node, shadow.reads])).toEqual([
       ['triage', 'admit', 'verdict'],
       ['deliver', 'rounds.checks', 'checks'],
       ['stage-check', 'checks', 'checks'],
-      ['landgate', 'gate', 'verdict'],
       ['discoveries', 'result', 'lists'],
     ]);
   });
