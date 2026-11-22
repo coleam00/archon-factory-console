@@ -490,7 +490,7 @@
     },
     {
       "name": "Wirasm/archon-software-factory:land",
-      "returns": "land",
+      "returns": "end",
       "outcome": {
         "field": "outcome",
         "form": "enum",
@@ -513,12 +513,22 @@
           }
         ]
       },
-      "asks": false,
+      "asks": true,
       "nodes": [
         {
           "id": "land",
           "kind": "agent",
           "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "end",
+          "kind": "exec",
+          "dependsOn": [
+            "land"
+          ],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -576,14 +586,37 @@
     },
     {
       "name": "Wirasm/archon-software-factory:landgate",
-      "returns": "gate",
-      "outcome": null,
-      "asks": false,
+      "returns": "end",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "land",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": true,
       "nodes": [
         {
           "id": "gate",
           "kind": "agent",
           "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "end",
+          "kind": "exec",
+          "dependsOn": [
+            "gate"
+          ],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -753,7 +786,7 @@
     },
     {
       "name": "Wirasm/archon-software-factory:split",
-      "returns": "orders",
+      "returns": "members",
       "outcome": {
         "field": "outcome",
         "form": "enum",
@@ -765,10 +798,14 @@
           {
             "value": "split",
             "startsNothing": true
+          },
+          {
+            "value": "waiting",
+            "startsNothing": true
           }
         ]
       },
-      "asks": false,
+      "asks": true,
       "nodes": [
         {
           "id": "cut",
@@ -779,10 +816,296 @@
           "fanOut": null
         },
         {
-          "id": "orders",
+          "id": "members",
           "kind": "exec",
           "dependsOn": [
             "cut"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        }
+      ]
+    },
+    {
+      "name": "Wirasm/archon-software-factory:stage-build",
+      "returns": "end",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "built",
+            "startsNothing": true
+          },
+          {
+            "value": "built_for_host",
+            "startsNothing": true
+          },
+          {
+            "value": "replan",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": true,
+      "nodes": [
+        {
+          "id": "build__build",
+          "kind": "agent",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "end",
+          "kind": "exec",
+          "dependsOn": [
+            "build__build"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        }
+      ]
+    },
+    {
+      "name": "Wirasm/archon-software-factory:stage-check",
+      "returns": "end",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "approve",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "replan",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": true,
+      "nodes": [
+        {
+          "id": "base",
+          "kind": "exec",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "checks",
+          "kind": "exec",
+          "dependsOn": [
+            "base"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "review__review",
+          "kind": "agent",
+          "dependsOn": [
+            "base"
+          ],
+          "loopGroup": null,
+          "blocks": [
+            {
+              "include": "review",
+              "workflow": "Wirasm/archon-software-factory:review"
+            }
+          ],
+          "fanOut": null
+        },
+        {
+          "id": "tests__tests",
+          "kind": "agent",
+          "dependsOn": [
+            "base"
+          ],
+          "loopGroup": null,
+          "blocks": [
+            {
+              "include": "tests",
+              "workflow": "Wirasm/archon-software-factory:tests"
+            }
+          ],
+          "fanOut": null
+        },
+        {
+          "id": "product__product",
+          "kind": "agent",
+          "dependsOn": [
+            "base"
+          ],
+          "loopGroup": null,
+          "blocks": [
+            {
+              "include": "product",
+              "workflow": "Wirasm/archon-software-factory:product"
+            }
+          ],
+          "fanOut": null
+        },
+        {
+          "id": "verdict__verdict",
+          "kind": "agent",
+          "dependsOn": [
+            "review__review",
+            "tests__tests",
+            "product__product"
+          ],
+          "loopGroup": null,
+          "blocks": [
+            {
+              "include": "verdict",
+              "workflow": "Wirasm/archon-software-factory:verdict"
+            }
+          ],
+          "fanOut": null
+        },
+        {
+          "id": "rounds",
+          "kind": "exec",
+          "dependsOn": [
+            "verdict__verdict",
+            "checks"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "allowance",
+          "kind": "exec",
+          "dependsOn": [
+            "rounds"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "exhausted",
+          "kind": "agent",
+          "dependsOn": [
+            "allowance"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "end",
+          "kind": "exec",
+          "dependsOn": [
+            "allowance",
+            "exhausted"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "reported",
+          "kind": "exec",
+          "dependsOn": [
+            "end"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        }
+      ]
+    },
+    {
+      "name": "Wirasm/archon-software-factory:stage-host",
+      "returns": "end",
+      "outcome": {
+        "field": "outcome",
+        "form": "enum",
+        "values": [
+          {
+            "value": "ready",
+            "startsNothing": true
+          },
+          {
+            "value": "return",
+            "startsNothing": true
+          },
+          {
+            "value": "waiting",
+            "startsNothing": true
+          },
+          {
+            "value": "ask",
+            "startsNothing": true
+          }
+        ]
+      },
+      "asks": true,
+      "nodes": [
+        {
+          "id": "rounds__host",
+          "kind": "agent",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "allowance",
+          "kind": "exec",
+          "dependsOn": [
+            "rounds__host"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "exhausted",
+          "kind": "agent",
+          "dependsOn": [
+            "allowance"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "end",
+          "kind": "exec",
+          "dependsOn": [
+            "allowance",
+            "exhausted"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "reported",
+          "kind": "exec",
+          "dependsOn": [
+            "end"
           ],
           "loopGroup": null,
           "blocks": [],
@@ -836,6 +1159,10 @@
           },
           {
             "value": "narrow",
+            "startsNothing": true
+          },
+          {
+            "value": "split",
             "startsNothing": true
           },
           {
@@ -895,16 +1222,6 @@
         },
         {
           "id": "admit",
-          "kind": "agent",
-          "dependsOn": [
-            "judge__judge"
-          ],
-          "loopGroup": null,
-          "blocks": [],
-          "fanOut": null
-        },
-        {
-          "id": "split",
           "kind": "agent",
           "dependsOn": [
             "judge__judge"
@@ -1038,6 +1355,58 @@
     },
     {
       "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "split"
+      },
+      "to": "Wirasm/archon-software-factory:split",
+      "active": false,
+      "declared": {
+        "binding": "split-after-triage",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:split",
+        "outcome": "whole"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": false,
+      "declared": {
+        "binding": "plan-after-split",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:split",
+        "outcome": "split"
+      },
+      "to": "Wirasm/archon-software-factory:order",
+      "active": false,
+      "declared": {
+        "binding": "order-after-split",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:split",
+        "settled": "answered"
+      },
+      "to": "Wirasm/archon-software-factory:split",
+      "active": false,
+      "declared": {
+        "binding": "split-after-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
         "stage": "Wirasm/archon-software-factory:plan",
         "outcome": "planned"
       },
@@ -1125,6 +1494,345 @@
       "active": false,
       "declared": {
         "binding": "deliver-after-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:plan",
+        "outcome": "planned"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-plan",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-build",
+        "outcome": "built"
+      },
+      "to": "Wirasm/archon-software-factory:stage-check",
+      "active": false,
+      "declared": {
+        "binding": "stage-check-after-build",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-check",
+        "outcome": "return"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-check",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-check",
+        "outcome": "approve"
+      },
+      "to": "Wirasm/archon-software-factory:stage-host",
+      "active": false,
+      "declared": {
+        "binding": "stage-host-after-check",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-host",
+        "outcome": "return"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-host",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-build",
+        "outcome": "built_for_host"
+      },
+      "to": "Wirasm/archon-software-factory:stage-host",
+      "active": false,
+      "declared": {
+        "binding": "stage-host-after-fix",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-host",
+        "outcome": "ready"
+      },
+      "to": "Wirasm/archon-software-factory:landgate",
+      "active": false,
+      "declared": {
+        "binding": "landgate-after-stage-host",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:landgate",
+        "outcome": "land"
+      },
+      "to": "Wirasm/archon-software-factory:land",
+      "active": false,
+      "declared": {
+        "binding": "land-after-landgate",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:landgate",
+        "settled": "answered",
+        "option": "land"
+      },
+      "to": "Wirasm/archon-software-factory:land",
+      "active": false,
+      "declared": {
+        "binding": "land-after-landgate-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:landgate",
+        "settled": "answered",
+        "option": "send-back"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-landgate-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:land",
+        "outcome": "returned"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-land",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:land",
+        "settled": "answered",
+        "option": "land"
+      },
+      "to": "Wirasm/archon-software-factory:land",
+      "active": false,
+      "declared": {
+        "binding": "land-after-land-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:land",
+        "settled": "answered",
+        "option": "send-back"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-land-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:land",
+        "outcome": "landed"
+      },
+      "to": "Wirasm/archon-software-factory:landed",
+      "active": false,
+      "declared": {
+        "binding": "landed-after-land",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:land",
+        "outcome": "landed"
+      },
+      "to": "Wirasm/archon-software-factory:discoveries",
+      "active": false,
+      "declared": {
+        "binding": "discoveries-after-land",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-build",
+        "settled": "answered",
+        "option": "send-back"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-build-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-build",
+        "settled": "answered",
+        "option": "take-as-is"
+      },
+      "to": "Wirasm/archon-software-factory:stage-host",
+      "active": false,
+      "declared": {
+        "binding": "stage-host-after-build-as-is",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-build",
+        "settled": "answered",
+        "option": "replan"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": false,
+      "declared": {
+        "binding": "plan-after-stage-build-replan",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-check",
+        "settled": "answered",
+        "option": "send-back"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-check-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-check",
+        "settled": "answered",
+        "option": "one-more-round"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-check-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-check",
+        "settled": "answered",
+        "option": "take-as-is"
+      },
+      "to": "Wirasm/archon-software-factory:stage-host",
+      "active": false,
+      "declared": {
+        "binding": "stage-host-after-check-as-is",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-check",
+        "settled": "answered",
+        "option": "replan"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": false,
+      "declared": {
+        "binding": "plan-after-stage-check-replan",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-host",
+        "settled": "answered",
+        "option": "send-back"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-host-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-host",
+        "settled": "answered",
+        "option": "one-more-round"
+      },
+      "to": "Wirasm/archon-software-factory:stage-build",
+      "active": false,
+      "declared": {
+        "binding": "stage-build-after-host-one-more",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:stage-host",
+        "settled": "answered",
+        "option": "replan"
+      },
+      "to": "Wirasm/archon-software-factory:plan",
+      "active": false,
+      "declared": {
+        "binding": "plan-after-stage-host-replan",
         "problems": []
       },
       "installed": null

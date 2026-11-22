@@ -1,16 +1,20 @@
 /**
- * The declared rounds loop on one run, from its node outcomes and loop events: each round's
- * verdict through the view's declared returns and approvals, the outcome and summary of the
- * step that decided it, and the loop's steps that recorded an outcome in it. Split from
- * `factory-items.ts`, which owns the shapes these fill.
+ * The declared check rounds on one run, from its node outcomes, loop events and result: each
+ * round's verdict through the view's declared returns and approvals, the outcome and summary of
+ * the step that decided it, and the steps that recorded an outcome in it. A loop-form source
+ * reads the loop's iterations (`roundFacts`); a stage-form one reads the run as one round
+ * (`stageRoundFacts`), and an item's stage rounds are gathered across its runs
+ * (`stageRoundsOf`). Split from `factory-items.ts`, which owns the shapes these fill.
  */
 import { z } from 'zod';
 import type { FactoryRound, FactoryRoundVerdict, FactoryRunFacts } from './factory-items';
-import type { FactoryView } from './schemas/factory-view';
+import { resolveJsonPointer } from './json-pointer';
+import type { JsonValue } from './output-ref';
+import type { FactoryStageRounds, FactoryView } from './schemas/factory-view';
 import { isTerminalRunStatus } from './schemas/run-status';
 import type { WorkflowEventRow } from './schemas/workflow-event';
 import type { WorkflowRun } from './schemas/workflow-run';
-import type { buildNodeOutcomes } from './terminal-record';
+import { getTerminalRecord, type buildNodeOutcomes } from './terminal-record';
 
 const loopRowSchema = z.object({
   iteration: z.number().int().positive(),
@@ -157,4 +161,81 @@ export function roundFacts(
   );
   const last = iterations.at(-1);
   return { max: (last === undefined ? undefined : started.get(last)) ?? null, rounds };
+}
+
+/** A positive whole number at `pointer` in `value`; null otherwise. */
+function countAt(value: unknown, pointer: string): number | null {
+  const found = resolveJsonPointer(value as JsonValue, pointer);
+  return typeof found === 'number' && Number.isInteger(found) && found > 0 ? found : null;
+}
+
+/**
+ * A stage-form run as its one round: numbered and bounded by its own result, so only a run that
+ * completed with a result naming a positive whole round is one; null for any other run. Its
+ * verdict is the loop form's, read over the whole run; its steps are every step that recorded a
+ * structured outcome but the one that returns the result, which restates the decision.
+ */
+export function stageRoundFacts(
+  source: FactoryStageRounds,
+  points: DecisionPoints,
+  run: WorkflowRun,
+  events: readonly WorkflowEventRow[],
+  outcomes: Outcomes
+): NonNullable<FactoryRunFacts['rounds']> | null {
+  if (run.status !== 'completed') return null;
+  const record = getTerminalRecord(run.status, events);
+  if (record?.returns.availability !== 'available') return null;
+  const iteration = countAt(record.returns.value, source.round);
+  if (iteration === null) return null;
+  const returnsNode = record.returns.node_id;
+  const decides = (list: readonly DecisionPoint[]): boolean =>
+    list.some(point => decidedIn(outcomes, point).length > 0);
+  const verdict: FactoryRoundVerdict = decides(points.returns)
+    ? 'returned'
+    : decides(points.approves)
+      ? 'approved'
+      : 'undecided';
+  const deciders = new Set([...points.returns, ...points.approves].map(point => point.node));
+  let decided: { outcome: string; summary: string | null } | undefined;
+  const steps = new Map<string, FactoryRound['steps'][number]>();
+  for (const entry of outcomes) {
+    const outcome = outputOutcome(entry.output);
+    if (typeof outcome !== 'string') continue;
+    const summary = outputSummary(entry.output);
+    if (deciders.has(entry.node_id)) decided = { outcome, summary };
+    if (entry.node_id !== returnsNode)
+      steps.set(entry.node_id, { node: entry.node_id, outcome, summary });
+  }
+  return {
+    max: countAt(record.returns.value, source.allowance),
+    rounds: [
+      {
+        iteration,
+        verdict,
+        outcome: decided?.outcome ?? null,
+        summary: decided?.summary ?? null,
+        steps: [...steps.values()],
+      },
+    ],
+  };
+}
+
+/**
+ * An item's stage-form rounds: its runs' rounds (newest first, each a run's one round), taken
+ * while each older round is numbered below the one after it, so the rounds since the item was
+ * last planned and no earlier cycle's, as the pack numbered them. Oldest first; empty when no
+ * run recorded a round.
+ */
+export function stageRoundsOf(
+  newestFirst: readonly { runId: string; rounds: FactoryRunFacts['rounds'] }[]
+): { runId: string; max: number | null; round: FactoryRound }[] {
+  const taken: { runId: string; max: number | null; round: FactoryRound }[] = [];
+  for (const { runId, rounds } of newestFirst) {
+    const round = rounds?.rounds.at(-1);
+    if (rounds === null || round === undefined) continue;
+    const after = taken.at(-1);
+    if (after !== undefined && round.iteration >= after.round.iteration) break;
+    taken.push({ runId, max: rounds.max, round });
+  }
+  return taken.reverse();
 }

@@ -22,7 +22,12 @@ import {
 import { resolveJsonPointer } from './json-pointer';
 import type { JsonValue } from './output-ref';
 import { resultString, runParked } from './factory-parked';
-import type { FactoryView } from './schemas/factory-view';
+import {
+  changeSources,
+  isLoopRounds,
+  roundsSources,
+  type FactoryView,
+} from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
 import { parseRunUsage } from './schemas/run-usage';
@@ -36,7 +41,15 @@ import {
   type WorkflowEventType,
 } from './store/event-types';
 import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
-import { decidedIn, roundFacts, type DecisionPoint } from './factory-rounds';
+import {
+  decidedIn,
+  roundFacts,
+  stageRoundFacts,
+  stageRoundsOf,
+  type DecisionPoint,
+  type DecisionPoints,
+  type Outcomes,
+} from './factory-rounds';
 import {
   factoryShadowDecisionSchema,
   latestShadowDecisions,
@@ -89,12 +102,21 @@ export const factoryItemProgressSchema = z.object({
       startedAt: z.string().datetime(),
     })
     .nullable(),
-  /** The declared rounds loop on the latest run of its workflow that entered it. */
+  /**
+   * The item's check rounds, from the declared rounds source whose workflow recorded a round
+   * on the item most recently. Loop form: the loop on the latest run that entered it. Stage
+   * form: each run of the workflow is one round, from its own result; the rounds since the
+   * item was last planned, and `runId` the newest of them. A stage-form run still going has
+   * no round yet, so it is not here.
+   */
   round: z
     .object({
       runId: z.string(),
       iteration: z.number().int().positive(),
-      /** The loop's bound as its latest round recorded it; null when it recorded none. */
+      /**
+       * The loop's bound as its latest round recorded it, or the newest stage-form run's
+       * allowance; null when it recorded none.
+       */
       max: z.number().int().positive().nullable(),
       rounds: z.array(
         z.object({
@@ -119,9 +141,9 @@ export const factoryItemProgressSchema = z.object({
   /** How many times a declared return point sent the item back, across all its runs. */
   returned: z.number().int().nonnegative(),
   /**
-   * The change at the declared result pointer of the latest run that names one. When no run
-   * names one but a run of the change workflow delivered with an empty URL there, the pull
-   * request the change host finds on the item's run branches.
+   * The change at a declared result pointer of the latest run that names one, of any workflow
+   * `change` lists. When no run names one but a run of a listed workflow delivered with an
+   * empty URL there, the pull request the change host finds on the item's run branches.
    */
   change: z
     .object({
@@ -192,7 +214,11 @@ export type FactoryItem = z.infer<typeof factoryItemSchema>;
 export interface FactoryRunFacts {
   /** The deepest running step, as of the run's events; null when none runs. */
   active: string | null;
-  /** The declared rounds loop's rounds on this run; null when the run is not of that workflow. */
+  /**
+   * The declared check rounds on this run: a loop-form source's iterations, or a stage-form
+   * source's one round; null when no source names the run's workflow, or a stage-form run
+   * recorded no round.
+   */
   rounds: {
     max: number | null;
     rounds: FactoryRound[];
@@ -289,6 +315,33 @@ function factsRead(view: FactoryView, pack: string, run: WorkflowRun): boolean {
   );
 }
 
+/** The run's check rounds, read by the rounds source naming its workflow; null when none does. */
+function runRounds(
+  view: FactoryView,
+  workflow: string | null,
+  points: DecisionPoints,
+  run: WorkflowRun,
+  events: readonly WorkflowEventRow[],
+  outcomes: Outcomes
+): FactoryRunFacts['rounds'] {
+  const source = roundsSources(view).find(entry => entry.workflow === workflow);
+  if (source === undefined) return null;
+  return isLoopRounds(source)
+    ? roundFacts(source.loop, points, run, events, outcomes)
+    : stageRoundFacts(source, points, run, events, outcomes);
+}
+
+/** The run's change, at the pointer of the change source naming its workflow; null when none does. */
+function runChange(
+  view: FactoryView,
+  workflow: string | null,
+  run: WorkflowRun,
+  events: readonly WorkflowEventRow[]
+): FactoryRunFacts['change'] {
+  const source = changeSources(view).find(entry => entry.workflow === workflow);
+  return source === undefined ? null : changeFacts(source.pointer, run, events);
+}
+
 /**
  * What one run of a workflow `view` declares, or a shadow names, contributes to its item's
  * progress, from the run's events (`FACTORY_RUN_FACT_EVENT_TYPES`, in append order).
@@ -307,16 +360,10 @@ export function factoryRunFacts(
   const outcomes = listing.nodes;
   return {
     active: deepestActiveStep(events),
-    rounds:
-      view.rounds !== undefined && view.rounds.workflow === workflow
-        ? roundFacts(view.rounds.loop, points, run, events, outcomes)
-        : null,
+    rounds: runRounds(view, workflow, points, run, events, outcomes),
     returnCount: points.returns.reduce((sum, point) => sum + decidedIn(outcomes, point).length, 0),
     failedStep: listing.first_failed_node,
-    change:
-      view.change !== undefined && view.change.workflow === workflow
-        ? changeFacts(view.change.pointer, run, events)
-        : null,
+    change: runChange(view, workflow, run, events),
     partOf:
       view.partOf !== undefined && view.partOf.workflow === workflow
         ? resultString(view.partOf.pointer, run, events)
@@ -421,26 +468,10 @@ export async function factoryItemProgress(
         }
       : null
   );
-  const round = latest((run, fact) => {
-    const last = fact.rounds?.rounds.at(-1);
-    return fact.rounds && last
-      ? {
-          runId: run.id,
-          iteration: last.iteration,
-          max: fact.rounds.max,
-          // The board's contract: each round's verdict and decision, not its steps.
-          rounds: fact.rounds.rounds.map(({ iteration, verdict, outcome }) => ({
-            iteration,
-            verdict,
-            outcome,
-          })),
-        }
-      : null;
-  });
   return {
     title: itemTitle(view, runs),
     running,
-    round,
+    round: itemRound(view, pack, declared, facts),
     partOf: workOrderOf(view, pack, declared, facts),
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
     change: await changeOf(declared, latest, changeState, branchOf),
@@ -453,6 +484,54 @@ export async function factoryItemProgress(
     // Placement reads the same last run: one started after the parking one takes the item up.
     parked: (last === undefined ? null : facts.get(last.id)?.parked) ?? null,
   };
+}
+
+/**
+ * The item's rounds, from the rounds source of the newest declared run that recorded one: the
+ * loop on that run, or the stage rounds gathered across the runs of its workflow.
+ */
+function itemRound(
+  view: FactoryView,
+  pack: string,
+  declared: readonly WorkflowRun[],
+  facts: ReadonlyMap<string, FactoryRunFacts>
+): FactoryItemProgress['round'] {
+  const newestFirst = [...declared].reverse();
+  const workflowOf = (run: WorkflowRun): string | null =>
+    declaredWorkflow(view, pack, run.workflow_name);
+  // The board's contract: each round's verdict and decision, not its steps.
+  const board = (
+    rounds: readonly FactoryRound[]
+  ): NonNullable<FactoryItemProgress['round']>['rounds'] =>
+    rounds.map(({ iteration, verdict, outcome }) => ({ iteration, verdict, outcome }));
+  for (const run of newestFirst) {
+    const rounds = facts.get(run.id)?.rounds;
+    const last = rounds?.rounds.at(-1);
+    if (rounds == null || last === undefined) continue;
+    const workflow = workflowOf(run);
+    const source = roundsSources(view).find(entry => entry.workflow === workflow);
+    if (source === undefined || isLoopRounds(source))
+      return {
+        runId: run.id,
+        iteration: last.iteration,
+        max: rounds.max,
+        rounds: board(rounds.rounds),
+      };
+    const taken = stageRoundsOf(
+      newestFirst
+        .filter(other => workflowOf(other) === workflow)
+        .map(other => ({ runId: other.id, rounds: facts.get(other.id)?.rounds ?? null }))
+    );
+    const newest = taken.at(-1);
+    if (newest === undefined) return null;
+    return {
+      runId: newest.runId,
+      iteration: newest.round.iteration,
+      max: newest.max,
+      rounds: board(taken.map(entry => entry.round)),
+    };
+  }
+  return null;
 }
 
 /**

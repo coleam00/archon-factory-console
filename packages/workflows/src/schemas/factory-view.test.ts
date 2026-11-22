@@ -209,6 +209,44 @@ describe('factoryViewSchema', () => {
     ]);
   });
 
+  test('change is one source or a list; a list names each workflow once, each one a stage lists', () => {
+    const one = { workflow: 'build', pointer: '/change' };
+    expect(factoryViewSchema.safeParse({ ...minimal(), change: one }).success).toBe(true);
+    const list = [one, { workflow: 'plan', pointer: '/pr' }];
+    expect(factoryViewSchema.safeParse({ ...minimal(), change: list }).success).toBe(true);
+    expect(issuePaths({ ...minimal(), change: [one, one] })).toEqual(['change.1.workflow']);
+    expect(
+      issuePaths({ ...minimal(), change: [one, { workflow: 'deliver', pointer: '/change' }] })
+    ).toEqual(['change.1.workflow']);
+    expect(issuePaths({ ...minimal(), change: { workflow: 'deliver', pointer: '/c' } })).toEqual([
+      'change.workflow',
+    ]);
+    expect(issuePaths({ ...minimal(), change: [] })).toEqual(['change']);
+  });
+
+  test('rounds takes the loop form, the stage form, or a list of both', () => {
+    const loop = { workflow: 'build', loop: 'rounds' };
+    const stage = { workflow: 'plan', round: '/round', allowance: '/allowance' };
+    for (const rounds of [loop, stage, [loop, stage]])
+      expect(factoryViewSchema.safeParse({ ...minimal(), rounds }).error?.issues ?? []).toEqual([]);
+    expect(issuePaths({ ...minimal(), rounds: [loop, { ...stage, workflow: 'build' }] })).toEqual([
+      'rounds.1.workflow',
+    ]);
+    expect(issuePaths({ ...minimal(), rounds: { ...stage, workflow: 'deliver' } })).toEqual([
+      'rounds.workflow',
+    ]);
+  });
+
+  test('a stage form with no round pointer, or with a loop too, is rejected', () => {
+    const noRound = { workflow: 'plan', allowance: '/allowance' };
+    expect(factoryViewSchema.safeParse({ ...minimal(), rounds: noRound }).success).toBe(false);
+    expect(factoryViewSchema.safeParse({ ...minimal(), rounds: [noRound] }).success).toBe(false);
+    const both = { workflow: 'plan', loop: 'rounds', round: '/round', allowance: '/allowance' };
+    expect(factoryViewSchema.safeParse({ ...minimal(), rounds: both }).success).toBe(false);
+    const notPointer = { workflow: 'plan', round: 'round', allowance: '/allowance' };
+    expect(factoryViewSchema.safeParse({ ...minimal(), rounds: notPointer }).success).toBe(false);
+  });
+
   test('a partOf naming a workflow no stage lists is rejected', () => {
     expect(
       issuePaths({
@@ -406,12 +444,12 @@ describe('shadows', () => {
     entry: { title: '/title' },
   };
 
-  test("the shipped declaration declares the pack's five shadow steps", async () => {
+  test("the shipped declaration declares the pack's shadow steps, project checks in both deliveries", async () => {
     const parsed = factoryViewSchema.parse(JSON.parse(await readFile(SHIPPED, 'utf8')));
     expect(parsed.shadows?.map(shadow => [shadow.workflow, shadow.node, shadow.reads])).toEqual([
       ['triage', 'admit', 'verdict'],
-      ['triage', 'split', 'verdict'],
       ['deliver', 'rounds.checks', 'checks'],
+      ['stage-check', 'checks', 'checks'],
       ['landgate', 'gate', 'verdict'],
       ['discoveries', 'result', 'lists'],
     ]);

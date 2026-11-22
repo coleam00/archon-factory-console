@@ -192,6 +192,48 @@ describe('factoryViewCoverage', () => {
     ]);
   });
 
+  test('rounds in both forms, a change list, returns and approves on real steps have no findings', () => {
+    const view = clean();
+    view.rounds = [
+      { workflow: 'deliver', loop: 'rounds' },
+      { workflow: 'plan', round: '/round', allowance: '/allowance' },
+    ];
+    view.change = [
+      { workflow: 'deliver', pointer: '/change' },
+      { workflow: 'plan', pointer: '/change' },
+    ];
+    view.returns = [{ workflow: 'deliver', node: 'rounds.review__review', outcome: 'return' }];
+    view.approves = [{ workflow: 'plan', node: 'plan', outcome: 'approve' }];
+    expect(findings(view)).toEqual([]);
+  });
+
+  test('a rounds loop that is no loop group, a return on no real step, are reported', () => {
+    const view = clean();
+    view.rounds = { workflow: 'deliver', loop: 'build__build' };
+    view.returns = [{ workflow: 'deliver', node: 'rounds.verdict', outcome: 'return' }];
+    view.approves = [{ workflow: 'plan', node: 'planner', outcome: 'approve' }];
+    expect(findings(view)).toEqual([
+      ['unknown-step', 'returns.0.node'],
+      ['unknown-step', 'approves.0.node'],
+      ['unknown-step', 'rounds.loop'],
+    ]);
+  });
+
+  test('a stage-form rounds source or a change source on a workflow that returns nothing is reported', () => {
+    const view = clean();
+    const of = graph();
+    of.stages[0]!.returns = null;
+    view.rounds = [
+      { workflow: 'deliver', loop: 'rounds' },
+      { workflow: 'plan', round: '/round', allowance: '/allowance' },
+    ];
+    view.change = { workflow: 'plan', pointer: '/change' };
+    expect(findings(view, of)).toEqual([
+      ['no-result', 'rounds.1.workflow'],
+      ['no-result', 'change.workflow'],
+    ]);
+  });
+
   test('a workflow the pack does not have, and a graph that failed to load, are reported', () => {
     const view = clean();
     view.stages[0]!.workflows = ['plan', 'replan'];

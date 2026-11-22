@@ -95,12 +95,12 @@ function withCompleted(
 }
 
 describe('reading what each shadow step recorded', () => {
-  test('#65 triage: admit would start on its own, split would keep it whole', () => {
+  test('#65 triage: admit would start on its own; its old split step is no declared shadow', () => {
     const decisions = decisionsOf(triage65);
     for (const decision of decisions) factoryShadowDecisionSchema.parse(decision);
-    // Recording order: split started before admit on this run.
+    // The run recorded a split step too; split is a workflow of its own now, and the view
+    // declares no shadow on triage's old step, so it is not read.
     expect(decisions.map(({ node, round, read }) => ({ node, round, reads: read.reads }))).toEqual([
-      { node: 'split', round: null, reads: 'verdict' },
       { node: 'admit', round: null, reads: 'verdict' },
     ]);
     const admit = decisions.find(decision => decision.node === 'admit');
@@ -108,10 +108,6 @@ describe('reading what each shadow step recorded', () => {
     expect(admit?.read.reads === 'verdict' ? admit.read.why : null).toStartWith(
       'The item is ordered by work order #64'
     );
-    expect(decisions.find(decision => decision.node === 'split')?.read).toMatchObject({
-      reads: 'verdict',
-      value: 'whole',
-    });
     expect(admit).toMatchObject({
       workflow: 'triage',
       runId: triage65.run.id,
@@ -249,7 +245,6 @@ describe('the newest decision of each shadow', () => {
       decisionsOf(landgate70),
     ]);
     expect(latest.map(decision => [decision.node, decision.runId, decision.round])).toEqual([
-      ['split', triage65.run.id, null],
       ['admit', triage65.run.id, null],
       ['rounds.checks', deliver65.run.id, 3],
       ['gate', landgate70.run.id, null],

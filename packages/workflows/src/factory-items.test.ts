@@ -244,8 +244,9 @@ describe('the facts of one run', () => {
         parked: null,
         shadows: [],
       });
-    // Triage's two shadow steps decided; plan has none.
-    expect(factsOf(triage1).shadows.map(decision => decision.node)).toEqual(['admit', 'split']);
+    // Triage's one declared shadow step decided (its old split step is no shadow the view
+    // declares: split is a workflow of its own now); plan has none.
+    expect(factsOf(triage1).shadows.map(decision => decision.node)).toEqual(['admit']);
     expect(factsOf(plan1).shadows).toEqual([]);
   });
 
@@ -582,7 +583,6 @@ describe("an item's progress", () => {
     expect({ ...withDrain, shadows: without.shadows }).toEqual(without);
     expect(withDrain.shadows.map(decision => [decision.workflow, decision.node])).toEqual([
       ['triage', 'admit'],
-      ['triage', 'split'],
       ['discoveries', 'result'],
     ]);
   });
@@ -1091,5 +1091,241 @@ describe('reading progress, and one item whole', () => {
   test('an unknown key reads null', async () => {
     const source = pageSource({ queue: 0, loaded: [] });
     expect(await readFactoryItem(source, itemInput(unexpected), '404')).toBeNull();
+  });
+});
+
+/**
+ * A run of a three-stage delivery workflow (`stage-build`, `stage-check`, `stage-host`,
+ * `landgate`), built from the plan fixture's events: each of `nodes` completes with its
+ * structured `outcome`, and a completed run returns `value` from its `end` step, as the
+ * installed pack's stage workflows do. A running run has no terminal record.
+ */
+function stageRun(
+  workflow: string,
+  id: string,
+  at: string,
+  value: Record<string, unknown>,
+  nodes: readonly (readonly [string, string])[] = [],
+  status: WorkflowRun['status'] = 'completed'
+): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  const [started, completed, finished] = plan1.events as [
+    WorkflowEventRow,
+    WorkflowEventRow,
+    WorkflowEventRow,
+  ];
+  type NodeData = { node: Record<string, unknown>; invocation: Record<string, unknown> };
+  const nodeRow = (
+    row: WorkflowEventRow,
+    node: string,
+    order: number,
+    output?: unknown
+  ): WorkflowEventRow => {
+    const data = row.data as NodeData;
+    return {
+      ...row,
+      id: `${id}-${node}-${row.event_type}`,
+      workflow_run_id: id,
+      step_name: node,
+      event_order: order,
+      data: {
+        ...data,
+        node: { ...data.node, id: node },
+        invocation: { ...data.invocation, id: `${id}-${node}` },
+        ...(output === undefined ? {} : { structured_output: output }),
+      },
+    };
+  };
+  const done = status === 'completed';
+  const ran = [...nodes, ...(done ? [['end', String(value.outcome)] as const] : [])];
+  const events: WorkflowEventRow[] = ran.flatMap(([node, outcome], index) => [
+    nodeRow(started, node, 2 * index),
+    nodeRow(completed, node, 2 * index + 1, { outcome, summary: `${node} said ${outcome}` }),
+  ]);
+  if (done) {
+    const data = finished.data as { terminal_record: Record<string, unknown> };
+    events.push({
+      ...finished,
+      id: `${id}-completed`,
+      workflow_run_id: id,
+      event_order: 2 * ran.length,
+      data: {
+        ...data,
+        terminal_record: {
+          ...data.terminal_record,
+          run_id: id,
+          completed_outcome: value.outcome,
+          nodes: ran.map(([node]) => ({ node_id: node, state: 'completed' })),
+          returns: { availability: 'available', node_id: 'end', value },
+        },
+      },
+    });
+  }
+  const run = {
+    ...plan1.run,
+    id,
+    workflow_name: `${PACK}:${workflow}`,
+    status,
+    completed_outcome: done ? String(value.outcome) : null,
+    started_at: new Date(at),
+    completed_at: done ? new Date(at) : null,
+  };
+  return { run, events };
+}
+
+const PR12 = 'https://github.com/coleam00/archon-factory-console/pull/12';
+const CHECKS = [
+  ['review__review', 'approve'],
+  ['tests__tests', 'sound'],
+  ['product__product', 'approve'],
+] as const;
+
+/** A completed stage-check run: round `round` of `allowance`, its verdict `outcome`. */
+const checkRun = (id: string, at: string, round: number, allowance: number, outcome: string) =>
+  stageRun('stage-check', id, at, { outcome, change: PR12, round, allowance }, [
+    ...CHECKS,
+    ['verdict__verdict', outcome],
+    ['rounds', outcome],
+  ]);
+const buildRun = (id: string, at: string) =>
+  stageRun('stage-build', id, at, { outcome: 'built', change: PR12 }, [['build__build', 'built']]);
+const later = (
+  entry: { run: WorkflowRun; events: WorkflowEventRow[] },
+  at: string
+): { run: WorkflowRun; events: WorkflowEventRow[] } => ({
+  ...entry,
+  run: { ...entry.run, started_at: new Date(at) },
+});
+
+describe('the three-stage delivery: the change from any stage, rounds from stage-check runs', () => {
+  test('a stage-check run is one round: numbered and bounded by its result, decided by its verdict', () => {
+    const facts = factsOf(checkRun('c1', '2026-11-21T01:00:00Z', 2, 3, 'return'));
+    const steps = [...CHECKS, ['verdict__verdict', 'return'], ['rounds', 'return']] as const;
+    expect(facts.rounds).toEqual({
+      max: 3,
+      rounds: [
+        {
+          iteration: 2,
+          verdict: 'returned',
+          outcome: 'return',
+          summary: 'verdict__verdict said return',
+          // Every step that recorded an outcome but `end`, which returns the result.
+          steps: steps.map(([node, outcome]) => ({
+            node,
+            outcome,
+            summary: `${node} said ${outcome}`,
+          })),
+        },
+      ],
+    });
+    expect(facts.returnCount).toBe(1);
+    expect(facts.change?.url).toBe(PR12);
+  });
+
+  test('a stage-check run still going, or one whose result names no round, is no round', () => {
+    const running = stageRun('stage-check', 'c1', '2026-11-21T01:00:00Z', {}, CHECKS, 'running');
+    expect(factsOf(running).rounds).toBeNull();
+    const noRound = stageRun('stage-check', 'c2', '2026-11-21T01:00:00Z', {
+      outcome: 'ask',
+      round: 0,
+      allowance: 3,
+    });
+    expect(factsOf(noRound).rounds).toBeNull();
+  });
+
+  test('an ask decides nothing: the round is undecided, the verdict step its outcome', () => {
+    const asked = factsOf(checkRun('c1', '2026-11-21T01:00:00Z', 3, 3, 'ask'));
+    expect(decisions(asked.rounds)).toEqual({
+      max: 3,
+      rounds: [{ iteration: 3, verdict: 'undecided', outcome: 'ask' }],
+    });
+  });
+
+  test("the item's rounds are its stage-check runs, the newest allowance its bound: round 3 of 4", async () => {
+    const runs = [
+      buildRun('b1', '2026-11-21T01:00:00Z'),
+      checkRun('c1', '2026-11-21T02:00:00Z', 1, 3, 'return'),
+      buildRun('b2', '2026-11-21T03:00:00Z'),
+      checkRun('c2', '2026-11-21T04:00:00Z', 2, 3, 'return'),
+      buildRun('b3', '2026-11-21T05:00:00Z'),
+      // After a one-more-round answer, the pack allows four.
+      checkRun('c3', '2026-11-21T06:00:00Z', 3, 4, 'approve'),
+      stageRun('stage-host', 'h1', '2026-11-21T07:00:00Z', {}, [], 'running'),
+    ];
+    expect((await progressOf(runs)).round).toEqual({
+      runId: 'c3',
+      iteration: 3,
+      max: 4,
+      rounds: [
+        { iteration: 1, verdict: 'returned', outcome: 'return' },
+        { iteration: 2, verdict: 'returned', outcome: 'return' },
+        { iteration: 3, verdict: 'approved', outcome: 'approve' },
+      ],
+    });
+  });
+
+  test('a stage-check run going now adds no round: the newest recorded one stands', async () => {
+    const runs = [
+      checkRun('c1', '2026-11-21T02:00:00Z', 1, 3, 'return'),
+      stageRun('stage-check', 'c2', '2026-11-21T04:00:00Z', {}, CHECKS, 'running'),
+    ];
+    const progress = await progressOf(runs);
+    expect(progress.round).toMatchObject({ runId: 'c1', iteration: 1, max: 3 });
+    expect(progress.running).toMatchObject({ runId: 'c2', workflow: 'stage-check' });
+  });
+
+  test('after a replan the rounds start again: only the new cycle is read', async () => {
+    const runs = [
+      checkRun('c1', '2026-11-21T02:00:00Z', 1, 3, 'return'),
+      checkRun('c2', '2026-11-21T04:00:00Z', 2, 3, 'replan'),
+      buildRun('b2', '2026-11-21T05:00:00Z'),
+      checkRun('c3', '2026-11-21T06:00:00Z', 1, 3, 'return'),
+    ];
+    expect((await progressOf(runs)).round).toEqual({
+      runId: 'c3',
+      iteration: 1,
+      max: 3,
+      rounds: [{ iteration: 1, verdict: 'returned', outcome: 'return' }],
+    });
+  });
+
+  test('the newest run with a round picks the form: the deliver loop, or the stage-check runs', async () => {
+    const check = checkRun('c1', '2026-11-21T02:00:00Z', 1, 3, 'return');
+    const deliver = later(deliver1, '2026-11-22T00:00:00Z');
+    expect((await progressOf([check, deliver])).round?.runId).toBe(deliver1.run.id);
+    const next = checkRun('c2', '2026-11-23T02:00:00Z', 2, 3, 'approve');
+    expect((await progressOf([check, deliver, next])).round).toMatchObject({
+      runId: 'c2',
+      iteration: 2,
+      rounds: [{ iteration: 1 }, { iteration: 2 }],
+    });
+  });
+
+  test('the change is the newest stage run that names one, of any listed workflow', async () => {
+    const stageBuild = stageRun('stage-build', 'b1', '2026-11-21T01:00:00Z', {
+      outcome: 'built',
+      change: PR11,
+    });
+    const stageHost = stageRun('stage-host', 'h1', '2026-11-21T03:00:00Z', {
+      outcome: 'ready',
+      change: PR12,
+    });
+    // An older stage-build URL is not taken over a newer stage-host one, and a newer run
+    // still going (no result yet) or naming an empty one does not displace it.
+    const going = stageRun('stage-check', 'c2', '2026-11-21T04:00:00Z', {}, [], 'running');
+    const empty = stageRun('landgate', 'g1', '2026-11-21T05:00:00Z', {
+      outcome: 'land',
+      change: '',
+    });
+    expect((await progressOf([stageBuild, stageHost, going, empty])).change?.url).toBe(PR12);
+    const rebuilt = later(stageBuild, '2026-11-22T00:00:00Z');
+    expect((await progressOf([stageHost, rebuilt])).change?.url).toBe(PR11);
+  });
+
+  test("a land gate run whose result has no change does not displace a deliver run's", async () => {
+    // Item 111's shape: deliver named the change; the land gate of that era returned none.
+    const delivered = deliverNaming(deliver1, 'd1', PR10, '2026-11-20T01:00:00Z');
+    const gate = stageRun('landgate', 'g1', '2026-11-20T02:00:00Z', { outcome: 'land' });
+    expect(factsOf(gate).change).toBeNull();
+    expect((await progressOf([delivered, gate])).change?.url).toBe(PR10);
   });
 });

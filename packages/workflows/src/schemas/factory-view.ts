@@ -151,6 +151,28 @@ const decisionPointSchema = z.strictObject({
   outcome: z.string().min(1),
 });
 
+/** Where a workflow's runs name the change's URL in their result, as a JSON pointer. */
+const changeSourceSchema = z.strictObject({
+  workflow: workflowNameSchema,
+  pointer: jsonPointerSchema,
+});
+
+/**
+ * How a console counts an item's check rounds on one workflow. The loop form: each iteration
+ * of the loop group `loop` on a run of `workflow` is a round, bounded by the loop's own
+ * maximum. The stage form: each run of `workflow` is one round, numbered and bounded by its
+ * own result at the `round` and `allowance` pointers; a run whose result has no positive whole
+ * number at `round` (a run still going, one that failed) is not a round.
+ */
+const roundsSourceSchema = z.union([
+  z.strictObject({ workflow: workflowNameSchema, loop: stepIdSchema }),
+  z.strictObject({
+    workflow: workflowNameSchema,
+    round: jsonPointerSchema,
+    allowance: jsonPointerSchema,
+  }),
+]);
+
 /**
  * What a step's outcome means to a person, so a console can word it in its own words. The set
  * is closed: a console words each meaning, and never a pack's token.
@@ -281,13 +303,17 @@ const factoryViewShape = z.strictObject({
   endings: z.record(outcomeKeySchema, labelSchema),
   /** The stage an item whose change merged sits in. */
   landed: z.strictObject({ stage: stageIdSchema }),
-  /** The loop group whose iterations the board counts as rounds. */
-  rounds: z.strictObject({ workflow: workflowNameSchema, loop: stepIdSchema }).optional(),
+  /**
+   * Where the board counts check rounds (`roundsSourceSchema`): one source, or a list naming
+   * each workflow once when items are delivered by more than one shape. An item's rounds are
+   * read from the source whose workflow ran a round on it most recently.
+   */
+  rounds: z.union([roundsSourceSchema, z.array(roundsSourceSchema).min(1)]).optional(),
   /** The steps whose outcome sends an item back. */
   returns: z.array(decisionPointSchema).optional(),
   /**
-   * The steps whose outcome approves an item: a round of the rounds loop in which one of
-   * these recorded its outcome is approved. A round with neither a declared return nor a
+   * The steps whose outcome approves an item: a round (a loop iteration, or a stage-form run)
+   * in which one of these recorded its outcome is approved. A round with neither a declared return nor a
    * declared approval needs a decision; nothing is read as approved unless declared here.
    */
   approves: z.array(decisionPointSchema).optional(),
@@ -321,13 +347,12 @@ const factoryViewShape = z.strictObject({
       z.strictObject({ label: labelSchema, why: jsonPointerSchema.optional() })
     )
     .optional(),
-  /** Where the change's URL is in a run's result, as a JSON pointer. */
-  change: z
-    .strictObject({
-      workflow: workflowNameSchema,
-      pointer: jsonPointerSchema,
-    })
-    .optional(),
+  /**
+   * Where the change's URL is in a run's result: one source, or a list naming each workflow
+   * once. The newest run of any listed workflow with a non-empty value at its pointer gives
+   * the item's change.
+   */
+  change: z.union([changeSourceSchema, z.array(changeSourceSchema).min(1)]).optional(),
   /**
    * Where a run's result names the item's work order (an item key), as a JSON pointer: read
    * when the item has no active `part_of` link, which wins when both exist. Only a run of
@@ -383,6 +408,49 @@ const factoryViewShape = z.strictObject({
 
 type FactoryViewShape = z.infer<typeof factoryViewShape>;
 type Issue = { path: (string | number)[]; message: string };
+
+export type FactoryChangeSource = z.infer<typeof changeSourceSchema>;
+export type FactoryRoundsSource = z.infer<typeof roundsSourceSchema>;
+export type FactoryLoopRounds = Extract<FactoryRoundsSource, { loop: string }>;
+export type FactoryStageRounds = Extract<FactoryRoundsSource, { round: string }>;
+
+/** The declared change sources as a list, a single one included; empty when none. */
+export function changeSources(view: Pick<FactoryViewShape, 'change'>): FactoryChangeSource[] {
+  return view.change === undefined ? [] : [view.change].flat();
+}
+
+/** The declared rounds sources as a list, a single one included; empty when none. */
+export function roundsSources(view: Pick<FactoryViewShape, 'rounds'>): FactoryRoundsSource[] {
+  return view.rounds === undefined ? [] : [view.rounds].flat();
+}
+
+export function isLoopRounds(source: FactoryRoundsSource): source is FactoryLoopRounds {
+  return 'loop' in source;
+}
+
+/**
+ * Each `change` and `rounds` source names a workflow a stage lists, each workflow once: two
+ * sources for one workflow would leave which one reads its runs to list order.
+ */
+function sourceListIssues(view: FactoryViewShape): Issue[] {
+  const workflows = new Set(view.stages.flatMap(stage => stage.workflows));
+  const issues: Issue[] = [];
+  const check = (field: 'change' | 'rounds', sources: readonly { workflow: string }[]): void => {
+    const single = !Array.isArray(view[field]);
+    const seen = new Set<string>();
+    sources.forEach((source, index) => {
+      const path = single ? [field, 'workflow'] : [field, index, 'workflow'];
+      if (!workflows.has(source.workflow))
+        issues.push({ path, message: `names workflow "${source.workflow}", which no stage lists` });
+      if (seen.has(source.workflow))
+        issues.push({ path, message: `workflow "${source.workflow}" is listed twice` });
+      seen.add(source.workflow);
+    });
+  };
+  check('change', changeSources(view));
+  check('rounds', roundsSources(view));
+  return issues;
+}
 
 /** Every place a declaration names a stage must name one it declares. */
 function stageReferenceIssues(view: FactoryViewShape): Issue[] {
@@ -465,14 +533,12 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   const workflowOf = (key: string): string => key.slice(0, key.lastIndexOf(':'));
   for (const key of Object.keys(view.placement)) refer(['placement', key], workflowOf(key));
   for (const key of Object.keys(view.endings)) refer(['endings', key], workflowOf(key));
-  if (view.rounds !== undefined) refer(['rounds', 'workflow'], view.rounds.workflow);
   view.returns?.forEach((entry, index) => {
     refer(['returns', index, 'workflow'], entry.workflow);
   });
   view.approves?.forEach((entry, index) => {
     refer(['approves', index, 'workflow'], entry.workflow);
   });
-  if (view.change !== undefined) refer(['change', 'workflow'], view.change.workflow);
   if (view.partOf !== undefined) refer(['partOf', 'workflow'], view.partOf.workflow);
   // Not `discoveries`: its runs place no item, so it is the one workflow no stage need list.
   for (const workflow of Object.keys(view.steps ?? {})) refer(['steps', workflow], workflow);
@@ -606,6 +672,7 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
     ...stageReferenceIssues(view),
     ...columnIssues(view),
     ...workflowReferenceIssues(view),
+    ...sourceListIssues(view),
     ...verdictOverlapIssues(view),
     ...parkedIssues(view),
     ...drilldownIssues(view),

@@ -11672,10 +11672,27 @@ export interface components {
           landed: {
             stage: string;
           };
-          rounds?: {
-            workflow: string;
-            loop: string;
-          };
+          rounds?:
+            | {
+                workflow: string;
+                loop: string;
+              }
+            | {
+                workflow: string;
+                round: string;
+                allowance: string;
+              }
+            | (
+                | {
+                    workflow: string;
+                    loop: string;
+                  }
+                | {
+                    workflow: string;
+                    round: string;
+                    allowance: string;
+                  }
+              )[];
           returns?: {
             workflow: string;
             node: string;
@@ -11700,10 +11717,15 @@ export interface components {
               why?: string;
             };
           };
-          change?: {
-            workflow: string;
-            pointer: string;
-          };
+          change?:
+            | {
+                workflow: string;
+                pointer: string;
+              }
+            | {
+                workflow: string;
+                pointer: string;
+              }[];
           partOf?: {
             workflow: string;
             pointer: string;
