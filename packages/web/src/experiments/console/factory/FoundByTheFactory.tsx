@@ -27,21 +27,20 @@ import { StaleRead } from './StaleRead';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
 const HEADING_ID = `${FOUND_BY_THE_FACTORY}-heading`;
-const LINK_HASH = `#${FOUND_BY_THE_FACTORY}`;
 
 /**
- * Scroll the panel into view once its read has answered, when the page was opened at its
- * hash (the Overview's tile links there). The router does not scroll to a hash itself.
+ * Scroll the panel into view once its read has answered, when the page was opened on it (the
+ * Overview's tile links to the board's `?show=found`): once per page visit.
  */
-function useScrollWhenLinked(ready: boolean): RefObject<HTMLElement | null> {
+function useScrollWhenOpened(ready: boolean): RefObject<HTMLElement | null> {
   const ref = useRef<HTMLElement>(null);
-  const { hash, key } = useLocation();
+  const { key } = useLocation();
   const scrolled = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready || hash !== LINK_HASH || scrolled.current === key) return;
+    if (!ready || scrolled.current === key) return;
     scrolled.current = key;
     ref.current?.scrollIntoView({ block: 'start' });
-  }, [ready, hash, key]);
+  }, [ready, key]);
   return ref;
 }
 
@@ -50,12 +49,13 @@ function useScrollWhenLinked(ready: boolean): RefObject<HTMLElement | null> {
  * from what agents noticed outside their scope, that no item on the project carries yet.
  * Read-only. Mount it only when the view declares `discoveries`. While the drains are a
  * shadow (the view says so) it reads as one: they decide what they would file and file
- * nothing. The Overview's tile links here by `#found-by-the-factory`.
+ * nothing. The Overview's tile opens it through the board's `?show=found`.
  */
 export function FoundByTheFactory({
   projectId,
   above = true,
   oneLine = false,
+  opened = false,
 }: {
   projectId: string;
   /**
@@ -66,17 +66,17 @@ export function FoundByTheFactory({
   /**
    * Start as one line (the count and "show the findings"), which opens the full panel in
    * place: the board's columns keep the height at 1440x900. No top margin of its own: the
-   * board's gap already sets it apart. A page opened at the panel's
-   * hash (the Overview's tile) starts open, with its findings listed.
+   * board's gap already sets it apart.
    */
   oneLine?: boolean;
+  /** Opened on the panel (the board's `?show=found`): it starts open, its findings listed. */
+  opened?: boolean;
 }): ReactElement {
   const read = useFactoryDiscoveries(projectId);
-  const ref = useScrollWhenLinked(above && read.data !== undefined);
-  const linked = useLocation().hash === LINK_HASH;
-  const [expanded, setExpanded] = useState(!oneLine || linked);
+  const ref = useScrollWhenOpened(opened && above && read.data !== undefined);
+  const [expanded, setExpanded] = useState(!oneLine || opened);
   // Listed when the person asked for the findings: from the one line or from the tile.
-  const [listed, setListed] = useState(oneLine && linked);
+  const [listed, setListed] = useState(oneLine && opened);
   return (
     <section
       ref={ref}

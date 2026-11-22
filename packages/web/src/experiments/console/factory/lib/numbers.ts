@@ -3,9 +3,9 @@
  * count is the number of cards the board shows under that number's filter. The strip's
  * "need you" tile is not here: it counts the attention queue (`needsYouCount`).
  */
-import { ensureUtc } from '../../lib/format';
-import { filterBoard, type BoardModel, type PlacedCard } from './board';
+import { filterBoard, type BoardModel } from './board';
 import type { BoardShow } from './board-show';
+import { timeToLand } from './board-table';
 
 export interface FactoryNumbers {
   inFlight: number;
@@ -26,21 +26,6 @@ export interface FactoryNumbers {
 const cardCount = (model: BoardModel): number =>
   model.columns.reduce((sum, column) => sum + column.cards.length, 0);
 
-const ms = (iso: string): number => new Date(ensureUtc(iso)).getTime();
-
-/**
- * From the item's first declared run starting to its change merging; null for an item that
- * has not merged, has no merge time, or has no declared run the read carries.
- */
-function timeToLand({ item }: PlacedCard): number | null {
-  const mergedAt = item.progress?.change?.mergedAt ?? null;
-  if (mergedAt === null) return null;
-  const declared = new Set(item.progress?.runs.map(run => run.runId));
-  const starts = item.runs.filter(run => declared.has(run.id)).map(run => ms(run.startedAt));
-  if (starts.length === 0) return null;
-  return ms(mergedAt) - Math.min(...starts);
-}
-
 /** The median of `values`; the mean of the two middle ones for an even count. */
 export function median(values: readonly number[]): number | null {
   const sorted = [...values].sort((a, b) => a - b);
@@ -52,15 +37,14 @@ export function median(values: readonly number[]): number | null {
 
 export function factoryNumbers(model: BoardModel, now: Date): FactoryNumbers {
   const shown = (show: BoardShow): BoardModel => filterBoard(model, '', show, now);
-  const landed = shown('landed');
-  const times = landed.columns
-    .flatMap(column => column.cards)
+  const times = shown('median-to-land')
+    .columns.flatMap(column => column.cards)
     .flatMap(placed => timeToLand(placed) ?? []);
   return {
     inFlight: cardCount(shown('in-flight')),
     landedToday: cardCount(shown('landed-today')),
-    landed: cardCount(landed),
-    total: cardCount(model),
+    landed: cardCount(shown('landed')),
+    total: cardCount(shown('landed-of-all')),
     medianToLandMs: median(times),
     pending: model.columns.some(column => column.pending),
   };

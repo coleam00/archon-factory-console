@@ -5,32 +5,52 @@ import type { BoardCard, BoardModel } from './lib/board';
 import { itemPath } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
 import { statusTextClass } from '../lib/run-status';
-import { shortDateTime } from './lib/board-table';
+import type { TableMark } from './lib/board-show';
+import { durationWords } from './lib/duration';
+import { TONES } from './tones';
 import { RowAnswer, RowAsk } from './BoardAskFace';
 import type { BoardAsks } from './useBoardAsks';
 import {
+  markedKeys,
+  shortDateTime,
   sortRows,
   TABLE_COLUMNS,
   tableRows,
+  timeToLand,
   type TableColumnId,
   type TableRow,
   type TableSort,
 } from './lib/board-table';
 
-/** Table view: one row per item with the card's fields as columns; a header click sorts. */
+/** The bar a marked row carries on its left edge: merged in the done colour, the median in the accent. */
+const MARK_BAR: Record<TableMark, string> = {
+  landed: TONES.merged.color,
+  median: 'var(--accent)',
+};
+
+/**
+ * Table view: one row per item with the card's fields as columns; a header click sorts. A
+ * board show sets the sort it opens on and which rows it marks (`?show=`, `BOARD_SHOW`).
+ */
 export function BoardTable({
   projectId,
   model,
   moved,
   asks,
+  initialSort,
+  mark,
 }: {
   projectId: string;
   model: BoardModel;
   moved: ReadonlySet<string>;
   asks: BoardAsks;
+  initialSort?: TableSort;
+  mark?: TableMark;
 }): ReactElement {
-  const [sort, setSort] = useState<TableSort>({ by: 'column', descending: false });
-  const rows = sortRows(tableRows(model), sort);
+  const [sort, setSort] = useState<TableSort>(initialSort ?? { by: 'column', descending: false });
+  const all = tableRows(model);
+  const rows = sortRows(all, sort);
+  const marked = mark === undefined ? undefined : markedKeys(all, mark, model.landedStage);
   const sortBy = (by: TableColumnId): void => {
     setSort(current => ({ by, descending: current.by === by ? !current.descending : false }));
   };
@@ -70,6 +90,7 @@ export function BoardTable({
               projectId={projectId}
               row={row}
               moved={moved.has(row.placed.card.key)}
+              mark={marked?.has(row.placed.card.key) === true ? mark : undefined}
               asks={asks}
             />
           ))}
@@ -88,18 +109,25 @@ function BoardRow({
   projectId,
   row,
   moved,
+  mark,
   asks,
 }: {
   projectId: string;
   row: TableRow;
   moved: boolean;
+  /** What marks this row, when the show marks it. */
+  mark: TableMark | undefined;
   asks: BoardAsks;
 }): ReactElement {
   const { card } = row.placed;
+  const toLand = timeToLand(row.placed);
   return (
     <tr
       data-card={card.key}
       data-moved={moved ? 'true' : undefined}
+      data-mark={mark}
+      // A bar inside the row's left edge, so the marked rows read down the Table.
+      style={mark === undefined ? undefined : { boxShadow: `inset 3px 0 0 ${MARK_BAR[mark]}` }}
       className={`border-b border-border ${moved ? 'bg-[color:var(--accent-soft)]' : ''} motion-safe:transition-colors`}
     >
       <Cell>
@@ -126,6 +154,14 @@ function BoardRow({
       <Cell>{card.change === null ? null : <ChangeCell change={card.change} />}</Cell>
       <Cell className="whitespace-nowrap text-text-tertiary">
         <MergedWhen full={card.mergedAt} iso={row.placed.item.progress?.change?.mergedAt} />
+      </Cell>
+      <Cell className="whitespace-nowrap text-text-secondary">
+        {toLand === null ? null : durationWords(toLand)}
+        {mark === 'median' ? (
+          <span className="ml-1.5 rounded border border-accent px-1 text-console-12 text-accent-bright">
+            Median
+          </span>
+        ) : null}
       </Cell>
       <Cell
         className={`min-w-40 max-w-56 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}

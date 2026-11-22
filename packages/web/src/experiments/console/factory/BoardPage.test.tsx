@@ -15,6 +15,9 @@ import {
   VIEW,
 } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
+import { boardModel } from './lib/board';
+import { timeToLand } from './lib/board-table';
+import { factoryNumbers } from './lib/numbers';
 import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches } from './merge-watch';
 import { formatDateTime } from '../lib/format';
@@ -512,6 +515,90 @@ describe('a board opened from a number', () => {
       await act(async () => clear.click());
       expect(keys()).toEqual(['5', '4', '6', '3', '8', '7', '2', '1']);
       expect(container.textContent).not.toContain('Showing:');
+    } finally {
+      await unmount();
+    }
+  });
+
+  const rowKeys = (container: HTMLElement, selector = 'tbody tr'): string[] =>
+    [...container.querySelectorAll(selector)].map(
+      row => row.querySelector('td')?.textContent ?? ''
+    );
+  const model = () => boardModel(VIEW, ID, PAGE.items, new Map());
+
+  test('"N of M merged": the Table of every item on the board, the merged ones marked', async () => {
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?view=table&show=landed-of-all`
+    );
+    try {
+      const { landed, total } = factoryNumbers(model(), NOW);
+      expect(rowKeys(container)).toHaveLength(total);
+      expect(rowKeys(container, 'tbody tr[data-mark="landed"]')).toHaveLength(landed);
+      expect(rowKeys(container, 'tbody tr[data-mark="landed"]')).toEqual(['7', '2', '1']);
+      expect(container.textContent).toContain('Showing: every item, merged ones marked');
+      const clear = container.querySelector(
+        'button[aria-label="Show every item"]'
+      ) as HTMLButtonElement;
+      await act(async () => clear.click());
+      // Still the Table, unmarked; the folded ending is back.
+      expect(container.querySelector('table')).not.toBeNull();
+      expect(container.querySelector('tr[data-mark]')).toBeNull();
+      expect(container.textContent).not.toContain('Showing:');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('the median: merged rows by time to merge, the median row marked, the number checkable', async () => {
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?view=table&show=median-to-land`
+    );
+    try {
+      const placed = new Map(
+        model()
+          .columns.flatMap(column => column.cards)
+          .map(card => [card.card.key, card])
+      );
+      const times = rowKeys(container).map(key => {
+        const card = placed.get(key);
+        return card === undefined ? null : timeToLand(card);
+      });
+      expect(times.length).toBeGreaterThan(1);
+      // Ascending; a row with no time to merge after every time.
+      const known = times.filter((time): time is number => time !== null);
+      expect(known).toEqual([...known].sort((a, b) => a - b));
+      expect(times.slice(known.length).every(time => time === null)).toBe(true);
+      const marked = rowKeys(container, 'tbody tr[data-mark="median"]');
+      expect(marked.length).toBeGreaterThan(0);
+      const markedTimes = marked.map(key => timeToLand(placed.get(key)!) ?? NaN);
+      const mean = markedTimes.reduce((sum, time) => sum + time, 0) / markedTimes.length;
+      expect(mean).toBe(factoryNumbers(model(), NOW).medianToLandMs!);
+      expect(container.querySelector('th[aria-sort="ascending"]')?.textContent).toContain(
+        'To merge'
+      );
+      expect(container.querySelector('tr[data-mark="median"]')?.textContent).toContain('Median');
+      expect(container.textContent).toContain('Showing: merged, by time to merge, median marked');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('found by the factory: the whole board, its panel open with the findings listed', async () => {
+    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
+    const { container, unmount } = await mount(
+      [closed, ...PAGE.items.filter(item => item.item.key !== '6')],
+      `/console/p/${ID}/factory/board?show=found`
+    );
+    try {
+      expect(cardKeys(container)).toHaveLength(PAGE.items.length - 1);
+      // Nothing narrowed: the folded ending stays, as a show that narrows would hide it.
+      expect(container.querySelector('details summary')?.textContent).toBe(
+        '1 folded into another item'
+      );
+      expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
+      expect(container.textContent).toContain('Showing: found by the factory');
     } finally {
       await unmount();
     }

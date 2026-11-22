@@ -171,7 +171,7 @@ describe('the Overview', () => {
     }
   });
 
-  test('the numbers strip counts the board, each number linking to the board it counts', () => {
+  test('the numbers strip counts the board, each number opening what it counts and saying where', () => {
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     // The strip alone: the map's cards below are links drawn the same way.
     const strip = html.slice(
@@ -182,17 +182,41 @@ describe('the Overview', () => {
       ...strip.matchAll(
         /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>([^<]*)</g
       ),
-    ].map(([, label, href, value]) => `${value ?? ''} ${label ?? ''} → ${href ?? ''}`);
+    ].map(
+      ([, label, href, value]) =>
+        `${value ?? ''} ${label ?? ''} → ${(href ?? '').replaceAll('&amp;', '&')}`
+    );
     const board = `/console/p/${ID}/factory/board`;
     expect(tiles).toEqual([
       `5 in flight → ${board}?show=in-flight`,
       `0 need you → /console/p/${ID}/needs-you`,
       expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
-      `3 of 8 merged → ${board}?show=landed`,
-      expect.stringMatching(new RegExp(` median to merged → ${board}\\?show=landed$`)),
+      `3 of 8 merged → ${board}?view=table&show=landed-of-all`,
+      expect.stringMatching(
+        new RegExp(` median to merged → ${board}\\?view=table&show=median-to-land$`)
+      ),
       // Its own read, not answered in a static render: a skeleton, no figure.
-      ` found by the factory → ${board}#found-by-the-factory`,
+      ` found by the factory → ${board}?show=found`,
     ]);
+    // Each says where it goes, to a screen reader (the end of its name) and on hover.
+    const opens = [
+      'Open the board, in flight only',
+      'Open Needs you',
+      'Open the board, merged today only',
+      'Open the table: every item, merged ones marked',
+      'Open the table of merged items sorted by time to merge, the median marked',
+      'Open the board with Found by the factory open',
+    ];
+    expect([...strip.matchAll(/class="sr-only">, ([^<]*)</g)].map(([, said]) => said)).toEqual(
+      opens
+    );
+    expect([...strip.matchAll(/<a [^>]*title="([^"]*)"/g)].map(([, title]) => title)).toEqual(
+      opens.map((said, i) =>
+        i === 4
+          ? `The median time from an item&#x27;s first run to its change merging. ${said}`
+          : said
+      )
+    );
     // Above the map.
     expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(html.indexOf('aria-label="The map"'));
   });
