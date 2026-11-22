@@ -304,7 +304,13 @@ describe('GET /api/factory/pack-settings', () => {
       land_policy: { points_to: 'policy', shadow: true, section: 'ahead', when_live: 'Would land' },
     },
     setting_sections: [
-      { id: 'ahead', eyebrow: 'Gates', title: 'What may go ahead', kind: 'gate', icon: 'gavel' },
+      {
+        id: 'ahead',
+        eyebrow: 'Gates',
+        title: 'What may go ahead',
+        kind: 'gate' as const,
+        icon: 'gavel' as const,
+      },
     ],
   };
 
