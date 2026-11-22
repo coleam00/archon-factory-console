@@ -36,33 +36,56 @@ type Tree = Parameters<typeof findAndReplace>[0];
 const escaped = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
- * A remark plugin that turns each chip's token, where it stands in prose, into a `span` the page
- * draws as a chip (`data-ref-label`, `data-ref-kind`, the raw token as its title). It replaces
- * only in text: a token in a code span or block is code, and is left as written. Longer tokens
- * are tried first, so `$build.output.proposed` is never cut to `$build.output`.
+ * The node a chip is drawn from: an emphasis node renamed through `data.hName`, a phrasing node
+ * mdast knows, drawn as the span the page's markdown components turn into a chip.
+ */
+function chipNode(chip: ReferenceChip) {
+  const data = {
+    hName: 'span',
+    hProperties: { dataRefLabel: chip.label, dataRefKind: chip.kind, title: chip.token },
+  };
+  return {
+    type: 'emphasis' as const,
+    data,
+    children: [{ type: 'text' as const, value: chip.label }],
+  };
+}
+
+/**
+ * A code span that is exactly one listed token becomes its chip, in place: the pack writes its
+ * inline references in backticks, and the owner ruled (2026-11-22) that such a span is a
+ * reference, not code. A span with anything else in it, and a code block, stay code.
+ */
+function chipWholeTokenSpans(node: Tree, byToken: ReadonlyMap<string, ReferenceChip>): void {
+  if (node.type === 'inlineCode') {
+    const chip = byToken.get(node.value);
+    if (chip !== undefined) {
+      Object.assign(node, chipNode(chip));
+      Reflect.deleteProperty(node, 'value');
+    }
+    return;
+  }
+  if ('children' in node) for (const child of node.children) chipWholeTokenSpans(child, byToken);
+}
+
+/**
+ * A remark plugin that turns each chip's token, where it stands in prose or as a whole code span,
+ * into a `span` the page draws as a chip (`data-ref-label`, `data-ref-kind`, the raw token as its
+ * title). A token inside a longer code span or a code block is code, and is left as written.
+ * Longer tokens are tried first, so `$build.output.proposed` is never cut to `$build.output`.
  */
 export function referenceChips(chips: readonly ReferenceChip[]): () => (tree: Tree) => void {
   const byToken = new Map(chips.map(chip => [chip.token, chip]));
   const tokens = [...byToken.keys()].sort((a, b) => b.length - a.length);
   return () => tree => {
     if (tokens.length === 0) return;
+    chipWholeTokenSpans(tree, byToken);
     findAndReplace(tree, [
       [
         new RegExp(tokens.map(escaped).join('|'), 'g'),
         (token: string) => {
           const chip = byToken.get(token);
-          if (chip === undefined) return false;
-          // An emphasis node renamed through `data.hName`: a phrasing node mdast knows, drawn
-          // as the span the page's markdown components turn into a chip.
-          const data = {
-            hName: 'span',
-            hProperties: {
-              dataRefLabel: chip.label,
-              dataRefKind: chip.kind,
-              title: chip.token,
-            },
-          };
-          return { type: 'emphasis', data, children: [{ type: 'text', value: chip.label }] };
+          return chip === undefined ? false : chipNode(chip);
         },
       ],
     ]);

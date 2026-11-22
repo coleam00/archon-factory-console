@@ -149,7 +149,7 @@ describe('the step page as a document page', () => {
       [...root.querySelectorAll('[data-ref-label]')].map(chip =>
         chip.getAttribute('data-ref-label')
       )
-    ).toEqual(['item', 'Build output']);
+    ).toEqual(['item', 'land on', 'Build output']);
     // "What it does" is the covering drill-down card's line.
     const does = root.querySelector('[data-doc-columns] section');
     expect(does?.textContent).toBe('What it doesFixFixes what the checks sent back');

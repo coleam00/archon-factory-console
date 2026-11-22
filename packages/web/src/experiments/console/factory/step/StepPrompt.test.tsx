@@ -55,12 +55,23 @@ describe('reference chips', () => {
     expect(root.querySelector('p')?.textContent).not.toContain('$INPUTS');
   });
 
-  test('a reference inside a code span stays code, as written, with no chip in it', () => {
+  test('a code span that is exactly one reference is its chip, the token on hover', () => {
     const root = rendered('Merge onto `$INPUTS.land_on` for $INPUTS.item.', CHIPS);
-    const code = root.querySelector('p code');
-    expect(code?.textContent).toBe('$INPUTS.land_on');
-    expect(code?.querySelector('[data-ref-label]')).toBeNull();
-    expect(chipsIn(root)).toEqual(['item']);
+    expect(chipsIn(root)).toEqual(['land on', 'item']);
+    expect(root.querySelector('[data-ref-label="land on"]')?.getAttribute('title')).toBe(
+      '$INPUTS.land_on'
+    );
+    expect(root.querySelector('p code')).toBeNull();
+  });
+
+  test('a reference inside real code stays code: a longer span and a code block', () => {
+    const root = rendered(
+      'Read `$INPUTS.land_on/policy.md` first.\n\n```sh\necho $INPUTS.item\n```\n',
+      CHIPS
+    );
+    expect(root.querySelector('p code')?.textContent).toBe('$INPUTS.land_on/policy.md');
+    expect(root.querySelector('pre code')?.textContent).toContain('echo $INPUTS.item');
+    expect(chipsIn(root)).toEqual([]);
   });
 
   test('a prefix pair is two chips, and a path reference is never cut short', () => {
