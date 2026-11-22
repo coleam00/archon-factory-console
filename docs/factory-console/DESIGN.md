@@ -922,8 +922,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
-   drains decided to file that no item carries yet and links to the board's panel; it has its
-   own read, so it never holds up the other five.
+   drains decided to file that no item carries yet and opens the board with that panel open; it
+   has its own read, so it never holds up the other five. Each tile opens what it counts (owner
+   change 3 of 2026-11-21), through the board's `?show=` (one spec per show in
+   `lib/board-show.ts`, which the tile's count reads too), and its tooltip and accessible name
+   say where it goes.
 3. **Needs you:** the newest three open asks and waits as compact ask cards (Visual standard rule
    9): the item, the question, the recommended tile (or the first), and **Open**, which leads to
    that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on

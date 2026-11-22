@@ -4,7 +4,7 @@ import type { EntityView } from '../../store/cache';
 import { FactoryLoading } from '../FactoryLoading';
 import { GraphSkeleton } from '../GraphSkeleton';
 import { itemsOnStep, runningItems } from '../lib/items-on-step';
-import { stepInStage, type FactoryStage } from '../lib/stage-steps';
+import { stepWorker, type FactoryStage } from '../lib/stage-steps';
 import { stepGraph } from '../lib/step-graph';
 import { stepLabel } from '../lib/step-label';
 import type { FactoryViewListed } from '../lib/views';
@@ -39,7 +39,7 @@ export function StageWorkflow({
         ? undefined
         : stepGraph(
             read.data,
-            key => stepInStage(stage, key),
+            key => stepWorker(view.stages, stage, workflow, key),
             key => stepLabel(view, workflow, key)
           ),
     [read.data, stage, view, workflow]
@@ -54,7 +54,8 @@ export function StageWorkflow({
       <h4 className="font-mono text-console-15 font-semibold text-text-primary">{workflow}</h4>
       {stage.nodes === undefined ? null : (
         <p className="text-console-13 text-text-tertiary">
-          Other stages work the dimmed steps of this workflow.
+          Every step of this workflow is drawn. This stage's own steps carry a ring and a "This
+          stage" tag; another step's tag names the stage that works it and opens that stage.
         </p>
       )}
       <RunningNow projectId={projectId} view={view} workflow={workflow} items={items} />

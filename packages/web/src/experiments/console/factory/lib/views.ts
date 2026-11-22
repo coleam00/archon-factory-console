@@ -55,6 +55,31 @@ export function stageModalLink(projectId: string, stage: string, tab?: StageTab)
   };
 }
 
+/** A link from one stage's real workflow to another stage's, and how to follow it. */
+export interface StageSwitchLink {
+  to: To;
+  /** Whether following it replaces the entry on screen rather than pushing one. */
+  replace: boolean;
+  state: Partial<StageModalLink['state']>;
+}
+
+/**
+ * Another stage, opened on its real workflow, from a step's tag. In the modal (`?stage=` on the
+ * address) it replaces the entry and keeps its state, so Close still does what it did: back to
+ * the page before a pushed modal, or dropping `stage` in place for a pasted link's. From the
+ * stage page it pushes the modal, as any map link does.
+ */
+export function stageSwitchLink(
+  projectId: string,
+  stage: string,
+  current: { search: string; state: unknown }
+): StageSwitchLink {
+  const link = stageModalLink(projectId, stage, 'workflow');
+  if (!new URLSearchParams(current.search).has('stage')) return { ...link, replace: false };
+  const kept = typeof current.state === 'object' && current.state !== null ? current.state : {};
+  return { to: link.to, replace: true, state: { ...kept, tab: 'workflow' } };
+}
+
 /** A pack's Factory pages in the console's sidebar, by the pack's key (`owner.name` when installed). */
 export function factoryPackPath(packKey: string, rest = '/how-it-works'): string {
   return `/console/factory/${encodeURIComponent(packKey)}${rest}`;

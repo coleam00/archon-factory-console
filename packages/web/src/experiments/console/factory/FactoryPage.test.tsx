@@ -351,24 +351,33 @@ describe('the stage page', () => {
     expect(html).toContain('Checks the change.');
     expect(html).toContain('up to 3 rounds');
     expect(html).toContain('>included<');
-    // Only the stage's own step stands out; the rest of deliver is dimmed.
-    expect([...html.matchAll(/<button[^>]*data-in-stage=""[^>]*>/g)]).toHaveLength(1);
-    expect(html).toMatch(
-      /<button[^>]*title="review \(engine id: rounds\.review__review\)"[^>]*data-in-stage=""/
-    );
-    // And it looks different: the stage's step and another stage's idle step do not share
-    // their classes, whatever the classes are.
-    const buttons = [...html.matchAll(/<button[^>]*>/g)].map(([tag]) => tag);
-    const classOf = (tag: string | undefined): string | undefined =>
-      /class="([^"]*)"/.exec(tag ?? '')?.[1];
-    const own = buttons.find(tag => tag.includes('data-in-stage=""'));
-    const other = buttons.find(
-      tag =>
-        tag.includes('title=') && !tag.includes('data-in-stage') && !tag.includes('data-running')
-    );
-    expect(classOf(own)).toBeDefined();
-    expect(classOf(other)).toBeDefined();
-    expect(classOf(own)).not.toBe(classOf(other));
+    // The stage's own step is marked as its own: a ring in its group's colour.
+    const steps = [...html.matchAll(/<button[^>]*data-worker="[^"]*"[^>]*>/g)].map(([tag]) => tag);
+    const own = steps.filter(tag => tag.includes('data-worker="this"'));
+    expect(own).toHaveLength(1);
+    expect(own[0]).toContain('title="review (engine id: rounds.review__review)"');
+    expect(own[0]).toContain('outline:2px solid var(--node-approval)');
+    // No step is dimmed: no opacity class, no opacity style, on any step or frame label.
+    for (const tag of steps) {
+      expect(tag).not.toMatch(/opacity-\d/);
+      expect(tag).not.toMatch(/opacity:\s*0/);
+    }
+    expect(html).not.toMatch(/opacity-(35|50)/);
+    // Its tag says so; another stage's step names that stage and opens it on its workflow.
+    expect([...html.matchAll(/data-step-tag="this"[^>]*>([^<]*)</g)].map(([, t]) => t)).toEqual([
+      'This stage',
+    ]);
+    const buildTags = [
+      ...html.matchAll(/<a [^>]*data-step-tag="build"[^>]*href="([^"]*)"[^>]*>([^<]*)</g),
+    ].map(([, href, text]) => `${text ?? ''} → ${href ?? ''}`);
+    expect(buildTags).toEqual([
+      `Build → /console/p/${ID}/factory?stage=build`,
+      `Build → /console/p/${ID}/factory?stage=build`,
+    ]);
+    // A step no stage lists carries no tag and no ring.
+    expect(steps.some(tag => tag.includes('data-worker="none"'))).toBe(true);
+    expect(html).toContain('the stage that works it and opens that stage');
+    expect(html).not.toContain('dimmed');
     for (const step of ['fix', 'base', 'review', 'tests', 'product', 'verdict'])
       expect(html).toContain(`>${step}</span>`);
     expect(html).toContain('Back to the overview');
