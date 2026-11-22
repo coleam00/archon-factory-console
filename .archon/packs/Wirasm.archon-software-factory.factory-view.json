@@ -312,8 +312,8 @@
     {
       "id": "ready",
       "label": "Ready to merge",
-      "blurb": "A gate checks the approved change, then it waits for a person to merge it.",
-      "short": "Gated, waits for a merge",
+      "blurb": "A gate reads the approved change and either lets it through or asks you; told \"land\", the factory merges it.",
+      "short": "Gated, merged on land",
       "group": "land",
       "workflows": ["landgate", "land"],
       "drilldown": {
@@ -323,7 +323,7 @@
             "cards": [
               {
                 "title": "Merge gate",
-                "text": "Decides whether it would merge without asking you; nothing acts on it",
+                "text": "Decides, by the land policy, whether the change may merge without asking you",
                 "icon": "shield-check",
                 "kind": "agent",
                 "covers": [{ "workflow": "landgate", "steps": ["gate"] }]
@@ -335,9 +335,9 @@
             "cards": [
               {
                 "title": "Merge",
-                "text": "A person merges the change",
+                "text": "Told \"land\" by the gate or by you, the factory merges the change",
                 "icon": "git-merge",
-                "kind": "you",
+                "kind": "agent",
                 "covers": [{ "workflow": "land", "steps": ["land"] }]
               }
             ]
@@ -448,15 +448,6 @@
       "reads": "checks",
       "results": "/results",
       "entry": { "name": "/name", "passed": "/passed", "seconds": "/seconds", "tail": "/tail" }
-    },
-    {
-      "workflow": "landgate",
-      "node": "gate",
-      "label": "Would it merge on its own",
-      "reads": "verdict",
-      "pointer": "/land",
-      "why": "/why",
-      "words": { "auto": "would merge on its own", "ask": "would ask you first" }
     },
     {
       "workflow": "discoveries",

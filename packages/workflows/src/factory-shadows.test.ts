@@ -14,7 +14,7 @@ import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
 
 const PACK = 'Wirasm/archon-software-factory';
 // The declaration this repository ships for the pack the fixtures' runs come from.
-const view = factoryViewSchema.parse(
+const shipped = factoryViewSchema.parse(
   JSON.parse(
     readFileSync(
       join(
@@ -25,6 +25,24 @@ const view = factoryViewSchema.parse(
     )
   )
 );
+/**
+ * The merge gate as the shipped view declared it while it was a shadow, when #70's landgate run
+ * recorded its decision. The view no longer declares it (the gate acts now), so the reader is
+ * shown it here.
+ */
+const GATE_SHADOW: FactoryShadow = {
+  workflow: 'landgate',
+  node: 'gate',
+  label: 'Would it merge on its own',
+  reads: 'verdict',
+  pointer: '/land',
+  why: '/why',
+  words: { auto: 'would merge on its own', ask: 'would ask you first' },
+};
+const view = factoryViewSchema.parse({
+  ...shipped,
+  shadows: [...(shipped.shadows ?? []), GATE_SHADOW],
+});
 
 interface Fixture {
   run: WorkflowRun;
@@ -169,6 +187,8 @@ describe('reading what each shadow step recorded', () => {
   test('a run of a workflow no shadow names decides nothing', () => {
     const elsewhere = { ...triage65, run: { ...triage65.run, workflow_name: `${PACK}:plan` } };
     expect(decisionsOf(elsewhere)).toEqual([]);
+    // The shipped view no longer names the merge gate: its run decides nothing there.
+    expect(shadowDecisions(shipped, PACK, landgate70.run, landgate70.events)).toEqual([]);
   });
 });
 
