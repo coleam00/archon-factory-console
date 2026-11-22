@@ -13,7 +13,7 @@ import { errorDetail } from '../lib/http';
 import { needsYouPath } from '../lib/needs-you';
 import { useFactoryItems } from './useFactoryItems';
 import { boardModel, type FactoryDeclaration } from './lib/board';
-import type { BoardShow } from './lib/board-show';
+import { BOARD_SHOW, boardShowSearch, type BoardShow } from './lib/board-show';
 import { durationWords } from './lib/duration';
 import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
@@ -21,7 +21,7 @@ import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { SkeletonFigure } from '../components/Skeleton';
 import { StaleRead } from './StaleRead';
-import { FOUND_BY_THE_FACTORY, openFindings } from './lib/discoveries';
+import { openFindings } from './lib/discoveries';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
 /** "Merged today" turns over at midnight without a reload. */
@@ -49,7 +49,21 @@ const WAIT_TITLE: Record<TileWait, string> = {
 /** A tile that waits shows a skeleton bar (rule 6), never a wrong count and never "…". */
 type TileValue = { wait: TileWait } | { wait: null; value: string };
 
-type Tile = TileValue & { to: string; label: string; icon: LucideIcon; title?: string };
+type Tile = TileValue & {
+  to: string;
+  /** Where the tile goes, as its tooltip and accessible name say. */
+  opens: string;
+  label: string;
+  icon: LucideIcon;
+  /** What the number means, said before where it goes. */
+  means?: string;
+};
+
+/** The board under `show`, and the words saying so. */
+const boardLink = (projectId: string, show: BoardShow): Pick<Tile, 'to' | 'opens'> => ({
+  to: factoryPath(projectId, `/board${boardShowSearch(show)}`),
+  opens: BOARD_SHOW[show].opens,
+});
 
 /**
  * The five tiles, each a skeleton while `numbers` is not read (undefined). `waiting` is the
@@ -61,7 +75,7 @@ function tiles(
   numbers: Numbers | undefined,
   waiting: number | undefined
 ): Tile[] {
-  const board = (show: BoardShow): string => factoryPath(projectId, `/board?show=${show}`);
+  const board = (show: BoardShow): Pick<Tile, 'to' | 'opens'> => boardLink(projectId, show);
   const read = (value: (n: Numbers) => string): TileValue =>
     numbers === undefined ? { wait: 'items' } : { wait: null, value: value(numbers) };
   // Every number but "needs you" depends on which items merged (placement rule 2).
@@ -69,13 +83,14 @@ function tiles(
     numbers?.pending === true ? { wait: 'merge' } : read(value);
   return [
     {
-      to: board('in-flight'),
+      ...board('in-flight'),
       ...merged(n => n.inFlight.toString()),
       label: 'in flight',
       icon: Activity,
     },
     {
       to: needsYouPath(projectId),
+      opens: 'Open Needs you',
       ...(waiting === undefined
         ? { wait: 'items' as const }
         : { wait: null, value: waiting.toString() }),
@@ -83,22 +98,22 @@ function tiles(
       icon: MessageCircleQuestionMark,
     },
     {
-      to: board('landed-today'),
+      ...board('landed-today'),
       ...merged(n => n.landedToday.toString()),
       label: 'merged today',
       icon: GitMerge,
     },
     {
-      to: board('landed'),
+      ...board('landed-of-all'),
       ...merged(n => `${n.landed.toString()} of ${n.total.toString()}`),
       label: 'merged',
       icon: CircleCheck,
     },
     {
-      to: board('landed'),
+      ...board('median-to-land'),
       ...merged(n => (n.medianToLandMs === null ? 'none yet' : durationWords(n.medianToLandMs))),
       label: 'median to merged',
-      title: "The median time from an item's first run to its change merging",
+      means: "The median time from an item's first run to its change merging",
       icon: Timer,
     },
   ];
@@ -149,9 +164,10 @@ export function FactoryNumbers({
           <NumberTile
             key={tile.label}
             to={tile.to}
+            opens={tile.opens}
             label={tile.label}
             icon={tile.icon}
-            title={tile.title}
+            means={tile.means}
           >
             {tile.wait === null ? tile.value : <FigureSkeleton title={WAIT_TITLE[tile.wait]} />}
           </NumberTile>
@@ -164,26 +180,29 @@ export function FactoryNumbers({
 
 /**
  * One number tile, in the card language (Visual standard, rules 1 and 2): an icon and the
- * label in the Label role, then the figure at the tile figure's size.
+ * label in the Label role, then the figure at the tile figure's size. Its tooltip and its
+ * accessible name end with where it goes.
  */
 function NumberTile({
   to,
+  opens,
   label,
   icon: Icon,
-  title,
+  means,
   children,
 }: {
   to: string;
+  opens: string;
   label: string;
   icon: LucideIcon;
-  title?: string;
+  means?: string;
   children: ReactNode;
 }): ReactElement {
   return (
     <li data-tile={label}>
       <Link
         to={to}
-        title={title}
+        title={means === undefined ? opens : `${means}. ${opens}`}
         className="flex h-full flex-col gap-2 rounded-console-12 border border-border bg-surface p-3 transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated"
       >
         <span className="flex items-start gap-1.5 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
@@ -193,6 +212,7 @@ function NumberTile({
         <span className="flex h-7 items-center text-console-22 font-semibold tabular-nums text-text-primary">
           {children}
         </span>
+        <span className="sr-only">, {opens}</span>
       </Link>
     </li>
   );
@@ -210,18 +230,14 @@ function FigureSkeleton({ title }: { title: string }): ReactElement {
 
 /**
  * "found by the factory": what the discoveries drains decided to file that no item carries
- * yet, linking to the board's panel. Its own read, so it never holds up the other tiles; a
+ * yet, opening the board with its panel open. Its own read, so it never holds up the other tiles; a
  * read that failed reads as a dash, and the panel says why.
  */
 function FoundTile({ projectId }: { projectId: string }): ReactElement {
   const read = useFactoryDiscoveries(projectId);
   const failed = read.data === undefined && readFailed(read.error) !== undefined;
   return (
-    <NumberTile
-      to={factoryPath(projectId, `/board#${FOUND_BY_THE_FACTORY}`)}
-      label="found by the factory"
-      icon={Search}
-    >
+    <NumberTile {...boardLink(projectId, 'found')} label="found by the factory" icon={Search}>
       {read.data !== undefined ? (
         openFindings(read.data).length
       ) : failed ? (

@@ -69,11 +69,11 @@ const failedChecks: ShadowDecision = {
     ],
   },
 };
-const askedGate: ShadowDecision = {
-  workflow: 'landgate',
-  node: 'gate',
+const askedAdmit: ShadowDecision = {
+  workflow: 'triage',
+  node: 'admit',
   round: null,
-  runId: 'g',
+  runId: 'a',
   decidedAt: at,
   read: { reads: 'verdict', value: 'ask', why: 'Nothing shows the operator looked at it.' },
 };
@@ -149,16 +149,16 @@ describe('a stage page card standing for a shadow step', () => {
   });
 });
 
-describe('a board card in Ready to merge', () => {
-  test('one line: what the land gate would do, in the shadow style', async () => {
+describe('a board card in Triage', () => {
+  test('one line: what the admit gate would do, in the shadow style', async () => {
     // Any real item: the line reads only its progress and the stage it is placed in.
     const item = realItem('1');
     if (item.progress === null) throw new Error('fixture item 1 has progress');
     item.progress.running = null;
-    item.progress.shadows = [askedGate];
-    const ready = VIEW.stages.find(stage => stage.id === 'ready');
-    if (ready === undefined) throw new Error('the shipped view has a ready stage');
-    const fields = cardFields(VIEW, PROJECT, item, { stage: ready });
+    item.progress.shadows = [askedAdmit];
+    const triage = VIEW.stages.find(stage => stage.id === 'triage');
+    if (triage === undefined) throw new Error('the shipped view has a triage stage');
+    const fields = cardFields(VIEW, PROJECT, item, { stage: triage });
     const asks: BoardAsks = {
       asksOf: () => [],
       faceOf: () => null,

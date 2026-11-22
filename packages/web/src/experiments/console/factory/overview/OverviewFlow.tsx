@@ -19,7 +19,9 @@ const GLOW_OPACITY = 0.45;
 const GLOW_FILL = 0.12;
 /**
  * How long a glow and a dot take to fade in and out, in ms. A dot's is shorter: a hop between
- * neighbours lasts 400 ms, and the dot should be at full strength for most of it.
+ * neighbours lasts about 270 ms, and the dot should be at full strength for most of it. These
+ * are edges inside a span, not durations of the loop, so `FLOW_TEMPO` does not scale them; the
+ * shortest spans (a 600 ms rest, a 267 ms hop) still exceed twice the fade.
  */
 const GLOW_FADE = 150;
 const DOT_FADE = 80;

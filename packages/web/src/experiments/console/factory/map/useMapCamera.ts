@@ -9,8 +9,10 @@ import {
 } from 'react';
 import {
   FIT_PAD,
+  type FitPad,
   fitCamera,
   fittedHeight,
+  MAP_ROOM_Y,
   MIN_FRAME_HEIGHT,
   READABLE_K,
   reveal,
@@ -56,12 +58,18 @@ interface Drag {
  * may still use.
  */
 export interface Fitting {
-  pad: number;
+  pad: FitPad;
   minK: number;
   maxK: number;
   reserveBottom: number;
 }
-const LIVE_FITTING: Fitting = { pad: FIT_PAD, minK: READABLE_K, maxK: 1, reserveBottom: 0 };
+/** The live map: opens at its start sideways, with room above and below the drawing. */
+export const LIVE_FITTING: Fitting = {
+  pad: { x: FIT_PAD, y: MAP_ROOM_Y },
+  minK: READABLE_K,
+  maxK: 1,
+  reserveBottom: 0,
+};
 
 const frameOf = (el: HTMLElement): Frame => ({ width: el.clientWidth, height: el.clientHeight });
 
@@ -108,7 +116,11 @@ export function useMapCamera(
     const el = frameRef.current;
     if (el === null) return;
     const row = el.parentElement ?? el;
-    setHeight(fittedHeight(bounds, row.clientWidth, pad, minK, maxK));
+    // The height set is the frame's border box; the fit is to its client box, inside the
+    // border. Adding the border makes the client box the fitted height, so the drawing sits
+    // centred with the whole pad above and below it rather than top-aligned and short.
+    const border = el.offsetHeight - el.clientHeight;
+    setHeight(fittedHeight(bounds, row.clientWidth, pad, minK, maxK) + border);
     const target = focused.current;
     if (target !== null) put(reveal(current.current, target, frameOf(el)));
     else if (!moved.current) put(fitCamera(bounds, fitFrame(el), pad, minK, maxK));

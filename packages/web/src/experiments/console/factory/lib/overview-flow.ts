@@ -10,14 +10,24 @@ import type { Point } from './map-layout';
 import type { OverviewLayout } from './overview-layout';
 import type { OverviewView } from './overview-nav';
 
+/**
+ * One factor on every duration of the loop: a dot's travel, its rest on a card and the pause
+ * between loops (owner change 1 of 2026-11-21 made the loop 1.5 times faster). A later change of
+ * tempo is this one edit; the values below are the loop at tempo 1.
+ */
+export const FLOW_TEMPO = 2 / 3;
+
 /** How fast a dot travels, and the least and most one leg takes: a hop between neighbours is short, the lane under the boxes long. */
-export const FLOW_SPEED = 0.12;
-export const FLOW_MIN_TRAVEL = 400;
-export const FLOW_MAX_TRAVEL = 3000;
+const FLOW_SPEED = 0.12;
+const FLOW_MIN_TRAVEL = 400;
+const FLOW_MAX_TRAVEL = 3000;
 /** The beat a dot rests on a card, while the card glows. */
-export const FLOW_DWELL = 900;
+const FLOW_DWELL_BASE = 900;
 /** The pause after the last dot arrives, before the loop starts again. */
-export const FLOW_REST = 1500;
+const FLOW_REST_BASE = 1500;
+
+/** The beat a dot rests on a card at the loop's tempo. */
+export const FLOW_DWELL = FLOW_DWELL_BASE * FLOW_TEMPO;
 
 export interface FlowMove {
   from: string;
@@ -47,7 +57,7 @@ const length = (points: readonly Point[]): number =>
     return sum + Math.hypot(p.x - prev.x, p.y - prev.y);
   }, 0);
 
-const travel = (points: readonly Point[]): number =>
+const travelAtTempo1 = (points: readonly Point[]): number =>
   Math.min(FLOW_MAX_TRAVEL, Math.max(FLOW_MIN_TRAVEL, Math.round(length(points) / FLOW_SPEED)));
 
 /** Points with no two in a row the same: a zero-length run has no direction to round a bend by. */
@@ -63,7 +73,14 @@ function distinct(points: readonly Point[]): Point[] {
  * starts: exactly one forward (`feeds`) line must leave an input card, or a group of input
  * cards, that nothing feeds. Two or none would leave the dots no one path to follow.
  */
-export function overviewFlow(view: OverviewView, layout: OverviewLayout): OverviewFlow | undefined {
+export function overviewFlow(
+  view: OverviewView,
+  layout: OverviewLayout,
+  tempo = FLOW_TEMPO
+): OverviewFlow | undefined {
+  // The factor applies after the clamps, so they scale with every other duration.
+  const travel = (points: readonly Point[]): number => travelAtTempo1(points) * tempo;
+  const dwell = FLOW_DWELL_BASE * tempo;
   const kindOf = new Map(view.cards.map(card => [card.id, card.kind]));
   const isInput = (id: string): boolean => {
     if (kindOf.has(id)) return kindOf.get(id) === 'input';
@@ -94,14 +111,14 @@ export function overviewFlow(view: OverviewView, layout: OverviewLayout): Overvi
   while (cur !== undefined) {
     const card: string = cur;
     visited.add(card);
-    glows.push({ card, start: t, end: t + FLOW_DWELL });
-    t += FLOW_DWELL;
+    glows.push({ card, start: t, end: t + dwell });
+    t += dwell;
     for (const back of layout.edges) {
       if (back.kind !== 'loops-back' || back.from !== card || kindOf.get(back.to) !== 'input')
         continue;
       const end = t + travel(back.points);
       moves.push({ ...pick(back), start: t, end });
-      glows.push({ card: back.to, start: end, end: end + FLOW_DWELL });
+      glows.push({ card: back.to, start: end, end: end + dwell });
     }
     const out = feeds.filter(edge => edge.from === card);
     const next = out[0];
@@ -115,7 +132,7 @@ export function overviewFlow(view: OverviewView, layout: OverviewLayout): Overvi
   }
 
   const last = Math.max(...moves.map(move => move.end), ...glows.map(glow => glow.end));
-  return { period: last + FLOW_REST, moves, glows };
+  return { period: last + FLOW_REST_BASE * tempo, moves, glows };
 }
 
 /**

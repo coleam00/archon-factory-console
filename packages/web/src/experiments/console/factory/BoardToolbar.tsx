@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { SegmentedControl } from '../components/SegmentedControl';
-import { BOARD_SHOW_LABEL, type BoardShow } from './lib/board-show';
+import { BOARD_SHOW, type BoardShow } from './lib/board-show';
 
 /**
  * The board's one toolbar line: the filter box, the Pipeline/Table switch, the number the
@@ -76,7 +76,7 @@ function ShowChip({
           : 'border-border bg-surface-elevated text-text-primary'
       }`}
     >
-      {show === undefined ? `Unknown filter "${param}"` : `Showing: ${BOARD_SHOW_LABEL[show]}`}
+      {show === undefined ? `Unknown filter "${param}"` : `Showing: ${BOARD_SHOW[show].label}`}
       <button
         type="button"
         onClick={onClear}

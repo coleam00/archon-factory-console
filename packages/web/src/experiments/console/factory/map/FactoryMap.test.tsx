@@ -179,8 +179,8 @@ test('the map draws one card per board column, a card of several stages a row fo
     expect(rows('merged')).toEqual([`/console/p/${ID}/factory?stage=landed`]);
     // A card of one stage reads its short line, not its blurb; a row of a card of several, its own.
     const ready = container.querySelector('[data-card="ready"]')?.textContent ?? '';
-    expect(ready).toContain('Gated, waits for a merge');
-    expect(ready).not.toContain('A gate checks the approved change');
+    expect(ready).toContain('Gated, merged on land');
+    expect(ready).not.toContain('A gate reads the approved change');
     const planBuild = container.querySelector('[data-card="plan-build"]')?.textContent ?? '';
     expect(planBuild).toContain('Plans how to build it');
     expect(planBuild).not.toContain('Works out how to build the item');
@@ -437,7 +437,7 @@ test('a stage with no short line shows its blurb, on a card of its own and in a 
   const { container, unmount } = await mount(items, listed);
   try {
     expect(container.querySelector('[data-card="ready"]')?.textContent).toContain(
-      'A gate checks the approved change'
+      'A gate reads the approved change'
     );
     expect(container.querySelector('a[data-stage="triage"]')?.textContent).toContain(
       'Reads a new item and decides'
