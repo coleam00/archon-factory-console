@@ -25,6 +25,15 @@ export function SettingsSections({
   ));
 }
 
+/**
+ * The setting panels' grid (owner change 6 of 2026-11-21): one across on a phone, two from md,
+ * three from about 1800 px. The breakpoint is in rem (112.5rem) because Tailwind sorts a px
+ * breakpoint before `md:`, which then wins. Panels are as tall as their content (owner change 5).
+ * The page's skeleton draws the same grid.
+ */
+export const SETTINGS_GRID =
+  'grid grid-cols-1 items-start gap-3 md:grid-cols-2 min-[112.5rem]:grid-cols-3';
+
 const OTHER = {
   eyebrow: 'Other',
   title: 'Other settings',
@@ -57,8 +66,7 @@ function SettingsSection({
       className="flex flex-col gap-3"
     >
       <SectionHeading id={headingId} {...look} count={group.settings.length} />
-      {/* console-token-exception min-[112.5rem]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px (112.5rem; in rem so it sorts after md:, which a px value does not). */}
-      <ul className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 min-[112.5rem]:grid-cols-3">
+      <ul className={SETTINGS_GRID}>
         {group.settings.map(setting => (
           <SettingPanel key={setting.name} setting={setting} project={project} tone={look.tone} />
         ))}

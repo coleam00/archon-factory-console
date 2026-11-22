@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { errorDetail } from '../../lib/http';
 import type { FactoryPackSettings } from '../../skills/factory';
 import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../../components/Skeleton';
+import { Panel } from '../document';
 import { FactoryLoading } from '../FactoryLoading';
 import { readFailed } from '../lib/deadline';
 import { packDisplayName } from '../lib/pack-name';
@@ -12,7 +13,7 @@ import { useFactoryPackSettings } from '../useFactoryPackSettings';
 import { PackFrame } from './PackFrame';
 import { PackLookup, packHeading } from './PackLookup';
 import { SettingsHeader } from './SettingsHeader';
-import { SettingsSections } from './SettingsSections';
+import { SETTINGS_GRID, SettingsSections } from './SettingsSections';
 import { NoSettings, SettingsErrors, Undeclared, UnknownProject } from './SettingsNotices';
 
 /**
@@ -39,9 +40,11 @@ function PackSettings({ pack }: { pack: FactoryPackListed }): ReactElement {
       {data !== undefined ? (
         <SettingsBody settings={data} packName={packDisplayName(pack.pack)} />
       ) : failed !== undefined ? (
-        <p role="alert" className="text-console-14 text-error">
-          The pack&apos;s settings could not be read: {errorDetail(failed)}
-        </p>
+        <Panel role="alert" tone="var(--error)" bar="top" className="px-5 pt-5 pb-4">
+          <p className="text-console-14 text-error">
+            The pack&apos;s settings could not be read: {errorDetail(failed)}
+          </p>
+        </Panel>
       ) : (
         <SettingsSkeleton read={read} />
       )}
@@ -93,8 +96,7 @@ function SettingsSkeleton({
           <SkeletonInnerLine width="short" />
           <SkeletonInnerLine />
         </SkeletonBlock>
-        {/* console-token-exception min-[112.5rem]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px (112.5rem; in rem so it sorts after md:, which a px value does not). */}
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[112.5rem]:grid-cols-3">
+        <div className={SETTINGS_GRID}>
           {['a', 'b', 'c', 'd'].map(key => (
             <SkeletonBlock key={key} height="h-40">
               <SkeletonInnerLine width="short" />

@@ -3,9 +3,10 @@
  * declares (`<pack>/.pack/pack.yaml`, `inputs:`, in its order), and what each project that
  * runs it sets (`.archon/packs/<pack key>.yaml`, `settings:`). Nothing here names a setting:
  * the declaration gives the names, defaults and descriptions, and the factory overview's
- * `settings` map (`schemas/factory-overview.ts`) says which run as a shadow and which point to
- * a file. A file a setting points to is looked up in the project's checkout; the checks file
- * is read and listed.
+ * `settings` map (`schemas/factory-overview.ts`) says which run as a shadow (and what changes
+ * when one stops being one), which point to a file, and which of the overview's
+ * `setting_sections` each is shown in. A file a setting points to is looked up in the
+ * project's checkout; the checks file is read and listed.
  *
  * This only reads, and only for display: a run resolves its settings itself
  * (`pack-settings.ts`), and refuses a project file this page still shows.

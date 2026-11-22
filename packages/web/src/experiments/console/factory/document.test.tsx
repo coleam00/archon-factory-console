@@ -58,7 +58,7 @@ describe('Panel', () => {
   test('its content may be long and unbroken without widening it', () => {
     const panel = render(<Panel>{UNBROKEN}</Panel>).querySelector('[data-doc-panel]');
     expect(panel?.classList.contains('min-w-0')).toBe(true);
-    expect(panel?.classList.contains('overflow-hidden')).toBe(true);
+    expect(wraps(panel)).toBe(true);
   });
 });
 

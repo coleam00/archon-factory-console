@@ -53,7 +53,7 @@ export function Panel({
       {...rest}
       data-doc-panel={inset ? 'inset' : 'panel'}
       style={tone === undefined ? undefined : toneStyle(tone)}
-      className={`relative min-w-0 overflow-hidden rounded-console-12 border border-border ${fill} ${className}`}
+      className={`relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] ${fill} ${className}`}
     >
       {tone === undefined || bar === undefined ? null : (
         <span
