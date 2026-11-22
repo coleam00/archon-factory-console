@@ -17,13 +17,12 @@ import { stageOfStep } from '../lib/placement';
 import { stepPageFromStage, type FactoryStage } from '../lib/stage-steps';
 import { coveringCard, modelWords, stepFacts, type StepFact } from '../lib/step-facts';
 import { KIND_TONES, KIND_WORDS } from '../lib/step-kinds';
-import { promptLead } from '../lib/prompt-lead';
 import { referenceLabel, type ReferenceChip } from '../lib/prompt-references';
 import { stepLabel } from '../lib/step-label';
 import { stageModalLink, type FactoryViewListed } from '../lib/views';
 import { CodePanel } from './CodePanel';
 import { StepItems, useItemsOnStep } from './StepItems';
-import { PromptMarkdown, StepPrompt } from './StepPrompt';
+import { StepPrompt } from './StepPrompt';
 import { StepWorkflowList } from './StepWorkflowList';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -55,7 +54,6 @@ export function StepDocument({
     return `${name.charAt(0).toUpperCase()}${name.slice(1)}`;
   };
   const card = coveringCard(view, workflow.name, step.key);
-  const lead = step.prompt === null ? null : promptLead(step.prompt);
   const chips: ReferenceChip[] = step.references.map(ref => ({
     token: ref.token,
     kind: ref.kind,
@@ -113,17 +111,13 @@ export function StepDocument({
         asideLabel="About this step"
         main={
           <>
-            {lead === null ? null : (
-              // The prompt's own opening paragraph: the header's line is the drill-down card's.
+            {card === undefined ? null : (
+              // The covering drill-down card's line, as the header's sentence is: the view file
+              // gives one plain-words line per step, and the item asks for it in both places.
               <section data-doc-section="" className="flex flex-col gap-3">
-                <SectionHeading
-                  icon={Info}
-                  eyebrow="What it does"
-                  title={card?.title ?? stepName(step.key)}
-                  tone={tone}
-                />
+                <SectionHeading icon={Info} eyebrow="What it does" title={card.title} tone={tone} />
                 <Panel className="px-5 py-4">
-                  <PromptMarkdown text={lead} chips={chips} className="text-console-15" />
+                  <p className="max-w-[80ch] text-console-15 text-text-secondary">{card.text}</p>
                 </Panel>
               </section>
             )}

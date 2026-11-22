@@ -26,7 +26,7 @@ const COMPONENTS: Components = {
 };
 
 /** Prompt markdown at a readable measure, each reference the server found as a named chip. */
-export function PromptMarkdown({
+function PromptMarkdown({
   text,
   chips,
   className = 'text-console-14',

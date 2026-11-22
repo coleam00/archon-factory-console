@@ -146,13 +146,10 @@ describe('the step page as a document page', () => {
       [...root.querySelectorAll('[data-ref-label]')].map(chip =>
         chip.getAttribute('data-ref-label')
       )
-    ).toEqual(['item', 'Build output', 'item', 'Build output']);
-    // "What it does" is the prompt's opening paragraph, its references chips there too.
+    ).toEqual(['item', 'Build output']);
+    // "What it does" is the covering drill-down card's line.
     const does = root.querySelector('[data-doc-columns] section');
-    expect(does?.textContent).toContain('What it does');
-    expect(does?.querySelector('.chat-markdown')?.textContent).toBe(
-      'Fix item on $INPUTS.land_on from Build output.'
-    );
+    expect(does?.textContent).toBe('What it doesFixFixes what the checks sent back');
     expect(root.querySelector('.chat-markdown p code')?.textContent).toBe('$INPUTS.land_on');
     const aside = root.querySelector('aside');
     const facts = aside?.querySelector('dl')?.textContent ?? '';
@@ -173,6 +170,8 @@ describe('the step page as a document page', () => {
 
   test('a script step shows its script on a numbered code panel, and no prompt', () => {
     const root = page('rounds.base');
+    // A step the view file names nothing reads as its id in sentence case.
+    expect(root.querySelector('[aria-label="Summary"] h2')?.textContent).toBe('Baserounds.base');
     const code = root.querySelector('ol[aria-label^="The script of"]');
     expect([...(code?.querySelectorAll('li') ?? [])].map(line => line.textContent)).toEqual([
       '1git fetch origin main',
