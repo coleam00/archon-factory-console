@@ -85,7 +85,7 @@ page, keeping the query string. Inside the tab:
   When the view declares `discoveries`, **Found by the factory** sits under the columns, in
   both views and whatever the filter, as one line ("14 the factory would file · show the
   findings", with its shadow badge) so the columns keep their height; "show the findings", or
-  the Overview's tile, opens the full panel in place: how many findings the discoveries drains decided to file
+  the Overview's tile (`?show=found`), opens the full panel in place: how many findings the discoveries drains decided to file
   that no item on the project carries yet (an item carries one when its title is the finding's,
   ignoring case), with chips counting every finding they decided to file, held and dropped,
   and how many are already on the board. **Show the findings** lists each: its kind, its title,
@@ -109,8 +109,9 @@ page, keeping the query string. Inside the tab:
   phases of plain cards, a card glowing and naming the items on its steps now, and a click on a
   card listing the real steps it stands for, each linking to its step page. "Show the real
   steps" (or, for a stage without a drill-down, the page itself) draws the step graph of each
-  workflow behind it: the stage's own steps stand out, steps another stage works are dimmed,
-  and a step running for an item now glows.
+  workflow behind it: every step at full strength, the stage's own steps ringed in its colour
+  and tagged "This stage", each other step tagged with the stage that works it (a click opens
+  that stage on its real workflow), and a step running for an item now glows.
 - **Step page**: the step by its name, with its engine id under it, the items on it now, when
   it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
   prompt, its YAML and the model it runs on.
@@ -134,8 +135,13 @@ question opening or closing.
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
 | found by the factory | Findings the discoveries drains decided to file that no item carries yet; shown only when the view declares `discoveries` |
 
-Each number opens the board filtered to the items it counts; **found by the factory** opens
-the board at its panel.
+Each number opens what it counts, and says where on hover and to a screen reader: in flight and
+merged today open the board showing only those items; items need you opens Needs you; N of M
+merged opens the board's Table with every item and the merged ones marked; the median opens the
+Table of merged items sorted by time to merge, the median row marked; **found by the factory**
+opens the board with its panel open. The board's address carries the filter (`?show=`), so the
+view can be shared and survives a reload; the board names the filter on screen, with
+**Show all** to clear it.
 
 ### Where an item sits
 

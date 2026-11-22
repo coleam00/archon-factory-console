@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "How the factory works",
-  "caption": "Work comes in as an issue, a work order, or something the factory found while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A change that is ready waits for you to merge it. Whenever something needs a decision, the factory stops and asks you, and your answer restarts the stage that asked. On a change in delivery you pick what happens: send it back to the builder, back to Plan, take it as it is, or hold it. What the checks and CI find goes back to the same builder, for up to three rounds; an item that needs a different approach goes back to Plan.",
+  "caption": "Work comes in as an issue, a work order, or something the factory found while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. Whenever something needs a decision, the factory stops and asks you, and your answer restarts the stage that asked. On a change in delivery you pick what happens: send it back to the builder, back to Plan, take it as it is, or hold it. What the checks and CI find goes back to the same builder, for up to three rounds; an item that needs a different approach goes back to Plan.",
   "root": "factory",
   "views": {
     "factory": {
@@ -90,7 +90,7 @@
         {
           "id": "ready",
           "title": "Ready to merge",
-          "text": "Approved, waiting for you to merge it",
+          "text": "Approved; the gate lets it merge or asks you",
           "icon": "git-pull-request",
           "kind": "outcome",
           "col": 7,
@@ -117,7 +117,7 @@
         {
           "id": "landgate",
           "title": "Merge gate",
-          "text": "Decides whether it would merge without asking you; nothing acts on it",
+          "text": "Decides whether it merges without asking you; on \"land\" the factory merges it",
           "icon": "gavel",
           "kind": "gate",
           "col": 7,
@@ -138,8 +138,7 @@
           "from": "ready",
           "to": "landgate",
           "kind": "calls",
-          "label": "would it merge?",
-          "shadow": true
+          "label": "may it merge?"
         },
         { "from": "checks", "to": "build", "kind": "loops-back", "label": "sent back to fix" },
         { "from": "ci", "to": "build", "kind": "loops-back", "label": "CI or a reviewer found something" },

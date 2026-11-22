@@ -22,11 +22,12 @@ import {
   type BoardModel,
   type FactoryDeclaration,
 } from './lib/board';
-import { parseBoardShow, SHOW_PARAM, TABLE_VIEW, VIEW_PARAM } from './lib/board-show';
+import type { BoardShowSpec } from './lib/board-show';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
 import { useBoardAsks, type BoardAsks } from './useBoardAsks';
+import { useBoardShow } from './useBoardShow';
 
 /** How long a card that changed stage stays highlighted. */
 const MOVED_MS = 1500;
@@ -89,10 +90,8 @@ export function Board({
 }): ReactElement {
   const read = useFactoryItemsRead(projectId);
   const items = read.data?.items;
-  const [params, setParams] = useSearchParams();
-  const table = params.get(VIEW_PARAM) === TABLE_VIEW;
-  const showParam = params.get(SHOW_PARAM);
-  const show = showParam === null ? undefined : parseBoardShow(showParam);
+  const [params] = useSearchParams();
+  const { showParam, show, spec, table, setView, clearShow } = useBoardShow();
   const [query, setQuery] = useState('');
   const [hint, setHint] = useState<string | null>(null);
   const lit = params.get(ORDER_PARAM);
@@ -121,21 +120,10 @@ export function Board({
     () => askNaming(projectId, { declaration: view }, itemTitles(items)),
     [projectId, view, items]
   );
-  const setParam = (name: string, value: string | null): void => {
-    setParams(
-      current => {
-        const updated = new URLSearchParams(current);
-        if (value === null) updated.delete(name);
-        else updated.set(name, value);
-        return updated;
-      },
-      { replace: true }
-    );
-  };
   const showView = (next: 'pipeline' | 'table'): void => {
     // Its trigger is in the view being left.
     asks.close();
-    setParam(VIEW_PARAM, next === 'table' ? TABLE_VIEW : null);
+    setView(next);
   };
   return (
     <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
@@ -146,9 +134,7 @@ export function Board({
         onView={showView}
         showParam={showParam}
         show={show}
-        onClearShow={() => {
-          setParam(SHOW_PARAM, null);
-        }}
+        onClearShow={clearShow}
       >
         {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
             height: the work orders' summary, the folded endings, the hidden-columns hint. */}
@@ -176,6 +162,9 @@ export function Board({
         read={read}
         model={shown}
         table={table}
+        // A new show opens the Table on its own sort.
+        showKey={showParam}
+        spec={spec}
         moved={moved}
         orders={orders}
         lit={lit}
@@ -190,7 +179,12 @@ export function Board({
       {view.discoveries === undefined ? null : (
         // Never shrunk by the board's fill height: the panel's own lines and link stay whole.
         <div className="shrink-0">
-          <FoundByTheFactory projectId={projectId} above={shown !== undefined} oneLine />
+          <FoundByTheFactory
+            projectId={projectId}
+            above={shown !== undefined}
+            oneLine
+            opened={spec?.panel === true}
+          />
         </div>
       )}
     </div>
@@ -203,6 +197,8 @@ function BoardBody({
   read,
   model,
   table,
+  showKey,
+  spec,
   moved,
   orders,
   lit,
@@ -216,6 +212,9 @@ function BoardBody({
   read: ReturnType<typeof useFactoryItemsRead>;
   model: BoardModel | undefined;
   table: boolean;
+  showKey: string | null;
+  /** The show's spec: the sort the Table opens on and the rows it marks. */
+  spec: BoardShowSpec | undefined;
   moved: ReadonlySet<string>;
   orders: readonly WorkOrder[];
   /** The work order `?order=` lights; null when none. */
@@ -243,7 +242,15 @@ function BoardBody({
     <>
       <StaleRead error={read.error} />
       {table ? (
-        <BoardTable projectId={projectId} model={model} moved={moved} asks={asks} />
+        <BoardTable
+          key={showKey ?? ''}
+          projectId={projectId}
+          model={model}
+          moved={moved}
+          asks={asks}
+          initialSort={spec?.sort}
+          mark={spec?.mark}
+        />
       ) : (
         <BoardPipeline
           projectId={projectId}

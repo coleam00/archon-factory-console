@@ -40,14 +40,14 @@ afterAll(async () => {
   }
 });
 
-async function mount(path = `/console/p/${ID}/factory/board`, above = true, oneLine = false) {
+async function mount(opened = false, above = true, oneLine = false) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
     root.render(
-      <MemoryRouter initialEntries={[path]}>
-        <FoundByTheFactory projectId={ID} above={above} oneLine={oneLine} />
+      <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
+        <FoundByTheFactory projectId={ID} above={above} oneLine={oneLine} opened={opened} />
       </MemoryRouter>
     )
   );
@@ -145,7 +145,7 @@ test('a read that fails says what could not be read', async () => {
   }
 });
 
-test('opened at its hash, the panel scrolls into view once its read answers', async () => {
+test('opened on it, the panel scrolls into view once its read answers', async () => {
   const scrolled: unknown[] = [];
   const proto = dom.HTMLElement.prototype as unknown as {
     scrollIntoView: (options?: unknown) => void;
@@ -156,8 +156,8 @@ test('opened at its hash, the panel scrolls into view once its read answers', as
   };
   set(K.factoryDiscoveries(ID), DISCOVERIES);
   // Not while the board above it is still loading: it would be pushed down after.
-  const early = await mount(`/console/p/${ID}/factory/board#found-by-the-factory`, false);
-  const linked = await mount(`/console/p/${ID}/factory/board#found-by-the-factory`);
+  const early = await mount(true, false);
+  const linked = await mount(true);
   const plain = await mount();
   try {
     expect(scrolled).toEqual([{ block: 'start' }]);
@@ -171,7 +171,7 @@ test('opened at its hash, the panel scrolls into view once its read answers', as
 
 test('as one line: the count and "show the findings", which opens the full panel listed', async () => {
   set(K.factoryDiscoveries(ID), DISCOVERIES);
-  const { container, unmount } = await mount(undefined, true, true);
+  const { container, unmount } = await mount(false, true, true);
   try {
     expect(container.querySelector('h2')?.textContent).toBe('Found by the factory');
     expect(container.textContent).toContain('shadow');
@@ -194,11 +194,7 @@ test('as one line: the count and "show the findings", which opens the full panel
 
 test('as one line, opened from the Overview tile, it starts open with its findings listed', async () => {
   set(K.factoryDiscoveries(ID), DISCOVERIES);
-  const { container, unmount } = await mount(
-    `/console/p/${ID}/factory/board#found-by-the-factory`,
-    true,
-    true
-  );
+  const { container, unmount } = await mount(true, true, true);
   try {
     expect(container.textContent).toContain('files nothing yet');
     expect(container.querySelectorAll('#found-by-the-factory-list > li')).toHaveLength(2);

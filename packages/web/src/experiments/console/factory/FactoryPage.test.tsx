@@ -171,7 +171,7 @@ describe('the Overview', () => {
     }
   });
 
-  test('the numbers strip counts the board, each number linking to the board it counts', () => {
+  test('the numbers strip counts the board, each number opening what it counts and saying where', () => {
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     // The strip alone: the map's cards below are links drawn the same way.
     const strip = html.slice(
@@ -182,17 +182,41 @@ describe('the Overview', () => {
       ...strip.matchAll(
         /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>([^<]*)</g
       ),
-    ].map(([, label, href, value]) => `${value ?? ''} ${label ?? ''} → ${href ?? ''}`);
+    ].map(
+      ([, label, href, value]) =>
+        `${value ?? ''} ${label ?? ''} → ${(href ?? '').replaceAll('&amp;', '&')}`
+    );
     const board = `/console/p/${ID}/factory/board`;
     expect(tiles).toEqual([
       `5 in flight → ${board}?show=in-flight`,
       `0 need you → /console/p/${ID}/needs-you`,
       expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
-      `3 of 8 merged → ${board}?show=landed`,
-      expect.stringMatching(new RegExp(` median to merged → ${board}\\?show=landed$`)),
+      `3 of 8 merged → ${board}?view=table&show=landed-of-all`,
+      expect.stringMatching(
+        new RegExp(` median to merged → ${board}\\?view=table&show=median-to-land$`)
+      ),
       // Its own read, not answered in a static render: a skeleton, no figure.
-      ` found by the factory → ${board}#found-by-the-factory`,
+      ` found by the factory → ${board}?show=found`,
     ]);
+    // Each says where it goes, to a screen reader (the end of its name) and on hover.
+    const opens = [
+      'Open the board, in flight only',
+      'Open Needs you',
+      'Open the board, merged today only',
+      'Open the table: every item, merged ones marked',
+      'Open the table of merged items sorted by time to merge, the median marked',
+      'Open the board with Found by the factory open',
+    ];
+    expect([...strip.matchAll(/class="sr-only">, ([^<]*)</g)].map(([, said]) => said)).toEqual(
+      opens
+    );
+    expect([...strip.matchAll(/<a [^>]*title="([^"]*)"/g)].map(([, title]) => title)).toEqual(
+      opens.map((said, i) =>
+        i === 4
+          ? `The median time from an item&#x27;s first run to its change merging. ${said}`
+          : said
+      )
+    );
     // Above the map.
     expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(html.indexOf('aria-label="The map"'));
   });
@@ -327,24 +351,33 @@ describe('the stage page', () => {
     expect(html).toContain('Checks the change.');
     expect(html).toContain('up to 3 rounds');
     expect(html).toContain('>included<');
-    // Only the stage's own step stands out; the rest of deliver is dimmed.
-    expect([...html.matchAll(/<button[^>]*data-in-stage=""[^>]*>/g)]).toHaveLength(1);
-    expect(html).toMatch(
-      /<button[^>]*title="review \(engine id: rounds\.review__review\)"[^>]*data-in-stage=""/
-    );
-    // And it looks different: the stage's step and another stage's idle step do not share
-    // their classes, whatever the classes are.
-    const buttons = [...html.matchAll(/<button[^>]*>/g)].map(([tag]) => tag);
-    const classOf = (tag: string | undefined): string | undefined =>
-      /class="([^"]*)"/.exec(tag ?? '')?.[1];
-    const own = buttons.find(tag => tag.includes('data-in-stage=""'));
-    const other = buttons.find(
-      tag =>
-        tag.includes('title=') && !tag.includes('data-in-stage') && !tag.includes('data-running')
-    );
-    expect(classOf(own)).toBeDefined();
-    expect(classOf(other)).toBeDefined();
-    expect(classOf(own)).not.toBe(classOf(other));
+    // The stage's own step is marked as its own: a ring in its group's colour.
+    const steps = [...html.matchAll(/<button[^>]*data-worker="[^"]*"[^>]*>/g)].map(([tag]) => tag);
+    const own = steps.filter(tag => tag.includes('data-worker="this"'));
+    expect(own).toHaveLength(1);
+    expect(own[0]).toContain('title="review (engine id: rounds.review__review)"');
+    expect(own[0]).toContain('outline:2px solid var(--node-approval)');
+    // No step is dimmed: no opacity class, no opacity style, on any step or frame label.
+    for (const tag of steps) {
+      expect(tag).not.toMatch(/opacity-\d/);
+      expect(tag).not.toMatch(/opacity:\s*0/);
+    }
+    expect(html).not.toMatch(/opacity-(35|50)/);
+    // Its tag says so; another stage's step names that stage and opens it on its workflow.
+    expect([...html.matchAll(/data-step-tag="this"[^>]*>([^<]*)</g)].map(([, t]) => t)).toEqual([
+      'This stage',
+    ]);
+    const buildTags = [
+      ...html.matchAll(/<a [^>]*data-step-tag="build"[^>]*href="([^"]*)"[^>]*>([^<]*)</g),
+    ].map(([, href, text]) => `${text ?? ''} → ${href ?? ''}`);
+    expect(buildTags).toEqual([
+      `Build → /console/p/${ID}/factory?stage=build`,
+      `Build → /console/p/${ID}/factory?stage=build`,
+    ]);
+    // A step no stage lists carries no tag and no ring.
+    expect(steps.some(tag => tag.includes('data-worker="none"'))).toBe(true);
+    expect(html).toContain('the stage that works it and opens that stage');
+    expect(html).not.toContain('dimmed');
     for (const step of ['fix', 'base', 'review', 'tests', 'product', 'verdict'])
       expect(html).toContain(`>${step}</span>`);
     expect(html).toContain('Back to the overview');

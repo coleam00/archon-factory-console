@@ -35,6 +35,17 @@ export const TYPE_FLOOR_PX = 12;
 export const READABLE_K = TYPE_FLOOR_PX / MAP_SMALLEST_PX;
 /** Space kept between the fitted map and the frame's edge. */
 export const FIT_PAD = 16;
+/**
+ * Canvas kept above and below the live map's drawing, so its cards and lane labels never touch
+ * the frame (owner change 2 of 2026-11-21). The frame grows taller to hold it; the scale, which
+ * the width decides, is unchanged. Sideways the pad stays `FIT_PAD`, so the map opens at its start.
+ */
+export const MAP_ROOM_Y = 48;
+
+/** Padding round a fitted drawing: one for every side, or one across and one up and down. */
+export type FitPad = number | { x: number; y: number };
+const padOf = (pad: FitPad): { x: number; y: number } =>
+  typeof pad === 'number' ? { x: pad, y: pad } : pad;
 /** The frame is never shorter than this, so the details panel beside it has room. */
 export const MIN_FRAME_HEIGHT = 260;
 
@@ -47,9 +58,10 @@ export function clampK(k: number): number {
  * `maxK`; `maxK` for an empty map. `minK` is `READABLE_K` for the live map; the factory overview
  * passes its own floor, and a `maxK` over 1 so a small view fills a large frame.
  */
-function fitScale(bounds: Box, frame: Frame, pad: number, minK: number, maxK: number): number {
-  const sx = bounds.w > 0 ? (frame.width - 2 * pad) / bounds.w : maxK;
-  const sy = bounds.h > 0 ? (frame.height - 2 * pad) / bounds.h : maxK;
+function fitScale(bounds: Box, frame: Frame, fitPad: FitPad, minK: number, maxK: number): number {
+  const pad = padOf(fitPad);
+  const sx = bounds.w > 0 ? (frame.width - 2 * pad.x) / bounds.w : maxK;
+  const sy = bounds.h > 0 ? (frame.height - 2 * pad.y) / bounds.h : maxK;
   return clampK(Math.max(minK, Math.min(maxK, sx, sy)));
 }
 
@@ -66,15 +78,16 @@ function place(size: number, extent: number, pad: number): number {
 export function fitCamera(
   bounds: Box,
   frame: Frame,
-  pad = FIT_PAD,
+  fitPad: FitPad = FIT_PAD,
   minK = READABLE_K,
   maxK = MAX_FIT
 ): Camera {
-  const k = fitScale(bounds, frame, pad, minK, maxK);
+  const k = fitScale(bounds, frame, fitPad, minK, maxK);
+  const pad = padOf(fitPad);
   return {
     k,
-    x: place(bounds.w * k, frame.width, pad) - bounds.x * k,
-    y: place(bounds.h * k, frame.height, pad) - bounds.y * k,
+    x: place(bounds.w * k, frame.width, pad.x) - bounds.x * k,
+    y: place(bounds.h * k, frame.height, pad.y) - bounds.y * k,
   };
 }
 
@@ -82,12 +95,12 @@ export function fitCamera(
 export function fittedHeight(
   bounds: Box,
   width: number,
-  pad = FIT_PAD,
+  fitPad: FitPad = FIT_PAD,
   minK = READABLE_K,
   maxK = MAX_FIT
 ): number {
-  const k = fitScale(bounds, { width, height: Number.POSITIVE_INFINITY }, pad, minK, maxK);
-  return Math.max(MIN_FRAME_HEIGHT, Math.ceil(bounds.h * k + 2 * pad));
+  const k = fitScale(bounds, { width, height: Number.POSITIVE_INFINITY }, fitPad, minK, maxK);
+  return Math.max(MIN_FRAME_HEIGHT, Math.ceil(bounds.h * k + 2 * padOf(fitPad).y));
 }
 
 /** Zoom by `factor` keeping the frame point `at` over the same world point. */

@@ -193,8 +193,9 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    3 of 2026-11-19: the tab has no How it works link; `factory/how-it-works` redirects to the
    sidebar page.*
 6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
-   would do and do nothing (admit, split, the land gate's would-merge, discoveries filing, the
-   project's declared checks, order linking). Wherever one appears (map, board, stage page, item
+   would do and do nothing (admit, split, discoveries filing, the project's declared checks,
+   order linking). The land gate is not one: it acts, and the factory merges on its "land"
+   (owner decision on #120). Wherever one appears (map, board, stage page, item
    timeline) it reads plainly as "would ..." with what it would have done, marked "shadow", never as
    if it acted. Which steps are shadows is declared in the view file, not in code.
 7. **Send-backs and found work.** How it works draws several labelled lines going back (returned
@@ -804,9 +805,9 @@ pack is later work. The pack's `discoveries` drain runs after deliver but moves 
 declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
 `discoveries` field names the workflow instead, and where each completed drain's result lists
 what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
-Its `shadows` field names the steps the pack runs as shadows (admit, split, the project checks,
-the land gate and the drain) and how each one's value reads; the item timeline, stage pages,
-board and map show their decisions as shadows (#80).
+Its `shadows` field names the steps the pack runs as shadows (admit, split, the project checks
+and the drain; not the land gate, which acts) and how each one's value reads; the item
+timeline, stage pages, board and map show their decisions as shadows (#80).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -922,8 +923,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
    refresh that fails says so above the last values read (as the map and the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
-   drains decided to file that no item carries yet and links to the board's panel; it has its
-   own read, so it never holds up the other five.
+   drains decided to file that no item carries yet and opens the board with that panel open; it
+   has its own read, so it never holds up the other five. Each tile opens what it counts (owner
+   change 3 of 2026-11-21), through the board's `?show=` (one spec per show in
+   `lib/board-show.ts`, which the tile's count reads too), and its tooltip and accessible name
+   say where it goes.
 3. **Needs you:** the newest three open asks and waits as compact ask cards (Visual standard rule
    9): the item, the question, the recommended tile (or the first), and **Open**, which leads to
    that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on
@@ -1099,8 +1103,8 @@ A card, in this order:
    of the stage it waits in ("Plan", "CI and review"). Under it, on an item no run works, the
    shadow line (rule 10): the badge and what the newest decision of a verdict shadow its stage's
    workflows declare would do ("would ask you first"), its why on hover. For this pack it shows
-   in Ready to merge, from the land gate, and in Triage on an item whose triage run failed after
-   admit or split decided, from that decision (#80).
+   in Triage on an item whose triage run failed after admit or split decided, from that decision
+   (#80); Ready to merge has none, since the land gate acts.
 4. "part of <order>" when the item is a member of a work order (see Work orders).
 5. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
    one dot per round coloured by that round's verdict: approved (a declared approval),

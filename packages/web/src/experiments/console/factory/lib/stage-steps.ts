@@ -38,3 +38,38 @@ export function stagesOfWorkflow(
 ): FactoryStage[] {
   return stages.filter(stage => stage.workflows.includes(workflow));
 }
+
+/** A stage as a step's tag names it: its id to open it, its label, its group's colour. */
+export type StepStage = Pick<FactoryStage, 'id' | 'label' | 'group'>;
+
+/**
+ * Who works a step of the graph a stage draws: the open stage (`this`), another stage that
+ * lists the same workflow (`other`, the first in the view's order), or no stage the view names.
+ */
+export type StepWorker =
+  | { kind: 'this'; stage: StepStage }
+  | { kind: 'other'; stage: StepStage }
+  | { kind: 'none' };
+
+const NONE: StepWorker = { kind: 'none' };
+
+/**
+ * Who works step `key` of `workflow` in the graph `stage` draws, from the view file alone. A
+ * stage that works its whole workflow (no `nodes`) shares none of it, so no step is marked:
+ * every step would be its own, and a ring on each tells nothing.
+ */
+export function stepWorker(
+  stages: readonly FactoryStage[],
+  stage: FactoryStage,
+  workflow: string,
+  key: string
+): StepWorker {
+  if (stage.nodes === undefined) return NONE;
+  if (stepInStage(stage, key)) return { kind: 'this', stage: stepStage(stage) };
+  const other = stagesOfWorkflow(stages, workflow).find(
+    candidate => candidate.id !== stage.id && stepInStage(candidate, key)
+  );
+  return other === undefined ? NONE : { kind: 'other', stage: stepStage(other) };
+}
+
+const stepStage = ({ id, label, group }: FactoryStage): StepStage => ({ id, label, group });

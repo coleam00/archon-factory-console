@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "Software factory",
-  "summary": "Work comes in as work orders. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A change that is ready passes a gate, then waits for a person to merge it. A person steps in only to answer the questions an item asks.",
+  "summary": "Work comes in as work orders. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. A person steps in only to answer the questions an item asks.",
   "stages": [
     {
       "id": "order",
@@ -312,8 +312,8 @@
     {
       "id": "ready",
       "label": "Ready to merge",
-      "blurb": "A gate checks the approved change, then it waits for a person to merge it.",
-      "short": "Gated, waits for a merge",
+      "blurb": "A gate reads the approved change and either lets it through or asks you; told \"land\", the factory merges it.",
+      "short": "Gated, merged on land",
       "group": "land",
       "workflows": ["landgate", "land"],
       "drilldown": {
@@ -323,7 +323,7 @@
             "cards": [
               {
                 "title": "Merge gate",
-                "text": "Decides whether it would merge without asking you; nothing acts on it",
+                "text": "Decides, by the land policy, whether the change may merge without asking you",
                 "icon": "shield-check",
                 "kind": "agent",
                 "covers": [{ "workflow": "landgate", "steps": ["gate"] }]
@@ -335,7 +335,7 @@
             "cards": [
               {
                 "title": "Merge",
-                "text": "Merges the change once you say land",
+                "text": "Told \"land\" by the gate or by you, the factory merges the change",
                 "icon": "git-merge",
                 "kind": "agent",
                 "covers": [{ "workflow": "land", "steps": ["land"] }]
@@ -363,7 +363,7 @@
       "blurb": "Checks, CI and PR reviews",
       "stages": ["checks", "host"]
     },
-    { "id": "ready", "label": "Ready to merge", "blurb": "Gate, then a person merges", "stages": ["ready"] },
+    { "id": "ready", "label": "Ready to merge", "blurb": "Gate, then merged on land", "stages": ["ready"] },
     { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
   ],
   "placement": {
@@ -448,15 +448,6 @@
       "reads": "checks",
       "results": "/results",
       "entry": { "name": "/name", "passed": "/passed", "seconds": "/seconds", "tail": "/tail" }
-    },
-    {
-      "workflow": "landgate",
-      "node": "gate",
-      "label": "Would it merge on its own",
-      "reads": "verdict",
-      "pointer": "/land",
-      "why": "/why",
-      "words": { "auto": "would merge on its own", "ask": "would ask you first" }
     },
     {
       "workflow": "discoveries",

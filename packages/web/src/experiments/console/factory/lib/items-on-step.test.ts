@@ -40,7 +40,7 @@ describe('itemsOnStep', () => {
   test("names only the deliver graph's step keys and loop ids for the captured runs", () => {
     const graph = stepGraph(
       deliverJson as FactoryWorkflow,
-      () => true,
+      () => ({ kind: 'none' }),
       key => key
     );
     const drawn = new Set([
