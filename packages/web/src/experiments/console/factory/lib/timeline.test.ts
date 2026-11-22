@@ -115,6 +115,53 @@ describe('the timeline of a multi-round item', () => {
   });
 });
 
+describe('the timeline of a three-stage item: a stage-check run is one round', () => {
+  // Item 2's deliver run, read as the stage-check run the three-stage delivery records: one
+  // round, numbered by its result, its checks under their bare node ids.
+  const detail = itemDetail('2');
+  const at = detail.runs.findIndex(run => run.workflow === 'deliver');
+  const fact = detail.runs[at];
+  if (fact === undefined) throw new Error('item 2 has a deliver run');
+  const step = (node: string, outcome: string) => ({ node, outcome, summary: null });
+  detail.runs[at] = {
+    ...fact,
+    workflow: 'stage-check',
+    rounds: {
+      max: 4,
+      rounds: [
+        {
+          iteration: 3,
+          verdict: 'returned',
+          outcome: 'return',
+          summary: 'The tests miss the empty case.',
+          steps: [
+            step('review__review', 'approve'),
+            step('tests__tests', 'sound'),
+            step('product__product', 'return'),
+            step('verdict__verdict', 'return'),
+          ],
+        },
+      ],
+    },
+  };
+  const row = timeline(detail).find(entry => entry.workflow === 'stage-check');
+
+  test("its round reads 'round 3 of 4', each check through the shipped stage-check verdicts", () => {
+    const [round] = row?.rounds ?? [];
+    expect([round?.iteration, round?.max, round?.verdict]).toEqual([3, 4, 'returned']);
+    expect(
+      round?.groups.flatMap(group =>
+        group.steps.map(s => [s.node, s.outcome.mono ? `\`${s.outcome.text}\`` : s.outcome.text])
+      )
+    ).toEqual([
+      ['review__review', 'approved'],
+      ['tests__tests', 'approved'],
+      ['product__product', 'returned'],
+      ['verdict__verdict', 'returned'],
+    ]);
+  });
+});
+
 describe('the timeline of an item asked twice', () => {
   const detail = itemDetail('3');
   const rows = timeline(detail);

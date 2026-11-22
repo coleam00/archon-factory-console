@@ -185,7 +185,7 @@ function shadowOfCard(
   if (shadows.length === 0) return null;
   return {
     lately: shadows.flatMap(shadow => {
-      const tally = recentTally(items, shadow);
+      const tally = recentTally(items, [shadow]);
       return tally === null ? [] : [tally];
     }),
   };

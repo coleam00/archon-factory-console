@@ -148,6 +148,8 @@ test('every card shows its chips and links to its stage; its details button list
       `/console/p/${ID}/factory?stage=plan`,
       `/console/p/${ID}/factory/items/5`,
       `/console/p/${ID}/factory/items/9`,
+      // Build's two workflows, deliver and stage-build, each open the stage.
+      `/console/p/${ID}/factory?stage=build`,
       `/console/p/${ID}/factory?stage=build`,
     ]);
     expect(panel?.textContent).toContain('Needs you');
@@ -344,7 +346,8 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
   try {
     const forward = [...container.querySelectorAll('g[data-arrow]')].map(g => g.textContent);
     // "build, narrow" stacks one outcome per line in one pill.
-    expect(forward).toEqual(['build,narrow', 'built', 'ready', 'merged']);
+    // "fixed for CI" (build to CI and review) joins "built": the cards are neighbours.
+    expect(forward).toEqual(['build,narrow', 'built,fixed for CI', 'ready', 'merged']);
     // Each is a declared arrow.
     const declared = shippedListed.declaration.map.arrows.map((_, i) => `decl:${i.toString()}`);
     for (const g of container.querySelectorAll('g[data-arrow]'))
@@ -364,7 +367,13 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
     const pills = [...container.querySelectorAll('g[data-lane-pill]')].map(
       g => `${g.getAttribute('data-lane-pill') ?? ''}: ${g.textContent ?? ''}`
     );
-    expect(pills).toEqual(['plan: replan, answers', 'build: returned']);
+    expect(pills).toEqual([
+      'order: pieces, broke the branch',
+      'triage: split',
+      'plan: replan, answers',
+      'build: returned, sent back, answers',
+      'ready: land',
+    ]);
     // The legend draws the send-back line as the map does.
     expect(
       container.querySelector('[data-legend="send-back"]')?.getAttribute('stroke-dasharray')
