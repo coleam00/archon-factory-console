@@ -120,6 +120,28 @@ describe('stepFacts', () => {
     expect(then?.lines).toEqual(['Rounds, up to 3 rounds, after this step']);
   });
 
+  test("a step a result starts through its condition is listed: the verdict's fix, next round", () => {
+    const deliver = deliverJson as FactoryWorkflow;
+    const thenOf = (key: string): string[] | undefined => {
+      const target = deliver.steps.find(candidate => candidate.key === key);
+      if (target === undefined) throw new Error(`the fixture has no ${key}`);
+      return stepFacts({
+        step: target,
+        view: VIEW,
+        workflow: 'deliver',
+        steps: deliver.steps,
+        groups: deliver.groups,
+        stepName: name,
+      }).find(fact => fact.key === 'then')?.lines;
+    };
+    expect(thenOf('rounds.verdict__verdict')).toEqual([
+      'Rounds.fix, next round, if Rounds.verdict__verdict = return',
+    ]);
+    expect(thenOf('hostrounds.host__host')).toEqual([
+      'Hostrounds.hostfix, next round, if Hostrounds.host__host = return',
+    ]);
+  });
+
   test('lists the inputs and step outputs its prompt reads, by name', () => {
     const rows = facts(
       step('land', {

@@ -132,31 +132,62 @@ export function stepFacts({
     });
   const outcomes = declaredOutcomes(view, workflow, step.key);
   if (outcomes.length > 0) facts.push({ key: 'outcomes', label: 'Can end with', outcomes });
-  // A step or a loop waits on this one: the loop starts its first round after it.
-  const then = [
-    ...steps
-      .filter(other => other.dependsOn.includes(step.key))
-      .map(other => ({ name: stepName(other.key), whenClauses: other.whenClauses })),
-    ...groups
-      .filter(group => group.kind === 'loop' && group.dependsOn.includes(step.key))
-      .map(group => ({
-        name: loopWords(stepName(group.id), group.maxRounds),
-        whenClauses: group.whenClauses,
-      })),
-  ];
-  if (then.length > 0)
-    facts.push({
-      key: 'then',
-      label: 'Then starts',
-      lines: then.map(({ name, whenClauses }) => {
-        const readsThis = whenClauses?.some(clause =>
-          clause.some(atom => atom.reads.kind === 'step' && atom.reads.key === step.key)
-        );
-        const condition = readsThis === true ? conditionText(whenClauses, stepName) : null;
-        return condition === null ? `${name}, after this step` : `${name}, ${condition}`;
-      }),
-    });
+  const then = thenStarts(step, steps, groups, stepName);
+  if (then.length > 0) facts.push({ key: 'then', label: 'Then starts', lines: then });
   return facts;
+}
+
+/** Whether a `when:` compares this step's result. */
+const readsStep = (whenClauses: FactoryStep['whenClauses'], key: string): boolean =>
+  whenClauses?.some(clause =>
+    clause.some(atom => atom.reads.kind === 'step' && atom.reads.key === key)
+  ) === true;
+
+/** The innermost loop group a step runs in, or null outside any loop. */
+function loopOf(step: FactoryStep, groups: readonly FactoryGroup[]): string | null {
+  const byId = new Map(groups.map(group => [group.id, group]));
+  for (let at = step.group; at !== null; at = byId.get(at)?.parent ?? null)
+    if (byId.get(at)?.kind === 'loop') return at;
+  return null;
+}
+
+/**
+ * What starts after `step`, one line each, from what the workflow read already holds:
+ * - a step or loop whose `dependsOn` names it ("End, after this step"), with its condition when
+ *   that condition reads this step;
+ * - a step whose condition reads this step's result without waiting on it: in deliver, the fix
+ *   step that a Verdict of "return" starts. When that step comes earlier in the same loop, it
+ *   starts in the next round ("Fixes what came back, next round, if Verdict = return").
+ */
+function thenStarts(
+  step: FactoryStep,
+  steps: readonly FactoryStep[],
+  groups: readonly FactoryGroup[],
+  stepName: (key: string) => string
+): string[] {
+  const after = (name: string, whenClauses: FactoryStep['whenClauses']): string => {
+    const condition = readsStep(whenClauses, step.key)
+      ? conditionText(whenClauses, stepName)
+      : null;
+    return condition === null ? `${name}, after this step` : `${name}, ${condition}`;
+  };
+  const waiting = steps.filter(other => other.dependsOn.includes(step.key));
+  const loops = groups.filter(group => group.kind === 'loop' && group.dependsOn.includes(step.key));
+  const at = steps.indexOf(step);
+  const loop = loopOf(step, groups);
+  const onResult = steps.filter(
+    other => other !== step && !waiting.includes(other) && readsStep(other.whenClauses, step.key)
+  );
+  return [
+    ...waiting.map(other => after(stepName(other.key), other.whenClauses)),
+    ...loops.map(group => after(loopWords(stepName(group.id), group.maxRounds), group.whenClauses)),
+    ...onResult.map(other => {
+      const nextRound =
+        loop !== null && loopOf(other, groups) === loop && steps.indexOf(other) < at;
+      const condition = conditionText(other.whenClauses, stepName) ?? '';
+      return `${stepName(other.key)}, ${nextRound ? 'next round, ' : ''}${condition}`;
+    }),
+  ];
 }
 
 /**
