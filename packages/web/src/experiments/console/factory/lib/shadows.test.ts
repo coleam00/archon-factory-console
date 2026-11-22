@@ -54,9 +54,6 @@ describe('shadowWords', () => {
       tally: 'would ask you first',
     });
     expect(
-      shadowWords(shadow('triage', 'split'), decision('triage', 'split', verdict('whole'))).line
-    ).toBe('would not split it');
-    expect(
       shadowWords(shadow('triage', 'admit'), decision('triage', 'admit', verdict('auto'))).line
     ).toBe('would start on its own');
   });
@@ -144,8 +141,8 @@ describe('where the shipped view holds shadows', () => {
     );
     expect(covering).toEqual([
       ['Would it start on its own', 'admit'],
-      ['Would it be split', 'split'],
       ['Project checks', 'rounds.checks'],
+      ['Project checks', 'checks'],
       ['Merge gate', 'gate'],
     ]);
   });
@@ -171,6 +168,26 @@ describe('where the shipped view holds shadows', () => {
     const plan = VIEW.stages.find(stage => stage.id === 'plan');
     if (plan === undefined) throw new Error('the shipped view has a plan stage');
     expect(stageShadowLines(plan, VIEW, [idleWithEveryDecision()])).toEqual([]);
+  });
+
+  test('one line per label: the project checks of deliver and of stage-check tally together', () => {
+    const checks = VIEW.stages.find(stage => stage.id === 'checks');
+    if (checks === undefined) throw new Error('the shipped view has a checks stage');
+    const failing = { name: 'lint', passed: false, seconds: 3, tail: null };
+    const key = PAGE.items.find(item => item.progress !== null)?.item.key ?? '';
+    const threeStage = realItem(key);
+    if (threeStage.progress !== null)
+      threeStage.progress.shadows = [
+        decision(
+          'stage-check',
+          'checks',
+          { reads: 'checks', results: [failing] },
+          '2026-11-21T12:00:00.000Z'
+        ),
+      ];
+    expect(stageShadowLines(checks, VIEW, [idleWithEveryDecision(), threeStage])).toEqual([
+      'Project checks · last 2: 1 failed ×1 · all passed ×1',
+    ]);
   });
 });
 
@@ -278,8 +295,8 @@ describe('recentTally', () => {
         )
       );
     // The oldest (the one `auto`) falls outside the newest five.
-    expect(recentTally(items, shadow('triage', 'admit'))).toBe('last 5: would ask you first ×5');
-    expect(recentTally(items, shadow('triage', 'admit'), 6)).toBe(
+    expect(recentTally(items, [shadow('triage', 'admit')])).toBe('last 5: would ask you first ×5');
+    expect(recentTally(items, [shadow('triage', 'admit')], 6)).toBe(
       'last 6: would ask you first ×5 · would start on its own ×1'
     );
   });
@@ -296,10 +313,10 @@ describe('recentTally', () => {
         ];
       return item;
     });
-    expect(recentTally(items, shadow('deliver', 'rounds.checks'))).toBe('last 2: all passed ×2');
+    expect(recentTally(items, [shadow('deliver', 'rounds.checks')])).toBe('last 2: all passed ×2');
   });
 
   test('null when no item has a decision of it', () => {
-    expect(recentTally(PAGE.items, shadow('landgate', 'gate'))).toBeNull();
+    expect(recentTally(PAGE.items, [shadow('landgate', 'gate')])).toBeNull();
   });
 });

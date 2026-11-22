@@ -138,14 +138,19 @@ export function stageShadowLines(
   view: Declaration,
   items: ShadowItems
 ): string[] {
-  return stageShadows(stage, view).map(shadow => {
+  // One line per label: a step two workflows run (the project checks, in deliver and in
+  // stage-check) is one step to a person, and its decisions are tallied together.
+  const byLabel = new Map<string, FactoryShadow[]>();
+  for (const shadow of stageShadows(stage, view))
+    byLabel.set(shadow.label, [...(byLabel.get(shadow.label) ?? []), shadow]);
+  return [...byLabel].map(([label, shadows]) => {
     const said =
       items === 'loading'
         ? '…'
         : items === 'failed'
           ? 'could not be read'
-          : (recentTally(items, shadow) ?? 'nothing decided yet');
-    return `${shadow.label} · ${said}`;
+          : (recentTally(items, shadows) ?? 'nothing decided yet');
+    return `${label} · ${said}`;
   });
 }
 
@@ -153,23 +158,28 @@ const newestFirst = (a: ShadowDecision, b: ShadowDecision): number =>
   Date.parse(b.decidedAt) - Date.parse(a.decidedAt);
 
 /**
- * The newest `n` decisions of `shadow` across the items (each item's newest one), counted by
- * what they say: "last 5: would ask you first ×4 · would start on its own ×1". Null when no
- * item has one.
+ * The newest `n` decisions of any of `shadows` across the items (each item's newest one per
+ * shadow), counted by what they say: "last 5: would ask you first ×4 · would start on its own
+ * ×1". Null when no item has one.
  */
 export function recentTally(
   items: readonly FactoryItem[],
-  shadow: FactoryShadow,
+  shadows: readonly FactoryShadow[],
   n = 5
 ): string | null {
+  const of = (decision: ShadowDecision): FactoryShadow | undefined =>
+    shadows.find(shadow => decision.workflow === shadow.workflow && decision.node === shadow.node);
   const recent = items
     .flatMap(item => item.progress?.shadows ?? [])
-    .filter(decision => decision.workflow === shadow.workflow && decision.node === shadow.node)
-    .sort(newestFirst)
+    .flatMap(decision => {
+      const shadow = of(decision);
+      return shadow === undefined ? [] : [{ decision, shadow }];
+    })
+    .sort((a, b) => newestFirst(a.decision, b.decision))
     .slice(0, n);
   if (recent.length === 0) return null;
   const counts = new Map<string, number>();
-  for (const decision of recent) {
+  for (const { decision, shadow } of recent) {
     const { tally } = shadowWords(shadow, decision);
     counts.set(tally, (counts.get(tally) ?? 0) + 1);
   }
