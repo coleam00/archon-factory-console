@@ -307,7 +307,13 @@ export interface ListRunsOptions {
 }
 
 type AttentionResponse = components['schemas']['RunsNeedingAttentionResponse'];
-type AttentionItem = AttentionResponse['items'][number];
+
+/** An ask a completed run left on its item: an attention item no run holds. */
+export type ItemAsk = Extract<AttentionQueueItem, { kind: 'attention' }> & { run?: undefined };
+
+export function isItemAsk(item: AttentionQueueItem): item is ItemAsk {
+  return item.kind === 'attention' && item.run === undefined;
+}
 
 /**
  * A run that holds its item while its owner is gone (the queue's `owner_lost` item): later
@@ -321,16 +327,21 @@ export interface OwnerLostHolder {
   /** The item's key; null when the item could not be read. */
   itemKey: string | null;
   /** The run's stored status, unchanged: the engine never ends it by itself. */
-  observedStatus: Extract<AttentionItem, { kind: 'owner_lost' }>['observedStatus'];
+  observedStatus: Extract<AttentionQueueItem, { kind: 'owner_lost' }>['observedStatus'];
 }
 
 export interface RunsAttention {
   runs: Run[];
   ownerLost: OwnerLostHolder[];
+  asks: ItemAsk[];
+  /** Each listed ref the caller may not answer, with the server's reason. */
+  answerRefusals: AttentionResponse['answerRefusals'];
+  /** The id of every item the list holds open, whether a run or an ask holds it. */
+  itemIds: ReadonlySet<string>;
   degraded: NonNullable<AttentionResponse['degraded']>;
 }
 
-export function toOwnerLostHolders(items: AttentionItem[]): OwnerLostHolder[] {
+export function toOwnerLostHolders(items: AttentionQueueItem[]): OwnerLostHolder[] {
   return items.flatMap(item =>
     item.kind === 'owner_lost'
       ? [
@@ -351,6 +362,6 @@ export function toOwnerLostHolders(items: AttentionItem[]): OwnerLostHolder[] {
 export type AttentionQueueItem = AttentionResponse['items'][number];
 
 /** A project's attention queue: its open items, the runs holding them, the runs that could not be read. */
-export interface AttentionQueue extends Omit<RunsAttention, 'ownerLost'> {
+export interface AttentionQueue extends Pick<RunsAttention, 'runs' | 'degraded'> {
   items: AttentionQueueItem[];
 }

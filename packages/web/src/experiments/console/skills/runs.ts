@@ -7,7 +7,7 @@ export type {
   RunsAttention,
 } from '../primitives/run';
 import { requestJson, buildApiUrl } from '../lib/http';
-import { toOwnerLostHolders, toRun, type Run } from '../primitives/run';
+import { isItemAsk, toOwnerLostHolders, toRun, type Run } from '../primitives/run';
 import { toRunEvent, type RunEvent, type RunNodeState } from '../primitives/event';
 import type { components } from '@/lib/api.generated';
 
@@ -50,6 +50,9 @@ export async function listRunsNeedingAttention(): Promise<RunsAttention> {
   return {
     runs: res.runs.map(toRun),
     ownerLost: toOwnerLostHolders(res.items),
+    asks: res.items.filter(isItemAsk),
+    answerRefusals: res.answerRefusals,
+    itemIds: new Set(res.items.flatMap(item => (item.item === undefined ? [] : [item.item.id]))),
     degraded: res.degraded ?? [],
   };
 }

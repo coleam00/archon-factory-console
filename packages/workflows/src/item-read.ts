@@ -59,6 +59,7 @@ import {
   type WorkflowRun,
 } from './schemas/workflow-run';
 import type { WorkflowEventRow } from './schemas/workflow-event';
+import { awaitingExecutionSchema } from './schemas/start-executor';
 import {
   type InstallHold,
   installHoldSchema,
@@ -71,6 +72,7 @@ import {
 import type { IWorkflowStore } from './store';
 import {
   awaitingExecution,
+  type StartExecutorObserver,
   type SkippedItemStart,
   type StartReceiptSource,
   type ResourceStartRequestInspection,
@@ -117,12 +119,8 @@ export const itemRunSchema = z.object({
    * trigger source. Null for a start by hand, which has no receipt.
    */
   cause: startCauseSchema.nullable(),
-  /**
-   * Set while the run's start is admitted but no executor has claimed it. If the process
-   * that admitted it died, it stays set until an operator runs it once:
-   * `archon trigger execute <requestId> --host <hostId>`.
-   */
-  awaitingExecution: z.object({ requestId: z.string(), hostId: z.string() }).nullable(),
+  /** Set while the run's start is admitted but no executor has claimed it. */
+  awaitingExecution: awaitingExecutionSchema.nullable(),
   /** The totals recorded on the run row; null where the run recorded no figure. */
   spend: z.object({
     usd: z.number().nullable(),
@@ -362,6 +360,8 @@ export interface ItemReadSource extends AttentionQueueSource {
       | 'getInstallHold'
       | 'listHeldItemStarts'
     >;
+  /** Observes an awaiting start's executor; without it, the start reads `unknown`. */
+  startExecutor?: StartExecutorObserver;
 }
 
 function readResult(
@@ -403,13 +403,14 @@ async function runReceipts(
   return ids.length === 0 ? new Map() : source.store.listStartReceiptSources(ids);
 }
 
-function itemRun(
+async function itemRun(
+  source: ItemReadSource,
   run: WorkflowRun,
   receipts: ReadonlyMap<string, StartReceiptSource>,
   request: ResourceStartRequestInspection | null,
   heldBehind: ItemHeldBehind | null,
   terminalEvents: ReadonlyMap<string, WorkflowEventRow[]>
-): ItemRun {
+): Promise<ItemRun> {
   const receiptId = readResourceStartReceiptId(run.metadata);
   const receipt = receiptId ? receipts.get(receiptId) : undefined;
   const usage = parseRunUsage(run.metadata);
@@ -421,7 +422,7 @@ function itemRun(
     startedAt: run.started_at.toISOString(),
     completedAt: run.completed_at?.toISOString() ?? null,
     cause: receipt === undefined ? null : startCause(receipt),
-    awaitingExecution: awaitingExecution(request),
+    awaitingExecution: await awaitingExecution(request, run, source.startExecutor),
     spend: {
       usd: usage.costUsd ?? null,
       inputTokens: usage.tokens?.input ?? null,
@@ -797,6 +798,7 @@ async function assembleItemRead(
     runs: await Promise.all(
       own.values.map(async run =>
         itemRun(
+          source,
           run,
           receipts,
           holds.request(run.id),

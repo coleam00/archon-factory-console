@@ -96,11 +96,14 @@ export function AttentionAnswerForm({
   submit,
   onAnswered,
   offered = null,
+  refusal,
 }: {
   wait: AttentionWait;
   submit: SubmitAnswer;
   onAnswered?: (label: string) => void;
   offered?: Offered | null;
+  /** The server's reason the caller may not answer: the options show, with no way to choose. */
+  refusal?: string;
 }): ReactElement {
   const [picks, setPicks] = useState<string[]>([]);
   const [text, setText] = useState('');
@@ -108,7 +111,7 @@ export function AttentionAnswerForm({
   const [error, setError] = useState<string | null>(null);
   const tiles = tilesOf(wait);
   const draft = draftOf(wait, tiles, picks, offered);
-  const open = wait.form === 'message' || picks.length > 0;
+  const open = refusal === undefined && (wait.form === 'message' || picks.length > 0);
 
   const reset = (): void => {
     setPicks([]);
@@ -139,7 +142,7 @@ export function AttentionAnswerForm({
         <AskTiles
           tiles={tiles}
           picks={picks}
-          disabled={busy}
+          disabled={busy || refusal !== undefined}
           onPick={id => {
             setPicks(pickOption(wait, picks, id));
             setError(null);
@@ -147,6 +150,9 @@ export function AttentionAnswerForm({
         />
       )}
       <RecommendationWhy wait={wait} />
+      {refusal === undefined ? null : (
+        <p className="text-console-13 text-text-secondary">You can't answer this: {refusal}</p>
+      )}
       {open ? (
         <AskConfirm
           draft={draft}
