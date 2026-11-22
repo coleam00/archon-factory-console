@@ -4,6 +4,7 @@
  */
 import type { AskSubject } from '../components/ask-card/AskCard';
 import { stageOfWorkflow } from '../factory/lib/placement';
+import { TONES, type Tone } from '../factory/tones';
 import type { FactoryItem } from '../skills/factory';
 import { factoryPath, type FactoryViewListed } from '../factory/lib/views';
 import { shortWorkflow } from './ask-card';
@@ -12,6 +13,8 @@ import { askRunId, askWorkflow, type NeedsYouItem } from './needs-you';
 export interface AskNaming {
   subject: (ask: NeedsYouItem) => AskSubject;
   where: (ask: NeedsYouItem) => string | undefined;
+  /** The group of the stage the ask came from, its colour and icon; undefined without a view or a stage. */
+  tone: (ask: NeedsYouItem) => Tone | undefined;
 }
 
 /**
@@ -55,6 +58,12 @@ export function askNaming(
       const name = shortWorkflow(workflow);
       if (view === undefined) return name;
       return stageOfWorkflow(view.declaration, name, null)?.label ?? name;
+    },
+    tone: ask => {
+      const workflow = askWorkflow(ask);
+      if (view === undefined || workflow === undefined) return undefined;
+      const stage = stageOfWorkflow(view.declaration, shortWorkflow(workflow), null);
+      return stage === undefined ? undefined : TONES[stage.group];
     },
   };
 }

@@ -110,7 +110,7 @@ test('the old Needs you address replaces itself with the project tab, query and 
   expect(probe?.getAttribute('data-at')).toBe(`/console/p/${ID}/needs-you?x=1#h`);
   expect(probe?.getAttribute('data-by')).toBe('REPLACE');
   // It lands on the tab's page, outside the Factory frame.
-  expect(page.textContent).toContain('0 things need you');
+  expect(page.textContent).toContain('Nothing needs you');
 });
 
 /** Where the router is, hash included, and how it got there. */

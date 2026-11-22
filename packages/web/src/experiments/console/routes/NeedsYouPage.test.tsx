@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import { shippedListed } from '../factory/item-detail.test-fixtures';
-import { run, settledItem } from '../factory/lib/map.test-fixtures';
 import { askItem, gateItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
 import type { FactoryItem, FactoryViews } from '../skills/factory';
 import type { ItemRead } from '../skills/items';
@@ -47,7 +46,6 @@ const busy: AttentionQueue = {
   runs: [],
   degraded: [],
 };
-const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
 
 const windowRead = (items: FactoryItem[]): ItemRead[] =>
   items.map(({ progress: _progress, ...read }) => read);
@@ -129,40 +127,5 @@ describe('the Needs you tab', () => {
     expect(words(html)).toContain(
       'One paused run could not be read, so what it waits on is not listed.'
     );
-  });
-});
-
-describe('the empty state', () => {
-  const settled = ['a', 'b', 'c', 'd'].map((key, index) =>
-    settledItem(
-      key,
-      run('plan', 'completed', 'ask'),
-      `2026-11-1${index.toString()}T10:00:00.000Z`,
-      run('plan', 'running', null, 'plan')
-    )
-  );
-
-  test('never one sentence: the icon, the sentence, when something was last asked, and the three newest answered', () => {
-    for (const listing of [none, withView]) {
-      const html = render(listing, quiet, settled);
-      const text = words(html);
-      expect(text).toContain('0 things need you');
-      expect(text).toContain('Nothing needs you right now.');
-      expect(text).toContain('Last asked');
-      expect(html.match(/aria-label="Answered on [a-d]"/g)).toEqual([
-        'aria-label="Answered on d"',
-        'aria-label="Answered on c"',
-        'aria-label="Answered on b"',
-      ]);
-      expect(html).toContain('<svg');
-    }
-  });
-
-  test('with nothing answered yet it is the icon and the sentence, without a last asked', () => {
-    const text = words(render(none, quiet));
-    expect(text).toContain('Nothing needs you right now.');
-    expect(text).not.toContain('Last asked');
-    expect(text).toContain('appears here to answer');
-    expect(text).toContain('See this project&#x27;s runs');
   });
 });

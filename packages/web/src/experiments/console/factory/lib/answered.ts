@@ -9,7 +9,8 @@
  */
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemRead } from '../../skills/items';
-import { humaniseId } from '../../lib/ask-card';
+import { humaniseId, shortWorkflow } from '../../lib/ask-card';
+import { answererName } from './item-answers';
 import { stageOfWorkflow } from './placement';
 import type { FactoryViewListed } from './views';
 
@@ -22,8 +23,8 @@ type Declaration = FactoryViewListed['declaration'];
 /** An item as the answered read takes it: the engine's read, with the board's progress when a view applies. */
 export type AnsweredSource = ItemRead & { progress?: FactoryItem['progress'] };
 
-/** How many settled sets Needs you lists. */
-export const ANSWERED_SHOWN = 3;
+/** How many answers Needs you's Answered lately lists, one row each. */
+export const ANSWERED_ROWS = 8;
 
 export interface SettledAsks {
   itemKey: string;
@@ -37,13 +38,20 @@ export interface SettledAsks {
   at: string;
   /** When the asking run finished, which is when it asked; null when the read lacks it. */
   askedAt: string | null;
-  /** The questions of the set, each with what it was answered with. */
-  asks: { question: string; answer: string; withdrawn: boolean }[];
+  /** The questions of the set, each with what it was answered with, when, and by whom. */
+  asks: {
+    question: string;
+    answer: string;
+    withdrawn: boolean;
+    at: string;
+    /** Who answered, as the read records them; null when unsaid. */
+    by: string | null;
+  }[];
   /** The run the settling started; null until one has. */
   restart: {
     runId: string;
     status: RunStatus;
-    /** The stage the run starts on when a view names it, else its workflow. */
+    /** The stage the run starts on when a view names it, else its workflow in words. */
     label: string;
   } | null;
 }
@@ -70,7 +78,11 @@ function restartOf(
   const workflow = item.progress?.runs.find(entry => entry.runId === run.id)?.workflow;
   const stage =
     view === null || workflow === undefined ? undefined : stageOfWorkflow(view, workflow, null);
-  return { runId: run.id, status: run.status, label: stage?.label ?? run.workflow };
+  return {
+    runId: run.id,
+    status: run.status,
+    label: stage?.label ?? humaniseId(shortWorkflow(run.workflow)),
+  };
 }
 
 /** What an ask was answered with, in words: the chosen option humanised, else the text. */
@@ -90,6 +102,8 @@ function asksOf(item: AnsweredSource, settled: Settled): SettledAsks['asks'] {
       question: answer.question,
       answer: answerWords(answer),
       withdrawn: answer.withdrawn,
+      at: answer.at,
+      by: answererName(answer.by),
     }));
 }
 
@@ -97,7 +111,7 @@ function asksOf(item: AnsweredSource, settled: Settled): SettledAsks['asks'] {
 export function recentlySettled(
   view: Declaration | null,
   items: readonly AnsweredSource[],
-  limit = ANSWERED_SHOWN
+  limit = ANSWERED_ROWS
 ): SettledAsks[] {
   const all = items.flatMap(item =>
     item.answers
@@ -118,4 +132,68 @@ export function recentlySettled(
       asks: asksOf(item, settled),
       restart: restartOf(view, item, settled),
     }));
+}
+
+/** One answer, as Answered lately lists it: the ask, what it was answered with, and what its set started. */
+export interface AnsweredRow {
+  itemKey: string;
+  title: string | null;
+  /** The asking run, which with the row's place in its set keys it. */
+  runId: string;
+  question: string;
+  answer: string;
+  withdrawn: boolean;
+  at: string;
+  by: string | null;
+  /** What settling the set this answer closed started; null when nothing has. */
+  restart: SettledAsks['restart'];
+}
+
+/**
+ * The settled sets as one row per answer, newest answer first, the first `limit`. Each row
+ * carries its set's restart: settling the set, not one answer, starts the stage again.
+ */
+export function answeredRows(
+  settled: readonly SettledAsks[],
+  limit = ANSWERED_ROWS
+): AnsweredRow[] {
+  return settled
+    .flatMap(entry =>
+      entry.asks.map(ask => ({
+        itemKey: entry.itemKey,
+        title: entry.title,
+        runId: entry.runId,
+        ...ask,
+        restart: entry.restart,
+      }))
+    )
+    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
+    .slice(0, limit);
+}
+
+const sameDay = (a: Date, b: Date): boolean =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+/**
+ * How many questions were answered on `now`'s local day across the items: answered waits,
+ * resolved gates and answered asks. A withdrawn ask was not answered; a ruling answers no
+ * question, and a settled set is the answers it closed, already counted.
+ */
+export function answeredToday(items: readonly Pick<ItemRead, 'answers'>[], now: Date): number {
+  return items
+    .flatMap(item => item.answers)
+    .filter(answer => {
+      if (answer.kind === 'ask' && answer.withdrawn) return false;
+      if (answer.kind !== 'ask' && answer.kind !== 'attention' && answer.kind !== 'gate')
+        return false;
+      return sameDay(new Date(answer.at), now);
+    }).length;
+}
+
+/** When something was last asked: the newest asking run's end among the settled sets; null when none says. */
+export function lastAsked(settled: readonly SettledAsks[]): string | null {
+  const times = settled.flatMap(entry => (entry.askedAt === null ? [] : [entry.askedAt]));
+  return times.sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
 }

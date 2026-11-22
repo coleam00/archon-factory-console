@@ -39,7 +39,7 @@ function answerText(value: unknown): string | null {
 }
 
 /** Who answered, as the read records them; null when unsaid. */
-function answererName(value: unknown): string | null {
+export function answererName(value: unknown): string | null {
   const answerer = answererOf(value);
   if (answerer === null) return null;
   return 'declared' in answerer ? answerer.declared : 'a signed-in user';

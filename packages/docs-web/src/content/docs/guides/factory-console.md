@@ -21,16 +21,20 @@ states, words) is written in the repository's design document:
 ## What the tab shows
 
 Every project, factory or not, has a **Needs you** tab, left of Runs, with how many asks and
-paused waits need a person on it. It lists every open question and paused wait on the
-project's items and runs, from any workflow, grouped under their item, each as an ask card:
+paused waits need a person on it. It opens with a band saying how many wait, how long the
+oldest has waited and how many were answered today. It lists every open question on the
+project's items and runs, from any workflow, grouped under their item on a panel marked in the
+needs-you colour, each under the stage that asked, as an ask card:
 the question, its context, and one tile per option saying what it does and costs, the
 recommended option first and marked, with why. Choosing a tile does not send: a confirm row
 says "Answer: <option>", and **Confirm** answers it in place; the card then says what it was
-answered with for a few seconds. Under the open asks, **Answered lately** lists the last asks
-an item settled and the stage (or, on a project without a factory, the workflow) that answer
-started again, linking to that run, or that no run started from those answers (a run started
-by hand after them is not one). With nothing open, the tab says so, when something was last
-asked, and shows the newest answered.
+answered with for a few seconds. A stage waiting for an event past its deadline is listed
+apart, under **Paused**, with what it waits for. Beside them, **Answered lately** lists the
+newest answers, one row each: the question, the option chosen, who answered and when, and the
+stage (or, on a project without a factory, the workflow) that settling the item's asks started
+again, linking to that run, or "Nothing started" (a run started by hand after them is not one).
+With nothing open, the tab says so, when something was last asked, and links to the runs (and,
+on a project with a factory, to the board).
 
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
 it. Its sub-navigation, on the line of the view's title, has two pages: **Overview** and

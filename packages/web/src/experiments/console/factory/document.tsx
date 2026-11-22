@@ -119,6 +119,7 @@ export function HeaderBand({
   sentence,
   chips,
   aside,
+  className = '',
 }: {
   title: ReactNode;
   sentence: ReactNode;
@@ -126,9 +127,11 @@ export function HeaderBand({
   chips: ReactNode;
   /** At the right of the title on a wide screen: a switcher or a link. */
   aside?: ReactNode;
+  /** Its place in the page's grid. */
+  className?: string;
 }): ReactElement {
   return (
-    <Panel as="section" className="flex flex-col gap-3 p-5" aria-label="Summary">
+    <Panel as="section" className={`flex flex-col gap-3 p-5 ${className}`} aria-label="Summary">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="flex min-w-0 flex-col gap-1">
           <h2 className="text-console-22 font-semibold tracking-console-heading text-text-primary [overflow-wrap:anywhere]">

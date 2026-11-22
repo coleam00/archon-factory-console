@@ -442,7 +442,9 @@ the Overview, the item page and the board popover.
 
 - Box: `--radius-console-16` (`rounded-console-16`), 1 px `--border`, `--surface` background,
   20 px padding (`p-5`), 12 px between rows (`gap-3`). At most 760 px wide in a page; 480 px wide
-  in the board popover.
+  in the board popover. On the Needs you tab (owner change 9) the card has no box or header row
+  of its own: it sits inside its item's panel, which names the item, and under an eyebrow naming
+  the stage; everything below the header is as here.
 - Header row in the Meta role: the item key in mono, in neutral text (`--text-secondary`,
   `--text-primary` on hover; never the accent) and always on one line (a long title beside it
   truncates instead), the stage, and the age on the right.
@@ -454,7 +456,7 @@ the Overview, the item page and the board popover.
   answer:" and the `- id: does (cost: ...)` lines under it), the card takes that list out of the
   clamp and shows it whole between the context and the tiles: a heading "What the stage offered"
   in the Label role, then one plain row per option (not a button), `--radius-console-12`, 1 px
-  `--border`, holding its name (rule 8) at `--text-console-14` semibold, then what it does and
+  `--border` on `--surface-inset` (owner change 5: a box differs from what it sits on), holding its name (rule 8) at `--text-console-14` semibold, then what it does and
   costs at `--text-console-13`, `--text-secondary`. The option a recommendation's `why` names
   (`The stage recommends "<id>".`) wears the tiles' green mark and badge. While the list shows,
   a pick's optional note asks which of those options is meant ("Something else" keeps its own
@@ -514,7 +516,8 @@ the Overview, the item page and the board popover.
   the context says what happened, and the confirm row is replaced by a link to the run, where it
   is resumed or abandoned.
 - Under 520 px wide (the popover, a 390 px phone) the tiles stack full width.
-- The Needs you tab's heading reads "N things need you", in the Page title role.
+- The Needs you tab's header band reads "N things need you" ("Nothing needs you" at none), in
+  the Page title role.
 - On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping, the
   question at `--text-console-13` cut to that line (the whole question on hover and in the
   popover), and "N questions" when there are several; under it, the line Needs you shows for it
@@ -942,18 +945,29 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on
    Needs you". Nothing shows when nothing waits.
 
-The Needs you tab (`/console/p/:projectId/needs-you`) lists every open ask and paused wait on the
-project's items and runs, newest first, grouped under their item, each an ask card answered
-through `POST /api/attention/answer` (a paused gate through its run's respond route), and an
-answered card says so for 5 s before it folds away. Its heading, the tab and the Overview's
-number all read one count, `needsYouCount`. Under the open asks, **Answered
-lately** lists the three newest sets of asks an item settled, as folded cards: each question and
-what it was answered with, and the stage the settling started again (engine #5834; the workflow on
-a project with no factory view), linking to that run with its status, or that no run started
-from these answers. It joins the item read's `asks_settled` answer to the run whose `cause` names
-the same asking run, so an answer given through the CLI or by an agent shows too. With no
-factory view it reads the engine's items window alone. With nothing open, the tab shows rule 6's
-empty state, when something was last asked, and those three cards.
+The Needs you tab (`/console/p/:projectId/needs-you`) is a document page (owner changes 5 and
+9). Its header band says "N things need you", on how many items and runs, with three stat
+chips: waiting now (needs-you while above zero), the oldest wait, and how many questions were
+answered today (asks, waits and gates answered on the local day; a skeleton while the items
+read is unread, "?" when it failed). Its band, the tab and the Overview's number all read one
+count, `needsYouCount`. Then a 2:1 grid, one column at 390 px. The main column holds **Open
+asks**: every open ask, gate and paused run on the project's items and runs, newest first, one
+filled panel per item with a 3 px `--warning` left bar and the ping, its heading the item's
+number and title, each ask under the stage that asked (an eyebrow in the stage's group colour;
+tertiary without a factory view) and drawn as the ask card without its own box, answered
+through `POST /api/attention/answer` (a paused gate through its run's respond route); an
+answered ask says so for 5 s before it folds away. A stage waiting past its deadline
+(`overdue_wait`) sits under **Paused** in its own section, with the bar and no ping. The aside,
+**Answered lately**, is one quiet panel of compact rows, the eight newest answers among the
+asks items settled: the item,
+the question on one line, the option chosen as a pill, who answered and when, and what settling
+its set started ("Plan started again", in the run's state colour with its state in words,
+linking to the run; the workflow in words on a project with no factory view), or "Nothing
+started". It joins the item read's `asks_settled` answer to the run whose `cause` names the
+same asking run (engine #5834), so an answer given through the CLI or by an agent shows too.
+With no factory view it reads the engine's items window alone. With nothing open, the main
+column is rule 6's empty state on a panel: a check in a soft success tint, "Nothing needs you",
+when something was last asked, and links to the board (with a factory view) and the runs.
 4. **The map.**
 
 ## The map

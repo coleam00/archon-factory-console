@@ -1,7 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import { shippedView } from '../item-detail.test-fixtures';
-import { asksSettledRunId, recentlySettled } from './answered';
+import {
+  answeredRows,
+  answeredToday,
+  asksSettledRunId,
+  recentlySettled,
+  type SettledAsks,
+} from './answered';
 import { itemWith, run, settledItem } from './map.test-fixtures';
 
 const plan = settledItem(
@@ -80,24 +86,26 @@ describe('asks settled lately, and the stage each started again', () => {
     ]);
   });
 
-  test('without a view a restart is named by its workflow, and each ask by its answer in words', () => {
+  test('without a view a restart is named by its workflow in words, and each ask by its answer in words', () => {
     const asks: FactoryItem['answers'] = [
       askAnswer('Send it back?', { id: 'send-back-once-more', does: 'Restarts the stage.' }),
       askAnswer('Which base?', { id: 'other', does: 'None of these.' }),
       { ...askAnswer('Split it?', null), withdrawn: true },
       { ...askAnswer('From another run?', null), runId: 'run-elsewhere' },
     ];
-    const item = { ...deliver, answers: [...deliver.answers, ...asks], progress: null };
+    const settledOnly = deliver.answers.filter(answer => answer.kind !== 'ask');
+    const item = { ...deliver, answers: [...settledOnly, ...asks], progress: null };
     const [entry] = recentlySettled(null, [item]);
     expect(entry?.restart).toEqual({
       runId: 'run-d-1',
       status: 'completed',
-      label: 'Wirasm/archon-software-factory:deliver',
+      label: 'Deliver',
     });
+    const at = '2026-11-17T11:00:00.000Z';
     expect(entry?.asks).toEqual([
-      { question: 'Send it back?', answer: 'Send back once more', withdrawn: false },
-      { question: 'Which base?', answer: 'Something else', withdrawn: false },
-      { question: 'Split it?', answer: 'withdrawn', withdrawn: true },
+      { question: 'Send it back?', answer: 'Send back once more', withdrawn: false, at, by: null },
+      { question: 'Which base?', answer: 'Something else', withdrawn: false, at, by: null },
+      { question: 'Split it?', answer: 'withdrawn', withdrawn: true, at, by: null },
     ]);
     expect(entry?.askedAt).toBe(deliver.runs[0]?.completedAt ?? null);
   });
@@ -112,5 +120,89 @@ describe('asks settled lately, and the stage each started again', () => {
     expect(asksSettledRunId({ kind: 'run_ended', runId: 'r', sourceInstanceId: 's' })).toBeNull();
     expect(asksSettledRunId(null)).toBeNull();
     expect(asksSettledRunId({ kind: 'asks_settled', runId: 'r' })).toBe('r');
+  });
+});
+
+describe('Answered lately, one row per answer', () => {
+  const set = (itemKey: string, restart: SettledAsks['restart'], times: string[]): SettledAsks => ({
+    itemKey,
+    runId: `run-${itemKey}`,
+    title: null,
+    answered: times.length,
+    withdrawn: 0,
+    at: times[times.length - 1] ?? '',
+    askedAt: null,
+    asks: times.map((at, index) => ({
+      question: `${itemKey} question ${index.toString()}`,
+      answer: 'Approve',
+      withdrawn: false,
+      at,
+      by: 'cole-owner',
+    })),
+    restart,
+  });
+  const started = { runId: 'run-a-1', status: 'running' as const, label: 'Plan' };
+
+  test('newest answer first across sets, cut to the limit, each with the restart of its set', () => {
+    const rows = answeredRows(
+      [
+        set('a', started, ['2026-11-17T10:00:00.000Z', '2026-11-17T12:00:00.000Z']),
+        set('b', null, ['2026-11-17T11:00:00.000Z']),
+      ],
+      2
+    );
+    expect(rows.map(row => [row.question, row.restart?.label ?? null, row.by])).toEqual([
+      ['a question 1', 'Plan', 'cole-owner'],
+      ['b question 0', null, 'cole-owner'],
+    ]);
+  });
+
+  test('the answer an item read records names who gave it', () => {
+    const item = {
+      ...deliver,
+      answers: [
+        ...deliver.answers.filter(answer => answer.kind !== 'ask'),
+        { ...askAnswer('Ship it?', null), by: { declared: 'someone-else' } },
+      ],
+    };
+    expect(recentlySettled(null, [item])[0]?.asks[0]?.by).toBe('someone-else');
+  });
+});
+
+describe('answered today', () => {
+  // Built in local time, so the day boundary holds in any timezone the tests run in.
+  const now = new Date(2026, 10, 22, 15, 0);
+  const local = (day: number, hour: number): string => new Date(2026, 10, day, hour).toISOString();
+  const answers = (...entries: FactoryItem['answers']): Pick<FactoryItem, 'answers'> => ({
+    answers: entries,
+  });
+  const base = { runId: 'r', node: null, occurrence: null, via: null };
+
+  test('counts waits answered, gates resolved and asks answered on today, nothing else', () => {
+    const items = [
+      answers(
+        { ...askAnswer('Today?', null), at: local(22, 0) },
+        { ...askAnswer('Withdrawn today', null), at: local(22, 9), withdrawn: true },
+        { ...askAnswer('Yesterday?', null), at: local(21, 23) },
+        { ...base, kind: 'gate', at: local(22, 10), decision: 'approve', text: null },
+        {
+          ...base,
+          kind: 'asks_settled',
+          at: local(22, 11),
+          answered: 1,
+          withdrawn: 0,
+        }
+      ),
+      answers({
+        ...base,
+        kind: 'attention',
+        at: local(22, 14),
+        answer: null,
+        by: null,
+        fromRun: null,
+      }),
+    ];
+    expect(answeredToday(items, now)).toBe(3);
+    expect(answeredToday([], now)).toBe(0);
   });
 });

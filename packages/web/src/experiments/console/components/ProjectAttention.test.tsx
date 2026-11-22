@@ -107,7 +107,7 @@ test('a project keeps one attention stream across its pages and closes it on lea
   // The Needs you tab is a project page too: the same stream.
   await act(async () => navigate?.(`/console/p/${ID}/needs-you`));
   await settle();
-  expect(container.textContent).toContain('0 things need you');
+  expect(container.textContent).toContain('Nothing needs you');
   expect(attentionStreams()).toEqual([
     { url: expect.stringContaining(`project=${ID}`) as unknown as string, closed: false },
   ]);
