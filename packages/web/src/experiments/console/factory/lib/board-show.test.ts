@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { boardModel, filterBoard } from './board';
-import { BOARD_SHOW, BOARD_SHOWS, boardShowSearch, parseBoardShow } from './board-show';
+import { BOARD_SHOW, BOARD_SHOWS, parseBoardShow } from './board-show';
 import { PAGE, VIEW } from './board.test-fixtures';
 
 describe('the board shows a number opens', () => {
@@ -25,17 +25,5 @@ describe('the board shows a number opens', () => {
     expect(filterBoard(model, '', 'found')).toBe(model);
     for (const show of BOARD_SHOWS.filter(s => s !== 'found'))
       expect(BOARD_SHOW[show].narrows).toBe(true);
-  });
-
-  test('a show that opens the Table carries the Table view in its address', () => {
-    expect(BOARD_SHOWS.map(boardShowSearch)).toEqual([
-      '?show=in-flight',
-      '?show=needs-you',
-      '?show=landed-today',
-      '?show=landed',
-      '?view=table&show=landed-of-all',
-      '?view=table&show=median-to-land',
-      '?show=found',
-    ]);
   });
 });

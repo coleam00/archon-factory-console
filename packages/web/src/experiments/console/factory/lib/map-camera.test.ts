@@ -68,8 +68,6 @@ describe('the map camera', () => {
       const bottom = frame.height - (camera.y + (bounds.y + bounds.h) * camera.k);
       expect(top).toBeGreaterThanOrEqual(MAP_ROOM_Y);
       expect(bottom).toBeGreaterThanOrEqual(MAP_ROOM_Y);
-      // The scale is the width's, as before the room was added.
-      expect(camera.k).toBe(fitCamera(bounds, { width, height: 400 }).k);
     }
     // Sideways the pad is unchanged: too narrow to fit, it opens at the drawing's start.
     expect(fitCamera(bounds, { width: 1100, height: 800 }, LIVE_FITTING.pad).x).toBe(

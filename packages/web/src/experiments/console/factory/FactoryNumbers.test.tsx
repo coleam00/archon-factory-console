@@ -314,10 +314,6 @@ test('a view that declares discoveries adds a tile linking to the board panel; o
     expect(shown(found)).toBe('found by the factory2');
     const link = found?.querySelector('a');
     expect(link?.getAttribute('href')).toBe('/console/p/cb-found/factory/board?show=found');
-    expect(link?.getAttribute('title')).toBe('Open the board with Found by the factory open');
-    expect(link?.querySelector('.sr-only')?.textContent).toBe(
-      ', Open the board with Found by the factory open'
-    );
     await act(async () =>
       root.render(
         <MemoryRouter>

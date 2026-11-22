@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "Software factory",
-  "summary": "Work comes in as work orders. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A change that is ready passes a gate, then waits for a person to merge it. A person steps in only to answer the questions an item asks.",
+  "summary": "Work comes in as work orders. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. A person steps in only to answer the questions an item asks.",
   "stages": [
     {
       "id": "order",
@@ -363,7 +363,7 @@
       "blurb": "Checks, CI and PR reviews",
       "stages": ["checks", "host"]
     },
-    { "id": "ready", "label": "Ready to merge", "blurb": "Gate, then a person merges", "stages": ["ready"] },
+    { "id": "ready", "label": "Ready to merge", "blurb": "Gate, then merged on land", "stages": ["ready"] },
     { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
   ],
   "placement": {

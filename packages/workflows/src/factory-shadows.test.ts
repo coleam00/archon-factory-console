@@ -187,8 +187,6 @@ describe('reading what each shadow step recorded', () => {
   test('a run of a workflow no shadow names decides nothing', () => {
     const elsewhere = { ...triage65, run: { ...triage65.run, workflow_name: `${PACK}:plan` } };
     expect(decisionsOf(elsewhere)).toEqual([]);
-    // The shipped view no longer names the merge gate: its run decides nothing there.
-    expect(shadowDecisions(shipped, PACK, landgate70.run, landgate70.events)).toEqual([]);
   });
 });
 
