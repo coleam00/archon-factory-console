@@ -62,6 +62,32 @@ export const factoryStepGroupSchema = z.object({
 });
 export type FactoryStepGroup = z.infer<typeof factoryStepGroupSchema>;
 
+/**
+ * One reference the engine would substitute into a step's prompt, found with its own grammar
+ * (`output-ref.ts`): `token` is the text as written, so a console can find it again without a
+ * grammar of its own. An output reference names the step it reads by key, as `whenClauses` do.
+ */
+export const factoryStepReferenceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('input'), token: z.string(), name: z.string() }),
+  z.object({
+    /** `$node.output[.path]` this round, or `$LOOP_PREV.node.output[.path]` the round before. */
+    kind: z.enum(['output', 'prior-output']),
+    token: z.string(),
+    key: z.string(),
+    path: z.string().nullable(),
+  }),
+]);
+export type FactoryStepReference = z.infer<typeof factoryStepReferenceSchema>;
+
+/** The code a bash or script step runs: inline in its YAML, or the named script's file. */
+export const factoryStepScriptSchema = z.object({
+  runtime: z.enum(['sh', 'bun', 'uv']),
+  /** The script's name when the step runs a named script file; null for an inline body. */
+  name: z.string().nullable(),
+  body: z.string(),
+});
+export type FactoryStepScript = z.infer<typeof factoryStepScriptSchema>;
+
 export const factoryStepSchema = z.object({
   /** The step's id as run events name it: `rounds.fix`, `rounds.review__review`, `exhausted`. */
   key: z.string(),
@@ -86,6 +112,16 @@ export const factoryStepSchema = z.object({
   prompt: z.string().nullable(),
   /** Why the prompt could not be read, when a prompt was expected. */
   promptError: z.string().nullable(),
+  /**
+   * The workflow inputs and step outputs its prompt reads, unique by token, in order of first
+   * appearance; empty without a prompt. Engine variables (`$ARTIFACTS_DIR`) are not listed:
+   * they are places the engine fills in, not what the step reads.
+   */
+  references: z.array(factoryStepReferenceSchema),
+  /** What a bash or script step runs; null for any other step, or when it could not be read. */
+  script: factoryStepScriptSchema.nullable(),
+  /** Why the named script a step runs could not be read. */
+  scriptError: z.string().nullable(),
   /** The step's block as its author wrote it. */
   yaml: z.string().nullable(),
   /** Why `yaml` is null. */

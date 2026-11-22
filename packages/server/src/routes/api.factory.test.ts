@@ -1021,6 +1021,10 @@ describe('GET /api/factory/workflow', () => {
     expect(body.steps.map(s => [s.key, s.kind, s.yaml])).toEqual([
       ['rounds.fix', 'bash', 'id: fix\nbash: echo fixed'],
     ]);
+    // What the step runs, and the references its prompt reads (none: it runs no prompt).
+    expect(body.steps.map(s => [s.script, s.scriptError, s.references])).toEqual([
+      [{ runtime: 'sh', name: null, body: 'echo fixed' }, null, []],
+    ]);
   });
 
   test('a workflow no applying view names returns 404', async () => {
