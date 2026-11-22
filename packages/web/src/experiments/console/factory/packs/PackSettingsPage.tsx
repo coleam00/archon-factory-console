@@ -1,22 +1,26 @@
 import type { ReactElement, ReactNode } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { errorDetail } from '../../lib/http';
 import type { FactoryPackSettings } from '../../skills/factory';
-import { EmptyNote } from '../../components/EmptyNote';
 import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../../components/Skeleton';
 import { FactoryLoading } from '../FactoryLoading';
 import { readFailed } from '../lib/deadline';
+import { packDisplayName } from '../lib/pack-name';
+import { projectInFocus } from '../lib/setting-sections';
 import type { FactoryPackListed } from '../lib/views';
 import { useFactoryPackSettings } from '../useFactoryPackSettings';
 import { PackFrame } from './PackFrame';
 import { PackLookup, packHeading } from './PackLookup';
-import { SettingCard, UndeclaredCard } from './SettingCard';
+import { SettingsHeader } from './SettingsHeader';
+import { SettingsSections } from './SettingsSections';
+import { NoSettings, SettingsErrors, Undeclared, UnknownProject } from './SettingsNotices';
 
 /**
- * `/console/factory/:pack/settings`: how a pack is configured, read-only. One card per
- * setting the pack declares, in its order, with what each project that runs the pack sets.
- * Everything comes from the pack's declaration and the projects' files; nothing here names a
- * setting.
+ * `/console/factory/:pack/settings`: how a project has set up the pack, read-only, as a document
+ * page (DESIGN.md, owner changes 5 and 6 of 2026-11-21). A header band counts the settings,
+ * then each section the overview file's map names holds a panel per setting, with what the
+ * project in focus (`?project=`, else the first by name) sets. Everything comes from the
+ * pack's declaration, the overview's map and the projects' files; nothing here names a setting.
  */
 export function PackSettingsPage(): ReactElement {
   return <PackLookup render={pack => <PackSettings pack={pack} />} />;
@@ -33,7 +37,7 @@ function PackSettings({ pack }: { pack: FactoryPackListed }): ReactElement {
       tabs={{ packKey: pack.key, active: 'settings' }}
     >
       {data !== undefined ? (
-        <SettingsBody settings={data} />
+        <SettingsBody settings={data} packName={packDisplayName(pack.pack)} />
       ) : failed !== undefined ? (
         <p role="alert" className="text-console-14 text-error">
           The pack&apos;s settings could not be read: {errorDetail(failed)}
@@ -55,68 +59,28 @@ function ReadFrom({ settings }: { settings: FactoryPackSettings }): ReactNode {
   );
 }
 
-function SettingsBody({ settings }: { settings: FactoryPackSettings }): ReactElement {
+function SettingsBody({
+  settings,
+  packName,
+}: {
+  settings: FactoryPackSettings;
+  packName: string;
+}): ReactElement {
+  const [search] = useSearchParams();
+  const { project, unknown } = projectInFocus(settings.projects, search.get('project'));
   return (
-    <>
+    <div data-doc-page="" className="flex flex-col gap-6">
+      <SettingsHeader settings={settings} packName={packName} project={project} />
+      {unknown === null ? null : <UnknownProject id={unknown} projects={settings.projects} />}
       <SettingsErrors settings={settings} />
-      {settings.settings.length === 0 ? (
-        settings.declaration?.error ? null : (
-          <NoSettings />
-        )
-      ) : (
-        <ul className="flex max-w-5xl flex-col gap-3">
-          {settings.settings.map(setting => (
-            <SettingCard key={setting.name} setting={setting} projects={settings.projects} />
-          ))}
-        </ul>
-      )}
-      <UndeclaredCard projects={settings.projects} />
-    </>
-  );
-}
-
-/** The declaration that could not be read, and overview map keys the pack does not declare. */
-function SettingsErrors({ settings }: { settings: FactoryPackSettings }): ReactNode {
-  const declaration = settings.declaration?.error
-    ? [{ key: 'declaration', path: settings.declaration.path, text: settings.declaration.error }]
-    : [];
-  const map = settings.mapErrors.map(text => ({ key: text, path: null, text }));
-  const errors = [...declaration, ...map];
-  if (errors.length === 0) return null;
-  return (
-    <div
-      role="alert"
-      className="flex max-w-5xl flex-col gap-2 rounded-console-12 border border-error/30 bg-error/10 px-4 py-3"
-    >
-      <p className="text-console-13 font-medium text-error">
-        {declaration.length > 0
-          ? "The pack's declaration could not be read"
-          : 'The factory overview presents a setting the pack does not declare'}
-      </p>
-      <ul className="flex flex-col gap-1">
-        {errors.map(error => (
-          <li key={error.key} className="text-console-13 text-text-secondary">
-            {error.path === null ? null : (
-              <span className="block break-all font-mono text-text-primary">{error.path}</span>
-            )}
-            <span className="block break-words">{error.text}</span>
-          </li>
-        ))}
-      </ul>
+      <SettingsSections settings={settings} project={project} />
+      <Undeclared projects={settings.projects} focus={project} />
+      {settings.settings.length === 0 && !settings.declaration?.error ? <NoSettings /> : null}
     </div>
   );
 }
 
-function NoSettings(): ReactElement {
-  return (
-    <EmptyNote
-      icon={SlidersHorizontal}
-      sentence="This pack declares no settings: a project has nothing to set for it."
-    />
-  );
-}
-
-/** Rule 6: three setting cards' shapes while the settings are read. */
+/** Rule 6: the band's and four setting panels' shapes, two across, while the settings are read. */
 function SettingsSkeleton({
   read,
 }: {
@@ -124,14 +88,21 @@ function SettingsSkeleton({
 }): ReactElement {
   return (
     <FactoryLoading read={read}>
-      <SkeletonGroup label="Reading the pack's settings" className="flex max-w-5xl flex-col gap-3">
-        {['a', 'b', 'c'].map(key => (
-          <SkeletonBlock key={key} height="h-40">
-            <SkeletonInnerLine width="short" />
-            <SkeletonInnerLine />
-            <SkeletonInnerLine width="short" />
-          </SkeletonBlock>
-        ))}
+      <SkeletonGroup label="Reading the pack's settings" className="flex flex-col gap-6">
+        <SkeletonBlock height="h-32">
+          <SkeletonInnerLine width="short" />
+          <SkeletonInnerLine />
+        </SkeletonBlock>
+        {/* console-token-exception min-[1800px]:grid-cols-3 -- owner change 6 of 2026-11-21: setting panels go three across from about 1800 px. */}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 min-[1800px]:grid-cols-3">
+          {['a', 'b', 'c', 'd'].map(key => (
+            <SkeletonBlock key={key} height="h-40">
+              <SkeletonInnerLine width="short" />
+              <SkeletonInnerLine />
+              <SkeletonInnerLine width="short" />
+            </SkeletonBlock>
+          ))}
+        </div>
       </SkeletonGroup>
     </FactoryLoading>
   );

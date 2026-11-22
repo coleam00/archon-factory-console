@@ -9,10 +9,11 @@
  */
 import type { CSSProperties } from 'react';
 import { GitMerge, GitPullRequest, Inbox, type LucideIcon, SearchCode, Wrench } from 'lucide-react';
+import type { ToneColor } from './document';
 import type { ColumnTone } from './lib/board-columns';
 
 export interface Tone {
-  color: string;
+  color: ToneColor;
   /** The card's kind label, in the Label role. */
   kind: string;
   /** What the legend says the colour means. */
@@ -34,7 +35,7 @@ export const TONES: Record<ColumnTone, Tone> = {
 };
 
 /** A column's or card's colour (rule 5). */
-export const toneColor = (tone: ColumnTone): string => TONES[tone].color;
+export const toneColor = (tone: ColumnTone): ToneColor => TONES[tone].color;
 
 /**
  * A `.factory-card`'s colour (theme.css): its tint under the accent bar and, when lit, its

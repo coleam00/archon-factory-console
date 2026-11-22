@@ -425,7 +425,7 @@
       "points_to": "checks",
       "shadow": true,
       "section": "proven",
-      "when_live": "Its results would count in the check round; today they are recorded and never fail it."
+      "when_live": "Would count its results in the check round; today they are recorded and never fail it."
     },
     "discoveries_policy": { "points_to": "policy", "section": "filed" }
   },
