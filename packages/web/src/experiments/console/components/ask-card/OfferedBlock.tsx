@@ -39,7 +39,7 @@ function OfferedRow({
 }): ReactElement {
   return (
     <li
-      className={`flex min-w-0 flex-col items-start gap-1 rounded-console-12 border px-3 py-2 ${recommended ? RECOMMENDED_BG : 'border-border'}`}
+      className={`flex min-w-0 flex-col items-start gap-1 rounded-console-12 border px-3 py-2 ${recommended ? RECOMMENDED_BG : 'border-border bg-surface-inset'}`}
       {...markProps(false, recommended)}
     >
       <span className="min-w-0 text-console-14 font-semibold text-text-primary [overflow-wrap:anywhere]">

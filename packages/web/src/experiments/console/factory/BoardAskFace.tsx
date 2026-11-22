@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
+import { Ping } from '../components/ask-card/Ping';
 import { markProps, RECOMMENDED_BG } from '../components/ask-card/tile-marks';
 import type { BoardCard } from './lib/board';
 import type { BoardAskFace as Face } from './lib/board-ask';
@@ -100,16 +101,6 @@ function AskFace({
         {face.line}
       </span>
     </button>
-  );
-}
-
-/** Needs you's ping (rule 7): an 8 px warning dot; under reduced motion only the dot stays. */
-function Ping(): ReactElement {
-  return (
-    <span data-ping="true" aria-hidden="true" className="relative flex h-2 w-2">
-      <span className="absolute inset-0 rounded-full bg-warning motion-safe:animate-ping" />
-      <span className="relative h-2 w-2 rounded-full bg-warning" />
-    </span>
   );
 }
 

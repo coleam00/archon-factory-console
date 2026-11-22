@@ -2,7 +2,7 @@ import { afterAll, afterEach, expect, jest, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
-import { AnsweredLately } from '../components/ask-card/AnsweredLately';
+import { NeedsYouContent } from '../components/needs-you/NeedsYouLayout';
 import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import { invalidate } from '../store/cache';
@@ -126,11 +126,16 @@ test('Answered lately shows when the items read answers after the first deadline
     isItemsRead(url) ? items(url) : Response.json({ error: 'not in this test' }, { status: 404 })
   );
   const page = await renderFor60s(
-    <AnsweredLately projectId={ID} view={shippedListed} empty={false} />
+    <NeedsYouContent
+      projectId={ID}
+      view={shippedListed}
+      queue={{ items: [], runs: [], degraded: [] }}
+    />
   );
   try {
     expect(page.text).toContain('Answered lately');
-    expect(page.text).toContain('Plan started again (running)');
+    expect(page.text).toContain('Plan started again');
+    expect(page.text).toContain('· running');
   } finally {
     await page.done();
   }

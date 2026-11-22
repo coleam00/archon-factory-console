@@ -142,27 +142,26 @@ describe('the empty state', () => {
     )
   );
 
-  test('never one sentence: the icon, the sentence, when something was last asked, and the three newest answered', () => {
+  test('never one sentence: the panel, when something was last asked, and the newest answers beside it', () => {
     for (const listing of [none, withView]) {
       const html = render(listing, quiet, settled);
       const text = words(html);
-      expect(text).toContain('0 things need you');
-      expect(text).toContain('Nothing needs you right now.');
+      expect(text).toContain('Nothing needs you');
+      expect(text).not.toContain('0 things need you');
       expect(text).toContain('Last asked');
-      expect(html.match(/aria-label="Answered on [a-d]"/g)).toEqual([
-        'aria-label="Answered on d"',
-        'aria-label="Answered on c"',
-        'aria-label="Answered on b"',
-      ]);
+      // The newest answers first: d's three, then c's.
+      const aside = html.slice(html.indexOf('aria-label="Answered lately"'));
+      expect(aside.indexOf('Question 1 on d?')).toBeLessThan(aside.indexOf('Question 1 on c?'));
+      expect(aside).not.toContain('on a?');
       expect(html).toContain('<svg');
     }
   });
 
-  test('with nothing answered yet it is the icon and the sentence, without a last asked', () => {
+  test('with nothing answered yet it is the panel, without a last asked', () => {
     const text = words(render(none, quiet));
-    expect(text).toContain('Nothing needs you right now.');
+    expect(text).toContain('Nothing needs you');
     expect(text).not.toContain('Last asked');
     expect(text).toContain('appears here to answer');
-    expect(text).toContain('See this project&#x27;s runs');
+    expect(text).toContain('See the runs');
   });
 });

@@ -95,7 +95,8 @@ export function itemWithoutProgress(key: string): FactoryItem {
 
 /*
  * Synthetic: the live factory has not yet restarted a stage on settled asks. Each item's first
- * run left asks; `settledAt` closes the set; `restarted` adds the run the settling started.
+ * run left three asks, answered and withdrawn at `settledAt`, which closes the set; `restarted`
+ * adds the run the settling started.
  */
 export function settledItem(
   key: string,
@@ -111,6 +112,22 @@ export function settledItem(
       index === 1 ? { ...entry, cause: { kind: 'asks_settled', runId: askingId } } : entry
     ),
     answers: [
+      // The set's asks: two answered and one withdrawn, as its settled entry counts them.
+      ...(['approve', 'split', null] as const).map((chosen, index) => ({
+        kind: 'ask' as const,
+        runId: askingId,
+        node: null,
+        occurrence: null,
+        at: settledAt,
+        via: 'cli',
+        ref: `ask:${key}-${index.toString()}`,
+        question: `Question ${(index + 1).toString()} on ${key}?`,
+        answer: null,
+        chosen: chosen === null ? null : { id: chosen, does: `Does ${chosen}.` },
+        withdrawn: chosen === null,
+        by: { declared: 'cole-owner' },
+        fromRun: null,
+      })),
       {
         kind: 'asks_settled',
         runId: askingId,

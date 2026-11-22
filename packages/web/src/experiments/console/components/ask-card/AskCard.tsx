@@ -35,11 +35,17 @@ export interface AskCardProps {
   answered?: string;
   folding?: boolean;
   onAnswered?: (ask: NeedsYouItem, label: string) => void;
+  /**
+   * Drawn inside a panel that already names the item and the stage (the Needs you tab, owner
+   * change 9): no box of its own and no header row, so a box never sits inside a box.
+   */
+  embedded?: boolean;
 }
 
 // console-token-exception max-w-[760px] -- Visual standard rule 9: an ask card is at most 760 px wide in a page.
 const WIDTH = 'max-w-[760px]';
-const BOX = `@container flex w-full min-w-0 ${WIDTH} flex-col gap-3 rounded-console-16 border border-border bg-surface p-5`;
+const FLOW = '@container flex w-full min-w-0 flex-col gap-3';
+const BOX = `${FLOW} ${WIDTH} rounded-console-16 border border-border bg-surface p-5`;
 const FOLD = 'motion-safe:transition-all motion-safe:duration-300 motion-safe:ease-out';
 
 /**
@@ -48,7 +54,7 @@ const FOLD = 'motion-safe:transition-all motion-safe:duration-300 motion-safe:ea
  * it, so the Needs you tab, the Overview, the item page and a popover all draw it.
  */
 export function AskCard(props: AskCardProps): ReactElement {
-  const { ask, answered, folding = false, variant = 'full' } = props;
+  const { ask, answered, folding = false, variant = 'full', embedded = false } = props;
   if (variant === 'compact')
     return (
       <CompactCard
@@ -64,9 +70,9 @@ export function AskCard(props: AskCardProps): ReactElement {
       aria-label={askQuestion(ask)}
       data-ask={ask.ref}
       tabIndex={-1}
-      className={`${BOX} ${FOLD} ${folding ? 'opacity-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+      className={`${embedded ? FLOW : BOX} ${FOLD} ${folding ? 'opacity-0' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
     >
-      <AskHeader {...props} />
+      {embedded ? null : <AskHeader {...props} />}
       <h3 className="line-clamp-2 text-console-17 font-semibold text-text-primary [overflow-wrap:anywhere]">
         {askQuestion(ask)}
       </h3>

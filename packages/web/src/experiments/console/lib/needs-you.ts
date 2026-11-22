@@ -110,3 +110,9 @@ export function askRunId(entry: NeedsYouItem): string | undefined {
   if (run !== undefined) return run.id;
   return entry.kind === 'attention' ? entry.askedIn?.runId : undefined;
 }
+
+/** When the longest-waiting entry paused; undefined when none records a time (a gate records none). */
+export function oldestWait(entries: readonly NeedsYouItem[]): string | undefined {
+  const times = entries.flatMap(entry => (entry.pausedAt === null ? [] : [entry.pausedAt]));
+  return times.sort((a, b) => Date.parse(a) - Date.parse(b))[0];
+}
