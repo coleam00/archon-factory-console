@@ -4086,7 +4086,7 @@ export interface paths {
     };
     /**
      * One item with its progress and the timeline facts of each of its runs
-     * @description The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, each round of the declared rounds loop with the steps that recorded an outcome in it, and what each shadow step the view declares decided on that run (`shadows`, one per completed step and round, in recording order; a run of the discoveries workflow included).
+     * @description The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, and what each shadow step the view declares decided on that run (`shadows`, one per completed step and round, in recording order; a run of the discoveries workflow included).
      */
     get: {
       parameters: {
@@ -4157,7 +4157,7 @@ export interface paths {
     };
     /**
      * The board progress of a project's items, by key
-     * @description What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, the declared rounds loop, how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.
+     * @description What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.
      */
     get: {
       parameters: {
@@ -11672,10 +11672,27 @@ export interface components {
           landed: {
             stage: string;
           };
-          rounds?: {
-            workflow: string;
-            loop: string;
-          };
+          rounds?:
+            | {
+                workflow: string;
+                loop: string;
+              }
+            | {
+                workflow: string;
+                round: string;
+                allowance: string;
+              }
+            | (
+                | {
+                    workflow: string;
+                    loop: string;
+                  }
+                | {
+                    workflow: string;
+                    round: string;
+                    allowance: string;
+                  }
+              )[];
           returns?: {
             workflow: string;
             node: string;
@@ -11700,10 +11717,15 @@ export interface components {
               why?: string;
             };
           };
-          change?: {
-            workflow: string;
-            pointer: string;
-          };
+          change?:
+            | {
+                workflow: string;
+                pointer: string;
+              }
+            | {
+                workflow: string;
+                pointer: string;
+              }[];
           partOf?: {
             workflow: string;
             pointer: string;

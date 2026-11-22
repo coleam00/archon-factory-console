@@ -3,13 +3,20 @@
  * view lists is covered by exactly one drill-down card (or loop), every step the view names
  * (shadows included) is real, the map's arrows are exactly the hand-offs the pack graph reports between the
  * workflows the view lists, and every outcome such a workflow declares is placed or ended while
- * every outcome the view names is one it declares. A workflow no stage lists is not compared (`unlistedWorkflows`
+ * every outcome the view names is one it declares, and every result the view reads a change or
+ * a round from is one the workflow returns. A workflow no stage lists is not compared (`unlistedWorkflows`
  * names them). The schema cannot see the pack's workflows; this check reads them as the pack
  * graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
  */
 import { packWorkflowName, type PackGraph } from './pack-graph';
-import type { FactoryStage, FactoryView } from './schemas/factory-view';
+import {
+  changeSources,
+  isLoopRounds,
+  roundsSources,
+  type FactoryStage,
+  type FactoryView,
+} from './schemas/factory-view';
 
 export type CoverageFindingKind =
   | 'uncovered'
@@ -20,6 +27,7 @@ export type CoverageFindingKind =
   | 'unbacked-arrow'
   | 'unplaced-outcome'
   | 'unknown-outcome'
+  | 'no-result'
   | 'graph-incomplete';
 
 export interface CoverageFinding {
@@ -202,6 +210,58 @@ function namedStepFindings(
         if (!graphStage.nodes.some(node => node.id === step))
           findings.push(unknown([key, workflow, step], workflow, step));
     }
+  return findings;
+}
+
+/**
+ * What the view reads change and rounds from is there: a declared return or approval names a
+ * real step, a loop-form rounds source names a loop group of its workflow, and a workflow a
+ * stage-form rounds source or a change source reads a result of returns one.
+ */
+function declaredReadFindings(
+  view: FactoryView,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  const findings: CoverageFinding[] = [];
+  for (const key of ['returns', 'approves'] as const)
+    view[key]?.forEach((point, index) => {
+      const graphStage = stages.get(point.workflow);
+      if (graphStage !== undefined && !graphStage.nodes.some(node => node.id === point.node))
+        findings.push({
+          kind: 'unknown-step',
+          path: [key, index, 'node'],
+          message: `names step "${point.node}", which workflow "${point.workflow}" does not have`,
+        });
+    });
+  const at = (field: 'change' | 'rounds', index: number, leaf: string): ViewPath =>
+    Array.isArray(view[field]) ? [field, index, leaf] : [field, leaf];
+  const returnsResult = (path: ViewPath, workflow: string): void => {
+    if (stages.get(workflow)?.returns === null)
+      findings.push({
+        kind: 'no-result',
+        path,
+        message: `reads the result of workflow "${workflow}", which returns none`,
+      });
+  };
+  roundsSources(view).forEach((source, index) => {
+    if (!isLoopRounds(source)) {
+      returnsResult(at('rounds', index, 'workflow'), source.workflow);
+      return;
+    }
+    const graphStage = stages.get(source.workflow);
+    if (
+      graphStage !== undefined &&
+      !graphStage.nodes.some(node => node.id === source.loop && node.kind === 'loop_group')
+    )
+      findings.push({
+        kind: 'unknown-step',
+        path: at('rounds', index, 'loop'),
+        message: `names loop "${source.loop}", which workflow "${source.workflow}" does not have`,
+      });
+  });
+  changeSources(view).forEach((source, index) => {
+    returnsResult(at('change', index, 'workflow'), source.workflow);
+  });
   return findings;
 }
 
@@ -403,6 +463,7 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
     ...findings,
     ...coverageFindings(view, stages),
     ...namedStepFindings(view, stages),
+    ...declaredReadFindings(view, stages),
     ...arrowFindings(view, graph),
     ...shadowFindings(view, graph),
     ...unplacedOutcomeFindings(view, stages),

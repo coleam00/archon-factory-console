@@ -15,7 +15,7 @@ import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, stageOfWorkflow, type ItemColumn } from './placement';
 import { boardShadowLine, type ShadowWords } from './shadows';
-import { runLine, stepLabel, type RunLine } from './step-label';
+import { roundsSources, runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
 import { membershipOf } from './work-orders';
 
@@ -112,18 +112,44 @@ export function itemPath(projectId: string, key: string): string {
   return factoryPath(projectId, `/items/${encodeURIComponent(key)}`);
 }
 
-function roundField(progress: Progress | null): BoardCard['round'] {
-  const round = progress?.round;
-  if (round == null) return null;
+/**
+ * Whether a run of a stage-form rounds workflow works the item now: a round its result has
+ * not numbered yet. It is never one of `progress.round`'s, which only completed runs give.
+ */
+export function newRoundRunning(view: FactoryDeclaration, progress: Progress | null): boolean {
+  const running = progress?.running;
+  if (running == null) return false;
+  return roundsSources(view).some(
+    source => !('loop' in source) && source.workflow === running.workflow
+  );
+}
+
+function roundField(view: FactoryDeclaration, progress: Progress | null): BoardCard['round'] {
+  const round = progress?.round ?? null;
+  const next = newRoundRunning(view, progress);
+  if (round === null && !next) return null;
+  const dots: NonNullable<BoardCard['round']>['dots'] = (round?.rounds ?? []).map(entry => ({
+    iteration: entry.iteration,
+    verdict: entry.verdict,
+    label: `round ${entry.iteration.toString()}: ${VERDICT_LABEL[entry.verdict]}`,
+  }));
+  if (round === null)
+    return {
+      text: 'first round running',
+      dots: [{ iteration: 1, verdict: 'running', label: 'first round: running' }],
+    };
   const iteration = round.iteration.toString();
+  const text =
+    round.max === null ? `round ${iteration}` : `round ${iteration} of ${round.max.toString()}`;
+  if (!next) return { text, dots };
+  // Its words name no number: after a replan the running round is the first of a new count,
+  // not N+1. The dot's iteration is only its key.
   return {
-    text:
-      round.max === null ? `round ${iteration}` : `round ${iteration} of ${round.max.toString()}`,
-    dots: round.rounds.map(entry => ({
-      iteration: entry.iteration,
-      verdict: entry.verdict,
-      label: `round ${entry.iteration.toString()}: ${VERDICT_LABEL[entry.verdict]}`,
-    })),
+    text: `${text}, next one running`,
+    dots: [
+      ...dots,
+      { iteration: round.iteration + 1, verdict: 'running', label: 'next round: running' },
+    ],
   };
 }
 
@@ -182,7 +208,7 @@ export function cardFields(
     key,
     title: progress?.title ?? key,
     pill,
-    round: roundField(progress),
+    round: roundField(view, progress),
     run: runField(view, projectId, progress, column),
     stage: !landed && column !== null && 'stage' in column ? column.stage.label : null,
     returned:

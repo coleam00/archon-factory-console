@@ -9,16 +9,24 @@ import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
 
+type RoundsSource = Exclude<NonNullable<Declaration['rounds']>, readonly unknown[]>;
+
+/** The view's rounds sources as a list: the file gives one, or a list of them. */
+export function roundsSources(view: Declaration): RoundsSource[] {
+  return view.rounds === undefined ? [] : [view.rounds].flat();
+}
+
 /**
- * Whether `stepId` of `workflow` is the declared rounds loop or one of its bodies: only
- * those steps take that loop's round, so a step of another loop never reads its iteration.
+ * Whether `stepId` of `workflow` is a declared rounds loop or one of its bodies: only those
+ * steps take that loop's round, so a step of another loop never reads its iteration. A
+ * stage-form source has no loop: its run's round is known only from its result.
  */
 function inRoundsLoop(view: Declaration, workflow: string, stepId: string): boolean {
-  const rounds = view.rounds;
-  return (
-    rounds !== undefined &&
-    rounds.workflow === workflow &&
-    stepInStage({ nodes: [rounds.loop] }, stepId)
+  return roundsSources(view).some(
+    source =>
+      'loop' in source &&
+      source.workflow === workflow &&
+      stepInStage({ nodes: [source.loop] }, stepId)
   );
 }
 

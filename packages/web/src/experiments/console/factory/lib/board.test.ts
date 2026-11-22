@@ -8,6 +8,7 @@ import {
   filterBoard,
   hiddenColumnsHint,
   movedKeys,
+  newRoundRunning,
   UNPLACED_LABEL,
 } from './board';
 import type { FactoryItem } from '../../skills/factory';
@@ -128,6 +129,63 @@ describe('card fields, in order', () => {
     unbounded.progress = { ...progress, round: { ...progress.round!, max: null } };
     expect(card(unbounded).round?.text).toBe('round 2');
     expect(card(realItem('6')).round).toBeNull();
+  });
+
+  test('3: a three-stage item reads its stage-check rounds, its bound the newest allowance', () => {
+    const item = realItem('3');
+    const progress = progressOf(item);
+    item.progress = {
+      ...progress,
+      running: null,
+      round: {
+        runId: 'check-3',
+        iteration: 3,
+        max: 4,
+        rounds: [
+          { iteration: 1, verdict: 'returned', outcome: 'return' },
+          { iteration: 2, verdict: 'returned', outcome: 'return' },
+          { iteration: 3, verdict: 'approved', outcome: 'approve' },
+        ],
+      },
+    };
+    expect(card(item).round?.text).toBe('round 3 of 4');
+    expect(card(item).round?.dots.map(dot => dot.verdict)).toEqual([
+      'returned',
+      'returned',
+      'approved',
+    ]);
+  });
+
+  test('3: a stage-check run going now is a round with no number yet: a running dot', () => {
+    const item = realItem('3');
+    const progress = progressOf(item);
+    const running = {
+      runId: 'check-next',
+      workflow: 'stage-check',
+      step: 'review__review',
+      startedAt: '2026-11-21T12:00:00.000Z',
+    };
+    item.progress = { ...progress, running };
+    expect(newRoundRunning(VIEW, item.progress)).toBe(true);
+    expect(card(item).round).toEqual({
+      text: 'round 2 of 3, next one running',
+      dots: [
+        { iteration: 1, verdict: 'returned', label: 'round 1: returned' },
+        { iteration: 2, verdict: 'undecided', label: 'round 2: needs a decision' },
+        { iteration: 3, verdict: 'running', label: 'next round: running' },
+      ],
+    });
+    // No stage-check round recorded yet: the first is running.
+    item.progress = { ...progress, running, round: null };
+    expect(card(item).round).toEqual({
+      text: 'first round running',
+      dots: [{ iteration: 1, verdict: 'running', label: 'first round: running' }],
+    });
+    // A deliver run going now, not yet in its loop, adds none: deliver's loop is a loop-form
+    // source, which numbers its own rounds, so its card reads as it always has.
+    item.progress = { ...progress, running: { ...running, workflow: 'deliver' } };
+    expect(newRoundRunning(VIEW, item.progress)).toBe(false);
+    expect(card(item).round?.text).toBe('round 2 of 3');
   });
 
   test('4: the running stage, step name and round, linking to the run', () => {

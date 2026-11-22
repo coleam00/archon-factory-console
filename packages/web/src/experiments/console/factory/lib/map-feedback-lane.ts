@@ -11,7 +11,9 @@
  * and every run lies on the lane. Two verticals never cross; a vertical meets the lane only
  * at its own end; and no leg enters a card, since it starts on the card's own edge. Where two
  * runs overlap they are collinear: one line, not a crossing. The pills sit under the lane,
- * where nothing else is drawn, each on the first band down where it meets no pill before it.
+ * where nothing else is drawn, each on the first band down where it meets no pill before it,
+ * centred on its leg but kept within the row's span, so a long label on the first card's leg
+ * does not hang off the row's start (where the map opens).
  */
 import type { Box, Point } from './map-layout';
 import { pillWidth, PILL_H } from './overview-layout';
@@ -115,11 +117,16 @@ function pillTexts(drawn: readonly SendBack[]): Map<string, string> {
 const meets = (a: Box, b: Box, clear: number): boolean =>
   a.x < b.x + b.w + clear && b.x < a.x + a.w + clear && a.y < b.y + b.h && b.y < a.y + a.h;
 
-/** The pills under the lane at `y`, left to right, each on the first band it fits. */
+/**
+ * The pills under the lane at `y`, left to right, each centred on its leg but within the
+ * row's span `row` (one wider than the row starts at its left edge), each on the first band
+ * it fits.
+ */
 function placePills(
   texts: ReadonlyMap<string, string>,
   legs: ReadonlyMap<string, { x: number }>,
-  y: number
+  y: number,
+  row: { lo: number; hi: number }
 ): LanePill[] {
   const ordered = [...texts].flatMap(([stage, text]) => {
     const leg = legs.get(stage);
@@ -131,7 +138,7 @@ function placePills(
     const w = pillWidth(text, false);
     let band = 0;
     const at = (n: number): Box => ({
-      x: x - w / 2,
+      x: Math.max(row.lo, Math.min(row.hi - w, x - w / 2)),
       y: y + PILL_OFFSET + n * (PILL_H + BAND_GAP),
       w,
       h: PILL_H,
@@ -216,7 +223,12 @@ export function feedbackLane(
       d: `M${hi.toString()},${top.toString()} V${y.toString()} H${lo.toString()} V${end.toString()}`,
     })
   );
-  const pills = placePills(pillTexts(drawn), legs, y);
+  const boxes = [...cards.values()].map(card => card.box);
+  const row = {
+    lo: Math.min(...boxes.map(box => box.x)),
+    hi: Math.max(...boxes.map(box => box.x + box.w)),
+  };
+  const pills = placePills(pillTexts(drawn), legs, y, row);
   return { paths, strokes: strokesOf(spans, y), pills, extent: extentOf(spans, pills, y) };
 }
 

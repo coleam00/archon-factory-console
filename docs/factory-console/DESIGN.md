@@ -762,7 +762,10 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // placed (placement must take each), never
                                                    // ended; `why` points at the run's reason
   "landed": { "stage": "landed" },                 // the column for an item whose change merged
-  "rounds": { "workflow": "deliver", "loop": "rounds" },
+  "rounds": [ { "workflow": "deliver", "loop": "rounds" },   // one source, or a list: a loop's
+              { "workflow": "stage-check",               // iterations, or each run of a
+                "round": "/round", "allowance": "/allowance" } ],  // workflow one round,
+                                                   // numbered and bounded by its result
   "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
                { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" } ],
   "approves": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" } ],
@@ -773,7 +776,11 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // what other steps' outcomes mean, for words
                                                    // only (approved | returned | asked)
   "asked": ["plan:ask", "deliver:ask"],            // outcomes that stop to ask you
-  "change": { "workflow": "deliver", "pointer": "/change" },   // where the PR URL is in a result
+  "change": [ { "workflow": "deliver", "pointer": "/change" },
+              { "workflow": "stage-build", "pointer": "/change" } ],
+                                                   // where the PR URL is in a result: one
+                                                   // source or a list; the newest run with
+                                                   // a non-empty URL names the change
   "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
                                                    // where a result names the item's work order:
                                                    // only runs that completed with `outcome`;
@@ -805,9 +812,9 @@ pack is later work. The pack's `discoveries` drain runs after deliver but moves 
 declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
 `discoveries` field names the workflow instead, and where each completed drain's result lists
 what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
-Its `shadows` field names the steps the pack runs as shadows (admit, split, the project checks
-and the drain; not the land gate, which acts) and how each one's value reads; the item
-timeline, stage pages, board and map show their decisions as shadows (#80).
+Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of
+`deliver` and of `stage-check`, and the drain; not the land gate, which acts) and how each one's
+value reads; the item timeline, stage pages, board and map show their decisions as shadows (#80).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -823,7 +830,9 @@ covers or two cover, and on a step or workflow the view names that the pack does
 fails, too, on an outcome a listed workflow declares that neither `placement` nor `endings` takes
 (exactly or by `workflow:*`), so a completed run never leaves its item where no rule put it, and on
 an exact `placement`, `endings`, `parked` or `asked` key naming an outcome its workflow does not
-declare (#100).
+declare (#100). It fails, too, on a `returns` or `approves` step the workflow does not have, a
+loop-form `rounds` source naming no loop group, and a `change` or stage-form `rounds` source on
+a workflow that returns no result.
 
 ## Data
 
@@ -958,7 +967,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
   fit the frame, the map pans sideways, opening (and Fit returning) at the row's start, so the
-  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1226 px
+  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1275 px
   wide with its padding, so at 1440x900 Intake shows whole and Merged is partly off the right;
   it pans more on smaller screens.
 - **Cards in the card language** (rule 2), 184 px wide by 168 tall, every card one size so the
@@ -995,10 +1004,11 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   per stage of it something returns to, spread over its left half in its stage order. Each
   send-back drops from its card's source leg to the lane, runs right to left, and rises into
   its target stage's leg; every send-back into one stage shares that leg and one pill under the
-  lane ("returned" on Build, "replan, answers" on Plan). A send-back inside one card (an asked
+  lane ("returned, sent back, answers" on Build, "replan, answers" on Plan). A send-back inside one card (an asked
   plan answered) is a short U from the card's source leg into its stage's leg. Where runs
-  overlap they are one line, drawn once. Pills sit under the lane, each on the first band down
-  where it meets no other pill. Nothing crosses: no line crosses a card, a pill or another line.
+  overlap they are one line, drawn once. Pills sit under the lane, each centred on its leg but
+  never past the row's first or last card (a long label on Intake's leg starts at the row's
+  left edge, where the map opens), on the first band down where it meets no other pill. Nothing crosses: no line crosses a card, a pill or another line.
 - **Flow** (the map's addition to rule 7): while a run works an item on a card, a 10 px dot in
   the running colour, with a soft halo, travels along the hand-off into that card, over and over, fading as it
   arrives, where the running chip's pulsing dot holds it. The first card, with no hand-off into
@@ -1050,7 +1060,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
   says which: its hover, and the stage's details under "Shadow steps", give one line per
-  shadow step with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  shadow step (steps of one label, such as the project checks of both deliveries, share a
+  line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
   "nothing decided yet"; before the items are read, "…", and "could not be read" once that
   read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
@@ -1103,12 +1114,16 @@ A card, in this order:
    of the stage it waits in ("Plan", "CI and review"). Under it, on an item no run works, the
    shadow line (rule 10): the badge and what the newest decision of a verdict shadow its stage's
    workflows declare would do ("would ask you first"), its why on hover. For this pack it shows
-   in Triage on an item whose triage run failed after admit or split decided, from that decision
-   (#80); Ready to merge has none, since the land gate acts.
+   in Triage on an item whose triage run failed after admit decided, from that decision (#80);
+   Ready to merge has none, since the land gate acts.
 4. "part of <order>" when the item is a member of a work order (see Work orders).
-5. "round N of M" when the declared rounds loop has run on the item: the latest iteration, with
-   one dot per round coloured by that round's verdict: approved (a declared approval),
-   returned (a declared return), needs a decision (neither: an ask or a replan), running.
+5. "round N of M" when a declared rounds source has a round on the item: the latest iteration
+   of the deliver loop, or, on the three-stage delivery, the newest `stage-check` run's round
+   and allowance from its result (so M can be 4 after a one-more-round answer), with one dot
+   per round coloured by that round's verdict: approved (a declared approval), returned (a
+   declared return), needs a decision (neither: an ask or a replan), running. A `stage-check`
+   run going now has no number until its result names one, so the card adds a running dot
+   and reads "round N of M, next one running" ("first round running" before any).
 6. "returned ×N" when checks or the host sent it back, linking to the item page; then the
    change: "PR #123" linking to it, when there is one. When the change host could not say
    whether it merged, the card says "merge state unknown" rather than reading as unmerged;
@@ -1189,7 +1204,8 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
   reads "Found by the factory") on one connecting line, an icon for what its outcome did (sent
   on, returned, asked you, failed, running, stopped), the stage label and workflow, the outcome,
   and duration and cost right-aligned in mono; under it how it started (by hand, or after which
-  run's outcome; a trigger's id only on hover). For the rounds loop, one compact row per round:
+  run's outcome; a trigger's id only on hover). For the rounds loop, one compact row per round
+  (a `stage-check` run is one round, numbered by its result):
   "round N of M", its verdict, and a chip per check in its verdict's colours, with what was
   returned on one line. Sent on and returned follow the board's order, judged from the furthest
   stage the run's workflow works: a placement into an earlier column, or an earlier stage of

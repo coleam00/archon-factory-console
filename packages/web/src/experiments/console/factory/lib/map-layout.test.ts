@@ -157,7 +157,9 @@ describe('the shipped map', () => {
   test('a forward hand-off only between neighbours, straight, its pill above the line', () => {
     expect(layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines.join(' ')])).toEqual([
       ['intake', 'plan-build', 'build, narrow'],
-      ['plan-build', 'checks-review', 'built'],
+      // Build to CI and review ("fixed for CI") skips Checks, but not a card: Plan & build and
+      // Checks & review are neighbours, so it joins the one pill between them.
+      ['plan-build', 'checks-review', 'built, fixed for CI'],
       ['checks-review', 'ready', 'ready'],
       ['ready', 'merged', 'merged'],
     ]);
@@ -171,10 +173,13 @@ describe('the shipped map', () => {
     }
   });
 
-  test('one lane under the row: one pill per target stage, "returned" on build, "replan, answers" on plan', () => {
+  test('one lane under the row: one pill per target stage, the self hand-offs on it too', () => {
     expect(layout.feedback.pills.map(pill => [pill.stage, pill.text])).toEqual([
+      ['order', 'pieces, broke the branch'],
+      ['triage', 'split'],
       ['plan', 'replan, answers'],
-      ['build', 'returned'],
+      ['build', 'returned, sent back, answers'],
+      ['ready', 'land'],
     ]);
     const laneY = CARD_H + LANE;
     for (const path of layout.feedback.paths) {
@@ -185,6 +190,16 @@ describe('the shipped map', () => {
 
   test('nothing crosses a card, a line or a pill, and the bounds hold every pill', () => {
     expectClean(layout);
+  });
+
+  test("every lane pill is within the row's span: the map opens at the first card", () => {
+    const first = layout.cards[0]?.box as Box;
+    const last = layout.cards.at(-1)?.box as Box;
+    for (const pill of layout.feedback.pills) {
+      expect(pill.box.x).toBeGreaterThanOrEqual(first.x);
+      expect(pill.box.x + pill.box.w).toBeLessThanOrEqual(last.x + last.w);
+    }
+    expect(layout.bounds.x).toBe(first.x);
   });
 });
 
@@ -215,6 +230,20 @@ describe('the rules for arrows between card groups', () => {
     expect(only.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines])).toEqual([
       ['s1', 's2', ['skip → s3']],
     ]);
+    expectClean(only);
+  });
+
+  test("a long send-back label into the first card's first stage stays within the row", () => {
+    const view = declaration(['s1', 's2', 's3'], {
+      arrows: [
+        { from: 's1', to: 's2', label: 'go' },
+        { from: 's3', to: 's1', label: 'pieces, broke the branch, and a long one more' },
+      ],
+    });
+    const only = layoutMap(view);
+    const [pill] = only.feedback.pills;
+    expect(pill?.box.x).toBe(0);
+    expect(only.bounds.x).toBe(0);
     expectClean(only);
   });
 

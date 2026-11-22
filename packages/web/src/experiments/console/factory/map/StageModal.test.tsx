@@ -83,15 +83,53 @@ const attention: EntityView<AttentionQueue> = {
   refetch: () => undefined,
 };
 
-/** The Overview's map at `path`, in a router whose history a test can walk. */
-async function mount(path = OVERVIEW, read: FactoryItem[] | null = items) {
+type Listed = typeof shippedListed;
+type ListedStage = Listed['declaration']['stages'][number];
+
+/** The shipped view with stage `id` changed by `change`. */
+function withStage(id: string, change: (stage: ListedStage) => ListedStage): Listed {
+  const { declaration } = shippedListed;
+  const stages = declaration.stages.map(stage => (stage.id === id ? change(stage) : stage));
+  return { ...shippedListed, declaration: { ...declaration, stages } };
+}
+
+/**
+ * Build listing deliver alone, its drill-down only deliver's cards: the read-retry and sizing
+ * rules below count one workflow's reads and measure one graph against phases narrower than
+ * it, whatever the shipped Build lists.
+ */
+const oneBuildWorkflow = withStage('build', stage => ({
+  ...stage,
+  workflows: ['deliver'],
+  drilldown:
+    stage.drilldown === undefined
+      ? undefined
+      : {
+          ...stage.drilldown,
+          phases: stage.drilldown.phases
+            .map(phase => ({
+              ...phase,
+              cards: phase.cards.filter(card =>
+                card.covers.every(cover => cover.workflow === 'deliver')
+              ),
+            }))
+            .filter(phase => phase.cards.length > 0),
+        },
+}));
+
+/** The map at `path`, in a router whose history a test can walk. */
+async function mount(
+  path = OVERVIEW,
+  read: FactoryItem[] | null = items,
+  view: Listed = shippedListed
+) {
   // null leaves the items cold, so they are read through `itemsAnswer`.
   if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
   const router = createMemoryRouter(
     [
       {
         path: '/console/p/:projectId/factory',
-        element: <FactoryMap projectId={ID} view={shippedListed} attention={attention} />,
+        element: <FactoryMap projectId={ID} view={view} attention={attention} />,
       },
     ],
     { initialEntries: [path] }
@@ -311,7 +349,12 @@ describe('a stage opened over the Overview', () => {
   });
 
   test('a stage with no summary and no workflow does not point at an empty tab', async () => {
-    const { container, unmount } = await mount();
+    // Merged, given no workflow and no drill-down (the shipped one has the pack's `landed`).
+    const bare = withStage('landed', ({ drilldown: _drilldown, ...stage }) => ({
+      ...stage,
+      workflows: [],
+    }));
+    const { container, unmount } = await mount(OVERVIEW, items, bare);
     try {
       await click(stageLink(container, 'landed'));
       await click(inDialog('What this stage does'));
@@ -417,7 +460,7 @@ describe('a stage opened over the Overview', () => {
 describe('the workflow read never dead-ends', () => {
   test('a network failure is tried once more, and the graph draws with no alert', async () => {
     workflowReads = [offline, steps];
-    const { container, unmount } = await mount();
+    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
     try {
       await openBuildWorkflow(container);
       // The skeleton holds the place while the read and its retry run.
@@ -435,7 +478,7 @@ describe('the workflow read never dead-ends', () => {
 
   test('two failures say what failed with a Retry button, and Retry draws the graph', async () => {
     workflowReads = [offline, offline, steps];
-    const { container, unmount } = await mount();
+    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
     try {
       await openBuildWorkflow(container);
       await settle(1_100);
@@ -461,7 +504,7 @@ describe('the workflow read never dead-ends', () => {
           { status: 404 }
         ),
     ];
-    const { container, unmount } = await mount();
+    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
     try {
       await openBuildWorkflow(container);
       await settle();
@@ -482,7 +525,7 @@ describe('the workflow read never dead-ends', () => {
         answer = () => resolve(steps());
       });
     workflowReads = [offline, offline, held];
-    const { container, unmount } = await mount();
+    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
     try {
       await openBuildWorkflow(container);
       await settle(1_100);
@@ -558,7 +601,7 @@ describe('the modal is sized by what it shows', () => {
         }),
     ];
     await desktop();
-    const { container, unmount } = await mount();
+    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
     try {
       await click(stageLink(container, 'build'));
       expect(width()).toBe('744px');
