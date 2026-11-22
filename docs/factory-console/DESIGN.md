@@ -4,6 +4,136 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## Owner changes of 2026-11-21 (bind every later change; win over everything below, 2026-11-19 included)
+
+From the owner's review of the whole section on 2026-11-21, before the 2026-12-02 bootcamp. The
+canvases (How it works, the Overview map, the board) are loved: "those all look so good". Every
+other page reads as auto-generated: text slapped on the page background in outline boxes, shoved
+to the left, half the screen empty, everything white. "No one following my workshop would use
+this right now because it's just confusing." These changes fix that. They are design changes,
+not polish: reshape a page when restyling it would not make it read well.
+
+1. **How it works moves about 1.5 times faster.** Every duration in the flow loop is two thirds of
+   what it is today (a dot's travel, its rest, the loop's pause), so one loop takes two thirds of
+   the time. Nothing else about the loop changes.
+2. **The Overview map has room to breathe.** At least 48 px of canvas above the drawing's top edge
+   and below its bottom edge, at the opening zoom and after Fit, at 1440x900 and on a wide screen.
+   The canvas grows taller to make that room (the drawing is never squeezed to fit a fixed
+   height); it still opens at Intake and pans sideways.
+3. **A number tile opens what it counts, not just the board.** Each tile says where it goes
+   (its tooltip and its accessible name) and lands on a view that shows exactly that set, with the
+   filter named on screen and one click to clear it:
+   - **In flight**: the board showing only the items in flight.
+   - **Need you**: the project's Needs you tab.
+   - **Merged today**: the board showing only what merged today.
+   - **Merged N of M**: the board's table view, every item, with merged ones marked.
+   - **Median to merged**: the board's table view sorted by time to merge, with the median row
+     marked, so the number can be checked.
+   - **Found by the factory**: the board with the "Found by the factory" panel open.
+   A board address carries its filter (a query parameter), so these views are links a person can
+   share and reload.
+4. **"The real workflow" dims nothing.** Every step of the generated graph is drawn at full
+   strength. The steps the open stage works are marked as its own (a ring in the stage's group
+   colour and a "This stage" tag); each other step carries a small tag naming the stage that works
+   it ("Checks"), which opens that stage. The sentence above the graph says this, instead of
+   "Other stages work the dimmed steps".
+5. **Document pages get a design of their own.** Every page in the section that is not a canvas
+   (the pack's Settings page, a step page, an item page, the Needs you tab, a stage's "Items here
+   now") follows these rules, which win over rules 2, 3 and 5 of the Visual standard where they
+   differ:
+   - **Content sits on filled panels, never outlines on the page colour.** A panel is
+     `--surface-elevated` (or `--surface` on an elevated page) with a 1 px `--border`,
+     `rounded-console-12` and `--card-depth`; the page background shows only between panels.
+     A row inside a panel that needs its own box is `--surface-inset`, so a box always differs from
+     what it sits on.
+   - **Sections are colour-coded.** Each section of a page has a heading row: a 16 px icon and the
+     section's eyebrow label in the section's colour (a group colour, a kind colour from How it
+     works, or a state colour), with the heading in `--text-primary`. On document pages a group
+     or kind colour may be the colour of that eyebrow label and icon, and of a 3 px bar on the
+     panel's left or top edge (this amends rule 5 of the Visual standard for document pages only).
+     Body text stays `--text-secondary`; values a person scans for (a path, a model, a count) are
+     `--text-primary`.
+   - **The page uses its width.** At 1440x900 no page is a single column with the right third
+     empty. A page is a header band across the full width, then a grid: a main column and an aside
+     (about 2:1), or a grid of panels two or three across. Text measure stays readable (a paragraph
+     is at most about 80 characters wide); the grid, not long lines, fills the width. At 390 px
+     everything stacks into one column.
+   - **Every page opens with a header band.** Title, one plain sentence saying what this page is,
+     and the page's key facts as a row of stat chips (counts, state, time, cost), so the page
+     reads at a glance before any detail.
+   - **No dead space inside a box.** A label and its value sit on one row in a definition grid
+     (label column about 160 px), not stacked with blank lines between; a panel is as tall as its
+     content. Long values wrap (owner change 2 of 2026-11-19).
+   - **Plain words first, ids second.** A heading is what a person calls the thing ("Land policy");
+     the id (`land_policy`) is a small mono tag beside it, never the heading.
+   The shared pieces (panel, section heading, header band, stat chip, definition grid) are built
+   once, in one module of the factory section, and every document page uses them. A test holds
+   the pages to them (no outline-only box on the page background, no section without a heading row).
+6. **The pack's Settings page is rebuilt on those rules.** It reads as "how this project has set
+   up its factory", not a list of fields:
+   - The header band says how many settings there are, how many this project sets, how many fall
+     back to the pack's default, and how many are shadows today.
+   - Settings are grouped into sections with their own colour, by what they govern, for example:
+     *What work is held to* (the triage, plan, split, build, review, test, product, propose and
+     host policies), *What may go ahead without you* (admit, land), *How a change is proven*
+     (validate command, checks file), *What gets filed* (discoveries). The grouping comes from the
+     display file's map, not from code naming the pack.
+   - Each setting is a compact panel in a two- or three-across grid: its plain name, the id tag,
+     one line of what it does (the rest behind "More"), and the project's value as the most
+     prominent thing in it: a path with a file icon, or a command in mono, or a clear "Pack
+     default" pill when the project sets nothing. A shadow setting carries the shadow badge and
+     says what would change when it stops being one.
+   - The checks file shows its checks as rows (name and command), not a raw dump.
+7. **A step page is a page about one step.** Reached from "The real workflow" (for example
+   `steps/land/land` or a step of `deliver`), it shows:
+   - a header band: the step's plain name, its workflow and stage, its kind in its kind colour,
+     the model it runs on, and how many items are on it now;
+   - an aside with the facts in a definition grid (kind, model, inputs it reads, outcomes it can
+     end with, what starts after each outcome) and a small drawing of its workflow with this step
+     marked, each other step a link;
+   - the main column with "What it does" in plain words first, then the prompt as a readable
+     document on a panel: its headings as headings, `$INPUTS.x` shown as named chips (not raw
+     text), long prompts folded after the first screen with "Show the whole prompt";
+   - items on this step now, as board cards.
+   A step that is a script shows its script on a code panel with line numbers instead of a prompt.
+8. **The item page tells the story of the item.** Today it is a list of runs and a wall of red and
+   green chips nobody can read. It becomes a story a person follows top to bottom:
+   - **A journey strip** across the top: the item's path through the groups (Intake, Plan & build,
+     Checks & review, Ready to merge, Merged), each step showing how long the item spent there,
+     the current one lit, a send-back drawn as a loop back, an ask as a marked pause.
+   - **A header band**: title, state, the PR, total time from order to now or to merge, cost,
+     check rounds used, asks answered.
+   - **The story**: one panel per stage in order, each opening with one plain sentence saying
+     what happened ("Triage judged it worth building", "Build wrote the change and opened PR
+     #112", "The checks sent it back once: the offered block was unclamped"), then its details.
+   - **Check rounds as a grid, not chips**: rows are the checks (Code review, Tests, Product
+     check, Verdict, CI and reviews, and the project's checks as a shadow row), columns are
+     rounds; each cell is an icon and a word ("Sent back", "Approved", "Fixed") in its state
+     colour, with a legend saying what sent back and approved mean. The reason a round was sent
+     back is one readable sentence under the grid, the full text behind "More". The rule to
+     remember: a person must be able to say what happened in each round without hovering.
+   - Asks and their answers appear in the story where they happened (the question, the option
+     chosen, who chose it and what that started), not only in a separate list.
+   - Shadow rows stay shadows (rule 10) but sit in the stage they belong to, quieter than real
+     steps.
+9. **Needs you is designed, not plain text.** Today it is white text on the page colour. It
+   follows rule 5's document-page design:
+   - a header band with the count waiting, the oldest wait, and how many were answered today;
+   - each open ask on a filled panel with the needs-you colour as its left bar and ping, the
+     item's number and title as its heading row, the question in `--text-primary`, the option tiles
+     as in rule 9 of the Visual standard (recommended in green, selected in accent), so an open
+     ask is the most colourful thing on the screen;
+   - "Answered lately" as compact rows on a quieter panel, each with the option chosen as a pill
+     and what it started ("Plan started again", "Nothing started") in a state colour;
+   - an empty state that looks designed: an icon, "Nothing needs you", when something was last
+     asked, and links to the board and the runs.
+   Check it with open asks (seed a copy of the live database with its asks reopened), not only
+   empty.
+10. **The section shows that the factory merges.** On the three-stage delivery the pack lands a
+   change itself when the land gate or an operator says so. Wherever a person reads how merging
+   works (the map's Ready to merge card and its drill-down, How it works, the item page), it says
+   the gate asks and the factory merges on "land", not that a person merges by hand.
+
 ## Owner changes of 2026-11-19 (bind every later change; win over everything below, 2026-11-18 included)
 
 From the owner's review of the finished work order #64. The section is close; these make it presentable.
