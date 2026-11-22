@@ -13,7 +13,7 @@ type Row =
   | { kind: 'step'; step: FactoryWorkflow['steps'][number]; depth: number };
 
 /**
- * The steps in definition order (the read's order), each loop and include opening once, above
+ * The steps in definition order (the read's order), each loop opening once above
  * its first step, at its depth.
  */
 function workflowRows(workflow: FactoryWorkflow): Row[] {
@@ -30,7 +30,8 @@ function workflowRows(workflow: FactoryWorkflow): Row[] {
   };
   const rows: Row[] = [];
   for (const step of workflow.steps) {
-    const around = chain(step.group);
+    // Only loops frame steps here: an include usually holds one step its name already says.
+    const around = chain(step.group).filter(group => group.kind === 'loop');
     around.forEach((group, depth) => {
       if (opened.has(group.id)) return;
       opened.add(group.id);
@@ -47,7 +48,7 @@ const indent = (depth: number): CSSProperties => ({
 
 /**
  * A small drawing of the step's workflow (owner change 7 of 2026-11-21): every step down one line,
- * in its kind's colour, indented inside its loops and includes. This step is marked and is no
+ * in its kind's colour, indented inside its loops. This step is marked and is no
  * link; every other step opens its own step page, carrying the stage the page was opened from.
  */
 export function StepWorkflowList({
