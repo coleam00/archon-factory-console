@@ -4085,8 +4085,8 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * One item with its progress and the timeline facts of each of its runs
-     * @description The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, and what each shadow step the view declares decided on that run (`shadows`, one per completed step and round, in recording order; a run of the discoveries workflow included).
+     * One item with its progress and the story facts of each of its runs
+     * @description The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, what each shadow step the view declares decided on that run (`shadows`, one per completed step and round, in recording order; a run of the discoveries workflow included), the pull request the run named at the view's `change` pointer (`change`), what it said in its own words at the view's `story.said` pointers (`said`), the models its steps ran on (`models`), and when each of its steps started (`steps`, as the engine records the step id).
      */
     get: {
       parameters: {
@@ -11791,6 +11791,17 @@ export interface components {
               [key: string]: string;
             };
           };
+          story?: {
+            outcomes: {
+              [key: string]: string;
+            };
+            steps?: {
+              [key: string]: {
+                [key: string]: string;
+              };
+            };
+            said?: string[];
+          };
           map: {
             cards: {
               stage: string;
@@ -12873,6 +12884,14 @@ export interface components {
             }[];
           }[];
         } | null;
+        change: string | null;
+        said: string | null;
+        models: string[];
+        steps: {
+          node: string;
+          /** Format: date-time */
+          startedAt: string;
+        }[];
       }[];
     };
     FactoryProgress: {

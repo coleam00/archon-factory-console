@@ -377,6 +377,40 @@ describe('outcomes: each one placed or ended, and only declared ones named', () 
   });
 });
 
+describe('story: every declared outcome told, and only real outcomes and steps named', () => {
+  const placed = { 'plan:planned': 'build', 'plan:stop': 'plan' };
+
+  test('a story telling every outcome, exactly or by workflow:*, has no findings', () => {
+    const of = withPlanOutcomes('planned', 'stop');
+    const exact = { outcomes: { 'plan:planned': 'Plan wrote it', 'plan:stop': 'Plan stopped' } };
+    expect(findings({ ...clean(), placement: placed, story: exact }, of)).toEqual([]);
+    const star = { outcomes: { 'plan:*': 'Plan finished' } };
+    expect(findings({ ...clean(), placement: placed, story: star }, of)).toEqual([]);
+  });
+
+  test('a declared outcome with no sentence is reported; a view with no story is not', () => {
+    const of = withPlanOutcomes('planned', 'stop');
+    const story = { outcomes: { 'plan:planned': 'Plan wrote it' } };
+    expect(findings({ ...clean(), placement: placed, story }, of)).toEqual([
+      ['untold-outcome', 'story.outcomes'],
+    ]);
+    expect(findings({ ...clean(), placement: placed }, of)).toEqual([]);
+  });
+
+  test('an unknown outcome key and an unknown step are reported at their paths', () => {
+    const story = {
+      outcomes: { 'plan:*': 'Plan finished', 'plan:parked': 'Plan parked it' },
+      steps: { deliver: { build__build: 'Build wrote it', 'rounds.nope': 'Nothing' } },
+    };
+    expect(
+      findings({ ...clean(), placement: placed, story }, withPlanOutcomes('planned', 'stop'))
+    ).toEqual([
+      ['unknown-outcome', 'story.outcomes.plan:parked'],
+      ['unknown-step', 'story.steps.deliver.rounds.nope'],
+    ]);
+  });
+});
+
 describe('arrows back into their own stage, and arrows touching landed', () => {
   test('a declared loop the pack no longer starts is reported', () => {
     const stale = graph();

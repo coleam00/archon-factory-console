@@ -4,7 +4,8 @@ import { act, type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { BoardCard } from './BoardCard';
 import { itemDetail, PROJECT, shippedView } from './item-detail.test-fixtures';
-import { ItemTimeline } from './ItemTimeline';
+import { itemStory } from './lib/item-story';
+import { StageStoryPanel } from './StoryPanel';
 import { cardFields } from './lib/board';
 import { VIEW, realItem } from './lib/board.test-fixtures';
 import { EMPTY_STAGE_LIVE } from './lib/map-live';
@@ -18,7 +19,7 @@ import { DrilldownCard } from './stage/DrilldownCard';
 import { stageModalLink } from './lib/views';
 import type { BoardAsks } from './useBoardAsks';
 
-// The timeline's disclosure is a click, which static markup cannot reach.
+// A shadow row's disclosure is a click, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
 const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
 const descriptors = new Map(
@@ -78,29 +79,60 @@ const askedAdmit: ShadowDecision = {
   read: { reads: 'verdict', value: 'ask', why: 'Nothing shows the operator looked at it.' },
 };
 
-describe("the item's timeline", () => {
-  test('each decision under its run: the badge, the label and round, what it would do', async () => {
-    const detail = itemDetail('1');
-    const deliver = detail.runs[2];
-    if (deliver === undefined) throw new Error('item 1 has a deliver run');
+describe("the item's story", () => {
+  /** Item 111's story with an admit decision on its triage run and a checks one in round 1. */
+  function story() {
+    const detail = itemDetail('111');
+    const triage = detail.runs.find(run => run.workflow === 'triage');
+    const deliver = detail.runs.find(run => run.workflow === 'deliver');
+    if (triage === undefined || deliver === undefined) throw new Error('item 111 delivered');
+    triage.shadows = [{ ...askedAdmit, runId: triage.runId }];
     deliver.shadows = [{ ...failedChecks, runId: deliver.runId }];
-    const rows = buildTimeline(shippedView, PROJECT, detail, Date.parse(at));
-    const page = await render(<ItemTimeline rows={rows} merged={null} />);
-    const runs = [...page.querySelectorAll('ol > li')].filter(li => li.querySelector('a') !== null);
-    expect(runs[2]?.querySelector('[data-shadow]')).not.toBeNull();
-    expect(runs[0]?.querySelector('[data-shadow]')).toBeNull();
+    const rows = buildTimeline(shippedView, detail);
+    return itemStory(shippedView, PROJECT, detail, rows, Date.parse(at));
+  }
+  const stagePanel = (id: string) => {
+    const panel = story().find(entry => entry.kind === 'stage' && entry.stage.id === id);
+    if (panel?.kind !== 'stage') throw new Error(`no ${id} panel`);
+    return panel;
+  };
+
+  test('a decision sits in the panel of its stage: the badge, the label, what it would do', async () => {
+    const page = await render(
+      <StageStoryPanel view={shippedView} panel={stagePanel('triage')} asks={null} />
+    );
     const row = page.querySelector('[data-shadow]');
     expect(row?.textContent).toContain('shadow');
-    expect(row?.textContent).toContain('Project checks · round 1');
-    expect(row?.textContent).toContain('2 checks · 1 failed: type-check · 2 min');
-    // The failed check's output opens on demand.
-    expect(row?.textContent).not.toContain('exited with code 1');
+    expect(row?.textContent).toContain('Would it start on its own');
+    expect(row?.textContent).toContain('would ask you first');
+    // Quieter than the real steps: the tertiary text, never a state colour.
+    expect(row?.querySelector('p')?.className).toContain('text-text-tertiary');
+    expect(row?.outerHTML).not.toMatch(STATE_COLOUR);
     const why = row?.querySelector('button');
     await act(async () => {
       why?.dispatchEvent(new dom.MouseEvent('click', { bubbles: true }) as unknown as Event);
     });
-    expect(row?.textContent).toContain('exited with code 1');
+    expect(row?.textContent).toContain('Nothing shows the operator looked at it.');
+  });
+
+  test("the project checks are the rounds grid's shadow row, in the round they decided in", async () => {
+    const page = await render(
+      <StageStoryPanel view={shippedView} panel={stagePanel('checks')} asks={null} />
+    );
+    const row = page.querySelector('[data-grid-row="Project checks"]');
+    expect(row?.textContent).toContain('shadow');
+    const cells = [...(row?.querySelectorAll('td') ?? [])].map(cell => cell.textContent);
+    expect(cells[0]).toContain('2 checks · 1 failed: type-check · 2 min');
+    expect(cells[1]).toContain('Not run');
     expect(row?.outerHTML).not.toMatch(STATE_COLOUR);
+    // Shown in the grid, so not again as a line under the panel.
+    expect(page.querySelector('[data-shadow]')).toBeNull();
+    // Nor on the Build panel the same deliver run opened: it sits with its own stage.
+    const build = await render(
+      <StageStoryPanel view={shippedView} panel={stagePanel('build')} asks={null} />
+    );
+    expect(build.querySelector('[data-shadow]')).toBeNull();
+    expect(build.textContent).not.toContain('Project checks');
   });
 });
 

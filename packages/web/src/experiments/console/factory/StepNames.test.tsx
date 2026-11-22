@@ -168,12 +168,13 @@ describe('no raw step id where a person reads', () => {
   test('the item page', () => {
     const html = render(`/console/p/${ID}/factory/items/3`, runningDetail());
     expect(readable(html)).toContain('Code review, round 2');
-    expect(readable(html)).toContain('Started by step Verdict');
-    // On hover: the step that started the run, and each step a round recorded.
-    const hover = titles(html);
-    expect(hover).toContain('rounds.verdict__verdict');
-    expect(hover.some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
     expect(rawIds(html)).toEqual([]);
+    // The rounds grid names each check; each cell's step id is its hover.
+    const delivered = render(`/console/p/${ID}/factory/items/111`, itemDetail('111'));
+    expect(readable(delivered)).toContain('Code review');
+    const hover = titles(delivered);
+    expect(hover.some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
+    expect(rawIds(delivered)).toEqual([]);
   });
 
   test('the Overview, and the map details of a stage a run works', () => {

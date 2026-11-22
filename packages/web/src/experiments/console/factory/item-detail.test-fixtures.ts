@@ -7,9 +7,15 @@ import type { FactoryViewListed } from './lib/views';
 /**
  * Real `GET /api/factory/item` responses (see each file's `note`): item 1 (one deliver run,
  * two rounds), item 2 (three rounds), item 3 (two deliver runs, each ending in an ask, with
- * the answers), item 6 (a deliver run running its build step).
+ * the answers), item 6 (a deliver run running its build step). Captured with each run's story
+ * facts (its step starts, models, change and words): item 111 (one deliver run, two rounds,
+ * merged by hand), 86 (parked by triage), 113 (a build that asked, answered "send back"), 115
+ * (a build that asked, answered "replan"), 125 (the three-stage delivery: four check rounds,
+ * asks on the way, a CI send-back, merged by the factory).
  */
-export function itemDetail(key: '1' | '2' | '3' | '6'): FactoryItemDetail {
+export function itemDetail(
+  key: '1' | '2' | '3' | '6' | '111' | '86' | '113' | '115' | '125'
+): FactoryItemDetail {
   const raw = JSON.parse(
     readFileSync(join(import.meta.dir, '__fixtures__', `item-${key}.json`), 'utf8')
   ) as { response: FactoryItemDetail };

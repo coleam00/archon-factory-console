@@ -7,7 +7,7 @@ import type { FactoryItem } from '../skills/factory';
 import { describeAnswer, linkWords } from './lib/item-answers';
 import { runHref } from './lib/timeline';
 import { factoryPath } from './lib/views';
-import { SectionTitle } from './ItemTimeline';
+import { Panel, SectionHeading } from './document';
 import { OrderMembers } from './ItemWorkOrder';
 import type { Membership, WorkOrder } from './lib/work-orders';
 
@@ -41,8 +41,14 @@ export function ItemLinks({
   );
   const named = membership?.source === 'output' ? membership.order : null;
   return (
-    <section className="flex flex-col gap-2.5">
-      <SectionTitle>Links</SectionTitle>
+    <Panel as="section" aria-labelledby="item-links" className="flex flex-col gap-3 p-4">
+      <SectionHeading
+        id="item-links"
+        icon={Link2}
+        eyebrow="Links"
+        title="Other items"
+        tone="var(--text-tertiary)"
+      />
       {order === undefined ? null : <OrderMembers projectId={projectId} order={order} />}
       {named === null ? null : (
         <p className="flex flex-wrap items-baseline gap-x-2 text-console-14">
@@ -84,7 +90,7 @@ export function ItemLinks({
           ))}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -97,8 +103,14 @@ export function ItemAnswers({
   answers: FactoryItem['answers'];
 }): ReactElement {
   return (
-    <section className="flex flex-col gap-2.5">
-      <SectionTitle>Rulings and answers</SectionTitle>
+    <Panel as="section" aria-labelledby="item-answers" className="flex flex-col gap-3 p-4">
+      <SectionHeading
+        id="item-answers"
+        icon={Scale}
+        eyebrow="On the record"
+        title="Rulings and answers"
+        tone="var(--text-tertiary)"
+      />
       {answers.length === 0 ? (
         <EmptyNote icon={Scale} sentence="Nothing has been ruled or answered yet." />
       ) : (
@@ -132,6 +144,6 @@ export function ItemAnswers({
           })}
         </ol>
       )}
-    </section>
+    </Panel>
   );
 }

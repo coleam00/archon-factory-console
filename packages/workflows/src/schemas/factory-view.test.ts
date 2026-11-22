@@ -329,6 +329,33 @@ describe('factoryViewSchema', () => {
     ).toEqual(['verdicts.deliver', 'asked.0']);
   });
 
+  test('a story may word the discoveries drain; a workflow no stage lists is rejected', () => {
+    const story = {
+      outcomes: { 'plan:planned': 'Plan wrote the approach', 'build:*': 'Build finished' },
+      steps: { build: { build__build: 'Build wrote the change' } },
+      said: ['/summary', '/why'],
+    };
+    expect(factoryViewSchema.safeParse({ ...minimal(), story }).success).toBe(true);
+    expect(
+      issuePaths({
+        ...minimal(),
+        story: { outcomes: { 'deliver:ready': 'Ready' }, steps: { deliver: { a: 'A' } } },
+      })
+    ).toEqual(['story.outcomes.deliver:ready', 'story.steps.deliver']);
+  });
+
+  test('a story sentence is plain text of at most 160 characters; said points into a result', () => {
+    expect(issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': ' ' } } })).toEqual([
+      'story.outcomes.plan:*',
+    ]);
+    expect(
+      issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': 'x'.repeat(161) } } })
+    ).toEqual(['story.outcomes.plan:*']);
+    expect(
+      issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': 'Planned' }, said: ['summary'] } })
+    ).toEqual(['story.said.0']);
+  });
+
   test('a parked outcome is accepted when placed, exactly or by workflow:*', () => {
     const parked = { 'plan:park': { label: 'Parked by planning', why: '/why' } };
     expect(

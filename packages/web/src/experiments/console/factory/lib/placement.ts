@@ -109,7 +109,7 @@ export function stageOfWorkflow(
 /**
  * The stage `placement` sends an item to after a run of `workflow` completed with `outcome`:
  * its exact `workflow:outcome` key, else `workflow:*`, which also places a run that returns
- * no outcome (a gate that only records). The board and the item page's timeline both read it.
+ * no outcome (a gate that only records). The board and the item page both read it.
  */
 export function placedStage(
   view: Declaration,

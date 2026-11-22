@@ -6,7 +6,7 @@
  *
  * The derivation is pure (`factoryRunFacts`, `factoryItemProgress`); `readFactoryProgress`
  * reads the store once for a set of items and feeds them, and `readFactoryItem` reads one
- * item whole, adding each run's timeline facts (`FactoryItemRun`). Whether a change merged,
+ * item whole, adding what its page tells of each run (`FactoryItemRun`). Whether a change merged,
  * and which pull request a run that named no URL delivered, is the caller's lookup
  * (`changeState`), since only the server reaches the forge.
  */
@@ -35,6 +35,7 @@ import {
 } from './store/event-types';
 import { buildNodeOutcomes } from './terminal-record';
 import { runChange } from './factory-change';
+import { factoryRunStoryShape, runStories } from './factory-item-story';
 import { decidedIn, itemRound, runRounds, type DecisionPoint } from './factory-rounds';
 import {
   factoryShadowDecisionSchema,
@@ -672,7 +673,7 @@ async function memberKeys(source: ItemReadSource, itemId: string): Promise<strin
 }
 
 /**
- * What one of an item's runs shows on its timeline beyond the item read's run: the workflow
+ * What the item page tells of one of an item's runs beyond the item read's run: the workflow
  * as the view declares it, its cost, its running step, and the declared rounds loop's rounds
  * on it with each round's steps.
  */
@@ -702,6 +703,12 @@ export const factoryItemRunSchema = z.object({
       rounds: z.array(factoryRoundSchema),
     })
     .nullable(),
+  /**
+   * The pull request this run named at the view's `change` pointer, trimmed; null when it
+   * named none (or an empty one), or its facts could not be read.
+   */
+  change: z.string().nullable(),
+  ...factoryRunStoryShape,
 });
 export type FactoryItemRun = z.infer<typeof factoryItemRunSchema>;
 
@@ -714,7 +721,7 @@ export const factoryItemDetailSchema = z.object({
 });
 export type FactoryItemDetail = z.infer<typeof factoryItemDetailSchema>;
 
-/** The item `key` names, its read and progress, with each run's timeline facts. */
+/** The item `key` names, its read and progress, with each run's story facts. */
 export async function readFactoryItem(
   source: ItemReadSource,
   input: ReadFactoryItemsInput,
@@ -726,6 +733,7 @@ export async function readFactoryItem(
   const [item] = items;
   if (item === undefined) return null;
   const causes = new Map(item.runs.map(run => [run.id, run.cause]));
+  const stories = await runStories(source, input.view, found.runs);
   const runs = found.runs.map((run): FactoryItemRun => {
     const fact = facts.get(run.id);
     const cause = causes.get(run.id) ?? null;
@@ -737,6 +745,8 @@ export async function readFactoryItem(
       step: run.status === 'running' ? (fact?.active ?? null) : null,
       rounds: fact?.rounds ?? null,
       shadows: fact?.shadows ?? [],
+      change: fact?.change?.url ?? null,
+      ...(stories.get(run.id) ?? { said: null, models: [], steps: [] }),
     };
   });
   return { pack: input.pack, item, runs };

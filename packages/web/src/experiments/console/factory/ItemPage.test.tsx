@@ -12,6 +12,9 @@ import { itemPill } from './lib/board';
 import { askItem } from '../lib/needs-you.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import { formatDateTime } from '../lib/format';
+import { Window } from 'happy-dom';
+import { documentPageProblems } from './document.test-helpers';
+import { firstSentence } from './lib/item-story';
 
 afterEach(() => {
   invalidate('factory-views');
@@ -43,96 +46,247 @@ const pill = (state: keyof typeof PILL_CLASS, words: string): string =>
   `${PILL_CLASS[state]}">${words}<`;
 
 /** The page's visible words, tags dropped. */
-const text = (html: string): string => html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+const text = (html: string): string =>
+  html
+    .replace(/<[^>]*>/g, ' ')
+    .replaceAll('&amp;', '&')
+    .replace(/\s+/g, ' ');
 
-/** Text as React escapes it inside an attribute value. */
-const attribute = (value: string): string =>
-  value
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#x27;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+/** The markup of the page's section labelled `label`: the band ("Summary") or the strip. */
+const section = (html: string, label: string): string =>
+  new RegExp(`aria-label="${label}"[^>]*>([^]*?)</section>`).exec(html)?.[1] ?? '';
+
+/** The markup of the story's first panel of `stage`, up to the next panel. */
+const panel = (html: string, stage: string): string =>
+  new RegExp(`data-story-panel="${stage}"([^]*?)(data-story-panel=|$)`).exec(html)?.[1] ?? '';
+
+/** Each story panel's stage and its opening sentence, as a person reads it. */
+const sentences = (html: string): string[][] =>
+  [
+    ...html.matchAll(
+      /data-story-panel="([a-z-]+)"[\s\S]*?data-story-sentence=""[^>]*>([\s\S]*?)<\/p>/g
+    ),
+  ].map(m => [
+    m[1] ?? '',
+    text(m[2] ?? '')
+      .replace(/\s+([.:;,])/g, '$1')
+      .trim()
+      .replace(/ (Less|More)$/, ''),
+  ]);
+
+/** The band's stat chips, as a person reads each. */
+const chips = (html: string): string[] =>
+  [...section(html, 'Summary').matchAll(/data-stat-chip="[a-z-]+"[^>]*>(.*?)<\/li>/g)].map(m =>
+    text(m[1] ?? '').trim()
+  );
+
+/** What each cell of a grid row reads, as words. */
+const words = (html: string, row: string): string[] =>
+  [
+    ...(new RegExp(`data-grid-row="${row}"([^]*?)</tr>`).exec(html)?.[1] ?? '').matchAll(
+      /<td[^>]*>([\s\S]*?)<\/td>/g
+    ),
+  ].map(m => text(m[1] ?? '').trim());
+
+/** What each cell of a grid row says, by its meaning; `absent` for "Not run". */
+const cells = (html: string, row: string): string[] =>
+  [
+    ...(new RegExp(`data-grid-row="${row}"([^]*?)</tr>`).exec(html)?.[1] ?? '').matchAll(
+      /data-cell="([a-z]+)"/g
+    ),
+  ].map(m => m[1] ?? '');
+
+/** The static markup as a document, for the document-page rules. */
+function parse(html: string): Element {
+  const window = new Window();
+  window.document.body.innerHTML = html;
+  return window.document.body as unknown as Element;
+}
 
 describe('the item page', () => {
-  test('item 3: header, its two deliver runs, and the asks it was answered', () => {
-    const html = render(itemDetail('3'));
-    const words = text(html);
-    expect(html).toContain(pill('waiting', 'Waiting'));
-    // The title alone: the summary is the Overview's.
-    expect(words).toContain(shippedView.title);
-    expect(html).not.toContain(shippedView.summary);
-    expect(words).toContain('In Build');
-    expect(words).toContain('PR #14');
-    // A live item's merge state is a quiet suffix after its PR, never a chip.
-    expect(html).toContain(
-      'data-merge-state="unknown" class="whitespace-nowrap text-console-13 text-text-tertiary">merge state unknown<'
-    );
-    expect(words.match(/Build deliver/g)?.length).toBe(2);
-    expect(words).toContain('round 2 of 3 · needs a decision');
-    expect(words).toContain('Ask answered');
-    expect(words).toContain('1 answered, 0 withdrawn');
-    expect(words).toContain('Nothing on this item is waiting on you.');
-    expect(words).toContain('No links to other items.');
-    // Each timeline row's own link: started-by and answer links carry the same hrefs.
-    for (const run of itemDetail('3').item.runs)
-      expect(html).toMatch(
-        new RegExp(
-          `href="/console/p/${PROJECT}/r/${run.id}"[^>]*><span class="text-console-15 font-semibold`
-        )
-      );
-    // Each deliver run that asked reads "asked you", with the question it left on hover.
-    const asks = itemDetail('3').item.answers.filter(answer => answer.kind === 'ask');
-    expect(asks).toHaveLength(2);
-    for (const ask of asks)
-      expect(html).toContain(`title="${attribute(ask.question)}">asked you</span>`);
+  test('a document page: a header band, the journey, the story and an aside, all on panels', () => {
+    for (const key of ['111', '86', '113', '125', '3', '6'] as const) {
+      const page = parse(render(itemDetail(key)));
+      expect(page.querySelector('[data-doc-page]')).not.toBeNull();
+      expect(documentPageProblems(page)).toEqual([]);
+    }
   });
 
-  test('item 6 runs: its live step, the Running pill, a cost not recorded yet', () => {
+  test('item 111: the band says merged, the time from order to merge, cost, rounds and asks', () => {
+    const band = section(render(itemDetail('111')), 'Summary');
+    expect(band).toContain(pill('landed', 'Merged'));
+    expect(text(band)).toContain('#111');
+    expect(text(band)).toContain('PR #112');
+    expect(text(band)).toContain('Its change merged.');
+    const chips = [...band.matchAll(/data-stat-chip="[a-z-]+"[^>]*>(.*?)<\/li>/g)].map(m =>
+      text(m[1] ?? '').trim()
+    );
+    expect(chips).toEqual([
+      '1 h 6 min order to merge',
+      '$21.94 cost',
+      '2 of 3 check rounds',
+      '0 asks answered',
+    ]);
+  });
+
+  test("item 111's journey: each column's time, the loop back from the checks, Merged lit", () => {
+    const strip = section(render(itemDetail('111')), 'Journey');
+    const segments = [...strip.matchAll(/data-journey-segment="([a-z-]+)"(.*?)<\/li>/g)].map(m => [
+      m[1],
+      text(`<${m[2] ?? ''}`).trim(),
+    ]);
+    expect(segments).toEqual([
+      ['intake', 'Intake 1 min'],
+      ['plan-build', 'Plan & build 39 min'],
+      ['checks-review', 'Checks & review 22 min sent back 1x to Plan & build'],
+      ['ready', 'Ready to merge 3 min'],
+      ['merged', 'Merged Merged It is here now'],
+    ]);
+    expect(strip).toMatch(/data-journey-segment="merged" data-lit=""/);
+  });
+
+  test("item 111's story: one panel per stage, each opening with its sentence", () => {
+    const html = render(itemDetail('111'));
+    expect(sentences(html)).toEqual([
+      ['order', 'Order took the work order and made it an item.'],
+      ['triage', 'Triage judged it worth building.'],
+      ['plan', 'Plan wrote the approach.'],
+      ['build', 'Build wrote the change and opened PR #112.'],
+      ['checks', 'Checks sent it back once, then approved it.'],
+      ['host', 'The checks and CI passed; it is ready to merge.'],
+      ['drain', 'The factory looked for other work it noticed.'],
+      ['ready', 'The merge gate read the change.'],
+      // Merged by a person: no run told it, so the console says only that it merged.
+      ['merged', `The change merged ${formatDateTime('2026-11-20T21:29:51Z')}.`],
+    ]);
+    // A stage's details: when, how long, cost and model, in a definition grid.
+    expect(text(html)).toContain('Model claude-opus-5-5');
+    const order = text(panel(html, 'order'));
+    expect(order).toContain('Took 14 s');
+    expect(order).toContain('Cost Not recorded');
+    // The deliver run's one cost, on each panel it worked, said to be the whole run's.
+    expect(text(panel(html, 'build'))).toContain('Took 20 min');
+    expect(text(panel(html, 'build'))).toContain(
+      'Cost $18.14 for the whole run, across its stages'
+    );
+  });
+
+  test("item 111's checks as a grid: icon and word per cell, the legend, why round 1 came back", () => {
+    const html = render(itemDetail('111'));
+    expect(text(html)).toContain(
+      'Sent back : a check found something to fix and returned the change to the builder. Approved : the check passed.'
+    );
+    expect(cells(html, 'Code review')).toEqual(['returned', 'approved']);
+    expect(cells(html, 'Verdict')).toEqual(['returned', 'approved']);
+    expect(cells(html, 'Build')).toEqual(['fixed', 'absent']);
+    expect(cells(html, 'CI and review')).toEqual(['absent', 'approved']);
+    // Each cell is an icon and a word, never a colour alone.
+    expect(words(html, 'Code review')).toEqual(['Sent back', 'Approved']);
+    expect(words(html, 'Build')).toEqual(['Fixed', 'Not run']);
+    expect(text(html)).toMatch(/Round 1: \S/);
+    // The chip rows are gone: no round line.
+    expect(text(html)).not.toContain('round 1 of 3 ·');
+  });
+
+  test('item 113: the ask in the Build panel, what you chose, who, and what it started', () => {
+    const build = panel(render(itemDetail('113')), 'build');
+    expect(text(build)).toContain('You said Send back');
+    expect(build).toMatch(/data-id-tag=""[^>]*>send-back</);
+    expect(text(build)).toContain('by cole-owner');
+    expect(build).toContain('data-started="Build started again"');
+    const ask = itemDetail('113').item.answers.find(answer => answer.kind === 'ask');
+    expect(text(build)).toContain(ask?.kind === 'ask' ? ask.question : 'no question');
+    // Two deliveries on one panel: its cost is theirs, not "the whole run".
+    expect(text(build)).toContain('for its 2 runs, across their stages');
+    expect(chips(render(itemDetail('113')))).toContain('1 ask answered');
+  });
+
+  test('item 125, the three-stage delivery: four rounds, then the asks that took it on', () => {
+    const html = render(itemDetail('125'));
+    const checks = panel(html, 'checks');
+    expect(sentences(html)).toContainEqual([
+      'checks',
+      'Checks sent it back 3 times, then asked you; you said Take as is.',
+    ]);
+    expect(
+      [...checks.matchAll(/scope="col"[^>]*>(.*?)<\/th>/g)].map(m => text(m[1] ?? '').trim())
+    ).toEqual(['Check', 'Round 1 of 3', 'Round 2 of 3', 'Round 3 of 3', 'Round 4 of 4']);
+    expect(checks).toContain('data-started="CI and review started again"');
+    const strip = section(html, 'Journey');
+    expect(text(strip)).toContain('sent back 4x to Plan & build');
+    expect(strip).toContain('data-journey-pause="answered"');
+    // A pause says how long it waited.
+    expect(text(strip)).toMatch(/waited on you \d+ min/);
+    // A stage met again is its own panel, numbered.
+    expect(html).toMatch(/<h2 id="story-plan:2"[^>]*>Plan \(2\)<\/h2>/);
+    expect(html).toMatch(/<h2 id="story-triage:2"[^>]*>Triage \(2\)<\/h2>/);
+  });
+
+  test('item 125: the CI panel says why CI sent it back and how the builder fixed it', () => {
+    const ci = text(panel(render(itemDetail('125')), 'host'));
+    expect(ci).toContain('CI and the reviews passed.');
+    expect(ci).toMatch(/Sent back: \S/);
+    expect(ci).toContain('Build fixed what CI and the reviews raised');
+  });
+
+  test('rounds read by their order on the item, though two runs recorded round 1', () => {
+    const detail = structuredClone(itemDetail('125'));
+    const round = detail.runs.find(run => run.runId.startsWith('bb11ef33'))?.rounds?.rounds[0];
+    if (round === undefined) throw new Error('125 has a second round');
+    round.iteration = 1;
+    const checks = panel(render(detail), 'checks');
+    expect(
+      [...checks.matchAll(/scope="col"[^>]*>(.*?)<\/th>/g)].map(m => text(m[1] ?? '').trim())
+    ).toEqual(['Check', 'Round 1 of 3', 'Round 2 of 3', 'Round 3 of 3', 'Round 4 of 4']);
+    // The reasons under the grid take the same numbers.
+    const reasons = text(checks).match(/Round \d+:/g);
+    expect(reasons).toEqual(['Round 1:', 'Round 2:', 'Round 3:']);
+  });
+
+  test('a panel that sent the item back ends its sentence on why, the rest behind More', () => {
+    const detail = structuredClone(itemDetail('125'));
+    const third = detail.item.runs.findIndex(run => run.id.startsWith('bb11ef33'));
+    detail.item.runs = detail.item.runs.slice(0, third + 1);
+    detail.item.answers = [];
+    const summary =
+      detail.runs.find(run => run.runId.startsWith('bb11ef33'))?.rounds?.rounds[0]?.summary ?? '';
+    const [, checks] = sentences(render(detail)).find(([stage]) => stage === 'checks') ?? [];
+    expect(checks).toBe(
+      `Checks sent it back twice: ${firstSentence(summary).replace(/[.!?…]$/, '')}.`
+    );
+  });
+
+  test('item 86, parked: the journey stops in Intake, saying so; the rest not reached', () => {
+    const html = render(itemDetail('86'));
+    expect(section(html, 'Summary')).toContain(pill('parked', 'Parked'));
+    const strip = text(section(html, 'Journey'));
+    expect(strip).toContain('Stopped here: Parked by triage');
+    expect(strip.match(/Not reached/g)).toHaveLength(4);
+    expect(chips(html)[0]).toBe('1 min order to where it stopped');
+    expect(sentences(html)).toContainEqual(['triage', 'Triage parked it for later.']);
+  });
+
+  test('item 6 runs: the Running pill, and its stage working on it now, by step name', () => {
     const html = render(itemDetail('6'));
-    const words = text(html);
     expect(html).toContain(pill('running', 'Running'));
-    expect(words).toContain('deliver · Writes the change');
-    expect(html).toContain('title="build__build"');
-    expect(words).toContain('No change yet');
-    // Where the plan sent it, in the declaration's words; its duration runs to now, with its
-    // units; its cost shows as a dash until the run records one.
-    expect(words).toMatch(
-      /deliver · Writes the change running \d+ (s|min|h|d)( \d+ (min|h))? · - After Plan: sent to Build/
-    );
+    expect(sentences(html)).toContainEqual([
+      'build',
+      'Build is working on it now: Writes the change.',
+    ]);
+    expect(text(html)).toContain('No change yet');
+    expect(chips(html)[0]).toMatch(/ order to now$/);
   });
 
-  test('the timeline: a dot per run in its group colour, an icon per outcome, a chip per check', () => {
-    const html = render(itemDetail('1'));
-    // Triage and Plan are intake, deliver build; then the merged entry in the merged colour.
-    const dots = [...html.matchAll(/data-timeline-dot="true"[^>]*background-color:([^"]+)"/g)];
-    expect(dots.map(match => match[1])).toEqual([
-      'var(--tone-intake)',
-      'var(--tone-intake)',
-      'var(--node-wait)',
-      'var(--success)',
-    ]);
-    expect([...html.matchAll(/data-kind="([a-z-]+)"/g)].map(match => match[1])).toEqual([
-      'sent-on',
-      'sent-on',
-      'sent-on',
-      'merged',
-    ]);
-    // In local time, so the expectation is too: the fixture merged at 00:03 UTC.
-    expect(text(html)).toContain(`Merged ${formatDateTime('2026-11-17T00:03:14Z')}`);
-    // Each check a chip in its verdict's soft colours, the engine id on hover only.
-    expect(html).toContain('bg-[color:var(--error-soft)] text-error">');
-    expect(html).toContain('bg-[color:var(--success-soft)] text-success">');
-    expect(html).toMatch(/data-verdict="returned" title="rounds\./);
-    // Duration and cost right-aligned in mono.
-    expect(html).toMatch(/data-figures="true" class="[^"]*text-right font-mono[^"]*tabular-nums/);
-    // The trigger's id is the hover, never the words.
-    expect(text(html)).not.toContain('fc-start-triage');
-    expect(html).toContain('title="fc-start-triage"');
-    // Nothing on the item's own part of the page under the type floor (the project header
-    // above it is console chrome).
-    const page = html.slice(html.indexOf('data-back-link'));
-    expect(page).not.toMatch(/text-console-(9|10|11)\b|\btext-(xs|sm|base|lg)\b/);
+  test('item 3: every ask answered and nothing started; it stops there, saying so', () => {
+    const html = render(itemDetail('3'));
+    expect(text(section(html, 'Summary'))).toContain(
+      'Nothing started after your answer, in Build.'
+    );
+    expect(chips(html)[0]).toMatch(/ order to where it stopped$/);
+    expect(text(section(html, 'Journey'))).toContain(
+      'Stopped here: Nothing started after your answer'
+    );
+    expect(section(html, 'Journey')).not.toContain('data-lit');
   });
 
   test('the header: the PR as a button-style link, its merge state as quiet words', () => {
@@ -308,8 +462,7 @@ describe('work orders on the item page', () => {
     const html = render(detail);
     const words = text(html);
     expect(words).toContain(WORK_ORDER_WORDS);
-    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
-    expect(text(header)).toBe(` 48 Work order 48 ${WORK_ORDER_WORDS} `);
+    expect(text(section(html, 'Summary')).trim()).toBe(`#48 Work order 48 ${WORK_ORDER_WORDS}`);
     expect(words).toContain('Members: 0 of 1 merged');
   });
 
@@ -336,11 +489,10 @@ describe('work orders on the item page', () => {
         },
       },
     };
-    const html = render(detail);
-    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
+    const header = section(render(detail), 'Summary');
     expect(header).toContain(pill('parked', 'Parked'));
     expect(text(header)).not.toContain('In Triage');
-    expect(header).toContain(`title="${attribute(why)}">Parked by triage</span>`);
+    expect(text(header)).toContain(`Parked by triage: ${why}`);
   });
 
   test('a member with no run yet: Not started, no state, column or change', () => {
@@ -358,8 +510,7 @@ describe('work orders on the item page', () => {
     };
     itemsRead([]);
     const html = render(detail);
-    const header = /<header class="flex flex-col gap-2">.*?<\/header>/.exec(html)?.[0] ?? '';
-    expect(text(header)).toBe(' 58 58 Not started ');
+    expect(text(section(html, 'Summary')).trim()).toBe('#58 58 Not started');
     expect(text(html)).toContain('Part of 48');
   });
 

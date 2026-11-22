@@ -739,7 +739,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
     expect(none.status).toBe(404);
     expect((await app.request('/api/factory/progress?codebaseId=missing&keys=1')).status).toBe(404);
   });
-  test("one item: its read and progress, with each run's timeline facts", async () => {
+  test("one item: its read and progress, with each run's story facts", async () => {
     const app = await itemsApp(withView);
     const response = await app.request('/api/factory/item?codebaseId=cb-1&key=2');
     expect(response.status).toBe(200);
@@ -755,6 +755,11 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
         step: 'build',
         rounds: null,
         shadows: [],
+        // Still running: no change named and nothing said yet; its one step start.
+        change: null,
+        said: null,
+        models: [],
+        steps: [{ node: 'build', startedAt: '2026-11-16T11:00:00.000Z' }],
       },
     ]);
   });

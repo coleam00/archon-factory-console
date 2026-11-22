@@ -8,6 +8,7 @@
  * project may present a pack it cannot edit with `.archon/packs/<pack key>.factory-view.json`.
  */
 import { z } from 'zod';
+import { storyReferenceIssues } from './factory-view-story';
 import { workflowSourceSchema } from './workflow';
 
 export const FACTORY_VIEW_FILE = 'factory-view.json';
@@ -326,6 +327,23 @@ const shadowSchema = z.discriminatedUnion('reads', [
   }),
 ]);
 
+/** One plain sentence a person reads about what a run did: no placeholders, no markup. */
+const sentenceSchema = z.string().trim().min(1).max(160);
+
+/**
+ * The item page's story, one plain sentence per run. `outcomes`: by `workflow:outcome`, or
+ * `workflow:*` for every completed run no exact key takes, one with no outcome included (as in
+ * `placement`). `steps`: the earlier stages of a run that works several, by the step each
+ * starts on. `said`: pointers, in order, to what a run's result says in its own words. A
+ * sentence is static text; a console adds only its own clauses (the pull request, why it was
+ * sent back, what you answered). Checked by `storyReferenceIssues` and the coverage check.
+ */
+const storySchema = z.strictObject({
+  outcomes: z.record(outcomeKeySchema, sentenceSchema),
+  steps: z.record(workflowNameSchema, z.record(stepIdSchema, sentenceSchema)).optional(),
+  said: z.array(jsonPointerSchema).min(1).optional(),
+});
+
 const factoryViewShape = z.strictObject({
   version: z.literal(1),
   /** The pack this view draws: `owner/name` when installed, else its folder name. */
@@ -457,6 +475,8 @@ const factoryViewShape = z.strictObject({
    * reads as its cleaned id. `bun run check:factory-view` reports a key naming no real step.
    */
   steps: z.record(workflowNameSchema, z.record(stepIdSchema, labelSchema)).optional(),
+  /** What the item page says each run did (`storySchema`); absent, it words runs itself. */
+  story: storySchema.optional(),
   map: mapSchema,
 });
 
@@ -732,6 +752,7 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
     ...drilldownIssues(view),
     ...shadowReferenceIssues(view),
     ...discoveriesShadowIssues(view),
+    ...storyReferenceIssues(view),
   ])
     ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
 });
@@ -740,6 +761,7 @@ export type FactoryStage = FactoryView['stages'][number];
 export type FactoryDrilldown = NonNullable<FactoryStage['drilldown']>;
 export type FactoryShadow = NonNullable<FactoryView['shadows']>[number];
 export type FactoryShadowReads = FactoryShadow['reads'];
+export type FactoryStory = NonNullable<FactoryView['story']>;
 
 /** Where a view was found: a pack's own file, or the project's file for a pack. */
 export const factoryViewSourceSchema = z.enum([...workflowSourceSchema.options, 'project-file']);

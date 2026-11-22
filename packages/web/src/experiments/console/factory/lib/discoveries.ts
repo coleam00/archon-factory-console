@@ -11,7 +11,7 @@ export type FactoryFinding = FactoryDiscoveries['findings'][number];
 /** The panel's id: the Overview's tile links to it. */
 export const FOUND_BY_THE_FACTORY = 'found-by-the-factory';
 
-/** The panel's name, and what a run of the discoveries workflow reads as on an item's timeline. */
+/** The panel's name, and the heading of a discoveries run's panel in an item's story. */
 export const FOUND_BY_THE_FACTORY_LABEL = 'Found by the factory';
 
 /** The findings no item on the project carries yet. */

@@ -2,7 +2,7 @@
  * Which way a hand-off between two stages goes, by the board's columns in order and a stage's
  * row inside its column: into an earlier column, or into the same stage or an earlier one of
  * the same column, is a send-back; anything else goes forward. The map's arrows follow it as
- * is. The item timeline judges a run from the furthest stage its workflow works and reads a
+ * is. The item page judges a run from the furthest stage its workflow works and reads a
  * placement into that stage itself as sent on (`placedKind`, `lib/timeline.ts`).
  */
 import { boardColumns } from './board-columns';
