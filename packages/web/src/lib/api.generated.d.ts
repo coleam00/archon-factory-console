@@ -6939,6 +6939,9 @@ export interface components {
     RunsNeedingAttentionResponse: {
       runs: components['schemas']['DashboardWorkflowRun'][];
       items: components['schemas']['AttentionQueueItem'][];
+      answerRefusals: {
+        [key: string]: string;
+      };
       degraded?: {
         /** @enum {string} */
         type: 'degraded';
@@ -8565,6 +8568,13 @@ export interface components {
         awaitingExecution: {
           requestId: string;
           hostId: string;
+          /** @enum {string} */
+          state: 'starting' | 'unowned' | 'unknown';
+          executor: {
+            host: string;
+            pid: number;
+            uid?: number;
+          } | null;
         } | null;
         spend: {
           usd: number | null;
@@ -9224,6 +9234,13 @@ export interface components {
           awaitingExecution: {
             requestId: string;
             hostId: string;
+            /** @enum {string} */
+            state: 'starting' | 'unowned' | 'unknown';
+            executor: {
+              host: string;
+              pid: number;
+              uid?: number;
+            } | null;
           } | null;
           spend: {
             usd: number | null;
@@ -12005,6 +12022,13 @@ export interface components {
           awaitingExecution: {
             requestId: string;
             hostId: string;
+            /** @enum {string} */
+            state: 'starting' | 'unowned' | 'unknown';
+            executor: {
+              host: string;
+              pid: number;
+              uid?: number;
+            } | null;
           } | null;
           spend: {
             usd: number | null;
@@ -13160,6 +13184,7 @@ export interface components {
       backgroundWork: 'reported' | 'none' | 'unobserved';
       sessionResume: boolean;
       sessionFork?: boolean;
+      turnMessages?: boolean;
       mcp: boolean;
       hooks: boolean;
       skills: boolean;
