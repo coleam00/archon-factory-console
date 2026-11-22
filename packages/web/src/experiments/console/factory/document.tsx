@@ -9,7 +9,9 @@
  * - `SectionHeading`: a section's heading row: icon and eyebrow in the section's colour, the
  *   title in the primary text colour, an optional count and action at the right.
  * - `HeaderBand`: the full-width band a page opens with: title, one sentence, stat chips.
- * - `StatChip`: one key fact in the band: a figure and its label, optionally in a state colour.
+ * - `StatChip`: one key fact in the band: a figure and its label, optionally in a state colour
+ *   or a kind colour.
+ * - `DocumentColumns`: a main column and an aside, about 2:1, stacked on a phone.
  * - `DefinitionGrid`: label and value on one row, a label column of about 160 px.
  * - `IdTag`: an engine or setting id, small and mono, beside the plain-word heading.
  *
@@ -153,30 +155,69 @@ const STATE: Record<StatState, string> = {
 };
 export type StatState = 'running' | 'needs-you' | 'failed' | 'done' | 'shadow';
 
-/** One key fact: a figure and its label, neutral or in a state colour. */
+/**
+ * One key fact: a figure and its label, neutral, in a state colour, or with a dot and figure in a
+ * kind or group colour (`tone`). A chip has a state or a tone, never both.
+ */
 export function StatChip({
   figure,
   label,
-  state,
+  ...look
 }: {
   figure: ReactNode;
   label: string;
-  state?: StatState;
-}): ReactElement {
+} & ({ state?: StatState; tone?: never } | { state?: never; tone: ToneColor })): ReactElement {
+  const { state, tone } = look;
+  const plain = state === undefined;
   return (
     <li
-      data-stat-chip={state ?? 'neutral'}
+      data-stat-chip={tone !== undefined ? 'tone' : (state ?? 'neutral')}
+      style={tone === undefined ? undefined : toneStyle(tone)}
       className={`inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 ${
-        state === undefined ? 'bg-surface-inset text-text-secondary' : STATE[state]
+        plain ? 'bg-surface-inset text-text-secondary' : STATE[state]
       }`}
     >
+      {tone === undefined ? null : (
+        <span
+          aria-hidden="true"
+          className="size-2 shrink-0 self-center rounded-full bg-[color:var(--doc-tone)]"
+        />
+      )}
       <span
-        className={`font-semibold tabular-nums ${state === undefined ? 'text-text-primary' : ''}`}
+        className={`font-semibold tabular-nums ${
+          tone !== undefined ? 'text-[color:var(--doc-tone)]' : plain ? 'text-text-primary' : ''
+        }`}
       >
         {figure}
       </span>
       {label}
     </li>
+  );
+}
+
+/**
+ * A page's main column and its aside, about 2:1 from lg (owner change 5). The aside comes after
+ * the main column in the document, so on a phone it falls below it.
+ */
+export function DocumentColumns({
+  main,
+  aside,
+  asideLabel,
+}: {
+  main: ReactNode;
+  aside: ReactNode;
+  asideLabel: string;
+}): ReactElement {
+  return (
+    <div
+      data-doc-columns=""
+      className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+    >
+      <div className="flex min-w-0 flex-col gap-6">{main}</div>
+      <aside aria-label={asideLabel} className="flex min-w-0 flex-col gap-6">
+        {aside}
+      </aside>
+    </div>
   );
 }
 

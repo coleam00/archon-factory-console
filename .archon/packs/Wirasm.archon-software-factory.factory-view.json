@@ -335,9 +335,9 @@
             "cards": [
               {
                 "title": "Merge",
-                "text": "A person merges the change",
+                "text": "Merges the change when the gate or you say land",
                 "icon": "git-merge",
-                "kind": "you",
+                "kind": "agent",
                 "covers": [{ "workflow": "land", "steps": ["land"] }]
               }
             ]

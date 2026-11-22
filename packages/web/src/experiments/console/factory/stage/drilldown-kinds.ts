@@ -22,6 +22,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
+import type { ToneColor } from '../document';
 import type { DrilldownCard } from '../lib/drilldown-live';
 
 /**
@@ -30,7 +31,7 @@ import type { DrilldownCard } from '../lib/drilldown-live';
  * the console's node and status tokens, none purple or pink (owner change 1 of 2026-11-19;
  * `drilldown-kinds.test.ts`); an agent takes the teal How it works gives a stage.
  */
-export const KINDS: Record<DrilldownCard['kind'], { color: string; label: string }> = {
+export const KINDS: Record<DrilldownCard['kind'], { color: ToneColor; label: string }> = {
   agent: { color: 'var(--node-wait)', label: 'Agent' },
   check: { color: 'var(--node-loop)', label: 'Check' },
   script: { color: 'var(--node-bash)', label: 'Script' },

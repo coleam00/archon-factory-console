@@ -3,7 +3,15 @@ import { Window } from 'happy-dom';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Scale } from 'lucide-react';
-import { DefinitionGrid, HeaderBand, IdTag, Panel, SectionHeading, StatChip } from './document';
+import {
+  DefinitionGrid,
+  DocumentColumns,
+  HeaderBand,
+  IdTag,
+  Panel,
+  SectionHeading,
+  StatChip,
+} from './document';
 import { documentPageProblems } from './document.test-helpers';
 
 const dom = new Window();
@@ -192,6 +200,26 @@ describe('documentPageProblems', () => {
       'section 0 does not open with a heading row',
       'top-level box 1 <p> is no panel or section',
       'outline-only box <div class="rounded-console-12 border border-border">',
+    ]);
+  });
+
+  test('looks into a main column and aside: headed sections pass, a bare box does not', () => {
+    const page = render(
+      <div data-doc-page="">
+        <DocumentColumns
+          main={
+            <>
+              {section(true)}
+              <p>loose text</p>
+            </>
+          }
+          aside={<Panel>facts</Panel>}
+          asideLabel="About"
+        />
+      </div>
+    );
+    expect(documentPageProblems(page)).toEqual([
+      'column 0 of box 0: top-level box 1 <p> is no panel or section',
     ]);
   });
 

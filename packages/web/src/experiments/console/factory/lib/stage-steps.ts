@@ -1,4 +1,4 @@
-import type { FactoryViewListed } from './views';
+import { factoryPath, type FactoryViewListed } from './views';
 
 export type FactoryStage = FactoryViewListed['declaration']['stages'][number];
 
@@ -10,6 +10,14 @@ export type FactoryStage = FactoryViewListed['declaration']['stages'][number];
 export function stepInStage(stage: Pick<FactoryStage, 'nodes'>, stepKey: string): boolean {
   if (stage.nodes === undefined) return true;
   return stage.nodes.some(node => stepKey === node || stepKey.startsWith(`${node}.`));
+}
+
+/** A step page's address: `factory/steps/:workflow/:node`. */
+export function stepPagePath(projectId: string, workflow: string, stepKey: string): string {
+  return factoryPath(
+    projectId,
+    `/steps/${encodeURIComponent(workflow)}/${encodeURIComponent(stepKey)}`
+  );
 }
 
 /** What the stage page hands the step page, so its back link returns to that stage. */
