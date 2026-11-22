@@ -13,6 +13,7 @@ import {
   type FactoryRound,
   titleOfItemText,
 } from './factory-items';
+import { factoryRunStory } from './factory-item-story';
 import type { ItemReadSource } from './item-read';
 import { factoryViewSchema } from './schemas/factory-view';
 import { RUN_ENDED_SOURCE_ACTOR } from './schemas/resource-start';
@@ -91,7 +92,12 @@ function drainFixture(): { run: WorkflowRun; events: WorkflowEventRow[] } {
     run: Record<string, unknown> & { started_at: string; completed_at: string | null };
     events: WorkflowEventRow[];
   };
-  return { run: hydrate({ ...raw.run, last_activity_at: null }), events: raw.events };
+  // The shadow reader's copy trimmed each event's time; the item read's step starts need one.
+  const events = raw.events.map(row => ({
+    ...row,
+    created_at: row.created_at ?? raw.run.started_at,
+  }));
+  return { run: hydrate({ ...raw.run, last_activity_at: null }), events };
 }
 
 const factsOf = ({ run, events }: { run: WorkflowRun; events: WorkflowEventRow[] }) =>
@@ -1001,8 +1007,27 @@ describe('reading progress, and one item whole', () => {
         step: 'rounds.review__review',
         rounds: factsOf(deliver2Cut).rounds,
         shadows: [],
+        // Still running: it has named no change and returned nothing to say yet.
+        change: null,
+        said: null,
+        models: ['claude-opus-5-5', 'claude-haiku-5-5'],
+        steps: factoryRunStory(view, deliver2Cut.run, deliver2Cut.events).steps,
       },
     ]);
+  });
+
+  test('each run carries the change it named, what it said, its models and its step starts', async () => {
+    const detail = await readFactoryItem(
+      pageSource({ queue: 0, loaded: [] }),
+      itemInput(unexpected),
+      '1'
+    );
+    const deliver = detail?.runs.find(run => run.runId === deliver1.run.id);
+    expect(deliver?.change).toBe(factsOf(deliver1).change?.url ?? null);
+    expect(deliver?.change).toStartWith('https://');
+    expect(deliver).toMatchObject(factoryRunStory(view, deliver1.run, deliver1.events));
+    expect(deliver?.said).not.toBeNull();
+    expect(deliver?.steps[0]?.node).toBe('build__build');
   });
 
   test('a run whose facts fail keeps its row without rounds; the item has no progress', async () => {

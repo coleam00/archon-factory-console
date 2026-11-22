@@ -35,6 +35,11 @@ import {
 } from './store/event-types';
 import { buildNodeOutcomes } from './terminal-record';
 import { runChange } from './factory-change';
+import {
+  FACTORY_RUN_STORY_EVENT_TYPES,
+  factoryRunStory,
+  type FactoryRunStory,
+} from './factory-item-story';
 import { decidedIn, itemRound, runRounds, type DecisionPoint } from './factory-rounds';
 import {
   factoryShadowDecisionSchema,
@@ -702,6 +707,17 @@ export const factoryItemRunSchema = z.object({
       rounds: z.array(factoryRoundSchema),
     })
     .nullable(),
+  /**
+   * The pull request this run named at the view's `change` pointer, trimmed; null when it
+   * named none (or an empty one), or its facts could not be read.
+   */
+  change: z.string().nullable(),
+  /** What the run said in its own words, at the view's `story.said` pointers; else null. */
+  said: z.string().nullable(),
+  /** The distinct models its completed steps ran on, in first-recorded order. */
+  models: z.array(z.string()),
+  /** Each step start in event order, as the engine records the step id. */
+  steps: z.array(z.object({ node: z.string(), startedAt: z.string().datetime() })),
 });
 export type FactoryItemRun = z.infer<typeof factoryItemRunSchema>;
 
@@ -726,6 +742,7 @@ export async function readFactoryItem(
   const [item] = items;
   if (item === undefined) return null;
   const causes = new Map(item.runs.map(run => [run.id, run.cause]));
+  const stories = await runStories(source, input.view, found.runs);
   const runs = found.runs.map((run): FactoryItemRun => {
     const fact = facts.get(run.id);
     const cause = causes.get(run.id) ?? null;
@@ -737,9 +754,27 @@ export async function readFactoryItem(
       step: run.status === 'running' ? (fact?.active ?? null) : null,
       rounds: fact?.rounds ?? null,
       shadows: fact?.shadows ?? [],
+      change: fact?.change?.url ?? null,
+      ...(stories.get(run.id) ?? { said: null, models: [], steps: [] }),
     };
   });
   return { pack: input.pack, item, runs };
+}
+
+/**
+ * The story facts of one item's runs (`factoryRunStory`), from one events read. Only the item
+ * page reads them, so neither the board's progress read nor its memo carries them.
+ */
+async function runStories(
+  source: ItemReadSource,
+  view: FactoryView,
+  runs: readonly WorkflowRun[]
+): Promise<Map<string, FactoryRunStory>> {
+  const events = await source.store.listEventsForRuns(
+    runs.map(run => run.id),
+    FACTORY_RUN_STORY_EVENT_TYPES
+  );
+  return new Map(runs.map(run => [run.id, factoryRunStory(view, run, events.get(run.id) ?? [])]));
 }
 
 /** A run's workflow as the view names it, its `discoveries` drain too (on no stage: it places nothing). */
