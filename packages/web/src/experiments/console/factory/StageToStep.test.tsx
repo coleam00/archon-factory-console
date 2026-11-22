@@ -170,7 +170,7 @@ test('clicking a step on the stage graph opens its step page, which leads back t
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    expect(container.textContent).toContain('deliver · rounds.fix');
+    expect(container.querySelector('[data-id-tag]')?.textContent).toBe('rounds.fix');
     expect(container.textContent).toContain('Back to Checks');
   });
 });
@@ -198,11 +198,15 @@ test('the stage page glows the step items are on now and links each item', async
   });
 });
 
-test('the step page lists the items on the step now, and says when there are none', async () => {
+test('the step page draws the items on the step now as board cards, and says when there are none', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async container => {
-    expect(container.textContent).toContain('On this step now');
-    expect(itemLinks(container)).toEqual(capturedLinks);
+    expect(container.textContent).toContain('Items on this step now');
+    expect(
+      [...container.querySelectorAll('[data-card]')].map(card => card.getAttribute('data-card'))
+    ).toEqual(['4', '12', '6']);
+    // Each card's own link to its item, in the read's order (a card may link its item twice).
+    expect([...new Set(itemLinks(container))]).toEqual(capturedLinks);
   });
   await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async container => {
     expect(itemLinks(container)).toEqual([]);
@@ -321,7 +325,7 @@ test('the step page tries its workflow read again, and Retry reads it after two 
       });
       await settle();
       expect(container.querySelector('[role="alert"]')).toBeNull();
-      expect(container.textContent).toContain('Prompt, from command fix');
+      expect(container.textContent).toContain('From command fix');
     });
   } finally {
     workflowAnswers = [() => Response.json(deliverJson)];

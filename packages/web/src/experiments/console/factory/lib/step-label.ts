@@ -1,7 +1,7 @@
 /**
  * A step's name as a person reads it (DESIGN.md, "Step names, everywhere a person reads").
  * Every page that shows a step prints it through `stepLabel`; the raw engine id stays in
- * routes, keys and `title` attributes, and on the step page under "Engine id".
+ * routes, keys and `title` attributes, and on the step page as the id tag beside its name.
  */
 import { stageOfStep, stageOfWorkflow } from './placement';
 import { stepInStage, type FactoryStage } from './stage-steps';

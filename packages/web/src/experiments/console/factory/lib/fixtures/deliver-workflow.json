@@ -14,6 +14,9 @@
       "whenClauses": null,
       "prompt": "# Build one item",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "build",
       "yaml": "id: build",
       "yamlError": null
@@ -41,6 +44,9 @@
       ],
       "prompt": "# Fix what the checks returned",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "fix",
       "yaml": "id: fix",
       "yamlError": null
@@ -57,6 +63,13 @@
       "whenClauses": null,
       "prompt": null,
       "promptError": null,
+      "references": [],
+      "script": {
+        "runtime": "sh",
+        "name": null,
+        "body": "git fetch origin main\ngit diff --stat origin/main"
+      },
+      "scriptError": null,
       "command": null,
       "yaml": "id: base",
       "yamlError": null
@@ -73,6 +86,9 @@
       "whenClauses": null,
       "prompt": "# Review one change",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "review",
       "yaml": "id: review",
       "yamlError": null
@@ -89,6 +105,9 @@
       "whenClauses": null,
       "prompt": "# Check the tests of one change",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "tests",
       "yaml": "id: tests",
       "yamlError": null
@@ -105,6 +124,9 @@
       "whenClauses": null,
       "prompt": "# Review the change for the product's users",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "product",
       "yaml": "id: product",
       "yamlError": null
@@ -121,6 +143,9 @@
       "whenClauses": null,
       "prompt": "# Put the reports on one change together",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "verdict",
       "yaml": "id: verdict",
       "yamlError": null
@@ -148,6 +173,9 @@
       ],
       "prompt": "# The rounds ran out: what should happen to this change?",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "exhausted",
       "yaml": "id: exhausted",
       "yamlError": null
@@ -175,6 +203,9 @@
       ],
       "prompt": "# Fix what the host returned",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "fix-host",
       "yaml": "id: hostfix",
       "yamlError": null
@@ -191,6 +222,9 @@
       "whenClauses": null,
       "prompt": "# Read what the host says about one change",
       "promptError": null,
+      "references": [],
+      "script": null,
+      "scriptError": null,
       "command": "host",
       "yaml": "id: host",
       "yamlError": null
@@ -207,6 +241,13 @@
       "whenClauses": null,
       "prompt": null,
       "promptError": null,
+      "references": [],
+      "script": {
+        "runtime": "bun",
+        "name": "result",
+        "body": "import { result } from 'archon:script';\nresult({});"
+      },
+      "scriptError": null,
       "command": null,
       "yaml": "id: result",
       "yamlError": null

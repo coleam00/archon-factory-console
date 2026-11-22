@@ -17,9 +17,8 @@ import {
   type LaidOutStep,
 } from './lib/step-graph-layout';
 import type { ItemOnStep } from './lib/items-on-step';
-import type { StepPageState } from './lib/stage-steps';
+import { stepPagePath, type StepPageState } from './lib/stage-steps';
 import { engineIdTitle } from './lib/step-label';
-import { factoryPath } from './lib/views';
 import { StepTags } from './StepTags';
 import { toneColor } from './tones';
 
@@ -136,13 +135,9 @@ export function StepGraph({
             step={step}
             onStep={running?.get(step.node.key) ?? NOT_RUNNING}
             onOpen={() => {
-              void navigate(
-                factoryPath(
-                  projectId,
-                  `/steps/${encodeURIComponent(workflow)}/${encodeURIComponent(step.node.key)}`
-                ),
-                { state: { fromStage: stageId } satisfies StepPageState }
-              );
+              void navigate(stepPagePath(projectId, workflow, step.node.key), {
+                state: { fromStage: stageId } satisfies StepPageState,
+              });
             }}
           />
         ))}

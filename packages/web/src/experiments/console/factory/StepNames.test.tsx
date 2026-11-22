@@ -235,11 +235,12 @@ describe('no raw step id where a person reads', () => {
     expect(html).toContain('if Reads CI and PR reviews = return\nRuns when');
   });
 
-  test('the step page names the step and shows its engine id, labelled', () => {
+  test('the step page names the step, its engine id a tag beside the name', () => {
     const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`);
     // The heading itself: "Code review" also reads in the page's running list.
-    expect(/<h3[^>]*>([^<]*)<\/h3>/.exec(html)?.[1]).toBe('Code review');
-    expect(readable(html)).toMatch(/Engine id\s+deliver · rounds\.review__review/);
+    expect(
+      /<h2[^>]*><span[^>]*>([^<]*)<span data-id-tag=""[^>]*>([^<]*)<\/span>/.exec(html)?.slice(1)
+    ).toEqual(['Code review', 'rounds.review__review']);
   });
 
   test("the step page's Runs when line names the step it reads, the expression on hover", () => {
@@ -248,7 +249,7 @@ describe('no raw step id where a person reads', () => {
     expect(html).toContain(
       `title="$LOOP_PREV.verdict__verdict.output.outcome == &#x27;return&#x27;"`
     );
-    // Outside the YAML block and the labelled engine id, no raw id shows.
+    // In the facts, as everywhere outside the YAML block and the id tag, no raw id shows.
     const facts = /<dl[\s\S]*?<\/dl>/.exec(html)?.[0] ?? '';
     expect(rawIds(facts)).toEqual([]);
   });

@@ -246,7 +246,7 @@ test('clicking a card lists its real steps by name, each opening its step page b
     expect(links.map(link => link.textContent)).toEqual(['Reviews the change']);
     expect(links[0]?.getAttribute('title')).toContain('rounds.review__review');
     await click(links[0]!);
-    expect(container.textContent).toContain('deliver · rounds.review__review');
+    expect(container.querySelector('[data-id-tag]')?.textContent).toBe('rounds.review__review');
     expect(container.textContent).toContain('Back to Checks');
   });
 });

@@ -405,11 +405,14 @@ describe('the stage page', () => {
 describe('the step page', () => {
   test('shows the kind, model, condition, prompt and YAML, and leads back to its stage', () => {
     const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, withView);
-    expect(html).toContain('deliver · rounds.fix');
+    expect(html).toContain('<span data-id-tag=""');
     expect(html).toContain('Agent');
-    expect(html).toContain('@builder, else large');
-    expect(html).toContain('$LOOP_PREV.verdict__verdict.output.outcome');
-    expect(html).toContain('Prompt, from command fix');
+    expect(html).toContain('Builder tier, else large');
+    // The condition in words, the expression as written on hover.
+    expect(html).toContain(
+      'title="$LOOP_PREV.verdict__verdict.output.outcome == &#x27;return&#x27;"'
+    );
+    expect(html).toContain('From command fix');
     expect(html).toContain('Fix what the checks returned');
     // The highlighted YAML block itself, not only its heading.
     expect(html).toContain('language-yaml');

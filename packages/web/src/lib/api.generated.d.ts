@@ -12990,6 +12990,28 @@ export interface components {
         command: string | null;
         prompt: string | null;
         promptError: string | null;
+        references: (
+          | {
+              /** @enum {string} */
+              kind: 'input';
+              token: string;
+              name: string;
+            }
+          | {
+              /** @enum {string} */
+              kind: 'output' | 'prior-output';
+              token: string;
+              key: string;
+              path: string | null;
+            }
+        )[];
+        script: {
+          /** @enum {string} */
+          runtime: 'sh' | 'bun' | 'uv';
+          name: string | null;
+          body: string;
+        } | null;
+        scriptError: string | null;
         yaml: string | null;
         yamlError: string | null;
       }[];

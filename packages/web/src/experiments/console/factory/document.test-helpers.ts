@@ -31,9 +31,18 @@ export function documentPageProblems(root: Element): string[] {
   return [...boxes.flatMap(boxProblems), ...outlineBoxes(root)];
 }
 
-/** A top-level box is a panel, or a section that opens with a heading row and holds panels. */
+/**
+ * A top-level box is a panel, a section that opens with a heading row and holds panels, or a
+ * `DocumentColumns` box whose two columns each hold only such panels and sections.
+ */
 function boxProblems(box: Element, index: number): string[] {
   if (isPanel(box)) return [];
+  if (box.hasAttribute('data-doc-columns'))
+    return [...box.children].flatMap((column, c) =>
+      [...column.children].flatMap((inner, i) =>
+        boxProblems(inner, i).map(problem => `column ${c} of box ${index}: ${problem}`)
+      )
+    );
   if (!box.hasAttribute('data-doc-section'))
     return [`top-level box ${index} <${box.tagName.toLowerCase()}> is no panel or section`];
   const children = [...box.children];

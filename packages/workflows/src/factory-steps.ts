@@ -9,10 +9,18 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isMap, isSeq, parseDocument, type Document, type YAMLMap } from 'yaml';
 import { readComposedMeta } from './compiled-command';
+import { isInlineScript } from './executor-shared';
 import { INCLUDE_ID_SEPARATOR } from './include/inline';
 import type { WorkflowDeps } from './deps';
 import { resolvedBodyNodes } from './graph-plan';
 import { loadCommandPrompt } from './load-command-prompt';
+import {
+  CURRENT_OUTPUT_PATH_SOURCE,
+  INPUT_NAME_SOURCE,
+  PRIOR_OUTPUT_PATH_SOURCE,
+} from './output-ref';
+import { INPUTS_SCOPE } from './reference-scopes';
+import { discoverScriptsForCwd } from './script-discovery';
 import { parseWhenExpression, type WhenAtom } from './when-atom';
 import { unqualifiedResourceName } from './packaged-workflow';
 import type { DagNode, ResolvedWorkflow } from './schemas';
@@ -21,6 +29,7 @@ import type {
   FactoryStep,
   FactoryStepGroup,
   FactoryStepKind,
+  FactoryStepReference,
   FactoryWhenAtom,
   FactoryWhenClauses,
   FactoryWorkflow,
@@ -40,7 +49,17 @@ export interface FactoryStepsContext {
 
 /** A step found in the definition, before its prompt and YAML are read. */
 interface Outlined {
-  step: Omit<FactoryStep, 'prompt' | 'promptError' | 'yaml' | 'yamlError' | 'command'>;
+  step: Omit<
+    FactoryStep,
+    | 'prompt'
+    | 'promptError'
+    | 'references'
+    | 'script'
+    | 'scriptError'
+    | 'yaml'
+    | 'yamlError'
+    | 'command'
+  >;
   node: DagNode;
   /** Where the author wrote it: a pack, a workflow in it, and the id there. */
   authored: {
@@ -59,14 +78,20 @@ export async function factoryWorkflowSteps(
   workflow: ResolvedWorkflow,
   context: FactoryStepsContext
 ): Promise<FactoryWorkflow> {
-  const { steps, groups } = outlineSteps(workflow);
+  const { steps, groups, stepKey } = outlineSteps(workflow);
   const files = new PackFiles(context.roots);
   const read: FactoryStep[] = [];
   for (const outlined of steps) {
     const block = await files.authoredBlock(outlined.authored);
+    const prompt = await stepPrompt(outlined.node, context);
     read.push({
       ...outlined.step,
-      ...(await stepPrompt(outlined.node, context)),
+      ...prompt,
+      references:
+        prompt.prompt === null
+          ? []
+          : promptReferences(prompt.prompt, nodeId => stepKey(outlined.step.key, nodeId)),
+      ...(await stepScript(outlined.node, context)),
       command: stepCommand(outlined.node, block.command),
       yaml: block.yaml,
       yamlError: block.yamlError,
@@ -87,10 +112,12 @@ export async function factoryWorkflowSteps(
 function outlineSteps(workflow: ResolvedWorkflow): {
   steps: Outlined[];
   groups: FactoryStepGroup[];
+  /** The key of the step that step `from` names `nodeId` (`Outline.referencedKey`). */
+  stepKey: (from: string, nodeId: string) => string;
 } {
   const outline = new Outline(workflow);
   outline.walk(workflow.nodes, '', null);
-  return outline.result();
+  return { ...outline.result(), stepKey: (from, nodeId) => outline.referencedKey(from, nodeId) };
 }
 
 class Outline {
@@ -154,16 +181,19 @@ class Outline {
     };
   }
 
-  /**
-   * `when` as its comparisons, each step it reads by key: a sibling in the same loop body
-   * first, else a step at the top; a reference to neither keeps the id written.
-   */
+  /** `when` as its comparisons, each step it reads keyed by `referencedKey`. */
   private whenClauses(key: string, when: string | null): FactoryWhenClauses {
     if (when === null) return null;
+    return conditionClauses(when, nodeId => this.referencedKey(key, nodeId));
+  }
+
+  /**
+   * The key of the step that step `key` names `nodeId`: a sibling in the same loop body
+   * first, else a step at the top; a reference to neither keeps the id written.
+   */
+  referencedKey(key: string, nodeId: string): string {
     const prefix = this.scopes.get(key) ?? '';
-    return conditionClauses(when, nodeId =>
-      this.stepKeys.has(prefix + nodeId) ? prefix + nodeId : nodeId
-    );
+    return this.stepKeys.has(prefix + nodeId) ? prefix + nodeId : nodeId;
   }
 
   /** The include groups `segments` name under `parent`, opened once each; returns the innermost. */
@@ -311,6 +341,71 @@ async function stepPrompt(
   return loaded.success
     ? { prompt: loaded.content, promptError: null }
     : { prompt: null, promptError: loaded.message };
+}
+
+/**
+ * The inputs and step outputs a prompt reads, with the engine's own grammar: the sources its
+ * substitution builds its patterns from, so this list cannot drift from what it fills in. The
+ * input form comes first, as `$INPUTS.output` would otherwise read as a step named `INPUTS`
+ * (the engine skips that id too). Unique by token, in order of first appearance.
+ */
+export function promptReferences(
+  prompt: string,
+  stepKey: (nodeId: string) => string
+): FactoryStepReference[] {
+  const pattern = new RegExp(
+    String.raw`(\$${INPUTS_SCOPE}\.(${INPUT_NAME_SOURCE}))|(${PRIOR_OUTPUT_PATH_SOURCE})|(${CURRENT_OUTPUT_PATH_SOURCE})`,
+    'g'
+  );
+  const found = new Map<string, FactoryStepReference>();
+  for (const match of prompt.matchAll(pattern)) {
+    const token = match[0];
+    // Groups: 2 the input's name; 4 and 5 the prior form's node and path; 7 and 8 the current's.
+    if (match[2] !== undefined) {
+      found.set(token, { kind: 'input', token, name: match[2] });
+      continue;
+    }
+    const prior = match[3] !== undefined;
+    const nodeId = prior ? match[4] : match[7];
+    if (nodeId === undefined || nodeId === INPUTS_SCOPE) continue;
+    found.set(token, {
+      kind: prior ? 'prior-output' : 'output',
+      token,
+      key: stepKey(nodeId),
+      path: (prior ? match[5] : match[8]) ?? null,
+    });
+  }
+  return [...found.values()];
+}
+
+/**
+ * What a bash or script step runs, resolved as the engine's script node does: a bash body is
+ * always inline; a script body is inline when `isInlineScript` says so, else it names a script
+ * file that `discoverScriptsForCwd` finds. A script that cannot be found or read says why
+ * here; it never fails the read of the other steps.
+ */
+async function stepScript(
+  node: DagNode,
+  context: FactoryStepsContext
+): Promise<Pick<FactoryStep, 'script' | 'scriptError'>> {
+  if (node.kind !== 'exec') return { script: null, scriptError: null };
+  const { runtime, script } = node;
+  if (runtime === 'sh' || isInlineScript(script))
+    return { script: { runtime, name: null, body: script }, scriptError: null };
+  const missing = (why: string): Pick<FactoryStep, 'script' | 'scriptError'> => ({
+    script: null,
+    scriptError: `The script ${unqualifiedResourceName(script)} could not be read from this project's scripts or packs: ${why}`,
+  });
+  try {
+    const scripts = await discoverScriptsForCwd(context.cwd, context.roots, new Set([script]));
+    const found = scripts.get(script);
+    if (found === undefined) return missing('no script has that name.');
+    // A checkout on Windows may hold CRLF; the body is shown line by line.
+    const body = (await readFile(found.path, 'utf8')).replaceAll('\r\n', '\n');
+    return { script: { runtime, name: unqualifiedResourceName(script), body }, scriptError: null };
+  } catch (error) {
+    return missing((error as Error).message);
+  }
 }
 
 interface AuthoredBlock {
