@@ -247,6 +247,37 @@ describe('factoryViewSchema', () => {
     expect(factoryViewSchema.safeParse({ ...minimal(), rounds: notPointer }).success).toBe(false);
   });
 
+  test('a bad rounds or change source says which entry and which key to fix', () => {
+    const said = (view: unknown): string[] =>
+      (factoryViewSchema.safeParse(view).error?.issues ?? []).map(
+        issue => `${issue.path.join('.')}: ${issue.message}`
+      );
+    const loop = { workflow: 'build', loop: 'rounds' };
+    const stage = 'a stage-form rounds source { workflow, round, allowance }';
+    const noRound = { workflow: 'plan', allowance: '/allowance' };
+    expect(said({ ...minimal(), rounds: noRound })).toEqual([`rounds: ${stage} needs \`round\``]);
+    expect(said({ ...minimal(), rounds: [loop, noRound] })).toEqual([
+      `rounds: entry 1: ${stage} needs \`round\``,
+    ]);
+    // A misspelt key is named, not only the key it was meant to be.
+    expect(said({ ...minimal(), rounds: [loop, { ...noRound, rond: '/round' }] })).toEqual([
+      `rounds: entry 1: ${stage} does not take \`rond\``,
+    ]);
+    expect(said({ ...minimal(), rounds: { ...loop, round: '/round' } })).toEqual([
+      'rounds: a loop-form rounds source { workflow, loop } does not take `round`',
+    ]);
+    expect(said({ ...minimal(), rounds: 'build' })).toEqual([
+      'rounds: expected a rounds source: { workflow, loop } or { workflow, round, allowance }',
+    ]);
+    const source = { workflow: 'build', pointer: '/change' };
+    expect(said({ ...minimal(), change: [source, { workflow: 'plan' }] })).toEqual([
+      'change: entry 1: a change source { workflow, pointer } needs `pointer`',
+    ]);
+    expect(said({ ...minimal(), change: { workflow: 'build' } })).toEqual([
+      'change: a change source { workflow, pointer } needs `pointer`',
+    ]);
+  });
+
   test('a partOf naming a workflow no stage lists is rejected', () => {
     expect(
       issuePaths({

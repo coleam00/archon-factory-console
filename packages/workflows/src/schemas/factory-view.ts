@@ -164,14 +164,66 @@ const changeSourceSchema = z.strictObject({
  * own result at the `round` and `allowance` pointers; a run whose result has no positive whole
  * number at `round` (a run still going, one that failed) is not a round.
  */
-const roundsSourceSchema = z.union([
-  z.strictObject({ workflow: workflowNameSchema, loop: stepIdSchema }),
-  z.strictObject({
-    workflow: workflowNameSchema,
-    round: jsonPointerSchema,
-    allowance: jsonPointerSchema,
-  }),
-]);
+const loopRoundsSchema = z.strictObject({ workflow: workflowNameSchema, loop: stepIdSchema });
+const stageRoundsSchema = z.strictObject({
+  workflow: workflowNameSchema,
+  round: jsonPointerSchema,
+  allowance: jsonPointerSchema,
+});
+
+const isRecord = (input: unknown): input is Record<string, unknown> =>
+  typeof input === 'object' && input !== null && !Array.isArray(input);
+
+/**
+ * Why `input` is not a `schema` (a source called `kind`), naming the key to fix. A failed
+ * union reports only "Invalid input", which leaves a view file's author nothing to act on.
+ */
+function sourceProblem(kind: string, schema: z.ZodType, input: unknown): string {
+  if (!isRecord(input)) return `expected ${kind}`;
+  const issues = schema.safeParse(input).error?.issues ?? [];
+  // A misspelt key is the cause of the missing one it was meant to be: name it first.
+  const issue = issues.find(entry => entry.code === 'unrecognized_keys') ?? issues[0];
+  if (issue === undefined) return `${kind} is invalid`;
+  if (issue.code === 'unrecognized_keys')
+    return `${kind} does not take ${issue.keys.map(key => `\`${key}\``).join(', ')}`;
+  const key = String(issue.path[0]);
+  return input[key] === undefined
+    ? `${kind} needs \`${key}\``
+    : `${kind}'s \`${key}\`: ${issue.message}`;
+}
+
+/** A rounds source's form, told by its keys: a `loop` makes it the loop form. */
+function roundsSourceProblem(input: unknown): string {
+  if (!isRecord(input))
+    return 'expected a rounds source: { workflow, loop } or { workflow, round, allowance }';
+  return 'loop' in input
+    ? sourceProblem('a loop-form rounds source { workflow, loop }', loopRoundsSchema, input)
+    : sourceProblem(
+        'a stage-form rounds source { workflow, round, allowance }',
+        stageRoundsSchema,
+        input
+      );
+}
+
+const roundsSourceSchema = z.union([loopRoundsSchema, stageRoundsSchema], {
+  error: issue => roundsSourceProblem(issue.input),
+});
+
+/**
+ * One source, or a non-empty list of them. A failure names the entry and the key, as
+ * "entry 1: a stage-form rounds source { workflow, round, allowance } needs `round`".
+ */
+function oneOrList<T extends z.ZodType>(source: T, problem: (input: unknown) => string) {
+  return z.union([source, z.array(source).min(1)], {
+    error: issue => {
+      const { input } = issue;
+      if (!Array.isArray(input)) return problem(input);
+      if (input.length === 0) return 'a list names at least one source';
+      const bad = input.findIndex(entry => !source.safeParse(entry).success);
+      return bad === -1 ? 'is invalid' : `entry ${String(bad)}: ${problem(input[bad])}`;
+    },
+  });
+}
 
 /**
  * What a step's outcome means to a person, so a console can word it in its own words. The set
@@ -308,7 +360,7 @@ const factoryViewShape = z.strictObject({
    * each workflow once when items are delivered by more than one shape. An item's rounds are
    * read from the source whose workflow ran a round on it most recently.
    */
-  rounds: z.union([roundsSourceSchema, z.array(roundsSourceSchema).min(1)]).optional(),
+  rounds: oneOrList(roundsSourceSchema, roundsSourceProblem).optional(),
   /** The steps whose outcome sends an item back. */
   returns: z.array(decisionPointSchema).optional(),
   /**
@@ -352,7 +404,9 @@ const factoryViewShape = z.strictObject({
    * once. The newest run of any listed workflow with a non-empty value at its pointer gives
    * the item's change.
    */
-  change: z.union([changeSourceSchema, z.array(changeSourceSchema).min(1)]).optional(),
+  change: oneOrList(changeSourceSchema, input =>
+    sourceProblem('a change source { workflow, pointer }', changeSourceSchema, input)
+  ).optional(),
   /**
    * Where a run's result names the item's work order (an item key), as a JSON pointer: read
    * when the item has no active `part_of` link, which wins when both exist. Only a run of
