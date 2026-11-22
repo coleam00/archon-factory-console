@@ -98,7 +98,7 @@ function AnsweredBody({
   if (rows.length === 0)
     return (
       <p className="py-3 text-console-14 text-text-secondary">
-        Answers given here, from the CLI or by an agent appear here.
+        Answers given here, from the CLI or by an agent, appear here.
       </p>
     );
   return (

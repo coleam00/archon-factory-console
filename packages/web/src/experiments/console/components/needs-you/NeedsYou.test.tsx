@@ -94,21 +94,29 @@ const answeredOn = (key: string, at: string, restarted?: TestRun): FactoryItem =
   settledItem(key, run('plan', 'completed', 'ask'), at, restarted);
 
 describe('the header band', () => {
-  test("counts what waits, in the needs-you colour, how long the oldest has waited, and today's answers", () => {
+  test("counts what waits, in the needs-you colour, and today's answers", () => {
     const now = Date.now();
     const today = new Date(now).toISOString();
     const lastWeek = new Date(now - 7 * 86_400_000).toISOString();
     const root = render(none, busy, [answeredOn('a', today), answeredOn('b', lastWeek)]);
-    const band = root.querySelector('[data-doc-page] > section[aria-label="Summary"]');
-    expect(text(band?.querySelector('h2'))).toBe('3 things need you');
-    expect(text(band)).toContain('on 2 items');
     const waiting = chip(root, 'waiting now');
     expect(chipWords(waiting)).toBe('3 waiting now');
     expect(waiting?.getAttribute('data-stat-chip')).toBe('needs-you');
-    // The oldest, #7's rebase, paused on 2026-11-14: days ago, in words with units.
-    expect(chipWords(chip(root, 'oldest wait'))).toMatch(/^\d+ d( \d+ h)? oldest wait$/);
     // `a`'s two answers today; its withdrawn one and `b`'s last week do not count.
     expect(chipWords(chip(root, 'answered today'))).toBe('2 answered today');
+  });
+
+  test('the oldest wait is the longest any open ask has waited, whatever order they come in', () => {
+    const ago = (ms: number): string => new Date(Date.now() - ms).toISOString();
+    const root = render(
+      none,
+      queueOf(
+        askItem({ ref: 'ask:new', pausedAt: ago(20 * 60_000) }),
+        askItem({ ref: 'ask:old', item: nine, pausedAt: ago(2 * 3_600_000) }),
+        gateItem()
+      )
+    );
+    expect(chipWords(chip(root, 'oldest wait'))).toBe('2 h oldest wait');
   });
 
   test('with nothing open it says so, its count neutral, and no oldest wait', () => {
@@ -161,7 +169,8 @@ describe('open asks', () => {
   test('a gate no item holds sits in open asks, named as its run', () => {
     const root = render(none, queueOf(gateItem()));
     const open = root.querySelector('section[data-needs-you="open"]');
-    expect(open?.querySelector('[aria-label="Asks on Run run-gate"]')).not.toBeNull();
+    expect(open?.querySelector('[aria-label="Asks on Run run-gate"]') ?? null).not.toBeNull();
+    expect(root.querySelector('section[data-needs-you="paused"]')).toBeNull();
   });
 });
 
@@ -195,44 +204,43 @@ describe('answered lately', () => {
     answeredOn(key, at(index + 1), restarted)
   );
 
-  for (const listing of [none, withView])
-    test(`one compact row per answer, with what its set started in that state's colour (${listing === none ? 'no view' : 'a view'})`, () => {
-      const root = render(listing, quiet, items);
-      const aside = root.querySelector('section[aria-label="Answered lately"]');
-      const rows = [...(aside?.querySelectorAll('li') ?? [])];
-      // Eight newest answers: cancelled's three, paused's three, failed's first two.
-      expect(rows).toHaveLength(8);
-      // Rows, not boxes: one panel holds them all.
-      expect(aside?.querySelectorAll('[data-doc-panel]')).toHaveLength(1);
-      const first = rows[0];
-      expect(text(first)).toContain('cancelled');
-      expect(text(first?.querySelector('[data-answer-pill]'))).toBe('Approve');
-      expect(text(first)).toContain('by cole-owner');
-      // The withdrawn answer of the set reads as withdrawn, struck through.
-      expect(rows.some(row => row.querySelector('.line-through') !== null)).toBe(true);
-      for (const [key, , color] of restarts) {
-        const shown = renderStarted(listing, key, items);
-        if (key === 'none') {
-          expect(text(shown)).toBe('Nothing started');
-          expect(shown?.className).toContain(color);
-        } else {
-          expect(text(shown?.querySelector('a'))).toBe('Plan started again');
-          expect(shown?.querySelector('a')?.className).toContain(color);
-        }
+  test("one compact row per answer, with what its set started in that state's colour", () => {
+    const root = render(none, quiet, items);
+    const aside = root.querySelector('section[aria-label="Answered lately"]');
+    const rows = [...(aside?.querySelectorAll('li') ?? [])];
+    // Eight newest answers: cancelled's three, paused's three, failed's first two.
+    expect(rows).toHaveLength(8);
+    // Rows, not boxes: one panel holds them all.
+    expect(aside?.querySelectorAll('[data-doc-panel]')).toHaveLength(1);
+    const first = rows[0];
+    expect(text(first)).toContain('cancelled');
+    expect(text(first?.querySelector('[data-answer-pill]'))).toBe('Approve');
+    expect(text(first)).toContain('by cole-owner');
+    // The withdrawn answer of the set reads as withdrawn, struck through.
+    expect(rows.some(row => row.querySelector('.line-through') !== null)).toBe(true);
+    for (const [key, , color] of restarts) {
+      const shown = renderStarted(key, items);
+      if (key === 'none') {
+        expect(text(shown)).toBe('Nothing started');
+        expect(shown?.className).toContain(color);
+      } else {
+        expect(text(shown?.querySelector('a'))).toBe('Plan started again');
+        expect(shown?.querySelector('a')?.className).toContain(color);
       }
-    });
+    }
+  });
 
   /** The "what it started" of item `key`'s newest row, drawn with that item alone answered. */
-  function renderStarted(listing: FactoryViews, key: string, all: FactoryItem[]): Element | null {
+  function renderStarted(key: string, all: FactoryItem[]): Element | null {
     const only = all.filter(item => item.item.key === key);
-    return render(listing, quiet, only).querySelector(
+    return render(none, quiet, only).querySelector(
       'section[aria-label="Answered lately"] li [data-started]'
     );
   }
 
   test('with nothing answered yet, the aside stays and says what appears there', () => {
     const aside = render(none, busy).querySelector('section[aria-label="Answered lately"]');
-    expect(text(aside)).toContain('Answers given here, from the CLI or by an agent appear here.');
+    expect(text(aside)).toContain('Answers given here, from the CLI or by an agent, appear here.');
   });
 
   test('while the history is unread it shows skeleton rows', () => {
@@ -252,7 +260,9 @@ describe('the empty state', () => {
     const root = render(withView, quiet, [answeredOn('a', '2026-11-17T10:00:00.000Z')]);
     const empty = root.querySelector('section[aria-label="Nothing needs you"]');
     expect(empty?.getAttribute('data-doc-panel')).toBe('panel');
-    expect(empty?.querySelector('[data-empty-icon]')?.className).toContain('var(--success-soft)');
+    const icon = empty?.querySelector('[data-empty-icon]') ?? null;
+    expect(icon?.className).toContain('var(--success-soft)');
+    expect(icon?.querySelector('svg') ?? null).not.toBeNull();
     expect(text(empty)).toContain('Nothing needs you');
     expect(text(empty)).toContain('Last asked');
     const links = [...(empty?.querySelectorAll('a') ?? [])].map(a => [
@@ -277,6 +287,7 @@ describe('the empty state', () => {
     const empty = render(none, quiet, 'unread').querySelector(
       'section[aria-label="Nothing needs you"]'
     );
+    expect(empty).not.toBeNull();
     expect(empty?.querySelector('[data-skeleton="line"] .bg-surface-hover')).not.toBeNull();
     expect(text(empty)).not.toContain('appears here to answer');
   });

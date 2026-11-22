@@ -33,8 +33,8 @@ apart, under **Paused**, with what it waits for. Beside them, **Answered lately*
 newest answers, one row each: the question, the option chosen, who answered and when, and the
 stage (or, on a project without a factory, the workflow) that settling the item's asks started
 again, linking to that run, or "Nothing started" (a run started by hand after them is not one).
-With nothing open, the tab says so, when something was last asked, and links to the board and
-the runs.
+With nothing open, the tab says so, when something was last asked, and links to the runs (and,
+on a project with a factory, to the board).
 
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
 it. Its sub-navigation, on the line of the view's title, has two pages: **Overview** and
