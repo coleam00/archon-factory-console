@@ -348,8 +348,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   windows scroll sideways).
 - The project tabs stay one line (`components/TabRow.tsx`): where they do not fit (on a phone),
   the row scrolls sideways with no scrollbar, fades the edge it hides tabs past and no other,
-  and brings the active tab into view when the page opens, the tab changes or the row's width
-  changes (a phone turned to portrait). A tab link (`TabLink`) never wraps or squeezes its label.
+  and brings the active tab into view when the page opens, when the tab changes, and when the
+  active tab moves or the row's width changes (the web font arriving after the first paint, a
+  phone turned to portrait). A tab link (`TabLink`) never wraps or squeezes its label.
 
 ### 4. Lines
 
@@ -1324,8 +1325,9 @@ a short local time, the full one on hover), sortable; a row that needs you has a
 box narrows by key, title or work order key, matching the raw key (`136` finds `issue-136`). The
 Item and Work order columns sort by the key as it reads, so `#9` comes before `#111` whichever form
 each is stored in. A key never breaks inside itself (`#136 · pack view` is one line): its column
-grows and the title wraps instead, down to 128 px, so the Table still fits 1440x900 with a
-member key in it. Until the items are read, the board draws its
+grows and the title wraps instead, down to 128 px, so a member key costs the other columns as
+little room as it can. Where the rows still need more than the window gives (a long round or
+ask column), the Table scrolls sideways. Until the items are read, the board draws its
 declared columns with skeleton counts and card shapes (Visual standard, rule 6).
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other

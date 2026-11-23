@@ -70,12 +70,13 @@ const tabsWide = (n: number): number => n * 100 - 10;
 
 /**
  * The project tabs with `active` open, every element measuring `client` wide inside a `scroll`
- * wide content box (by default as wide as its tabs), each tab as `tabsWide` places it, the
+ * wide content box (by default as wide as its tabs), each tab as `tabsWide` places it (or
+ * `step` px after the last, when given), the
  * factory views seeded unless `views` is false; what `look` reads off the row, given a way to
  * seed the views later.
  */
 async function tabsAt<T>(
-  sizes: { client: number; scroll?: number },
+  sizes: { client: number; scroll?: number; step?: number },
   active: 'runs' | 'factory',
   look: (row: HTMLElement, seedViews: () => Promise<void>) => T | Promise<T>,
   views = true
@@ -89,7 +90,7 @@ async function tabsAt<T>(
     offsetWidth: () => 90,
     offsetLeft(this: HTMLElement) {
       const parent = this.parentElement;
-      return parent === null ? 0 : [...parent.children].indexOf(this) * 100;
+      return parent === null ? 0 : [...parent.children].indexOf(this) * (sizes.step ?? 100);
     },
   };
   const originals = Object.keys(stubbed).map(
@@ -187,4 +188,44 @@ test('a phone turned to portrait brings the active tab back into view, and only 
     return [landscape, portrait, row.scrollLeft];
   });
   expect(scrolls).toEqual([0, 100, 20]);
+});
+
+test('the active tab moved after the first reveal (the web font arriving) is brought into view again', async () => {
+  const sizes = { client: 390, scroll: 560, step: 100 };
+  const scrolls = await tabsAt(sizes, 'factory', async row => {
+    const first = row.scrollLeft;
+    // Wider tabs push Factory to 440..530 without changing the row's width.
+    sizes.step = 110;
+    await act(async () => HandResizeObserver.resizeAll());
+    return [first, row.scrollLeft];
+  });
+  expect(scrolls).toEqual([100, 140]);
+});
+
+test('a row narrowed on a resize, its active tab still in view, fades the end it now hides', async () => {
+  const sizes = { client: tabsWide(5) };
+  const seen = await tabsAt(sizes, 'runs', async row => {
+    const before = row.hasAttribute('data-fade-end');
+    sizes.client = 390;
+    await act(async () => HandResizeObserver.resizeAll());
+    return [before, row.scrollLeft, row.hasAttribute('data-fade-end')];
+  });
+  expect(seen).toEqual([false, 0, true]);
+});
+
+test('a swiped row moves its fade to the edge it now hides', async () => {
+  const seen = await tabsAt({ client: 390, scroll: 520 }, 'runs', async row => {
+    const fades = (): boolean[] => [
+      row.hasAttribute('data-fade-start'),
+      row.hasAttribute('data-fade-end'),
+    ];
+    const before = fades();
+    row.scrollLeft = 130;
+    // happy-dom's own Event: a global one does not reach the row's listener.
+    await act(async () => {
+      row.dispatchEvent(new dom.Event('scroll') as unknown as Event);
+    });
+    return [...before, row.scrollLeft, ...fades()];
+  });
+  expect(seen).toEqual([false, true, 130, true, false]);
 });

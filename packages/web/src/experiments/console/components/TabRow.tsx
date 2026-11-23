@@ -4,12 +4,13 @@ import { edgeFades, revealTab } from './tab-row';
 /**
  * A row of `TabLink`s on one line. Where the tabs do not fit, it scrolls sideways with no
  * scrollbar, fading the edge it hides tabs past (`.tab-row` in theme.css), and it brings the
- * active tab (`aria-current="page"`) into view when `active`, the number of tabs or the row's
- * width changes (a phone turned to portrait narrows it). A resize that leaves the row's width as
- * it was (a badge widening a tab) does not move it, so it never undoes a person's own scroll. It
- * scrolls itself, never through `scrollIntoView`, which would scroll the page too. The bottom
- * padding holds the active tab's brand bar, which hangs below the tab and a scrolling row would
- * otherwise clip.
+ * active tab (`aria-current="page"`) into view when `active` or the number of tabs changes, and
+ * whenever a resize moves the active tab within the row or changes the row's width: a phone
+ * turned to portrait, or the web font arriving after the first reveal and widening every tab. A
+ * resize that leaves both as they were (a badge widening a tab after the active one) does not
+ * move the row, so it never undoes a person's own scroll. It scrolls itself, never through
+ * `scrollIntoView`, which would scroll the page too. The bottom padding holds the active tab's
+ * brand bar, which hangs below the tab and a scrolling row would otherwise clip.
  */
 export function TabRow({
   active,
@@ -29,10 +30,11 @@ export function TabRow({
       const next = edgeFades(row);
       setFades(was => (was.start === next.start && was.end === next.end ? was : next));
     };
-    let width = row.clientWidth;
+    let seen = activePlace(row);
     const resized = (): void => {
-      if (row.clientWidth !== width) {
-        width = row.clientWidth;
+      const place = activePlace(row);
+      if (place !== seen) {
+        seen = place;
         revealActive(row);
       }
       measure();
@@ -65,6 +67,12 @@ export function TabRow({
       {children}
     </div>
   );
+}
+
+/** Where the active tab sits in `row` and how wide the row is, as one comparable value. */
+function activePlace(row: HTMLElement): string {
+  const tab = row.querySelector<HTMLElement>('[aria-current="page"]');
+  return [row.clientWidth, tab?.offsetLeft, tab?.offsetWidth].join(' ');
 }
 
 /** Scrolls `row` just far enough to show its active tab whole. */

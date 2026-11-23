@@ -5,7 +5,7 @@ export interface Span {
 }
 
 /** The room a tip keeps from the frame's edges (screen px). */
-export const TIP_EDGE = 8;
+const TIP_EDGE = 8;
 
 /**
  * How far (screen px) a tip must move sideways to sit inside the frame it is drawn in, `TIP_EDGE`
