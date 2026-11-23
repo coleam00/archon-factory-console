@@ -180,7 +180,7 @@ describe('the Overview', () => {
     );
     const tiles = [
       ...strip.matchAll(
-        /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>([^<]*)</g
+        /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>(?:<span[^>]*>)?([^<]*)</g
       ),
     ].map(
       ([, label, href, value]) =>
@@ -188,7 +188,8 @@ describe('the Overview', () => {
     );
     const board = `/console/p/${ID}/factory/board`;
     expect(tiles).toEqual([
-      `5 in flight → ${board}?show=in-flight`,
+      // Item 3's merge state is unknown: counted only in M.
+      `4 in flight → ${board}?show=in-flight`,
       `0 need you → /console/p/${ID}/needs-you`,
       expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
       `3 of 8 merged → ${board}?view=table&show=landed-of-all`,

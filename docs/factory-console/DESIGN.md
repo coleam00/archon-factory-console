@@ -925,8 +925,9 @@ What those reads do not carry comes from **one read-only route file**,
   plugins once per process (a plugin added after it starts needs a restart to be used here).
   Items merged before land runs recorded merges carry no record:
   `scripts/console-merge-backfill.ts` prints the `archon workflow merged` lines for the ones a
-  run's own URL confirms, for the operator to run once. The pull request is the one the run's forge records name, else the one on a branch
-  the item's runs recorded whose URL is the change (an earlier run may have opened it). An
+  run's own URL confirms, for the operator to run once. The pull request is the one the
+  run's forge records name, else the one on a branch the item's runs recorded whose URL is
+  the change (an earlier run may have opened it). An
   empty change URL is no URL: the item takes the latest earlier run that named one. When no
   run named one but a delivery run returned an empty URL, the change is the first pull request
   found on the item's run branches, newest branch first, in the project's registered remote,
@@ -954,8 +955,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    (Visual standard, rule 6) in place of its figure. An item whose merge state is not known
    (pending, or unknown after a failed lookup, with no run working it) is in no number but M:
    while there is one, every number but needs you and found by the factory shows the count of
-   what is known with the skeleton bar beside it, never a count that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
-   refresh that fails says so above the last values read (as the map and the board do).
+   what is known with the skeleton bar beside it, never a count that may be wrong. A first
+   read that fails replaces the tiles with an alert saying so; a refresh that fails says so above the last values read (as the map and the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet and opens the board with that panel open; it
    has its own read, so it never holds up the other five. Each tile opens what it counts (owner

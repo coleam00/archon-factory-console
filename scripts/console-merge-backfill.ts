@@ -81,31 +81,40 @@ interface ItemDetail {
   runs: { change: string | null }[];
 }
 
-/** Every item of the codebase, as the board reads them, a page at a time. */
+/** One page of the window's items with their changes; `runChanges` is filled later. */
+async function readPage(
+  base: string,
+  codebase: string,
+  after: string | null
+): Promise<{ items: BackfillItem[]; next: string | null }> {
+  const query = new URLSearchParams({ project: codebase, limit: '100' });
+  if (after === null) query.set('since', '1970-01-01T00:00:00Z');
+  else query.set('after', after);
+  const page = (await readJson(base, '/api/items/window', query)) as WindowPage;
+  if (page.items.length === 0) return { items: [], next: page.next };
+  const keys = new URLSearchParams({ codebaseId: codebase });
+  for (const { item } of page.items) keys.append('keys', item.key);
+  const progress = (await readJson(base, '/api/factory/progress', keys)) as ProgressPage;
+  const items = page.items.map(read => ({
+    key: read.item.key,
+    recorded: read.merged !== null,
+    change: progress.progress[read.item.key]?.change ?? null,
+    runChanges: [],
+  }));
+  return { items, next: page.next };
+}
+
+/** Every item of the codebase, as the board reads them, with the changes its runs named. */
 async function readItems(base: string, codebase: string): Promise<BackfillItem[]> {
   const items: BackfillItem[] = [];
   let after: string | null = null;
   do {
-    const query = new URLSearchParams({ project: codebase, limit: '100' });
-    if (after === null) query.set('since', '1970-01-01T00:00:00Z');
-    else query.set('after', after);
-    const page = (await readJson(base, '/api/items/window', query)) as WindowPage;
-    if (page.items.length > 0) {
-      const keys = new URLSearchParams({ codebaseId: codebase });
-      for (const { item } of page.items) keys.append('keys', item.key);
-      const progress = (await readJson(base, '/api/factory/progress', keys)) as ProgressPage;
-      for (const read of page.items)
-        items.push({
-          key: read.item.key,
-          recorded: read.merged !== null,
-          change: progress.progress[read.item.key]?.change ?? null,
-          runChanges: [],
-        });
-    }
+    const page = await readPage(base, codebase, after);
+    items.push(...page.items);
     after = page.next;
   } while (after !== null);
-  for (const item of items) {
-    if (item.recorded || item.change?.merged !== true) continue;
+  const merged = items.filter(item => !item.recorded && item.change?.merged === true);
+  for (const item of merged) {
     const query = new URLSearchParams({ codebaseId: codebase, key: item.key });
     const detail = (await readJson(base, '/api/factory/item', query)) as ItemDetail;
     item.runChanges = detail.runs.map(run => run.change);

@@ -558,7 +558,7 @@ describe("an item's progress", () => {
     const handed: (FactoryChangeRecord | null)[] = [];
     const progress = await progressOf(
       [triage1, plan1, deliver1],
-      async (lookup, _branches, recorded) => {
+      async (_lookup, _branches, recorded) => {
         handed.push(recorded);
         return { url: null, merged: true, mergedAt: recorded?.at ?? null, number: 10 };
       },
