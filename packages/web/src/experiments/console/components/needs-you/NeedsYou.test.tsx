@@ -439,3 +439,27 @@ test('answering the last ask keeps it in its panel, saying so, before the empty 
     await page.done();
   }
 });
+
+describe('an issue key on Needs you', () => {
+  test('`issue-7` and `7` both name the open ask #7, whose link keeps the key', () => {
+    for (const key of ['issue-7', '7']) {
+      const item = { id: `item-${key}`, projectKey: 'acme', key };
+      const root = render(withView, queueOf(askItem({ ref: `ask:${key}`, item })));
+      const panel = root.querySelector('section[data-needs-you="open"] article[data-doc-panel]');
+      expect(panel?.getAttribute('aria-label')).toBe('Asks on #7');
+      const link = panel?.querySelector('h3 a');
+      expect(text(link)).toBe('#7');
+      expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/${key}`);
+    }
+  });
+
+  test('`issue-7` and `7` both name the answered row #7, whose link keeps the key', () => {
+    for (const key of ['issue-7', '7']) {
+      const root = render(withView, quiet, [answeredOn(key, '2026-11-17T10:00:00.000Z')]);
+      const link = root.querySelector(
+        `section[aria-label="Answered lately"] li a[href="/console/p/${ID}/factory/items/${key}"]`
+      );
+      expect(text(link?.querySelector('.font-mono'))).toBe('#7');
+    }
+  });
+});

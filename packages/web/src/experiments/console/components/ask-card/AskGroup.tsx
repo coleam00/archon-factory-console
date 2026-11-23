@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { displayItemKey } from '../../factory/lib/item-key';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import type { AttentionQueue } from '../../skills/runs';
 import { AskCard, SubjectName, type AskSubject } from './AskCard';
@@ -33,7 +34,7 @@ export function AskGroup({
   const shown = outer === undefined ? own.asks : asks;
   return (
     <section
-      aria-label={subject === undefined ? 'Asks' : `Asks on ${subject.key}`}
+      aria-label={subject === undefined ? 'Asks' : `Asks on ${displayItemKey(subject.key)}`}
       className="flex flex-col gap-3"
     >
       {subject === undefined ? null : (

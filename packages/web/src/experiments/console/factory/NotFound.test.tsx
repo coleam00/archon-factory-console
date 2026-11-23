@@ -166,7 +166,7 @@ describe('an item', () => {
   test('that does not exist says so, links the board and offers a search', async () => {
     serve(healthy);
     await renderAt('items/9999', async container => {
-      expect(words(container)).toContain('There is no item 9999 in this project.');
+      expect(words(container)).toContain('There is no item #9999 in this project.');
       expect(words(container)).not.toContain('could not be read');
       expect(container.querySelector('[role="alert"]')).toBeNull();
       const board = [...container.querySelectorAll('a')].find(
@@ -182,7 +182,7 @@ describe('an item', () => {
     const { fetches } = serve(answers);
     await renderAt('items/3', async container => {
       const alert = container.querySelector('[role="alert"]');
-      expect(alert?.textContent).toContain('Item 3 could not be read: the server did not answer');
+      expect(alert?.textContent).toContain('Item #3 could not be read: the server did not answer');
       expect(words(container)).not.toContain('There is no item');
       // While the retry waits, the held failure gives way to the page's loading shape.
       let fail: (error: Error) => void = () => undefined;
@@ -213,14 +213,14 @@ describe('an item', () => {
     const { fetches } = serve(answers);
     await renderAt('items/9999', async container => {
       const alert = container.querySelector('[role="alert"]');
-      expect(alert?.textContent).toContain('Item 9999 could not be checked');
+      expect(alert?.textContent).toContain('Item #9999 could not be checked');
       expect(alert?.textContent).toContain('the server did not answer');
       expect(words(container)).not.toContain('There is no item');
       const before = fetches.items;
       answers.items = itemsReadAnswer(ITEMS);
       await click(alert?.querySelector('button'));
       expect(fetches.items).toBeGreaterThan(before);
-      expect(words(container)).toContain('There is no item 9999 in this project.');
+      expect(words(container)).toContain('There is no item #9999 in this project.');
     });
   });
 

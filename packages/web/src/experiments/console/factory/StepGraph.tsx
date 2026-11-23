@@ -7,6 +7,7 @@ import {
   type ReactElement,
 } from 'react';
 import { useNavigate } from 'react-router';
+import { displayItemKey } from './lib/item-key';
 import type { StepGraph as StepGraphData, StepGraphNode } from './lib/step-graph';
 import {
   layoutStepGraph,
@@ -60,7 +61,7 @@ export const RUNNING_GLOW: CSSProperties = {
 };
 
 function runningFor(onStep: readonly ItemOnStep[]): string {
-  return `Running for ${onStep.map(({ item }) => item.item.key).join(', ')}`;
+  return `Running for ${onStep.map(({ item }) => displayItemKey(item.item.key)).join(', ')}`;
 }
 
 /**

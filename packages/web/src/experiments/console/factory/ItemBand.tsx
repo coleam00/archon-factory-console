@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
+import { displayItemKey, issueNumber } from './lib/item-key';
 import { GitPullRequest } from 'lucide-react';
 import { SkeletonLine } from '../components/Skeleton';
 import { formatCost } from '../lib/format';
@@ -39,14 +40,17 @@ export function ItemBand({
   workOrder?: boolean;
 }): ReactElement {
   const { item } = detail;
-  const title = item.progress?.title ?? (workOrder ? orderTitle(item.item.key) : item.item.key);
+  const title =
+    item.progress?.title ?? (workOrder ? orderTitle(item.item.key) : displayItemKey(item.item.key));
   const started = item.runs.length > 0;
   return (
     <HeaderBand
       className="lg:col-span-2"
       title={
         <>
-          <span className="mr-2 font-mono text-text-tertiary">#{item.item.key}</span>
+          <span className="mr-2 font-mono text-text-tertiary">
+            #{issueNumber(item.item.key) ?? item.item.key}
+          </span>
           {title}
         </>
       }

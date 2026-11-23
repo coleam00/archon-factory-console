@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { Link } from 'react-router';
 import { RunningDot } from '../components/LiveDot';
 import type { ItemOnStep } from './lib/items-on-step';
@@ -32,7 +33,7 @@ export function RunningItemLinks({
             to={factoryPath(projectId, `/items/${encodeURIComponent(item.item.key)}`)}
             className="shrink-0 font-mono text-accent-bright hover:underline"
           >
-            {item.item.key}
+            {displayItemKey(item.item.key)}
           </Link>
           <span className="min-w-0">
             {item.progress?.title == null ? null : (

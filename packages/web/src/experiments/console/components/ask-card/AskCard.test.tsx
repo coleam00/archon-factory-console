@@ -452,7 +452,7 @@ test('the item key never shrinks or wraps beside a long title; the title truncat
         </MemoryRouter>
       )
     );
-    const key = holding(container, '91').find(el => el.textContent === '91');
+    const key = holding(container, '#91').find(el => el.textContent === '#91');
     if (key === undefined) throw new Error('No key');
     // A wrap class or a shrinkable key splits '91' into '9' over '1' (PR #97 review).
     expect(key.className).not.toContain('overflow-wrap');

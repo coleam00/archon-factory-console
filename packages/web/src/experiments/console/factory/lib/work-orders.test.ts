@@ -81,7 +81,7 @@ describe('the work orders on a board', () => {
     expect(model.positions.has('48')).toBe(false);
     const [order, ...rest] = workOrders(items, model, { '48': ['5', '2', '9'] });
     expect(rest).toEqual([]);
-    expect(order).toMatchObject({ key: '48', title: 'Work order 48', landed: 1 });
+    expect(order).toMatchObject({ key: '48', title: 'Work order #48', landed: 1 });
     expect(order?.members.map(member => [member.key, member.pill, member.where])).toEqual([
       ['5', 'running', 'Build'],
       ['2', 'landed', 'Merged'],
@@ -93,7 +93,7 @@ describe('the work orders on a board', () => {
   test('a member whose order has no other members is an order of one', () => {
     const [order] = ordersOf([namedBy(realItem('5'), '60'), realItem('3')]);
     // 60 is named only by a result: no item row, no members map entry.
-    expect(order).toMatchObject({ key: '60', title: 'Work order 60', landed: 0 });
+    expect(order).toMatchObject({ key: '60', title: 'Work order #60', landed: 0 });
     expect(order?.members.map(member => member.key)).toEqual(['5']);
   });
 
