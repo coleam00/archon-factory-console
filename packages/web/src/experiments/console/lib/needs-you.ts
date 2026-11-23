@@ -63,7 +63,7 @@ export function itemAsks(
 
 /**
  * The factory items waiting on a person with no ask open: their last run completed with an
- * outcome the view declares `awaits` (shaped again, closed by hand). An item that also has an
+ * outcome the view declares `awaits` (for example, an item waiting to be shaped again). An item that also has an
  * open question is not among them: its ask is what needs you, and it is counted once, there.
  * The board's `awaits` pill takes the same items.
  */
