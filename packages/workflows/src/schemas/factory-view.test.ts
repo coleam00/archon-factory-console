@@ -361,6 +361,14 @@ describe('factoryViewSchema', () => {
     ).toEqual(['story.outcomes.deliver:ready', 'story.steps.deliver']);
   });
 
+  test('a story outcome may be worded by whether the item has a change, both words given', () => {
+    const outcomes = { 'plan:*': { withChange: 'Planned its PR', withoutChange: 'Planned' } };
+    expect(factoryViewSchema.safeParse({ ...minimal(), story: { outcomes } }).success).toBe(true);
+    expect(
+      issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': { withChange: 'Planned' } } } })
+    ).toEqual(['story.outcomes.plan:*']);
+  });
+
   test('a story sentence is plain text of at most 160 characters; said points into a result', () => {
     expect(issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': ' ' } } })).toEqual([
       'story.outcomes.plan:*',

@@ -1080,6 +1080,10 @@
     "triage:park": {
       "label": "Parked by triage",
       "why": "/why"
+    },
+    "close:not_closed": {
+      "label": "The forge would not close the PR: close or draft it by hand",
+      "why": "/why"
     }
   },
   "awaits": {
@@ -1093,11 +1097,6 @@
       "label": "Needs shaping",
       "why": "/why",
       "next": "Shape the item with a maintainer, then order it again: a work order, or remove and add the factory label. A comment on the issue does not reach it."
-    },
-    "close:not_closed": {
-      "label": "Carry out your answer by hand",
-      "why": "/why",
-      "next": "On the pull request, do what you answered: close it for drop, or mark it a draft for reshape."
     }
   },
   "change": [
@@ -1312,8 +1311,14 @@
       "landed:*": "The factory checked the branch after the merge",
       "discoveries:*": "The factory looked for other work it noticed",
       "triage:shape": "Triage judged it worth doing, once a maintainer settles its open questions",
-      "close:dropped": "You dropped it; the change was closed without merging",
-      "close:reshape": "You sent it back to shaping; the change stays open as a draft",
+      "close:dropped": {
+        "withChange": "You dropped it; the factory closed the PR without merging",
+        "withoutChange": "You dropped it before a change was proposed"
+      },
+      "close:reshape": {
+        "withChange": "You sent it back to shaping; the PR stays open as a draft",
+        "withoutChange": "You sent it back to shaping before a change was proposed"
+      },
       "close:not_closed": "The factory could not carry out your drop or reshape on the change; do it by hand",
       "close:none": "Drop or reshape found no drop or reshape answer and did nothing"
     },

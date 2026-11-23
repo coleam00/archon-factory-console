@@ -840,8 +840,12 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // pack's bindings decide
   "story": {                                       // the item page's one sentence per stage
     "outcomes": { "triage:build": "Triage judged it worth building",
-                  "landgate:*": "The merge gate read the change" },  // workflow:* takes a run
+                  "landgate:*": "The merge gate read the change",  // workflow:* takes a run
                                                    // with no outcome too, as placement does
+                  "close:dropped": { "withChange": "You dropped it; the factory closed the PR",
+                                     "withoutChange": "You dropped it before a change was proposed" } },
+                                                   // or words chosen by whether the item has
+                                                   // a change
     "steps": { "deliver": { "build__build": "Build wrote the change" } },  // an earlier stage
                                                    // of a run that works several, by the step
                                                    // that starts it
@@ -1224,7 +1228,11 @@ first rule that matches. The board, the map and the item page all place through 
    itself, never one wildcard over outcomes that mean different things (#100). A `parked` or
    `awaits` outcome is no ending: rule 3 places it (for this pack, triage's park and shape and
    close's reshape in Triage, in the Intake column; close's not_closed in Ready to merge), and the
-   item counts as open. Close's `dropped` is the ending "Dropped by you".
+   item counts as open. Close's `dropped` is the ending "Dropped by you". Close's `not_closed` (the
+   forge would not close or draft the PR) is `parked`, not `awaits`: once a person closes or
+   drafts it by hand nothing the console reads would see that, so it must not count in Need you
+   with no way out; its label says what to do ("The forge would not close the PR: close or draft
+   it by hand").
 5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
@@ -1232,8 +1240,7 @@ first rule that matches. The board, the map and the item page all place through 
 A card, in this order:
 
 1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
-   **Failed**, the declared label of an `awaits` outcome ("Needs shaping", "Carry out your
-   answer by hand": its last run left it waiting on a person with no ask open; soft, rule 5),
+   **Failed**, the declared label of an `awaits` outcome ("Needs shaping": its last run left it waiting on a person with no ask open; soft, rule 5),
    **Parked** (its last run kept it open for later: a declared `parked` outcome),
    **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the declared run input's title line: the first non-empty line after any `---`

@@ -49,10 +49,16 @@ function oneRun(workflow: string, run: Partial<ItemRun>): FactoryItemDetail {
   return base;
 }
 
-/** The view's own sentence for a completed outcome: exact, else `workflow:*`. */
-const told = (workflow: string, outcome: string | null): string | undefined =>
-  (outcome === null ? undefined : shippedView.story?.outcomes[`${workflow}:${outcome}`]) ??
-  shippedView.story?.outcomes[`${workflow}:*`];
+/**
+ * The view's own sentence for a completed outcome: exact, else `workflow:*`; for one worded by
+ * whether the item has a change, its no-change words, since item 86 (`oneRun`'s base) has none.
+ */
+const told = (workflow: string, outcome: string | null): string | undefined => {
+  const entry =
+    (outcome === null ? undefined : shippedView.story?.outcomes[`${workflow}:${outcome}`]) ??
+    shippedView.story?.outcomes[`${workflow}:*`];
+  return typeof entry === 'object' ? entry.withoutChange : entry;
+};
 
 /** Each workflow the page tells, by its name in the view, with the outcomes the pack declares. */
 const WORKFLOWS = [
@@ -64,6 +70,44 @@ const WORKFLOWS = [
   const stage = graph.stages.find(entry => entry.name === `${shippedView.pack}:${workflow}`);
   return { workflow, outcomes: stage?.outcome?.values.map(entry => entry.value) ?? [] };
 });
+
+describe('an outcome worded by whether the item has a change', () => {
+  const sentence = (workflow: string, outcome: string, change: boolean): string | undefined => {
+    const detail = oneRun(workflow, { outcome });
+    const progress = detail.item.progress;
+    if (progress === null) throw new Error('item 86 has progress');
+    if (change)
+      progress.change = {
+        url: 'https://github.com/o/r/pull/9',
+        merged: false,
+        mergedAt: null,
+        number: 9,
+      };
+    const [panel] = story(detail);
+    return panel?.kind === 'stage' ? panel.sentence.text : undefined;
+  };
+
+  test('a drop or reshape names the PR only when the item had one', () => {
+    expect(progressOf86().change).toBeNull();
+    expect(sentence('close', 'dropped', false)).toBe('You dropped it before a change was proposed');
+    expect(sentence('close', 'dropped', true)).toStartWith(
+      'You dropped it; the factory closed the PR without merging'
+    );
+    expect(sentence('close', 'reshape', false)).toBe(
+      'You sent it back to shaping before a change was proposed'
+    );
+    expect(sentence('close', 'reshape', true)).toStartWith(
+      'You sent it back to shaping; the PR stays open as a draft'
+    );
+  });
+});
+
+/** Item 86's own progress, which `oneRun` starts from. */
+function progressOf86(): NonNullable<FactoryItemDetail['item']['progress']> {
+  const progress = itemDetail('86').item.progress;
+  if (progress === null) throw new Error('item 86 has progress');
+  return progress;
+}
 
 describe('one plain sentence per outcome', () => {
   test('the page tells every workflow the item page meets', () => {

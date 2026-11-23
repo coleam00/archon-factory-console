@@ -11923,7 +11923,12 @@ export interface components {
           };
           story?: {
             outcomes: {
-              [key: string]: string;
+              [key: string]:
+                | string
+                | {
+                    withChange: string;
+                    withoutChange: string;
+                  };
             };
             steps?: {
               [key: string]: {

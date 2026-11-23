@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { formatDateTime } from '../../lib/format';
 import { askItem } from '../../lib/needs-you.test-fixtures';
+import { needsYouCount } from '../../lib/needs-you';
 import {
   boardModel,
   cardFields,
@@ -478,16 +479,24 @@ describe('grouped columns', () => {
     expect(card(asking).pill).toBe('needs-you');
   });
 
-  test('close: dropped ends the item, reshape waits in Intake, not closed and none wait in Ready to merge', () => {
+  test('close: dropped ends the item, reshape waits in Intake, not closed is parked and none waits in Ready to merge', () => {
     const shaped = declaredAwaits('close:reshape', null, []);
-    const byHand = declaredAwaits('close:not_closed', 'The forge refused.', []);
+    // The server reads a declared `parked` outcome so: its label, and the run's why.
+    const notClosed = lastRunAs('c3', 'close', 'not_closed');
+    const parked = VIEW.parked?.['close:not_closed'];
+    if (parked === undefined || notClosed.progress === null)
+      throw new Error('the shipped view parks close:not_closed');
+    notClosed.progress = {
+      ...notClosed.progress,
+      parked: { label: parked.label, why: 'The forge refused.' },
+    };
     const model = boardModel(
       VIEW,
       PROJECT,
       [
         lastRunAs('c1', 'close', 'dropped'),
         lastRunAs('c2', 'close', 'reshape', shaped),
-        lastRunAs('c3', 'close', 'not_closed', byHand),
+        notClosed,
         lastRunAs('c4', 'close', 'none'),
       ],
       new Map()
@@ -502,10 +511,11 @@ describe('grouped columns', () => {
           .map(placed => [column.id, placed.card.stage, placed.card.pill, placed.card.pillLabel])
       );
     expect(where('c2')).toEqual([['intake', 'Triage', 'awaits', 'Needs shaping']]);
-    // close emits not_closed for a failed drop and a failed reshape alike: the words fit both.
-    expect(where('c3')).toEqual([
-      ['ready', 'Ready to merge', 'awaits', 'Carry out your answer by hand'],
-    ]);
+    // Nothing the console reads sees a PR closed by hand, so not_closed is parked, not waiting
+    // on you: it stays in Ready to merge with its words, and Needs you does not count it.
+    expect(where('c3')).toEqual([['ready', 'Ready to merge', 'parked', 'Parked']]);
+    expect(parked.label).toBe('The forge would not close the PR: close or draft it by hand');
+    expect(needsYouCount({ items: [] }, [notClosed])).toBe(0);
     expect(where('c4')).toEqual([['ready', 'Ready to merge', 'waiting', 'Waiting']]);
   });
 

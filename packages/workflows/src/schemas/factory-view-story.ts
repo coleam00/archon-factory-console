@@ -7,7 +7,7 @@
 interface StoryView {
   stages: readonly { workflows: readonly string[] }[];
   discoveries?: { workflow: string };
-  story?: { outcomes: Record<string, string>; steps?: Record<string, unknown> };
+  story?: { outcomes: Record<string, unknown>; steps?: Record<string, unknown> };
 }
 
 export function storyReferenceIssues(

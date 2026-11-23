@@ -301,13 +301,21 @@ const sentenceSchema = z.string().trim().min(1).max(160);
 /**
  * The item page's story, one plain sentence per run. `outcomes`: by `workflow:outcome`, or
  * `workflow:*` for every completed run no exact key takes, one with no outcome included (as in
- * `placement`). `steps`: the earlier stages of a run that works several, by the step each
- * starts on. `said`: pointers, in order, to what a run's result says in its own words. A
+ * `placement`); a sentence there may instead be `{ withChange, withoutChange }`, chosen by
+ * whether the item has a change, for an outcome a run records alike with and without one (a
+ * drop answered before any pull request). `steps`: the earlier stages of a run that works
+ * several, by the step each starts on. `said`: pointers, in order, to what a run's result says in its own words. A
  * sentence is static text; a console adds only its own clauses (the pull request, why it was
  * sent back, what you answered). Checked by `storyReferenceIssues` and the coverage check.
  */
 const storySchema = z.strictObject({
-  outcomes: z.record(outcomeKeySchema, sentenceSchema),
+  outcomes: z.record(
+    outcomeKeySchema,
+    z.union([
+      sentenceSchema,
+      z.strictObject({ withChange: sentenceSchema, withoutChange: sentenceSchema }),
+    ])
+  ),
   steps: z.record(workflowNameSchema, z.record(stepIdSchema, sentenceSchema)).optional(),
   said: z.array(jsonPointerSchema).min(1).optional(),
 });
@@ -387,7 +395,7 @@ const factoryViewShape = z.strictObject({
     .optional(),
   /**
    * Completed outcomes after which the item is open and waits on a person, though no ask is
-   * open (`workflow:outcome`, or `workflow:*`): shaped again, closed by hand. A console shows
+   * open (`workflow:outcome`, or `workflow:*`): shaped again, say. A console shows
    * it in the needs-you colour and counts it among what needs you. `label` words it ("Needs
    * shaping"); `why` and `questions`, when given, point at the run's reason and at the list of
    * what the person has to settle in its result; `next`, when given, is one plain sentence
