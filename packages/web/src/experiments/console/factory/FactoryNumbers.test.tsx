@@ -1,4 +1,4 @@
-import { afterAll, afterEach, expect, jest, test } from 'bun:test';
+import { afterAll, afterEach, beforeEach, expect, jest, setSystemTime, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
@@ -6,10 +6,20 @@ import type { FactoryItem } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FactoryNumbers } from './FactoryNumbers';
-import { PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
+import { FIXTURE_NOW, PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads, MERGE_REREAD_MS, scheduleReread } from './merge-reread';
 import { cancelMergeWatches, MERGE_WATCH_MS, mergeWatchHeld } from './merge-watch';
+
+// The board sets aside items idle past a line counted from now, so the fixtures' items are read
+// at the time they were copied, never at the day the test runs. Before each test: the
+// `jest.useRealTimers()` after each puts the real clock back.
+beforeEach(() => {
+  setSystemTime(FIXTURE_NOW);
+});
+afterAll(() => {
+  setSystemTime();
+});
 
 // A failed read lands after the first render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -205,6 +215,7 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
   );
   // The watch's interval is the only clock here: nothing invalidates the key.
   jest.useFakeTimers();
+  setSystemTime(FIXTURE_NOW);
   const items = [...PAGE.items, waiting];
   const { tile, unmount } = await mount('cb-watch', items);
   try {

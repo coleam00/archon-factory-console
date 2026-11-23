@@ -128,13 +128,13 @@ function sameLocalDay(iso: string, now: Date): boolean {
 export const waitsOnYou = (pill: Pill): boolean => pill === 'needs-you' || pill === 'awaits';
 
 /**
- * Whether the show `show` keeps `placed`. In flight: on the board, outside the landed stage,
- * not parked (open, but nothing works it until someone takes it up), and its merge state
- * known. Needs you: its pill says so, an item waiting on you with no ask (`awaits`) included.
+ * Whether the show `show` keeps `placed`, a card in a column (`boardModel` sets aside the
+ * items with nothing left to happen, so a parked card in a column is one a start waits for).
+ * In flight: outside the landed stage, its merge state known. Needs you: its pill says so, an item waiting on you with no ask (`awaits`) included.
  * Landed, and the median's: in the landed stage, its merge state known. Landed today: landed,
  * its change merged on `now`'s local day. Landed of all: anywhere on the board (the M of "N of
- * M"). Found narrows nothing (`filterBoard` never asks). An item an ending took off the board,
- * or one placement found no column for, is in none. An item whose merge state is not known
+ * M"). Found narrows nothing (`filterBoard` never asks). An item placement found no column
+ * for is in none. An item whose merge state is not known
  * (`mergeUnsettled`) is in no show that says what merged or what is in flight, as either might
  * be wrong. Unknown: on the board, its merge state could not be read (`mergeUnknown`), the set
  * the Overview's line names.
@@ -151,7 +151,7 @@ export function showsCard(
   const landed = column.stage.id === landedStage && !unsettled;
   switch (show) {
     case 'in-flight':
-      return column.stage.id !== landedStage && !unsettled && card.pill !== 'parked';
+      return column.stage.id !== landedStage && !unsettled;
     case 'needs-you':
       return waitsOnYou(card.pill);
     case 'landed':

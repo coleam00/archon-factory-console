@@ -29,6 +29,21 @@ export const VIEW = read(
   )
 ) as FactoryDeclaration;
 
+/**
+ * Item 114 exactly as the board read it on 2026-11-23 from a copy of the live database: its
+ * deliver run ended `ask` at 2026-11-20 21:38:49 UTC, the ask was answered take-as-is and
+ * started nothing, and it never opened a pull request (its change reads `unknown`, no URL).
+ */
+export const ITEM_114 = withLaterFields(
+  (read(join(import.meta.dir, '__fixtures__', 'item-114.json')) as { item: unknown }).item
+) as FactoryItem;
+
+/**
+ * The time a test reads the fixture board at: the day after the copy's last run ended, so the
+ * set-aside idle rule (`SET_ASIDE_IDLE_MS`) takes none of its items unless a test ages one.
+ */
+export const FIXTURE_NOW = new Date(2026, 10, 18, 12, 0);
+
 /** A real item by key, deep-copied so a test can edit it. */
 export function realItem(key: string): FactoryItem {
   const found = PAGE.items.find(entry => entry.item.key === key);
@@ -198,4 +213,32 @@ export function readyWithMerge(
   item.item = { ...item.item, key };
   item.progress = { ...progress, change: { ...progress.change, merged, mergedAt: null } };
   return item;
+}
+
+/** A start queued for an item, as the items read carries one waiting for its turn. */
+export function queuedStart(): FactoryItem['queued'][number] {
+  return {
+    requestId: 'request-1',
+    workflow: 'plan',
+    resource: 'item',
+    hostId: 'host-1',
+    queuedAt: '2026-11-18T11:00:00.000Z',
+    ahead: 0,
+    heldBehind: null,
+    waitsForRunLimit: false,
+  };
+}
+
+/** The item with every run ended at `completedAt`, as an item last worked then reads. */
+export function endedAt(item: FactoryItem, completedAt: string): FactoryItem {
+  return { ...item, runs: item.runs.map(run => ({ ...run, completedAt })) };
+}
+
+/**
+ * Real item 6 cut to its triage run, keyed `key`, triage sending it to Plan and nothing run
+ * since `completedAt`: a Waiting card in Plan that never proposed a change.
+ */
+export function idleInPlan(key: string, completedAt: string): FactoryItem {
+  const item = endedAt(endLastRun(keepRuns(realItem('6'), 1), 'completed', 'build'), completedAt);
+  return { ...item, item: { ...item.item, key }, progress: { ...progressOf(item), change: null } };
 }

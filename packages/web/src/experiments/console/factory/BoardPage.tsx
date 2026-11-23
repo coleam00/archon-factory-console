@@ -9,12 +9,14 @@ import { BoardSkeleton } from './BoardSkeleton';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
 import { BoardToolbar } from './BoardToolbar';
-import { EndedRows } from './EndedRows';
 import { StaleRead } from './StaleRead';
 import { useFactoryItemsRead } from './useFactoryItems';
 import { WorkOrdersStrip } from './WorkOrdersStrip';
 import { FactoryFrame } from './FactoryFrame';
 import { FoundByTheFactory } from './FoundByTheFactory';
+import { SetAsideStrip } from './SetAsideStrip';
+import { UnplacedRow } from './UnplacedRow';
+import { useMinuteClock } from './useMinuteClock';
 import {
   boardModel,
   filterBoard,
@@ -85,7 +87,10 @@ export function Board({
   view: FactoryDeclaration;
   /** The project's attention queue, the one read Needs you draws: each card's asks come from it. */
   attention: EntityView<AttentionQueue>;
-  /** The time the Merged column's window counts back from; the clock at render when absent. */
+  /**
+   * The time the Merged column's window and the set-aside rule count back from; the minute
+   * clock when absent.
+   */
   now?: Date;
 }): ReactElement {
   const read = useFactoryItemsRead(projectId);
@@ -98,9 +103,12 @@ export function Board({
   // Where each item sat on the last read: placement keeps a run between named steps where
   // it was, and the highlight compares against it.
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
+  const clock = useMinuteClock();
+  const at = now ?? clock;
   const all = useMemo(
-    () => (items === undefined ? undefined : boardModel(view, projectId, items, previous.current)),
-    [view, projectId, items]
+    () =>
+      items === undefined ? undefined : boardModel(view, projectId, items, previous.current, at),
+    [view, projectId, items, at]
   );
   // From the unfiltered board, so the filter box never changes an order's count.
   const orders = useMemo(
@@ -112,8 +120,8 @@ export function Board({
   );
   const moved = useMovedCards(all?.positions, previous);
   const shown = useMemo(
-    () => (all === undefined ? undefined : filterBoard(all, query, show)),
-    [all, query, show]
+    () => (all === undefined ? undefined : filterBoard(all, query, show, at)),
+    [all, query, show, at]
   );
   const asks = useBoardAsks({ all, shown, queue: attention.data, declaration: view });
   const names = useMemo(() => itemNames(items), [items]);
@@ -138,12 +146,14 @@ export function Board({
         onClearShow={clearShow}
       >
         {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
-            height: the work orders' summary, the folded endings, the hidden-columns hint. */}
+            height: the work orders' summary, the Position unknown row, the hidden-columns hint. */}
         {table ? null : (
           <>
             <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
             <span className="flex flex-wrap items-center gap-3 md:ml-auto">
-              {shown === undefined ? null : <EndedRows projectId={projectId} ended={shown.ended} />}
+              {shown === undefined ? null : (
+                <UnplacedRow projectId={projectId} cards={shown.unplaced} />
+              )}
               {hint === null ? null : (
                 // Only where the columns sit side by side: on a phone they stack and none is hidden.
                 <span
@@ -170,25 +180,32 @@ export function Board({
         orders={orders}
         lit={lit}
         onHint={setHint}
-        now={now ?? new Date()}
+        now={at}
         // filterBoard returns its input unchanged when nothing narrows it, so this is its own
         // answer to "is the board narrowed", not a second copy of that condition.
         filtered={shown !== all}
         asks={asks}
       />
       <BoardAskPopover projectId={projectId} board={asks} queue={attention.data} naming={naming} />
-      {view.discoveries === undefined ? null : (
-        // Never shrunk by the board's fill height: the panel's own lines and link stay whole.
-        <div className="shrink-0">
-          <FoundByTheFactory
-            projectId={projectId}
-            names={names}
-            above={shown !== undefined}
-            oneLine
-            opened={spec?.panel === true}
-          />
-        </div>
-      )}
+      {/* Never shrunk by the board's fill height: the panels' own lines and links stay whole. */}
+      <div className="flex shrink-0 flex-col gap-2 md:flex-row md:items-start md:gap-3">
+        {view.discoveries === undefined ? null : (
+          <div className="min-w-0 md:flex-1">
+            <FoundByTheFactory
+              projectId={projectId}
+              names={names}
+              above={shown !== undefined}
+              oneLine
+              opened={spec?.panel === true}
+            />
+          </div>
+        )}
+        {shown === undefined || shown.setAside.length === 0 ? null : (
+          <div className="min-w-0 md:flex-1">
+            <SetAsideStrip projectId={projectId} entries={shown.setAside} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -13,7 +13,7 @@ export interface FactoryNumbers {
   landedToday: number;
   /** N of "N of M merged". */
   landed: number;
-  /** M of "N of M merged": every item on the board; items an ending took off it are not. */
+  /** M of "N of M merged": every item on the board; the items set aside are not. */
   total: number;
   /** Median from an item's first declared run to its change merging; null when none landed. */
   medianToLandMs: number | null;

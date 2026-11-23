@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
@@ -8,9 +8,18 @@ import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from '../skills/factory';
-import { needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
+import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { askItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
+
+// The board sets aside items idle past a line counted from now, so the fixtures' items are read
+// at the time they were copied, never at the day the test runs.
+beforeAll(() => {
+  setSystemTime(FIXTURE_NOW);
+});
+afterAll(() => {
+  setSystemTime();
+});
 
 const ID = 'cb-1';
 

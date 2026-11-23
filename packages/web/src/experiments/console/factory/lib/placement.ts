@@ -76,6 +76,12 @@ export function pageRunFacts(progress: NonNullable<FactoryItem['progress']>): Ru
 export type ItemColumn = { stage: FactoryStage } | { ended: string };
 
 /**
+ * What the board, the Table and a work order's member say for an item placement found no
+ * column for (`null`); the item page says the same.
+ */
+export const UNPLACED_LABEL = 'Position unknown';
+
+/**
  * The stage of `workflow` that names `step` among its declared `nodes`; undefined when none
  * does. A stage without `nodes` holds every step of its workflow (`stepInStage`), so it is
  * not counted as naming one here: it is the fallback `stageOfWorkflow` picks.

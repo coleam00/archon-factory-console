@@ -3,6 +3,7 @@ import { ensureUtc } from '../../lib/format';
 import { displayItemKey } from './item-key';
 import { PILL_LABEL, stageIdOf, type BoardModel, type Pill, type PlacedCard } from './board';
 import type { TableMark } from './board-show';
+import { UNPLACED_LABEL } from './placement';
 
 export const TABLE_COLUMNS = [
   { id: 'key', label: 'Item' },
@@ -22,12 +23,12 @@ export type TableColumnId = (typeof TABLE_COLUMNS)[number]['id'];
 
 export interface TableRow {
   placed: PlacedCard;
-  /** The column's label, or the ending's for an item the board folded away. */
+  /** The column's label, or `UNPLACED_LABEL` for an item placement found no column for. */
   column: string;
-  /** Left to right on the board; folded items after every column. */
+  /** Left to right on the board; unplaced items after every column. */
   columnOrder: number;
   /**
-   * The stage its board card names: null for a folded item, which is in none, and for a merged
+   * The stage its board card names: null for an unplaced item, which is in none, and for a merged
    * one, whose Column and State already say so (`cardFields` leaves its card's stage empty).
    */
   stage: string | null;
@@ -40,7 +41,10 @@ export interface TableSort {
   descending: boolean;
 }
 
-/** Every row the board shows, columns first in board order, then the folded endings. */
+/**
+ * Every row the board shows, columns first in board order, then the items placement found no
+ * column for. The items set aside are no rows, as they are in no column.
+ */
 export function tableRows(model: BoardModel): TableRow[] {
   const stages = model.columns.flatMap(column => column.stages);
   const placed = model.columns.flatMap((column, order) =>
@@ -55,16 +59,14 @@ export function tableRows(model: BoardModel): TableRow[] {
       };
     })
   );
-  const ended = model.ended.flatMap(group =>
-    group.cards.map(card => ({
-      placed: card,
-      column: group.label,
-      columnOrder: model.columns.length,
-      stage: null,
-      stageOrder: stages.length,
-    }))
-  );
-  return [...placed, ...ended];
+  const unplaced = model.unplaced.map(card => ({
+    placed: card,
+    column: UNPLACED_LABEL,
+    columnOrder: model.columns.length,
+    stage: null,
+    stageOrder: stages.length,
+  }));
+  return [...placed, ...unplaced];
 }
 
 const ms = (iso: string): number => new Date(ensureUtc(iso)).getTime();

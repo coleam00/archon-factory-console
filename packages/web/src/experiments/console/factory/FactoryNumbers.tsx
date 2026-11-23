@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
+import { useMemo, type ReactElement, type ReactNode } from 'react';
 import {
   Activity,
   CircleCheck,
@@ -23,20 +23,7 @@ import { SkeletonFigure } from '../components/Skeleton';
 import { StaleRead } from './StaleRead';
 import { openFindings } from './lib/discoveries';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
-
-/** "Merged today" turns over at midnight without a reload. */
-function useMinuteClock(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNow(new Date());
-    }, 60_000);
-    return (): void => {
-      clearInterval(timer);
-    };
-  }, []);
-  return now;
-}
+import { useMinuteClock } from './useMinuteClock';
 
 /**
  * A tile whose items are not read shows a skeleton bar (rule 6), never a wrong count and
@@ -133,7 +120,7 @@ export function FactoryNumbers({
     () =>
       items.data === undefined
         ? undefined
-        : factoryNumbers(boardModel(view, projectId, items.data, new Map()), now),
+        : factoryNumbers(boardModel(view, projectId, items.data, new Map(), now), now),
     [view, projectId, items.data, now]
   );
   const failed = readFailed(items.error);

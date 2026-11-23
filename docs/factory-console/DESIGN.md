@@ -803,7 +803,8 @@ present itself without the console knowing it. Shape (validated with zod in
   "parked": { "triage:park": { "label": "Parked by triage", "why": "/why" } },
                                                    // outcomes that keep an item open for later:
                                                    // placed (placement must take each), never
-                                                   // ended; `why` points at the run's reason
+                                                   // ended, set aside on the board while no
+                                                   // start waits; `why` points at the run's reason
   "awaits": { "triage:shape": { "label": "Needs shaping", "why": "/why",
                                 "questions": "/open_questions",
                                 "next": "Settle these questions, then order it again." } },
@@ -1027,11 +1028,13 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 ## Overview page
 
 1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
-2. **Numbers strip:** items in flight (on the board, not merged and not parked), need you (the
+2. **Numbers strip:** items in flight (in a board column, not merged; the items set aside are
+   not, see The board, Set aside), need you (the
    Needs you tab's count, `needsYouCount`: asks and waits, and the items waiting on you with no
    ask open; linking there), merged today, merged in total ("N of
-   M merged", M every item on the board: not the items an ending took off it, but a parked item,
-   which is open), median time from first run to merged ("median to merged"). Each tile is a
+   M merged", M every item in a board column: not the items set aside, whether an ending took
+   them off the board, they are parked or they sat idle), median time from first run to merged
+   ("median to merged"). Each tile is a
    number tile in the card language: a 16 px icon and its label in the Label role, then the
    figure at `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
    (Visual standard, rule 6) in place of its figure. An item whose merge state is not known
@@ -1231,26 +1234,59 @@ first rule that matches. The board, the map and the item page all place through 
    read keeps it there while its merge state is pending or unknown.
 3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
    also places a run that returns no outcome, such as the pack's `landgate`): that stage.
-4. Its last run's outcome is in `endings`: not on the board; counted in a folded row per ending
-   label ("N closed by triage", "N folded into another item") at the end of the board's toolbar,
-   each opening a list over the board, each linking to its item. The view maps each outcome by
+4. Its last run's outcome is in `endings`: not on the board; set aside (see Set aside below),
+   its ending label saying why ("Closed by triage", "Folded into another item"), each linking
+   to its item. The view maps each outcome by
    itself, never one wildcard over outcomes that mean different things (#100). A `parked` or
    `awaits` outcome is no ending: rule 3 places it (for this pack, triage's park and shape and
    close's reshape in Triage, in the Intake column; close's not_closed in Ready to merge), and the
-   item counts as open. Close's `dropped` is the ending "Dropped by you". Close's `not_closed` (the
+   item counts as open (its item page and Needs you treat it so; the board sets a parked one
+   aside). Close's `dropped` is the ending "Dropped by you". Close's `not_closed` (the
    forge would not close or draft the PR) is `parked`, not `awaits`: once a person closes or
    drafts it by hand nothing the console reads would see that, so it must not count in Need you
    with no way out; its label says what to do ("The forge would not close the PR: close or draft
-   it by hand").
+   it by hand"), which the Set aside list shows as its why.
 5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
+
+**Set aside** (#145). The columns hold live work. An item with nothing left to happen leaves
+its column, counts in no column header, chip, In flight or M, and is no Table row; it folds
+into one line under the board, beside "Found by the factory", in both views: "N set aside ·
+show them" (the card language's one-line form, as Found's), and "show them" opens a short
+list over the board, above the line, scrolling in its own height so the columns keep theirs
+(as the toolbar's Position unknown row opens over them): each item's key
+(linking to its page), title, why it was set aside and when its last run ended. An item is set
+aside when the first of these holds:
+
+- an ending took it off the board (rule 4): its ending label is the why;
+- otherwise, it is in a stage other than the landed one, its progress was read, and every run
+  of it has ended (none running, pending or paused), it has no open ask, it does not wait on you (an `awaits` outcome: Needs you counts
+  it, so the board shows it), and no start is queued or held for it; and then either
+  - its last run ended in a declared `parked` outcome: its `parked` label is the why, the run's
+    reason on hover; or
+  - its last run ended strictly more than 3 days ago and it never proposed a change, or its
+    change's merge state could not be read (`unknown`, settled): "No change was proposed" or
+    "Its merge state could not be read", after the stop line when that run failed ("Build
+    failed at Writes the change; no change was proposed").
+
+"Its last run" is the latest end of its runs; an item with no run, or with one not ended, has
+none and is never set aside by the idle rule. The board reads the 3-day line on a clock that
+ticks once a minute, so an item crosses it without a reload. It is computed from the current
+read every time, nothing stored: a new run, an answer that starts one or a new order brings
+the item back to its column at once. Placement is unchanged (the item page and the map still
+say where it sits), and an item set aside keeps its position, so one that comes back does not
+light as moved. The words are "Set aside", never archived or deleted: nothing is written to the
+engine. An item placement found no column for (a view changed under cached items can cause
+it) is not set aside: it keeps a folded "N position unknown" row at the end of the toolbar,
+opening a list over the board.
 
 A card, in this order:
 
 1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
    **Failed**, the declared label of an `awaits` outcome ("Needs shaping": its last run left it waiting on a person with no ask open; soft, rule 5),
-   **Parked** (its last run kept it open for later: a declared `parked` outcome),
+   **Parked** (its last run kept it open for later: a declared `parked` outcome; it shows in a
+   column only while a start waits for it, else it is set aside),
    **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the declared run input's title line: the first non-empty line after any `---`
    front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines;
@@ -1311,12 +1347,12 @@ matches only older merges), else rule 9's "Nothing in <column> now".
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
 columns, at the end of the toolbar. The Pipeline's toolbar (the filter box, Pipeline/Table, a
-`?show=` chip, the work orders' summary, the folded endings, the hint) is one line at 1440x900.
+`?show=` chip, the work orders' summary, the Position unknown row, the hint) is one line at 1440x900.
 At 1280x720 it is one line on a board with no lit work order and no `?show=` chip; a lit work
-order or a `?show=` chip can push its last parts (the folded endings, the hint) to a second
+order or a `?show=` chip can push its last parts (the Position unknown row, the hint) to a second
 line, and the columns still hold one full card. On a phone it wraps. The
 columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
-row per item with the same fields as columns, a Work order, a Column and a Stage column among
+row per item in a column (the items set aside are no rows) with the same fields as columns, a Work order, a Column and a Stage column among
 them (a running item's step and round under its stage, as the card's stage line reads; a merged
 item's Stage empty, as its card names no stage; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter

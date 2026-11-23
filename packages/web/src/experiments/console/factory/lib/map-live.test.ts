@@ -5,7 +5,7 @@ import { stageLive } from './map-live';
 import { itemWith, itemWithoutProgress, realItem, run } from './map.test-fixtures';
 import { shippedView } from '../item-detail.test-fixtures';
 import { boardModel } from './board';
-import { needsShaping } from './board.test-fixtures';
+import { FIXTURE_NOW, needsShaping } from './board.test-fixtures';
 
 const view = shippedView;
 
@@ -180,7 +180,7 @@ describe('the map and the board', () => {
         ['nostep', 'checks'],
       ]),
     ]) {
-      const board = boardModel(view, 'cb-1', items, previous).positions;
+      const board = boardModel(view, 'cb-1', items, previous, FIXTURE_NOW).positions;
       const map = stageLive(view, items, [], previous).positions;
       for (const item of items) expect(map.get(item.item.key)).toBe(board.get(item.item.key));
     }
