@@ -385,8 +385,8 @@ describe('the item page', () => {
     ];
     const html = render({ ...detail, item: { ...detail.item, links } });
     const words = text(html);
-    expect(words).toContain('Depends on 4');
-    expect(words).toContain('Has part 9 ended');
+    expect(words).toContain('Depends on #4');
+    expect(words).toContain('Has part #9 ended');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/4"`);
   });
 });
@@ -417,7 +417,7 @@ describe('work orders on the item page', () => {
     const item = { ...detail.item, progress: { ...detail.item.progress!, partOf: '48' } };
     itemsRead([item]);
     const html = render({ ...detail, item });
-    expect(text(html)).toContain('Part of 48 as its order run recorded');
+    expect(text(html)).toContain('Part of #48 as its order run recorded');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/48"`);
     expect(text(html)).not.toContain('No links to other items.');
   });
@@ -437,8 +437,8 @@ describe('work orders on the item page', () => {
     itemsRead([order.item, partOf(itemDetail('3').item, '1')], { '1': ['3'] });
     const words = text(render(order));
     expect(words).toContain('Members: 0 of 1 merged');
-    expect(words).toContain('Has part 9');
-    expect(words).not.toContain('Has part 3');
+    expect(words).toContain('Has part #9');
+    expect(words).not.toContain('Has part #3');
     expect(words).toMatch(/3 [^<]*Waiting Build/);
     // Its own column and state still show: it is worked by the factory.
     expect(words).not.toContain(WORK_ORDER_WORDS);
@@ -462,7 +462,7 @@ describe('work orders on the item page', () => {
     const html = render(detail);
     const words = text(html);
     expect(words).toContain(WORK_ORDER_WORDS);
-    expect(text(section(html, 'Summary')).trim()).toBe(`#48 Work order 48 ${WORK_ORDER_WORDS}`);
+    expect(text(section(html, 'Summary')).trim()).toBe(`#48 Work order #48 ${WORK_ORDER_WORDS}`);
     expect(words).toContain('Members: 0 of 1 merged');
   });
 
@@ -510,8 +510,8 @@ describe('work orders on the item page', () => {
     };
     itemsRead([]);
     const html = render(detail);
-    expect(text(section(html, 'Summary')).trim()).toBe('#58 58 Not started');
-    expect(text(html)).toContain('Part of 48');
+    expect(text(section(html, 'Summary')).trim()).toBe('#58 #58 Not started');
+    expect(text(html)).toContain('Part of #48');
   });
 
   test('an order whose members have not started: its members from its own links, N of M merged', () => {
@@ -544,8 +544,50 @@ describe('work orders on the item page', () => {
     expect(words).toContain('Members: 0 of 2 merged');
     expect(words.match(/Not started/g)).toHaveLength(2);
     // The live links stand as the members; an ended one is no member and stays a raw link.
-    expect(words).not.toContain('Has part 9');
-    expect(words).toContain('Has part 11 ended');
+    expect(words).not.toContain('Has part #9');
+    expect(words).toContain('Has part #11 ended');
+  });
+
+  test('an untitled member keyed `issue-N` reads #N once, on the board or not started', () => {
+    const base = itemDetail('1');
+    const incoming = (key: string) => ({
+      id: `link-${key}`,
+      kind: 'part_of' as const,
+      direction: 'incoming' as const,
+      other: { id: `item-${key}`, projectKey: base.item.item.projectKey, key },
+      ...act,
+      ended: null,
+    });
+    const detail: FactoryItemDetail = {
+      ...base,
+      runs: [],
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-48', key: '48' },
+        runs: [],
+        questions: [],
+        answers: [],
+        progress: { ...base.item.progress!, title: null, round: null, change: null, runs: [] },
+        links: [incoming('issue-3'), incoming('issue-9')],
+      },
+    };
+    // issue-3 has runs, so it is on the board, untitled; issue-9 has not started.
+    const three = partOf(itemDetail('3').item, '48');
+    const placed = {
+      ...three,
+      item: { ...three.item, key: 'issue-3' },
+      progress: { ...three.progress!, title: null },
+    };
+    itemsRead([placed], { '48': ['issue-3', 'issue-9'] });
+    const html = render(detail);
+    const words = text(html);
+    expect(words).toContain('#3');
+    expect(words).toContain('#9');
+    expect(words).not.toContain('#3 #3');
+    expect(words).not.toContain('#9 #9');
+    expect(words).not.toContain('issue-');
+    expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/issue-3"`);
+    expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/issue-9"`);
   });
 
   test('an order with no run of its own says so from its own links, before the items read', () => {
@@ -573,5 +615,33 @@ describe('work orders on the item page', () => {
     const words = text(render(detail));
     expect(words).toContain(WORK_ORDER_WORDS);
     expect(words).not.toContain('In Order');
+  });
+});
+
+describe('an issue key on the item page', () => {
+  /** Item 111, keyed `key`; untitled when `title` is null. */
+  const keyed = (key: string, title?: null): FactoryItemDetail => {
+    const base = itemDetail('111');
+    const progress = title === null ? { ...base.item.progress!, title } : base.item.progress;
+    return { ...base, item: { ...base.item, item: { ...base.item.item, key }, progress } };
+  };
+  /** The band's mono key, the first thing its title reads. */
+  const bandKey = (html: string): string | undefined =>
+    /<span class="mr-2 font-mono text-text-tertiary">([^<]*)<\/span>/.exec(
+      section(html, 'Summary')
+    )?.[1];
+
+  test('`issue-7` and `7` both title the page #7; an untitled one falls back to #7 too', () => {
+    for (const key of ['issue-7', '7']) {
+      expect(bandKey(render(keyed(key)))).toBe('#7');
+      const untitled = render(keyed(key, null));
+      expect(bandKey(untitled)).toBe('#7');
+      expect(text(section(untitled, 'Summary'))).toContain('#7 #7');
+      expect(text(untitled)).not.toContain('issue-7');
+    }
+  });
+
+  test('a key of neither form titles the page as it did: #abc', () => {
+    expect(bandKey(render(keyed('abc')))).toBe('#abc');
   });
 });

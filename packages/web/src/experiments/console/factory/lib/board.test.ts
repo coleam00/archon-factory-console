@@ -66,7 +66,7 @@ describe('cards of placed items', () => {
   test('an item whose progress could not be read stays on the board and says so', () => {
     const item = { ...realItem('6'), progress: null };
     expect(pageItemColumn(VIEW, item)).toMatchObject({ stage: { id: 'order' } });
-    expect(card(item)).toMatchObject({ title: '6', stopLine: 'Its progress could not be read.' });
+    expect(card(item)).toMatchObject({ title: '#6', stopLine: 'Its progress could not be read.' });
   });
 
   test('the board keeps a running item in its previous column on a step no stage names', () => {
@@ -87,7 +87,7 @@ describe('card fields, in order', () => {
     });
     const untitled = realItem('7');
     untitled.progress = { ...progressOf(untitled), title: null };
-    expect(card(untitled).title).toBe('7');
+    expect(card(untitled).title).toBe('#7');
   });
 
   test('2: the state pill', () => {

@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { Link2, Scale } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
@@ -57,7 +58,7 @@ export function ItemLinks({
             to={factoryPath(projectId, `/items/${encodeURIComponent(named)}`)}
             className="font-mono text-console-12 text-accent-bright hover:underline"
           >
-            {named}
+            {displayItemKey(named)}
           </Link>
           <span className="text-console-13 text-text-tertiary">as its order run recorded</span>
         </p>
@@ -81,7 +82,7 @@ export function ItemLinks({
                 to={factoryPath(projectId, `/items/${encodeURIComponent(link.other.key)}`)}
                 className="font-mono text-console-12 text-accent-bright hover:underline"
               >
-                {link.other.key}
+                {displayItemKey(link.other.key)}
               </Link>
               {link.ended === null ? null : (
                 <span className="text-console-13 text-text-tertiary">ended</span>

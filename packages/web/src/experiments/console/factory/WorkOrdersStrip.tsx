@@ -1,4 +1,5 @@
 import { useId, useState, type ReactElement } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { ChevronDown } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { statusDotClass } from '../lib/run-status';
@@ -64,7 +65,9 @@ export function WorkOrdersStrip({
         </button>
         {lighting === null ? null : (
           <>
-            <span className="min-w-0 truncate text-text-primary">highlighting {lighting}</span>
+            <span className="min-w-0 truncate text-text-primary">
+              highlighting {displayItemKey(lighting)}
+            </span>
             <button
               type="button"
               onClick={() => {
@@ -123,7 +126,7 @@ function WorkOrderRow({
         to={itemPath(projectId, order.key)}
         className="font-mono text-console-12 text-accent-bright hover:underline"
       >
-        {order.key}
+        {displayItemKey(order.key)}
       </Link>
       <span className="min-w-0 max-w-full truncate text-text-primary">{order.title}</span>
       <span className="flex items-center gap-2 whitespace-nowrap text-text-secondary">
@@ -141,7 +144,7 @@ function WorkOrderRow({
       </span>
       <span className="flex flex-wrap items-center gap-1">
         {order.members.map(member => {
-          const label = `${member.key}: ${PILL_LABEL[member.pill]}`;
+          const label = `${displayItemKey(member.key)}: ${PILL_LABEL[member.pill]}`;
           return (
             <span
               key={member.key}

@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { Link } from 'react-router';
 import { itemPath, type BoardModel } from './lib/board';
 
@@ -29,7 +30,7 @@ export function EndedRows({
                   to={itemPath(projectId, card.key)}
                   className="font-mono text-console-12 text-accent-bright hover:underline"
                 >
-                  {card.key}
+                  {displayItemKey(card.key)}
                 </Link>
                 <span className="min-w-0 truncate text-text-secondary">{card.title}</span>
               </li>

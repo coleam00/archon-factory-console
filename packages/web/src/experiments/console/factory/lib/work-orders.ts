@@ -6,6 +6,7 @@
  * members count anywhere. Read-only; nothing here records or ends a link.
  */
 import type { FactoryItem } from '../../skills/factory';
+import { displayItemKey } from './item-key';
 import type { BoardModel, Pill, PlacedCard } from './board';
 
 type ItemLink = FactoryItem['links'][number];
@@ -49,7 +50,7 @@ export interface WorkOrderMember {
 
 export interface WorkOrder {
   key: string;
-  /** The order's own title when it has runs (it is on the board), else its key. */
+  /** The order's own title when it has runs (it is on the board), else its key as a person reads it. */
   title: string;
   /** Board members newest activity first, then members with no run yet. */
   members: WorkOrderMember[];
@@ -59,9 +60,9 @@ export interface WorkOrder {
 /** What a member that has no run yet shows: it waits, in no column. */
 export const NOT_STARTED = 'Not started';
 
-/** What a person reads for an order with no title of its own: "Work order 48". */
+/** What a person reads for an order with no title of its own: "Work order #48". */
 export function orderTitle(key: string): string {
-  return `Work order ${key}`;
+  return `Work order ${displayItemKey(key)}`;
 }
 
 /**
@@ -92,7 +93,7 @@ export function workOrders(
       if (!placed.has(key))
         add(order, {
           key,
-          title: key,
+          title: displayItemKey(key),
           pill: 'waiting',
           landed: false,
           where: NOT_STARTED,
