@@ -165,10 +165,12 @@ export function FactoryNumbers({
             icon={tile.icon}
             means={tile.means}
           >
-            {tile.value === null ? <FigureSkeleton title="Loading" /> : tile.value}
-            {tile.value !== null && tile.unsettled ? (
-              <FigureSkeleton title="Checking which changes merged" />
-            ) : null}
+            {tile.value === null ? (
+              <FigureSkeleton title="Loading" />
+            ) : (
+              <span className="whitespace-nowrap">{tile.value}</span>
+            )}
+            {tile.value !== null && tile.unsettled ? <BesideSkeleton /> : null}
           </NumberTile>
         ))}
         {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
@@ -223,6 +225,18 @@ function FigureSkeleton({ title }: { title: string }): ReactElement {
     <span title={title} className="inline-flex items-center">
       <SkeletonFigure />
       <span className="sr-only">{title}</span>
+    </span>
+  );
+}
+
+/**
+ * The bar beside a known count that leaves out items with a merge state not known yet. The
+ * figure never wraps: in a narrow tile the bar gives way, clipped to the room left.
+ */
+function BesideSkeleton(): ReactElement {
+  return (
+    <span className="flex min-w-0 shrink overflow-hidden">
+      <FigureSkeleton title="Checking which changes merged" />
     </span>
   );
 }

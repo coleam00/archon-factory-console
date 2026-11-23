@@ -185,7 +185,7 @@ test('while a merge state is pending, the counts it decides show what is known a
 });
 
 test('a settled unknown is left out of the counts as a pending one is', async () => {
-  const { container, tile, unmount } = await mount('cb-unknown', [
+  const { tile, unmount } = await mount('cb-unknown', [
     ...PAGE.items,
     readyWithMerge('u', 'unknown'),
   ]);
@@ -226,7 +226,7 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
       jest.advanceTimersByTime(1);
       for (let turn = 0; turn < 5; turn++) await Promise.resolve();
     });
-    for (let turn = 0; turn < 5 && !tile('merged').startsWith('merged4 of 9'); turn++)
+    for (let turn = 0; turn < 5 && tile('merged')?.startsWith('merged4 of 9') !== true; turn++)
       await act(async () => Promise.resolve());
     // Only the keys whose change is not merged were asked about, not the whole board.
     expect(asked).toEqual(['8,3,w']);
