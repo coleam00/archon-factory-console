@@ -297,14 +297,14 @@ describe('answered lately', () => {
     expect(startedOf(back)[0]).toBe('Send back | Build started again');
   });
 
-  test('a drop whose set started two runs reads the sentence unlinked', () => {
-    const root = render(withView, quiet, [
-      routed('d', 'drop', [run('close', 'running'), run('stage-build', 'running')]),
-    ]);
-    const started = root.querySelector('section[aria-label="Answered lately"] li [data-started]');
-    expect(started?.getAttribute('data-started')).toBe('declared');
-    expect(text(started)).toBe('Closes the PR without merging');
-    expect(started?.querySelector('a')).toBeNull();
+  test('a drop whose set started two runs, or none yet, reads the sentence unlinked', () => {
+    for (const restarted of [[run('close', 'running'), run('stage-build', 'running')], []]) {
+      const root = render(withView, quiet, [routed('d', 'drop', restarted)]);
+      const started = root.querySelector('section[aria-label="Answered lately"] li [data-started]');
+      expect(started?.getAttribute('data-started')).toBe('declared');
+      expect(text(started)).toBe('Closes the PR without merging');
+      expect(started?.querySelector('a')).toBeNull();
+    }
   });
 
   test('with nothing answered yet, the aside stays and says what appears there', () => {

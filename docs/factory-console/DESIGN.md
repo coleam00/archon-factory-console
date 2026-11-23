@@ -1008,8 +1008,9 @@ its set started ("Plan started again", in the run's state colour with its state 
 linking to the run; the workflow in words on a project with no factory view), or "Nothing
 started". An answer whose option the view words (`answers`) reads that sentence in place of
 "<stage> started again" ("Closes the PR without merging"), linked to the run as above when
-settling its set started exactly one; with several, which is this answer's is not known, so it
-is plain `--text-secondary` text. It joins the item read's `asks_settled` answer to the run whose `cause` names the
+settling its set started exactly one; with several, which is this answer's is not known, and
+before any has started the sentence still says what the answer starts, so in both it is plain
+`--text-secondary` text in place of "Nothing started". The item page does the same. It joins the item read's `asks_settled` answer to the run whose `cause` names the
 same asking run (engine #5834), so an answer given through the CLI or by an agent shows too.
 With no factory view it reads the engine's items window alone. With nothing open, the main
 column is rule 6's empty state on a panel: a check in a soft success tint, "Nothing needs you",
