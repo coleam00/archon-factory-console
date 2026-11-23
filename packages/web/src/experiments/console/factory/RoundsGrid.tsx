@@ -12,6 +12,8 @@ import {
 import { Panel } from './document';
 import {
   MEANING_WORD,
+  roundHeading,
+  roundLead,
   type CellMeaning,
   type GridCell,
   type GridRow,
@@ -68,8 +70,7 @@ export function RoundsGrid({ grid }: { grid: Grid }): ReactElement {
                   scope="col"
                   className="py-1.5 pr-4 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary"
                 >
-                  Round {column.number}
-                  {column.max === null ? '' : ` of ${column.max}`}
+                  {roundHeading(column)}
                 </th>
               ))}
             </tr>
@@ -143,7 +144,7 @@ function Reasons({ grid }: { grid: Grid }): ReactElement | null {
       {returned.map(column => (
         <Reason
           key={`${column.runId}|${column.iteration}`}
-          lead={`Round ${column.number.toString()}`}
+          lead={roundLead(column)}
           text={column.reason ?? ''}
         />
       ))}

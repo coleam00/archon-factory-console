@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, shippedView } from '../item-detail.test-fixtures';
-import { roundsGrid, type RoundsGrid } from './item-rounds-grid';
+import { roundHeading, roundsGrid, type GridColumn, type RoundsGrid } from './item-rounds-grid';
 import { storyVisits } from './item-visits';
 import { buildTimeline } from './timeline';
 
@@ -12,6 +12,33 @@ function checksGrid(detail: FactoryItemDetail): RoundsGrid | null {
   const visit = visits[at];
   if (visit === undefined) throw new Error('no Checks panel');
   return roundsGrid(shippedView, detail, buildTimeline(shippedView, detail), visit, visits[at + 1]);
+}
+
+/** The columns of every Checks panel on the item, in order: a replan can split the panel. */
+function checksColumns(detail: FactoryItemDetail): GridColumn[] {
+  const visits = storyVisits(shippedView, detail);
+  const timeline = buildTimeline(shippedView, detail);
+  return visits.flatMap((visit, at) =>
+    visit.stage.id === 'checks'
+      ? (roundsGrid(shippedView, detail, timeline, visit, visits[at + 1])?.columns ?? [])
+      : []
+  );
+}
+
+/** `detail` with a copy of run `runId`, as `copyId`, placed in the item's runs right after `afterId`. */
+function withRunCopy(
+  detail: FactoryItemDetail,
+  runId: string,
+  copyId: string,
+  afterId: string
+): FactoryItemDetail {
+  const fact = detail.runs.find(run => run.runId === runId);
+  const entry = detail.item.runs.find(run => run.id === runId);
+  const at = detail.item.runs.findIndex(run => run.id === afterId);
+  if (fact === undefined || entry === undefined || at === -1) throw new Error('no such run');
+  detail.runs.push({ ...structuredClone(fact), runId: copyId });
+  detail.item.runs.splice(at + 1, 0, { ...structuredClone(entry), id: copyId });
+  return detail;
 }
 
 /** Each row as its label and its cells' words, stacked cells joined by "+", none "-". */
@@ -132,7 +159,59 @@ describe('round numbers on the item, not as each run recorded them', () => {
     expect(grid?.columns.map(column => column.iteration)).toEqual([1, 1, 3, 4]);
   });
 
-  test('a loop-form delivery counts its iterations in order', () => {
-    expect(checksGrid(itemDetail('111'))?.columns.map(column => column.number)).toEqual([1, 2]);
+  test('a loop-form delivery counts its iterations in order, with no delivery prefix', () => {
+    const columns = checksGrid(itemDetail('111'))?.columns ?? [];
+    expect(columns.map(column => [column.number, column.delivery])).toEqual([
+      [1, null],
+      [2, null],
+    ]);
+    expect(columns.map(roundHeading)).toEqual(['Round 1 of 3', 'Round 2 of 3']);
+  });
+
+  test('a replan between stage-form rounds starts the count over', () => {
+    const base = structuredClone(itemDetail('125'));
+    const plan = base.runs.filter(run => run.workflow === 'plan').at(-1)?.runId;
+    const second = base.item.runs.find(run => run.id.startsWith('bb11ef33'))?.id;
+    if (plan === undefined || second === undefined) throw new Error('125 planned, then checked');
+    const columns = checksColumns(withRunCopy(base, plan, 'replan-run', second));
+    expect(columns.map(column => [column.number, column.max])).toEqual([
+      [1, 3],
+      [2, 3],
+      [1, 3],
+      [2, 4],
+    ]);
+    expect(columns.map(column => column.iteration)).toEqual([1, 2, 3, 4]);
+  });
+
+  test('two loop-form delivery runs with no replan: each counts its own rounds, named by its run', () => {
+    // Item 3's capture is such an item: each deliver run ended in an ask, and the answer
+    // launched the next. Item 111 is used for its recorded rounds.
+    const base = structuredClone(itemDetail('111'));
+    const deliver = base.runs.find(run => run.workflow === 'deliver')?.runId;
+    if (deliver === undefined) throw new Error('111 delivered');
+    const columns = checksColumns(withRunCopy(base, deliver, 'second-deliver', deliver));
+    expect(columns.map(column => [column.number, column.max, column.delivery])).toEqual([
+      [1, 3, 1],
+      [2, 3, 1],
+      [1, 3, 2],
+      [2, 3, 2],
+    ]);
+    expect(columns.map(roundHeading)).toEqual([
+      'Delivery 1 · round 1 of 3',
+      'Delivery 1 · round 2 of 3',
+      'Delivery 2 · round 1 of 3',
+      'Delivery 2 · round 2 of 3',
+    ]);
+  });
+
+  test('a delivery run that recorded no round takes no place: one with rounds reads as plain rounds', () => {
+    const base = structuredClone(itemDetail('111'));
+    const deliver = base.runs.find(run => run.workflow === 'deliver')?.runId;
+    if (deliver === undefined) throw new Error('111 delivered');
+    const detail = withRunCopy(base, deliver, 'asked-first', deliver);
+    const asked = detail.runs.find(run => run.runId === 'asked-first');
+    if (asked?.rounds == null) throw new Error('the copy has rounds');
+    asked.rounds.rounds = [];
+    expect(checksColumns(detail).map(roundHeading)).toEqual(['Round 1 of 3', 'Round 2 of 3']);
   });
 });
