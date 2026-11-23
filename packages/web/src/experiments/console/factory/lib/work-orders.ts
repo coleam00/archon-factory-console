@@ -42,6 +42,8 @@ export interface WorkOrderMember {
   key: string;
   title: string;
   pill: Pill;
+  /** The pill's words when its card names them (an `awaits` label); else the pill's own. */
+  pillLabel?: string;
   landed: boolean;
   /** The column or ending the member sits in; `NOT_STARTED` for a member with no run yet. */
   where: string;
@@ -133,7 +135,14 @@ function placedByKey(model: BoardModel): Map<string, Where> {
 
 function onBoard({ placed, label, landed }: Where): WorkOrderMember {
   const { card } = placed;
-  return { key: card.key, title: card.title, pill: card.pill, landed, where: label };
+  return {
+    key: card.key,
+    title: card.title,
+    pill: card.pill,
+    pillLabel: card.pillLabel,
+    landed,
+    where: label,
+  };
 }
 
 /** The keys a highlighted order lights on the board: its members and the order itself. */

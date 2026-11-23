@@ -76,18 +76,32 @@ export function OverviewAsks({
           />
         );
       })}
-      {more > 0 ? <MoreLink projectId={projectId} more={more} /> : null}
+      {more > 0 ? <MoreLink projectId={projectId} more={more} shown={asks.length > 0} /> : null}
     </section>
   );
 }
 
-function MoreLink({ projectId, more }: { projectId: string; more: number }): ReactElement {
+/**
+ * The line to the Needs you tab: "N more on Needs you" under the asks shown, or, with none to
+ * show (only items waiting on you with no ask open), how many items wait there.
+ */
+function MoreLink({
+  projectId,
+  more,
+  shown,
+}: {
+  projectId: string;
+  more: number;
+  shown: boolean;
+}): ReactElement {
   return (
     <Link
       to={needsYouPath(projectId)}
       className="self-start text-console-13 text-text-secondary hover:text-text-primary hover:underline"
     >
-      {more.toString()} more on Needs you
+      {shown
+        ? `${more.toString()} more on Needs you`
+        : `${more.toString()} ${more === 1 ? 'item waits' : 'items wait'} for you on Needs you`}
     </Link>
   );
 }

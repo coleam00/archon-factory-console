@@ -173,6 +173,14 @@ describe('the Overview', () => {
     expect(html).toContain('1 more on Needs you');
   });
 
+  test('with no ask open, the Overview says an item waits on you, not "more"', () => {
+    const html = render(`/console/p/${ID}/factory`, withView, quiet, [
+      needsShaping('9s', ['Which?']),
+    ]);
+    expect(html).toContain('1 item waits for you on Needs you');
+    expect(html).not.toContain('more on Needs you');
+  });
+
   test('shows the summary only on the Overview; other pages show the title alone', () => {
     const summary = 'Issues come in; changes go out.';
     const overview = render(`/console/p/${ID}/factory`, withView);

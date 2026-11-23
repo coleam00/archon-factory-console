@@ -245,7 +245,8 @@ The schema cannot see a pack's workflows, so a separate check compares a view fi
 It is a script of an Archon checkout, `bun run check:factory-view`, and it checks only the
 project files in that checkout's own `.archon/packs/` (`<pack key>.factory-view.json`), not
 another project's files or a pack's `.shared/factory-view.json`. It reads each pack's stage
-graph (what `archon pack graph <pack key> --json` prints) from two places:
+graph (what `archon pack graph <pack key> --json` prints, less its `loaded` and `otherCopies`,
+which say where the copies were found on this machine, not what the pack is) from two places:
 
 - the snapshot `<pack key>.pack-graph.json` committed beside the view file, which CI checks
   against since it has no installed pack; a missing snapshot fails the check;

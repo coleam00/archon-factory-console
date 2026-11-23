@@ -8,7 +8,7 @@
       "id": "order",
       "label": "Order",
       "blurb": "Takes a work order, or an issue someone added the factory label to, and makes it one item the factory can read.",
-      "short": "Turns orders into items",
+      "short": "Orders, labelled issues",
       "group": "intake",
       "workflows": [
         "order"

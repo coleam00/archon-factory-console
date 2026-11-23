@@ -142,7 +142,7 @@ function WorkOrderRow({
       </span>
       <span className="flex flex-wrap items-center gap-1">
         {order.members.map(member => {
-          const label = `${member.key}: ${PILL_LABEL[member.pill]}`;
+          const label = `${member.key}: ${member.pillLabel ?? PILL_LABEL[member.pill]}`;
           return (
             <span
               key={member.key}

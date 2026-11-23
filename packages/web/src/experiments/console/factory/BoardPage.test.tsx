@@ -9,6 +9,7 @@ import type { FactoryItem } from '../skills/factory';
 import {
   endLastRun,
   keepRuns,
+  needsShaping,
   PAGE,
   readyWithMerge,
   realItem,
@@ -408,6 +409,32 @@ describe('the Pipeline view', () => {
       expect(marked).toEqual(['6']);
     } finally {
       await unmount();
+    }
+  });
+});
+
+describe('an item waiting on you with no ask open', () => {
+  test('its card reads its label, soft, lists its questions and does not ping; so does its row', async () => {
+    const item = needsShaping('9s', ['Which surfaces?', 'Who owns it?']);
+    const board = await mount([item]);
+    try {
+      const card = board.container.querySelector('[data-card="9s"]');
+      expect(card?.textContent).toContain('Needs shaping');
+      expect(card?.textContent).toContain('Which surfaces? · Who owns it?');
+      expect(card?.querySelector('[data-ping]')).toBeNull();
+      const pill = [...(card?.querySelectorAll('span') ?? [])].find(
+        span => span.textContent === 'Needs shaping'
+      );
+      expect(pill?.className).toContain('bg-[color:var(--warning-soft)]');
+      expect(pill?.className).not.toContain('bg-warning ');
+    } finally {
+      await board.unmount();
+    }
+    const table = await mount([item], `/console/p/${ID}/factory/board?view=table`);
+    try {
+      expect(table.container.querySelector('tbody')?.textContent).toContain('Needs shaping');
+    } finally {
+      await table.unmount();
     }
   });
 });

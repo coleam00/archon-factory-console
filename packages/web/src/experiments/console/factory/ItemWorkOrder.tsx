@@ -105,7 +105,7 @@ export function OrderMembers({
             {member.title === member.key ? null : (
               <span className="min-w-0 truncate text-text-primary">{member.title}</span>
             )}
-            <PillBadge pill={member.pill} />
+            <PillBadge pill={member.pill} label={member.pillLabel} />
             <span className="text-console-13 text-text-tertiary">{member.where}</span>
           </li>
         ))}

@@ -143,7 +143,7 @@ function BoardRow({
       </Cell>
       <Cell>
         <span className="flex items-center gap-2">
-          <PillBadge pill={card.pill} />
+          <PillBadge pill={card.pill} label={card.pillLabel} />
           <RowAnswer card={card} asks={asks} />
         </span>
       </Cell>
