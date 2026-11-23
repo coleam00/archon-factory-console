@@ -112,9 +112,7 @@ const columnNamed = (container: HTMLElement, label: string): Element | null =>
   container.querySelector(`section[aria-label="${label}"]`);
 
 const cardKeys = (container: HTMLElement): string[] =>
-  [...container.querySelectorAll('article')].map(
-    card => card.querySelector('.font-mono')?.textContent ?? ''
-  );
+  [...container.querySelectorAll('article')].map(card => card.getAttribute('data-card') ?? '');
 
 describe('before the items are read', () => {
   test("the board draws the final layout's shape: a skeleton column per declared column", async () => {
@@ -241,7 +239,7 @@ describe('the Pipeline view', () => {
     );
   const card = (container: HTMLElement, key: string) =>
     [...container.querySelectorAll('article')].find(
-      article => article.querySelector('.font-mono')?.textContent === key
+      article => article.getAttribute('data-card') === key
     );
 
   test('the work orders fold to one summary line in the toolbar until it is clicked', async () => {
@@ -275,20 +273,20 @@ describe('the Pipeline view', () => {
       const strip = container.querySelector('ul[aria-label="Work orders"]');
       const row = strip?.querySelector('li[data-order="48"]');
       expect(row?.textContent).toContain('1 of 3 merged');
-      // 48 has no title of its own: its key, then "Work order 48".
-      expect(row?.querySelector('a')?.textContent).toBe('48');
-      expect(row?.textContent).toContain('Work order 48');
+      // 48 has no title of its own: its key, then "Work order #48".
+      expect(row?.querySelector('a')?.textContent).toBe('#48');
+      expect(row?.textContent).toContain('Work order #48');
       expect(
         [...(row?.querySelectorAll('[role="img"][title]') ?? [])].map(dot =>
           dot.getAttribute('title')
         )
-      ).toEqual(['5: Running', '2: Merged', '9: Waiting']);
+      ).toEqual(['#5: Running', '#2: Merged', '#9: Waiting']);
       // A run-less order's row is its key; one with runs shows its key and its own title.
       const withRuns = strip?.querySelector('li[data-order="8"]');
-      expect(withRuns?.querySelector('a')?.textContent).toBe('8');
+      expect(withRuns?.querySelector('a')?.textContent).toBe('#8');
       expect(withRuns?.textContent).toContain(realItem('8').progress!.title!);
       expect(card(container, '5')?.querySelector('a[href$="?order=48"]')?.textContent).toBe(
-        'part of 48'
+        'part of #48'
       );
       expect(card(container, '6')?.textContent).not.toContain('part of');
       const toggle = row?.querySelector('button[aria-pressed]') as HTMLButtonElement;
@@ -313,7 +311,7 @@ describe('the Pipeline view', () => {
     try {
       const line = summary(container)?.parentElement;
       expect(summary(container)?.getAttribute('aria-expanded')).toBe('false');
-      expect(line?.textContent).toContain('highlighting 48');
+      expect(line?.textContent).toContain('highlighting #48');
       expect(container.querySelectorAll('article[data-dimmed="true"]')).toHaveLength(
         PAGE.items.length - 2
       );
@@ -406,7 +404,7 @@ describe('the Pipeline view', () => {
       const marked = [...container.querySelectorAll('[data-moved="true"]')].map(
         card => card.querySelector('.font-mono')?.textContent
       );
-      expect(marked).toEqual(['6']);
+      expect(marked).toEqual(['#6']);
     } finally {
       await unmount();
     }
@@ -447,9 +445,7 @@ describe('the Table view', () => {
     );
     try {
       const keys = (): string[] =>
-        [...container.querySelectorAll('tbody tr')].map(
-          row => row.querySelector('td')?.textContent ?? ''
-        );
+        [...container.querySelectorAll('tbody tr')].map(row => row.getAttribute('data-card') ?? '');
       // Board order: left to right, then the order the page lists them.
       expect(keys()).toEqual(['5', '4', '6', '3', '8', '7', '2', '1']);
       const header = (label: string): HTMLButtonElement =>
@@ -482,7 +478,7 @@ describe('the Table view', () => {
         th.textContent?.startsWith('Merged')
       );
       const cell = [...container.querySelectorAll('tbody tr')]
-        .find(row => row.querySelector('td')?.textContent === '7')
+        .find(row => row.getAttribute('data-card') === '7')
         ?.querySelectorAll('td')[column];
       // Short on its own terms, not by the function the cell renders: no year, no seconds,
       // and shorter than the full time. The Table fits 1440x900 only while this holds.
@@ -510,9 +506,9 @@ describe('the Table view', () => {
       expect(column).toBeGreaterThan(-1);
       const cell = (key: string) =>
         [...container.querySelectorAll('tbody tr')]
-          .find(row => row.querySelector('td')?.textContent === key)
+          .find(row => row.getAttribute('data-card') === key)
           ?.querySelectorAll('td')[column];
-      expect(cell('5')?.textContent).toBe('48');
+      expect(cell('5')?.textContent).toBe('#48');
       expect(cell('5')?.querySelector('a')?.getAttribute('href')).toBe(
         `/console/p/${ID}/factory/items/48`
       );
@@ -531,9 +527,7 @@ describe('a board opened from a number', () => {
     );
     try {
       const keys = (): string[] =>
-        [...container.querySelectorAll('tbody tr')].map(
-          row => row.querySelector('td')?.textContent ?? ''
-        );
+        [...container.querySelectorAll('tbody tr')].map(row => row.getAttribute('data-card') ?? '');
       expect(keys()).toEqual(['7', '2', '1']);
       expect(container.textContent).toContain('Showing: merged');
       const clear = container.querySelector(
@@ -548,9 +542,7 @@ describe('a board opened from a number', () => {
   });
 
   const rowKeys = (container: HTMLElement, selector = 'tbody tr'): string[] =>
-    [...container.querySelectorAll(selector)].map(
-      row => row.querySelector('td')?.textContent ?? ''
-    );
+    [...container.querySelectorAll(selector)].map(row => row.getAttribute('data-card') ?? '');
   const model = () => boardModel(VIEW, ID, PAGE.items, new Map());
 
   test('"N of M merged": the Table of every item on the board, the merged ones marked', async () => {
@@ -740,7 +732,7 @@ describe('the column headers and the Merged column', () => {
       );
       // A merged card is compact: its change and when it merged, no round, no returned count.
       const seven = [...(merged?.querySelectorAll('article') ?? [])].find(
-        article => article.querySelector('.font-mono')?.textContent === '7'
+        article => article.getAttribute('data-card') === '7'
       );
       const change = realItem('7').progress!.change!;
       expect(seven?.textContent).toContain(formatDateTime(change.mergedAt!));
@@ -860,7 +852,7 @@ describe('a column body', () => {
     try {
       const card = [
         ...(columnNamed(container, 'Plan & build')?.querySelectorAll('article') ?? []),
-      ].find(article => article.querySelector('.font-mono')?.textContent === '6');
+      ].find(article => article.querySelector('.font-mono')?.textContent === '#6');
       expect(card?.textContent).toContain('Build');
       expect(card?.querySelector('a[href*="/r/"]')).toBeNull();
     } finally {
@@ -922,7 +914,7 @@ test("the Table puts each row's column and stage under the Column and Stage head
     const cells = (key: string): string[] =>
       [
         ...([...container.querySelectorAll('tbody tr')]
-          .find(row => row.querySelector('td')?.textContent === key)
+          .find(row => row.getAttribute('data-card') === key)
           ?.querySelectorAll('td') ?? []),
       ].map(td => td.textContent ?? '');
     // A merged row's Stage is empty: its Column and State already say merged.
@@ -938,4 +930,43 @@ test("the Table puts each row's column and stage under the Column and Stage head
   } finally {
     await unmount();
   }
+});
+
+describe('an issue key on the board', () => {
+  /** Item 7 of the fixture page, keyed as a pack revision keys it. */
+  const keyed = (key: string): FactoryItem => {
+    const item = realItem('7');
+    return { ...item, item: { ...item.item, key } };
+  };
+
+  test('`issue-7` and `7` both read #7 on the card, which still opens the item under its key', async () => {
+    for (const key of ['issue-7', '7']) {
+      const { container, unmount } = await mount([keyed(key)]);
+      try {
+        const article = container.querySelector(`article[data-card="${key}"]`);
+        expect(article?.querySelector('.font-mono')?.textContent).toBe('#7');
+        expect(article?.querySelector('a[href*="/items/"]')?.getAttribute('href')).toBe(
+          `/console/p/${ID}/factory/items/${key}`
+        );
+      } finally {
+        await unmount();
+      }
+    }
+  });
+
+  test('`issue-7` and `7` both read #7 in the Table, whose link keeps the key', async () => {
+    for (const key of ['issue-7', '7']) {
+      const { container, unmount } = await mount(
+        [keyed(key)],
+        `/console/p/${ID}/factory/board?view=table`
+      );
+      try {
+        const link = container.querySelector(`tbody tr[data-card="${key}"] td a`);
+        expect(link?.textContent).toBe('#7');
+        expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/${key}`);
+      } finally {
+        await unmount();
+      }
+    }
+  });
 });

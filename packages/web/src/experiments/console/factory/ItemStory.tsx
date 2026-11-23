@@ -45,7 +45,7 @@ export function ItemStory({
 }): ReactElement {
   const hold = useAnsweredHold(asks);
   const queue = attention.data;
-  const where = askNaming(projectId, view).where;
+  const naming = askNaming(projectId, view);
   const inPanel = new Set(panels.flatMap(panel => (panel.kind === 'stage' ? panel.runIds : [])));
   const loose = hold.asks.filter(ask => !inPanel.has(askRunId(ask) ?? ''));
   const asksOf = (runIds: readonly string[]): ReactNode =>
@@ -55,7 +55,7 @@ export function ItemStory({
         asks={hold.asks.filter(ask => runIds.includes(askRunId(ask) ?? ''))}
         hold={hold}
         queue={queue}
-        where={where}
+        naming={naming}
       />
     );
   return (
@@ -64,7 +64,13 @@ export function ItemStory({
       <Waiting
         loose={
           queue === undefined || loose.length === 0 ? null : (
-            <OpenAsks projectId={projectId} asks={loose} hold={hold} queue={queue} where={where} />
+            <OpenAsks
+              projectId={projectId}
+              asks={loose}
+              hold={hold}
+              queue={queue}
+              naming={naming}
+            />
           )
         }
         questions={questions}

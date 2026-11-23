@@ -12,6 +12,7 @@ import {
   needsYouSubjectWords,
   needsYouSubjects,
   overdueWaitMessage,
+  ownerLostMessage,
 } from './needs-you';
 
 describe('needsYou', () => {
@@ -93,5 +94,32 @@ describe('an overdue wait', () => {
   test('an item-less wait counts as its run', () => {
     const wait = overdueWaitItem({ item: undefined });
     expect(needsYouSubjects([wait])).toEqual({ items: 0, runs: 1 });
+  });
+});
+
+describe('ownerLostMessage', () => {
+  const holder = (key: string | undefined): Parameters<typeof ownerLostMessage>[0] => ({
+    kind: 'owner_lost',
+    ref: 'holder-1',
+    project: { key: 'p', codebaseId: 'cb-1', name: 'demo' },
+    ...(key === undefined ? {} : { item: { id: 'i-1', projectKey: 'p', key } }),
+    revision: 1,
+    labels: {},
+    pausedAt: null,
+    run: {
+      id: 'holder-1',
+      workflow: 'build',
+      parentRunId: null,
+      fanOut: null,
+      context: { artifactsDir: null, transcript: null, workingPath: null, branch: null },
+    },
+    observedStatus: 'running',
+  });
+
+  test('names the held item as a person reads its key', () => {
+    const words = 'The build run lost its owner and still holds';
+    expect(ownerLostMessage(holder('issue-7'))).toBe(`${words} #7.`);
+    expect(ownerLostMessage(holder('7'))).toBe(`${words} #7.`);
+    expect(ownerLostMessage(holder(undefined))).toBe(`${words} its item.`);
   });
 });

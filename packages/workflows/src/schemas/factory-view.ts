@@ -10,6 +10,7 @@
 import { z } from 'zod';
 import { drilldownIssues } from './factory-view-drilldown';
 import { heldOpenIssues, retiredIssues } from './factory-view-held';
+import { isRecord, oneOrList, sourceProblem } from './factory-view-problems';
 import { storyReferenceIssues } from './factory-view-story';
 import { workflowSourceSchema } from './workflow';
 
@@ -37,6 +38,8 @@ const jsonPointerSchema = z.string().regex(/^\//, 'a JSON pointer starting with 
 const outcomeKeySchema = z
   .string()
   .regex(/^[A-Za-z0-9_.-]+:([A-Za-z0-9_.-]+|\*)$/, 'workflow:outcome or workflow:*');
+/** `workflow:option`, an option id of an ask a run of a workflow the view names left; exact only. */
+const answerKeySchema = z.string().regex(/^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+$/, 'workflow:option');
 
 /** The real steps one card stands for: a workflow its stage lists, and step ids of it. */
 const coverSchema = z.strictObject({
@@ -174,27 +177,6 @@ const stageRoundsSchema = z.strictObject({
   allowance: jsonPointerSchema,
 });
 
-const isRecord = (input: unknown): input is Record<string, unknown> =>
-  typeof input === 'object' && input !== null && !Array.isArray(input);
-
-/**
- * Why `input` is not a `schema` (a source called `kind`), naming the key to fix. A failed
- * union reports only "Invalid input", which leaves a view file's author nothing to act on.
- */
-function sourceProblem(kind: string, schema: z.ZodType, input: unknown): string {
-  if (!isRecord(input)) return `expected ${kind}`;
-  const issues = schema.safeParse(input).error?.issues ?? [];
-  // A misspelt key is the cause of the missing one it was meant to be: name it first.
-  const issue = issues.find(entry => entry.code === 'unrecognized_keys') ?? issues[0];
-  if (issue === undefined) return `${kind} is invalid`;
-  if (issue.code === 'unrecognized_keys')
-    return `${kind} does not take ${issue.keys.map(key => `\`${key}\``).join(', ')}`;
-  const key = String(issue.path[0]);
-  return input[key] === undefined
-    ? `${kind} needs \`${key}\``
-    : `${kind}'s \`${key}\`: ${issue.message}`;
-}
-
 /** A rounds source's form, told by its keys: a `loop` makes it the loop form. */
 function roundsSourceProblem(input: unknown): string {
   if (!isRecord(input))
@@ -211,22 +193,6 @@ function roundsSourceProblem(input: unknown): string {
 const roundsSourceSchema = z.union([loopRoundsSchema, stageRoundsSchema], {
   error: issue => roundsSourceProblem(issue.input),
 });
-
-/**
- * One source, or a non-empty list of them. A failure names the entry and the key, as
- * "entry 1: a stage-form rounds source { workflow, round, allowance } needs `round`".
- */
-function oneOrList<T extends z.ZodType>(source: T, problem: (input: unknown) => string) {
-  return z.union([source, z.array(source).min(1)], {
-    error: issue => {
-      const { input } = issue;
-      if (!Array.isArray(input)) return problem(input);
-      if (input.length === 0) return 'a list names at least one source';
-      const bad = input.findIndex(entry => !source.safeParse(entry).success);
-      return bad === -1 ? 'is invalid' : `entry ${String(bad)}: ${problem(input[bad])}`;
-    },
-  });
-}
 
 /**
  * What a step's outcome means to a person, so a console can word it in its own words. The set
@@ -504,6 +470,13 @@ const factoryViewShape = z.strictObject({
   steps: z.record(workflowNameSchema, z.record(stepIdSchema, labelSchema)).optional(),
   /** What the item page says each run did (`storySchema`); absent, it words runs itself. */
   story: storySchema.optional(),
+  /**
+   * What choosing an option of an ask a run of `workflow` left starts, by `workflow:option`, in
+   * one plain sentence ("Closes the PR without merging"). It decides nothing: the pack's
+   * bindings do. A console shows it beside the option and in place of naming the run the answer
+   * started; an option no key names reads as before.
+   */
+  answers: z.record(answerKeySchema, z.strictObject({ starts: sentenceSchema })).optional(),
   map: mapSchema,
 });
 
@@ -649,6 +622,7 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   });
   for (const field of ['parked', 'awaits'] as const)
     for (const key of Object.keys(view[field] ?? {})) refer([field, key], workflowOf(key));
+  for (const key of Object.keys(view.answers ?? {})) refer(['answers', key], workflowOf(key));
   return issues;
 }
 

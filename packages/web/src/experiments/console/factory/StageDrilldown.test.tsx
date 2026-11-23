@@ -214,7 +214,17 @@ test('a card glows and names the items on a step it covers; a run between rounds
     expect(liveCards(container)).toEqual([]);
     const label = container.querySelector('[data-loop] > [data-live]');
     expect(label?.textContent).toContain('Up to 3 rounds');
-    expect(label?.getAttribute('title')).toBe('Between rounds: 9');
+    expect(label?.getAttribute('title')).toBe('Between rounds: #9');
+
+    // A label-ordered item reads the same: its key as #N, not issue-N.
+    itemsResponse = itemsReadAnswer([on('issue-9', 'rounds')]);
+    await act(async () => {
+      invalidate('factory-items');
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(container.querySelector('[data-loop] > [data-live]')?.getAttribute('title')).toBe(
+      'Between rounds: #9'
+    );
   });
 });
 

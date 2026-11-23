@@ -11931,6 +11931,11 @@ export interface components {
             };
             said?: string[];
           };
+          answers?: {
+            [key: string]: {
+              starts: string;
+            };
+          };
           map: {
             cards: {
               stage: string;

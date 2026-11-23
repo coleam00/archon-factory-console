@@ -1,6 +1,7 @@
 import { RotateCcw } from 'lucide-react';
 import { useMemo, useState, type ReactElement } from 'react';
 import type { FactoryItem } from '../../skills/factory';
+import { displayItemKey } from '../lib/item-key';
 import type { EntityView } from '../../store/cache';
 import { drilldownLive, type DrilldownLive, type FactoryDrilldown } from '../lib/drilldown-live';
 import type { ItemOnStep } from '../lib/items-on-step';
@@ -221,7 +222,7 @@ function LoopFrame({
         data-live={glows ? 'true' : undefined}
         title={
           glows
-            ? `Between rounds: ${onLoop.map(({ item }) => item.item.key).join(', ')}`
+            ? `Between rounds: ${onLoop.map(({ item }) => displayItemKey(item.item.key)).join(', ')}`
             : undefined
         }
         className="absolute bottom-0 left-1/2 inline-flex -translate-x-1/2 translate-y-1/2 items-center gap-1.5 whitespace-nowrap rounded-full border-2 bg-surface px-3 py-1 text-console-13 font-semibold text-text-primary"

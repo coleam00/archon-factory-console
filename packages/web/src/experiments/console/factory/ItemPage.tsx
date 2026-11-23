@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { useParams } from 'react-router';
 import { BookOpen, Info } from 'lucide-react';
 import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
@@ -211,7 +212,8 @@ function ItemUnread({
   if (failed !== undefined)
     return (
       <ReadFailure retry={retry}>
-        Item <span className="font-mono">{itemKey}</span> could not be read: {readFailure(failed)}
+        Item <span className="font-mono">{displayItemKey(itemKey)}</span> could not be read:{' '}
+        {readFailure(failed)}
       </ReadFailure>
     );
   return <ItemSkeleton read={read} />;
@@ -238,8 +240,8 @@ function NoSuchItem({
       <ItemSkeleton read={read} />
     ) : (
       <ReadFailure retry={orders.retry}>
-        Item <span className="font-mono">{itemKey}</span> could not be checked: the items could not
-        be read to look for it: {readFailure(orders.failed)}
+        Item <span className="font-mono">{displayItemKey(itemKey)}</span> could not be checked: the
+        items could not be read to look for it: {readFailure(orders.failed)}
       </ReadFailure>
     );
   const order = orders.orders.find(entry => entry.key === itemKey);

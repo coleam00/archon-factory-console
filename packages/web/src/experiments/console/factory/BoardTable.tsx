@@ -1,4 +1,5 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { Link } from 'react-router';
 import { MergeState, PillBadge, RoundDots } from './BoardCard';
 import type { BoardCard, BoardModel } from './lib/board';
@@ -180,7 +181,7 @@ function ItemLink({ projectId, itemKey }: { projectId: string; itemKey: string }
       to={itemPath(projectId, itemKey)}
       className="font-mono text-console-12 text-accent-bright hover:underline"
     >
-      {itemKey}
+      {displayItemKey(itemKey)}
     </Link>
   );
 }

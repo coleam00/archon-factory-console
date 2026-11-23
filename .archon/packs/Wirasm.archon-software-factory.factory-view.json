@@ -1325,6 +1325,38 @@
       "/why"
     ]
   },
+  "answers": {
+    "stage-build:drop": {
+      "starts": "Closes the PR without merging"
+    },
+    "stage-build:reshape": {
+      "starts": "Leaves the PR as a draft until the item is shaped"
+    },
+    "stage-check:drop": {
+      "starts": "Closes the PR without merging"
+    },
+    "stage-check:reshape": {
+      "starts": "Leaves the PR as a draft until the item is shaped"
+    },
+    "stage-host:drop": {
+      "starts": "Closes the PR without merging"
+    },
+    "stage-host:reshape": {
+      "starts": "Leaves the PR as a draft until the item is shaped"
+    },
+    "landgate:drop": {
+      "starts": "Closes the PR without merging"
+    },
+    "landgate:reshape": {
+      "starts": "Leaves the PR as a draft until the item is shaped"
+    },
+    "land:drop": {
+      "starts": "Closes the PR without merging"
+    },
+    "land:reshape": {
+      "starts": "Leaves the PR as a draft until the item is shaped"
+    }
+  },
   "map": {
     "cards": [
       {

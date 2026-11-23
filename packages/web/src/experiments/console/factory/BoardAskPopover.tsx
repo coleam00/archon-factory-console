@@ -6,6 +6,7 @@ import {
   type ReactElement,
   type RefObject,
 } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { createPortal } from 'react-dom';
 import { AskGroup } from '../components/ask-card/AskGroup';
 import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
@@ -179,7 +180,7 @@ function Popover({
       ref={box}
       role="dialog"
       aria-modal="false"
-      aria-label={`Asks on ${open.key}`}
+      aria-label={`Asks on ${displayItemKey(open.key)}`}
       style={place == null ? undefined : { top: place.top, left: place.left }}
       className={SHELL}
     >
@@ -191,6 +192,7 @@ function Popover({
           hold={{ ...hold, onAnswered }}
           queue={queue}
           where={naming.where}
+          starts={naming.starts}
         />
         {/* A later preview (a prototype of the change) goes here, under the options. */}
         <div data-preview-slot="" />

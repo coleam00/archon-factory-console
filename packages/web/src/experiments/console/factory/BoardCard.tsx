@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
+import { displayItemKey } from './lib/item-key';
 import { Link, useSearchParams } from 'react-router';
 import { statusDotClass, statusTextClass } from '../lib/run-status';
 import {
@@ -128,7 +129,9 @@ function CardBox({
         style={{ background: accent }}
       />
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-mono text-console-12 text-text-tertiary">{card.key}</span>
+        <span className="truncate font-mono text-console-12 text-text-tertiary">
+          {displayItemKey(card.key)}
+        </span>
         <PillBadge pill={card.pill} label={card.pillLabel} />
       </div>
       <Link
@@ -221,17 +224,17 @@ function ShadowLine({ shadow }: { shadow: NonNullable<BoardCardFields['shadow']>
   );
 }
 
-/** "part of 48": lights the item's work order on the board, keeping the board's view. */
+/** "part of #48": lights the item's work order on the board, keeping the board's view. */
 function OrderChip({ order }: { order: string }): ReactElement {
   const [params] = useSearchParams();
   return (
     <Link
       to={{ search: orderSearch(params, order) }}
       replace
-      title={`Light work order ${order} on the board`}
+      title={`Light work order ${displayItemKey(order)} on the board`}
       className={`${INNER_LINK} self-start rounded-full bg-surface-inset px-2 py-0.5 text-console-12 text-text-secondary`}
     >
-      part of <span className="font-mono">{order}</span>
+      part of <span className="font-mono">{displayItemKey(order)}</span>
     </Link>
   );
 }

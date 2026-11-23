@@ -1,4 +1,5 @@
 import { Hourglass, MessageCircleQuestion, type LucideIcon } from 'lucide-react';
+import { displayItemKey } from '../../factory/lib/item-key';
 import type { ReactElement } from 'react';
 import { Panel } from '../../factory/document';
 import type { AskNaming } from '../../lib/ask-naming';
@@ -41,7 +42,7 @@ export function ItemAskPanel({
       as="article"
       tone="var(--warning)"
       bar="left"
-      aria-label={`Asks on ${subject.key}`}
+      aria-label={`Asks on ${displayItemKey(subject.key)}`}
       className="flex flex-col gap-4 p-5 pl-6"
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -67,6 +68,7 @@ export function ItemAskPanel({
               projectId={projectId}
               ask={ask}
               queue={queue}
+              starts={id => naming.starts(ask, id)}
               {...(answered === undefined ? {} : { answered })}
               folding={hold.folding.has(ask.ref)}
               onAnswered={hold.onAnswered}

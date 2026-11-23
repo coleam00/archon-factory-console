@@ -284,7 +284,7 @@ describe('the ask popover', () => {
       expect(dialog()).toBeNull();
       await click(face(container, '6'));
       const open = dialog();
-      expect(open?.getAttribute('aria-label')).toBe('Asks on 6');
+      expect(open?.getAttribute('aria-label')).toBe('Asks on #6');
       // Portalled to the body, out of the card's clipped box.
       expect(container.contains(open)).toBe(false);
       expect(open?.textContent).toContain('Which base should the change target?');
@@ -300,12 +300,34 @@ describe('the ask popover', () => {
     }
   });
 
+  test("a stage's drop tile says what it starts, in the view's words", async () => {
+    const dropAsk = askOn(six, {
+      ref: 'ask:drop',
+      askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
+      options: [
+        { id: 'send-back', does: 'Continues.' },
+        { id: 'drop', does: 'Closes it.' },
+      ],
+      recommendation: { option: 'send-back', why: 'Small.' },
+    });
+    const { container, unmount } = await mount([asking(six, [dropAsk])], queueOf([dropAsk]));
+    try {
+      await click(face(container, '6'));
+      expect(dialogButton('Send back').querySelector('[data-starts]')).toBeNull();
+      expect(dialogButton('Drop').querySelector('[data-starts]')?.textContent).toBe(
+        'Closes the PR without merging'
+      );
+    } finally {
+      await unmount();
+    }
+  });
+
   test('Esc closes it and focus returns to the card that opened it', async () => {
     const { container, unmount } = await mount(items, queue);
     try {
       const trigger = face(container, '3');
       await click(trigger);
-      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on 3');
+      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on #3');
       await act(async () => {
         document.activeElement?.dispatchEvent(
           new dom.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }) as unknown as Event
@@ -348,7 +370,7 @@ describe('the ask popover', () => {
       // Beside the state pill, not in the last column, which a 1440 px window cuts off.
       expect(answer?.closest('td')?.textContent).toContain('Needs you');
       await click(answer!);
-      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on 3');
+      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on #3');
       expect(dialog()?.textContent).toContain('Split the item?');
       expect(dialog()?.textContent).not.toContain('Which base should the change target?');
     } finally {

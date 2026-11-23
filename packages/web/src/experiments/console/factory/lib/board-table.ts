@@ -1,5 +1,6 @@
 /** The board's Table view: one row per item with the card's fields, sortable by any of them. */
 import { ensureUtc } from '../../lib/format';
+import { displayItemKey } from './item-key';
 import { PILL_LABEL, stageIdOf, type BoardModel, type Pill, type PlacedCard } from './board';
 import type { TableMark } from './board-show';
 
@@ -93,7 +94,8 @@ function sortValue(row: TableRow, by: TableColumnId): number | string | null {
   const { card, item } = row.placed;
   switch (by) {
     case 'key':
-      return card.key;
+      // By the key as the column shows it (#N), so issue-9 sorts before 111.
+      return displayItemKey(card.key);
     case 'title':
       return card.title;
     case 'column':
@@ -116,7 +118,7 @@ function sortValue(row: TableRow, by: TableColumnId): number | string | null {
     case 'stop':
       return card.stopLine ?? '';
     case 'order':
-      return card.order ?? '';
+      return card.order === null ? '' : displayItemKey(card.order);
   }
 }
 

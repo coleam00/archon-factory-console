@@ -193,7 +193,7 @@ test('the stage page glows the step items are on now and links each item', async
     const build = stepButton(container, '·build');
     expect(build.hasAttribute('data-running')).toBe(true);
     expect(build.className).not.toContain('opacity-60');
-    expect(build.title).toContain('Running for 4, 12, 6');
+    expect(build.title).toContain('Running for #4, #12, #6');
     expect(stepButton(container, '·fix').hasAttribute('data-running')).toBe(false);
   });
 });
@@ -270,9 +270,9 @@ test('a failed refresh says so on the stage page and stops the glow; the graph s
 });
 
 test('a run between loop bodies lights the loop frame', async () => {
-  const between = capturedItemAs('loop', {
+  const between = capturedItemAs('issue-9', {
     running: {
-      runId: 'run-loop',
+      runId: 'run-issue-9',
       workflow: 'deliver',
       step: 'rounds',
       startedAt: '2026-11-17T07:00:00.000Z',
@@ -282,7 +282,7 @@ test('a run between loop bodies lights the loop frame', async () => {
   await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
     const lit = [...container.querySelectorAll('div[data-running]')];
     expect(lit.map(frame => frame.textContent)).toEqual([expect.stringContaining('rounds')]);
-    expect(lit[0]?.getAttribute('title')).toBe('Running for loop');
+    expect(lit[0]?.getAttribute('title')).toBe('Running for #9');
     expect(container.querySelectorAll('button[data-running]')).toHaveLength(0);
   });
 });

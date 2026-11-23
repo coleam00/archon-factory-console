@@ -1,4 +1,6 @@
 import type { ReactElement } from 'react';
+import { displayItemKey } from '../../factory/lib/item-key';
+import type { AskStarts } from '../../lib/ask-naming';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import type { AttentionQueue } from '../../skills/runs';
 import { AskCard, SubjectName, type AskSubject } from './AskCard';
@@ -18,6 +20,7 @@ export function AskGroup({
   asks,
   queue,
   where,
+  starts,
   hold: outer,
 }: {
   projectId: string;
@@ -26,6 +29,8 @@ export function AskGroup({
   queue: Pick<AttentionQueue, 'runs'>;
   /** The stage or workflow each ask came from. */
   where?: (ask: NeedsYouItem) => string | undefined;
+  /** What choosing an option of each ask starts, in the factory view's words. */
+  starts?: AskStarts;
   hold?: AnsweredHold;
 }): ReactElement {
   const own = useAnsweredHold(asks);
@@ -33,7 +38,7 @@ export function AskGroup({
   const shown = outer === undefined ? own.asks : asks;
   return (
     <section
-      aria-label={subject === undefined ? 'Asks' : `Asks on ${subject.key}`}
+      aria-label={subject === undefined ? 'Asks' : `Asks on ${displayItemKey(subject.key)}`}
       className="flex flex-col gap-3"
     >
       {subject === undefined ? null : (
@@ -51,6 +56,7 @@ export function AskGroup({
             ask={ask}
             queue={queue}
             {...(at === undefined ? {} : { where: at })}
+            {...(starts === undefined ? {} : { starts: (id: string) => starts(ask, id) })}
             {...(answered === undefined ? {} : { answered })}
             folding={hold.folding.has(ask.ref)}
             onAnswered={hold.onAnswered}

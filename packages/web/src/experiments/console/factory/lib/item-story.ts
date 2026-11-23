@@ -7,6 +7,7 @@
  * neutral sentence from the timeline's words.
  */
 import type { FactoryItemDetail } from '../../skills/factory';
+import { answerStarts } from './answer-starts';
 import { answerWords, restartOf } from './answered';
 import { answererName } from './item-answers';
 import { gridShadowKeys, roundsGrid, type RoundsGrid } from './item-rounds-grid';
@@ -43,6 +44,7 @@ export interface AnsweredAsk {
   optionId: string | null;
   by: string | null;
   at: string;
+  /** What the answer started: the view's sentence for its option (`answers`), else the stage started again. */
   started: string;
   /** The run that asked. */
   runId: string;
@@ -314,6 +316,9 @@ function answeredAsks(ctx: StoryContext, ownIds: readonly string[]): AnsweredAsk
     .filter(answer => answer.runId !== null && runs.has(answer.runId))
     .map(answer => {
       const restart = restartOf(ctx.view, ctx.detail.item, answer.runId ?? '');
+      const workflow = ctx.detail.item.runs.find(run => run.id === answer.runId)?.workflow;
+      const starts =
+        answer.chosen === null ? undefined : answerStarts(ctx.view, workflow, answer.chosen.id);
       return {
         question: answer.question,
         chosen: answerWords(answer),
@@ -321,7 +326,8 @@ function answeredAsks(ctx: StoryContext, ownIds: readonly string[]): AnsweredAsk
         optionId: answer.chosen?.id ?? null,
         by: answererName(answer.by),
         at: answer.at,
-        started: restart === null ? 'Nothing started' : `${restart.label} started again`,
+        started:
+          starts ?? (restart === null ? 'Nothing started' : `${restart.label} started again`),
         runId: answer.runId ?? '',
       };
     });

@@ -18,7 +18,13 @@ export function AskBody({
   queue,
   onAnswered,
   offered,
-}: AskCardProps & { offered: Offered | null }): ReactNode {
+  starts,
+  unrecommended,
+}: AskCardProps & {
+  offered: Offered | null;
+  /** Why the stage could not choose, for an ask it left without a recommendation. */
+  unrecommended?: string;
+}): ReactNode {
   const answered = (label: string): void => onAnswered?.(ask, label);
   switch (ask.kind) {
     case 'attention':
@@ -34,6 +40,8 @@ export function AskBody({
           submit={answerByRef(ask.ref)}
           onAnswered={answered}
           offered={offered}
+          {...(starts === undefined ? {} : { starts })}
+          {...(unrecommended === undefined ? {} : { unrecommended })}
         />
       );
     case 'awaiting_response': {
