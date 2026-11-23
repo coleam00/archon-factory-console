@@ -21,8 +21,11 @@ states, words) is written in the repository's design document:
 ## What the tab shows
 
 Every project, factory or not, has a **Needs you** tab, left of Runs, with how many asks and
-paused waits need a person on it. It opens with a band saying how many wait, how long the
-oldest has waited and how many were answered today. It lists every open question on the
+paused waits need a person on it, and, on a project with a factory view, the items an `awaits`
+outcome left waiting on a person with no question open. It opens with a band saying how many
+wait, how long the oldest has waited and how many were answered today. Those items are listed
+under **Waiting on you**, each with its label, its reason and the questions to settle, linking
+to its item page. It lists every open question on the
 project's items and runs, from any workflow, grouped under their item on a panel marked in the
 needs-you colour, each under the stage that asked, as an ask card:
 the question, its context, and one tile per option saying what it does and costs, the
@@ -64,7 +67,8 @@ page, keeping the query string. Inside the tab:
   screen and each column scrolls on its own under a header with its label, its `blurb` ("last 7 days" on the column holding the `landed` stage), its
   count and a chip per state ("running 2", "needs you 1"). A card names its stage, or the
   stage and step running now ("Checks · Code review · round 2"), and shows the item's state
-  (Running, Needs you, Failed, Parked, Waiting, Merged), the round it is on, how often checks sent it
+  (Running, Needs you, Failed, the label of an `awaits` outcome such as "Needs shaping", Parked,
+  Waiting, Merged), the round it is on, how often checks sent it
   back, its pull request, and the work order it is part of. The column holding the `landed`
   stage lists the items merged in the last 7 days (local time), newest first, with "N earlier
   · show all" opening the Table filtered to every merged item; its cards are compact (key,
@@ -99,13 +103,14 @@ page, keeping the query string. Inside the tab:
   and dismisses nothing.
 - **Item page**: the story of one item. A header band gives its number and title, its state
   pill, its pull request, where it is (a parked item reads its declared `parked` label and its
-  run's reason) and its key facts: the time from its order to its merge (or to now), its cost,
+  run's reason, an item waiting on you its `awaits` label and reason) and its key facts: the time from its order to its merge (or to now), its cost,
   the check rounds used of those allowed, and the asks answered. A journey strip shows its path
   through the board's columns with the time it spent in each, the column it is in now lit, each
   send-back to an earlier column as a loop with its count, each ask it waited on as a pause,
-  and where it stopped when it was parked, ended, failed or held (every ask it left answered,
+  and where it stopped when it was parked, waiting on you, ended, failed or held (every ask it left answered,
   and nothing started after the answer, nor waits to: "Nothing started after your answer"). Then the story: one panel per
-  stage visit in the order it ran (a stage met again is numbered, "Plan (2)"), each opening
+  stage visit in the order it ran (an item waiting on you opens it with a panel saying what it
+  waits on and the questions to settle; a stage met again is numbered, "Plan (2)"), each opening
   with one plain sentence from the declaration's `story` (the console adds the pull request a
   run opened, why the checks sent it back, and what you answered), then its details (when, how
   long, cost, models, runs). A run that works several stages tells its status, its asks and
@@ -120,7 +125,7 @@ page, keeping the query string. Inside the tab:
   links to other items (on a work order, its members with their state and how many merged; an
   item no run has started yet says "Not started") and the rulings and answers given on it.
   An outcome the declaration does not tell reads as a neutral sentence from `placement`,
-  `endings` and `parked` ("Plan finished: sent to Build"), or the pack's own name for it.
+  `endings`, `awaits` and `parked` ("Plan finished: sent to Build"), or the pack's own name for it.
 - **Stage page**: what a stage does, told as its drill-down when the view gives one: numbered
   phases of plain cards, a card glowing and naming the items on its steps now, and a click on a
   card listing the real steps it stands for, each linking to its step page. "Show the real
