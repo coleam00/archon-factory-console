@@ -13,7 +13,9 @@
  * - Inside one card, an arrow to a later stage of the card is not drawn: the card's rows show
  *   that order. One into its own stage or an earlier one of the card is a send-back.
  * - A forward hand-off runs straight between neighbouring cards, its label on a pill above
- *   the line, one outcome per line. One that would skip cards gets no route of its own: its
+ *   the line, at most `PILL_MAX_LINES` lines: one outcome per line up to that, and past it the
+ *   first outcome and how many more ("built +2"), every outcome kept in `outcomes` for the
+ *   map's tip (`MapPillTips`). One that would skip cards gets no route of its own: its
  *   outcomes join the label of the hand-off from its source card to the next, as
  *   "<outcome> → <target card>", and when no such hand-off is declared, one is drawn for it.
  * - Forward hand-offs between one pair of cards are one line, their outcomes joined, each once.
@@ -64,8 +66,10 @@ export interface ArrowPath {
   /** The cards it joins, by card id. */
   from: string;
   to: string;
-  /** Its pill's lines, one outcome each; empty for an unlabelled hand-off. */
+  /** What its pill draws (`pillOf`); empty for an unlabelled hand-off. */
   lines: string[];
+  /** Every outcome on the line, in order, whether or not its pill shows it. */
+  outcomes: string[];
   /** The SVG path, in M and H, ending where the arrowhead points. */
   d: string;
   /** Where the path starts and ends, for the line's gradient along the flow. */
@@ -144,10 +148,19 @@ function forwardParts(label: string | undefined, skipsTo: string | undefined): s
   return outcomes.map(outcome => `${outcome} → ${skipsTo}`);
 }
 
-/** A label's pill size: one line per outcome, the last without its comma. */
+/** The most lines a forward hand-off's pill holds (issue #146). */
+export const PILL_MAX_LINES = 2;
+
+/**
+ * A label's pill: one line per outcome, the last without its comma, while they fit in
+ * `PILL_MAX_LINES`; past that, one line naming the first outcome and how many more.
+ */
 function pillOf(parts: readonly string[]): { lines: string[]; w: number; h: number } | undefined {
   if (parts.length === 0) return undefined;
-  const lines = parts.map((part, i) => (i < parts.length - 1 ? `${part},` : part));
+  const lines =
+    parts.length > PILL_MAX_LINES
+      ? [`${parts[0] ?? ''} +${(parts.length - 1).toString()}`]
+      : parts.map((part, i) => (i < parts.length - 1 ? `${part},` : part));
   return {
     lines,
     w: Math.max(...lines.map(line => pillWidth(line, false))),
@@ -190,6 +203,7 @@ export function layoutMap(view: Declaration): MapLayout {
         from: a.id,
         to: b.id,
         lines: pill?.lines ?? [],
+        outcomes: entry.parts,
         d: `M${x1.toString()},${mid.toString()} H${x2.toString()}`,
         start: { x: x1, y: mid },
         end: { x: x2, y: mid },

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { layoutMap, mapCards, type Box, type MapLayout } from './map-layout';
+import { layoutMap, mapCards, PILL_MAX_LINES, type Box, type MapLayout } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 import {
   boxesMeet,
@@ -9,7 +9,8 @@ import {
   segments,
   type Segment,
 } from './map-geometry.test-fixtures';
-import { CARD_H, CARD_W, GAP_MIN, LANE } from './map-sizes';
+import { CARD_H, CARD_W, GAP_MIN, LANE, PILL_LINE } from './map-sizes';
+import { PILL_H } from './overview-layout';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -155,15 +156,22 @@ describe('the shipped map', () => {
   });
 
   test('a forward hand-off only between neighbours, straight, its pill above the line', () => {
-    expect(layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines.join(' ')])).toEqual([
-      ['intake', 'plan-build', 'build, narrow'],
+    expect(
+      layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines.join(' '), arrow.outcomes])
+    ).toEqual([
+      ['intake', 'plan-build', 'build, narrow', ['build', 'narrow']],
       // Build to CI and review ("fixed for CI") skips Checks, but not a card: Plan & build and
       // Checks & review are neighbours, so it joins the one pill between them.
       // Build to Ready to merge (a drop or reshape answer starts close) skips a card, so it is
-      // worded on this pill with its target.
-      ['plan-build', 'checks-review', 'built, fixed for CI, drop or reshape → Ready to merge'],
-      ['checks-review', 'ready', 'ready, drop or reshape'],
-      ['ready', 'merged', 'merged'],
+      // worded on this pill with its target. Three outcomes are past the two lines a pill holds.
+      [
+        'plan-build',
+        'checks-review',
+        'built +2',
+        ['built', 'fixed for CI', 'drop or reshape → Ready to merge'],
+      ],
+      ['checks-review', 'ready', 'ready, drop or reshape', ['ready', 'drop or reshape']],
+      ['ready', 'merged', 'merged', ['merged']],
     ]);
     for (const arrow of layout.arrows) {
       const [s] = segments(arrow.d);
@@ -202,6 +210,30 @@ describe('the shipped map', () => {
       expect(pill.box.x + pill.box.w).toBeLessThanOrEqual(last.x + last.w);
     }
     expect(layout.bounds.x).toBe(first.x);
+  });
+});
+
+describe('a forward pill holds at most two lines', () => {
+  /** The one pill between s1 and s2 when their hand-off reads `label`. */
+  const pillFor = (label: string): MapLayout['arrows'][number] | undefined =>
+    layoutMap(declaration(['s1', 's2'], { arrows: [{ from: 's1', to: 's2', label }] })).arrows[0];
+
+  test('up to two outcomes, one per line; past that, the first and how many more', () => {
+    expect(pillFor('a')?.lines).toEqual(['a']);
+    expect(pillFor('a, b')?.lines).toEqual(['a,', 'b']);
+    expect(pillFor('a, b, c')?.lines).toEqual(['a +2']);
+    expect(pillFor('a, b, c, d')).toMatchObject({
+      lines: ['a +3'],
+      outcomes: ['a', 'b', 'c', 'd'],
+    });
+  });
+
+  test('no pill on the shipped map is taller than two lines', () => {
+    expect(PILL_MAX_LINES).toBe(2);
+    for (const arrow of layoutMap(shippedView).arrows) {
+      expect(arrow.lines.length).toBeLessThanOrEqual(PILL_MAX_LINES);
+      expect(arrow.pill?.h ?? 0).toBeLessThanOrEqual(PILL_H + PILL_LINE * (PILL_MAX_LINES - 1));
+    }
   });
 });
 

@@ -346,6 +346,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Board columns: 12 px apart (`gap-3`), each at least 208 px wide (owner, 2026-11-18: five
   columns fit beside the sidebar at 1440x900, 5 x 208 + 4 x 12 = 1088 of 1100 px; narrower
   windows scroll sideways).
+- A tab row stays one line: where its tabs do not fit (the project tabs on a phone), it scrolls
+  sideways with no scrollbar, fades the edge it hides tabs past and no other, and brings the
+  active tab into view (`components/TabRow.tsx`). A tab never wraps or squeezes its label.
 
 ### 4. Lines
 
@@ -354,7 +357,8 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   corner radius.
 - Arrowheads: a 6 px filled triangle in the line's colour.
 - Labels: `--text-console-12` on a pill (`--surface-inset` background, 1 px `--border`,
-  `rounded-full`, 6 px by 2 px padding). A label never sits on a line.
+  `rounded-full`, 6 px by 2 px padding). A label never sits on a line. A map hand-off's pill
+  holds at most two lines (the map section says how a longer one reads).
 - Forward lines: solid, a gradient along the flow from `--border-bright` to `--text-secondary`,
   the head in `--text-secondary`. A fan's short bar and stubs are solid `--text-secondary`.
 - Send-back lines: dashed `6 4`, all in one colour, `--node-approval` (the colour the How it works
@@ -1127,7 +1131,10 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   send-back. An arrow's `back` flag is accepted, so an older view file loads, and ignored.
 - **Forward hand-offs** run only between neighbouring cards: a short straight line at the
   cards' mid-height, its outcomes on one pill above the line (rule 4), one outcome per line
-  ("build, narrow" stacks). The gap between two cards is the pill's width plus 8 px each side,
+  ("build, narrow" stacks) up to two. Three or more read as the first and how many more
+  ("built +2"), in the view file's words: the pill is then a button, and hovering, focusing or
+  tapping it opens a tip listing every outcome, one per line. Each source stage's modal lists
+  them too, under "Where items go from here". The gap between two cards is the pill's width plus 8 px each side,
   at least 48 px. A hand-off that would skip cards has no route of its own: its outcomes join
   the label of the hand-off from its source card to the next, as "<outcome> → <target card>",
   and where no such hand-off is declared, one is drawn for it.
@@ -1158,7 +1165,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   the Overview stays mounted under it, so the page keeps its scroll and the map its pan, zoom
   and open details panel. Focus moves to the close button, stays in the modal, and returns to
   the stage that opened it. The `factory/stages/:stage` route shows the same content full page.
-  Under the stage's label and blurb, three tabs, and between the tabs and the open tab one
+  Under the stage's label and blurb, "Where items go from here": one chip per arrow the view
+  file declares out of the stage into another, "<label> → <stage>", in its words and order (none
+  when it declares none). Then three tabs, and between the tabs and the open tab one
   notice about the items read, which every tab reads from: a failed first read says why with a
   Retry; a failed refresh says this stage shows the last items read, and why, with a Retry, so
   no tab passes old items off as here now and none glows a step from them; a slow read says it
@@ -1313,7 +1322,9 @@ item's Stage empty, as its card names no stage; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
 box narrows by key, title or work order key, matching the raw key (`136` finds `issue-136`). The
 Item and Work order columns sort by the key as it reads, so `#9` comes before `#111` whichever form
-each is stored in. Until the items are read, the board draws its
+each is stored in. A key never breaks inside itself (`#136 · pack view` is one line): its column
+grows and the title wraps instead, down to 128 px, so the Table still fits 1440x900 with a
+member key in it. Until the items are read, the board draws its
 declared columns with skeleton counts and card shapes (Visual standard, rule 6).
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other
