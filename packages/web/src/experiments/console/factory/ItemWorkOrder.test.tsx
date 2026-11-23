@@ -91,13 +91,13 @@ async function mount(key: string, items: Item[]): Promise<string> {
 test("an order no item row holds, named by a member's order run: its page from the items read", async () => {
   const words = await mount('48', [member('48')]);
   expect(words).toContain(WORK_ORDER_WORDS);
-  expect(words).toContain('Back to the overview48Work order 48');
+  expect(words).toContain('Back to the overview#48Work order #48');
   expect(words).toContain('Members: 0 of 1 merged');
   expect(words).not.toContain('could not be read');
 });
 
 test('a key that is no item and no order says there is none, and offers the board', async () => {
   const words = await mount('404', [member('48')]);
-  expect(words).toContain('There is no item 404 in this project.');
+  expect(words).toContain('There is no item #404 in this project.');
   expect(words).not.toContain('could not be read');
 });

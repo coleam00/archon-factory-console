@@ -7,6 +7,7 @@
  * declaration or the engine's records.
  */
 import { formatDateTime } from '../../lib/format';
+import { displayItemKey } from './item-key';
 import type { FactoryItem } from '../../skills/factory';
 import { askQuestion } from '../../lib/ask-card';
 import { needsYou } from '../../lib/needs-you';
@@ -206,7 +207,7 @@ export function cardFields(
   const mergedAt = progress?.change?.mergedAt ?? null;
   return {
     key,
-    title: progress?.title ?? key,
+    title: progress?.title ?? displayItemKey(key),
     pill,
     round: roundField(view, progress),
     run: runField(view, projectId, progress, column),

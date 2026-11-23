@@ -284,7 +284,7 @@ describe('the ask popover', () => {
       expect(dialog()).toBeNull();
       await click(face(container, '6'));
       const open = dialog();
-      expect(open?.getAttribute('aria-label')).toBe('Asks on 6');
+      expect(open?.getAttribute('aria-label')).toBe('Asks on #6');
       // Portalled to the body, out of the card's clipped box.
       expect(container.contains(open)).toBe(false);
       expect(open?.textContent).toContain('Which base should the change target?');
@@ -305,7 +305,7 @@ describe('the ask popover', () => {
     try {
       const trigger = face(container, '3');
       await click(trigger);
-      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on 3');
+      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on #3');
       await act(async () => {
         document.activeElement?.dispatchEvent(
           new dom.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }) as unknown as Event
@@ -348,7 +348,7 @@ describe('the ask popover', () => {
       // Beside the state pill, not in the last column, which a 1440 px window cuts off.
       expect(answer?.closest('td')?.textContent).toContain('Needs you');
       await click(answer!);
-      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on 3');
+      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on #3');
       expect(dialog()?.textContent).toContain('Split the item?');
       expect(dialog()?.textContent).not.toContain('Which base should the change target?');
     } finally {

@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
+import { displayItemKey } from '../../factory/lib/item-key';
 import { Link } from 'react-router';
 import { ClampedSummary } from '../../factory/ClampedSummary';
 import { askQuestion } from '../../lib/ask-card';
@@ -111,7 +112,7 @@ export function SubjectName({ subject }: { subject: AskSubject }): ReactElement 
   const words = (
     <>
       {/* The key is how a person names the item: it never shrinks or wraps; the title truncates. */}
-      <span className="shrink-0 whitespace-nowrap font-mono">{subject.key}</span>
+      <span className="shrink-0 whitespace-nowrap font-mono">{displayItemKey(subject.key)}</span>
       {subject.title === undefined ? null : (
         <span className="min-w-0 truncate text-text-secondary"> {subject.title}</span>
       )}
