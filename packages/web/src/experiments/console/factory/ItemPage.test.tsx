@@ -676,6 +676,70 @@ describe('work orders on the item page', () => {
     expect(words).toContain(WORK_ORDER_WORDS);
     expect(words).not.toContain('In Order');
   });
+
+  test("before the items read, an order's member link reads as the member: #136 · item keys", () => {
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      item: {
+        ...base.item,
+        item: { ...base.item.item, id: 'item-136', key: 'issue-136' },
+        links: [
+          {
+            id: 'link-136',
+            kind: 'part_of',
+            direction: 'incoming',
+            other: {
+              id: 'item-m',
+              projectKey: base.item.item.projectKey,
+              key: 'issue-136-item-keys',
+            },
+            ...act,
+            ended: null,
+          },
+        ],
+      },
+    };
+    // The link text reads the member; its href keeps the raw key.
+    expect(render(detail)).toMatch(
+      /href="[^"]*\/factory\/items\/issue-136-item-keys"[^>]*>#136 · item keys<\/a>/
+    );
+  });
+
+  test('a depends_on link to a split member reads it under its order, as the items read says', () => {
+    const member = itemDetail('3').item;
+    itemsRead([
+      {
+        ...member,
+        item: { ...member.item, key: 'issue-136-item-keys' },
+        progress: { ...member.progress!, partOf: 'issue-136' },
+      },
+    ]);
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      item: {
+        ...base.item,
+        links: [
+          {
+            id: 'link-dep',
+            kind: 'depends_on',
+            direction: 'outgoing',
+            other: {
+              id: 'item-m',
+              projectKey: base.item.item.projectKey,
+              key: 'issue-136-item-keys',
+            },
+            ...act,
+            ended: null,
+          },
+        ],
+      },
+    };
+    expect(render(detail)).toMatch(
+      /href="[^"]*\/factory\/items\/issue-136-item-keys"[^>]*>#136 · item keys<\/a>/
+    );
+  });
 });
 
 describe('an issue key on the item page', () => {
@@ -701,7 +765,27 @@ describe('an issue key on the item page', () => {
     }
   });
 
-  test('a key of neither form titles the page as it did: #abc', () => {
-    expect(bandKey(render(keyed('abc')))).toBe('#abc');
+  test('a key of neither form titles the page as it is, with no stray #', () => {
+    expect(bandKey(render(keyed('abc')))).toBe('abc');
+  });
+
+  test("a split member titles the page with its order's number and its piece", () => {
+    const act = { at: '2026-11-17T00:00:00.000Z', via: 'cli' as const, by: null, fromRun: null };
+    const member = (ended: typeof act | null): FactoryItemDetail => {
+      const base = keyed('issue-136-item-keys');
+      const link = {
+        id: 'link-136',
+        kind: 'part_of' as const,
+        direction: 'outgoing' as const,
+        other: { id: 'item-136', projectKey: base.item.item.projectKey, key: 'issue-136' },
+        ...act,
+        ended,
+      };
+      return { ...base, item: { ...base.item, links: [link] } };
+    };
+    const html = render(member(null));
+    expect(bandKey(html)).toBe('#136 · item keys');
+    // Membership is the link's, not the key's: with the link ended, the key reads as it is.
+    expect(bandKey(render(member(act)))).toBe('issue-136-item-keys');
   });
 });

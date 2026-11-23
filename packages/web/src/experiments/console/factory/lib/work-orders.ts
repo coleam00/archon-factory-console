@@ -11,8 +11,13 @@ import type { BoardModel, Pill, PlacedCard } from './board';
 
 type ItemLink = FactoryItem['links'][number];
 
+/** What membership reads: the engine's item read, with the board's progress when a view applies. */
+export type MemberSource = Pick<FactoryItem, 'item' | 'links'> & {
+  progress?: FactoryItem['progress'];
+};
+
 /** The item's active outgoing `part_of` links, in recording order. */
-function activeOrderLinks(item: FactoryItem): ItemLink[] {
+function activeOrderLinks(item: MemberSource): ItemLink[] {
   return item.links.filter(
     link => link.kind === 'part_of' && link.direction === 'outgoing' && link.ended === null
   );
@@ -30,13 +35,18 @@ export interface Membership {
  * result, since links are the engine's record and a result only proposes. An item naming
  * itself is in no order.
  */
-export function membershipOf(item: FactoryItem): Membership | null {
+export function membershipOf(item: MemberSource): Membership | null {
   // `links` is in recording order; with two active, the one recorded last is the newer word.
   const link = activeOrderLinks(item).at(-1);
   if (link !== undefined) return { order: link.other.key, source: 'link' };
   const named = item.progress?.partOf;
   if (named == null || named === item.item.key) return null;
   return { order: named, source: 'output' };
+}
+
+/** How a person reads the item's key: as a member of its work order when it is in one. */
+export function displayKeyOf(item: MemberSource): string {
+  return displayItemKey(item.item.key, membershipOf(item)?.order ?? null);
 }
 
 export interface WorkOrderMember {
@@ -64,7 +74,7 @@ export const NOT_STARTED = 'Not started';
 
 /** What a person reads for an order with no title of its own: "Work order #48". */
 export function orderTitle(key: string): string {
-  return `Work order ${displayItemKey(key)}`;
+  return `Work order ${displayItemKey(key, null)}`;
 }
 
 /**
@@ -95,7 +105,7 @@ export function workOrders(
       if (!placed.has(key))
         add(order, {
           key,
-          title: displayItemKey(key),
+          title: displayItemKey(key, order),
           pill: 'waiting',
           landed: false,
           where: NOT_STARTED,

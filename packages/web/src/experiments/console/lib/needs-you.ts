@@ -1,5 +1,4 @@
 import type { FactoryItem } from '../skills/factory';
-import { displayItemKey } from '../factory/lib/item-key';
 import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
 
 /** A queue item a person acts on: everything but a usage limit. */
@@ -18,9 +17,14 @@ export function entryRun(entry: NeedsYouItem): { id: string; workflow: string } 
   return entry.run;
 }
 
-/** What an `owner_lost` entry says: a run holds its item with no process to carry it on. */
+/**
+ * What an `owner_lost` entry says: a run holds its item with no process to carry it on. The
+ * sentence does not name the item: every place it is drawn names the item right above it (the
+ * card's header, the Needs you panel, the popover's group, or the item's own page), and a
+ * second spelling here could disagree with that one, such as a split member's raw key.
+ */
 export function ownerLostMessage(item: Extract<NeedsYouItem, { kind: 'owner_lost' }>): string {
-  return `The ${item.run.workflow} run lost its owner and still holds ${item.item === undefined ? 'its item' : displayItemKey(item.item.key)}.`;
+  return `The ${item.run.workflow} run lost its owner and still holds its item.`;
 }
 
 /**

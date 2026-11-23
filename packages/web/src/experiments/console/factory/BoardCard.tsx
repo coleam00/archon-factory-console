@@ -130,7 +130,7 @@ function CardBox({
       />
       <div className="flex items-center justify-between gap-2">
         <span className="truncate font-mono text-console-12 text-text-tertiary">
-          {displayItemKey(card.key)}
+          {displayItemKey(card.key, card.order)}
         </span>
         <PillBadge pill={card.pill} label={card.pillLabel} />
       </div>
@@ -231,10 +231,10 @@ function OrderChip({ order }: { order: string }): ReactElement {
     <Link
       to={{ search: orderSearch(params, order) }}
       replace
-      title={`Light work order ${displayItemKey(order)} on the board`}
+      title={`Light work order ${displayItemKey(order, null)} on the board`}
       className={`${INNER_LINK} self-start rounded-full bg-surface-inset px-2 py-0.5 text-console-12 text-text-secondary`}
     >
-      part of <span className="font-mono">{displayItemKey(order)}</span>
+      part of <span className="font-mono">{displayItemKey(order, null)}</span>
     </Link>
   );
 }

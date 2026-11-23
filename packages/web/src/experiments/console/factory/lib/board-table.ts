@@ -95,7 +95,7 @@ function sortValue(row: TableRow, by: TableColumnId): number | string | null {
   switch (by) {
     case 'key':
       // By the key as the column shows it (#N), so issue-9 sorts before 111.
-      return displayItemKey(card.key);
+      return displayItemKey(card.key, card.order);
     case 'title':
       return card.title;
     case 'column':
@@ -118,7 +118,7 @@ function sortValue(row: TableRow, by: TableColumnId): number | string | null {
     case 'stop':
       return card.stopLine ?? '';
     case 'order':
-      return card.order === null ? '' : displayItemKey(card.order);
+      return card.order === null ? '' : displayItemKey(card.order, null);
   }
 }
 

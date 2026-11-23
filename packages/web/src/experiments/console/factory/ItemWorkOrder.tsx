@@ -67,7 +67,7 @@ export function WorkOrderOnly({
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="font-mono text-console-13 text-text-tertiary">
-            {displayItemKey(order.key)}
+            {displayItemKey(order.key, null)}
           </span>
           <h3 className="min-w-0 break-words text-console-17 font-semibold text-text-primary">
             {order.title}
@@ -89,7 +89,10 @@ export function OrderMembers({
   order: WorkOrder;
 }): ReactElement {
   return (
-    <div className="flex flex-col gap-1.5" aria-label={`Members of ${displayItemKey(order.key)}`}>
+    <div
+      className="flex flex-col gap-1.5"
+      aria-label={`Members of ${displayItemKey(order.key, null)}`}
+    >
       <p className="text-console-14 text-text-secondary">
         Members: {order.landed} of {order.members.length} merged
       </p>
@@ -103,9 +106,9 @@ export function OrderMembers({
               to={itemPath(projectId, member.key)}
               className="font-mono text-console-12 text-accent-bright hover:underline"
             >
-              {displayItemKey(member.key)}
+              {displayItemKey(member.key, order.key)}
             </Link>
-            {member.title === displayItemKey(member.key) ? null : (
+            {member.title === displayItemKey(member.key, order.key) ? null : (
               <span className="min-w-0 truncate text-text-primary">{member.title}</span>
             )}
             <PillBadge pill={member.pill} label={member.pillLabel} />

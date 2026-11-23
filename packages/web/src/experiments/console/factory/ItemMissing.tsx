@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import { displayItemKey } from './lib/item-key';
+import { displayKeyOf } from './lib/work-orders';
 import { FileQuestionMark } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
@@ -25,8 +26,8 @@ export function ItemNotFound({
       icon={FileQuestionMark}
       sentence={
         <>
-          There is no item <span className="font-mono">{displayItemKey(itemKey)}</span> in this
-          project.
+          There is no item <span className="font-mono">{displayItemKey(itemKey, null)}</span> in
+          this project.
         </>
       }
       className="flex w-full max-w-xl flex-col items-start gap-2"
@@ -93,11 +94,9 @@ function ItemSuggestions({
             to={itemPath(projectId, item.item.key)}
             className="flex min-w-0 items-baseline gap-2 text-text-primary transition-colors duration-150 ease-out hover:text-accent-bright"
           >
-            <span className="shrink-0 font-mono text-text-secondary">
-              {displayItemKey(item.item.key)}
-            </span>
+            <span className="shrink-0 font-mono text-text-secondary">{displayKeyOf(item)}</span>
             <span className="min-w-0 [overflow-wrap:anywhere]">
-              {item.progress?.title ?? displayItemKey(item.item.key)}
+              {item.progress?.title ?? displayKeyOf(item)}
             </span>
           </Link>
         </li>

@@ -13,6 +13,7 @@ import {
   VIEW,
 } from './board.test-fixtures';
 import { showsCard } from './board-show';
+import { mergeUnsettled } from './merge-pending';
 import { factoryNumbers, median } from './numbers';
 
 /**
@@ -60,8 +61,9 @@ const numbers = (items: FactoryItem[], now: Date) =>
 describe('the numbers strip', () => {
   test('in flight, landed and M over the real items', () => {
     const counts = numbers([...PAGE.items, asking(), closedByTriage()], local(17, 12));
-    // 8, 5, 4, 6, 3 and the asking copy of 6 are on the board outside Landed; 7, 2, 1 landed.
-    expect(counts).toMatchObject({ inFlight: 6, landed: 3, total: 9 });
+    // 8, 5, 4, 6 and the asking copy of 6 are on the board outside Landed; 7, 2, 1 landed.
+    // Item 3's merge state is unknown, so it counts only in M.
+    expect(counts).toMatchObject({ inFlight: 5, landed: 3, total: 9, pending: false, unknown: 1 });
   });
 
   test('an item closed by triage is not in M, nor in flight', () => {
@@ -169,13 +171,26 @@ test('median of nothing is null', () => {
   expect(median([])).toBeNull();
 });
 
-test('a pending merge state holds the counts back; a settled unknown is counted as the board places it', () => {
-  expect(numbers([...PAGE.items, readyWithMerge('p', 'pending')], local(17, 12)).pending).toBe(
-    true
-  );
-  expect(numbers([...PAGE.items, readyWithMerge('u', 'unknown')], local(17, 12))).toMatchObject({
+test('an item whose merge state is not known is counted only in M, and the strip says so', () => {
+  const now = local(17, 12);
+  const settled = PAGE.items.filter(item => !mergeUnsettled(item));
+  const known = numbers(settled, now);
+  expect(known).toMatchObject({ pending: false, unknown: 0 });
+  // Pending: a skeleton stands for it. Unknown: the strip says how many.
+  expect(numbers([...settled, readyWithMerge('x', 'pending')], now)).toEqual({
+    ...known,
+    total: known.total + 1,
+    pending: true,
+  });
+  expect(numbers([...settled, readyWithMerge('x', 'unknown')], now)).toEqual({
+    ...known,
+    total: known.total + 1,
+    unknown: 1,
+  });
+  // Not merged is known: in flight.
+  expect(numbers([...settled, readyWithMerge('x', false)], now)).toMatchObject({
+    inFlight: known.inFlight + 1,
     pending: false,
-    landed: 3,
-    total: 9,
+    unknown: 0,
   });
 });

@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AskCard } from '../components/ask-card/AskCard';
-import { askNaming, itemTitles } from '../lib/ask-naming';
+import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import { awaitingItems, needsYou, needsYouPath } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
@@ -54,7 +54,7 @@ export function OverviewAsks({
   const asks = needsYou(queue.items);
   const awaiting = awaitingItems(items.data ?? []).length;
   if (asks.length === 0 && awaiting === 0) return null;
-  const naming = askNaming(projectId, view, itemTitles(items.data));
+  const naming = askNaming(projectId, view, itemNames(items.data));
   const more = Math.max(0, asks.length - OVERVIEW_ASKS_SHOWN) + awaiting;
   return (
     <section aria-label="Needs you" className="flex flex-col gap-3">

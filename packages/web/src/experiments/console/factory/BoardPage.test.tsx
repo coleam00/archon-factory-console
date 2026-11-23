@@ -976,4 +976,37 @@ describe('an issue key on the board', () => {
       }
     }
   });
+
+  /** Item 7 keyed as a split member of `issue-136`, through its order run's result. */
+  const member = (): FactoryItem => {
+    const item = keyed('issue-136-item-keys');
+    return { ...item, progress: { ...item.progress!, partOf: 'issue-136' } };
+  };
+
+  test("a split member's card reads #136 · item keys and still opens the item under its key", async () => {
+    const { container, unmount } = await mount([member()]);
+    try {
+      const article = container.querySelector('article[data-card="issue-136-item-keys"]');
+      expect(article?.querySelector('.font-mono')?.textContent).toBe('#136 · item keys');
+      expect(article?.querySelector('a[href*="/items/"]')?.getAttribute('href')).toBe(
+        `/console/p/${ID}/factory/items/issue-136-item-keys`
+      );
+    } finally {
+      await unmount();
+    }
+  });
+
+  test("a split member's Table row reads #136 · item keys, whose link keeps the key", async () => {
+    const { container, unmount } = await mount(
+      [member()],
+      `/console/p/${ID}/factory/board?view=table`
+    );
+    try {
+      const link = container.querySelector('tbody tr[data-card="issue-136-item-keys"] td a');
+      expect(link?.textContent).toBe('#136 · item keys');
+      expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/issue-136-item-keys`);
+    } finally {
+      await unmount();
+    }
+  });
 });

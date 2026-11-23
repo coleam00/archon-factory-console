@@ -28,9 +28,9 @@ export interface PlacementRun {
 export interface PlacementInput {
   runs: readonly PlacementRun[];
   /**
-   * Whether the item's change merged; null when it has none. Only `true` places it in the
-   * landed column; a `pending` item sits where it would unmerged, and the views that count
-   * show it as loading (`merge-pending.ts`).
+   * Whether the item's change merged; null when it has none. `true` places it in the landed
+   * column; a `pending` or `unknown` item sits where its runs put it, unless it sat in the
+   * landed column on the caller's last read (`merge-pending.ts`).
    */
   merged: ChangeMerged | null;
 }
@@ -149,6 +149,21 @@ function landedStage(view: Declaration): FactoryStage | undefined {
 }
 
 /**
+ * Whether the item sits in the landed column: its change merged, or it sat there on the
+ * caller's last read and its merge state is not known now (a lookup still running, or one
+ * that failed). A merge does not come undone, so a card never moves back out of Merged
+ * because an answer is missing.
+ */
+function staysLanded(
+  view: Declaration,
+  merged: PlacementInput['merged'],
+  previous?: string
+): boolean {
+  if (merged === true) return true;
+  return previous === view.landed.stage && (merged === 'pending' || merged === 'unknown');
+}
+
+/**
  * The stage a running run puts its item in: the stage holding its step (`nodes` name it, or
  * a stage of the workflow declares no `nodes`). On a step no stage names (a loop group
  * between rounds, or none between steps) the item stays in `previous`, the stage it sat in
@@ -186,8 +201,8 @@ export function itemColumn(
   // 1. A run works it: the stage its running step is in.
   const running = runs.filter(run => run.status === 'running').at(-1);
   if (running !== undefined) return stageOf(runningStage(view, running, previous));
-  // 2. Its change merged.
-  if (input.merged === true) return stageOf(landedStage(view));
+  // 2. Its change merged (or sat merged on the last read, its state not known now).
+  if (staysLanded(view, input.merged, previous)) return stageOf(landedStage(view));
   // 3. The last completed run's `workflow:outcome` is placed, else its `workflow:*`.
   const completed = runs.filter(run => run.status === 'completed').at(-1);
   const placed =

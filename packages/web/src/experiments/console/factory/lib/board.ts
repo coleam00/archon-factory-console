@@ -217,9 +217,10 @@ export function cardFields(
   const placed = column !== null && 'stage' in column ? column.stage.label : null;
   const { pill, pillLabel, stopLine, stopCount } = itemPill(view, item, landed, placed);
   const mergedAt = progress?.change?.mergedAt ?? null;
+  const order = membershipOf(item)?.order ?? null;
   return {
     key,
-    title: progress?.title ?? displayItemKey(key),
+    title: progress?.title ?? displayItemKey(key, order),
     pill,
     pillLabel,
     stopCount,
@@ -233,7 +234,7 @@ export function cardFields(
     change: changeField(progress),
     mergedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
     stopLine,
-    order: membershipOf(item)?.order ?? null,
+    order,
     shadow: boardShadowLine(item, column !== null && 'stage' in column ? column.stage : null, view),
   };
 }

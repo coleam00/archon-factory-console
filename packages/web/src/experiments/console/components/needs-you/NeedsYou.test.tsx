@@ -578,4 +578,46 @@ describe('an issue key on Needs you', () => {
       expect(text(link?.querySelector('.font-mono'))).toBe('#7');
     }
   });
+
+  /** `item` as a split member of `issue-136`, through an active part_of link. */
+  const member = (item: FactoryItem): FactoryItem => ({
+    ...item,
+    links: [
+      {
+        id: 'link-136',
+        kind: 'part_of',
+        direction: 'outgoing',
+        other: { id: 'item-136', projectKey: item.item.projectKey, key: 'issue-136' },
+        at: '2026-11-17T10:00:00.000Z',
+        via: 'cli',
+        by: null,
+        fromRun: null,
+        ended: null,
+      },
+    ],
+  });
+  const KEY = 'issue-136-item-keys';
+
+  test("a split member's open ask reads #136 · item keys, with or without a view", () => {
+    const answered = answeredOn(KEY, '2026-11-17T10:00:00.000Z');
+    const ask = askItem({ ref: 'ask:member', item: answered.item });
+    for (const listing of [withView, none]) {
+      const root = render(listing, queueOf(ask), [member(answered)]);
+      const panel = root.querySelector('section[data-needs-you="open"] article[data-doc-panel]');
+      expect(panel?.getAttribute('aria-label')).toBe('Asks on #136 · item keys');
+      expect(text(panel?.querySelector('h3 .font-mono'))).toBe('#136 · item keys');
+    }
+    const link = render(withView, queueOf(ask), [member(answered)]).querySelector(
+      'section[data-needs-you="open"] h3 a'
+    );
+    expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/${KEY}`);
+  });
+
+  test("a split member's answered row reads #136 · item keys, whose link keeps the key", () => {
+    const root = render(withView, quiet, [member(answeredOn(KEY, '2026-11-17T10:00:00.000Z'))]);
+    const link = root.querySelector(
+      `section[aria-label="Answered lately"] li a[href="/console/p/${ID}/factory/items/${KEY}"]`
+    );
+    expect(text(link?.querySelector('.font-mono'))).toBe('#136 · item keys');
+  });
 });

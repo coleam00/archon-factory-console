@@ -9,6 +9,8 @@ import {
   factoryItemDetailSchema,
   readFactoryItem,
   readFactoryProgress,
+  type FactoryChangeLookup,
+  type FactoryChangeRecord,
   type FactoryChangeState,
   type FactoryRound,
   titleOfItemText,
@@ -537,7 +539,8 @@ function deliverNaming(
 async function progressOf(
   runs: { run: WorkflowRun; events: WorkflowEventRow[] }[],
   changeState: FactoryChangeState = notMerged,
-  branchOf: (run: WorkflowRun) => Promise<string | null> = async () => null
+  branchOf: (run: WorkflowRun) => Promise<string | null> = async () => null,
+  recorded: FactoryChangeRecord | null = null
 ) {
   const facts = new Map(runs.map(entry => [entry.run.id, factsOf(entry)]));
   return factoryItemProgress(
@@ -546,9 +549,12 @@ async function progressOf(
     runs.map(entry => entry.run),
     facts,
     changeState,
-    branchOf
+    branchOf,
+    recorded
   );
 }
+
+const RECORDED: FactoryChangeRecord = { change: PR10, at: '2026-11-17T01:00:00.000Z' };
 
 describe("an item's progress", () => {
   test("the change lookup gets the declared runs' branches, newest first, once each", async () => {
@@ -583,9 +589,52 @@ describe("an item's progress", () => {
         read.push([...(await branches())]);
         return { url: PR10, merged: false, mergedAt: null, number: null };
       },
-      async run => recorded[run.id] ?? null
+      async run => recorded[run.id] ?? null,
+      null
     );
     expect(read).toEqual([['later-branch', 'shared']]);
+  });
+
+  test("the item's recorded merge is handed to the change lookup with its change", async () => {
+    const handed: (FactoryChangeRecord | null)[] = [];
+    const progress = await progressOf(
+      [triage1, plan1, deliver1],
+      async (_lookup, _branches, recorded) => {
+        handed.push(recorded);
+        return { url: null, merged: true, mergedAt: recorded?.at ?? null, number: 10 };
+      },
+      async () => null,
+      RECORDED
+    );
+    expect(handed).toEqual([RECORDED]);
+    expect(progress.change).toEqual({
+      url: PR10,
+      merged: true,
+      mergedAt: RECORDED.at,
+      number: 10,
+    });
+  });
+
+  test('a recorded merge on an item no run names a change for is its change, merged, unasked', async () => {
+    const asked: FactoryChangeLookup[] = [];
+    const progress = await progressOf(
+      [triage1, plan1],
+      async lookup => {
+        asked.push(lookup);
+        return { url: null, merged: false, mergedAt: null, number: null };
+      },
+      async () => 'a-branch',
+      RECORDED
+    );
+    expect(asked).toEqual([]);
+    expect(progress.change).toEqual({
+      url: PR10,
+      merged: true,
+      mergedAt: RECORDED.at,
+      number: null,
+    });
+    // With no record, such an item has no change.
+    expect((await progressOf([triage1, plan1])).change).toBeNull();
   });
 
   test('item 1 after its deliver run: title, round 2 of 3, returned twice, its change', async () => {
@@ -979,6 +1028,35 @@ describe('reading progress, and one item whole', () => {
     );
     expect(started).toBe(2);
     expect(Object.keys(read.progress).sort()).toEqual(['1', '3']);
+  });
+
+  test("each item's recorded merge reaches its change lookup; an unreadable row reads as none", async () => {
+    const source = pageSource({ queue: 0, loaded: [] });
+    const merge = {
+      change: PR10,
+      commit: null,
+      at: '2026-11-17T01:00:00.000Z',
+      recordedAt: '2026-11-17T01:01:00.000Z',
+      via: 'cli' as const,
+      fromRun: null,
+    };
+    const handed: (FactoryChangeRecord | null)[] = [];
+    const changeState: FactoryChangeState = async (_lookup, _branches, recorded) => {
+      handed.push(recorded);
+      return { url: null, merged: recorded !== null, mergedAt: null, number: null };
+    };
+    const input = { ...progressInput(new FactoryRunFactsMemo(), () => {}), changeState };
+    source.store.getItemMerge = async id => (id === item1.id ? merge : null);
+    const read = await readFactoryProgress(source, input, ['1']);
+    expect(handed).toEqual([{ change: PR10, at: merge.at }]);
+    expect(read.progress['1']?.change?.merged).toBe(true);
+    source.store.getItemMerge = async itemId => ({
+      type: 'degraded',
+      reason: 'merge_unreadable',
+      itemId,
+    });
+    await readFactoryProgress(source, input, ['1']);
+    expect(handed.at(-1)).toBeNull();
   });
 
   test("one item's facts failing gives it null progress and leaves the others", async () => {
