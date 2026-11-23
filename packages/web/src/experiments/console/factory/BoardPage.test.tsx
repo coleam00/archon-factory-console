@@ -310,7 +310,7 @@ describe('the Pipeline view', () => {
     try {
       const line = summary(container)?.parentElement;
       expect(summary(container)?.getAttribute('aria-expanded')).toBe('false');
-      expect(line?.textContent).toContain('highlighting 48');
+      expect(line?.textContent).toContain('highlighting #48');
       expect(container.querySelectorAll('article[data-dimmed="true"]')).toHaveLength(
         PAGE.items.length - 2
       );

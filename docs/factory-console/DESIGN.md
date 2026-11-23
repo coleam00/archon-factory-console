@@ -627,6 +627,13 @@ The section has **two separate things**, each with its own file:
 one, else a cleaned id (a doubled include name collapses, a loop prefix becomes "round N", separators
 become spaces). The raw id appears only on hover and on the step page.
 
+**Item keys, everywhere a person reads:** an item keyed `issue-N` (how the pack's `order-on-label`
+binding keys an issue) or plain `N` reads `#N`: on cards, rows, titles, link text, sentences, hover
+titles and accessible names alike. Any other key reads as it is. One function gives it
+(`factory/lib/item-key.ts`). The raw key stays in every route, href, lookup, search and filter
+match, so `/items/issue-136` still opens the item that reads `#136`. Where this document quotes
+`<key>` in words a person reads, it means the key as it reads.
+
 ## What it is for
 
 A factory is Archon running a pack of stages over work items: an item comes in, stages work it,
@@ -1195,7 +1202,9 @@ row per item with the same fields as columns, a Work order, a Column and a Stage
 them (a running item's step and round under its stage, as the card's stage line reads; a merged
 item's Stage empty, as its card names no stage; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
-box narrows by key, title or work order key. Until the items are read, the board draws its
+box narrows by key, title or work order key, matching the raw key (`136` finds `issue-136`). The
+Key and Work order columns sort by the key as it reads, so `#9` comes before `#111` whichever form
+each is stored in. Until the items are read, the board draws its
 declared columns with skeleton counts and card shapes (Visual standard, rule 6).
 
 **Work orders** (read-only; the console records and ends no link). A work order is an item other
@@ -1226,7 +1235,7 @@ panels stack. Everything on it is derived in `factory/lib/` from the item read a
 declaration: where the item went (`item-visits.ts`), the strip (`item-journey.ts`), the panels
 and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts`).
 
-- **Header band:** `#<key>` and the title, the state pill the board card shows (the band's one
+- **Header band:** the key as it reads (`#N`; any other key after a `#`) and the title, the state pill the board card shows (the band's one
   coloured state), the change as a button-style link ("PR #n") with its merge state as quiet
   tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line while the
   host is still asked), one sentence of where the item is ("In Checks now.", the `endings`

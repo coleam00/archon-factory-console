@@ -32,6 +32,16 @@ describe('the Table under a number', () => {
     expect(keys(sortRows(rows, { by: 'toLand', descending: true }))).toEqual(['a', 'd', 'c', 'b']);
   });
 
+  test('sorted by Key, issue-N and N keys interleave by number, as the column shows them', () => {
+    const rows = [row('issue-136', 1), row('140', 1), row('111', 1), row('issue-9', 1)];
+    expect(keys(sortRows(rows, { by: 'key', descending: false }))).toEqual([
+      'issue-9',
+      '111',
+      'issue-136',
+      '140',
+    ]);
+  });
+
   test('the median marks the middle row of an odd count, the two middle rows of an even one', () => {
     const odd = [row('a', 5), row('b', 1), row('c', 3), row('n', null)];
     expect([...markedKeys(odd, 'median', 'landed')]).toEqual(['c']);

@@ -65,7 +65,9 @@ export function WorkOrdersStrip({
         </button>
         {lighting === null ? null : (
           <>
-            <span className="min-w-0 truncate text-text-primary">highlighting {lighting}</span>
+            <span className="min-w-0 truncate text-text-primary">
+              highlighting {displayItemKey(lighting)}
+            </span>
             <button
               type="button"
               onClick={() => {
