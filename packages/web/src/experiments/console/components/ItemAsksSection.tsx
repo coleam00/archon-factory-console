@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { displayItemKey } from '../factory/lib/item-key';
 import { Link } from 'react-router';
 import { AttentionAnswerForm } from './AttentionAnswerPanel';
 import * as skill from '../skills';
@@ -97,7 +98,7 @@ export function ItemAsksSection({
                 Item
               </span>
               <span className="font-mono text-sm text-text-primary">
-                {item?.key ?? 'Item not found'}
+                {item === undefined ? 'Item not found' : displayItemKey(item.key)}
               </span>
               {showProject && project !== null ? (
                 <span className="truncate text-console-11 text-text-secondary">

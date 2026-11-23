@@ -585,6 +585,7 @@ describe('work orders on the item page', () => {
     expect(words).toContain('#9');
     expect(words).not.toContain('#3 #3');
     expect(words).not.toContain('#9 #9');
+    expect(words).not.toContain('issue-');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/issue-3"`);
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/issue-9"`);
   });
