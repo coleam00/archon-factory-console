@@ -1087,12 +1087,12 @@
       "label": "Needs shaping",
       "why": "/why",
       "questions": "/open_questions",
-      "next": "Settle these questions with a maintainer, then order the item again by work order or the factory label; a comment on the issue does not reach it."
+      "next": "Settle these questions with a maintainer, then order it again: a work order, or remove and add the factory label. A comment on the issue does not reach it."
     },
     "close:reshape": {
       "label": "Needs shaping",
       "why": "/why",
-      "next": "Shape the item with a maintainer, then order it again by work order or the factory label; a comment on the issue does not reach it."
+      "next": "Shape the item with a maintainer, then order it again: a work order, or remove and add the factory label. A comment on the issue does not reach it."
     },
     "close:not_closed": {
       "label": "Carry out your answer by hand",
@@ -1315,7 +1315,7 @@
       "close:dropped": "You dropped it; the change was closed without merging",
       "close:reshape": "You sent it back to shaping; the change stays open as a draft",
       "close:not_closed": "The factory could not carry out your drop or reshape on the change; do it by hand",
-      "close:none": "Close found no drop or reshape answer and did nothing"
+      "close:none": "Drop or reshape found no drop or reshape answer and did nothing"
     },
     "steps": {
       "deliver": {

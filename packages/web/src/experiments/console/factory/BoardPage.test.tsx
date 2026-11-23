@@ -431,7 +431,13 @@ describe('an item waiting on you with no ask open', () => {
     }
     const table = await mount([item], `/console/p/${ID}/factory/board?view=table`);
     try {
-      expect(table.container.querySelector('tbody')?.textContent).toContain('Needs shaping');
+      const row = table.container.querySelector('tbody');
+      expect(row?.textContent).toContain('Needs shaping');
+      // The count stands apart from the clamped question, as on the card, and is on hover too.
+      const count = row?.querySelector('[data-stop-count]');
+      expect(count?.textContent).toBe('2 questions');
+      expect(count?.parentElement?.getAttribute('title')).toBe('Which surfaces? · 2 questions');
+      expect(count?.parentElement?.className).not.toContain('line-clamp');
     } finally {
       await table.unmount();
     }
