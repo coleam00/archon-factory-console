@@ -38,16 +38,12 @@ function useMinuteClock(): Date {
   return now;
 }
 
-/** Why a tile has no value yet: the items are not read, or a merge answer is outstanding. */
-type TileWait = 'items' | 'merge';
-
-const WAIT_TITLE: Record<TileWait, string> = {
-  items: 'Loading',
-  merge: 'Checking which changes merged',
-};
-
-/** A tile that waits shows a skeleton bar (rule 6), never a wrong count and never "…". */
-type TileValue = { wait: TileWait } | { wait: null; value: string };
+/**
+ * A tile whose items are not read shows a skeleton bar (rule 6), never a wrong count and
+ * never "…". One whose count leaves out items with a merge state not known yet shows the
+ * known count with a skeleton bar beside it (`unsettled`).
+ */
+type TileValue = { value: null } | { value: string; unsettled: boolean };
 
 type Tile = TileValue & {
   to: string;
@@ -76,11 +72,11 @@ function tiles(
   waiting: number | undefined
 ): Tile[] {
   const board = (show: BoardShow): Pick<Tile, 'to' | 'opens'> => boardLink(projectId, show);
-  const read = (value: (n: Numbers) => string): TileValue =>
-    numbers === undefined ? { wait: 'items' } : { wait: null, value: value(numbers) };
   // Every number but "needs you" depends on which items merged (placement rule 2).
   const merged = (value: (n: Numbers) => string): TileValue =>
-    numbers?.pending === true ? { wait: 'merge' } : read(value);
+    numbers === undefined
+      ? { value: null }
+      : { value: value(numbers), unsettled: numbers.unsettled };
   return [
     {
       ...board('in-flight'),
@@ -92,8 +88,8 @@ function tiles(
       to: needsYouPath(projectId),
       opens: 'Open Needs you',
       ...(waiting === undefined
-        ? { wait: 'items' as const }
-        : { wait: null, value: waiting.toString() }),
+        ? { value: null }
+        : { value: waiting.toString(), unsettled: false }),
       label: waiting === 1 ? 'needs you' : 'need you',
       icon: MessageCircleQuestionMark,
     },
@@ -169,7 +165,10 @@ export function FactoryNumbers({
             icon={tile.icon}
             means={tile.means}
           >
-            {tile.wait === null ? tile.value : <FigureSkeleton title={WAIT_TITLE[tile.wait]} />}
+            {tile.value === null ? <FigureSkeleton title="Loading" /> : tile.value}
+            {tile.value !== null && tile.unsettled ? (
+              <FigureSkeleton title="Checking which changes merged" />
+            ) : null}
           </NumberTile>
         ))}
         {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
@@ -209,7 +208,7 @@ function NumberTile({
           <Icon aria-hidden="true" className="size-4 shrink-0" />
           {label}
         </span>
-        <span className="flex h-7 items-center text-console-22 font-semibold tabular-nums text-text-primary">
+        <span className="flex h-7 items-center gap-2 text-console-22 font-semibold tabular-nums text-text-primary">
           {children}
         </span>
         <span className="sr-only">, {opens}</span>

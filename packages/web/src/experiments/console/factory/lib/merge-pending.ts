@@ -1,11 +1,13 @@
 /**
- * Whether an item's place waits on the change host: the server answers a change's merge
- * state `pending` while its first lookup still runs (`GET /api/factory/progress`), and the
- * console re-reads until it settles. Until then the item may belong in the landed column, so
- * no count that rule 2 of placement decides is shown as a number. A settled `unknown`, an
- * item whose progress could not be read and one with no change are not pending: they are
- * counted where placement puts them, and the card says so. A settled `false` or `unknown`
- * is still asked about again on an interval (`awaitingMerge`).
+ * Whether an item's place waits on the change host. The server answers merged for an item
+ * whose merge the engine recorded without asking the host; otherwise it answers a change's
+ * merge state `pending` while its first lookup still runs (`GET /api/factory/progress`), and
+ * the console re-reads until it settles. A pending or `unknown` item is placed by its runs
+ * (it never moves back from the landed column, `itemColumn`), and the board's columns show a
+ * pending one as loading. The Overview's numbers count only items whose state is known and
+ * show a skeleton beside them for the rest (`mergeUnsettled`). An item whose progress could
+ * not be read and one with no change are counted where placement puts them. A settled
+ * `false` or `unknown` is still asked about again on an interval (`awaitingMerge`).
  */
 import type { FactoryItem } from '../../skills/factory';
 
@@ -19,6 +21,17 @@ export type ChangeMerged = NonNullable<NonNullable<FactoryItem['progress']>['cha
 export function mergePending(item: FactoryItem): boolean {
   const progress = item.progress;
   return progress?.change?.merged === 'pending' && progress.running == null;
+}
+
+/**
+ * Whether the item's merge state is not known: `pending`, or `unknown` after a failed
+ * lookup, with no run working it. The counts that say what merged and what is in flight
+ * leave such an item out, as either might be wrong.
+ */
+export function mergeUnsettled(item: FactoryItem): boolean {
+  const progress = item.progress;
+  const merged = progress?.change?.merged;
+  return (merged === 'pending' || merged === 'unknown') && progress?.running == null;
 }
 
 export function anyMergePending(items: readonly FactoryItem[]): boolean {

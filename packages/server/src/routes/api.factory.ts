@@ -18,6 +18,7 @@ import {
   readFactoryItem,
   readFactoryProgress,
   type FactoryChangeLookup,
+  type FactoryChangeRecord,
   type FactoryChangeState,
 } from '@archon/workflows/factory-items';
 import {
@@ -175,7 +176,7 @@ const getFactoryProgressRoute = createRoute({
   tags: ['Workflows'],
   summary: "The board progress of a project's items, by key",
   description:
-    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
+    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked; else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
   request: { query: factoryProgressQuerySchema },
   responses: {
     200: {
@@ -286,19 +287,23 @@ type ShownAnswer = Awaited<ReturnType<FactoryChangeState>>;
 export type ProjectChangeState = (
   lookup: FactoryChangeLookup,
   branches: () => Promise<readonly string[]>,
-  remote: string | null
+  remote: string | null,
+  recorded: FactoryChangeRecord | null
 ) => ReturnType<FactoryChangeState>;
 
 /**
- * The change host's answer for each change, shared by every request: one lookup in flight
- * per change, a merged answer kept, any other for `CHANGE_STATE_TTL_MS`. A change is keyed
- * by its URL, or, for a run that named no URL, by that run, so two such items never share
- * an answer. A stale answer is served while its refresh runs. A cold lookup slower than the
- * wait answers `pending` for that request only and is never cached, so the next read gets
- * the host's answer once it settles; a lookup that failed answers `unknown` and is cached
- * like any other. The URL is the run's, else the forge's; the pull request number is the
- * forge's, else the one the run's own audit rows name, so a `pending` answer still carries
- * it when they do.
+ * The change host's answer for each change, shared by every request. An item whose merge the
+ * engine recorded answers merged at the recorded time and its change is never asked about: a
+ * merge does not come undone, so after a restart such an item needs no lookup. Otherwise:
+ * one lookup in flight per change, a merged answer kept, any other for
+ * `CHANGE_STATE_TTL_MS`. A change is keyed by its URL, or, for a run that named no URL, by
+ * that run, so two such items never share an answer. A stale answer is served while its
+ * refresh runs. A cold lookup slower than the wait answers `pending` for that request only
+ * and is never cached, so the next read gets the host's answer once it settles; a lookup
+ * that failed answers `unknown` and is cached like any other. The URL is the run's, else the
+ * forge's (the record's, when recorded); the pull request number is the forge's, else the
+ * one the run's own audit rows name, so a `pending` or recorded answer still carries it when
+ * they do.
  */
 export function changeStateCache(
   deps: Pick<FactoryRouteDeps, 'changeMergeState' | 'changeStateWaitMs' | 'now'>
@@ -353,7 +358,12 @@ export function changeStateCache(
           mergedAt: answer.mergedAt,
           number: answer.number,
         };
-  return async (change, branches, remote) => {
+  return async (change, branches, remote, recorded) => {
+    if (recorded !== null)
+      return shown(
+        { url: recorded.change, merged: true, mergedAt: recorded.at, number: null },
+        change
+      );
     const known = answers.get(keyOf(change));
     if (known !== undefined) {
       if (known.answer.merged !== true && now() - known.at >= CHANGE_STATE_TTL_MS)
@@ -603,7 +613,8 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
           view: view.declaration,
           pack: view.pack,
           projectKey: project.projectKey,
-          changeState: (change, branches) => changeStates(change, branches, project.remote),
+          changeState: (change, branches, recorded) =>
+            changeStates(change, branches, project.remote, recorded),
           memo,
           onProgressError: (itemId, error) => {
             getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');
@@ -634,7 +645,8 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
           view: view.declaration,
           pack: view.pack,
           projectKey: project.projectKey,
-          changeState: (change, branches) => changeStates(change, branches, project.remote),
+          changeState: (change, branches, recorded) =>
+            changeStates(change, branches, project.remote, recorded),
           memo,
           onProgressError: (itemId, error) => {
             getLog().error({ err: error, codebaseId, itemId }, 'factory_item_progress_failed');

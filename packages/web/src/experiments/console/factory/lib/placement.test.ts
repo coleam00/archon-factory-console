@@ -79,6 +79,20 @@ describe('where an item sits', () => {
     ).toBe('ready');
   });
 
+  test('2. a card in the landed column stays there while its merge state is not known', () => {
+    const ended = [run('deliver', 'completed', 'ready')];
+    for (const merged of ['pending', 'unknown'] as const) {
+      expect(where(itemColumn(view, input(ended, { merged }), 'landed'))).toBe('landed');
+      // One that was not in the landed column is placed by its runs, never moved forward.
+      expect(where(itemColumn(view, input(ended, { merged }), 'ready'))).toBe('ready');
+    }
+    // A known answer places it: not merged is not landed.
+    expect(where(itemColumn(view, input(ended, { merged: false }), 'landed'))).toBe('ready');
+    // A run working it places it, as rule 1 says.
+    const running = [...ended, run('deliver', 'running', null, 'rounds.tests__tests')];
+    expect(where(itemColumn(view, input(running, { merged: 'pending' }), 'landed'))).toBe('checks');
+  });
+
   test("3. the last completed run's workflow and outcome, through placement", () => {
     const runs = [run('triage', 'completed', 'build'), run('plan', 'completed', 'planned')];
     expect(where(itemColumn(view, input(runs)))).toBe('build');

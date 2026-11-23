@@ -13,7 +13,7 @@ import * as factoryDb from '@archon/core/db/factory-reads';
 import { providerRegistry } from '@archon/providers';
 import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
 import { attentionQueueSource } from '@archon/core/operations/attention-queue';
-import { changeMergeState } from '@archon/adapters/forge-host';
+import { changeMergeState, forgeHostDiscoveryOnce } from '@archon/adapters/forge-host';
 import { getArchonHome, projectKeyForCodebase } from '@archon/paths/archon-paths';
 import {
   registeredProjectForPath,
@@ -143,6 +143,8 @@ export function registerApiRoutes(
     codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     loadConfig,
   });
+  // One forge plugin discovery for every merge lookup these routes make (`forgeHostDiscoveryOnce`).
+  const forgeDiscovery = forgeHostDiscoveryOnce(getArchonHome(), process.env);
   registerFactoryRoutes(app, {
     codebase: async id => {
       const codebase = await codebaseDb.getCodebase(id);
@@ -167,7 +169,7 @@ export function registerApiRoutes(
     itemsSource: attentionQueueSource(createWorkflowStore(), createWorkflowHostStore().isolation),
     discoveriesSource: createWorkflowStore(),
     changeMergeState: (lookup, branches) =>
-      changeMergeState(lookup, branches, { archonHome: getArchonHome(), env: process.env }),
+      changeMergeState(lookup, branches, { discovery: forgeDiscovery, env: process.env }),
     discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerPackGraphRoute(app, {

@@ -7,6 +7,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FactoryNumbers } from './FactoryNumbers';
 import { PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
+import { mergeUnsettled } from './lib/merge-pending';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads, MERGE_REREAD_MS, scheduleReread } from './merge-reread';
 import { cancelMergeWatches, MERGE_WATCH_MS, mergeWatchHeld } from './merge-watch';
@@ -159,34 +160,38 @@ test('before the reads answer, every tile shows a skeleton figure, never a count
   }
 });
 
-test('while a merge state is pending, the counts it decides say loading, never zeros', async () => {
+test('while a merge state is pending, the counts it decides show what is known and a skeleton for the rest', async () => {
   // The cold-load wire value: the server still asking the host whether item 1's change merged.
   const items = [...PAGE.items, readyWithMerge('p', 'pending')];
   const { container, tile, unmount } = await mount('cb-pending', items);
   try {
-    for (const label of ['in flight', 'merged today', 'merged', 'median to merged'])
-      expect(tile(label)).toBe(`${label}Checking which changes merged`);
-    expect(container.textContent).not.toMatch(/\d+ of \d+/);
+    // The pending item is in M, and in no other count.
+    expect(tile('merged')).toBe('merged3 of 9Checking which changes merged');
+    expect(tile('in flight')).toBe('in flight4Checking which changes merged');
+    for (const label of ['merged today', 'median to merged'])
+      expect(tile(label)).toContain('Checking which changes merged');
     expect(container.querySelector('[title="Loading"]')).toBeNull();
     // The asks and waits that need you do not wait on a merge answer: the queue counts them.
     expect(tile('need you')).toBe('need you2');
     // The answer arrives: real numbers replace the loading ones.
-    await act(async () => set(K.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
-    expect(tile('merged')).toBe('merged3 of 8');
+    // Every state answered (item 3's unknown one left out here): the skeletons go.
+    const settled = PAGE.items.filter(item => !mergeUnsettled(item));
+    await act(async () => set(K.factoryItems('cb-pending'), { items: settled, members: {} }));
+    expect(tile('merged')).toBe('merged3 of 7');
     expect(container.textContent).not.toContain('Checking');
   } finally {
     await unmount();
   }
 });
 
-test('a settled unknown is counted as the board places it, not loading', async () => {
+test('a settled unknown is left out of the counts as a pending one is', async () => {
   const { container, tile, unmount } = await mount('cb-unknown', [
     ...PAGE.items,
     readyWithMerge('u', 'unknown'),
   ]);
   try {
-    expect(tile('merged')).toBe('merged3 of 9');
-    expect(container.textContent).not.toContain('Checking');
+    // A failed lookup is not known either: left out of the counts, a skeleton beside them.
+    expect(tile('merged')).toBe('merged3 of 9Checking which changes merged');
   } finally {
     await unmount();
   }
@@ -213,20 +218,20 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
   const items = [...PAGE.items, waiting];
   const { tile, unmount } = await mount('cb-watch', items);
   try {
-    expect(tile('merged')).toBe('merged3 of 9');
-    expect(tile('merged today')).toBe('merged today0');
+    expect(tile('merged')).toBe(`merged3 of 9Checking which changes merged`);
+    expect(tile('merged today')).toBe(`merged today0Checking which changes merged`);
     jest.advanceTimersByTime(MERGE_WATCH_MS - 1);
     expect(asked).toEqual([]);
     await act(async () => {
       jest.advanceTimersByTime(1);
       for (let turn = 0; turn < 5; turn++) await Promise.resolve();
     });
-    for (let turn = 0; turn < 5 && tile('merged') !== 'merged4 of 9'; turn++)
+    for (let turn = 0; turn < 5 && !tile('merged').startsWith('merged4 of 9'); turn++)
       await act(async () => Promise.resolve());
     // Only the keys whose change is not merged were asked about, not the whole board.
     expect(asked).toEqual(['8,3,w']);
-    expect(tile('merged')).toBe('merged4 of 9');
-    expect(tile('merged today')).toBe('merged today1');
+    expect(tile('merged')).toBe(`merged4 of 9Checking which changes merged`);
+    expect(tile('merged today')).toBe(`merged today1Checking which changes merged`);
   } finally {
     globalThis.fetch = held;
     await unmount();
@@ -266,7 +271,7 @@ test('a failed refresh says so and keeps the last numbers', async () => {
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       'Could not refresh: the server is down. Showing the last values read.'
     );
-    expect(tile('merged')).toBe('merged3 of 8');
+    expect(tile('merged')).toBe(`merged3 of 8Checking which changes merged`);
   } finally {
     await unmount();
   }
@@ -281,8 +286,8 @@ test('while pending it reads again on its own, and keeps trying after a failed r
     await act(async () => new Promise(resolve => setTimeout(resolve, MERGE_REREAD_MS + 100)));
     await turns();
     expect(fetches).toBeGreaterThan(before);
-    // The read failed: the pending values stay loading, and the note says why.
-    expect(tile('merged')).toBe('mergedChecking which changes merged');
+    // The read failed: the pending item stays left out, and the note says why.
+    expect(tile('merged')).toBe('merged3 of 9Checking which changes merged');
     expect(container.querySelector('[role="status"]')?.textContent).toContain('Could not refresh');
     // The failure scheduled the next re-read: a timer holds the key, so this one is a no-op.
     const after = fetches;
