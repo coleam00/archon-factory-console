@@ -37,7 +37,8 @@ describe("a tab row's fades", () => {
 describe('bringing the active tab into view', () => {
   const row = { scrollLeft: 0, clientWidth: 390 };
   test('a tab in view stays where it is', () => {
-    expect(revealTab(row, 100, 80)).toBe(0);
+    // Scrolled already, so staying put and snapping back to the start read differently.
+    expect(revealTab({ scrollLeft: 60, clientWidth: 390 }, 100, 80)).toBe(60);
   });
   test('a tab past the end scrolls just far enough to show its right edge', () => {
     expect(revealTab(row, 440, 80)).toBe(130);

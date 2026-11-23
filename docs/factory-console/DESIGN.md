@@ -348,7 +348,8 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   windows scroll sideways).
 - The project tabs stay one line (`components/TabRow.tsx`): where they do not fit (on a phone),
   the row scrolls sideways with no scrollbar, fades the edge it hides tabs past and no other,
-  and brings the active tab into view. A tab link (`TabLink`) never wraps or squeezes its label.
+  and brings the active tab into view when the page opens, the tab changes or the row's width
+  changes (a phone turned to portrait). A tab link (`TabLink`) never wraps or squeezes its label.
 
 ### 4. Lines
 

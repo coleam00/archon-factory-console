@@ -4,7 +4,9 @@ import { edgeFades, revealTab } from './tab-row';
 /**
  * A row of `TabLink`s on one line. Where the tabs do not fit, it scrolls sideways with no
  * scrollbar, fading the edge it hides tabs past (`.tab-row` in theme.css), and it brings the
- * active tab (`aria-current="page"`) into view when `active` or the number of tabs changes. It
+ * active tab (`aria-current="page"`) into view when `active`, the number of tabs or the row's
+ * width changes (a phone turned to portrait narrows it). A resize that leaves the row's width as
+ * it was (a badge widening a tab) does not move it, so it never undoes a person's own scroll. It
  * scrolls itself, never through `scrollIntoView`, which would scroll the page too. The bottom
  * padding holds the active tab's brand bar, which hangs below the tab and a scrolling row would
  * otherwise clip.
@@ -27,12 +29,20 @@ export function TabRow({
       const next = edgeFades(row);
       setFades(was => (was.start === next.start && was.end === next.end ? was : next));
     };
+    let width = row.clientWidth;
+    const resized = (): void => {
+      if (row.clientWidth !== width) {
+        width = row.clientWidth;
+        revealActive(row);
+      }
+      measure();
+    };
     measure();
     row.addEventListener('scroll', measure, { passive: true });
     // The tabs as well as the row: a tab joining late (Factory, once the views are read) or a
     // badge widening one changes what fits without resizing the row. happy-dom and old
     // browsers have no ResizeObserver; the row then measures on mount and scroll alone.
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resized);
     for (const el of [row, ...row.children]) observer?.observe(el);
     return () => {
       row.removeEventListener('scroll', measure);
@@ -41,10 +51,7 @@ export function TabRow({
   }, [count]);
 
   useEffect(() => {
-    const row = ref.current;
-    const tab = row?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (row == null || tab == null) return;
-    row.scrollLeft = revealTab(row, tab.offsetLeft, tab.offsetWidth);
+    if (ref.current !== null) revealActive(ref.current);
     // On the tab count too: a tab that joins late may be the active one.
   }, [active, count]);
 
@@ -58,4 +65,10 @@ export function TabRow({
       {children}
     </div>
   );
+}
+
+/** Scrolls `row` just far enough to show its active tab whole. */
+function revealActive(row: HTMLElement): void {
+  const tab = row.querySelector<HTMLElement>('[aria-current="page"]');
+  if (tab !== null) row.scrollLeft = revealTab(row, tab.offsetLeft, tab.offsetWidth);
 }

@@ -19,10 +19,25 @@ class QuietEventSource {
     this.readyState = 2;
   }
 }
+/** A ResizeObserver the tests fire by hand (`resizeAll`), as a browser does on a resize. */
+class HandResizeObserver {
+  static live = new Set<HandResizeObserver>();
+  constructor(private readonly callback: () => void) {}
+  observe(): void {
+    HandResizeObserver.live.add(this);
+  }
+  disconnect(): void {
+    HandResizeObserver.live.delete(this);
+  }
+  static resizeAll(): void {
+    for (const observer of HandResizeObserver.live) observer.callback();
+  }
+}
 const globals = {
   window: dom,
   document: dom.document,
   EventSource: QuietEventSource,
+  ResizeObserver: HandResizeObserver,
   IS_REACT_ACT_ENVIRONMENT: true,
 };
 const descriptors = new Map(
@@ -157,10 +172,19 @@ test('a Factory tab that joins after the views are read fades the end it now ove
   expect(fades).toEqual([false, 5, true]);
 });
 
-test('where every tab fits, neither edge fades', async () => {
-  const fades = await tabsAt({ client: 1440, scroll: 1440 }, 'factory', row => [
-    row.hasAttribute('data-fade-start'),
-    row.hasAttribute('data-fade-end'),
-  ]);
-  expect(fades).toEqual([false, false]);
+test('a phone turned to portrait brings the active tab back into view, and only then', async () => {
+  // Landscape: all five tabs fit, so the row sits at its start.
+  const sizes = { client: tabsWide(5) };
+  const scrolls = await tabsAt(sizes, 'factory', async row => {
+    const landscape = row.scrollLeft;
+    // Portrait narrows the row to 390 px: Factory (400..490) would sit past its end.
+    sizes.client = 390;
+    await act(async () => HandResizeObserver.resizeAll());
+    const portrait = row.scrollLeft;
+    // A resize that keeps the row's width (a badge widening a tab) leaves a person's scroll be.
+    row.scrollLeft = 20;
+    await act(async () => HandResizeObserver.resizeAll());
+    return [landscape, portrait, row.scrollLeft];
+  });
+  expect(scrolls).toEqual([0, 100, 20]);
 });
