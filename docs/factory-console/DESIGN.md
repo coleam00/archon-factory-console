@@ -935,7 +935,11 @@ What those reads do not carry comes from **one read-only route file**,
   plugins once per process (a plugin added after it starts needs a restart to be used here).
   Items merged before land runs recorded merges carry no record:
   `scripts/console-merge-backfill.ts` prints the `archon workflow merged` lines for the ones a
-  run's own URL confirms, for the operator to run once. The pull request is the one the
+  run's own URL confirms, for the operator to run once. It lists every other item that looks
+  merged or whose state could not be read (its pull request found by branch, no merge time,
+  `unknown`, still pending) with why, and says what to do: confirm the pull request, then
+  record it by hand with `archon workflow merged`, or leave it when it never merged. A run
+  with nothing to record says so. The pull request is the one the
   run's forge records name, else the one on a branch the item's runs recorded whose URL is
   the change (an earlier run may have opened it). An
   empty change URL is no URL: the item takes the latest earlier run that named one. When no

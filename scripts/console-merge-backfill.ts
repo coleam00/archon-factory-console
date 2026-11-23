@@ -13,7 +13,8 @@
  * one of the item's own runs named (URL-confirmed). Every other item that looks merged, or whose
  * state the forge could not say, is listed under "Not printed" with why: its pull request was
  * found by branch, the forge gave no merge time, it answered `unknown`, or it is still asking.
- * Those need a person to confirm the pull request and record it by hand.
+ * Those need a person to confirm the pull request and record it by hand, or leave it when it
+ * never merged; the output says so under the list. A run with nothing to record says that.
  *
  * Running the lines: from a checkout of the project (so the CLI resolves it), with `ARCHON_HOME`
  * set to the home the console reads. Agents inherit `ARCHON_HOME` pointing at the live factory's
@@ -122,22 +123,49 @@ async function readItems(base: string, codebase: string): Promise<BackfillItem[]
   return items;
 }
 
-function option(args: readonly string[], name: string): string {
+const USAGE = [
+  'Usage: bun run scripts/console-merge-backfill.ts --base http://localhost:<port> --codebase <id>',
+  "The codebase id is the one in the console's project URLs (/console/p/<id>/...).",
+].join('\n');
+
+function option(args: readonly string[], name: string): string | undefined {
   const value = args[args.indexOf(name) + 1];
-  if (!args.includes(name) || value === undefined)
-    throw new Error(
-      'Usage: bun run scripts/console-merge-backfill.ts --base http://localhost:<port> --codebase <id>'
-    );
-  return value;
+  return args.includes(name) ? value : undefined;
+}
+
+/**
+ * The script's output: a line to run for each printed merge, then each item it left out with
+ * why and what to do about it, or one line saying there is nothing to record.
+ */
+export function backfillReport({ print, notPrinted }: Backfill): string[] {
+  if (print.length === 0 && notPrinted.length === 0)
+    return ['# Nothing to record: every merged item already carries a merge record.'];
+  const lines = print.map(mergedLine);
+  if (notPrinted.length === 0) return lines;
+  return [
+    ...(lines.length > 0 ? [...lines, ''] : []),
+    '# Not printed:',
+    ...notPrinted.map(({ key, reason }) => `#   ${key}: ${reason}`),
+    '# For each, confirm its pull request on the forge. If it merged, record it by hand from a',
+    "# checkout of the project, with ARCHON_HOME set to the console's home:",
+    '#   archon workflow merged --item <key> --change <PR URL> --at <merge time>',
+    '# If it never merged, leave it: the console keeps it out of the counts and says so.',
+  ];
 }
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  const base = option(args, '--base').replace(/\/$/, '');
-  const { print, notPrinted } = selectBackfill(await readItems(base, option(args, '--codebase')));
-  for (const entry of print) console.log(mergedLine(entry));
-  if (notPrinted.length > 0) {
-    console.log('\n# Not printed:');
-    for (const { key, reason } of notPrinted) console.log(`#   ${key}: ${reason}`);
+  const base = option(args, '--base');
+  const codebase = option(args, '--codebase');
+  if (base === undefined || codebase === undefined) {
+    console.error(USAGE);
+    process.exit(1);
+  }
+  try {
+    const items = await readItems(base.replace(/\/$/, ''), codebase);
+    for (const line of backfillReport(selectBackfill(items))) console.log(line);
+  } catch (error) {
+    console.error(`Could not read the console at ${base}: ${(error as Error).message}`);
+    process.exit(1);
   }
 }
