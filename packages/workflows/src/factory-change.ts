@@ -51,7 +51,7 @@ export type FactoryChangeLookup =
 /**
  * The merge the engine recorded on the item (a land run's, or `archon workflow merged`'s): the
  * change it names and when it merged. A merge does not come undone, so it is read before the
- * change host is asked, and an item that carries one is never asked about.
+ * change host is asked, and an item that carries one is never asked whether it merged.
  */
 export interface FactoryChangeRecord {
   change: string;
@@ -62,7 +62,8 @@ export interface FactoryChangeRecord {
  * The URL, merge state and pull request number of a change, given the branches the item's
  * declared runs recorded, newest first (for a URL lookup, read only when its audit rows name
  * no pull request), and the item's recorded merge: when there is one, the answer is merged
- * as recorded and the change host is not asked.
+ * as recorded at once and the change host is not asked whether it merged (at most, in the
+ * background, for a pull request number no audit row names).
  */
 export type FactoryChangeState = (
   lookup: FactoryChangeLookup,

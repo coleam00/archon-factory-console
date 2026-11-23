@@ -73,7 +73,7 @@ export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
 
 /**
  * Whether the change merged: `true` when the engine recorded the item's merge (the change
- * host is then not asked), else as the change host reported it: `unknown` when it could not
+ * host is then not asked whether it merged), else as the change host reported it: `unknown` when it could not
  * say, `pending` while the server is still asking it (read again shortly; the answer is
  * never cached).
  */

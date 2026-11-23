@@ -918,8 +918,11 @@ What those reads do not carry comes from **one read-only route file**,
   records it; the web places each step, so placement stays in one place).
 - Whether a change merged comes first from the merge the engine recorded on the item (a land
   run records it, and `archon workflow merged` records one made by hand): a recorded item is
-  merged at the recorded time and the server never asks the change host about it, since a
-  merge does not come undone and a restart then needs no lookup for it. Otherwise it comes
+  merged at the recorded time from the first read, placed and counted without the change
+  host, since a merge does not come undone and a restart then needs no lookup for it. Only
+  when no forge record of its runs names the pull request does the server ask the host, once
+  per process and in the background, for the number alone: the card shows "the change" until
+  that answer fills "PR #n" on a later read. Otherwise it comes
   from the change host through Archon's forge seam (the same `pull request view` operation
   the packs use), read by the server and cached for at least 60 s. The server discovers forge
   plugins once per process (a plugin added after it starts needs a restart to be used here).

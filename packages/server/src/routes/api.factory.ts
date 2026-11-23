@@ -176,7 +176,7 @@ const getFactoryProgressRoute = createRoute({
   tags: ['Workflows'],
   summary: "The board progress of a project's items, by key",
   description:
-    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked; else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
+    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked whether it merged (only, once and in the background, for a pull request number no audit row of its runs names, which fills a later read); else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
   request: { query: factoryProgressQuerySchema },
   responses: {
     200: {
@@ -293,8 +293,10 @@ export type ProjectChangeState = (
 
 /**
  * The change host's answer for each change, shared by every request. An item whose merge the
- * engine recorded answers merged at the recorded time and its change is never asked about: a
- * merge does not come undone, so after a restart such an item needs no lookup. Otherwise:
+ * engine recorded answers merged at the recorded time at once: a merge does not come undone,
+ * so after a restart such an item needs no lookup to be placed or counted. Its change is asked
+ * about only when no audit row names its pull request, once, in the background, for the
+ * number alone (`recordedAnswer`). Otherwise:
  * one lookup in flight per change, a merged answer kept, any other for
  * `CHANGE_STATE_TTL_MS`. A change is keyed by its URL, or, for a run that named no URL, by
  * that run, so two such items never share an answer. A stale answer is served while its
@@ -358,12 +360,32 @@ export function changeStateCache(
           mergedAt: answer.mergedAt,
           number: answer.number,
         };
+  /**
+   * A recorded merge, answered at once: merged at the recorded time, placed and counted
+   * without the change host. Only the pull request number can be missing (no audit row of the
+   * run names it); then the host is asked once per process, in the background, and its number
+   * fills later reads when its pull request is the one shown. Nothing waits on that lookup.
+   */
+  const recordedAnswer = (
+    change: FactoryChangeLookup,
+    branches: () => Promise<readonly string[]>,
+    remote: string | null,
+    recorded: FactoryChangeRecord
+  ): ShownAnswer => {
+    const answer = shown(
+      { url: recorded.change, merged: true, mergedAt: recorded.at, number: null },
+      change
+    );
+    if (answer.number !== null) return answer;
+    const known = answers.get(keyOf(change));
+    if (known === undefined) {
+      void lookup(change, branches, remote);
+      return answer;
+    }
+    return known.answer.url === answer.url ? { ...answer, number: known.answer.number } : answer;
+  };
   return async (change, branches, remote, recorded) => {
-    if (recorded !== null)
-      return shown(
-        { url: recorded.change, merged: true, mergedAt: recorded.at, number: null },
-        change
-      );
+    if (recorded !== null) return recordedAnswer(change, branches, remote, recorded);
     const known = answers.get(keyOf(change));
     if (known !== undefined) {
       if (known.answer.merged !== true && now() - known.at >= CHANGE_STATE_TTL_MS)

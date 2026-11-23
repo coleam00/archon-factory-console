@@ -909,7 +909,10 @@ describe('the merge-state cache', () => {
     ]);
   });
 
-  test('a recorded merge answers merged as recorded, and the change host is never asked', async () => {
+  const recorded = { change: CHANGE, at: '2026-11-17T01:00:00.000Z' };
+  const fromRecord = { url: CHANGE, merged: true, mergedAt: recorded.at };
+
+  test('a recorded merge whose audit rows name its pull request never asks the change host', async () => {
     let lookups = 0;
     const state = changeStateCache({
       changeMergeState: async () => {
@@ -917,23 +920,60 @@ describe('the merge-state cache', () => {
         return { url: null, merged: false, mergedAt: null, number: null };
       },
     });
-    const recorded = { change: CHANGE, at: '2026-11-17T01:00:00.000Z' };
     const audited = { ...change, audits: [PR7_AUDIT] };
-    expect(await state(audited, noBranches, null, recorded)).toEqual({
-      url: CHANGE,
-      merged: true,
-      mergedAt: recorded.at,
-      number: 7,
-    });
-    expect(await state({ kind: 'branch', run: 'run-1' }, noBranches, 'remote-1', recorded)).toEqual(
-      {
-        url: CHANGE,
-        merged: true,
-        mergedAt: recorded.at,
-        number: null,
-      }
-    );
+    expect(await state(audited, noBranches, null, recorded)).toEqual({ ...fromRecord, number: 7 });
     expect(lookups).toBe(0);
+  });
+
+  test('a recorded merge answers at once; its number alone is asked for once, in the background', async () => {
+    let lookups = 0;
+    let finish: (value: ChangeMergeState) => void = () => {};
+    const state = changeStateCache({
+      // The wait would answer pending; a recorded merge never waits on it.
+      changeStateWaitMs: 60_000,
+      changeMergeState: () => {
+        lookups++;
+        return new Promise(resolve => {
+          finish = resolve;
+        });
+      },
+    });
+    expect(await state(change, noBranches, null, recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    expect(await state(change, noBranches, null, recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    expect(lookups).toBe(1);
+    // The host answers with the pull request's number; whatever it says of the merge, the
+    // record holds.
+    finish({ url: CHANGE, merged: false, mergedAt: null, number: 9 });
+    await settle();
+    expect(await state(change, noBranches, null, recorded)).toEqual({ ...fromRecord, number: 9 });
+    expect(lookups).toBe(1);
+  });
+
+  test('a recorded merge takes no number from another pull request the host found', async () => {
+    let lookups = 0;
+    const state = changeStateCache({
+      changeMergeState: async () => {
+        lookups++;
+        return { url: `${CHANGE}0`, merged: true, mergedAt: null, number: 70 };
+      },
+    });
+    const branch = { kind: 'branch' as const, run: 'run-1' };
+    expect(await state(branch, noBranches, 'remote-1', recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    await settle();
+    expect(await state(branch, noBranches, 'remote-1', recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    expect(lookups).toBe(1);
   });
 
   test('a slow branch lookup answers pending with no URL yet', async () => {
