@@ -69,6 +69,7 @@ describe('one plain sentence per outcome', () => {
   test('the page tells every workflow the item page meets', () => {
     expect(WORKFLOWS.map(entry => entry.workflow).sort()).toEqual(
       [
+        'close',
         'deliver',
         'discoveries',
         'land',

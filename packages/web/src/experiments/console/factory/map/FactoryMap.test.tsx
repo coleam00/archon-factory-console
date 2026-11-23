@@ -347,7 +347,13 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
     const forward = [...container.querySelectorAll('g[data-arrow]')].map(g => g.textContent);
     // "build, narrow" stacks one outcome per line in one pill.
     // "fixed for CI" (build to CI and review) joins "built": the cards are neighbours.
-    expect(forward).toEqual(['build,narrow', 'built,fixed for CI', 'ready', 'merged']);
+    // A drop or reshape from Build skips Checks & review, so it names its target on that pill.
+    expect(forward).toEqual([
+      'build,narrow',
+      'built,fixed for CI,drop or reshape → Ready to merge',
+      'ready,drop or reshape',
+      'merged',
+    ]);
     // Each is a declared arrow.
     const declared = shippedListed.declaration.map.arrows.map((_, i) => `decl:${i.toString()}`);
     for (const g of container.querySelectorAll('g[data-arrow]'))
@@ -372,7 +378,7 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
       'triage: split',
       'plan: replan, answers',
       'build: returned, sent back, answers',
-      'ready: land',
+      'ready: land, drop or reshape',
     ]);
     // The legend draws the send-back line as the map does.
     expect(

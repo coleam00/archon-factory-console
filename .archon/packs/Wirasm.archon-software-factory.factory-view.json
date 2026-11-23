@@ -1381,7 +1381,7 @@
       {
         "from": "host",
         "to": "ready",
-        "label": "ready, drop, reshape"
+        "label": "ready, drop or reshape"
       },
       {
         "from": "ready",
@@ -1412,7 +1412,7 @@
       {
         "from": "ready",
         "to": "ready",
-        "label": "land, drop, reshape",
+        "label": "land, drop or reshape",
         "person": true
       },
       {
@@ -1461,12 +1461,12 @@
       {
         "from": "build",
         "to": "ready",
-        "label": "drop, reshape"
+        "label": "drop or reshape"
       },
       {
         "from": "checks",
         "to": "ready",
-        "label": "drop, reshape"
+        "label": "drop or reshape"
       }
     ],
     "notes": [
