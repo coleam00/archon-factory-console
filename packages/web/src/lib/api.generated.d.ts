@@ -11843,6 +11843,7 @@ export interface components {
               label: string;
               why?: string;
               questions?: string;
+              next?: string;
             };
           };
           retired?: string[];
@@ -12951,6 +12952,7 @@ export interface components {
             label: string;
             why: string | null;
             questions: string[];
+            next: string | null;
           } | null;
         } | null;
       };
@@ -13122,6 +13124,7 @@ export interface components {
             label: string;
             why: string | null;
             questions: string[];
+            next: string | null;
           } | null;
         } | null;
       };

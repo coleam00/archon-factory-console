@@ -7,9 +7,9 @@ import { factoryPath } from '../../factory/lib/views';
 import type { FactoryItem } from '../../skills/factory';
 
 /**
- * The factory items waiting on you with no ask open (`awaitingItems`): an item triage or your
- * answer sent back to shaping, a change the factory could not close. Nothing here is answered
- * in place; each panel says what the item waits on and opens it. A filled panel with the
+ * The factory items waiting on you with no ask open (`awaitingItems`). Nothing here is answered
+ * in place: each panel says, in the view's words, what the item waits on and what to do, and
+ * opens it. Nothing here names a pack's outcomes. A filled panel with the
  * needs-you colour as its left bar, never the ping, which only an open ask has (Visual
  * standard, rules 5 and 7).
  */
@@ -31,7 +31,7 @@ export function AwaitingSection({
         id="needs-you-awaiting"
         icon={Hourglass}
         eyebrow="Waiting on you"
-        title="Items to shape or settle"
+        title="With no question to answer here"
         tone="var(--warning)"
         count={items.length}
       />

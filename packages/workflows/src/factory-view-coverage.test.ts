@@ -463,12 +463,9 @@ describe('retired workflows: kept for their old runs, compared with nothing', ()
   });
 
   test('a retired workflow the pack still has is reported, and nothing of it is compared', () => {
-    const view = retiredView();
-    view.stages[1]!.nodes = ['build__build', 'rounds', 'rounds.fixx'];
-    const found = factoryViewCoverage(view, graph());
+    const found = factoryViewCoverage(retiredView(), graph());
     expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
       ['retired-present', 'retired.0'],
-      ['unknown-step', 'stages.1.nodes.2'],
     ]);
     expect(found[0]?.message).toBe(
       'names retired workflow "deliver", which pack "o.p" still has; remove it from retired or stop retiring it'

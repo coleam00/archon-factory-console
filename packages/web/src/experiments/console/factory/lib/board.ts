@@ -106,9 +106,11 @@ export interface BoardCard {
   mergedAt: string | null;
   /**
    * What stopped a failed item, what an item that needs you asks, or, for one waiting on you
-   * with no ask, what it waits on: its open questions, else its reason.
+   * with no ask, what it waits on: its first open question, else its reason.
    */
   stopLine: string | null;
+  /** How many questions an item waiting on you recorded, when several ("4 questions"). */
+  stopCount: string | null;
   /** The key of the work order the item is part of (`membershipOf`); null when none. */
   order: string | null;
   /**
@@ -213,13 +215,14 @@ export function cardFields(
   const progress = item.progress;
   const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
   const placed = column !== null && 'stage' in column ? column.stage.label : null;
-  const { pill, pillLabel, stopLine } = itemPill(view, item, landed, placed);
+  const { pill, pillLabel, stopLine, stopCount } = itemPill(view, item, landed, placed);
   const mergedAt = progress?.change?.mergedAt ?? null;
   return {
     key,
     title: progress?.title ?? displayItemKey(key),
     pill,
     pillLabel,
+    stopCount,
     round: roundField(view, progress),
     run: runField(view, projectId, progress, column),
     stage: !landed && column !== null && 'stage' in column ? column.stage.label : null,
@@ -235,19 +238,18 @@ export function cardFields(
   };
 }
 
-/** The open questions shown on a card's line; the rest are counted. */
-const QUESTIONS_SHOWN = 3;
-
 /**
- * What an item waiting on you says on its card's line: up to three of its open questions and
- * how many more, else the reason its run gave; null when it gave neither.
+ * What an item waiting on you says on its card's line, as the ask face says an ask: its first
+ * open question, with "N questions" when it recorded several, else the reason its run gave
+ * (null when it gave neither).
  */
-export function awaitsLine(awaits: NonNullable<Progress['awaits']>): string | null {
-  const { questions } = awaits;
-  if (questions.length === 0) return awaits.why;
-  const more = questions.length - QUESTIONS_SHOWN;
-  const shown = questions.slice(0, QUESTIONS_SHOWN).join(' · ');
-  return more > 0 ? `${shown} · ${more.toString()} more` : shown;
+export function awaitsLine(
+  awaits: NonNullable<Progress['awaits']>
+): Pick<BoardCard, 'stopLine' | 'stopCount'> {
+  const [first] = awaits.questions;
+  const count = awaits.questions.length;
+  if (first === undefined) return { stopLine: awaits.why, stopCount: null };
+  return { stopLine: first, stopCount: count > 1 ? `${count.toString()} questions` : null };
 }
 
 /**
@@ -264,11 +266,12 @@ export function itemPill(
   landed: boolean,
   /** The label of the stage the item is placed in, named when a failed run's stage is not known. */
   placed: string | null = null
-): Pick<BoardCard, 'pill' | 'pillLabel' | 'stopLine'> {
+): Pick<BoardCard, 'pill' | 'pillLabel' | 'stopLine' | 'stopCount'> {
   const of = (pill: Pill, stopLine: string | null) => ({
     pill,
     pillLabel: PILL_LABEL[pill],
     stopLine,
+    stopCount: null,
   });
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
   if (landed) return of('landed', unread);
@@ -281,7 +284,7 @@ export function itemPill(
   const awaits = item.progress?.awaits;
   // `awaitingItems` takes the same items, so Needs you counts what this pill shows.
   if (awaits != null && awaitingItems([item]).length === 1)
-    return { pill: 'awaits', pillLabel: awaits.label, stopLine: awaitsLine(awaits) };
+    return { pill: 'awaits', pillLabel: awaits.label, ...awaitsLine(awaits) };
   if (item.progress?.parked != null) return of('parked', null);
   return of('waiting', unread);
 }

@@ -1086,15 +1086,18 @@
     "triage:shape": {
       "label": "Needs shaping",
       "why": "/why",
-      "questions": "/open_questions"
+      "questions": "/open_questions",
+      "next": "Settle these questions with a maintainer, then order the item again by work order or the factory label; a comment on the issue does not reach it."
     },
     "close:reshape": {
       "label": "Needs shaping",
-      "why": "/why"
+      "why": "/why",
+      "next": "Shape the item with a maintainer, then order it again by work order or the factory label; a comment on the issue does not reach it."
     },
     "close:not_closed": {
-      "label": "Close the change by hand",
-      "why": "/why"
+      "label": "Carry out your answer by hand",
+      "why": "/why",
+      "next": "On the pull request, do what you answered: close it for drop, or mark it a draft for reshape."
     }
   },
   "change": [
@@ -1311,7 +1314,7 @@
       "triage:shape": "Triage judged it worth doing, once a maintainer settles its open questions",
       "close:dropped": "You dropped it; the change was closed without merging",
       "close:reshape": "You sent it back to shaping; the change stays open as a draft",
-      "close:not_closed": "The factory could not close the change; close it by hand",
+      "close:not_closed": "The factory could not carry out your drop or reshape on the change; do it by hand",
       "close:none": "Close found no drop or reshape answer and did nothing"
     },
     "steps": {

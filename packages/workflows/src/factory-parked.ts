@@ -4,6 +4,7 @@
  * names a pack's outcome or words; the declaration gives the label and where in the run's
  * result its reason and questions are. Placement still decides where it sits.
  */
+import { z } from 'zod';
 import { resolveJsonPointer } from './json-pointer';
 import type { JsonValue } from './output-ref';
 import type { FactoryView } from './schemas/factory-view';
@@ -80,10 +81,18 @@ export function runParked(
   };
 }
 
+/** What an item waiting on a person reads (`runAwaits`), as the progress read carries it. */
+export const factoryAwaitsSchema = z.object({
+  label: z.string(),
+  why: z.string().nullable(),
+  questions: z.array(z.string()),
+  next: z.string().nullable(),
+});
+
 /**
- * What a run that left its item waiting on a person says: the declared label, the reason at the
- * entry's `why` pointer and the questions at its `questions` pointer in its result (null, and
- * empty, when the entry names none or the result has none there). Null when the run did not
+ * What a run that left its item waiting on a person says: the declared label and `next`, the
+ * reason at the entry's `why` pointer and the questions at its `questions` pointer in its result
+ * (null, and empty, when the entry names none or the result has none there). Null when the run did not
  * complete with an outcome the view declares `awaits`.
  */
 export function runAwaits(
@@ -91,12 +100,13 @@ export function runAwaits(
   workflow: string | null,
   run: WorkflowRun,
   events: readonly WorkflowEventRow[]
-): { label: string; why: string | null; questions: string[] } | null {
+): z.infer<typeof factoryAwaitsSchema> | null {
   const entry = heldEntry(view.awaits, workflow, run);
   if (entry === undefined) return null;
   return {
     label: entry.label,
     why: entry.why === undefined ? null : resultString(entry.why, run, events),
     questions: entry.questions === undefined ? [] : resultStrings(entry.questions, run, events),
+    next: entry.next ?? null,
   };
 }

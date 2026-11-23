@@ -375,6 +375,10 @@ describe('items waiting on you with no ask open', () => {
     expect(text(panel)).toContain('Needs shaping');
     expect(text(panel)).toContain('#9s');
     expect(text(panel)).toContain('Worth doing; the scope is open.');
+    // What moves the item on, in the view's words: nothing here is answered in place.
+    expect(text(panel?.querySelector('[data-awaits-next]'))).toBe(
+      `What to do ${shippedListed.declaration.awaits?.['triage:shape']?.next ?? '?'}`
+    );
     expect([...(panel?.querySelectorAll('li') ?? [])].map(text)).toEqual([
       'Which surfaces?',
       'Who owns it?',
@@ -388,7 +392,7 @@ describe('items waiting on you with no ask open', () => {
     expect(chipWords(chip(root, 'waiting now'))).toBe('4 waiting now');
     expect(text(root.querySelector('section[aria-label="Summary"] h2'))).toBe('4 things need you');
     expect(text(root.querySelector('section[aria-label="Summary"]'))).toContain(
-      '1 item waits on you to shape or settle it.'
+      '1 item waits on you with no question to answer here.'
     );
   });
 

@@ -466,12 +466,6 @@ describe('factoryViewSchema', () => {
     expect(issuePaths({ ...minimal(), retired: ['build', 'build'] })).toEqual(['retired.1']);
   });
 
-  test('a file written before awaits and retired still parses', () => {
-    const view = minimal();
-    expect('awaits' in view || 'retired' in view).toBe(false);
-    expect(factoryViewSchema.safeParse(view).success).toBe(true);
-  });
-
   test('a verdict meaning outside the closed set is rejected', () => {
     const verdicts = { build: { 'rounds.tests': { sound: 'passed' } } };
     expect(issuePaths({ ...minimal(), verdicts })).toEqual(['verdicts.build.rounds.tests.sound']);

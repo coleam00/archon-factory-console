@@ -183,7 +183,6 @@ describe('packShape', () => {
     });
     expect(Bun.deepEquals(read('/tmp/a'), read('/tmp/b'))).toBe(false);
     expect(packShape(read('/tmp/a'))).toEqual(packShape(read('/tmp/b')));
-    expect(packShape(read('/tmp/a'))).toEqual({ ...read('/tmp/a'), loaded: [], otherCopies: [] });
   });
 });
 

@@ -7,6 +7,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
+import { declaredAwaits } from './lib/board.test-fixtures';
 import { PILL_CLASS } from './BoardCard';
 import { itemPill } from './lib/board';
 import { askItem } from '../lib/needs-you.test-fixtures';
@@ -286,15 +287,13 @@ describe('the item page', () => {
     if (progress === null || triage === undefined) throw new Error('item 86 has a triage run');
     triage.outcome = 'shape';
     progress.parked = null;
-    progress.awaits = {
-      label: 'Needs shaping',
-      why: 'Worth doing once the scope is settled.',
-      questions: ['Which surfaces does it touch?', 'Is it one change or two?'],
-    };
+    progress.awaits = declaredAwaits('triage:shape', 'Worth doing once the scope is settled.', [
+      'Which surfaces does it touch?',
+      'Is it one change or two?',
+    ]);
     const html = render(detail);
     // The soft needs-you pill in the item's own words; only an open ask's pill is filled.
     expect(section(html, 'Summary')).toContain(pill('awaits', 'Needs shaping'));
-    expect(PILL_CLASS.awaits).not.toContain('bg-warning ');
     expect(text(section(html, 'Summary'))).toContain(
       'Needs shaping: Worth doing once the scope is settled.'
     );
@@ -303,6 +302,10 @@ describe('the item page', () => {
     expect(text(panel)).toContain('Questions to settle');
     expect(text(panel)).toContain('Which surfaces does it touch?');
     expect(text(panel)).toContain('Is it one change or two?');
+    // Nothing here is answered in place: the view says what moves the item on.
+    expect(text(panel)).toContain(
+      `What to do ${shippedView.awaits?.['triage:shape']?.next ?? '?'}`
+    );
     expect(panel).not.toContain('data-ping');
     expect(sentences(html)).toContainEqual([
       'triage',

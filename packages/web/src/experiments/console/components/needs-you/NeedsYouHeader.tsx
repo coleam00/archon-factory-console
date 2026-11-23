@@ -9,12 +9,12 @@ import {
 } from '../../lib/needs-you';
 import { SkeletonFigure } from '../Skeleton';
 
-/** "2 items wait on you to shape or settle them.": the items with no ask open; null for none. */
+/** "2 items wait on you with no question to answer here.": no ask open; null for none. */
 function awaitingWords(awaiting: number): string | null {
   if (awaiting === 0) return null;
   return awaiting === 1
-    ? '1 item waits on you to shape or settle it.'
-    : `${awaiting.toString()} items wait on you to shape or settle them.`;
+    ? '1 item waits on you with no question to answer here.'
+    : `${awaiting.toString()} items wait on you with no question to answer here.`;
 }
 
 /**
@@ -52,7 +52,7 @@ export function NeedsYouHeader({
       }
       sentence={
         count === 0
-          ? 'Questions your runs and items ask, and runs paused for your decision, appear here to answer in place.'
+          ? 'Questions your runs and items ask, runs paused for your decision, and items waiting on you appear here.'
           : [
               live.length === 0
                 ? null

@@ -418,7 +418,8 @@ describe('an item waiting on you with no ask open', () => {
     try {
       const card = board.container.querySelector('[data-card="9s"]');
       expect(card?.textContent).toContain('Needs shaping');
-      expect(card?.textContent).toContain('Which surfaces? · Who owns it?');
+      // The first question on its line, and the count beside it, never clamped away.
+      expect(card?.textContent).toContain('Which surfaces?2 questions');
       expect(card?.querySelector('[data-ping]')).toBeNull();
       const pill = [...(card?.querySelectorAll('span') ?? [])].find(
         span => span.textContent === 'Needs shaping'

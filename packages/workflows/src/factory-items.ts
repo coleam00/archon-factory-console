@@ -19,7 +19,7 @@ import {
   readItemRuns,
   type ItemReadSource,
 } from './item-read';
-import { resultString, runAwaits, runParked } from './factory-parked';
+import { factoryAwaitsSchema, resultString, runAwaits, runParked } from './factory-parked';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
@@ -173,11 +173,10 @@ export const factoryItemProgressSchema = z.object({
   parked: z.object({ label: z.string(), why: z.string().nullable() }).nullable(),
   /**
    * As `parked`, for an outcome the view declares `awaits` (open, waiting on a person with no
-   * ask open), with the questions at its `questions` pointer (empty when there are none).
+   * ask open), with the questions at its `questions` pointer (empty when there are none) and
+   * the declared `next` sentence (null when none).
    */
-  awaits: z
-    .object({ label: z.string(), why: z.string().nullable(), questions: z.array(z.string()) })
-    .nullable(),
+  awaits: factoryAwaitsSchema.nullable(),
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 

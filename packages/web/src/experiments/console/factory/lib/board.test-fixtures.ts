@@ -116,13 +116,28 @@ export function lastRunAs(
   };
 }
 
+/**
+ * The progress `awaits` the server reads for `outcome` of `workflow` under the shipped view: its
+ * declared label and `next`, with `why` and `questions` as the run's result gave them.
+ */
+export function declaredAwaits(
+  key: string,
+  why: string | null,
+  questions: string[]
+): NonNullable<NonNullable<FactoryItem['progress']>['awaits']> {
+  const entry = VIEW.awaits?.[key];
+  if (entry === undefined) throw new Error(`the shipped view declares no awaits ${key}`);
+  return { label: entry.label, why, questions, next: entry.next ?? null };
+}
+
 /** Triage judged item `key` worth doing once a maintainer settles `questions`. */
 export function needsShaping(key: string, questions: string[]): FactoryItem {
-  return lastRunAs(key, 'triage', 'shape', {
-    label: 'Needs shaping',
-    why: 'Worth doing; the scope is open.',
-    questions,
-  });
+  return lastRunAs(
+    key,
+    'triage',
+    'shape',
+    declaredAwaits('triage:shape', 'Worth doing; the scope is open.', questions)
+  );
 }
 
 /** Item 8 with its deliver run working `step` in round `iteration` of 3. */

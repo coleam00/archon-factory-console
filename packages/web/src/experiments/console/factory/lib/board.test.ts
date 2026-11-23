@@ -19,6 +19,7 @@ import {
   keepRuns,
   landRunning,
   PAGE,
+  declaredAwaits,
   lastRunAs,
   needsShaping,
   parkedByTriage,
@@ -27,7 +28,8 @@ import {
   VIEW,
 } from './board.test-fixtures';
 import { sortRows, tableRows } from './board-table';
-import { pageItemColumn } from './placement';
+import { pageItemColumn, stageOfWorkflow } from './placement';
+import { coveringCard } from './step-facts';
 
 const PROJECT = 'cb-1';
 const card = (item: FactoryItem, previous?: string) =>
@@ -457,21 +459,18 @@ describe('grouped columns', () => {
         placed.card.pillLabel,
         placed.card.stage,
         placed.card.stopLine,
+        placed.card.stopCount,
       ])
-    ).toEqual([
-      [
-        '9s',
-        'awaits',
-        'Needs shaping',
-        'Triage',
-        'Which surfaces? · Who owns it? · Is it one change? · 1 more',
-      ],
-    ]);
+    ).toEqual([['9s', 'awaits', 'Needs shaping', 'Triage', 'Which surfaces?', '4 questions']]);
     // It waits on a person: the column counts it in the needs-you chip, and Needs you shows it.
     expect(columnChips(intake?.cards ?? [])).toEqual([{ pill: 'needs-you', count: 1 }]);
     expect(filterBoard(model, '', 'needs-you').columns.flatMap(c => c.cards)).toHaveLength(1);
     // With no questions recorded, the line is its reason.
-    expect(card(needsShaping('9t', [])).stopLine).toBe('Worth doing; the scope is open.');
+    expect(card(needsShaping('9t', []))).toMatchObject({
+      stopLine: 'Worth doing; the scope is open.',
+      stopCount: null,
+    });
+    expect(card(needsShaping('9u', ['Which?'])).stopCount).toBeNull();
   });
 
   test('an item with an open ask too reads Needs you: the ask is what needs you', () => {
@@ -480,8 +479,8 @@ describe('grouped columns', () => {
   });
 
   test('close: dropped ends the item, reshape waits in Intake, not closed and none wait in Ready to merge', () => {
-    const shaped = { label: 'Needs shaping', why: null, questions: [] };
-    const byHand = { label: 'Close the change by hand', why: 'The forge refused.', questions: [] };
+    const shaped = declaredAwaits('close:reshape', null, []);
+    const byHand = declaredAwaits('close:not_closed', 'The forge refused.', []);
     const model = boardModel(
       VIEW,
       PROJECT,
@@ -503,10 +502,40 @@ describe('grouped columns', () => {
           .map(placed => [column.id, placed.card.stage, placed.card.pill, placed.card.pillLabel])
       );
     expect(where('c2')).toEqual([['intake', 'Triage', 'awaits', 'Needs shaping']]);
+    // close emits not_closed for a failed drop and a failed reshape alike: the words fit both.
     expect(where('c3')).toEqual([
-      ['ready', 'Ready to merge', 'awaits', 'Close the change by hand'],
+      ['ready', 'Ready to merge', 'awaits', 'Carry out your answer by hand'],
     ]);
     expect(where('c4')).toEqual([['ready', 'Ready to merge', 'waiting', 'Waiting']]);
+  });
+
+  test('report: a run writing the report is in Checks or in CI and review, on the Report card', () => {
+    for (const [workflow, stage, column] of [
+      ['stage-check', 'checks', 'checks-review'],
+      ['stage-host', 'host', 'checks-review'],
+    ] as const) {
+      expect(stageOfWorkflow(VIEW, workflow, 'report__report')?.id).toBe(stage);
+      expect(coveringCard(VIEW, workflow, 'report__report')?.title).toBe('Report');
+      const running = lastRunAs(`r-${workflow}`, workflow, 'approve');
+      const progress = progressOf(running);
+      const [run] = progress.runs;
+      if (run === undefined) throw new Error('the fixture has a run');
+      running.progress = {
+        ...progress,
+        running: {
+          runId: run.runId,
+          workflow,
+          step: 'report__report',
+          startedAt: '2026-11-23T00:00:00Z',
+        },
+      };
+      running.runs = running.runs.map(entry => ({ ...entry, status: 'running', outcome: null }));
+      const model = boardModel(VIEW, PROJECT, [running], new Map());
+      expect(model.positions.get(`r-${workflow}`)).toBe(stage);
+      expect(
+        model.columns.find(entry => entry.id === column)?.cards.map(placed => placed.card.run?.step)
+      ).toEqual(['report__report']);
+    }
   });
 
   test("a column's chips count its cards by state, only states above 0", () => {

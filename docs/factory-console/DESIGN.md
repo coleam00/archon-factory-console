@@ -792,11 +792,13 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // placed (placement must take each), never
                                                    // ended; `why` points at the run's reason
   "awaits": { "triage:shape": { "label": "Needs shaping", "why": "/why",
-                                "questions": "/open_questions" } },
+                                "questions": "/open_questions",
+                                "next": "Settle these questions, then order it again." } },
                                                    // outcomes after which the item waits on a
                                                    // person with no ask open: placed, never
                                                    // ended, never also parked; `questions`
-                                                   // points at what they have to settle
+                                                   // points at what they have to settle, `next`
+                                                   // says what moves the item on
   "retired": ["deliver"],                          // workflows a stage still lists that the
                                                    // pack no longer has: their runs still read;
                                                    // the coverage check compares none of them
@@ -1028,7 +1030,9 @@ with no ask open (`awaitingItems`: an `awaits` outcome left them so, and no ask 
 open, so an item is counted once). Those items are listed under **Waiting on you** in the main
 column, after Paused: one filled panel per item with the `--warning` left bar and no ping, its
 declared label as the eyebrow, its number and title linking to its item page, the reason its
-run gave and the questions to settle. Nothing there is answered in place. Then a 2:1 grid, one column at 390 px. The main column holds **Open
+run gave, the view's `next` sentence under "What to do", and the questions to settle. Nothing
+there is answered in place, so the `next` sentence is what tells a person how the item moves
+on; the section's own words name no pack's outcome. Then a 2:1 grid, one column at 390 px. The main column holds **Open
 asks**: every open ask, gate and paused run on the project's items and runs, newest first, one
 filled panel per item with a 3 px `--warning` left bar and the ping, its heading the item's
 number and title, each ask under the stage that asked (an eyebrow in the stage's group colour;
@@ -1157,8 +1161,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
   says which: its hover, and the stage's details under "Shadow steps", give one line per
-  shadow step (steps of one label, such as the project checks of both deliveries, share a
-  line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
   "nothing decided yet"; before the items are read, "…", and "could not be read" once that
   read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
@@ -1200,8 +1203,8 @@ first rule that matches. The board, the map and the item page all place through 
 A card, in this order:
 
 1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
-   **Failed**, the declared label of an `awaits` outcome ("Needs shaping", "Close the change by
-   hand": its last run left it waiting on a person with no ask open; soft, rule 5),
+   **Failed**, the declared label of an `awaits` outcome ("Needs shaping", "Carry out your
+   answer by hand": its last run left it waiting on a person with no ask open; soft, rule 5),
    **Parked** (its last run kept it open for later: a declared `parked` outcome),
    **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the declared run input's title line: the first non-empty line after any `---`
@@ -1233,7 +1236,8 @@ A card, in this order:
    placeholder.
 7. For a failed item: one line saying what stopped it, naming its stage and the step it failed
    at ("Build failed at Writes the change"), never the workflow id. For one waiting on you with
-   no ask open: up to three of the questions its run recorded, then "N more", else its reason. For one that needs you, the approval
+   no ask open: the first question its run recorded, cut to its line, and "N questions" when it
+   recorded several (as the ask face does), else its reason. For one that needs you, the approval
    card's face (owner change 3), from the project's attention queue Needs you reads
    (`itemAsks`): on one line the ping, the first one's question cut to that line and "N
    questions" when it holds several; then the line Needs you shows for it ("Recommended:
@@ -1397,7 +1401,8 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   you" panel at the top of the story, which also shows a skeleton while the asks are read. An
   item waiting on you with no ask open (its pill is an `awaits` label) opens its story with a
   panel of its own in the needs-you colour, without the ping: the label as its heading, the
-  reason its run gave, and "Questions to settle", one per row.
+  reason its run gave, the view's `next` sentence under "What to do", and "Questions to
+  settle", one per row.
 - **Shadows** sit in the panel of the stage their step is on, in the shadow style (rule 10),
   quieter than the real steps; a round's project checks are the grid's shadow row. A run of the
   `discoveries` drain, on no stage, is a quiet panel of its own, "Found by the factory", in

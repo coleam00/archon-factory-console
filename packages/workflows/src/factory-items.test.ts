@@ -469,7 +469,9 @@ describe('an item waiting on a person, from its last declared run', () => {
       label: 'Needs shaping',
       why: 'Worth doing.',
       questions: ['Which surfaces?', 'Who owns it?'],
+      next: view.awaits?.['triage:shape']?.next ?? null,
     });
+    expect((await progressOf([shape])).awaits?.next).toStartWith('Settle these questions');
     expect((await progressOf([shape])).parked).toBeNull();
   });
 
@@ -480,6 +482,7 @@ describe('an item waiting on a person, from its last declared run', () => {
         label: 'Needs shaping',
         why: 'Why.',
         questions: [],
+        next: view.awaits?.['triage:shape']?.next ?? null,
       });
     }
   });

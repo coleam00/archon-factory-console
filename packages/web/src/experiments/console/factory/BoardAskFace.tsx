@@ -8,13 +8,17 @@ import type { BoardAsks } from './useBoardAsks';
 /** What stopped a failed item, or what an item that needs you asks, as the card has always said it. */
 function StopLine({ card }: { card: BoardCard }): ReactNode {
   if (card.stopLine === null) return null;
-  return (
-    <p
-      className={`line-clamp-2 text-console-13 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
-    >
-      {card.stopLine}
-    </p>
-  );
+  const tone = card.pill === 'failed' ? 'text-error' : 'text-warning';
+  // Several questions: the first cut to one line and the count beside it, as the ask face does,
+  // so the count is never clamped away.
+  if (card.stopCount !== null)
+    return (
+      <p className={`flex min-w-0 items-baseline gap-2 text-console-13 ${tone}`}>
+        <span className="min-w-0 truncate">{card.stopLine}</span>
+        <span className="shrink-0 text-text-secondary">{card.stopCount}</span>
+      </p>
+    );
+  return <p className={`line-clamp-2 text-console-13 ${tone}`}>{card.stopLine}</p>;
 }
 
 /**
@@ -113,7 +117,7 @@ export function RowAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): Re
         {answered}
       </span>
     );
-  return card.stopLine;
+  return card.stopCount === null ? card.stopLine : `${card.stopLine ?? ''} · ${card.stopCount}`;
 }
 
 /**

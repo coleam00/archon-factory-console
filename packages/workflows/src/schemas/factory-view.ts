@@ -390,8 +390,9 @@ const factoryViewShape = z.strictObject({
    * open (`workflow:outcome`, or `workflow:*`): shaped again, closed by hand. A console shows
    * it in the needs-you colour and counts it among what needs you. `label` words it ("Needs
    * shaping"); `why` and `questions`, when given, point at the run's reason and at the list of
-   * what the person has to settle in its result. Placed and never ended, as `parked`; an
-   * outcome is parked or awaits, not both.
+   * what the person has to settle in its result; `next`, when given, is one plain sentence
+   * saying what the person does to move the item on, since nothing here is answered in place.
+   * Placed and never ended, as `parked`; an outcome is parked or awaits, not both.
    */
   awaits: z
     .record(
@@ -400,6 +401,7 @@ const factoryViewShape = z.strictObject({
         label: labelSchema,
         why: jsonPointerSchema.optional(),
         questions: jsonPointerSchema.optional(),
+        next: sentenceSchema.optional(),
       })
     )
     .optional(),
