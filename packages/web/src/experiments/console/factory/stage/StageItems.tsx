@@ -133,8 +133,9 @@ function ItemRow({
 
 /**
  * The state of an item no run works and no ask holds, in the board card's words
- * (`itemPill`): merged, failed, parked, or waiting. Whether it needs you is the attention queue's to
- * say, as on the map's chip: an ask only the item's own read lists reads as waiting here.
+ * (`itemPill`): merged, failed, waiting on you in its declared words, parked, or waiting. Whether
+ * an ask needs you is the attention queue's to say, as on the map's chip: an ask only the item's
+ * own read lists reads as waiting here.
  */
 function RestingState({
   view,
@@ -145,17 +146,26 @@ function RestingState({
   stage: FactoryStage;
   item: FactoryItem;
 }): ReactElement {
-  const pill = rested(itemPill(view, item, stage.id === view.landed.stage, stage.label).pill);
-  const tone =
-    pill === 'failed'
-      ? 'text-error'
-      : pill === 'landed'
-        ? 'text-success'
-        : pill === 'parked'
-          ? 'text-text-secondary'
-          : 'text-text-tertiary';
-  return <span className={`text-console-12 ${tone}`}>{PILL_LABEL[pill]}</span>;
+  const state = itemPill(view, item, stage.id === view.landed.stage, stage.label);
+  const pill = rested(state.pill);
+  return (
+    <span className={`text-console-12 ${RESTED_TONE[pill]}`}>
+      {pill === 'awaits' ? state.pillLabel : PILL_LABEL[pill]}
+    </span>
+  );
 }
 
-const rested = (pill: Pill): 'landed' | 'failed' | 'parked' | 'waiting' =>
-  pill === 'landed' || pill === 'failed' || pill === 'parked' ? pill : 'waiting';
+type Rested = 'landed' | 'failed' | 'awaits' | 'parked' | 'waiting';
+
+const RESTED_TONE: Record<Rested, string> = {
+  landed: 'text-success',
+  failed: 'text-error',
+  awaits: 'text-warning',
+  parked: 'text-text-secondary',
+  waiting: 'text-text-tertiary',
+};
+
+const rested = (pill: Pill): Rested =>
+  pill === 'landed' || pill === 'failed' || pill === 'awaits' || pill === 'parked'
+    ? pill
+    : 'waiting';

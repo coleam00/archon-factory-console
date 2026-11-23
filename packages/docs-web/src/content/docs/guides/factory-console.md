@@ -21,8 +21,12 @@ states, words) is written in the repository's design document:
 ## What the tab shows
 
 Every project, factory or not, has a **Needs you** tab, left of Runs, with how many asks and
-paused waits need a person on it. It opens with a band saying how many wait, how long the
-oldest has waited and how many were answered today. It lists every open question on the
+paused waits need a person on it, and, on a project with a factory view, the items an `awaits`
+outcome left waiting on a person with no question open. It opens with a band saying how many
+wait, how long the oldest has waited and how many were answered today. Those items are listed
+under **Waiting on you**, each with its label, its reason, what to do (the view's `next`) and the
+questions to settle, linking
+to its item page. It lists every open question on the
 project's items and runs, from any workflow, grouped under their item on a panel marked in the
 needs-you colour, each under the stage that asked, as an ask card:
 the question, its context, and one tile per option saying what it does and costs, the
@@ -67,7 +71,8 @@ page, keeping the query string. Inside the tab:
   screen and each column scrolls on its own under a header with its label, its `blurb` ("last 7 days" on the column holding the `landed` stage), its
   count and a chip per state ("running 2", "needs you 1"). A card names its stage, or the
   stage and step running now ("Checks · Code review · round 2"), and shows the item's state
-  (Running, Needs you, Failed, Parked, Waiting, Merged), the round it is on, how often checks sent it
+  (Running, Needs you, Failed, the label of an `awaits` outcome such as "Needs shaping", Parked,
+  Waiting, Merged), the round it is on, how often checks sent it
   back, its pull request, and the work order it is part of. The column holding the `landed`
   stage lists the items merged in the last 7 days (local time), newest first, with "N earlier
   · show all" opening the Table filtered to every merged item; its cards are compact (key,
@@ -102,13 +107,14 @@ page, keeping the query string. Inside the tab:
   and dismisses nothing.
 - **Item page**: the story of one item. A header band gives its number and title, its state
   pill, its pull request, where it is (a parked item reads its declared `parked` label and its
-  run's reason) and its key facts: the time from its order to its merge (or to now), its cost,
+  run's reason, an item waiting on you its `awaits` label and reason) and its key facts: the time from its order to its merge (or to now), its cost,
   the check rounds used of those allowed, and the asks answered. A journey strip shows its path
   through the board's columns with the time it spent in each, the column it is in now lit, each
   send-back to an earlier column as a loop with its count, each ask it waited on as a pause,
-  and where it stopped when it was parked, ended, failed or held (every ask it left answered,
+  and where it stopped when it was parked, waiting on you, ended, failed or held (every ask it left answered,
   and nothing started after the answer, nor waits to: "Nothing started after your answer"). Then the story: one panel per
-  stage visit in the order it ran (a stage met again is numbered, "Plan (2)"), each opening
+  stage visit in the order it ran (an item waiting on you opens it with a panel saying what it
+  waits on, what to do and the questions to settle; a stage met again is numbered, "Plan (2)"), each opening
   with one plain sentence from the declaration's `story` (the console adds the pull request a
   run opened, why the checks sent it back, and what you answered), then its details (when, how
   long, cost, models, runs). A run that works several stages tells its status, its asks and
@@ -123,7 +129,7 @@ page, keeping the query string. Inside the tab:
   links to other items (on a work order, its members with their state and how many merged; an
   item no run has started yet says "Not started") and the rulings and answers given on it.
   An outcome the declaration does not tell reads as a neutral sentence from `placement`,
-  `endings` and `parked` ("Plan finished: sent to Build"), or the pack's own name for it.
+  `endings`, `awaits` and `parked` ("Plan finished: sent to Build"), or the pack's own name for it.
 - **Stage page**: what a stage does, told as its drill-down when the view gives one: numbered
   phases of plain cards, a card glowing and naming the items on its steps now, and a click on a
   card listing the real steps it stands for, each linking to its step page. "Show the real
@@ -148,7 +154,7 @@ question opening or closing.
 | Number | Counts |
 |---|---|
 | in flight | Items on the board outside the landed stage, parked items not included |
-| items need you | Items with an open question |
+| items need you | Open questions and waits, and items an `awaits` outcome left waiting on a person; the Needs you tab's own count |
 | merged today | Items whose change merged today, in the browser's local time |
 | N of M merged | N items merged out of M on the board, however long ago. Items an `endings` outcome closed are not in M; a parked item is |
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
@@ -217,18 +223,20 @@ parse or validate shows on the Factory tab with its path and the error.
 | `verdicts` | no | What other steps' outcomes mean, so the item page's rounds grid words them and gives each such step a row: `{ "<workflow>": { "<step id>": { "<outcome>": "approved" } } }`, each meaning one of `approved`, `returned` or `asked`. A check's outcome then reads "Approved", "Sent back" or "Asked you". It decides nothing: only `returns` and `approves` decide a round, and an entry that restates one of theirs is rejected. An outcome no entry means reads as the pack's own token, in mono. The coverage check reports a step the workflow does not have. |
 | `asked` | no | Completed outcomes that stop to ask you: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one). A run that ended so reads "asked you" where the item page words a run's outcome, as does any run that left asks on the item. `placement` still decides where the item waits. |
 | `parked` | no | Completed outcomes that keep an item open for later, not ended: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one), each to `{ "label", "why" }`. `label` is what the item reads ("Parked by triage") in its header band and where its journey stops, with the Parked state pill; `why`, optional, is the JSON pointer to the run's reason in its result, shown after the label. `placement` must take each key, since it still decides where the item sits, and an exact `endings` key may not name one. A parked item counts in "N of M merged" and not in flight. |
+| `awaits` | no | Completed outcomes after which the item is open and waits on a person, though no question is open (shaped again, say): `workflow:outcome`, or `workflow:*`, each to `{ "label", "why", "questions", "next" }`. `label` is what the item reads ("Needs shaping") on its state pill, in its header band and where its journey stops; `why`, optional, is the JSON pointer to the run's reason in its result; `questions`, optional, points at a list of what the person has to settle: the board card shows the first and how many ("4 questions"), the item page and Needs you list them. `next`, optional, is one plain sentence saying what the person does to move the item on (nothing here is answered in place); the item page and Needs you show it under "What to do". The item shows in the needs-you colour (soft, never the filled Needs you pill), counts in "items need you", and is listed on Needs you under "Waiting on you". `placement` must take each key and no exact `endings` key may name one, as with `parked`; an outcome is parked or awaits, not both. |
+| `retired` | no | Workflows a stage still lists that the installed pack no longer has, so items they delivered before still place, render and count: `["deliver"]`. The coverage check neither requires the pack to have them nor compares their steps, arrows or outcomes with the pack, and fails when the pack has one again. Each must be listed by a stage, once. |
 | `change` | no | Where the pull request URL is in a workflow's result: one `{ "workflow", "pointer" }`, or a list naming each workflow once. The newest run of any listed workflow with a non-empty URL at its pointer gives the item's change. |
 | `partOf` | no | `{ "workflow", "pointer", "outcome" }`: the JSON pointer to the item's work order (an item key) in that workflow's result, read only from runs that completed with `outcome` (the one that accepts the item), so a refused run never makes an item a member. Read only for an item with no active `part_of` link; the newest such run decides, and an empty value there means none. |
 | `discoveries` | no | `{ "workflow", "shadow", "filed", "held", "dropped", "entry": { "title", "kind", "verified" } }`: the workflow that drains what agents noticed outside their work, and where each of its completed runs' result lists what it decided, as JSON pointers: `filed`, `held` and `dropped` into the result (each a list), `entry` into each entry of `filed` (`title` required, `kind` and `verified` optional). Its runs place no item, so no stage need list it. `shadow: true` says the drains only decide what they would file: the board's panel words them "would file" and marks them shadow. It must agree with `shadows`: `true` needs a `shadows` entry naming the drain's workflow, `false` forbids one. A result recorded as text holding JSON (a script's output) is read as that JSON. A run whose result has no list at a declared pointer, or a filed entry with no title, counts as a drain that could not be read. |
 | `shadows` | no | The steps the pack runs as shadows: they decide what they would do, record it, and do nothing. One entry per step: `{ "workflow", "node", "label", "reads", ... }`, with `node` the step id as the engine records it (`rounds.checks` for a loop's body step) and `label` a plain question or name ("Would it start on its own"). `reads` says how the step's value (its structured output, else its text output read as JSON) is read, each place a JSON pointer: `"verdict"` reads one string at `pointer` and words it through `words` (`{ "ask": "would ask you first" }`), with an optional `why` (a value `words` does not name shows as the pack's token, in mono); `"checks"` reads a list of checks at `results`, each entry through `entry: { "name", "passed", "seconds", "tail" }` (`seconds` and `tail` optional), and reads "4 checks · all passed · 3 min" or which failed; `"lists"` counts the lists at each `lists[]` entry's `pointer` (one to six, each with the `words` before its count: "would file 1 · would drop 2"), with an optional `why`. Each names a workflow a stage lists, or the `discoveries` workflow, and a step is declared once. Every completed run of the step is one decision, one per round in a loop; a step that was skipped, failed or not reached decided nothing. A value that does not read as declared (not JSON, cut short, a missing verdict, a check without a name or `passed`, a pointer that is not a list) reads "recorded nothing readable", never as a decision. Wherever a shadow shows, it carries a "shadow" badge and reads "would ...", never in the running, success, warning or error colours: the item page lists each decision in the panel of the stage its step is on (a round's project checks as the rounds grid's shadow row), with its why or the failed checks' output on expand; a stage page's card covering a shadow step carries the badge and the last decisions ("last 5: would ask you first ×5"); a board card in a column whose stage lists a verdict shadow's workflow shows the item's newest decision of it; and the map marks each stage holding one with the badge, its hover and the stage's details naming each shadow step with what it decided lately ("Project checks · last 5: all passed ×5"; steps of one label, in two workflows, share one line and one tally); the map's legend says what the badge means. |
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover and on the step page. A key that names no real step names nothing a page shows; the coverage check reports it. |
-| `story` | no | How the item page tells what each run did, one plain sentence per stage: `{ "outcomes", "steps", "said" }`. `outcomes` maps `workflow:outcome` to a sentence ("Triage judged it worth building"), or `workflow:*` for every completed run of the workflow no exact key takes, a run that recorded no outcome included (as in `placement`); a key may name the `discoveries` workflow. `steps`, optional, words the earlier stages of a run that works several, by the step that starts each part: `{ "<workflow>": { "<step id>": "Build wrote the change" } }`. `said`, optional, lists JSON pointers into a run's result, tried in order, for what the run said in its own words: the page shows it as the reason a panel sent the item back, cut to a sentence with the rest behind "More", when a run sent the item back and no check round gave a reason (a CI send-back, say): on that panel's sentence while it is the panel's last run, else listed under the sentence with the fix that followed. It is not shown otherwise. A sentence is plain text of at most 160 characters with no placeholders; the page adds its own clauses after it (the pull request a run opened, why the checks sent it back, what you answered). With a `story`, the coverage check reports an outcome a listed workflow declares that no key takes, and a key or step the workflow does not have. Without one, the page words each run from `placement`, `endings` and `parked` ("Triage finished: sent to Plan"). |
+| `story` | no | How the item page tells what each run did, one plain sentence per stage: `{ "outcomes", "steps", "said" }`. `outcomes` maps `workflow:outcome` to a sentence, or to `{ "withChange", "withoutChange" }` when the outcome reads differently with and without a change on the item (a drop answered before any pull request), the page picking by whether the item has one ("Triage judged it worth building"), or `workflow:*` for every completed run of the workflow no exact key takes, a run that recorded no outcome included (as in `placement`); a key may name the `discoveries` workflow. `steps`, optional, words the earlier stages of a run that works several, by the step that starts each part: `{ "<workflow>": { "<step id>": "Build wrote the change" } }`. `said`, optional, lists JSON pointers into a run's result, tried in order, for what the run said in its own words: the page shows it as the reason a panel sent the item back, cut to a sentence with the rest behind "More", when a run sent the item back and no check round gave a reason (a CI send-back, say): on that panel's sentence while it is the panel's last run, else listed under the sentence with the fix that followed. It is not shown otherwise. A sentence is plain text of at most 160 characters with no placeholders; the page adds its own clauses after it (the pull request a run opened, why the checks sent it back, what you answered). With a `story`, the coverage check reports an outcome a listed workflow declares that no key takes, and a key or step the workflow does not have. Without one, the page words each run from `placement`, `endings` and `parked` ("Triage finished: sent to Plan"). |
 | `answers` | no | What choosing an option of an ask starts, in plain words: `{ "<workflow>:<option id>": { "starts": "Closes the PR without merging" } }`, keyed exactly (no `*`) by a workflow a stage lists and the option id an ask its runs leave offers. The ask card shows the sentence on that option's tile, and Needs you's Answered lately and the item page show it in place of "<stage> started again" for an answer that chose it. It decides nothing: the pack's own bindings decide what an answer starts. A sentence is plain text of at most 160 characters. |
 | `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; each is drawn in the card of its board column, in the column's order, and the `col` and `row` an older file has are accepted and ignored), `arrows` are every arrow it draws (`from`, `to`, an optional `label`, and `person: true` for a step a person takes, such as a replan, that no hand-off of the pack starts), and optional `notes` sit near a stage or near `needs-you`. The map draws no arrow the file does not declare, between workflows included. An arrow into an earlier card is a send-back, and so is one into its own stage or an earlier stage of its own card; one into a later stage of its own card is not drawn, since the card's rows show that order; a `back` flag an older file has is accepted and ignored. A forward arrow runs between neighbouring cards; one that would skip cards is drawn as part of the label of the hand-off from its card to the next ("fast → Merged"). Every send-back runs in one feedback lane under the row. The cards always take one row; the map pans where it does not fit. The map lists a stage's notes in its card's details; a `needs-you` note is not drawn yet. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in
-`placement`, `endings`, `parked`, `rounds`, `returns`, `approves`, `change` and `shadows` must be listed by
+`placement`, `endings`, `parked`, `awaits`, `retired`, `rounds`, `returns`, `approves`, `change` and `shadows` must be listed by
 a stage; `discoveries` is the exception, and a shadow may name its workflow too.
 With `columns`, every declared stage must be in exactly one column and the `landed` stage in
 one of its own: a stage in no column, a stage in two, a column naming a stage `stages` does
@@ -242,7 +250,8 @@ The schema cannot see a pack's workflows, so a separate check compares a view fi
 It is a script of an Archon checkout, `bun run check:factory-view`, and it checks only the
 project files in that checkout's own `.archon/packs/` (`<pack key>.factory-view.json`), not
 another project's files or a pack's `.shared/factory-view.json`. It reads each pack's stage
-graph (what `archon pack graph <pack key> --json` prints) from two places:
+graph (what `archon pack graph <pack key> --json` prints, less its `loaded` and `otherCopies`,
+which say where the copies were found on this machine, not what the pack is) from two places:
 
 - the snapshot `<pack key>.pack-graph.json` committed beside the view file, which CI checks
   against since it has no installed pack; a missing snapshot fails the check;
@@ -272,9 +281,17 @@ pack declares. It reports, each with its path in the view file:
   stages of one workflow, or runs into the `landed` stage from another. An arrow back into its
   own stage is a rerun only a hand-off starts, so it is always checked;
 - every outcome a listed workflow declares that neither `placement` nor `endings` takes, exactly
-  or by `workflow:*`, and every exact `placement`, `endings`, `parked` or `asked` key naming an
-  outcome its workflow does not declare. A workflow that declares no outcome (a gate that only
-  records) is not compared.
+  or by `workflow:*`, and every exact `placement`, `endings`, `parked`, `awaits` or `asked` key
+  naming an outcome its workflow does not declare. A workflow that declares no outcome (a gate
+  that only records) is not compared;
+- every `retired` workflow the pack still has: stop retiring it, or remove it.
+
+A `retired` workflow is not required of the pack, and none of its steps, arrows or outcomes is
+compared, so its entries in `steps`, `verdicts`, `story`, `shadows` and the rest stay to word its
+old runs. A stage's `nodes` entry passes when a workflow of the stage the pack has runs a
+matching step, or when it names a step the view words for a retired workflow of the stage (a
+`steps` key, a `story.steps` key, a `returns`, `approves` or `verdicts` step, its `rounds`
+loop or a shadow), so a misspelt entry is still caught.
 
 It compares only the workflows the view's stages list, steps, hand-offs and outcomes alike (of the
 `discoveries` workflow it checks only that the pack has it), and names

@@ -7,7 +7,7 @@
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueueItem } from '../../skills/runs';
 import { anyMergePending, stageCountPending } from './merge-pending';
-import { itemAsks } from '../../lib/needs-you';
+import { awaitingItems, itemAsks } from '../../lib/needs-you';
 import { pageItemColumn, stageIdOf } from './placement';
 import type { FactoryViewListed } from './views';
 
@@ -94,11 +94,19 @@ export function stageLive(
     live.items.push(item);
     // `progress.running` is the latest running run of a declared workflow.
     if (item.progress?.running != null) live.working += 1;
-    if (itemAsks(item, attention).length > 0) live.needYou.push(item);
+    if (needsYouHere(item, attention)) live.needYou.push(item);
     if (!carded.has(stage)) notOnMap.push({ item, why: { kind: 'no-card', stage } });
   }
   markPending(view.landed.stage, items, stages);
   return { stages, notOnMap, positions };
+}
+
+/**
+ * Whether the item needs a person: an open ask on it, or, with none, a run that left it waiting
+ * on one (`awaitingItems`), as Needs you counts it.
+ */
+function needsYouHere(item: FactoryItem, attention: readonly AttentionQueueItem[]): boolean {
+  return itemAsks(item, attention).length > 0 || awaitingItems([item]).length > 0;
 }
 
 /** Marks each stage whose count waits on a merge answer, as the board marks its columns. */

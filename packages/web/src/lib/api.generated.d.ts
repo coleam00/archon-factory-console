@@ -11838,6 +11838,15 @@ export interface components {
               why?: string;
             };
           };
+          awaits?: {
+            [key: string]: {
+              label: string;
+              why?: string;
+              questions?: string;
+              next?: string;
+            };
+          };
+          retired?: string[];
           change?:
             | {
                 workflow: string;
@@ -11914,7 +11923,12 @@ export interface components {
           };
           story?: {
             outcomes: {
-              [key: string]: string;
+              [key: string]:
+                | string
+                | {
+                    withChange: string;
+                    withoutChange: string;
+                  };
             };
             steps?: {
               [key: string]: {
@@ -12939,6 +12953,12 @@ export interface components {
             label: string;
             why: string | null;
           } | null;
+          awaits: {
+            label: string;
+            why: string | null;
+            questions: string[];
+            next: string | null;
+          } | null;
         } | null;
       };
       runs: {
@@ -13104,6 +13124,12 @@ export interface components {
           parked: {
             label: string;
             why: string | null;
+          } | null;
+          awaits: {
+            label: string;
+            why: string | null;
+            questions: string[];
+            next: string | null;
           } | null;
         } | null;
       };

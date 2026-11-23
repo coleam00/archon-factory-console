@@ -10,8 +10,8 @@ import { formatDateTime } from '../../lib/format';
 import { displayItemKey } from './item-key';
 import type { FactoryItem } from '../../skills/factory';
 import { askQuestion } from '../../lib/ask-card';
-import { needsYou } from '../../lib/needs-you';
-import { BOARD_SHOW, showsCard, type BoardShow } from './board-show';
+import { awaitingItems, needsYou } from '../../lib/needs-you';
+import { BOARD_SHOW, showsCard, waitsOnYou, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, stageOfWorkflow, type ItemColumn } from './placement';
@@ -44,12 +44,17 @@ function declaredRuns(item: FactoryItem): DeclaredRun[] {
 
 const ENDED_STATUSES: ReadonlySet<DeclaredRun['status']> = new Set(['failed', 'cancelled']);
 
-export type Pill = 'running' | 'needs-you' | 'failed' | 'parked' | 'waiting' | 'landed';
+export type Pill = 'running' | 'needs-you' | 'failed' | 'awaits' | 'parked' | 'waiting' | 'landed';
 
+/**
+ * Each state's words. An `awaits` card reads its declared label instead ("Needs shaping"), as
+ * `itemPill` gives it; this one stands for the state where no item names it (a sort, a legend).
+ */
 export const PILL_LABEL: Record<Pill, string> = {
   running: 'Running',
   'needs-you': 'Needs you',
   failed: 'Failed',
+  awaits: 'Waits on you',
   parked: 'Parked',
   waiting: 'Waiting',
   landed: 'Merged',
@@ -69,6 +74,8 @@ export interface BoardCard {
   key: string;
   title: string;
   pill: Pill;
+  /** The pill's words: `PILL_LABEL`, or an `awaits` item's declared label. */
+  pillLabel: string;
   round: {
     text: string;
     dots: { iteration: number; verdict: RoundVerdict; label: string }[];
@@ -97,8 +104,13 @@ export interface BoardCard {
   } | null;
   /** When the change merged, in local time; only in the landed stage. */
   mergedAt: string | null;
-  /** What stopped a failed item, or what an item that needs you asks. */
+  /**
+   * What stopped a failed item, what an item that needs you asks, or, for one waiting on you
+   * with no ask, what it waits on: its first open question, else its reason.
+   */
   stopLine: string | null;
+  /** How many questions an item waiting on you recorded, when several ("4 questions"). */
+  stopCount: string | null;
   /** The key of the work order the item is part of (`membershipOf`); null when none. */
   order: string | null;
   /**
@@ -203,13 +215,15 @@ export function cardFields(
   const progress = item.progress;
   const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
   const placed = column !== null && 'stage' in column ? column.stage.label : null;
-  const { pill, stopLine } = itemPill(view, item, landed, placed);
+  const { pill, pillLabel, stopLine, stopCount } = itemPill(view, item, landed, placed);
   const mergedAt = progress?.change?.mergedAt ?? null;
   const order = membershipOf(item)?.order ?? null;
   return {
     key,
     title: progress?.title ?? displayItemKey(key, order),
     pill,
+    pillLabel,
+    stopCount,
     round: roundField(view, progress),
     run: runField(view, projectId, progress, column),
     stage: !landed && column !== null && 'stage' in column ? column.stage.label : null,
@@ -226,10 +240,25 @@ export function cardFields(
 }
 
 /**
+ * What an item waiting on you says on its card's line, as the ask face says an ask: its first
+ * open question, with "N questions" when it recorded several, else the reason its run gave
+ * (null when it gave neither).
+ */
+export function awaitsLine(
+  awaits: NonNullable<Progress['awaits']>
+): Pick<BoardCard, 'stopLine' | 'stopCount'> {
+  const [first] = awaits.questions;
+  const count = awaits.questions.length;
+  if (first === undefined) return { stopLine: awaits.why, stopCount: null };
+  return { stopLine: first, stopCount: count > 1 ? `${count.toString()} questions` : null };
+}
+
+/**
  * The state pill, first that holds: landed (in the landed column), needs you (an open
- * ask), running, failed (the last run failed or was cancelled), parked (the last run kept it
- * open for later, `progress.parked`), else waiting; and the one
- * line saying what an item that needs you asks, or what stopped a failed one. The board's
+ * ask), running, failed (the last run failed or was cancelled), awaits (the last run left it
+ * waiting on a person, `progress.awaits`, in its declared words), parked (the last run kept it
+ * open for later, `progress.parked`), else waiting; and the one line saying what an item that
+ * needs you asks, what one waiting on you waits on, or what stopped a failed one. The board's
  * card and the item page's header both read it, so an item says the same in both.
  */
 export function itemPill(
@@ -238,17 +267,27 @@ export function itemPill(
   landed: boolean,
   /** The label of the stage the item is placed in, named when a failed run's stage is not known. */
   placed: string | null = null
-): Pick<BoardCard, 'pill' | 'stopLine'> {
+): Pick<BoardCard, 'pill' | 'pillLabel' | 'stopLine' | 'stopCount'> {
+  const of = (pill: Pill, stopLine: string | null) => ({
+    pill,
+    pillLabel: PILL_LABEL[pill],
+    stopLine,
+    stopCount: null,
+  });
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
-  if (landed) return { pill: 'landed', stopLine: unread };
+  if (landed) return of('landed', unread);
   const [ask] = needsYou(item.questions);
-  if (ask !== undefined) return { pill: 'needs-you', stopLine: unread ?? askQuestion(ask) };
-  if (item.progress?.running != null) return { pill: 'running', stopLine: null };
+  if (ask !== undefined) return of('needs-you', unread ?? askQuestion(ask));
+  if (item.progress?.running != null) return of('running', null);
   const last = declaredRuns(item).at(-1);
   if (last !== undefined && ENDED_STATUSES.has(last.status))
-    return { pill: 'failed', stopLine: failedLine(view, last, placed) };
-  if (item.progress?.parked != null) return { pill: 'parked', stopLine: null };
-  return { pill: 'waiting', stopLine: unread };
+    return of('failed', failedLine(view, last, placed));
+  const awaits = item.progress?.awaits;
+  // `awaitingItems` takes the same items, so Needs you counts what this pill shows.
+  if (awaits != null && awaitingItems([item]).length === 1)
+    return { pill: 'awaits', pillLabel: awaits.label, ...awaitsLine(awaits) };
+  if (item.progress?.parked != null) return of('parked', null);
+  return of('waiting', unread);
 }
 
 /** A card on the board: the item, where it sits, and what it says. */
@@ -401,17 +440,19 @@ export function stageIdOf(placed: Pick<PlacedCard, 'column'>): string | null {
   return column !== null && 'stage' in column ? column.stage.id : null;
 }
 
-type ChipPill = Exclude<Pill, 'landed'>;
+export type ChipPill = Exclude<Pill, 'landed' | 'awaits'>;
 const CHIP_PILLS: readonly ChipPill[] = ['running', 'needs-you', 'failed', 'parked', 'waiting'];
 
 /**
  * A column header's state chips: how many of its cards run, need you, failed, are parked or wait, in
- * that order, each only while above 0. Merged cards get none: the count says it.
+ * that order, each only while above 0. A card waiting on you with no ask (`awaits`) counts in
+ * the needs-you chip, as Needs you counts it. Merged cards get none: the count says it.
  */
 export function columnChips(cards: readonly PlacedCard[]): { pill: ChipPill; count: number }[] {
+  const chipOf = (pill: Pill): Pill => (waitsOnYou(pill) ? 'needs-you' : pill);
   return CHIP_PILLS.map(pill => ({
     pill,
-    count: cards.filter(placed => placed.card.pill === pill).length,
+    count: cards.filter(placed => chipOf(placed.card.pill) === pill).length,
   })).filter(chip => chip.count > 0);
 }
 

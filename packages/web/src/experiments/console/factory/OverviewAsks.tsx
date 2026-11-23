@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { AskCard } from '../components/ask-card/AskCard';
 import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
-import { needsYou, needsYouPath } from '../lib/needs-you';
+import { awaitingItems, needsYou, needsYouPath } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { readFailed } from './lib/deadline';
@@ -18,7 +18,8 @@ export const OVERVIEW_ASKS_SHOWN = 3;
 /**
  * The Overview's Needs you: the newest asks as compact cards (the question and the
  * recommended tile), each opening on the Needs you tab, where it is answered; then how many
- * more wait there. Nothing shows when nothing waits.
+ * more wait there, the items waiting on you with no ask open (`awaitingItems`) among them, so
+ * the line and the Need you number agree. Nothing shows when nothing waits.
  */
 export function OverviewAsks({
   projectId,
@@ -51,9 +52,10 @@ export function OverviewAsks({
     );
   }
   const asks = needsYou(queue.items);
-  if (asks.length === 0) return null;
+  const awaiting = awaitingItems(items.data ?? []).length;
+  if (asks.length === 0 && awaiting === 0) return null;
   const naming = askNaming(projectId, view, itemNames(items.data));
-  const more = asks.length - OVERVIEW_ASKS_SHOWN;
+  const more = Math.max(0, asks.length - OVERVIEW_ASKS_SHOWN) + awaiting;
   return (
     <section aria-label="Needs you" className="flex flex-col gap-3">
       <h3 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
@@ -74,18 +76,32 @@ export function OverviewAsks({
           />
         );
       })}
-      {more > 0 ? <MoreLink projectId={projectId} more={more} /> : null}
+      {more > 0 ? <MoreLink projectId={projectId} more={more} shown={asks.length > 0} /> : null}
     </section>
   );
 }
 
-function MoreLink({ projectId, more }: { projectId: string; more: number }): ReactElement {
+/**
+ * The line to the Needs you tab: "N more on Needs you" under the asks shown, or, with none to
+ * show (only items waiting on you with no ask open), how many items wait there.
+ */
+function MoreLink({
+  projectId,
+  more,
+  shown,
+}: {
+  projectId: string;
+  more: number;
+  shown: boolean;
+}): ReactElement {
   return (
     <Link
       to={needsYouPath(projectId)}
       className="self-start text-console-13 text-text-secondary hover:text-text-primary hover:underline"
     >
-      {more.toString()} more on Needs you
+      {shown
+        ? `${more.toString()} more on Needs you`
+        : `${more.toString()} ${more === 1 ? 'item waits' : 'items wait'} for you on Needs you`}
     </Link>
   );
 }

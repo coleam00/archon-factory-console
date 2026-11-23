@@ -5,7 +5,7 @@
  * sorted how, with which rows marked, with which panel open.
  */
 import { ensureUtc } from '../../lib/format';
-import type { PlacedCard } from './board';
+import type { Pill, PlacedCard } from './board';
 import type { TableSort } from './board-table';
 import { mergeUnknown, mergeUnsettled } from './merge-pending';
 
@@ -124,16 +124,20 @@ function sameLocalDay(iso: string, now: Date): boolean {
   );
 }
 
+/** Whether a card's state waits on a person: an open ask, or a declared `awaits` outcome. */
+export const waitsOnYou = (pill: Pill): boolean => pill === 'needs-you' || pill === 'awaits';
+
 /**
  * Whether the show `show` keeps `placed`. In flight: on the board, outside the landed stage,
  * not parked (open, but nothing works it until someone takes it up), and its merge state
- * known. Needs you: its pill says so. Landed, and the median's: in the landed stage, its
- * merge state known. Landed today: landed, its change merged on `now`'s local day. Landed of
- * all: anywhere on the board (the M of "N of M"). Found narrows nothing (`filterBoard` never
- * asks). An item an ending took off the board, or one placement found no column for, is in
- * none. An item whose merge state is not known (`mergeUnsettled`) is in no show that says
- * what merged or what is in flight, as either might be wrong. Unknown: on the board, its merge
- * state could not be read (`mergeUnknown`), the set the Overview's line names.
+ * known. Needs you: its pill says so, an item waiting on you with no ask (`awaits`) included.
+ * Landed, and the median's: in the landed stage, its merge state known. Landed today: landed,
+ * its change merged on `now`'s local day. Landed of all: anywhere on the board (the M of "N of
+ * M"). Found narrows nothing (`filterBoard` never asks). An item an ending took off the board,
+ * or one placement found no column for, is in none. An item whose merge state is not known
+ * (`mergeUnsettled`) is in no show that says what merged or what is in flight, as either might
+ * be wrong. Unknown: on the board, its merge state could not be read (`mergeUnknown`), the set
+ * the Overview's line names.
  */
 export function showsCard(
   show: BoardShow,
@@ -149,7 +153,7 @@ export function showsCard(
     case 'in-flight':
       return column.stage.id !== landedStage && !unsettled && card.pill !== 'parked';
     case 'needs-you':
-      return card.pill === 'needs-you';
+      return waitsOnYou(card.pill);
     case 'landed':
     case 'median-to-land':
       return landed;

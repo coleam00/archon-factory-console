@@ -5,16 +5,45 @@ import type { BoardCard } from './lib/board';
 import type { BoardAskFace as Face } from './lib/board-ask';
 import type { BoardAsks } from './useBoardAsks';
 
-/** What stopped a failed item, or what an item that needs you asks, as the card has always said it. */
-function StopLine({ card }: { card: BoardCard }): ReactNode {
+/**
+ * A card's stop line, as the board card and the Table row both draw it: what stopped a failed
+ * item or what an item asks, in two lines at most. With several questions (`stopCount`), the
+ * first is cut to one line and the count stands beside it, as the ask face does, so the count
+ * is never clamped away; the whole line is on hover.
+ */
+export function StopText({
+  card,
+  as: Tag = 'span',
+  className = '',
+}: {
+  card: Pick<BoardCard, 'stopLine' | 'stopCount'>;
+  as?: 'p' | 'span';
+  className?: string;
+}): ReactNode {
   if (card.stopLine === null) return null;
+  if (card.stopCount === null)
+    return (
+      <Tag title={card.stopLine} className={`line-clamp-2 ${className}`}>
+        {card.stopLine}
+      </Tag>
+    );
   return (
-    <p
-      className={`line-clamp-2 text-console-13 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
+    <Tag
+      title={`${card.stopLine} · ${card.stopCount}`}
+      className={`flex min-w-0 items-baseline gap-2 ${className}`}
     >
-      {card.stopLine}
-    </p>
+      <span className="min-w-0 truncate">{card.stopLine}</span>
+      <span data-stop-count="" className="shrink-0 text-text-secondary">
+        {card.stopCount}
+      </span>
+    </Tag>
   );
+}
+
+/** What stopped a failed item, or what an item that needs you asks, on the card. */
+function StopLine({ card }: { card: BoardCard }): ReactNode {
+  const tone = card.pill === 'failed' ? 'text-error' : 'text-warning';
+  return <StopText card={card} as="p" className={`text-console-13 ${tone}`} />;
 }
 
 /**
@@ -113,7 +142,7 @@ export function RowAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): Re
         {answered}
       </span>
     );
-  return card.stopLine;
+  return <StopText card={card} />;
 }
 
 /**

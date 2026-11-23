@@ -156,12 +156,26 @@ export function times(count: number): string {
   return `${count.toString()} times`;
 }
 
-/** What the view says a completed run did: `workflow:outcome`, else `workflow:*`. */
-export function toldOutcome(view: Declaration, workflow: string, outcome: string | null) {
+/**
+ * What the view says a completed run did: `workflow:outcome`, else `workflow:*`. An entry worded
+ * by whether the item has a change (`{ withChange, withoutChange }`) reads `hasChange`.
+ */
+export function toldOutcome(
+  view: Declaration,
+  workflow: string,
+  outcome: string | null,
+  hasChange: boolean
+): string | undefined {
   const told = view.story?.outcomes;
   if (told === undefined) return undefined;
-  return (outcome === null ? undefined : told[`${workflow}:${outcome}`]) ?? told[`${workflow}:*`];
+  const entry =
+    (outcome === null ? undefined : told[`${workflow}:${outcome}`]) ?? told[`${workflow}:*`];
+  if (entry === undefined || typeof entry === 'string') return entry;
+  return hasChange ? entry.withChange : entry.withoutChange;
 }
+
+/** Whether the item has a change, which an outcome's sentence may be worded by. */
+const hasChange = (ctx: StoryContext): boolean => ctx.detail.item.progress?.change != null;
 
 /** A run that has not finished: what it is doing, in the stage's name. */
 function statusSentence(ctx: StoryContext, label: string, run: ItemRun): string | null {
@@ -235,7 +249,7 @@ function runSentence(ctx: StoryContext, panel: StoryVisit, index: number, run: I
   // The run's outcome is told on its home panel only: a run whose fix step put it back on Build
   // ends there, not on its first Build panel.
   if (ctx.home.get(run.id) === index) {
-    const told = toldOutcome(ctx.view, workflow, run.outcome);
+    const told = toldOutcome(ctx.view, workflow, run.outcome, hasChange(ctx));
     return told === undefined ? neutral : { text: told, mono: null };
   }
   // An earlier stage of a run that works several: its outcome is a later stage's to tell.
@@ -430,7 +444,9 @@ function panelEvents(ctx: StoryContext, panel: StoryVisit, grid: RoundsGrid | nu
     if (run === undefined || workflow == null) return [];
     if (panel.fixRunIds.includes(runId) && !panel.runIds.includes(runId)) {
       const told =
-        run.status === 'completed' ? toldOutcome(ctx.view, workflow, run.outcome) : undefined;
+        run.status === 'completed'
+          ? toldOutcome(ctx.view, workflow, run.outcome, hasChange(ctx))
+          : undefined;
       return told === undefined ? [] : [{ kind: 'fixed', runId, text: told }];
     }
     if (ctx.rows.get(runId)?.kind !== 'returned') return [];
@@ -489,7 +505,7 @@ function drainPanels(ctx: StoryContext): (DrainPanel & { at: number })[] {
       sentence: {
         text:
           statusSentence(ctx, 'The factory', run) ??
-          toldOutcome(ctx.view, drain, run.outcome) ??
+          toldOutcome(ctx.view, drain, run.outcome, hasChange(ctx)) ??
           'The factory looked for other work',
         mono: null,
       },

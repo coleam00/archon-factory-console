@@ -125,11 +125,13 @@ function ItemRead({
   const now = Date.now();
   const journey = itemJourney(declaration, data, column ?? null, now);
   const timeline = buildTimeline(declaration, data);
+  const state = itemPill(declaration, data.item, landed);
   return (
     <div data-doc-page="" className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
       <ItemBand
         detail={data}
-        pill={itemPill(declaration, data.item, landed).pill}
+        pill={state.pill}
+        pillLabel={state.pillLabel}
         column={column ?? null}
         journey={journey}
         workOrder={
@@ -157,6 +159,7 @@ function ItemRead({
           asks={asks}
           questions={data.item.questions.length}
           attention={attention}
+          awaits={state.pill === 'awaits' ? (data.item.progress?.awaits ?? null) : null}
         />
       </section>
       <section

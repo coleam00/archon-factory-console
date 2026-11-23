@@ -8,6 +8,8 @@
  * project may present a pack it cannot edit with `.archon/packs/<pack key>.factory-view.json`.
  */
 import { z } from 'zod';
+import { drilldownIssues } from './factory-view-drilldown';
+import { heldOpenIssues, retiredIssues } from './factory-view-held';
 import { isRecord, oneOrList, sourceProblem } from './factory-view-problems';
 import { storyReferenceIssues } from './factory-view-story';
 import { workflowSourceSchema } from './workflow';
@@ -299,13 +301,21 @@ const sentenceSchema = z.string().trim().min(1).max(160);
 /**
  * The item page's story, one plain sentence per run. `outcomes`: by `workflow:outcome`, or
  * `workflow:*` for every completed run no exact key takes, one with no outcome included (as in
- * `placement`). `steps`: the earlier stages of a run that works several, by the step each
- * starts on. `said`: pointers, in order, to what a run's result says in its own words. A
+ * `placement`); a sentence there may instead be `{ withChange, withoutChange }`, chosen by
+ * whether the item has a change, for an outcome a run records alike with and without one (a
+ * drop answered before any pull request). `steps`: the earlier stages of a run that works
+ * several, by the step each starts on. `said`: pointers, in order, to what a run's result says in its own words. A
  * sentence is static text; a console adds only its own clauses (the pull request, why it was
  * sent back, what you answered). Checked by `storyReferenceIssues` and the coverage check.
  */
 const storySchema = z.strictObject({
-  outcomes: z.record(outcomeKeySchema, sentenceSchema),
+  outcomes: z.record(
+    outcomeKeySchema,
+    z.union([
+      sentenceSchema,
+      z.strictObject({ withChange: sentenceSchema, withoutChange: sentenceSchema }),
+    ])
+  ),
   steps: z.record(workflowNameSchema, z.record(stepIdSchema, sentenceSchema)).optional(),
   said: z.array(jsonPointerSchema).min(1).optional(),
 });
@@ -383,6 +393,33 @@ const factoryViewShape = z.strictObject({
       z.strictObject({ label: labelSchema, why: jsonPointerSchema.optional() })
     )
     .optional(),
+  /**
+   * Completed outcomes after which the item is open and waits on a person, though no ask is
+   * open (`workflow:outcome`, or `workflow:*`): shaped again, say. A console shows
+   * it in the needs-you colour and counts it among what needs you. `label` words it ("Needs
+   * shaping"); `why` and `questions`, when given, point at the run's reason and at the list of
+   * what the person has to settle in its result; `next`, when given, is one plain sentence
+   * saying what the person does to move the item on, since nothing here is answered in place.
+   * Placed and never ended, as `parked`; an outcome is parked or awaits, not both.
+   */
+  awaits: z
+    .record(
+      outcomeKeySchema,
+      z.strictObject({
+        label: labelSchema,
+        why: jsonPointerSchema.optional(),
+        questions: jsonPointerSchema.optional(),
+        next: sentenceSchema.optional(),
+      })
+    )
+    .optional(),
+  /**
+   * Workflows a stage lists that the installed pack no longer has, whose stored runs still
+   * place, render and count. `bun run check:factory-view` neither requires the pack to have
+   * them nor compares their steps, arrows or outcomes with its graph, and fails when the pack
+   * has one again.
+   */
+  retired: z.array(workflowNameSchema).optional(),
   /**
    * Where the change's URL is in a run's result: one source, or a list naming each workflow
    * once. The newest run of any listed workflow with a non-empty value at its pointer gives
@@ -593,24 +630,9 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   view.asked?.forEach((key, index) => {
     refer(['asked', index], workflowOf(key));
   });
-  for (const key of Object.keys(view.parked ?? {})) refer(['parked', key], workflowOf(key));
+  for (const field of ['parked', 'awaits'] as const)
+    for (const key of Object.keys(view[field] ?? {})) refer([field, key], workflowOf(key));
   for (const key of Object.keys(view.answers ?? {})) refer(['answers', key], workflowOf(key));
-  return issues;
-}
-
-/**
- * A `parked` outcome is placed, never ended: `placement` takes it (exactly or by `workflow:*`),
- * and no exact `endings` key names it, which placement, checked first, would leave dead.
- */
-function parkedIssues(view: FactoryViewShape): Issue[] {
-  const issues: Issue[] = [];
-  for (const key of Object.keys(view.parked ?? {})) {
-    const workflow = key.slice(0, key.lastIndexOf(':'));
-    if (view.placement[key] === undefined && view.placement[`${workflow}:*`] === undefined)
-      issues.push({ path: ['parked', key], message: 'a parked outcome must be placed' });
-    if (view.endings[key] !== undefined)
-      issues.push({ path: ['endings', key], message: 'is declared parked; a parked item is open' });
-  }
   return issues;
 }
 
@@ -630,43 +652,6 @@ function verdictOverlapIssues(view: FactoryViewShape): Issue[] {
             path: ['verdicts', workflow, node, outcome],
             message: 'is declared in returns or approves already',
           });
-  return issues;
-}
-
-/**
- * A drill-down tells its own stage: each card covers, and its loop names, a workflow the
- * stage lists, and the loop spans phases it has. Whether a step is real only the coverage
- * check can say, from the pack's workflows.
- */
-function drilldownIssues(view: FactoryViewShape): Issue[] {
-  const issues: Issue[] = [];
-  view.stages.forEach((stage, s) => {
-    const { drilldown } = stage;
-    if (drilldown === undefined) return;
-    const at = ['stages', s, 'drilldown'];
-    const own = (path: Issue['path'], workflow: string): void => {
-      if (!stage.workflows.includes(workflow))
-        issues.push({
-          path,
-          message: `names workflow "${workflow}", which stage "${stage.id}" does not list`,
-        });
-    };
-    drilldown.phases.forEach((phase, p) => {
-      phase.cards.forEach((card, c) => {
-        card.covers.forEach((cover, k) => {
-          own([...at, 'phases', p, 'cards', c, 'covers', k, 'workflow'], cover.workflow);
-        });
-      });
-    });
-    const { loop } = drilldown;
-    if (loop === undefined) return;
-    own([...at, 'loop', 'workflow'], loop.workflow);
-    if (loop.from > loop.to || loop.to > drilldown.phases.length)
-      issues.push({
-        path: [...at, 'loop'],
-        message: `spans phases ${String(loop.from)} to ${String(loop.to)}; the drill-down has phases 1 to ${String(drilldown.phases.length)}`,
-      });
-  });
   return issues;
 }
 
@@ -722,7 +707,8 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
     ...workflowReferenceIssues(view),
     ...sourceListIssues(view),
     ...verdictOverlapIssues(view),
-    ...parkedIssues(view),
+    ...heldOpenIssues(view),
+    ...retiredIssues(view),
     ...drilldownIssues(view),
     ...shadowReferenceIssues(view),
     ...discoveriesShadowIssues(view),

@@ -159,8 +159,10 @@ describe('the shipped map', () => {
       ['intake', 'plan-build', 'build, narrow'],
       // Build to CI and review ("fixed for CI") skips Checks, but not a card: Plan & build and
       // Checks & review are neighbours, so it joins the one pill between them.
-      ['plan-build', 'checks-review', 'built, fixed for CI'],
-      ['checks-review', 'ready', 'ready'],
+      // Build to Ready to merge (a drop or reshape answer starts close) skips a card, so it is
+      // worded on this pill with its target.
+      ['plan-build', 'checks-review', 'built, fixed for CI, drop or reshape → Ready to merge'],
+      ['checks-review', 'ready', 'ready, drop or reshape'],
       ['ready', 'merged', 'merged'],
     ]);
     for (const arrow of layout.arrows) {
@@ -179,7 +181,7 @@ describe('the shipped map', () => {
       ['triage', 'split'],
       ['plan', 'replan, answers'],
       ['build', 'returned, sent back, answers'],
-      ['ready', 'land'],
+      ['ready', 'land, drop or reshape'],
     ]);
     const laneY = CARD_H + LANE;
     for (const path of layout.feedback.paths) {

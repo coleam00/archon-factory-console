@@ -1,7 +1,9 @@
 import type { ReactElement } from 'react';
 import { factoryTabShown } from '../factory/lib/views';
+import { useFactoryItems } from '../factory/useFactoryItems';
 import { useFactoryViews } from '../factory/useFactoryViews';
 import { needsYouCount } from '../lib/needs-you';
+import type { AttentionQueue } from '../skills/runs';
 import { useProjectAttention } from './ProjectAttention';
 import { TabLink } from './TabLink';
 
@@ -22,22 +24,27 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
 
 /**
  * Needs you | Runs | Chat | Metrics tab control under a project, then Factory when a factory
- * view applies to the project. Needs you carries how many asks and waits need a person, in the
- * needs-you colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the
+ * view applies to the project. Needs you carries how many things need a person (`needsYouCount`:
+ * the asks and waits, and on a factory project the items waiting on you), in the needs-you
+ * colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the
  * active one). Only meaningful when a project is scoped, so it is rendered only under
  * `ProjectAttentionLayout`, never on the All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
   const { data: factoryViews } = useFactoryViews(projectId);
   const attention = useProjectAttention();
-  const waiting = attention.data === undefined ? 0 : needsYouCount(attention.data);
-  const tabs = factoryTabShown(factoryViews) ? [...TABS, FACTORY_TAB] : TABS;
+  const factory = factoryTabShown(factoryViews);
+  const tabs = factory ? [...TABS, FACTORY_TAB] : TABS;
   return (
     <div className="flex flex-wrap items-center gap-1">
       {tabs.map(({ key, label, suffix }) => (
         <TabLink key={key} to={`/console/p/${projectId}${suffix}`} active={key === active}>
           {label}
-          {key === 'needs-you' && waiting > 0 ? <WaitingBadge count={waiting} /> : null}
+          {key !== 'needs-you' || attention.data === undefined ? null : factory ? (
+            <FactoryWaitingBadge projectId={projectId} queue={attention.data} />
+          ) : (
+            <WaitingBadge count={needsYouCount(attention.data)} />
+          )}
         </TabLink>
       ))}
     </div>
@@ -45,10 +52,28 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
 }
 
 /**
- * How many wait on a person, in the needs-you colour. A chip that counts needs-you stays soft
- * (Visual standard, rule 5): the filled pill is a card's own Needs you state.
+ * The badge on a factory project: the factory's items read too, the one the Factory pages and
+ * Needs you read (cached), so it counts the items waiting on you as they do. Only a project
+ * the Factory tab shows for reads it: the read answers 404 without a view.
  */
-export function WaitingBadge({ count }: { count: number }): ReactElement {
+function FactoryWaitingBadge({
+  projectId,
+  queue,
+}: {
+  projectId: string;
+  queue: AttentionQueue;
+}): ReactElement | null {
+  const items = useFactoryItems(projectId);
+  return <WaitingBadge count={needsYouCount(queue, items.data)} />;
+}
+
+/**
+ * How many wait on a person, in the needs-you colour; nothing while none does. A chip that
+ * counts needs-you stays soft (Visual standard, rule 5): the filled pill is a card's own Needs
+ * you state.
+ */
+export function WaitingBadge({ count }: { count: number }): ReactElement | null {
+  if (count === 0) return null;
   return (
     <span
       aria-label={`${count.toString()} waiting`}

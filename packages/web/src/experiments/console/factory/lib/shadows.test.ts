@@ -142,7 +142,6 @@ describe('where the shipped view holds shadows', () => {
     expect(covering).toEqual([
       ['Would it start on its own', 'admit'],
       ['Project checks', 'rounds.checks'],
-      ['Project checks', 'checks'],
     ]);
   });
 
@@ -169,8 +168,35 @@ describe('where the shipped view holds shadows', () => {
     expect(stageShadowLines(plan, VIEW, [idleWithEveryDecision()])).toEqual([]);
   });
 
-  test('one line per label: the project checks of deliver and of stage-check tally together', () => {
-    const checks = VIEW.stages.find(stage => stage.id === 'checks');
+  test('one line per label: the project checks of two workflows tally together', () => {
+    // The shipped view's stage-check ran the project checks as a shadow too until the pack
+    // dropped that step; a view declaring both still reads them as one line.
+    const deliverChecks = VIEW.shadows?.find(entry => entry.node === 'rounds.checks');
+    if (deliverChecks === undefined) throw new Error('the shipped view declares the checks');
+    const stageCheck = { ...deliverChecks, workflow: 'stage-check', node: 'checks' };
+    const covering = {
+      title: 'Project checks',
+      text: "Runs the project's declared checks",
+      icon: 'clipboard-list' as const,
+      kind: 'script' as const,
+      covers: [{ workflow: 'stage-check', steps: ['checks'] }],
+    };
+    const view = {
+      ...VIEW,
+      shadows: [...(VIEW.shadows ?? []), stageCheck],
+      stages: VIEW.stages.map(stage =>
+        stage.id !== 'checks' || stage.drilldown === undefined
+          ? stage
+          : {
+              ...stage,
+              drilldown: {
+                ...stage.drilldown,
+                phases: [...stage.drilldown.phases, { label: 'Checks', cards: [covering] }],
+              },
+            }
+      ),
+    };
+    const checks = view.stages.find(stage => stage.id === 'checks');
     if (checks === undefined) throw new Error('the shipped view has a checks stage');
     const failing = { name: 'lint', passed: false, seconds: 3, tail: null };
     const key = PAGE.items.find(item => item.progress !== null)?.item.key ?? '';
@@ -184,7 +210,7 @@ describe('where the shipped view holds shadows', () => {
           '2026-11-21T12:00:00.000Z'
         ),
       ];
-    expect(stageShadowLines(checks, VIEW, [idleWithEveryDecision(), threeStage])).toEqual([
+    expect(stageShadowLines(checks, view, [idleWithEveryDecision(), threeStage])).toEqual([
       'Project checks · last 2: 1 failed ×1 · all passed ×1',
     ]);
   });

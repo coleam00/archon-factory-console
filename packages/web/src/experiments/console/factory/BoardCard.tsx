@@ -24,6 +24,8 @@ export const PILL_CLASS: Record<Pill, string> = {
   running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
   'needs-you': 'bg-warning font-semibold text-surface-inset',
   failed: 'bg-[color:var(--error-soft)] text-error',
+  // Waits on you with no ask: the needs-you colour, soft. Only an open ask's pill is filled.
+  awaits: 'bg-[color:var(--warning-soft)] text-warning',
   parked: 'bg-surface-inset text-text-secondary ring-1 ring-inset ring-border',
   waiting: 'bg-surface-inset text-text-tertiary',
   landed: 'bg-[color:var(--success-soft)] text-success',
@@ -46,12 +48,13 @@ export const VERDICT_TEXT_CLASS: Record<RoundVerdict, string> = {
   stopped: 'text-text-tertiary',
 };
 
-export function PillBadge({ pill }: { pill: Pill }): ReactElement {
+/** The state pill, in `label` when the item names its state (an `awaits` label), else `PILL_LABEL`. */
+export function PillBadge({ pill, label }: { pill: Pill; label?: string }): ReactElement {
   return (
     <span
       className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium ${PILL_CLASS[pill]}`}
     >
-      {PILL_LABEL[pill]}
+      {label ?? PILL_LABEL[pill]}
     </span>
   );
 }
@@ -129,7 +132,7 @@ function CardBox({
         <span className="truncate font-mono text-console-12 text-text-tertiary">
           {displayItemKey(card.key, card.order)}
         </span>
-        <PillBadge pill={card.pill} />
+        <PillBadge pill={card.pill} label={card.pillLabel} />
       </div>
       <Link
         to={itemPath(projectId, card.key)}

@@ -687,6 +687,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
         runs: [{ runId: 'run-b', workflow: 'deliver', failedStep: null }],
         shadows: [],
         parked: null,
+        awaits: null,
       },
     });
     expect(read.members).toEqual({ '2': [] });

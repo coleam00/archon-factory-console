@@ -20,7 +20,8 @@ test('a view without columns has one column per stage, with its label and blurb'
   expect(columns[0]).toEqual({
     id: 'order',
     label: 'Order',
-    blurb: 'Takes a work order and makes it one item the factory can read.',
+    blurb:
+      'Takes a work order, or an issue someone added the factory label to, and makes it one item the factory can read.',
     stages: ['order'],
     tone: 'intake',
   });

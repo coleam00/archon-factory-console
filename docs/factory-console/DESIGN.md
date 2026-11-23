@@ -392,6 +392,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   - waiting: `--text-tertiary` on `--surface-inset`
   - parked: `--text-secondary` on `--surface-inset`, with a 1 px `--border` ring, so it reads
     apart from waiting while staying neutral
+  - waits on you with no ask open (a declared `awaits` outcome): the needs-you colours,
+    `--warning` on `--warning-soft`, soft like a chip: never filled and never the ping, which
+    stay an open ask's
   - shadow: `--node-opaque` (rule 10)
 - A state pill or chip is the state's colour as text on its soft background.
 - **"Needs you" is the one loud colour.** A card's Needs you state pill is the only filled pill
@@ -705,8 +708,9 @@ documents through Neon live queries.
 ## Where it lives
 
 - A project tab, **Needs you**, first, left of Runs, on every project (`ProjectViewTabs`, route
-  `/console/p/:projectId/needs-you`), with its count of asks and waits as a soft needs-you chip (rule 5; owner
-  change 2). It is console core, not part of the Factory section: every page of a project sits
+  `/console/p/:projectId/needs-you`), with its count of what needs you (`needsYouCount`: the asks
+  and waits, and on a project with a factory view the items waiting on you with no ask open) as
+  a soft needs-you chip (rule 5; owner change 2). It is console core, not part of the Factory section: every page of a project sits
   under one layout (`ProjectAttentionLayout`) holding the project's attention queue and stream.
 - A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a factory view
   applies to the project (below). Without one, nothing else changes.
@@ -794,6 +798,17 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // outcomes that keep an item open for later:
                                                    // placed (placement must take each), never
                                                    // ended; `why` points at the run's reason
+  "awaits": { "triage:shape": { "label": "Needs shaping", "why": "/why",
+                                "questions": "/open_questions",
+                                "next": "Settle these questions, then order it again." } },
+                                                   // outcomes after which the item waits on a
+                                                   // person with no ask open: placed, never
+                                                   // ended, never also parked; `questions`
+                                                   // points at what they have to settle, `next`
+                                                   // says what moves the item on
+  "retired": ["deliver"],                          // workflows a stage still lists that the
+                                                   // pack no longer has: their runs still read;
+                                                   // the coverage check compares none of them
   "landed": { "stage": "landed" },                 // the column for an item whose change merged
   "rounds": [ { "workflow": "deliver", "loop": "rounds" },   // one source, or a list: a loop's
               { "workflow": "stage-check",               // iterations, or each run of a
@@ -825,8 +840,12 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // pack's bindings decide
   "story": {                                       // the item page's one sentence per stage
     "outcomes": { "triage:build": "Triage judged it worth building",
-                  "landgate:*": "The merge gate read the change" },  // workflow:* takes a run
+                  "landgate:*": "The merge gate read the change",  // workflow:* takes a run
                                                    // with no outcome too, as placement does
+                  "close:dropped": { "withChange": "You dropped it; the factory closed the PR",
+                                     "withoutChange": "You dropped it before a change was proposed" } },
+                                                   // or words chosen by whether the item has
+                                                   // a change
     "steps": { "deliver": { "build__build": "Build wrote the change" } },  // an earlier stage
                                                    // of a run that works several, by the step
                                                    // that starts it
@@ -854,21 +873,26 @@ enable the factory for a project and its view appears.
 
 This repository ships the declaration for `Wirasm/archon-software-factory` as the project file
 `.archon/packs/Wirasm.archon-software-factory.factory-view.json`. Proposing it upstream into the
-pack is later work. The pack's `discoveries` drain runs after deliver but moves no item, so the
+pack is later work. The pack's `discoveries` drain runs after delivery but moves no item, so the
 declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
 `discoveries` field names the workflow instead, and where each completed drain's result lists
 what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
-Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of
-`deliver` and of `stage-check`, and the drain; not the land gate, which acts) and how each one's
-value reads; the item page, stage pages, board and map show their decisions as shadows (#80).
-Its `story` field gives the item page one plain sentence per outcome (#122). Its `answers` field
-words what the pack's `drop` and `reshape` routes start, for the five workflows whose asks the
-pack binds them on (`stage-build`, `stage-check`, `stage-host`, `landgate`, `land`). The coverage
-check does not yet compare these keys with the pack's bindings. The pack graph carries each
-`asks_settled` arrow's option (`from.option`), so a key with no arrow from its workflow for its
-option could be reported. But the committed snapshot predates the pack version that added `drop`
-and `reshape`, and such a rule would report every key on the snapshot path CI runs. It belongs
-with the refresh of that snapshot; until then the keys follow the pack's `close` bindings by hand.
+Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of the
+retired `deliver`, and the drain; not the land gate, which acts, and not `stage-check`, which no
+longer runs the project checks since pack 43bedfe) and how each one's value reads; the item
+page, stage pages, board and map show their decisions as shadows (#80).
+Its `story` field gives the item page one plain sentence per outcome (#122). Its `retired` field
+names `deliver`, the one-workflow delivery the pack dropped on 2026-11-23 (pack d7f8c36): every
+item delivered before then ran under it and still reads as it did, while new items run the
+three-stage delivery. `close` (it carries out a drop or reshape answer) is a step of Ready to
+merge, and `report` runs only as the `report__report` step of `stage-check` and `stage-host`.
+Its `answers` field words what the pack's `drop` and `reshape` routes start, for the five
+workflows whose asks the pack binds them on (`stage-build`, `stage-check`, `stage-host`,
+`landgate`, `land`). The coverage check does not yet compare these keys with the pack's
+bindings. The pack graph carries each `asks_settled` arrow's option (`from.option`), and the
+committed snapshot now carries d7f8c36's `close` bindings, so a key with no arrow from its
+workflow for its option could be reported; that rule is not built yet, and until it is the keys
+follow the pack's `close` bindings by hand.
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -883,10 +907,15 @@ a hand-off starts, so it is never exempt. The same check fails on a real step no
 covers or two cover, and on a step or workflow the view names that the pack does not have. It
 fails, too, on an outcome a listed workflow declares that neither `placement` nor `endings` takes
 (exactly or by `workflow:*`), so a completed run never leaves its item where no rule put it, and on
-an exact `placement`, `endings`, `parked` or `asked` key naming an outcome its workflow does not
-declare (#100). It fails, too, on a `returns` or `approves` step the workflow does not have, a
+an exact `placement`, `endings`, `parked`, `awaits` or `asked` key naming an outcome its workflow
+does not declare (#100). It fails, too, on a `returns` or `approves` step the workflow does not have, a
 loop-form `rounds` source naming no loop group, and a `change` or stage-form `rounds` source on
-a workflow that returns no result.
+a workflow that returns no result. A `retired` workflow is not required of the pack and none of
+its steps, arrows or outcomes is compared with the graph (nothing in code names one); a stage's
+`nodes` entry for it is held to the steps the view itself names for it, so a misspelt one still
+fails, and a retired workflow the pack has again fails as `retired-present`. The snapshot holds
+the pack alone: the `loaded` and `otherCopies` `archon pack graph` reports (where it found its
+copies, a throwaway path) are left out.
 
 ## Data
 
@@ -936,7 +965,8 @@ What those reads do not carry comes from **one read-only route file**,
   its declared outcome names (an empty value there means none; a refused run is never read), and
   `shadows`: the newest decision of each shadow step the view declares, and `parked`: the
   declared label and the reason at its `why` pointer when the item's last declared run completed
-  with a declared `parked` outcome, else null. Beside `progress`, `members` lists for each asked key the
+  with a declared `parked` outcome, else null, and `awaits` likewise for a declared `awaits`
+  outcome, with the questions at its `questions` pointer (empty when none). Beside `progress`, `members` lists for each asked key the
   items with an active `part_of` link to it, so a member with no run yet counts. A key may name
   an item with no runs (a work order). The web joins each window page with it: one reader,
   `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
@@ -994,7 +1024,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
 2. **Numbers strip:** items in flight (on the board, not merged and not parked), need you (the
-   Needs you tab's count of asks and waits, linking there), merged today, merged in total ("N of
+   Needs you tab's count, `needsYouCount`: asks and waits, and the items waiting on you with no
+   ask open; linking there), merged today, merged in total ("N of
    M merged", M every item on the board: not the items an ending took off it, but a parked item,
    which is open), median time from first run to merged ("median to merged"). Each tile is a
    number tile in the card language: a 16 px icon and its label in the Label role, then the
@@ -1018,14 +1049,22 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 3. **Needs you:** the newest three open asks and waits as compact ask cards (Visual standard rule
    9): the item, the question, the recommended tile (or the first), and **Open**, which leads to
    that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on
-   Needs you". Nothing shows when nothing waits.
+   Needs you", the items waiting on you with no ask open among the N, so the line and the
+   number agree. Nothing shows when nothing waits.
 
 The Needs you tab (`/console/p/:projectId/needs-you`) is a document page (owner changes 5 and
 9). Its header band says "N things need you", on how many items and runs, with three stat
 chips: waiting now (needs-you while above zero), the oldest wait, and how many questions were
 answered today (asks, waits and gates answered on the local day; a skeleton while the items
 read is unread, "?" when it failed). Its band, the tab and the Overview's number all read one
-count, `needsYouCount`. Then a 2:1 grid, one column at 390 px. The main column holds **Open
+count, `needsYouCount`: the asks and waits, and, with a factory view, the items waiting on you
+with no ask open (`awaitingItems`: an `awaits` outcome left them so, and no ask of theirs is
+open, so an item is counted once). Those items are listed under **Waiting on you** in the main
+column, after Paused: one filled panel per item with the `--warning` left bar and no ping, its
+declared label as the eyebrow, its number and title linking to its item page, the reason its
+run gave, the view's `next` sentence under "What to do", and the questions to settle. Nothing
+there is answered in place, so the `next` sentence is what tells a person how the item moves
+on; the section's own words name no pack's outcome. Then a 2:1 grid, one column at 390 px. The main column holds **Open
 asks**: every open ask, gate and paused run on the project's items and runs, newest first, one
 filled panel per item with a 3 px `--warning` left bar and the ping, its heading the item's
 number and title, each ask under the stage that asked (an eyebrow in the stage's group colour;
@@ -1132,7 +1171,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     and that the real workflow shows its steps.
   - **Items here now**: the items in the stage, from the same read as the card's chips, each
     linking to its item page with its state (needs you, the run line of the run working it, or
-    the board's merged, failed, parked or waiting); rule 6's empty state when there are none.
+    the board's merged, failed, waiting-on-you label, parked or waiting); rule 6's empty state
+    when there are none.
   - **The real workflow** (first when the stage has no drill-down), with the line "Generated
     from the pack's workflow files; shows every step.": each workflow's steps drawn as a graph
     (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed group
@@ -1153,8 +1193,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
   says which: its hover, and the stage's details under "Shadow steps", give one line per
-  shadow step (steps of one label, such as the project checks of both deliveries, share a
-  line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
   "nothing decided yet"; before the items are read, "…", and "could not be read" once that
   read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
@@ -1186,9 +1225,14 @@ first rule that matches. The board, the map and the item page all place through 
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row per ending
    label ("N closed by triage", "N folded into another item") at the end of the board's toolbar,
    each opening a list over the board, each linking to its item. The view maps each outcome by
-   itself, never one wildcard over outcomes that mean different things (#100). A `parked` outcome
-   is no ending: rule 3 places it (for this pack, in Triage, in the Intake column), and the item
-   counts as open.
+   itself, never one wildcard over outcomes that mean different things (#100). A `parked` or
+   `awaits` outcome is no ending: rule 3 places it (for this pack, triage's park and shape and
+   close's reshape in Triage, in the Intake column; close's not_closed in Ready to merge), and the
+   item counts as open. Close's `dropped` is the ending "Dropped by you". Close's `not_closed` (the
+   forge would not close or draft the PR) is `parked`, not `awaits`: once a person closes or
+   drafts it by hand nothing the console reads would see that, so it must not count in Need you
+   with no way out; its label says what to do ("The forge would not close the PR: close or draft
+   it by hand").
 5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
    else the first stage of that run's workflow, with the failed pill and stop line.
 6. Otherwise the first stage.
@@ -1196,7 +1240,8 @@ first rule that matches. The board, the map and the item page all place through 
 A card, in this order:
 
 1. Item key and state pill: **Running** (a run works it now), **Needs you** (it has an open ask),
-   **Failed**, **Parked** (its last run kept it open for later: a declared `parked` outcome),
+   **Failed**, the declared label of an `awaits` outcome ("Needs shaping": its last run left it waiting on a person with no ask open; soft, rule 5),
+   **Parked** (its last run kept it open for later: a declared `parked` outcome),
    **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the declared run input's title line: the first non-empty line after any `---`
    front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines;
@@ -1227,7 +1272,9 @@ A card, in this order:
    placeholder. Either way the card sits where its runs put it, except that a card already in
    Merged stays there: it never moves back to a stage it left because an answer is missing.
 7. For a failed item: one line saying what stopped it, naming its stage and the step it failed
-   at ("Build failed at Writes the change"), never the workflow id. For one that needs you, the approval
+   at ("Build failed at Writes the change"), never the workflow id. For one waiting on you with
+   no ask open: the first question its run recorded, cut to its line, and "N questions" when it
+   recorded several (as the ask face does), else its reason. For one that needs you, the approval
    card's face (owner change 3), from the project's attention queue Needs you reads
    (`itemAsks`): on one line the ping, the first one's question cut to that line and "N
    questions" when it holds several; then the line Needs you shows for it ("Recommended:
@@ -1301,7 +1348,7 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   coloured state), the change as a button-style link ("PR #n") with its merge state as quiet
   tertiary words after it ("merged", "open", "merge state unknown"; a skeleton line while the
   host is still asked), one sentence of where the item is ("In Checks now.", the `endings`
-  label, the `parked` label with the reason its run gave, "Its change merged."), and stat
+  label, the `awaits` or `parked` label with the reason its run gave, "Its change merged."), and stat
   chips: the time from its first run to its merge ("order to merge"), to where it stopped, or
   to now; its cost; "N of M check rounds" from the board's round; and how many asks were
   answered. An item no run has started yet (a member linked before its first run) says "Not
@@ -1314,8 +1361,8 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   Each move into an earlier column is counted on the column it left, as a dashed loop in the
   send-back colour, "sent back 2x to Plan & build". Each ask it waited on is a pause on the
   column the asking run left it in, "waited on you 12 min" (to now, in the needs-you colour,
-  while the ask is open). An item that was parked, ended, failed or held ends where it
-  stopped, saying so ("Stopped here: Parked by triage"), and its time ends with its last run.
+  while the ask is open). An item that was parked, waits on you, ended, failed or held ends where
+  it stopped, saying so ("Stopped here: Parked by triage", "Stopped here: Needs shaping"), and its time ends with its last run.
   Held, as the page can see it: its last stage run asked, every ask is settled, none is open,
   settling them started no run (the "Nothing started" Needs you shows), and no start waits for
   one either (none queued for a slot, none kept back by the install hold). The answer's route
@@ -1388,7 +1435,11 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   names the settled asks, else "Nothing started"; the view's `answers` sentence for the option
   when it words one, as "Leaves the PR as a draft until the item is shaped"). An open ask is the ask card Needs you
   draws, answerable in place, in its run's panel; one no panel holds waits on a "Waiting on
-  you" panel at the top of the story, which also shows a skeleton while the asks are read.
+  you" panel at the top of the story, which also shows a skeleton while the asks are read. An
+  item waiting on you with no ask open (its pill is an `awaits` label) opens its story with a
+  panel of its own in the needs-you colour, without the ping: the label as its heading, the
+  reason its run gave, the view's `next` sentence under "What to do", and "Questions to
+  settle", one per row.
 - **Shadows** sit in the panel of the stage their step is on, in the shadow style (rule 10),
   quieter than the real steps; a round's project checks are the grid's shadow row. A run of the
   `discoveries` drain, on no stage, is a quiet panel of its own, "Found by the factory", in

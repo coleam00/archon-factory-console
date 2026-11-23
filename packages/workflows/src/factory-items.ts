@@ -19,7 +19,7 @@ import {
   readItemRuns,
   type ItemReadSource,
 } from './item-read';
-import { resultString, runParked } from './factory-parked';
+import { factoryAwaitsSchema, resultString, runAwaits, runParked } from './factory-parked';
 import type { FactoryView } from './schemas/factory-view';
 import { readSubrunMetadata } from './schemas/run-metadata';
 import { startCauseSchema } from './schemas/resource-start';
@@ -182,6 +182,12 @@ export const factoryItemProgressSchema = z.object({
    * Null otherwise; `placement` still decides where the item sits.
    */
   parked: z.object({ label: z.string(), why: z.string().nullable() }).nullable(),
+  /**
+   * As `parked`, for an outcome the view declares `awaits` (open, waiting on a person with no
+   * ask open), with the questions at its `questions` pointer (empty when there are none) and
+   * the declared `next` sentence (null when none).
+   */
+  awaits: factoryAwaitsSchema.nullable(),
 });
 export type FactoryItemProgress = z.infer<typeof factoryItemProgressSchema>;
 
@@ -239,6 +245,8 @@ export interface FactoryRunFacts {
   partOf: string | null;
   /** What the run says when it parked its item (`runParked`); else null. */
   parked: FactoryItemProgress['parked'];
+  /** What the run says when it left its item waiting on a person (`runAwaits`); else null. */
+  awaits: FactoryItemProgress['awaits'];
   /** What the shadow steps the view declares decided on this run, in recording order. */
   shadows: FactoryShadowDecision[];
 }
@@ -326,6 +334,7 @@ export function factoryRunFacts(
         ? resultString(view.partOf.pointer, run, events)
         : null,
     parked: runParked(view, workflow, run, events),
+    awaits: runAwaits(view, workflow, run, events),
     shadows: shadowDecisions(view, pack, run, events),
   };
 }
@@ -418,6 +427,7 @@ export async function factoryItemProgress(
     shadows: latestShadowDecisions(read.map(run => facts.get(run.id)?.shadows ?? [])),
     // Placement reads the same last run: one started after the parking one takes the item up.
     parked: (last === undefined ? null : facts.get(last.id)?.parked) ?? null,
+    awaits: (last === undefined ? null : facts.get(last.id)?.awaits) ?? null,
   };
 }
 
@@ -467,6 +477,7 @@ export class FactoryRunFactsMemo {
       change: view.change,
       partOf: view.partOf,
       parked: view.parked,
+      awaits: view.awaits,
       shadows: view.shadows,
     };
     return `${run.id}|${run.status}|${run.completed_at?.toISOString() ?? ''}|${JSON.stringify(read)}`;

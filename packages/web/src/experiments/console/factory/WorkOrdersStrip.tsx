@@ -11,6 +11,7 @@ const PILL_DOT_CLASS: Record<Pill, string> = {
   running: statusDotClass.running,
   'needs-you': 'bg-warning',
   failed: 'bg-error',
+  awaits: 'bg-warning',
   parked: 'bg-text-secondary',
   waiting: 'bg-text-tertiary/60',
   landed: 'bg-success',
@@ -144,7 +145,7 @@ function WorkOrderRow({
       </span>
       <span className="flex flex-wrap items-center gap-1">
         {order.members.map(member => {
-          const label = `${displayItemKey(member.key, order.key)}: ${PILL_LABEL[member.pill]}`;
+          const label = `${displayItemKey(member.key, order.key)}: ${member.pillLabel ?? PILL_LABEL[member.pill]}`;
           return (
             <span
               key={member.key}

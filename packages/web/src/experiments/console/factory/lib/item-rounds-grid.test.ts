@@ -78,8 +78,22 @@ describe('the rounds grid of a loop-form delivery (one deliver run)', () => {
   });
 });
 
+/**
+ * `detail` as the server reads it under the shipped view: only the shadow steps the view
+ * declares decide. Item 125 was captured while stage-check still ran the project checks as a
+ * shadow; the pack dropped that step, and the view with it.
+ */
+function readUnderShippedView(detail: FactoryItemDetail): FactoryItemDetail {
+  const declared = new Set(
+    (shippedView.shadows ?? []).map(shadow => `${shadow.workflow}/${shadow.node}`)
+  );
+  for (const run of detail.runs)
+    run.shadows = run.shadows.filter(entry => declared.has(`${run.workflow}/${entry.node}`));
+  return detail;
+}
+
 describe('the rounds grid of a stage-form delivery (a stage-check run per round)', () => {
-  const grid = checksGrid(itemDetail('125'));
+  const grid = checksGrid(readUnderShippedView(structuredClone(itemDetail('125'))));
 
   test('each run is one column, numbered and bounded by its own result', () => {
     expect(grid?.columns.map(c => [c.iteration, c.max, c.verdict])).toEqual([
@@ -99,13 +113,7 @@ describe('the rounds grid of a stage-form delivery (a stage-check run per round)
       // After round 2 the builder asked first, then fixed once answered.
       ['Build', 'Fixed', 'Asked you+Fixed', 'Fixed', '-'],
       ['CI and review', '-', '-', '-', 'Sent back+Approved'],
-      [
-        'Project checks',
-        '4 checks · all passed · 5 min',
-        '4 checks · all passed · 8 min',
-        '4 checks · all passed · 5 min',
-        '4 checks · all passed · 4 min',
-      ],
+      // No project checks row: stage-check no longer runs them, so no shadow is declared there.
     ]);
   });
 });

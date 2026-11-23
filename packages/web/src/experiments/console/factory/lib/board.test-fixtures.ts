@@ -92,6 +92,54 @@ export function parkedByTriage(key = '6p'): FactoryItem {
   };
 }
 
+/**
+ * Real item 6 cut to its first run, keyed `key`, that run read as a completed run of
+ * `workflow` with `outcome` (a triage that asked for shaping, a close carrying out your drop or
+ * reshape), its progress carrying `awaits` as the server reads it for that outcome.
+ */
+export function lastRunAs(
+  key: string,
+  workflow: string,
+  outcome: string,
+  awaits: NonNullable<FactoryItem['progress']>['awaits'] = null
+): FactoryItem {
+  const item = endLastRun(keepRuns(realItem('6'), 1), 'completed', outcome);
+  const progress = progressOf(item);
+  return {
+    ...item,
+    item: { ...item.item, key },
+    progress: {
+      ...progress,
+      runs: progress.runs.map(run => ({ ...run, workflow })),
+      awaits,
+    },
+  };
+}
+
+/**
+ * The progress `awaits` the server reads for `outcome` of `workflow` under the shipped view: its
+ * declared label and `next`, with `why` and `questions` as the run's result gave them.
+ */
+export function declaredAwaits(
+  key: string,
+  why: string | null,
+  questions: string[]
+): NonNullable<NonNullable<FactoryItem['progress']>['awaits']> {
+  const entry = VIEW.awaits?.[key];
+  if (entry === undefined) throw new Error(`the shipped view declares no awaits ${key}`);
+  return { label: entry.label, why, questions, next: entry.next ?? null };
+}
+
+/** Triage judged item `key` worth doing once a maintainer settles `questions`. */
+export function needsShaping(key: string, questions: string[]): FactoryItem {
+  return lastRunAs(
+    key,
+    'triage',
+    'shape',
+    declaredAwaits('triage:shape', 'Worth doing; the scope is open.', questions)
+  );
+}
+
 /** Item 8 with its deliver run working `step` in round `iteration` of 3. */
 export function delivering(step: string | null, iteration = 2): FactoryItem {
   const item = realItem('8');

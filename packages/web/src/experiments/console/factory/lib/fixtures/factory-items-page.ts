@@ -64,6 +64,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         ],
         shadows: [],
         parked: null,
+        awaits: null,
       },
     },
     {
@@ -145,6 +146,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         ],
         shadows: [],
         parked: null,
+        awaits: null,
       },
     },
     {
@@ -203,6 +205,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         ],
         shadows: [],
         parked: null,
+        awaits: null,
       },
     },
     {
@@ -277,6 +280,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         ],
         shadows: [],
         parked: null,
+        awaits: null,
       },
     },
   ],

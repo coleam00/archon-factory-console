@@ -5,6 +5,7 @@ import { stageLive } from './map-live';
 import { itemWith, itemWithoutProgress, realItem, run } from './map.test-fixtures';
 import { shippedView } from '../item-detail.test-fixtures';
 import { boardModel } from './board';
+import { needsShaping } from './board.test-fixtures';
 
 const view = shippedView;
 
@@ -97,6 +98,15 @@ describe('the live chips on each card', () => {
       ]
     );
     expect(chips(live).build).toEqual([['ask', 'limit'], 1, ['ask']]);
+  });
+
+  test('needs you: an item waiting on you with no ask open counts, once', () => {
+    const shaping = needsShaping('9s', ['Which?']);
+    const live = stageLive(shippedView, [shaping], []);
+    expect(live.stages.get('triage')?.needYou.map(item => item.item.key)).toEqual(['9s']);
+    const asking = { ...shaping, questions: [askOn(shaping.item.id, '9s')] };
+    const both = stageLive(shippedView, [asking], [askOn(shaping.item.id, '9s')]);
+    expect(both.stages.get('triage')?.needYou).toHaveLength(1);
   });
 
   test('needs you: a wait the item read lists among its questions counts, as on the item page', () => {

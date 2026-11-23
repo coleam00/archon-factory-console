@@ -361,6 +361,14 @@ describe('factoryViewSchema', () => {
     ).toEqual(['story.outcomes.deliver:ready', 'story.steps.deliver']);
   });
 
+  test('a story outcome may be worded by whether the item has a change, both words given', () => {
+    const outcomes = { 'plan:*': { withChange: 'Planned its PR', withoutChange: 'Planned' } };
+    expect(factoryViewSchema.safeParse({ ...minimal(), story: { outcomes } }).success).toBe(true);
+    expect(
+      issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': { withChange: 'Planned' } } } })
+    ).toEqual(['story.outcomes.plan:*']);
+  });
+
   test('a story sentence is plain text of at most 160 characters; said points into a result', () => {
     expect(issuePaths({ ...minimal(), story: { outcomes: { 'plan:*': ' ' } } })).toEqual([
       'story.outcomes.plan:*',
@@ -411,6 +419,59 @@ describe('factoryViewSchema', () => {
         parked: { 'deliver:park': { label: 'Parked' } },
       })
     ).toEqual(['placement.deliver:park', 'parked.deliver:park']);
+  });
+
+  test('an awaits outcome is accepted when placed, with its why and questions pointers', () => {
+    expect(
+      factoryViewSchema.safeParse({
+        ...minimal(),
+        placement: { 'plan:planned': 'build', 'plan:shape': 'plan' },
+        awaits: {
+          'plan:shape': { label: 'Needs shaping', why: '/why', questions: '/open_questions' },
+        },
+      }).success
+    ).toBe(true);
+    expect(
+      issuePaths({
+        ...minimal(),
+        placement: { 'plan:shape': 'plan' },
+        awaits: { 'plan:shape': { label: 'Needs shaping', questions: 'open_questions' } },
+      })
+    ).toEqual(['awaits.plan:shape.questions']);
+  });
+
+  test('an awaits outcome unplaced, ended, parked too or of an unlisted workflow is rejected', () => {
+    const awaits = { 'plan:shape': { label: 'Needs shaping' } };
+    expect(issuePaths({ ...minimal(), awaits })).toEqual(['awaits.plan:shape']);
+    expect(
+      issuePaths({
+        ...minimal(),
+        placement: { 'plan:shape': 'plan' },
+        endings: { 'plan:shape': 'Stopped' },
+        awaits,
+      })
+    ).toEqual(['endings.plan:shape']);
+    expect(
+      issuePaths({
+        ...minimal(),
+        placement: { 'plan:shape': 'plan' },
+        parked: { 'plan:shape': { label: 'Parked' } },
+        awaits,
+      })
+    ).toEqual(['awaits.plan:shape']);
+    expect(
+      issuePaths({
+        ...minimal(),
+        placement: { 'deliver:shape': 'plan' },
+        awaits: { 'deliver:shape': { label: 'Needs shaping' } },
+      })
+    ).toEqual(['placement.deliver:shape', 'awaits.deliver:shape']);
+  });
+
+  test('a retired workflow a stage lists is accepted; one no stage lists, or twice, is not', () => {
+    expect(factoryViewSchema.safeParse({ ...minimal(), retired: ['build'] }).success).toBe(true);
+    expect(issuePaths({ ...minimal(), retired: ['deliver'] })).toEqual(['retired.0']);
+    expect(issuePaths({ ...minimal(), retired: ['build', 'build'] })).toEqual(['retired.1']);
   });
 
   test('a verdict meaning outside the closed set is rejected', () => {
@@ -519,14 +580,15 @@ describe('shadows', () => {
     entry: { title: '/title' },
   };
 
-  test("the shipped declaration declares the pack's shadow steps, project checks in both deliveries; the merge gate acts", async () => {
+  test("the shipped declaration declares the pack's shadow steps, project checks of the retired deliver; the merge gate acts", async () => {
     const parsed = factoryViewSchema.parse(JSON.parse(await readFile(SHIPPED, 'utf8')));
+    // stage-check no longer runs the project checks (pack 43bedfe); deliver's old runs did.
     expect(parsed.shadows?.map(shadow => [shadow.workflow, shadow.node, shadow.reads])).toEqual([
       ['triage', 'admit', 'verdict'],
       ['deliver', 'rounds.checks', 'checks'],
-      ['stage-check', 'checks', 'checks'],
       ['discoveries', 'result', 'lists'],
     ]);
+    expect(parsed.retired).toEqual(['deliver']);
   });
 
   test('each way of reading parses; a shadow may name the discoveries workflow', () => {

@@ -77,7 +77,18 @@ function cliError(stdout: string, exitCode: number): string {
 }
 
 /**
- * The installed pack's graph, read on a throwaway copy of `plugins`, or why it could not be.
+ * The graph as the snapshot holds it: the pack alone. `loaded` and `otherCopies` say where the
+ * CLI found its copies, which for `installedGraph` is a throwaway home's temporary path, new on
+ * every read: kept, no snapshot could ever equal the install, and a machine path would reach
+ * the committed file.
+ */
+export function packShape(graph: PackGraph): PackGraph {
+  return { ...graph, loaded: [], otherCopies: [] };
+}
+
+/**
+ * The installed pack's graph (`packShape`), read on a throwaway copy of `plugins`, or why it
+ * could not be.
  * A `plugins` that does not exist is not copied, so the CLI gives its own reason.
  */
 export function installedGraph(plugins: string, packKey: string): InstalledRead {
@@ -95,7 +106,7 @@ export function installedGraph(plugins: string, packKey: string): InstalledRead 
     );
     const stdout = read.stdout.toString();
     if (read.exitCode !== 0) return { error: cliError(stdout, read.exitCode) };
-    return { graph: packGraphSchema.parse(JSON.parse(stdout)) };
+    return { graph: packShape(packGraphSchema.parse(JSON.parse(stdout))) };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

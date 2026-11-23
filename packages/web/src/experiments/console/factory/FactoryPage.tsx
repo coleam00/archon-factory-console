@@ -5,10 +5,13 @@ import { FactoryFrame } from './FactoryFrame';
 import { FactoryNumbers } from './FactoryNumbers';
 import { FactoryMap } from './map/FactoryMap';
 import { OverviewAsks } from './OverviewAsks';
+import { useFactoryItems } from './useFactoryItems';
 
 /** `/console/p/:projectId/factory`: what this factory does, its numbers, what needs a person, then the map. */
 export function FactoryPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
+  // The items the numbers and the map read already: Need you counts those waiting on you too.
+  const items = useFactoryItems(projectId);
   return (
     // Wide: the map takes the page's whole width; the text above it keeps its own measure.
     <FactoryFrame section="overview" wide>
@@ -17,7 +20,11 @@ export function FactoryPage(): ReactElement {
           <FactoryNumbers
             projectId={projectId}
             view={view.declaration}
-            waiting={attention.data === undefined ? undefined : needsYouCount(attention.data)}
+            waiting={
+              attention.data === undefined || items.data === undefined
+                ? undefined
+                : needsYouCount(attention.data, items.data)
+            }
           />
           <OverviewAsks projectId={projectId} view={view} attention={attention} />
           <FactoryMap projectId={projectId} view={view} attention={attention} />

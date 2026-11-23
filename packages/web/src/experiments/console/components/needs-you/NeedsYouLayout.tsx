@@ -19,12 +19,14 @@ import { useFactoryItems } from '../../factory/useFactoryItems';
 import { useFactoryRead } from '../../factory/useFactoryRead';
 import { groupBySubject } from '../../lib/ask-card';
 import { askNaming, itemNames, type AskNaming } from '../../lib/ask-naming';
-import { needsYou, needsYouCount, type NeedsYouItem } from '../../lib/needs-you';
+import { awaitingItems, needsYou, needsYouCount, type NeedsYouItem } from '../../lib/needs-you';
+import type { FactoryItem } from '../../skills/factory';
 import { listItemWindow, type ItemRead } from '../../skills/items';
 import type { AttentionQueue } from '../../skills/runs';
 import { K } from '../../store/keys';
 import { useAnsweredHold, type AnsweredHold } from '../ask-card/useAnsweredHold';
 import { AnsweredLately } from './AnsweredRows';
+import { AwaitingSection } from './AwaitingSection';
 import { ItemAskPanel } from './ItemAskPanel';
 import { NeedsYouHeader } from './NeedsYouHeader';
 import { NothingNeedsYou } from './NothingNeedsYou';
@@ -58,6 +60,7 @@ function FactoryNeedsYou({
 }: ContentProps & { view: FactoryViewListed }): ReactElement {
   const items = useFactoryItems(projectId);
   const names = useMemo(() => itemNames(items.data), [items.data]);
+  const awaiting = useMemo(() => awaitingItems(items.data ?? []), [items.data]);
   return (
     <NeedsYouLayout
       projectId={projectId}
@@ -65,6 +68,7 @@ function FactoryNeedsYou({
       naming={askNaming(projectId, view, names)}
       declaration={view.declaration}
       items={items.data}
+      awaiting={awaiting}
       failed={readFailed(items.error)}
       itemHref={row => factoryPath(projectId, `/items/${encodeURIComponent(row.itemKey)}`)}
       boardHref={factoryPath(projectId, '/board')}
@@ -86,6 +90,7 @@ function WindowNeedsYou({ projectId, queue }: ContentProps): ReactElement {
       naming={askNaming(projectId, undefined, names)}
       declaration={null}
       items={items.data}
+      awaiting={[]}
       failed={readFailed(items.error)}
       itemHref={row =>
         row.restart === null ? undefined : `/console/p/${projectId}/r/${row.restart.runId}`
@@ -123,12 +128,12 @@ function history(
 // The aside spans the rows the main column's sections take (`lg:grid-flow-row-dense` puts it
 // beside the first), so a tall Open asks section does not push it down and a tall aside does
 // not hold Paused waits below it.
-const ASIDE_ROWS = { 1: 'lg:row-span-1', 2: 'lg:row-span-2' } as const;
+const ASIDE_ROWS = ['lg:row-span-1', 'lg:row-span-1', 'lg:row-span-2', 'lg:row-span-3'] as const;
 
 /**
  * The page (owner changes 5 and 9): the header band across the width, then a 2:1 grid, the
- * open asks and paused waits (or the empty state) in the main column and Answered lately
- * beside them; one column at 390 px. The sections key on the held asks, not the live count, so
+ * open asks, paused waits and the factory items waiting on you (or the empty state) in the main
+ * column and Answered lately beside them; one column at 390 px. The sections key on the held asks, not the live count, so
  * answering the last ask keeps "Answered: X" in place before the empty state.
  */
 function NeedsYouLayout({
@@ -137,6 +142,7 @@ function NeedsYouLayout({
   naming,
   declaration,
   items,
+  awaiting,
   failed,
   itemHref,
   boardHref,
@@ -144,6 +150,8 @@ function NeedsYouLayout({
   naming: AskNaming;
   declaration: FactoryViewListed['declaration'] | null;
   items: readonly AnsweredSource[] | undefined;
+  /** The factory items waiting on you with no ask open (`awaitingItems`); none without a view. */
+  awaiting: readonly FactoryItem[];
   failed: Error | undefined;
   itemHref: (row: AnsweredRow) => string | undefined;
   boardHref: string | undefined;
@@ -156,19 +164,21 @@ function NeedsYouLayout({
   const open = hold.asks.filter(ask => ask.kind !== 'overdue_wait');
   const paused = hold.asks.filter(ask => ask.kind === 'overdue_wait');
   const shared = { projectId, queue, naming, hold };
+  const sections = [open.length, paused.length, awaiting.length].filter(n => n > 0).length;
   return (
     <div
       data-doc-page=""
       className="grid grid-cols-1 items-start gap-6 lg:grid-flow-row-dense lg:grid-cols-3"
     >
       <NeedsYouHeader
-        count={needsYouCount(queue)}
+        count={needsYouCount(queue, awaiting)}
+        awaiting={awaiting.length}
         live={live}
         answeredToday={read.today}
         now={now}
       />
       <DegradedRuns queue={queue} />
-      {hold.asks.length === 0 ? (
+      {hold.asks.length === 0 && awaiting.length === 0 ? (
         <NothingNeedsYou
           projectId={projectId}
           lastAsked={read.lastAsked}
@@ -179,12 +189,13 @@ function NeedsYouLayout({
       ) : null}
       {open.length === 0 ? null : <AskSection kind="open" asks={open} {...shared} />}
       {paused.length === 0 ? null : <AskSection kind="paused" asks={paused} {...shared} />}
+      {awaiting.length === 0 ? null : <AwaitingSection projectId={projectId} items={awaiting} />}
       <AnsweredLately
         projectId={projectId}
         rows={read.settled === undefined ? undefined : answeredRows(read.settled)}
         failed={failed}
         href={itemHref}
-        className={`lg:col-start-3 ${open.length > 0 && paused.length > 0 ? ASIDE_ROWS[2] : ASIDE_ROWS[1]}`}
+        className={`lg:col-start-3 ${ASIDE_ROWS[sections]}`}
       />
     </div>
   );
