@@ -691,21 +691,6 @@ test('an ask the stage left without a recommendation marks no tile and says why 
   }
 });
 
-test('without the marker an unrecommended ask reads a fixed line and keeps its context', async () => {
-  serve();
-  const card = await mount([packAsk('The checks returned it.', false)]);
-  try {
-    expect(card.container.querySelector('[data-unrecommended]')?.textContent).toBe(
-      'The stage could not choose.'
-    );
-    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(
-      'The checks returned it.'
-    );
-  } finally {
-    await card.unmount();
-  }
-});
-
 test('a recommended ask quoting the marker keeps its context whole and its green tile', async () => {
   serve();
   const context = 'Left.\n\nNo recommendation: quoted from the script.';

@@ -856,8 +856,12 @@ Its `shadows` field names the steps the pack runs as shadows (admit, the project
 value reads; the item page, stage pages, board and map show their decisions as shadows (#80).
 Its `story` field gives the item page one plain sentence per outcome (#122). Its `answers` field
 words what the pack's `drop` and `reshape` routes start, for the five workflows whose asks the
-pack binds them on (`stage-build`, `stage-check`, `stage-host`, `landgate`, `land`); the coverage
-check does not read option ids, since the pack graph does not carry them.
+pack binds them on (`stage-build`, `stage-check`, `stage-host`, `landgate`, `land`). The coverage
+check does not yet compare these keys with the pack's bindings. The pack graph carries each
+`asks_settled` arrow's option (`from.option`), so a key with no arrow from its workflow for its
+option could be reported. But the committed snapshot predates the pack version that added `drop`
+and `reshape`, and such a rule would report every key on the snapshot path CI runs. It belongs
+with the refresh of that snapshot; until then the keys follow the pack's `close` bindings by hand.
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the

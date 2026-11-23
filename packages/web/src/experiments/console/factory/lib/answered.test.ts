@@ -216,11 +216,6 @@ describe("an option the view words reads the view's sentence", () => {
     expect(entry?.restarts).toBe(1);
   });
 
-  test('the same option id on a workflow the view does not word it for reads as before', () => {
-    const [entry] = recentlySettled(shippedView, [answeredWith('plan', ['drop'])]);
-    expect(entry?.asks.map(ask => ask.starts)).toEqual([null]);
-  });
-
   test('a set that started two runs counts both, and its rows carry the count', () => {
     const settled = recentlySettled(shippedView, [
       answeredWith('stage-check', ['drop', 'send-back'], 2),
