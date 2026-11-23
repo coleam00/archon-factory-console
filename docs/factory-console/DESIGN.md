@@ -124,7 +124,8 @@ not polish: reshape a page when restyling it would not make it read well.
      as in rule 9 of the Visual standard (recommended in green, selected in accent), so an open
      ask is the most colourful thing on the screen;
    - "Answered lately" as compact rows on a quieter panel, each with the option chosen as a pill
-     and what it started ("Plan started again", "Nothing started") in a state colour;
+     and what it started ("Plan started again", "Nothing started", or the view's `answers`
+     sentence for the option: "Closes the PR without merging") in a state colour;
    - an empty state that looks designed: an icon, "Nothing needs you", when something was last
      asked, and links to the board and the runs.
    Check it with open asks (seed a copy of the live database with its asks reopened), not only
@@ -463,17 +464,31 @@ the Overview, the item page and the board popover.
   a pick's optional note asks which of those options is meant ("Something else" keeps its own
   prompt). The console matches only that marker line and that prefix; any other wording, or any
   line under the marker that is not an option line, leaves the card as above.
+- **No recommendation.** When a stage had no basis to choose, the pack leaves the ask's
+  `recommendation` empty and writes one paragraph of its context opening "No recommendation: "
+  and giving why (its delivery and landing scripts; owner decision 2026-11-23). On an ask a stage
+  left (`askedIn`), with tiles and no recommendation, the card takes that paragraph out of the
+  clamped context (the offered list is read on what is left) and shows "The stage could not
+  choose: <why>" where the recommendation's `why` sits, under the tiles, at `--text-console-13`,
+  `--text-secondary`; without the paragraph it shows "The stage could not choose.". The console
+  matches only a paragraph starting exactly with that marker, and only on an ask with no
+  recommendation, so a recommended ask that quotes it renders untouched. It is display only: it
+  gates nothing.
 - Option tiles: a wrapping row, 8 px apart (`gap-2`), one tile per option the ask carries, in
   its declared order. Each tile is at least 176 px wide, `--radius-console-12`, 1 px `--border`,
-  `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then what it does and costs
-  (the option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
+  `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then, when the factory view
+  words the option (`answers`, by the asking run's workflow and the option id), what choosing it
+  starts ("Closes the PR without merging") at `--text-console-13` medium, `--text-primary`, after
+  an arrow in `--text-tertiary`, whole and never clamped; then what it does and costs (the
+  option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
   clamped to 2 lines.
 - An ask with a `recommendation` moves the recommended tile first and marks it **green**: a
   `--success` border at 40% opacity, `--success-soft` background, and a
   "Recommended" badge at `--text-console-12` in `--success`. The green mark never looks
   selected. Under its text, one line at `--text-console-13`, `--text-secondary` gives the
   recommendation's `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
-  without a recommendation keeps its declared order and marks no tile.
+  without a recommendation keeps its declared order and marks no tile; one a stage left says
+  there why the stage could not choose (**No recommendation**, above).
 - **Selected** is its own state and depends only on the pick: a chosen tile gets a `--accent`
   border and a check icon (`--accent`), on `--surface-elevated` (a chosen recommended tile keeps
   its `--success-soft` background and its badge, and takes the accent border in place of the
@@ -803,6 +818,10 @@ present itself without the console knowing it. Shape (validated with zod in
                                                    // only runs that completed with `outcome`;
                                                    // read only without a part_of link
   "itemTitle": { "input": "item" },                // item title = title line of this run input
+  "answers": { "stage-check:drop": { "starts": "Closes the PR without merging" } },
+                                                   // what choosing an ask's option starts, by
+                                                   // workflow:option, exact; words only, the
+                                                   // pack's bindings decide
   "story": {                                       // the item page's one sentence per stage
     "outcomes": { "triage:build": "Triage judged it worth building",
                   "landgate:*": "The merge gate read the change" },  // workflow:* takes a run
@@ -841,7 +860,14 @@ what it decided: the board's "Found by the factory" panel and the Overview's til
 Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of
 `deliver` and of `stage-check`, and the drain; not the land gate, which acts) and how each one's
 value reads; the item page, stage pages, board and map show their decisions as shadows (#80).
-Its `story` field gives the item page one plain sentence per outcome (#122).
+Its `story` field gives the item page one plain sentence per outcome (#122). Its `answers` field
+words what the pack's `drop` and `reshape` routes start, for the five workflows whose asks the
+pack binds them on (`stage-build`, `stage-check`, `stage-host`, `landgate`, `land`). The coverage
+check does not yet compare these keys with the pack's bindings. The pack graph carries each
+`asks_settled` arrow's option (`from.option`), so a key with no arrow from its workflow for its
+option could be reported. But the committed snapshot predates the pack version that added `drop`
+and `reshape`, and such a rule would report every key on the snapshot path CI runs. It belongs
+with the refresh of that snapshot; until then the keys follow the pack's `close` bindings by hand.
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -990,7 +1016,11 @@ asks items settled: the item,
 the question on one line, the option chosen as a pill, who answered and when, and what settling
 its set started ("Plan started again", in the run's state colour with its state in words,
 linking to the run; the workflow in words on a project with no factory view), or "Nothing
-started". It joins the item read's `asks_settled` answer to the run whose `cause` names the
+started". An answer whose option the view words (`answers`) reads that sentence in place of
+"<stage> started again" ("Closes the PR without merging"), linked to the run as above when
+settling its set started exactly one; with several, which is this answer's is not known, and
+before any has started the sentence still says what the answer starts, so in both it is plain
+`--text-secondary` text in place of "Nothing started". The item page does the same. It joins the item read's `asks_settled` answer to the run whose `cause` names the
 same asking run (engine #5834), so an answer given through the CLI or by an agent shows too.
 With no factory view it reads the engine's items window alone. With nothing open, the main
 column is rule 6's empty state on a panel: a check in a soft success tint, "Nothing needs you",
@@ -1184,7 +1214,9 @@ A card, in this order:
    Esc or a press outside closes it; focus returns to the card unless the press landed on
    another control. Answering one of several keeps it open on the rest; answering the last
    closes it, and the card reads "Answered: <label>", then "Answered · <stage> started again"
-   once the items read records the run the settled asks started, until a read moves the card,
+   once the items read records the run the settled asks started (the view's `answers` sentence
+   in place of "<stage> started again" when the set's answers word one and started one run;
+   "Answered: <label>" when they word several or started several), until a read moves the card,
    the item asks something new, or the card has its own stop line to show (the restarted run
    failed). A merged card keeps its compact form and no face.
 
@@ -1329,7 +1361,8 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   panel, for a run that works several stages): the
   question, "You said <option>" with the option's id as a tag and its own words, who answered
   and when, and what that started ("Build started again", the stage of the run whose cause
-  names the settled asks, else "Nothing started"). An open ask is the ask card Needs you
+  names the settled asks, else "Nothing started"; the view's `answers` sentence for the option
+  when it words one, as "Leaves the PR as a draft until the item is shaped"). An open ask is the ask card Needs you
   draws, answerable in place, in its run's panel; one no panel holds waits on a "Waiting on
   you" panel at the top of the story, which also shows a skeleton while the asks are read.
 - **Shadows** sit in the panel of the stage their step is on, in the shadow style (rule 10),

@@ -166,6 +166,29 @@ describe('open asks', () => {
     expect(tones(none)).toEqual(['color:var(--text-tertiary)']);
   });
 
+  test("a stage's drop and reshape tiles say what they start, in the view's words", () => {
+    const ask = askItem({
+      item: seven,
+      askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
+      options: [
+        { id: 'send-back', does: 'Continues.' },
+        { id: 'drop', does: 'Closes it.' },
+        { id: 'reshape', does: 'Keeps a draft.' },
+      ],
+      recommendation: { option: 'send-back', why: 'Small.' },
+    });
+    const starts = (listing: FactoryViews): string[] =>
+      [...render(listing, queueOf(ask)).querySelectorAll('[role=group] button')].map(tile =>
+        text(tile.querySelector('[data-starts]'))
+      );
+    expect(starts(withView)).toEqual([
+      '',
+      'Closes the PR without merging',
+      'Leaves the PR as a draft until the item is shaped',
+    ]);
+    expect(starts(none)).toEqual(['', '', '']);
+  });
+
   test('a gate no item holds sits in open asks, named as its run', () => {
     const root = render(none, queueOf(gateItem()));
     const open = root.querySelector('section[data-needs-you="open"]');
@@ -237,6 +260,52 @@ describe('answered lately', () => {
       'section[aria-label="Answered lately"] li [data-started]'
     );
   }
+
+  /** Item `key`, asked by a stage-check run, its set's two answers choosing `chosen`. */
+  const routed = (key: string, chosen: string, restarted: TestRun[]): FactoryItem => {
+    const item = settledItem(key, run('stage-check', 'completed', 'ask'), at(1), restarted[0]);
+    const extra = restarted.slice(1).map((entry, index) => ({
+      ...item.runs[1],
+      id: `run-${key}-again-${index.toString()}`,
+      workflow: `Wirasm/archon-software-factory:${entry.workflow}`,
+    }));
+    return {
+      ...item,
+      runs: [...item.runs, ...extra] as FactoryItem['runs'],
+      answers: item.answers.map(answer =>
+        answer.kind === 'ask' && !answer.withdrawn
+          ? { ...answer, chosen: { id: chosen, does: `Does ${chosen}.` } }
+          : answer
+      ),
+    };
+  };
+  const startedOf = (root: Element): string[] =>
+    [...root.querySelectorAll('section[aria-label="Answered lately"] li')].map(
+      row =>
+        `${text(row.querySelector('[data-answer-pill]'))} | ${text(row.querySelector('[data-started] a'))}`
+    );
+
+  test("a drop reads the view's sentence, linked to the one run it started; a send-back its stage", () => {
+    const drop = render(withView, quiet, [routed('d', 'drop', [run('close', 'running')])]);
+    expect(startedOf(drop)[0]).toBe('Drop | Closes the PR without merging');
+    expect(drop.querySelector('[data-started] a')?.getAttribute('href')).toBe(
+      `/console/p/${ID}/r/run-d-1`
+    );
+    const back = render(withView, quiet, [
+      routed('b', 'send-back', [run('stage-build', 'running')]),
+    ]);
+    expect(startedOf(back)[0]).toBe('Send back | Build started again');
+  });
+
+  test('a drop whose set started two runs, or none yet, reads the sentence unlinked', () => {
+    for (const restarted of [[run('close', 'running'), run('stage-build', 'running')], []]) {
+      const root = render(withView, quiet, [routed('d', 'drop', restarted)]);
+      const started = root.querySelector('section[aria-label="Answered lately"] li [data-started]');
+      expect(started?.getAttribute('data-started')).toBe('declared');
+      expect(text(started)).toBe('Closes the PR without merging');
+      expect(started?.querySelector('a')).toBeNull();
+    }
+  });
 
   test('with nothing answered yet, the aside stays and says what appears there', () => {
     const aside = render(none, busy).querySelector('section[aria-label="Answered lately"]');

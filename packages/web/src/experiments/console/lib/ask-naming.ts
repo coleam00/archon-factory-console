@@ -6,6 +6,7 @@ import type { AskSubject } from '../components/ask-card/AskCard';
 import { stageOfWorkflow } from '../factory/lib/placement';
 import { TONES, type Tone } from '../factory/tones';
 import { membershipOf, type MemberSource } from '../factory/lib/work-orders';
+import { answerStarts } from '../factory/lib/answer-starts';
 import { factoryPath, type FactoryViewListed } from '../factory/lib/views';
 import { shortWorkflow } from './ask-card';
 import { askRunId, askWorkflow, type NeedsYouItem } from './needs-you';
@@ -15,7 +16,11 @@ export interface AskNaming {
   where: (ask: NeedsYouItem) => string | undefined;
   /** The group of the stage the ask came from, its colour and icon; undefined without a view or a stage. */
   tone: (ask: NeedsYouItem) => Tone | undefined;
+  /** What choosing `optionId` on the ask starts, in the view's words (`answers`); undefined without a view or a sentence. */
+  starts: AskStarts;
 }
+
+export type AskStarts = (ask: NeedsYouItem, optionId: string) => string | undefined;
 
 /**
  * The naming for one project. `view` is its factory view, when one applies; `names` what its
@@ -68,6 +73,7 @@ export function askNaming(
       const stage = stageOfWorkflow(view.declaration, shortWorkflow(workflow), null);
       return stage === undefined ? undefined : TONES[stage.group];
     },
+    starts: (ask, optionId) => answerStarts(view?.declaration, askWorkflow(ask), optionId),
   };
 }
 

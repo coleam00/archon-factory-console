@@ -329,6 +329,23 @@ describe('factoryViewSchema', () => {
     ).toEqual(['verdicts.deliver', 'asked.0']);
   });
 
+  test('answers word an option of a listed workflow, exactly, in one plain sentence', () => {
+    const answers = { 'build:drop': { starts: 'Closes the PR without merging' } };
+    expect(factoryViewSchema.safeParse({ ...minimal(), answers }).success).toBe(true);
+    expect(
+      issuePaths({ ...minimal(), answers: { 'deliver:drop': { starts: 'Closes it' } } })
+    ).toEqual(['answers.deliver:drop']);
+    for (const key of ['build:*', 'drop'])
+      expect(
+        factoryViewSchema.safeParse({ ...minimal(), answers: { [key]: { starts: 'Closes it' } } })
+          .success
+      ).toBe(false);
+    for (const starts of [' ', 'x'.repeat(161)])
+      expect(issuePaths({ ...minimal(), answers: { 'build:drop': { starts } } })).toEqual([
+        'answers.build:drop.starts',
+      ]);
+  });
+
   test('a story may word the discoveries drain; a workflow no stage lists is rejected', () => {
     const story = {
       outcomes: { 'plan:planned': 'Plan wrote the approach', 'build:*': 'Build finished' },

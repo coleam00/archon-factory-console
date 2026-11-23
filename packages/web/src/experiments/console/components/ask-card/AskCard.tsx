@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { ClampedSummary } from '../../factory/ClampedSummary';
 import { askQuestion } from '../../lib/ask-card';
 import { parseOffered, type Offered } from '../../lib/ask-offered';
+import { unrecommendedOf } from '../../lib/ask-unrecommended';
 import { relativeTime } from '../../lib/format';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import type { AttentionQueue } from '../../skills/runs';
@@ -30,6 +31,8 @@ export interface AskCardProps {
   subject?: AskSubject;
   /** The stage the ask came from when a factory view names it, else its workflow. */
   where?: string;
+  /** What choosing an option starts, in the factory view's words (`answers`); none without a view. */
+  starts?: (optionId: string) => string | undefined;
   /** `compact` (the Overview): the question, the recommended tile, and Open. */
   variant?: 'full' | 'compact';
   /** Where Open leads, for the compact card. */
@@ -67,7 +70,15 @@ export function AskCard(props: AskCardProps): ReactElement {
         openHref={props.openHref}
       />
     );
-  const offered = offeredOf(ask);
+  const unrecommended = unrecommendedOf(ask);
+  // An ask without a recommendation says why under its tiles, so its context loses that paragraph.
+  const context =
+    ask.kind !== 'attention'
+      ? undefined
+      : unrecommended === null
+        ? ask.context
+        : unrecommended.context;
+  const offered = offeredOf(ask, context);
   return (
     <article
       aria-label={askQuestion(ask)}
@@ -88,8 +99,12 @@ export function AskCard(props: AskCardProps): ReactElement {
         </p>
       ) : (
         <>
-          <AskContext ask={ask} offered={offered} />
-          <AskBody {...props} offered={offered} />
+          <AskContext context={context} offered={offered} />
+          <AskBody
+            {...props}
+            offered={offered}
+            {...(unrecommended === null ? {} : { unrecommended: unrecommended.line })}
+          />
         </>
       )}
     </article>
@@ -135,9 +150,9 @@ export function SubjectName({ subject }: { subject: AskSubject }): ReactElement 
 }
 
 /** What the stage offered, when an ask's context carries the pack's list of it. */
-function offeredOf(ask: NeedsYouItem): Offered | null {
-  if (ask.kind !== 'attention' || ask.context === undefined) return null;
-  return parseOffered(ask.context, ask.recommendation?.why);
+function offeredOf(ask: NeedsYouItem, context: string | undefined): Offered | null {
+  if (ask.kind !== 'attention' || context === undefined) return null;
+  return parseOffered(context, ask.recommendation?.why);
 }
 
 /**
@@ -145,9 +160,16 @@ function offeredOf(ask: NeedsYouItem): Offered | null {
  * answer. When the context carries what the stage offered, the rest of it keeps the clamp and
  * the offered list shows whole under it (`OfferedBlock`).
  */
-function AskContext({ ask, offered }: { ask: NeedsYouItem; offered: Offered | null }): ReactNode {
-  if (ask.kind !== 'attention' || ask.context === undefined) return null;
-  if (offered === null) return <ClampedSummary key={ask.context} text={ask.context} lines={3} />;
+function AskContext({
+  context,
+  offered,
+}: {
+  /** An attention ask's context, as the card shows it; undefined for any other ask. */
+  context: string | undefined;
+  offered: Offered | null;
+}): ReactNode {
+  if (context === undefined) return null;
+  if (offered === null) return <ClampedSummary key={context} text={context} lines={3} />;
   return (
     <>
       {offered.rest === '' ? null : (

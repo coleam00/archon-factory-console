@@ -152,20 +152,25 @@ function AnsweredLine({
           </span>
         )}
         {row.by === null ? null : <span className="text-text-tertiary">by {row.by}</span>}
-        <Started projectId={projectId} restart={row.restart} />
+        <Started projectId={projectId} row={row} />
       </div>
     </>
   );
 }
 
-/** What settling the answer's set started, in that run's state colour, with its state in words. */
-function Started({
-  projectId,
-  restart,
-}: {
-  projectId: string;
-  restart: AnsweredRow['restart'];
-}): ReactNode {
+/**
+ * What settling the answer's set started, in that run's state colour, with its state in words.
+ * An option the view words (`starts`) reads that sentence in place of the stage, linked to the
+ * run only when settling started one: with several, which one is this answer's is not known.
+ */
+function Started({ projectId, row }: { projectId: string; row: AnsweredRow }): ReactNode {
+  const { restart, starts } = row;
+  if (starts !== null && (restart === null || row.restarts !== 1))
+    return (
+      <span data-started="declared" className="text-text-secondary [overflow-wrap:anywhere]">
+        {starts}
+      </span>
+    );
   if (restart === null)
     return (
       <span data-started="none" className="text-text-tertiary">
@@ -179,7 +184,7 @@ function Started({
         to={`/console/p/${projectId}/r/${restart.runId}`}
         className={`font-medium hover:underline ${status.color}`}
       >
-        {restart.label} started again
+        {starts ?? `${restart.label} started again`}
       </Link>
       <span className="text-text-tertiary">· {status.words}</span>
     </span>

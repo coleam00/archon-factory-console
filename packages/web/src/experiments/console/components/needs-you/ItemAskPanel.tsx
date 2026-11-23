@@ -68,6 +68,7 @@ export function ItemAskPanel({
               projectId={projectId}
               ask={ask}
               queue={queue}
+              starts={id => naming.starts(ask, id)}
               {...(answered === undefined ? {} : { answered })}
               folding={hold.folding.has(ask.ref)}
               onAnswered={hold.onAnswered}
