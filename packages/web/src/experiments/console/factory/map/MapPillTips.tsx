@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import type { ArrowPath, Box, PlacedCard } from '../lib/map-layout';
 import { tipShift } from '../lib/tip-shift';
 
@@ -35,9 +35,11 @@ export function MapPillTips({
 }
 
 /**
- * One pill's button and tip. Mouse events, not pointer events: a touch browser sends a tap's
- * mouseenter and holds it until the next tap elsewhere, where a pointer's leave comes as the
- * finger lifts and would shut the tip it just opened.
+ * One pill's button and tip. It opens on hover, focus or a click (which a tap sends; a tap need
+ * not focus a button) and shuts on leave, blur, Escape or a press anywhere outside the pill.
+ * The press outside is what shuts it after a tap, without counting on a touch browser to send
+ * a mouseleave or a blur. Mouse enter and leave, not pointer ones: a touch's pointerleave comes
+ * as the finger lifts and would shut the tip the tap just opened.
  */
 function PillTip({
   id,
@@ -51,9 +53,22 @@ function PillTip({
   outcomes: readonly string[];
 }): ReactElement {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement | null>(null);
   const tipId = `map-pill-tip-${id}`;
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent): void => {
+      if (ref.current?.contains(event.target as Node | null) !== true) setOpen(false);
+    };
+    document.addEventListener('pointerdown', outside);
+    return () => document.removeEventListener('pointerdown', outside);
+  }, [open]);
   return (
-    <span className="absolute" style={{ left: pill.x, top: pill.y, width: pill.w, height: pill.h }}>
+    <span
+      ref={ref}
+      className="absolute"
+      style={{ left: pill.x, top: pill.y, width: pill.w, height: pill.h }}
+    >
       <button
         type="button"
         data-pill-tip={id}

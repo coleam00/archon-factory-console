@@ -418,6 +418,19 @@ test('a pill past two lines lists its outcomes on hover, focus and tap, and Esca
     // A tap: a touch browser focuses no button, so the click alone opens it.
     await act(async () => tip.click());
     expect(listed()).toEqual(outcomes);
+    // A press on the pill keeps it open; one anywhere else shuts it, as the next tap does.
+    const press = (target: Element): Promise<void> =>
+      act(async () => {
+        target.dispatchEvent(
+          new dom.PointerEvent('pointerdown', { bubbles: true }) as unknown as Event
+        );
+      });
+    await press(tip);
+    expect(listed()).toEqual(outcomes);
+    await press(container);
+    expect(listed()).toBeUndefined();
+    await act(async () => tip.click());
+    expect(listed()).toEqual(outcomes);
     await act(async () =>
       tip.dispatchEvent(
         new dom.MouseEvent('mouseout', {

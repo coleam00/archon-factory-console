@@ -346,9 +346,9 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Board columns: 12 px apart (`gap-3`), each at least 208 px wide (owner, 2026-11-18: five
   columns fit beside the sidebar at 1440x900, 5 x 208 + 4 x 12 = 1088 of 1100 px; narrower
   windows scroll sideways).
-- A tab row stays one line: where its tabs do not fit (the project tabs on a phone), it scrolls
-  sideways with no scrollbar, fades the edge it hides tabs past and no other, and brings the
-  active tab into view (`components/TabRow.tsx`). A tab never wraps or squeezes its label.
+- The project tabs stay one line (`components/TabRow.tsx`): where they do not fit (on a phone),
+  the row scrolls sideways with no scrollbar, fades the edge it hides tabs past and no other,
+  and brings the active tab into view. A tab link (`TabLink`) never wraps or squeezes its label.
 
 ### 4. Lines
 
