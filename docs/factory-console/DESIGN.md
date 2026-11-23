@@ -1203,7 +1203,7 @@ them (a running item's step and round under its stage, as the card's stage line 
 item's Stage empty, as its card names no stage; Merged as
 a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
 box narrows by key, title or work order key, matching the raw key (`136` finds `issue-136`). The
-Key and Work order columns sort by the key as it reads, so `#9` comes before `#111` whichever form
+Item and Work order columns sort by the key as it reads, so `#9` comes before `#111` whichever form
 each is stored in. Until the items are read, the board draws its
 declared columns with skeleton counts and card shapes (Visual standard, rule 6).
 
