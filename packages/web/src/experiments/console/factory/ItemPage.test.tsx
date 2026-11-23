@@ -671,6 +671,41 @@ describe('work orders on the item page', () => {
       /href="[^"]*\/factory\/items\/issue-136-item-keys"[^>]*>#136 · item keys<\/a>/
     );
   });
+
+  test('a depends_on link to a split member reads it under its order, as the items read says', () => {
+    const member = itemDetail('3').item;
+    itemsRead([
+      {
+        ...member,
+        item: { ...member.item, key: 'issue-136-item-keys' },
+        progress: { ...member.progress!, partOf: 'issue-136' },
+      },
+    ]);
+    const base = itemDetail('1');
+    const detail: FactoryItemDetail = {
+      ...base,
+      item: {
+        ...base.item,
+        links: [
+          {
+            id: 'link-dep',
+            kind: 'depends_on',
+            direction: 'outgoing',
+            other: {
+              id: 'item-m',
+              projectKey: base.item.item.projectKey,
+              key: 'issue-136-item-keys',
+            },
+            ...act,
+            ended: null,
+          },
+        ],
+      },
+    };
+    expect(render(detail)).toMatch(
+      /href="[^"]*\/factory\/items\/issue-136-item-keys"[^>]*>#136 · item keys<\/a>/
+    );
+  });
 });
 
 describe('an issue key on the item page', () => {

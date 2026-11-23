@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { displayItemKey } from './lib/item-key';
+import type { ItemName } from '../lib/ask-naming';
 import { Link2, Scale } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
@@ -13,6 +14,21 @@ import { OrderMembers } from './ItemWorkOrder';
 import type { Membership, WorkOrder } from './lib/work-orders';
 
 /**
+ * The work order a linked item is in. An active incoming `part_of` link says so itself (this
+ * item is its order), which holds before the items read lands; any other link's item is read
+ * from the project's items.
+ */
+function linkedOrder(
+  link: FactoryItem['links'][number],
+  itemKey: string,
+  names: ReadonlyMap<string, ItemName>
+): string | null {
+  if (link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null)
+    return itemKey;
+  return names.get(link.other.key)?.partOf ?? null;
+}
+
+/**
  * The item's links to other items, from this item's side, each to that item's page. On a
  * work order, its members with their state stand for its active incoming `part_of` links; on
  * a member its order run placed without a link, a line names that order.
@@ -20,6 +36,7 @@ import type { Membership, WorkOrder } from './lib/work-orders';
 export function ItemLinks({
   projectId,
   itemKey,
+  names,
   links: all,
   membership = null,
   order,
@@ -27,6 +44,8 @@ export function ItemLinks({
   projectId: string;
   /** This item's key: the order an active incoming `part_of` link's other item is a member of. */
   itemKey: string;
+  /** The project's items by key, so a linked split member reads under its order. */
+  names: ReadonlyMap<string, ItemName>;
   links: FactoryItem['links'];
   membership?: Membership | null;
   order?: WorkOrder;
@@ -85,12 +104,7 @@ export function ItemLinks({
                 to={factoryPath(projectId, `/items/${encodeURIComponent(link.other.key)}`)}
                 className="font-mono text-console-12 text-accent-bright hover:underline"
               >
-                {displayItemKey(
-                  link.other.key,
-                  link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null
-                    ? itemKey
-                    : null
-                )}
+                {displayItemKey(link.other.key, linkedOrder(link, itemKey, names))}
               </Link>
               {link.ended === null ? null : (
                 <span className="text-console-13 text-text-tertiary">ended</span>

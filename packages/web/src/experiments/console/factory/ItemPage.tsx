@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactElement, type ReactNode } from 'react';
 import { displayItemKey } from './lib/item-key';
 import { useParams } from 'react-router';
 import { BookOpen, Info } from 'lucide-react';
@@ -32,6 +32,8 @@ import { ItemNotFound } from './ItemMissing';
 import { readFailure } from './lib/read-failure';
 import { ReadFailure } from './ReadFailure';
 import { useReadRetry } from './useReadRetry';
+import { useFactoryItemsRead } from './useFactoryItems';
+import { itemNames } from '../lib/ask-naming';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
 export function ItemPage(): ReactElement {
@@ -88,6 +90,9 @@ function ItemRead({
     data === undefined ? undefined : { key: itemKey, members: incomingMembers(data.item) }
   );
   const order = orders.orders?.find(entry => entry.key === itemKey);
+  // The same items read the orders come from: a linked split member reads under its order.
+  const items = useFactoryItemsRead(projectId).data?.items;
+  const names = useMemo(() => itemNames(items), [items]);
   // The stage the item sat in on the last read: a run on a step no stage names stays there,
   // as on the board and the map.
   const previous = useRef<{ key: string; stage: string | undefined } | null>(null);
@@ -170,6 +175,7 @@ function ItemRead({
           <ItemLinks
             projectId={projectId}
             itemKey={data.item.item.key}
+            names={names}
             links={data.item.links}
             membership={membershipOf(data.item)}
             order={order}
