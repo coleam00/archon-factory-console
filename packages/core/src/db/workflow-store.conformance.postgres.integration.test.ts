@@ -25,6 +25,7 @@ import {
 } from './linked-starts.conformance-harness';
 import { describeSqlItemAskStartConformance } from './item-ask-starts.conformance';
 import { describeSqlItemAskConformance } from './item-asks.conformance';
+import { describeSqlRunDeleteConformance } from './workflow-run-delete.conformance';
 import {
   HEAD,
   accept,
@@ -37,6 +38,7 @@ import {
 } from './item-waits.conformance';
 import { PostgresAdapter, postgresDialect } from './adapters/postgres';
 import { getSchemaSQL } from './bundled-schema';
+import { endPgPool } from '../test/end-pg-pool';
 import type { ItemAsk } from '@archon/workflows/schemas/item-ask';
 
 const baseUrl = process.env.ARCHON_TEST_PG_URL;
@@ -404,6 +406,49 @@ describe.skipIf(!baseUrl)('scratch PostgreSQL', () => {
   describeSqlItemAskConformance(makeHarness);
   describeSqlItemWaitConformance(makeHarness);
   describeSqlItemAskStartConformance(makeHarness);
+  describeSqlRunDeleteConformance(makeHarness);
+  test('age cleanup does not delete a run that resumes while cleanup selects it', async () => {
+    const harness = await makeHarness();
+    const gate = new Pool({ connectionString: harness.url, max: 1 });
+    let gateOpen = false;
+    try {
+      const { db, store } = harness;
+      const run = await store.createWorkflowRun({ workflow_name: 'old', user_message: '' });
+      await store.claimPendingWorkflowRun(run.id);
+      await store.failWorkflowRun(run.id, 'failed');
+      const old = new Date(Date.now() - 10 * 86_400_000);
+      await harness.backdate(run.id, { started_at: old, active_phase_started_at: old });
+      const events = await store.listWorkflowEvents(run.id);
+      expect(events.length).toBeGreaterThan(0);
+
+      // A resume that has written its row but not committed, as cleanup starts.
+      await gate.query('BEGIN');
+      gateOpen = true;
+      await gate.query("UPDATE remote_agent_workflow_runs SET status = 'running' WHERE id = $1", [
+        run.id,
+      ]);
+      const cleanup = store.deleteOldWorkflowRuns(7);
+      for (let tries = 0; ; tries++) {
+        const waiting = await db.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM pg_stat_activity
+           WHERE datname = current_database() AND wait_event_type = 'Lock'`
+        );
+        if ((waiting.rows[0]?.n ?? 0) >= 1) break;
+        if (tries > 200) throw new Error('Expected cleanup to wait on the resumed row');
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      await gate.query('COMMIT');
+      gateOpen = false;
+
+      expect(await cleanup).toEqual({ runs: [] });
+      expect(await store.getWorkflowRunStatus(run.id)).toBe('running');
+      expect(await store.listWorkflowEvents(run.id)).toEqual(events);
+    } finally {
+      if (gateOpen) await gate.query('ROLLBACK');
+      await endPgPool(gate);
+      await harness.close();
+    }
+  });
   test('two completions of one workflow on one item that overlap leave one open set: the later one', async () => {
     const harness = await makeHarness();
     // Holding the item row FOR UPDATE parks each completion at its ask insert, whose
@@ -491,7 +536,7 @@ describe.skipIf(!baseUrl)('scratch PostgreSQL', () => {
       ]);
     } finally {
       if (gateOpen) await gate.query('ROLLBACK');
-      await gate.end();
+      await endPgPool(gate);
       await harness.close();
     }
   });
@@ -538,7 +583,7 @@ describe.skipIf(!baseUrl)('scratch PostgreSQL', () => {
       expect((await harness.store.listOpenItemWaits()).map(wait => wait.about)).toEqual([HEAD]);
     } finally {
       if (gateOpen) await gate.query('ROLLBACK');
-      await gate.end();
+      await endPgPool(gate);
       await harness.close();
     }
   });
@@ -579,7 +624,7 @@ describe.skipIf(!baseUrl)('scratch PostgreSQL', () => {
       expect(outcomes.sort()).toEqual(['matched', 'unmatched']);
     } finally {
       if (gateOpen) await gate.query('ROLLBACK');
-      await gate.end();
+      await endPgPool(gate);
       await harness.close();
     }
   });

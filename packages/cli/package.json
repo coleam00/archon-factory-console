@@ -8,8 +8,7 @@
   },
   "scripts": {
     "cli": "bun src/cli.ts",
-    "test": "bun run ../../scripts/package-tests.ts",
-    "type-check": "bun x tsc --noEmit"
+    "test": "bun run ../../scripts/package-tests.ts"
   },
   "dependencies": {
     "@archon/adapters": "workspace:*",
@@ -89,6 +88,9 @@
     ],
     [
       "src/commands/workflow.test.ts"
+    ],
+    [
+      "src/commands/workflow-cleanup.test.ts"
     ],
     [
       "src/commands/workflow-run-owned.test.ts",
@@ -241,6 +243,9 @@
       "src/triggers/native-schedule.test.ts"
     ],
     [
+      "src/triggers/windows-hidden-desktop.test.ts"
+    ],
+    [
       "src/triggers/add-trigger-file.test.ts"
     ],
     [
@@ -265,6 +270,9 @@
     [
       "src/commands/state.test.ts",
       "src/test-support/state-document-store.conformance.test.ts"
+    ],
+    [
+      "src/commands/workflow-run-definitions.test.ts"
     ]
   ]
 }

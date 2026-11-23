@@ -30,6 +30,8 @@ const node = (id: string): PackGraph['stages'][number]['nodes'][number] => ({
 /** Pack `o.p`: `plan`, which the view lists, and `discoveries`, which no stage lists. */
 const graph = (): PackGraph => ({
   pack: 'o.p',
+  loaded: [],
+  otherCopies: [],
   stages: [
     { name: 'o/p:plan', returns: 'plan', outcome: null, asks: false, nodes: [node('plan')] },
     {

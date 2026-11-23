@@ -58,7 +58,11 @@ import { PgNotifyListener } from './adapters/web/pg-notify-listener';
 import { AttentionRouter } from './services/attention-router';
 import { hostItemTrackerForge, ItemTracker } from '@archon/adapters/item-tracker/item-tracker';
 import { WebPushDestination } from './services/web-push';
-import { loadWebhookSourcePlugins } from './services/webhook-source-plugins';
+import {
+  createItemWaitObserver,
+  loadWebhookSourcePlugins,
+} from '@archon/core/workflows/source-plugins';
+import { hostSourceForgeReader } from '@archon/adapters/forge/source-forge-reader';
 import { createServerResourceStartHost } from './services/resource-start-hosting';
 import { createSqlWorkflowHost } from '@archon/core/workflows/sql-host';
 import { createWorkflowStore } from '@archon/core/workflows/store-adapter';
@@ -272,7 +276,10 @@ export async function startServer(opts: ServerOptions = {}): Promise<void> {
   startWorkflowContinuationScheduler(
     createSqlWorkflowHost(),
     run => workflowResumeTargetForRun(run, registry.workflowPlatforms),
-    resourceStarts.requestDrain
+    () => {
+      resourceStarts.requestDrain?.();
+      resourceStarts.observeWaits?.();
+    }
   );
   if (resourceStarts.hostId)
     getLog().info({ hostId: resourceStarts.hostId }, 'resource_start_host_enabled');
@@ -524,6 +531,7 @@ async function createResourceStarts(): Promise<{
   webhookSources: Awaited<ReturnType<typeof loadWebhookSourcePlugins>> | undefined;
   hostId: string | undefined;
   requestDrain: (() => void) | undefined;
+  observeWaits: (() => void) | undefined;
 }> {
   const workflowHost = createSqlWorkflowHost();
   const webhookSourcesConfigPath = process.env.ARCHON_WEBHOOK_SOURCES;
@@ -533,13 +541,34 @@ async function createResourceStarts(): Promise<{
         isKnownUser: async id => (await workflowHost.records.users.getUserById(id)) !== null,
         hasDeliveryReceipt: (sourceInstanceId, deliveryId) =>
           workflowHost.deps.store.hasStartReceiptForDelivery(sourceInstanceId, deliveryId),
+        getReceipt: id => workflowHost.deps.store.getStartReceipt(id),
       })
     : undefined;
   // Explicit only: bindings choose their execution host, so the server never guesses one.
   const hostId = process.env.ARCHON_TRIGGER_HOST?.trim();
   const host = hostId ? createServerResourceStartHost(hostId, workflowHost) : undefined;
   const requestDrain = host ? (): void => void host.requestDrain() : undefined;
-  return { webhookSources, hostId, requestDrain };
+  const observer =
+    webhookSources &&
+    createItemWaitObserver({
+      sources: webhookSources,
+      store: workflowHost.deps.store,
+      forge: hostSourceForgeReader(),
+    });
+  for (const source of observer?.observing ?? []) getLog().info(source, 'webhook_source_observing');
+  // Runs on the continuation tick; the observer keeps each source's interval itself.
+  const observeWaits = observer
+    ? (): void =>
+        void observer
+          .pass(new Date())
+          .then(reports => {
+            if (reports.some(report => report.receipts.length > 0)) requestDrain?.();
+          })
+          .catch((error: unknown) => {
+            getLog().error({ err: error }, 'source_observe_failed');
+          })
+    : undefined;
+  return { webhookSources, hostId, requestDrain, observeWaits };
 }
 
 const isLoopbackHost = (hostname: string): boolean =>

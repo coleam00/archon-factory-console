@@ -428,7 +428,68 @@ declare module 'archon:script' {
           readonly kind: 'issue' | 'pr';
           readonly url: string;
           readonly state: 'open' | 'closed';
+          readonly updatedAt?: string;
         }>;
+      };
+    };
+    'workitem.label.added': {
+      readonly request: {
+        readonly subject: {
+          readonly kind: 'issue';
+          readonly ref: {
+            readonly repo: {
+              readonly host: string;
+              readonly path: string;
+              readonly hostClaim?: true;
+            };
+            readonly number: number;
+          };
+        } | {
+          readonly kind: 'pr';
+          readonly ref: {
+            readonly repo: {
+              readonly host: string;
+              readonly path: string;
+              readonly hostClaim?: true;
+            };
+            readonly number: number;
+          };
+        };
+        readonly name: string;
+      };
+      readonly result: {
+        readonly subject: {
+          readonly kind: 'issue';
+          readonly ref: {
+            readonly repo: {
+              readonly host: string;
+              readonly path: string;
+              readonly hostClaim?: true;
+            };
+            readonly number: number;
+          };
+        } | {
+          readonly kind: 'pr';
+          readonly ref: {
+            readonly repo: {
+              readonly host: string;
+              readonly path: string;
+              readonly hostClaim?: true;
+            };
+            readonly number: number;
+          };
+        };
+        readonly name: string;
+        readonly added: {
+          readonly id: string;
+          readonly at: string;
+          readonly actor: {
+            readonly host: string;
+            readonly id: string;
+            readonly login: string | null;
+            readonly type?: 'user' | 'bot' | 'organization' | null;
+          } | null;
+        } | null;
       };
     };
     'workitem.search': {
@@ -540,8 +601,8 @@ declare module 'archon:script' {
           readonly number: number;
         };
         readonly head_revision: string;
-        readonly default_branch: string;
-        readonly default_revision: string;
+        readonly base_branch: string;
+        readonly base_revision: string;
         readonly behind: number;
         readonly mergeable: 'clean' | 'conflict' | 'unknown';
         readonly merge_commit: string | null;
@@ -878,6 +939,56 @@ declare module 'archon:script' {
       };
     };
     'pr.draft': {
+      readonly request: {
+        readonly ref: {
+          readonly repo: {
+            readonly host: string;
+            readonly path: string;
+            readonly hostClaim?: true;
+          };
+          readonly number: number;
+        };
+      };
+      readonly result: {
+        readonly target: {
+          readonly repo: {
+            readonly host: string;
+            readonly path: string;
+            readonly hostClaim?: true;
+          };
+          readonly number: number;
+        } | {
+          readonly host: string;
+          readonly path: string;
+          readonly hostClaim?: true;
+        };
+        readonly outcome: 'applied';
+        readonly changed: boolean;
+        readonly pr: {
+          readonly repo: {
+            readonly host: string;
+            readonly path: string;
+            readonly hostClaim?: true;
+          };
+          readonly number: number;
+          readonly schemaVersion: 1;
+          readonly url: string;
+          readonly head: string;
+          readonly base: string;
+          readonly is_draft: boolean;
+          readonly state: 'open' | 'closed' | 'merged';
+          readonly head_repo: {
+            readonly host: string;
+            readonly path: string;
+            readonly hostClaim?: true;
+          } | null;
+          readonly head_revision: string | null;
+          readonly base_revision: string | null;
+          readonly maintainer_can_modify: boolean | null;
+        };
+      };
+    };
+    'pr.close': {
       readonly request: {
         readonly ref: {
           readonly repo: {
@@ -1575,7 +1686,7 @@ declare module 'archon:script' {
       readonly exitCode?: number | null;
     };
     readonly mutation?: {
-      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
+      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'pr.close' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
       readonly target: {
         readonly repo: {
           readonly host: string;
@@ -1668,7 +1779,7 @@ declare module 'archon:script' {
         readonly descriptionDigest: string;
       };
     } | {
-      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
+      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'pr.close' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
       readonly target: {
         readonly repo: {
           readonly host: string;
@@ -1775,7 +1886,7 @@ declare module 'archon:script' {
       };
       readonly leaveBehind: string;
     } | {
-      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
+      readonly op: 'pr.merge' | 'checks.rerun' | 'pr.create' | 'pr.edit-body' | 'pr.ready' | 'pr.draft' | 'pr.close' | 'comment.upsert' | 'workitem.comment.upsert' | 'workitem.create' | 'workitem.close' | 'workitem.labels.set' | 'workitem.label.add' | 'workitem.label.remove' | 'repo.label.ensure' | 'pr.thread.reply' | 'pr.thread.resolve' | 'pr.review.submit' | 'workitem.edit-body' | 'attachment.put';
       readonly target: {
         readonly repo: {
           readonly host: string;
@@ -2080,6 +2191,10 @@ declare module 'archon:script' {
     readonly runs: ReadonlyArray<{
       readonly id: string;
       readonly workflow: string;
+      readonly pack: {
+        readonly key: string;
+        readonly workflow: string;
+      } | null;
       readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
       readonly outcome: string | null;
       readonly startedAt: string;
@@ -2154,6 +2269,7 @@ declare module 'archon:script' {
         readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
         readonly owner: 'reachable' | 'unreachable' | 'unknown' | null;
       } | null;
+      readonly waitsForRunLimit: boolean;
     }>;
     readonly skipped: ReadonlyArray<{
       readonly requestId: string;
@@ -2173,9 +2289,14 @@ declare module 'archon:script' {
     readonly held: ReadonlyArray<{
       readonly receiptId: string;
       readonly bindingId: string;
+      readonly hostId: string | null;
       readonly workflow: string | null;
       readonly receivedAt: string;
     }>;
+    readonly runLimit: {
+      readonly limit: number;
+      readonly live: number;
+    } | null;
     readonly waits: ReadonlyArray<{
       readonly event: string;
       readonly about: string;
@@ -2606,6 +2727,10 @@ declare module 'archon:script' {
       readonly runs: ReadonlyArray<{
         readonly id: string;
         readonly workflow: string;
+        readonly pack: {
+          readonly key: string;
+          readonly workflow: string;
+        } | null;
         readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
         readonly outcome: string | null;
         readonly startedAt: string;
@@ -2680,6 +2805,7 @@ declare module 'archon:script' {
           readonly status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
           readonly owner: 'reachable' | 'unreachable' | 'unknown' | null;
         } | null;
+        readonly waitsForRunLimit: boolean;
       }>;
       readonly skipped: ReadonlyArray<{
         readonly requestId: string;
@@ -2699,9 +2825,14 @@ declare module 'archon:script' {
       readonly held: ReadonlyArray<{
         readonly receiptId: string;
         readonly bindingId: string;
+        readonly hostId: string | null;
         readonly workflow: string | null;
         readonly receivedAt: string;
       }>;
+      readonly runLimit: {
+        readonly limit: number;
+        readonly live: number;
+      } | null;
       readonly waits: ReadonlyArray<{
         readonly event: string;
         readonly about: string;
@@ -3119,6 +3250,72 @@ declare module 'archon:script' {
     readonly next: string | null;
   };
 
+  /** A link between two items, as the engine records it; `ended` is null while it is active. */
+  export type ItemLink = {
+    readonly id: string;
+    readonly kind: 'depends_on' | 'part_of' | 'duplicate_of';
+    readonly from: {
+      readonly id: string;
+      readonly projectKey: string;
+      readonly key: string;
+    };
+    readonly to: {
+      readonly id: string;
+      readonly projectKey: string;
+      readonly key: string;
+    };
+    readonly at: string;
+    readonly via: string;
+    readonly by: {
+      readonly declared: string;
+    } | {
+      readonly userId: string;
+    } | null;
+    readonly fromRun: {
+      readonly runId: string;
+      readonly nodePath: string;
+    } | null;
+    readonly ended: {
+      readonly at: string;
+      readonly via: string;
+      readonly by: {
+        readonly declared: string;
+      } | {
+        readonly userId: string;
+      } | null;
+      readonly fromRun: {
+        readonly runId: string;
+        readonly nodePath: string;
+      } | null;
+    } | null;
+  };
+
+  /** `recorded` is false when the item already carried a merge; `merge` is then the first. */
+  export type ItemMergeRecorded = {
+    readonly merge: {
+      readonly change: string;
+      readonly commit: string | null;
+      readonly at: string;
+      readonly recordedAt: string;
+      readonly via: string;
+      readonly fromRun: {
+        readonly runId: string;
+        readonly nodePath: string;
+      } | null;
+    };
+    readonly recorded: boolean;
+  };
+
+  /** The branch an item's change lands on. */
+  export type ItemLanding = {
+    readonly branch: string;
+    readonly recordedAt: string;
+    readonly fromRun: {
+      readonly runId: string;
+      readonly nodePath: string;
+    } | null;
+  };
+
   /** The admission a fired trigger binding got. */
   export type StartDisposition = {
     readonly status: 'admitted';
@@ -3179,6 +3376,14 @@ declare module 'archon:script' {
       constructor(
       /** The command without its arguments, such as `forge pr.view` or `state put`. */
       command: string, exitCode: number | null, detail: string);
+  }
+  /**
+   * The host refused an item write and wrote nothing. `reason` is the CLI's `error`: a fixed
+   * code (`no_item` when the run is on no item, `self_link`, `unknown_kind`) or its message.
+   */
+  export class ItemWriteError extends HostCommandError {
+      readonly reason: string;
+      constructor(command: string, exitCode: number, reason: string);
   }
   /**
    * The host answered that a forge operation failed. `kind` is the typed reason. `mutation`
@@ -3266,6 +3471,48 @@ declare module 'archon:script' {
    * A container run cannot call it, as it cannot call `state`.
    */
   export function item(): ItemRead | null;
+  /** One end of a link: the run's own item is the other. Exactly one of `to` and `from`. */
+  export type ItemLinkRequest = {
+      readonly kind: ItemLink['kind'];
+      readonly to: string;
+      readonly from?: never;
+  } | {
+      readonly kind: ItemLink['kind'];
+      readonly from: string;
+      readonly to?: never;
+  };
+  /**
+   * Record a link (`archon workflow link`) from this run's own item, the one `item()` reads,
+   * to the item `to` names, or to it from the item `from` names. `created` is false when the
+   * same active link was already recorded. Throws {@link ItemWriteError} on a refusal
+   * (`no_item` when the run is on no item), and {@link HostCommandError} when the host gives
+   * no answer, in which case the link may or may not have been recorded.
+   * A container run cannot call it, as it has no host CLI.
+   */
+  export function linkItem(request: ItemLinkRequest): ItemLink & {
+      readonly created: boolean;
+  };
+  /**
+   * Record that this run's own item's change merged (`archon workflow merged`), as the forge
+   * reported it: `change` names the change, such as a pull request URL, `at` is an ISO time
+   * with an offset, `commit` the full merge commit when the forge gave one. Throws
+   * {@link ItemWriteError} on a refusal (`no_item` when the run is on no item), and
+   * {@link HostCommandError} when the host gives no answer, in which case the merge may or
+   * may not have been recorded. A container run cannot call it, as it has no host CLI.
+   */
+  export function recordMerge(merge: {
+      readonly change: string;
+      readonly at: string;
+      readonly commit?: string | null;
+  }): ItemMergeRecorded;
+  /**
+   * Record the branch this run's own item's change lands on (`archon workflow landing`);
+   * recording again replaces it. Throws {@link ItemWriteError} on a refusal (`no_item` when
+   * the run is on no item), and {@link HostCommandError} when the host gives no answer, in
+   * which case the branch may or may not have been recorded.
+   * A container run cannot call it, as it has no host CLI.
+   */
+  export function recordLanding(branch: string): ItemLanding;
   /**
    * A page of this project's items with a run started in a window (`archon workflow
    * items`), each read as `item()` reads one, with all its runs. `since` and `until` take

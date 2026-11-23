@@ -222,6 +222,7 @@ mock.module('../../workflows/store-adapter', () => ({
 
 mock.module('../../config/config-loader', () => ({
   loadConfig: mock(() => Promise.resolve({})),
+  loadGlobalConfig: mock(() => Promise.resolve({})),
   loadRepoConfig: mock(() => Promise.resolve(null)),
 }));
 
@@ -252,11 +253,18 @@ class MockIsolationResolver {
 const {
   worktreeRegistrationMetadata,
   generatedTaskBranch,
+  validateWorktreeConfig,
   VerificationImageInventoryError,
   VERIFICATION_IMAGE_RUN_LABEL,
 } = await import('@archon/isolation');
 mock.module('@archon/isolation', () => ({
+  checkWorktreeStartable: mock(async () => undefined),
+  readWorktreeBaseBranch: () => undefined,
   generatedTaskBranch,
+  validateWorktreeConfig,
+  resolveWorktreeBase: mock(async () => {
+    throw new Error('resolveWorktreeBase is not mocked here');
+  }),
   refuseUnappliedStartPoint: mock(async () => undefined),
   getPrsForCommit: mock<typeof import('@archon/isolation').getPrsForCommit>(async () => ({
     state: 'NONE',

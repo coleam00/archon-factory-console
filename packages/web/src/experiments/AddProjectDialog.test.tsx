@@ -55,6 +55,7 @@ mock.module('./console/skills', () => ({
   getFactoryItem: mock(),
   listAttentionQueue: mock(),
   answerAttentionItem: mock(),
+  cancelConversation: mock(),
 }));
 const addProjectDialogComponent = (await import('./console/components/AddProjectDialog'))
   .AddProjectDialog;

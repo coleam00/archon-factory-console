@@ -94,6 +94,7 @@ function source(unreadable: string[] = []): ItemWindowSource {
       listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       getInstallHold: async () => null,
+      getRunLimit: async () => null,
       listHeldItemStarts: async () => [],
       getResourceStartRequest: async () => null,
       listStartReceiptSources: async () => new Map(),

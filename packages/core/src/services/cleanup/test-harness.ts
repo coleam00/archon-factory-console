@@ -188,6 +188,7 @@ mock.module('@archon/git', () => ({
   hasUncommittedChangesStrict: mockHasUncommittedChanges,
   worktreeExists: mockWorktreeExists,
   getDefaultBranch: mockGetDefaultBranch,
+  getDefaultRemote: async () => 'origin',
   isBranchMerged: mockIsBranchMerged,
   isPatchEquivalent: mockIsPatchEquivalent,
   localBranchExists: mockLocalBranchExists,
@@ -217,10 +218,20 @@ export class MockContainerBackend {
 export const mockReleaseVerificationImages = mock<typeof Isolation.releaseRunVerificationImages>(
   async () => undefined
 );
-const { generatedTaskBranch, VerificationImageInventoryError, VERIFICATION_IMAGE_RUN_LABEL } =
-  await import('@archon/isolation');
-mock.module('@archon/isolation', () => ({
+const {
   generatedTaskBranch,
+  validateWorktreeConfig,
+  VerificationImageInventoryError,
+  VERIFICATION_IMAGE_RUN_LABEL,
+} = await import('@archon/isolation');
+mock.module('@archon/isolation', () => ({
+  checkWorktreeStartable: mock(async () => undefined),
+  readWorktreeBaseBranch: () => undefined,
+  generatedTaskBranch,
+  validateWorktreeConfig,
+  resolveWorktreeBase: mock(async () => {
+    throw new Error('resolveWorktreeBase is not mocked here');
+  }),
   refuseUnappliedStartPoint: mock(async () => undefined),
   VerificationImageInventoryError,
   VERIFICATION_IMAGE_RUN_LABEL,

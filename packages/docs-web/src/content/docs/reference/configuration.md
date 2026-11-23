@@ -54,7 +54,7 @@ Settings are loaded in this order (later overrides earlier):
 6. **Run config** - Sparse content selected for one fresh run
 7. **Explicit run model bindings** - Repeatable `--model` or HTTP `tiers`/`aliases`, per named binding
 
-New runs record their resolved Archon AI configuration at launch preparation: assistant, provider defaults, tiers, aliases, and model bindings. Resume and continuation reuse that record. New child runs inherit the parent's recorded AI base; existing children keep their own record. Editing configuration or user AI preferences affects new independent runs, not an existing run. The repo config in that record comes from the checkout the run was launched from, not from its worktree; see [Where a run reads `.archon/config.yaml`](#where-a-run-reads-archonconfigyaml). Detached launches record the same values before handing the run to a child process; queued resource starts record them before admission.
+New runs record their resolved Archon AI configuration at launch preparation: assistant, provider defaults, tiers, aliases, and model bindings. Resume and continuation reuse that record. New child runs inherit the parent's recorded AI base; existing children keep their own record. Editing configuration or user AI preferences affects new independent runs, not an existing run. The repo config in that record comes from the run's definitions (the base branch with the launch checkout's uncommitted changes on top), not from its worktree; see [Where a run reads `.archon/config.yaml`](#where-a-run-reads-archonconfigyaml). Detached launches record the same values before handing the run to a child process; queued resource starts record them before admission.
 
 Adoption inherits the recorded AI configuration while the selected workflow still owns its graph and scripts. New model bindings or AI-bearing run config are rejected for this adoption. Supersession prepares fresh AI configuration. Older runs without a recorded configuration keep resolving from current configuration and their existing sparse run overrides.
 
@@ -145,6 +145,9 @@ concurrency:
   # See "Resource capacity" below.
   # resources:
   #   build: 5
+  # Optional number of run trees this install executes at once; unset = no limit.
+  # See "Run limit" below.
+  # runs: 6
 
 # Live tool attention and the provider-limit wait are both on by default.
 workflows:
@@ -164,6 +167,12 @@ tiers:
 # '@implementer' or '@reviewer', so an unset alias falls back to that tier.
 aliases:
   '@reasoning': { provider: claude, model: opus, effort: max }
+
+# Paths every project's worktrees share through a symlink, unless the project
+# sets its own worktree.linkFiles. The only worktree key read from this file.
+worktree:
+  linkFiles:
+    - .serena/cache
 
 ```
 
@@ -197,6 +206,21 @@ The other blocks, `tiers`, `aliases`, `workflows`, `streaming`, `attentionNotice
 ## Resource capacity
 
 `concurrency.resources.<resource>: N` sets how many runs may hold a resource at once, for a workflow that declares `resource:` and for trigger bindings. It wins over the capacity a start declares (a binding's `capacity`, or a workflow's `resource: { name, capacity }` for a hand start or a binding that sets none), which wins over the engine default of 1. Admission re-reads it at every start, drain and resume, so a change applies to the next admission, and lowering it never ends a run that holds a slot. A value that is not a positive integer, or a config file that cannot be parsed, refuses resource admissions with an error naming the problem. See [Choose a resource, capacity, and overlap policy](/guides/workflow-triggers/#choose-a-resource-capacity-and-overlap-policy).
+
+## Run limit
+
+`concurrency.runs: N` sets how many run trees the install executes at once, whatever their workflow, resource, binding or project. A run tree is a top-level run with its `workflow:` sub-runs. Without the setting there is no limit. Set it to what the machine can carry: a resource's capacity limits one stage, and only this number limits the machine.
+
+- **What counts.** A tree counts once, from its top-level run's admission until every run in it has ended (completed, failed or cancelled), whatever its runs are doing: pending, running, paused or resumed. A run with a sub-run that has not ended cannot be deleted, by hand or by `workflow cleanup`, so deleting a finished parent does not split its tree. The check is not atomic with a sub-run that starts or resumes in the same instant on PostgreSQL; one that does can lose its parent, and its tree is then miscounted until it ends. Nothing inside a tree can free or lose its place, so a sub-run is created, starts, continues or resumes inside its tree's place on any resource, and a paused top-level run resumes without asking for room. A pending start that nothing admitted yet does not count: a queued or skipped bound start, or a hand start before its claim. A sub-run created, or recovered from an engine cancel, after every run in its tree has ended needs room like a new start, so a late child cannot revive a tree whose place went to another; while the limit is full its creation or recovery fails, and the parent's node reports the run limit.
+- **Paused trees keep their place.** A tree paused at an approval gate or a wait still counts, so paused trees can fill the limit overnight. Abandon or cancel a tree you will not continue (`archon workflow abandon`, `archon workflow cancel`) to free its place. A run whose process died also keeps its tree counted until it is resumed or abandoned, because Archon cannot tell it from a run that is still working.
+- **Hand starts count.** `archon workflow run`, chat, API and web starts need room when they are claimed, or at resource admission when their workflow declares `resource:`. A hand start waits in the process that started it, prints `Waiting for the run limit`, and starts when a tree ends; with `--no-wait` it is refused.
+- **With resource capacity.** A start needs a free slot on its resource and room under the limit, decided in one admission. The limit is asked only when the resource would admit the start, so a start never holds a slot while it waits for the other. A binding's `overlap` acts on the limit as on its resource: under `queue` a start the limit holds back queues, and under `skip` it is skipped, like a start its resource refuses.
+- **Waiting.** A queued start is admitted by the next drain of its host after a tree ends: the server's scheduler pass, the ending process's own trigger host, or a scheduled trigger pass. A resume of a failed run needs room like a new start; while the limit is full it is refused and the run stays failed. [`workflow runs --item`](/reference/cli/#workflow-runs) and [`trigger list`](/reference/cli/#trigger) say when a queued start waits only for the limit: the next drain of its host would admit it on its resource, counting what that drain admits ahead of it on every resource, and the limit's room goes to those older starts.
+- **Queue order.** A trigger host's queued starts take room in the order they queued, across resources: a drain admits them oldest first, and a new start of that host waits behind its older runnable starts, even when there is room for both. A hand start, and a start of another trigger host, does not wait for them: it takes room that is free when it asks, so it can pass an older queued start. That keeps a queue on a host that never drains from blocking hand starts, as resource capacity already treats other hosts. A hand start asks about once a second.
+- **Changes apply immediately.** The number is re-read at every admission. Lowering it never stops a run; new starts wait until enough trees end.
+- **Strict.** A value that is not a positive integer, or a config file that cannot be parsed, refuses every new run with an error naming the file, the key and the problem, instead of running without a limit. A hand start is refused with that error.
+- **One install, one number.** The count covers every Archon process sharing this database. On SQLite that is one machine. Machines that share one PostgreSQL database share one limit.
+- **Database storage only.** `store: files` refuses `concurrency.runs` at startup.
 
 ## Run-scoped configuration
 
@@ -257,12 +281,17 @@ commands:
 
 # Worktree settings
 worktree:
-  baseBranch: main  # Optional: auto-detected from git when not set
+  baseBranch: main  # Optional: auto-detected from git when not set (the remote's
+                    # default branch, or the current branch when there is no remote)
   copyFiles:  # Optional: Gitignored files/dirs to copy into new worktrees.
               # Nothing is copied unless you list it here.
     - .env
     - .vscode               # Copy entire directory
     - plans/                # Local plans not committed to the team repo
+  linkFiles:  # Optional: Gitignored paths every worktree shares through a symlink
+              # to the canonical repo, instead of a copy. Refused on
+              # Windows. See below.
+    - .serena/cache
   initSubmodules: true  # Optional: default true — auto-detects .gitmodules and runs
                         # `git submodule update --init --recursive`. Set false to opt out.
   postCreate:          # Optional: sequential setup commands for newly created checkouts
@@ -275,6 +304,7 @@ worktree:
                         # Must be relative; no absolute, no `..` segments.
   remote: origin        # Optional: git remote name for fetch/push. Auto-detected
                         # when omitted (origin if it exists, sole remote otherwise).
+                        # A repository with no remote cuts worktrees locally.
 
 # Documentation directory
 docs:
@@ -350,29 +380,56 @@ Set in `~/.archon/config.yaml` (global) or `.archon/config.yaml` (repo-specific)
 
 ### Where a run reads `.archon/config.yaml`
 
-A new run reads `.archon/config.yaml` from the checkout it was launched from, live, including uncommitted and gitignored edits. The run still gets its own worktree for code; only the source of its config differs. The launch checkout is:
+`.archon/config.yaml` is one of a run's definitions, with the project's workflows (`.archon/workflows`, which also holds in-repository packs), commands (`.archon/commands` and a configured `commands.folder`) and scripts (`.archon/scripts`). A run that a binding starts, or that `archon workflow run` starts with a worktree, reads all of them from the **base branch as fetched when the run starts, with the files uncommitted in the launch checkout laid on top**: modified, deleted, untracked and gitignored files under those paths, each file on its own. Changes committed on the checkout's own branch are not a layer: a file committed there and not changed since is read from the base branch. Both layers go into the run's source capture, outside every checkout. Nothing is copied into the worktree, so a local edit applies to the run and never reaches a commit or pull request it makes. The worktree is cut from the same base commit, so the run's code and its definitions come from one commit.
 
-- **Foreground CLI:** the directory you run the command in, or `--cwd` when given. That can be the main checkout or a linked worktree. A `--branch` run that reuses an existing worktree still reads the launch checkout, not that worktree.
-- **`archon workflow run --detach`:** the same directory. The launching process records the config before it hands the run to the background process.
-- **Web, chat, and background dispatch:** the project's registered checkout path, even when the conversation already sits in a worktree from an earlier run. Adopting a run's worktree reads that worktree instead.
-- **Queued resource starts** (triggers and forge sources): the launch path recorded when the start was queued. The config is recorded at that point, before admission.
+So a workflow, command, script, pack setting default or model alias that lands on the base branch is used by the next run, without pulling it into your checkout, and your own uncommitted edits still apply. The base branch is the one the worktree is cut from: `--base` or the item's landing branch, else `worktree.baseBranch`, else the project's default branch, on `worktree.remote` or the detected remote. A repository with no remote has nothing to fetch: the base is the local branch named as above, else the registered checkout's current branch, as it is for the worktree cut from it.
 
-The run records the resolved AI configuration (assistant, provider defaults, tiers, aliases, and model bindings) at launch. Resume, approve, reject, child runs, and adoption reuse that record, so later edits to `.archon/config.yaml`, in your checkout or in the run's worktree, do not change a run already started. An adopted run whose prior run has no record reads the adopted worktree or branch instead.
+The launch checkout is the directory the run is started from:
+
+- **Foreground CLI:** the directory you run the command in, or `--cwd` when given. That can be the main checkout or a linked worktree.
+- **`archon workflow run --detach`:** the same directory. The background process reads the definitions when it starts.
+- **Queued resource starts** (triggers and forge sources): the launch path recorded on the binding. The definitions are read when the start is prepared, before admission. A start that waits in the queue runs on the base commit it was prepared on.
+- **Web, chat, and background dispatch** do not follow this rule yet: they read the project's registered checkout path as it is, even when the conversation already sits in a worktree from an earlier run, and record no `definitions`.
+
+A start is refused, naming the files or the ref, when:
+
+- a file is uncommitted in the checkout and also changed on the base branch since the checkout's merge base with it. You own that conflict: bring the checkout up to date with the base branch and reapply the change, or discard it. Committing it does not help, because only uncommitted files are laid on the base. A local file identical to the base's is not a conflict, and neither are two different files in one directory.
+- the checkout has no commit, or shares no history with the base branch.
+- the base branch cannot be fetched or read. There is no fallback to the checkout as it is.
+- the run's `.archon/config.yaml`, after the layers are laid, is invalid. The base branch's copy is not validated on its own, so an uncommitted fix to an invalid committed config applies. The registered checkout's copy must still load, because the `worktree.*` settings are read from it.
+
+These runs read their definitions as they are instead:
+
+- **An in-place run** (`--no-worktree`, a workflow with `worktree.enabled: false`, a binding with `isolation: in-place`, a folder project) reads its checkout, which is also its one commit. When the base branch's copy of a workflow and the checkout's copy disagree on whether it runs in place, the start is refused rather than run in a lane the other copy chose.
+- **An explicit source** (`--workflow-source`, a binding's `launch.discoveryCwd`) reads its workflows, commands and scripts from that directory, and `.archon/config.yaml` from the launch checkout. Name the checkout itself this way to run its committed branch changes.
+- **Adopting a run's worktree or branch** reads that worktree or branch.
+
+The base layer is read from git objects at the base commit, so archive attributes such as `export-ignore` do not drop a committed definition, and a committed symlink to another file or directory in the repository reads that target at the same commit; an uncommitted edit to that target is a local change, listed under the link's path. An initialized submodule under the definition paths, a pack kept in its own repository for example, is read at the commit the base records for it, with its own uncommitted changes on top; one that lacks that commit refuses the start until it is fetched (`git submodule update`).
+
+The run records where its definitions came from in `metadata.workflow_source.definitions`: the remote, branch and commit, and every file taken from the checkout. `archon workflow get` and `archon workflow status` print the commit and those files, so a forgotten local edit shows, and the commit the run's code started at when that differs, as it does for a run that continues another run's checkout or reuses a `--branch` worktree.
+
+A run no longer updates your checkout. Creating a worktree fetches the base branch and never moves a locally registered checkout; earlier versions fast-forwarded a clean checkout on the base branch as a side effect. An Archon-managed clone is still reset to the remote.
+
+The run records the resolved AI configuration (assistant, provider defaults, tiers, aliases, and model bindings) at launch. Resume, approve, reject, child runs, and adoption reuse that record, so later edits to `.archon/config.yaml`, in your checkout or in the run's worktree, do not change a run already started. A resumed run whose definitions came from the base branch reads the rest of its project config from its capture. An adopted run whose prior run has no record reads the adopted worktree or branch instead.
+
+A `workflow:` child of a run whose definitions came from the base branch captures its own definitions when it starts: the parent's captured definitions, config included, with the definition files the parent's checkout (its worktree) changed since the parent started laid on top. A child workflow the run writes in its checkout, or one you fix there before resuming the parent, is the one the child runs. The child's record lists those files under `run_files`. Edits in your own checkout after the parent started do not reach its children.
+
+A path given as an input, such as a policy file, is not a definition: an agent reads it in the run's worktree. A repository-relative path therefore reads the committed file at the base commit, and an uncommitted edit to it does not apply. To try a local edit, pass an absolute path.
 
 Some repo settings are read at launch from fixed places rather than the launch checkout:
 
-- **`worktree.*`** (`baseBranch`, `remote`, `path`, `copyFiles`, `initSubmodules`, `postCreate`, `postCreateTimeout`) is read from the project's registered checkout when Archon creates the worktree. Registration also reads `worktree.remote` from the checkout being registered to select its remote, even for runs using `--no-worktree`.
-- **Workflow-source settings** (`defaults.loadDefaultWorkflows`, `defaults.loadDefaultCommands`, `commands.folder`) are read from the source directory when the run captures its source (`--workflow-source` on the CLI), and are recorded with that capture.
+- **`worktree.*`** (`baseBranch`, `remote`, `path`, `copyFiles`, `linkFiles`, `initSubmodules`, `postCreate`, `postCreateTimeout`) is read from the project's registered checkout as it is, when Archon finds the base branch and when it creates the worktree. Registration also reads `worktree.remote` from the checkout being registered to select its remote, even for runs using `--no-worktree`.
+- **Workflow-source settings** (`defaults.loadDefaultWorkflows`, `defaults.loadDefaultCommands`, `commands.folder`) are read from the run's definitions when it captures its source (the base branch with local changes, the checkout, or `--workflow-source`), and are recorded with that capture.
 
 To change the configuration a run uses:
 
-- **Edit `.archon/config.yaml` before launching.** Committing is not needed; the launch reads your working tree.
+- **Edit `.archon/config.yaml` before launching.** Committing is not needed; the launch reads your working tree on top of the base branch.
 - **A running run keeps its launch config.** To use new config, start a new run, or use `archon workflow run --supersedes <run-id>` to replace a finished one with fresh config.
 - **Use `--config <file>`** for a one-off layer on a fresh run. It covers the settings listed in [Run-scoped configuration](#run-scoped-configuration).
 
 ### Worktree provisioning
 
-`worktree.postCreate` runs sequentially through `bash -c` in the new worktree root, after submodule initialization and `copyFiles`, before the checkout becomes available. It also runs when Archon creates a checkout of an existing branch. Reusing or adopting a checkout already on disk skips provisioning. Commands use ordinary shell expansion; workflow variables and node outputs are unavailable. Put setup logic in a script.
+`worktree.postCreate` runs sequentially through `bash -c` in the new worktree root, after submodule initialization, `copyFiles` and `linkFiles`, before the checkout becomes available. It also runs when Archon creates a checkout of an existing branch. Reusing or adopting a checkout already on disk skips provisioning. Commands use ordinary shell expansion; workflow variables and node outputs are unavailable. Put setup logic in a script.
 
 Each command has a timeout of `worktree.postCreateTimeout` milliseconds (default `300000`) and receives empty stdin. POSIX setup has no controlling terminal, so commands cannot prompt through `/dev/tty`. On macOS and Linux each command owns a process group. Archon ends the whole group at the timeout, when the command exits (success included), or when its owning Archon process ends, including Ctrl-C, detached-owner cancel/abandon, server exit, and SIGKILL. Background jobs in that group are ended too. Archon confirms the group is gone before completing setup or reporting failure for rollback. A process that starts its own session or group (`setsid`, a daemon), or a service started outside the group (`docker compose up -d`), escapes this cleanup. Use setup to provision a checkout, not to leave a server running.
 
@@ -406,7 +463,7 @@ worktree:
 
 Copy only gitignored files this way. Copying a **tracked** file overwrites the version the worktree checked out, so if the two differ the worktree starts with an uncommitted change in its `git status`, and an agent that commits everything commits it too. Listing all of `.archon` has the same effect on its tracked workflows, commands, and scripts.
 
-You do **not** need this for workflows, commands, or scripts. Those are captured by the run itself, including uncommitted ones. `.archon/config.yaml` is not part of that capture, but a new run's AI configuration is read from the checkout it was launched from, not from the worktree, so uncommitted and gitignored config applies without copying. See [Where a run reads `.archon/config.yaml`](#where-a-run-reads-archonconfigyaml).
+You do **not** need this for workflows, commands, scripts, or `.archon/config.yaml`. A run reads them from the base branch with the launch checkout's uncommitted and gitignored files on top, and captures them outside the worktree, so they apply without copying. See [Where a run reads `.archon/config.yaml`](#where-a-run-reads-archonconfigyaml).
 
 **Workflow source no longer travels through the worktree.** When a run starts, Archon freezes the workflow's own `.archon/workflows`, `.archon/commands`, and `.archon/scripts` — plus your home-scoped `~/.archon/` source, so a statically included global workflow is frozen too — into a separate source capture beside that run's artifacts, at `~/.archon/workspaces/<project>/workflow-source/runs/<run-id>/`. It resolves frozen source from there throughout the run; `$ARTIFACTS_DIR` remains the output channel. See [workflow source capture](/reference/cli/#running-a-workflow-from-another-checkout). Three consequences:
 
@@ -436,6 +493,37 @@ worktree:
 - Path-traversal attempts (entries resolving outside the repo root, or absolute paths on a different drive) are rejected — the entry is logged and skipped.
 
 **Interaction with `worktree.path`:** The copy step runs identically (and is still a no-op with no `copyFiles`) whether worktrees live under `~/.archon/workspaces/<owner>/<repo>/worktrees/` (default) or inside the repo at `<repoRoot>/<worktree.path>/` (repo-local). Both layouts get the same gitignored-file treatment.
+
+### Worktree linked files (`worktree.linkFiles`)
+
+`copyFiles` gives each worktree its own copy. For a large cache, log, or metadata directory that copy wastes disk, slows worktree creation, and leaves every worktree to warm its own. `worktree.linkFiles` makes each listed path in a new worktree a symlink to the same path in the canonical repo, so every worktree uses one directory.
+
+```yaml
+worktree:
+  copyFiles:
+    - .claude/settings.local.json   # small file, a copy is fine
+  linkFiles:
+    - .serena/cache
+    - .entire/logs
+    - .entire/metadata
+```
+
+**Shared state.** Every worktree and the canonical checkout read and write the same linked directory. Two runs writing the same cache at once can corrupt it or see each other's data, and deleting the content from any worktree deletes it for all of them. Link only data whose tool tolerates several concurrent writers, and copy the rest.
+
+**The path must be ignored as a file.** Git sees a symlink as a file, so an ignore pattern with a trailing slash (`.serena/cache/`) matches the canonical directory but not the link. Write the pattern without the slash (`.serena/cache`), or ignore a parent directory (`.serena/`). After creating each link Archon asks git whether it is ignored. A link git would show in `git status` is removed and logged as a warning, because an agent that commits everything would otherwise commit an absolute symlink into the repository.
+
+**Semantics:**
+
+- Each entry is a path relative to the repo root; a trailing slash is ignored. The link points at the absolute path of the same entry in the canonical repo.
+- An entry missing from the canonical repo is created there as an empty directory first, so the first run's tool writes into the shared directory. List a file only if it already exists.
+- A path that already exists in the new worktree (a checked-out path, an earlier link) is left as it is and logged.
+- Links are made after `copyFiles` and before `postCreate`, so setup commands write through them.
+- Per-entry failures and path-traversal attempts are logged and skipped; worktree creation goes on, as with `copyFiles`.
+- A `linkFiles` path may not also be in `copyFiles`, inside a copied path, or contain one (copying runs first and would put a real directory where the link belongs). Every entry must be a non-empty string. Either mistake fails config loading with an error naming the config file.
+- Destroying a worktree removes the link, not the canonical content.
+- Windows refuses `linkFiles`: worktree creation fails with an error that says so, before any git work. Without elevated rights the only directory link Windows offers is a junction, and Git for Windows treats a junction as a real directory, so `git worktree remove` or a `git clean -fdx` in the worktree would walk into it and delete the shared content in the canonical repo. Use `copyFiles` there, or set `linkFiles: []` in the project to turn off a global list.
+
+`linkFiles` is the one `worktree.*` key that can also be set install-wide in `~/.archon/config.yaml`, for a cache that every project keeps at the same path. A project that sets `worktree.linkFiles` in its own `.archon/config.yaml` replaces the global list rather than adding to it; `linkFiles: []` turns linking off for that project. When the global list overlaps a path the project lists in `copyFiles`, worktree creation fails and the error names both files. `linkFiles` applies to worktree isolation only; container isolation does not use it.
 
 **Defaults behavior:** The app's bundled default commands and workflows are loaded at runtime and merged with repo-specific ones. Repo commands/workflows override app defaults by name. Set `defaults.loadDefaultCommands: false` or `defaults.loadDefaultWorkflows: false` to disable runtime loading.
 
@@ -691,7 +779,7 @@ Signup uses email + password (no email verification by default). **Signup postur
 
 ### Telemetry
 
-Archon sends a few anonymous events — `archon_started` (at most once a day each for the CLI and the server, with the store kind: `files`, `sqlite` or `postgresql`), `archon_active` (daily server heartbeat), `chat_turn_handled` (direct chat turn — platform, provider, model, duration, and usage totals, counted as failed when the provider errors mid-turn; never message content), `workflow_no_match` (agent-reported no-fit count and transport only), `workflow_invoked` (workflow start or resumed segment), `workflow_completed`/`workflow_failed`/`workflow_cancelled` (sent once when the run's final status is saved), `workflow_approval_resolved` (binary approve/reject), and `codebase_registered` (pure count — no name/path/URL). Categorical only: workflow name (real for bundled workflows, `"custom"` for your own), platform, provider id (model id on `workflow_invoked`), node shape (`nodes_<type>` counts, `graph_depth`, `max_fan_out`, `command_refs`, `prompt_chars_bucket`) and feature flags, `derived_from`/`derived_similarity` naming the bundled workflow a custom one was copied from (never the copy's own name), outcome/duration, aggregate provider-reported usage (gross input, output, optional cache-read/cache-write totals plus a flag when those totals are a floor, cost, and loop iterations), a fixed-enum failure class and exit/cancel reason (never error text), a `run_ref` hash that joins one run's events without sending its id, deployment shape (adapter/db/auth booleans and a chat plugin count), OS/arch/version, install channel (`binary`/`docker`/`source`) and build commit, a `schema_version`, and a random install UUID stored at `$ARCHON_HOME/telemetry-id`. No code, prompts, paths, IP, geo, or error text. Any one of the variables below disables it. See `archon telemetry status` to inspect the live state.
+Archon sends a few anonymous events — `archon_started` (at most once a day each for the CLI and the server, with the store kind: `files`, `sqlite` or `postgresql`), `archon_active` (daily server heartbeat), `chat_turn_handled` (direct chat turn — platform, provider, model, duration, and usage totals, counted as failed when the provider errors mid-turn and as cancelled when the operator stops it; never message content), `workflow_no_match` (agent-reported no-fit count and transport only), `workflow_invoked` (workflow start or resumed segment), `workflow_completed`/`workflow_failed`/`workflow_cancelled` (sent once when the run's final status is saved), `workflow_approval_resolved` (binary approve/reject), and `codebase_registered` (pure count — no name/path/URL). Categorical only: workflow name (real for bundled workflows, `"custom"` for your own), platform, provider id (model id on `workflow_invoked`), node shape (`nodes_<type>` counts, `graph_depth`, `max_fan_out`, `command_refs`, `prompt_chars_bucket`) and feature flags, `derived_from`/`derived_similarity` naming the bundled workflow a custom one was copied from (never the copy's own name), outcome/duration, aggregate provider-reported usage (gross input, output, optional cache-read/cache-write totals plus a flag when those totals are a floor, cost, and loop iterations), a fixed-enum failure class and exit/cancel reason (never error text), a `run_ref` hash that joins one run's events without sending its id, deployment shape (adapter/db/auth booleans and a chat plugin count), OS/arch/version, install channel (`binary`/`docker`/`source`) and build commit, a `schema_version`, and a random install UUID stored at `$ARCHON_HOME/telemetry-id`. No code, prompts, paths, IP, geo, or error text. Any one of the variables below disables it. See `archon telemetry status` to inspect the live state.
 
 Workflow runs and direct-chat turns both report optional `cache_read_tokens`, `cache_write_tokens`, and true-only `cache_partial`. An unreported axis is absent; a reported zero stays zero. When `cache_partial` is true, cache totals are floors because some contributing results did not report cache usage. When telemetry is enabled and stderr is a terminal, the updated first-run notice appears once again for existing installs to disclose direct-chat cache capture. Headless installs show no notice; use [`archon telemetry status`](/reference/cli/#telemetry) to check the live state and the settings below to opt out.
 

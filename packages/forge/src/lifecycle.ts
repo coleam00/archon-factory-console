@@ -96,6 +96,12 @@ export const prDraftRequestSchema = requestBase.extend({
   op: z.literal('pr.draft'),
   ref: prRefSchema,
 });
+// Closing never merges, deletes the head branch or writes a comment; a caller
+// that wants to say why uses a comment operation.
+export const prCloseRequestSchema = requestBase.extend({
+  op: z.literal('pr.close'),
+  ref: prRefSchema,
+});
 // The marker identifies the one canonical comment, so it has to survive a
 // first-line comparison against a body the forge may have re-wrapped.
 const commentMarker = text.refine(
@@ -172,6 +178,16 @@ export const workItemListRequestSchema = requestBase.extend({
   op: z.literal('workitem.list'),
   repo: repoRefSchema,
   label: text,
+});
+/**
+ * When `name` was last added to an issue or pull request, by the forge's own label event.
+ * The event's id tells two adds of the same label apart, so a remove and re-add is a new
+ * add even when the label is on the item both times it is read.
+ */
+export const workItemLabelAddedRequestSchema = requestBase.extend({
+  op: z.literal('workitem.label.added'),
+  subject: forgeSubjectRefSchema,
+  name: text,
 });
 /** The most matches one `workitem.search` returns, and the count it returns when none is asked for. */
 export const WORKITEM_SEARCH_MAX_LIMIT = 100;
@@ -300,7 +316,11 @@ export const workItemCommentSchema = z.object({
   url: z.url(),
   body: z.string(),
 });
-/** How far a pull request's head is behind its repository's default branch, and whether it merges. */
+/**
+ * How far a pull request's head is behind the pull request's own base branch, and whether it
+ * merges into it. A caller that needs the default branch reads it with `checks.commit` at
+ * `{kind:'default_branch'}`.
+ */
 export const prMergeStateRequestSchema = requestBase.extend({
   op: z.literal('pr.merge-state'),
   ref: prRefSchema,
@@ -308,9 +328,9 @@ export const prMergeStateRequestSchema = requestBase.extend({
 export const prMergeStateSchema = z.object({
   ref: prRefSchema,
   head_revision: gitObjectIdSchema,
-  default_branch: text,
-  default_revision: gitObjectIdSchema,
-  /** Commits of the default branch at `default_revision` that the head at `head_revision` lacks. */
+  base_branch: text,
+  base_revision: gitObjectIdSchema,
+  /** Commits of `base_branch` at `base_revision` that the head at `head_revision` lacks. */
   behind: z.number().int().nonnegative(),
   mergeable: z.enum(['clean', 'conflict', 'unknown']),
   /** The commit the pull request landed as; null until it is merged. */
@@ -456,6 +476,7 @@ export const lifecycleReadRequestSchemas = [
   prReviewsRequestSchema,
   prThreadsRequestSchema,
   workItemListRequestSchema,
+  workItemLabelAddedRequestSchema,
   workItemSearchRequestSchema,
   workItemCommentsRequestSchema,
   prMergeStateRequestSchema,
@@ -469,6 +490,7 @@ export const mutationRequestSchemas = [
   prEditBodyRequestSchema,
   prReadyRequestSchema,
   prDraftRequestSchema,
+  prCloseRequestSchema,
   commentUpsertRequestSchema,
   workItemCommentUpsertRequestSchema,
   workItemCreateRequestSchema,
@@ -531,10 +553,27 @@ const prViewResultSchema = prViewSchema.superRefine(({ pr, timestamps }, ctx) =>
       path: ['timestamps'],
     });
 });
+/**
+ * `updatedAt` is the forge's time of the item's last change. A label added later changes
+ * it, so an observer that sees it unchanged need not read the item's label events again;
+ * without it, the observer reads them on every pass. Optional, so a plugin released before
+ * it still answers.
+ */
+const workItemListItemSchema = subjectRecordSchema.extend({
+  updatedAt: z.iso.datetime({ offset: true }).optional(),
+});
 export const workItemListSchema = z.object({
   repo: repoRefSchema,
   label: text,
-  items: z.array(subjectRecordSchema),
+  items: z.array(workItemListItemSchema),
+});
+/** `added` is null when the forge records no add of the label, such as one never added. */
+export const workItemLabelAddedSchema = z.object({
+  subject: forgeSubjectRefSchema,
+  name: text,
+  added: z
+    .object({ id: text, at: z.iso.datetime({ offset: true }), actor: sourceActorSchema.nullable() })
+    .nullable(),
 });
 export const workItemSearchItemSchema = subjectRecordSchema.extend({
   title: z.string(),
@@ -603,6 +642,7 @@ const appliedSchema = z.object({
   outcome: z.literal('applied'),
   changed: z.boolean(),
 });
+const appliedPrSchema = appliedSchema.extend({ pr: forgePrRecordSchema });
 
 export const lifecycleReadResultSchemas = [
   z.object({ op: prReviewsRequestSchema.shape.op, value: prReviewsSchema }),
@@ -611,6 +651,7 @@ export const lifecycleReadResultSchemas = [
   z.object({ op: prViewRequestSchema.shape.op, value: prViewResultSchema.nullable() }),
   z.object({ op: repoLabelsListRequestSchema.shape.op, value: repoLabelsListSchema }),
   z.object({ op: workItemListRequestSchema.shape.op, value: workItemListSchema }),
+  z.object({ op: workItemLabelAddedRequestSchema.shape.op, value: workItemLabelAddedSchema }),
   z.object({ op: workItemSearchRequestSchema.shape.op, value: workItemSearchSchema }),
   z.object({ op: workItemCommentsRequestSchema.shape.op, value: workItemCommentsSchema }),
   z.object({ op: prMergeStateRequestSchema.shape.op, value: prMergeStateSchema }),
@@ -666,22 +707,14 @@ export const mutationResultSchemas = [
       units: selectedChecksSchema,
     }),
   }),
-  z.object({
-    op: prCreateRequestSchema.shape.op,
-    value: appliedSchema.extend({ pr: forgePrRecordSchema }),
-  }),
+  z.object({ op: prCreateRequestSchema.shape.op, value: appliedPrSchema }),
   z.object({
     op: prEditBodyRequestSchema.shape.op,
     value: appliedSchema.extend({ pr: forgePrRecordSchema, bodyDigest: text }),
   }),
-  z.object({
-    op: prReadyRequestSchema.shape.op,
-    value: appliedSchema.extend({ pr: forgePrRecordSchema }),
-  }),
-  z.object({
-    op: prDraftRequestSchema.shape.op,
-    value: appliedSchema.extend({ pr: forgePrRecordSchema }),
-  }),
+  z.object({ op: prReadyRequestSchema.shape.op, value: appliedPrSchema }),
+  z.object({ op: prDraftRequestSchema.shape.op, value: appliedPrSchema }),
+  z.object({ op: prCloseRequestSchema.shape.op, value: appliedPrSchema }),
   z.object({
     op: commentUpsertRequestSchema.shape.op,
     value: appliedSchema.extend({ comment: commentRecordSchema }),

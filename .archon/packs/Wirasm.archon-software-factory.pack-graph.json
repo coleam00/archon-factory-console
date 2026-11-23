@@ -1,5 +1,7 @@
 {
   "pack": "Wirasm.archon-software-factory",
+  "loaded": [],
+  "otherCopies": [],
   "stages": [
     {
       "name": "Wirasm/archon-software-factory:build",
@@ -1320,6 +1322,7 @@
         "outcome": "ready"
       },
       "to": "Wirasm/archon-software-factory:triage",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "triage-after-order",
@@ -1333,6 +1336,7 @@
         "outcome": "build"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-triage",
@@ -1346,6 +1350,7 @@
         "outcome": "narrow"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-triage",
@@ -1359,6 +1364,7 @@
         "outcome": "split"
       },
       "to": "Wirasm/archon-software-factory:split",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "split-after-triage",
@@ -1372,6 +1378,7 @@
         "outcome": "whole"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-split",
@@ -1385,6 +1392,7 @@
         "outcome": "split"
       },
       "to": "Wirasm/archon-software-factory:order",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "order-after-split",
@@ -1398,6 +1406,7 @@
         "settled": "answered"
       },
       "to": "Wirasm/archon-software-factory:split",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "split-after-answers",
@@ -1411,6 +1420,7 @@
         "outcome": "planned"
       },
       "to": "Wirasm/archon-software-factory:deliver",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "deliver-after-plan",
@@ -1424,6 +1434,7 @@
         "outcome": "broken_here"
       },
       "to": "Wirasm/archon-software-factory:order",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "order-after-landed",
@@ -1437,6 +1448,7 @@
         "outcome": "ready"
       },
       "to": "Wirasm/archon-software-factory:landgate",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "landgate-after-deliver",
@@ -1450,6 +1462,7 @@
         "outcome": "ready"
       },
       "to": "Wirasm/archon-software-factory:discoveries",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "discoveries-after-deliver",
@@ -1463,6 +1476,7 @@
         "settled": "answered"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-answers",
@@ -1477,6 +1491,7 @@
         "option": "replan"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-deliver-replan",
@@ -1491,6 +1506,7 @@
         "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:deliver",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "deliver-after-answers",
@@ -1504,6 +1520,7 @@
         "outcome": "planned"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-plan",
@@ -1517,6 +1534,7 @@
         "outcome": "built"
       },
       "to": "Wirasm/archon-software-factory:stage-check",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-check-after-build",
@@ -1530,6 +1548,7 @@
         "outcome": "return"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-check",
@@ -1543,6 +1562,7 @@
         "outcome": "approve"
       },
       "to": "Wirasm/archon-software-factory:stage-host",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-host-after-check",
@@ -1556,6 +1576,7 @@
         "outcome": "return"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-host",
@@ -1569,6 +1590,7 @@
         "outcome": "built_for_host"
       },
       "to": "Wirasm/archon-software-factory:stage-host",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-host-after-fix",
@@ -1582,6 +1604,7 @@
         "outcome": "ready"
       },
       "to": "Wirasm/archon-software-factory:landgate",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "landgate-after-stage-host",
@@ -1595,6 +1618,7 @@
         "outcome": "land"
       },
       "to": "Wirasm/archon-software-factory:land",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "land-after-landgate",
@@ -1609,6 +1633,7 @@
         "option": "land"
       },
       "to": "Wirasm/archon-software-factory:land",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "land-after-landgate-answers",
@@ -1623,6 +1648,7 @@
         "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-landgate-answers",
@@ -1636,6 +1662,7 @@
         "outcome": "returned"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-land",
@@ -1650,6 +1677,7 @@
         "option": "land"
       },
       "to": "Wirasm/archon-software-factory:land",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "land-after-land-answers",
@@ -1664,6 +1692,7 @@
         "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-land-answers",
@@ -1677,6 +1706,7 @@
         "outcome": "landed"
       },
       "to": "Wirasm/archon-software-factory:landed",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "landed-after-land",
@@ -1690,6 +1720,7 @@
         "outcome": "landed"
       },
       "to": "Wirasm/archon-software-factory:discoveries",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "discoveries-after-land",
@@ -1704,6 +1735,7 @@
         "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-build-answers",
@@ -1718,6 +1750,7 @@
         "option": "take-as-is"
       },
       "to": "Wirasm/archon-software-factory:stage-host",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-host-after-build-as-is",
@@ -1732,6 +1765,7 @@
         "option": "replan"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-stage-build-replan",
@@ -1746,6 +1780,7 @@
         "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-check-answers",
@@ -1760,6 +1795,7 @@
         "option": "one-more-round"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-check-answers",
@@ -1774,6 +1810,7 @@
         "option": "take-as-is"
       },
       "to": "Wirasm/archon-software-factory:stage-host",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-host-after-check-as-is",
@@ -1788,6 +1825,7 @@
         "option": "replan"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-stage-check-replan",
@@ -1802,6 +1840,7 @@
         "option": "send-back"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-host-answers",
@@ -1816,6 +1855,7 @@
         "option": "one-more-round"
       },
       "to": "Wirasm/archon-software-factory:stage-build",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "stage-build-after-host-one-more",
@@ -1830,6 +1870,7 @@
         "option": "replan"
       },
       "to": "Wirasm/archon-software-factory:plan",
+      "linked": null,
       "active": false,
       "declared": {
         "binding": "plan-after-stage-host-replan",

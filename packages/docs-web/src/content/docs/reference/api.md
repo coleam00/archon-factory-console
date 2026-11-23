@@ -82,6 +82,7 @@ curl http://localhost:3090/api/health
 | DELETE | `/api/conversations/{id}` | Soft-delete a conversation |
 | GET | `/api/conversations/{id}/messages` | List messages in a conversation |
 | POST | `/api/conversations/{id}/message` | Send a message to a conversation |
+| POST | `/api/conversations/{id}/cancel` | Stop the in-flight chat reply; returns whether a reply was stopped |
 
 ### List Conversations
 
@@ -123,6 +124,14 @@ curl -X POST http://localhost:3090/api/conversations/{id}/message \
 ```
 
 The message is dispatched to the orchestrator asynchronously. The response confirms dispatch -- actual AI responses arrive via SSE streaming or can be polled via the messages endpoint.
+
+### Stop a Reply
+
+```bash
+curl -X POST http://localhost:3090/api/conversations/{id}/cancel
+```
+
+Aborts the provider call of the reply in progress, so it stops spending. The partial reply stays in the conversation, followed by a `Response stopped.` message with category `chat_interrupted`, and the next message continues the same conversation. Messages already queued behind the stopped reply still run. The response is `{"cancelled": true}` when a reply was stopped and `{"cancelled": false}` when nothing was in flight. It needs the same access as sending a message.
 
 ### Get Messages
 
@@ -327,7 +336,7 @@ Only user-defined workflows can be deleted. Bundled defaults cannot be removed.
 | POST | `/api/workflows/runs/{runId}/respond` | Resolve a paused gate with one of its declared decisions |
 | POST | `/api/workflows/runs/{runId}/answer` | Answer a paused attention wait in its declared form, naming the exact occurrence; `recommended: true` chooses the option it recommends, and `as` records a self-declared answerer |
 | POST | `/api/workflows/runs/{runId}/signal` | Signal an external event wait; use `occurrence` for an exact match |
-| DELETE | `/api/workflows/runs/{runId}` | Delete a terminal run and its events |
+| DELETE | `/api/workflows/runs/{runId}` | Delete a terminal run, its events and [its files](/reference/database/#a-runs-files-on-disk). Returns **400** with the reason, and deletes nothing, for a run that is not terminal, left asks or waits open on its item, has a `workflow:` sub-run, at any depth, that has not ended, or is adopted by a run that has not ended. A **200** means the row is deleted; `files.failed` lists each path still on disk with its error, and `files.unlocated` names a run whose files could not be located |
 
 For `/signal`, send `{ "event": "checks.complete", "occurrence": "<metadata.wait.pauseId>", "payload": { "conclusion": "success" } }`. The occurrence identifies the exact wait, including when deadlines repeat. The legacy `resumeAt` selector remains accepted and is required when `occurrence` is omitted; it cannot distinguish two occurrences with the same event and deadline. If both selectors are supplied, both must match. Waits persisted without a `pauseId` can still be signaled using `resumeAt`.
 

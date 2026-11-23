@@ -27,21 +27,11 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Generated API types, lint, format
         run: bun run validate --only generated-files,lint,format
-      # A private repository's runner has 7 GB; `bun run type-check` checks every package at
-      # once and runs out of memory there, so the packages are checked one after another.
-      - name: Type-check, one package at a time
-        env:
-          NODE_OPTIONS: --max-old-space-size=5120
-        run: |
-          for p in packages/*/; do
-            if grep -q '"type-check"' "$p/package.json" 2>/dev/null; then
-              printf '== %s\n' "$p"
-              bun run --cwd "$p" type-check || exit 1
-            fi
-          done
-          bun x tsc --noEmit -p scripts/tsconfig.json
-          bun x tsc --noEmit -p .archon/scripts/tsconfig.json
-          bun x tsc --noEmit -p .archon/workflows/tsconfig.json
+      # One TypeScript 7 `tsc -b` build over every package and root project (dev's scripts/type-check.ts),
+      # one project at a time: measured 1.7 GB peak, so a private repository's 7 GB runner no longer
+      # needs the packages checked one after another.
+      - name: Type-check
+        run: bun run type-check
       # The factory overview's line rules exist twice (the schema in packages/workflows, the web
       # layout); this seeded test keeps the two copies giving the same verdict.
       - name: Factory overview geometry parity
@@ -119,6 +109,13 @@ jobs:
     name: postgres
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # These tests assert behaviour across stores, never durability, so their writes stay off
+    # the runner's root disk (dev #6115): temp (the file store's root) goes to tmpfs through
+    # TMPDIR, and the server's data directory is a tmpfs mount (PGDATA in the postgres 17
+    # image; from 18 the image keeps data elsewhere). Durable fsyncs stalled single cheap
+    # tests for 1-5 s on a shared runner.
+    env:
+      TMPDIR: /dev/shm
     services:
       postgres:
         image: postgres:17-alpine
@@ -127,6 +124,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
+          --tmpfs /var/lib/postgresql/data
           --health-cmd pg_isready
           --health-interval 5s
           --health-timeout 5s

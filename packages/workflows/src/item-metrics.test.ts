@@ -7,6 +7,7 @@ function run(workflow: string, startedAt: string, outcome: string | null = null)
   return {
     id: `${workflow}-${startedAt}`,
     workflow,
+    pack: null,
     status: 'completed',
     outcome,
     startedAt,
@@ -28,6 +29,7 @@ function read(key: string, runs: ItemRun[], mergedAt: string | null): ItemRead {
     queued: [],
     skipped: [],
     hold: null,
+    runLimit: null,
     waits: [],
     held: [],
     questions: [],

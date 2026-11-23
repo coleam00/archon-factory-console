@@ -18,6 +18,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         {
           id: 'c9773ff3-36bf-413e-a3b3-45ce93a77087',
           workflow: 'Wirasm/archon-software-factory:deliver',
+          pack: null,
           status: 'running',
           outcome: null,
           startedAt: '2026-11-17T06:41:56.000Z',
@@ -37,6 +38,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
       queued: [],
       skipped: [],
       hold: null,
+      runLimit: null,
       held: [],
       waits: [],
       merged: null,
@@ -74,6 +76,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         {
           id: '624c763f-4f33-46ea-aa65-bb1ba78c1eec',
           workflow: 'Wirasm/archon-software-factory:deliver',
+          pack: null,
           status: 'running',
           outcome: null,
           startedAt: '2026-11-17T06:44:47.000Z',
@@ -94,6 +97,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
       queued: [],
       skipped: [],
       hold: null,
+      runLimit: null,
       held: [],
       waits: [],
       merged: null,
@@ -153,6 +157,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         {
           id: '585ed621-5f63-4148-bb95-92cfb4c7f52a',
           workflow: 'Wirasm/archon-software-factory:deliver',
+          pack: null,
           status: 'running',
           outcome: null,
           startedAt: '2026-11-17T05:51:11.000Z',
@@ -172,6 +177,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
       queued: [],
       skipped: [],
       hold: null,
+      runLimit: null,
       held: [],
       waits: [],
       merged: null,
@@ -209,6 +215,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
         {
           id: 'f4e603d9-bdeb-4614-a411-77e76eb77777',
           workflow: 'Wirasm/archon-software-factory:deliver',
+          pack: null,
           status: 'completed',
           outcome: 'ask',
           startedAt: '2026-11-17T05:25:23.000Z',
@@ -228,6 +235,7 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
       queued: [],
       skipped: [],
       hold: null,
+      runLimit: null,
       held: [],
       waits: [],
       merged: null,

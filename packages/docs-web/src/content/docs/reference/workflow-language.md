@@ -1723,6 +1723,31 @@ holds every link from or to the item, each with its `direction` and the `other` 
 ended link stays with `ended` set, and the engine acts on no link. Like
 `state`, it runs on the host: a container-isolated node cannot call it.
 
+Each run's `workflow` is the name it was started under. For a workflow in a pack in the
+project that is its `name:` (`stage-check`); for the same pack installed with
+`archon plugin add` it is `owner/plugin:<entrypoint>`, where the entrypoint is the name the
+pack's manifest publishes, which may differ from `name:`. `pack` holds the run's pack `key`
+(the folder name for a project pack, `owner.plugin` for an installed one) and `workflow`,
+the workflow's `name:` within that pack, which is the same for both copies. It is `null`
+for a workflow outside a pack and for runs recorded before the engine kept a run's pack and
+in-pack name.
+
+`pack.workflow` is local to its pack: another pack's runs on the same item may share the
+name. To find the runs of a workflow of your own pack, compare both values, taking your
+pack's `key` from your own run's row rather than writing it in, since it differs between
+the project copy and an installed one:
+
+```ts
+const runs = item()?.runs ?? [];
+const own = runs.find(run => run.id === runId())?.pack;
+const checks = runs.filter(
+  run => run.pack?.key === own?.key && run.pack?.workflow === 'stage-check'
+);
+```
+
+A `workflow:` child's own run is not on the item, so a child finds no row there; pass it
+what it needs from its parent.
+
 ### Reading an earlier run's result
 
 A stage that needs what an earlier run on its item returned declares it as an input, naming
@@ -2422,7 +2447,9 @@ none. An ask holds:
 - `context`: what is at stake and why it came up.
 - `options`: at least two, each with a kebab-case `id`, what it `does` and what it `cost`s.
   The id `other` is reserved: every ask also offers it, answered with text.
-- `recommendation`: `{ option, why }`; `option` must name one of the ask's options.
+- `recommendation`: `{ option, why }`, where `option` names one of the ask's options, or
+  `null` when the stage has no basis to choose between them. The key is still required, so a
+  `bash:` or `script:` node writes `"recommendation": null` rather than leaving it out.
 - `artifacts`: [artifact pointers](#a-small-result-that-points-at-a-large-file) the operator
   should read to decide; empty when there are none.
 
@@ -2460,6 +2487,11 @@ What the engine does with them:
   them, next to paused runs, and answered or withdrawn by their ref (`archon workflow answer
   --ref`/`--withdraw`, `POST /api/attention/answer`, `POST /api/attention/withdraw`, or the chat
   tool). Who may answer is the rule of the run that left the ask: its starter, or an admin.
+- **An ask may carry no recommendation.** One whose `recommendation` is `null` shows as having
+  none in `archon workflow attention`, in the console and in the item's tracker comment.
+  `workflow answer --ref <ref> --recommended` on it is refused, and the ask stays open: choose
+  one of its options. An Archon binary from before this field could be `null` reports such an
+  ask as unreadable and leaves it out of its queue; answer it with a binary that knows it.
 - **The run stays while its asks are open.** Deleting a run that left open asks is refused, and
   run cleanup skips it, until each ask is answered or withdrawn: the run's starter decides who
   may answer. Once they are closed the run may go; the item keeps its asks, their answers and
@@ -2861,6 +2893,17 @@ bindings:
       number: { input: number }       # one of the ended run's inputs; run-ended bindings only
       findings: { result: /findings } # a JSON Pointer into the ended run's result
       decided: { item: answers }      # every answer on the item; not with linked
+  order-after-split:
+    workflow: order
+    resource: order
+    overlap: queue
+    run_ended:
+      workflow: split
+      outcome: split
+      linked: { kind: part_of, holder: from, items: /start }  # only the items the run names
+    inputs:
+      brief: { entry: /brief }        # the started item's own entry; linked with items only
+      part_of: { item: key }          # the key of the item whose run ended
   fix-again:
     workflow: review-fix
     resource: fix
@@ -2898,8 +2941,14 @@ left, as [`on.runEnded.checkout`](/guides/workflow-triggers/#work-in-the-checkou
 does. `run_ended.linked: { kind: <link kind>, holder: from | to }` starts the workflow on every
 item holding an active link of that kind to the ended run's item instead of on that item, as
 [`on.runEnded.linked`](/guides/workflow-triggers/#start-a-stage-on-an-item-when-the-items-it-links-to-end)
-does, and takes no `checkout`. A `{ item: key }` input, run-ended bindings only, passes the key
-of the item whose run ended. A `{ item: answers }` input passes every answer given on the item,
+does, and takes no `checkout`. `linked.items: <JSON Pointer>` narrows it to the items the ended
+run names in the list at that pointer in its result, each entry an item key or an object with a
+string `key`, as
+[`on.runEnded.linked.items`](/guides/workflow-triggers/#name-the-linked-items-that-start)
+does; a named item that holds no such link is refused on the ended run's item. A
+`{ entry: <JSON Pointer> }` input reads from the started item's own entry of that list, so each
+start gets its own value, and is refused unless `linked.items` is set. A `{ item: key }` input,
+run-ended bindings only, passes the key of the item whose run ended. A `{ item: answers }` input passes every answer given on the item,
 as `on.runEnded.inputs` does; a binding with `linked` cannot map it.
 
 An `asks_settled:` binding is an
@@ -3166,11 +3215,13 @@ ids too long to fit in a branch name. Four consequences are worth knowing before
 for it:
 
 - **The branch starts from the repo's base branch, not the parent's.** The worktree is cut
-  from `origin/<baseBranch>` **in the canonical checkout**, not from the parent's working
+  from `<remote>/<baseBranch>` **in the canonical checkout**, not from the parent's working
   tree. The base is levels 3–5 of the [base-branch precedence
   table](/reference/cli/#base-branch-precedence): `worktree.baseBranch` in
   `.archon/config.yaml`, else the codebase's stored default branch, else git
-  auto-detection. Levels 1 and 2 are missing on purpose: **the per-dispatch `--base` / `--from`
+  auto-detection. A repository with no remote needs no fake one: each child is cut from
+  that local branch, or from the canonical checkout's current branch when none is set,
+  and nothing is fetched. Levels 1 and 2 are missing on purpose: **the per-dispatch `--base` / `--from`
   overrides and the parent item's landing branch do not change an isolated child's cut-from**, so
   `archon workflow run parent --base release/2.0` still cuts every isolated child from the
   repo's configured base. Its `$BASE_BRANCH` reports that provisioning base. If the branch
@@ -3389,7 +3440,8 @@ Resume skips a completed fan-out and reports how many children were previously r
 It does not repeat children that ran, including failed children in an `all_done` batch.
 Resume uses the captured parent source, so correcting a binding in that source requires
 a fresh launch. Project child workflows still resolve from the live authoring directory
-when spawned; installed packs remain captured. A transient refusal may also clear before
+when spawned; under a parent whose definitions came from the base branch that is the parent's
+capture with its checkout's changes on top. Installed packs remain captured. A transient refusal may also clear before
 resume.
 
 ##### A completed fan-out node is not completed child work
