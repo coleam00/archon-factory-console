@@ -551,7 +551,7 @@
               },
               {
                 "title": "Hand on",
-                "text": "Hands the change on to CI, back to the builder or to you",
+                "text": "Hands the change on to CI, back to the builder or to Plan, or to you",
                 "icon": "send",
                 "kind": "script",
                 "covers": [

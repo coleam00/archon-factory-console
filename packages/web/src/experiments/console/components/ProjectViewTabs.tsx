@@ -68,8 +68,9 @@ function FactoryWaitingBadge({
 }
 
 /**
- * How many wait on a person, in the needs-you colour. Nothing while none does. A chip that counts needs-you stays soft
- * (Visual standard, rule 5): the filled pill is a card's own Needs you state.
+ * How many wait on a person, in the needs-you colour; nothing while none does. A chip that
+ * counts needs-you stays soft (Visual standard, rule 5): the filled pill is a card's own Needs
+ * you state.
  */
 export function WaitingBadge({ count }: { count: number }): ReactElement | null {
   if (count === 0) return null;
