@@ -7,6 +7,7 @@
 import { ensureUtc } from '../../lib/format';
 import type { PlacedCard } from './board';
 import type { TableSort } from './board-table';
+import { mergeUnknown, mergeUnsettled } from './merge-pending';
 
 /** `?view=table` shows the board's Table view; Pipeline is the default. */
 export const VIEW_PARAM = 'view';
@@ -22,6 +23,7 @@ export const BOARD_SHOWS = [
   'landed-of-all',
   'median-to-land',
   'found',
+  'unknown',
 ] as const;
 export type BoardShow = (typeof BOARD_SHOWS)[number];
 
@@ -84,6 +86,12 @@ export const BOARD_SHOW: Record<BoardShow, BoardShowSpec> = {
     sort: { by: 'toLand', descending: false },
     mark: 'median',
   },
+  unknown: {
+    label: 'merge state could not be read',
+    opens: 'Open the board, only the items whose merge state could not be read',
+    narrows: true,
+    table: false,
+  },
   found: {
     label: 'found by the factory',
     opens: 'Open the board with Found by the factory open',
@@ -118,11 +126,14 @@ function sameLocalDay(iso: string, now: Date): boolean {
 
 /**
  * Whether the show `show` keeps `placed`. In flight: on the board, outside the landed stage,
- * and not parked (open, but nothing works it until someone takes it up). Needs you: its pill
- * says so. Landed, and the median's: in the landed stage. Landed today: landed, its change
- * merged on `now`'s local day. Landed of all: anywhere on the board (the M of "N of M"). Found
- * narrows nothing (`filterBoard` never asks). An item an ending took off the board, or one
- * placement found no column for, is in none.
+ * not parked (open, but nothing works it until someone takes it up), and its merge state
+ * known. Needs you: its pill says so. Landed, and the median's: in the landed stage, its
+ * merge state known. Landed today: landed, its change merged on `now`'s local day. Landed of
+ * all: anywhere on the board (the M of "N of M"). Found narrows nothing (`filterBoard` never
+ * asks). An item an ending took off the board, or one placement found no column for, is in
+ * none. An item whose merge state is not known (`mergeUnsettled`) is in no show that says
+ * what merged or what is in flight, as either might be wrong. Unknown: on the board, its merge
+ * state could not be read (`mergeUnknown`), the set the Overview's line names.
  */
 export function showsCard(
   show: BoardShow,
@@ -132,10 +143,11 @@ export function showsCard(
 ): boolean {
   const { column, card, item } = placed;
   if (column === null || 'ended' in column) return false;
-  const landed = column.stage.id === landedStage;
+  const unsettled = mergeUnsettled(item);
+  const landed = column.stage.id === landedStage && !unsettled;
   switch (show) {
     case 'in-flight':
-      return !landed && card.pill !== 'parked';
+      return column.stage.id !== landedStage && !unsettled && card.pill !== 'parked';
     case 'needs-you':
       return card.pill === 'needs-you';
     case 'landed':
@@ -144,6 +156,8 @@ export function showsCard(
     case 'landed-of-all':
     case 'found':
       return true;
+    case 'unknown':
+      return mergeUnknown(item);
     case 'landed-today': {
       const mergedAt = item.progress?.change?.mergedAt ?? null;
       return landed && mergedAt !== null && sameLocalDay(mergedAt, now);

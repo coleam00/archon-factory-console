@@ -13,11 +13,22 @@ describe('the board shows a number opens', () => {
       'landed-of-all',
       'median-to-land',
       'found',
+      'unknown',
     ]);
     for (const show of BOARD_SHOWS) expect(parseBoardShow(show)).toBe(show);
     expect(parseBoardShow('bogus')).toBeUndefined();
     const model = boardModel(VIEW, 'cb-1', PAGE.items, new Map());
     expect(filterBoard(model, '', parseBoardShow('bogus'))).toBe(model);
+  });
+
+  test('Unknown narrows the board to the items whose merge state could not be read', () => {
+    const model = boardModel(VIEW, 'cb-1', PAGE.items, new Map());
+    const keys = filterBoard(model, '', 'unknown').columns.flatMap(column =>
+      column.cards.map(placed => placed.card.key)
+    );
+    // Item 3's change is `unknown`; item 8's is too, but a run works it, so it is placed and
+    // counted by that run.
+    expect(keys).toEqual(['3']);
   });
 
   test('Found opens a panel and narrows nothing; every other show narrows', () => {

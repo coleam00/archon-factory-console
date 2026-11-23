@@ -9,7 +9,7 @@
 import { randomUUID } from 'node:crypto';
 import { getPluginsPath } from '@archon/paths';
 import { getArchonConfigPath } from '@archon/paths/archon-paths';
-import type { SourcePlugin } from '@archon/forge/discovery';
+import { discoverPlugins, type PluginDiscovery, type SourcePlugin } from '@archon/forge/discovery';
 import { dispatchForge } from '@archon/forge/dispatch';
 import { readForgeConfig, sourceForgePlugins } from '@archon/forge/host-plugins';
 import {
@@ -181,6 +181,43 @@ async function findChange(
   );
 }
 
+/** The plugins one lookup dispatches through. */
+type Discovery = () => Promise<PluginDiscovery>;
+
+/**
+ * The forge plugins under `archonHome`, discovered once for the process and shared by every
+ * lookup, since a discovery runs each plugin's metadata handshake: discovering per lookup
+ * stalled a cold server's first read for seconds (#137). Concurrent callers share the one in
+ * flight. A discovery that failed, or left a plugin unavailable, is not kept once it settles,
+ * so the next lookup discovers again rather than answering `unknown` until a restart. A plugin
+ * added or changed after that needs a server restart to be seen: the read is display-only,
+ * and runs and the CLI discover for themselves.
+ */
+export function forgeHostDiscoveryOnce(
+  archonHome: string,
+  env: NodeJS.ProcessEnv,
+  discover: typeof discoverPlugins = discoverPlugins
+): Discovery {
+  let held: Promise<PluginDiscovery> | null = null;
+  const drop = (settled: Promise<PluginDiscovery>): void => {
+    if (held === settled) held = null;
+  };
+  return () => {
+    if (held !== null) return held;
+    const started = forgeHostDiscovery(archonHome, env).then(found => discover(found));
+    held = started;
+    started.then(
+      found => {
+        if (found.unavailable.length > 0) drop(started);
+      },
+      () => {
+        drop(started);
+      }
+    );
+    return started;
+  };
+}
+
 /**
  * Which pull request a change is and whether it merged, asked of its forge with `pr.view`.
  * For a URL lookup, when one of the recording run's forge audit rows names its pull
@@ -188,20 +225,21 @@ async function findChange(
  * gives the item's runs' recorded branches, newest first, read only then, and the pull
  * request on one of them whose URL is the change is taken. A branch lookup (the run named
  * no URL) takes the first pull request on those branches in the project remote's
- * repository, whatever its URL. Never throws: a failure is `unknown` with its reason.
+ * repository, whatever its URL. Plugins come from `discovery` (`forgeHostDiscoveryOnce`).
+ * Never throws: a failure, a failed discovery included, is `unknown` with its reason.
  * Nothing is audited, as nothing here belongs to a run.
  */
 export async function changeMergeState(
   lookup: ChangeLookup,
   branches: () => Promise<readonly string[]>,
-  options: { archonHome: string; env: NodeJS.ProcessEnv; dispatch?: typeof dispatchForge }
+  options: { discovery: Discovery; env: NodeJS.ProcessEnv; dispatch?: typeof dispatchForge }
 ): Promise<ChangeMergeState> {
   try {
-    const discovery = await forgeHostDiscovery(options.archonHome, options.env);
     const ask: Ask = async request =>
       (
         await (options.dispatch ?? dispatchForge)(request, {
-          ...discovery,
+          discovery: await options.discovery(),
+          env: options.env,
           credentialEnv: options.env,
         })
       ).response;

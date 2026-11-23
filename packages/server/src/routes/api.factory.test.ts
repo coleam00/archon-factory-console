@@ -77,6 +77,44 @@ const noItems: FactoryRouteDeps = {
   },
 };
 
+const PR7 = 'https://forge.example/acme/web/pull/7';
+/** A forge audit row naming pull request 7 at `PR7`, the shape `pr.ready` records. */
+const PR7_AUDIT = {
+  integration: 'forge',
+  operationId: 'op-1',
+  operation: 'pr.ready',
+  target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
+  plugin: { name: 'github', version: '1' },
+  result: {
+    operationId: 'op-1',
+    ok: true,
+    result: {
+      op: 'pr.ready',
+      value: {
+        target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
+        outcome: 'applied',
+        changed: true,
+        pr: {
+          repo: { host: 'forge.example', path: 'acme/web' },
+          number: 7,
+          schemaVersion: 1,
+          url: PR7,
+          head: 'feature',
+          base: 'main',
+          is_draft: false,
+          state: 'open',
+          head_repo: { host: 'forge.example', path: 'acme/web' },
+          head_revision: 'a'.repeat(40),
+          base_revision: 'b'.repeat(40),
+          maintainer_can_modify: false,
+        },
+      },
+    },
+  },
+  retries: 0,
+  durationMs: 1,
+};
+
 describe('GET /api/factory/views', () => {
   const track = trackTempRoots();
 
@@ -550,41 +588,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
       event_type: 'integration_operation',
       step_index: null,
       step_name: null,
-      data: {
-        integration: 'forge',
-        operationId: 'op-1',
-        operation: 'pr.ready',
-        target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
-        plugin: { name: 'github', version: '1' },
-        result: {
-          operationId: 'op-1',
-          ok: true,
-          result: {
-            op: 'pr.ready',
-            value: {
-              target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
-              outcome: 'applied',
-              changed: true,
-              pr: {
-                repo: { host: 'forge.example', path: 'acme/web' },
-                number: 7,
-                schemaVersion: 1,
-                url: CHANGE,
-                head: 'feature',
-                base: 'main',
-                is_draft: false,
-                state: 'open',
-                head_repo: { host: 'forge.example', path: 'acme/web' },
-                head_revision: 'a'.repeat(40),
-                base_revision: 'b'.repeat(40),
-                maintainer_can_modify: false,
-              },
-            },
-          },
-        },
-        retries: 0,
-        durationMs: 1,
-      },
+      data: PR7_AUDIT,
       created_at: '2026-11-16T10:29:00Z',
       event_order: 8,
     },
@@ -711,6 +715,34 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
     expect(branchesSeen).toEqual([['branch-run-a']]);
   });
 
+  test("both routes hand an item's recorded merge to the cache: merged as recorded, the forge never asked", async () => {
+    const lookups: unknown[] = [];
+    const app = await itemsApp(withView, lookups);
+    const item = items.find(entry => entry.key === '1');
+    if (item === undefined) throw new Error('item 1 is in the fixture');
+    const at = '2026-11-17T02:00:00.000Z';
+    const read = source.store.getItemMerge;
+    source.store.getItemMerge = async id =>
+      id === item.id
+        ? { change: CHANGE, commit: null, at, recordedAt: at, via: 'cli', fromRun: null }
+        : null;
+    try {
+      // The run's audit row names PR 7, so not even the background number lookup runs.
+      const recorded = { url: CHANGE, merged: true, mergedAt: at, number: 7 };
+      const progress = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
+      expect(
+        factoryProgressResponseSchema.parse(await progress.json()).progress['1']?.change
+      ).toEqual(recorded);
+      const detail = await app.request('/api/factory/item?codebaseId=cb-1&key=1');
+      expect(
+        factoryItemDetailResponseSchema.parse(await detail.json()).item.progress?.change
+      ).toEqual(recorded);
+      expect(lookups).toEqual([]);
+    } finally {
+      source.store.getItemMerge = read;
+    }
+  });
+
   test("an empty change URL: the PR the forge finds on the item's branches in the project's remote", async () => {
     const lookups: unknown[] = [];
     const branchesSeen: string[][] = [];
@@ -802,15 +834,15 @@ describe('the merge-state cache', () => {
       },
     });
     const both = await Promise.all([
-      state(change, noBranches, null),
-      state(change, noBranches, null),
+      state(change, noBranches, null, null),
+      state(change, noBranches, null, null),
     ]);
     // The run's URL is shown, whatever the forge's answer names.
     expect(both).toEqual([
       { url: CHANGE, merged: false, mergedAt: null, number: null },
       { url: CHANGE, merged: false, mergedAt: null, number: null },
     ]);
-    await state(change, noBranches, null);
+    await state(change, noBranches, null, null);
     expect(lookups).toBe(1);
   });
 
@@ -823,17 +855,17 @@ describe('the merge-state cache', () => {
           finish = resolve;
         }),
     });
-    expect(await state(change, noBranches, null)).toEqual({
+    expect(await state(change, noBranches, null, null)).toEqual({
       url: CHANGE,
       merged: 'pending',
       mergedAt: null,
       number: null,
     });
     // Still running: the next read waits on the same lookup and answers pending again.
-    expect((await state(change, noBranches, null)).merged).toBe('pending');
+    expect((await state(change, noBranches, null, null)).merged).toBe('pending');
     finish({ url: CHANGE, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
     await settle();
-    expect(await state(change, noBranches, null)).toEqual({
+    expect(await state(change, noBranches, null, null)).toEqual({
       url: CHANGE,
       merged: true,
       mergedAt: '2026-11-17T01:00:00Z',
@@ -851,16 +883,16 @@ describe('the merge-state cache', () => {
           ? { url: null, merged: false, mergedAt: null, number: null }
           : { url: CHANGE, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 },
     });
-    expect((await state(change, noBranches, null)).merged).toBe(false);
+    expect((await state(change, noBranches, null, null)).merged).toBe(false);
     clock = 59_999;
-    expect((await state(change, noBranches, null)).merged).toBe(false);
+    expect((await state(change, noBranches, null, null)).merged).toBe(false);
     expect(lookups).toBe(1);
     clock = 60_000;
-    expect((await state(change, noBranches, null)).merged).toBe(false);
+    expect((await state(change, noBranches, null, null)).merged).toBe(false);
     await settle();
-    expect((await state(change, noBranches, null)).merged).toBe(true);
+    expect((await state(change, noBranches, null, null)).merged).toBe(true);
     clock = 10_000_000;
-    await state(change, noBranches, null);
+    await state(change, noBranches, null, null);
     expect(lookups).toBe(2);
   });
 
@@ -872,13 +904,13 @@ describe('the merge-state cache', () => {
         throw new Error('offline');
       },
     });
-    expect(await state(change, noBranches, null)).toEqual({
+    expect(await state(change, noBranches, null, null)).toEqual({
       url: CHANGE,
       merged: 'unknown',
       mergedAt: null,
       number: null,
     });
-    expect((await state(change, noBranches, null)).merged).toBe('unknown');
+    expect((await state(change, noBranches, null, null)).merged).toBe('unknown');
     expect(lookups).toBe(1);
   });
 
@@ -892,15 +924,84 @@ describe('the merge-state cache', () => {
       },
     });
     const branches = async (): Promise<string[]> => ['a'];
-    const first = await state({ kind: 'branch', run: 'run-1' }, branches, 'remote-1');
-    const second = await state({ kind: 'branch', run: 'run-2' }, branches, 'remote-1');
+    const first = await state({ kind: 'branch', run: 'run-1' }, branches, 'remote-1', null);
+    const second = await state({ kind: 'branch', run: 'run-2' }, branches, 'remote-1', null);
     expect([first.number, second.number]).toEqual([8, 9]);
     expect(first.url).toBe(`${CHANGE.slice(0, -1)}8`);
-    expect((await state({ kind: 'branch', run: 'run-1' }, branches, 'remote-1')).number).toBe(8);
+    expect((await state({ kind: 'branch', run: 'run-1' }, branches, 'remote-1', null)).number).toBe(
+      8
+    );
     expect(asked).toEqual([
       { kind: 'branch', remote: 'remote-1' },
       { kind: 'branch', remote: 'remote-1' },
     ]);
+  });
+
+  const recorded = { change: CHANGE, at: '2026-11-17T01:00:00.000Z' };
+  const fromRecord = { url: CHANGE, merged: true, mergedAt: recorded.at };
+
+  test('a recorded merge whose audit rows name its pull request never asks the change host', async () => {
+    let lookups = 0;
+    const state = changeStateCache({
+      changeMergeState: async () => {
+        lookups++;
+        return { url: null, merged: false, mergedAt: null, number: null };
+      },
+    });
+    const audited = { ...change, audits: [PR7_AUDIT] };
+    expect(await state(audited, noBranches, null, recorded)).toEqual({ ...fromRecord, number: 7 });
+    expect(lookups).toBe(0);
+  });
+
+  test('a recorded merge answers at once; its number alone is asked for once, in the background', async () => {
+    let lookups = 0;
+    let finish: (value: ChangeMergeState) => void = () => {};
+    const state = changeStateCache({
+      // The wait would answer pending; a recorded merge never waits on it.
+      changeStateWaitMs: 60_000,
+      changeMergeState: () => {
+        lookups++;
+        return new Promise(resolve => {
+          finish = resolve;
+        });
+      },
+    });
+    expect(await state(change, noBranches, null, recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    expect(await state(change, noBranches, null, recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    expect(lookups).toBe(1);
+    // The host answers with the pull request's number; whatever it says of the merge, the
+    // record holds.
+    finish({ url: CHANGE, merged: false, mergedAt: null, number: 9 });
+    await settle();
+    expect(await state(change, noBranches, null, recorded)).toEqual({ ...fromRecord, number: 9 });
+    expect(lookups).toBe(1);
+  });
+
+  test('a recorded merge takes no number from another pull request the host found', async () => {
+    let lookups = 0;
+    const state = changeStateCache({
+      changeMergeState: async () => {
+        lookups++;
+        return { url: `${CHANGE}0`, merged: true, mergedAt: null, number: 70 };
+      },
+    });
+    const branch = { kind: 'branch' as const, run: 'run-1' };
+    expect(await state(branch, noBranches, 'remote-1', recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    await settle();
+    expect(await state(branch, noBranches, 'remote-1', recorded)).toEqual({
+      ...fromRecord,
+      number: null,
+    });
+    expect(lookups).toBe(1);
   });
 
   test('a slow branch lookup answers pending with no URL yet', async () => {
@@ -908,7 +1009,7 @@ describe('the merge-state cache', () => {
       changeStateWaitMs: 10,
       changeMergeState: () => new Promise(() => {}),
     });
-    expect(await state({ kind: 'branch', run: 'run-1' }, noBranches, null)).toEqual({
+    expect(await state({ kind: 'branch', run: 'run-1' }, noBranches, null, null)).toEqual({
       url: null,
       merged: 'pending',
       mergedAt: null,

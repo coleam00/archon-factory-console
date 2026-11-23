@@ -180,7 +180,7 @@ describe('the Overview', () => {
     );
     const tiles = [
       ...strip.matchAll(
-        /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>([^<]*)</g
+        /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>(?:<span[^>]*>)?([^<]*)</g
       ),
     ].map(
       ([, label, href, value]) =>
@@ -188,7 +188,8 @@ describe('the Overview', () => {
     );
     const board = `/console/p/${ID}/factory/board`;
     expect(tiles).toEqual([
-      `5 in flight → ${board}?show=in-flight`,
+      // Item 3's merge state is unknown: counted only in M.
+      `4 in flight → ${board}?show=in-flight`,
       `0 need you → /console/p/${ID}/needs-you`,
       expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
       `3 of 8 merged → ${board}?view=table&show=landed-of-all`,
@@ -206,6 +207,8 @@ describe('the Overview', () => {
       'Open the table: every item, merged ones marked',
       'Open the table of merged items sorted by time to merge, the median marked',
       'Open the board with Found by the factory open',
+      // Item 3's merge state could not be read: said under the tiles, linking to it.
+      'Open the board, only the items whose merge state could not be read',
     ];
     expect([...strip.matchAll(/class="sr-only">, ([^<]*)</g)].map(([, said]) => said)).toEqual(
       opens

@@ -34,7 +34,17 @@ import {
   type WorkflowEventType,
 } from './store/event-types';
 import { buildNodeOutcomes } from './terminal-record';
-import { runChange } from './factory-change';
+import {
+  changeOf,
+  runChange,
+  type FactoryChangeRecord,
+  type FactoryChangeState,
+} from './factory-change';
+export type {
+  FactoryChangeLookup,
+  FactoryChangeRecord,
+  FactoryChangeState,
+} from './factory-change';
 import { factoryRunStoryShape, runStories } from './factory-item-story';
 import { decidedIn, itemRound, runRounds, type DecisionPoint } from './factory-rounds';
 import {
@@ -62,7 +72,8 @@ export const factoryRoundVerdictSchema = z.enum([
 export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
 
 /**
- * Whether the change merged, as the change host reported it: `unknown` when it could not
+ * Whether the change merged: `true` when the engine recorded the item's merge (the change
+ * host is then not asked whether it merged), else as the change host reported it: `unknown` when it could not
  * say, `pending` while the server is still asking it (read again shortly; the answer is
  * never cached).
  */
@@ -355,30 +366,6 @@ export function titleOfItemText(text: string): string | null {
 }
 
 /**
- * Which change to ask about: a change URL with the forge audit rows of the run that recorded
- * it, or, when no run named a URL, the pull request on the item's run branches, keyed by the
- * newest run of the change workflow that delivered without one.
- */
-export type FactoryChangeLookup =
-  | { kind: 'url'; url: string; audits: readonly unknown[] }
-  | { kind: 'branch'; run: string };
-
-/**
- * The URL, merge state and pull request number of a change, given the branches the item's
- * declared runs recorded, newest first: for a URL lookup, read only when its audit rows name
- * no pull request.
- */
-export type FactoryChangeState = (
-  lookup: FactoryChangeLookup,
-  branches: () => Promise<readonly string[]>
-) => Promise<{
-  url: string | null;
-  merged: FactoryChangeMerged;
-  mergedAt: string | null;
-  number: number | null;
-}>;
-
-/**
  * An item's progress from its runs (start order) and the facts of each run read. Only runs of
  * a workflow a stage lists place the item; a run only a shadow names adds its decisions.
  */
@@ -389,7 +376,9 @@ export async function factoryItemProgress(
   facts: ReadonlyMap<string, FactoryRunFacts>,
   changeState: FactoryChangeState,
   /** The branch a run recorded; null when it recorded none. */
-  branchOf: (run: WorkflowRun) => Promise<string | null>
+  branchOf: (run: WorkflowRun) => Promise<string | null>,
+  /** The merge the engine recorded on the item; null when none is, or its row is unreadable. */
+  recorded: FactoryChangeRecord | null
 ): Promise<FactoryItemProgress> {
   const read = [...runs]
     .filter(run => facts.has(run.id))
@@ -420,7 +409,7 @@ export async function factoryItemProgress(
     round: itemRound(view, declared, facts, run => declaredWorkflow(view, pack, run.workflow_name)),
     partOf: workOrderOf(view, pack, declared, facts),
     returned: declared.reduce((sum, run) => sum + (facts.get(run.id)?.returnCount ?? 0), 0),
-    change: await changeOf(declared, latest, changeState, branchOf),
+    change: await changeOf(declared, latest, changeState, branchOf, recorded),
     runs: declared.map(run => ({
       runId: run.id,
       workflow: declaredWorkflow(view, pack, run.workflow_name) ?? run.workflow_name,
@@ -430,34 +419,6 @@ export async function factoryItemProgress(
     // Placement reads the same last run: one started after the parking one takes the item up.
     parked: (last === undefined ? null : facts.get(last.id)?.parked) ?? null,
   };
-}
-
-/**
- * The item's change: the latest declared run that named a URL at the change pointer, as it
- * named it. When none did, the pull request on the item's run branches, but only when a run
- * delivered with an empty URL there and some run recorded a branch, so an item that has not
- * reached delivery never asks the change host.
- */
-async function changeOf(
-  declared: readonly WorkflowRun[],
-  latest: <T>(pick: (run: WorkflowRun, fact: FactoryRunFacts) => T | null) => T | null,
-  changeState: FactoryChangeState,
-  branchOf: (run: WorkflowRun) => Promise<string | null>
-): Promise<FactoryItemProgress['change']> {
-  const named = latest((_run, fact) =>
-    fact.change?.url ? { url: fact.change.url, audits: fact.change.audits } : null
-  );
-  if (named !== null) {
-    const answer = await changeState({ kind: 'url', ...named }, () =>
-      runBranches(declared, branchOf)
-    );
-    return { ...answer, url: named.url };
-  }
-  const unnamed = latest((run, fact) => (fact.change !== null ? run : null));
-  if (unnamed === null) return null;
-  const branches = await runBranches(declared, branchOf);
-  if (branches.length === 0) return null;
-  return changeState({ kind: 'branch', run: unnamed.id }, async () => branches);
 }
 
 /**
@@ -483,15 +444,6 @@ function workOrderOf(
         declaredWorkflow(view, pack, run.workflow_name) === workflow
     );
   return newest === undefined ? null : (facts.get(newest.id)?.partOf ?? null);
-}
-
-/** The distinct branches `runs` recorded, newest-started first. */
-async function runBranches(
-  runs: readonly WorkflowRun[],
-  branchOf: (run: WorkflowRun) => Promise<string | null>
-): Promise<string[]> {
-  const branches = await Promise.all([...runs].reverse().map(run => branchOf(run)));
-  return [...new Set(branches.filter((branch): branch is string => branch !== null))];
 }
 
 /**
@@ -771,13 +723,17 @@ async function itemProgress(
   // A declared run whose facts failed leaves the item's progress unknown, not partial.
   if (declared.some(run => !facts.has(run.id))) return null;
   try {
+    // An unreadable merge row reads as none: the change host is asked, and the item read's
+    // own `degraded` reports the row.
+    const merge = await source.store.getItemMerge(item.item.id);
     return await factoryItemProgress(
       input.view,
       input.pack,
       item.runs,
       facts,
       input.changeState,
-      run => source.branchOf(run)
+      run => source.branchOf(run),
+      merge === null || 'type' in merge ? null : { change: merge.change, at: merge.at }
     );
   } catch (error) {
     input.onProgressError(item.item.id, error);

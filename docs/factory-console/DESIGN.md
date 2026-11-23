@@ -949,10 +949,25 @@ What those reads do not carry comes from **one read-only route file**,
   the declared `change` pointer, what it said in its own words at the `story.said` pointers,
   the models its steps recorded, and when each of its steps started (the step id as the engine
   records it; the web places each step, so placement stays in one place).
-- Whether a change merged comes from the change host through Archon's forge seam (the same
-  `pull request view` operation the packs use), read by the server and cached for at least
-  60 s. The pull request is the one the run's forge records name, else the one on a branch
-  the item's runs recorded whose URL is the change (an earlier run may have opened it). An
+- Whether a change merged comes first from the merge the engine recorded on the item (a land
+  run records it, and `archon workflow merged` records one made by hand): a recorded item is
+  merged at the recorded time from the first read, placed and counted without the change
+  host, since a merge does not come undone and a restart then needs no lookup for it. Only
+  when no forge record of its runs names the pull request does the server ask the host, once
+  per process and in the background, for the number alone: the card shows "the change" until
+  that answer fills "PR #n" on a later read. Otherwise it comes
+  from the change host through Archon's forge seam (the same `pull request view` operation
+  the packs use), read by the server and cached for at least 60 s. The server discovers forge
+  plugins once per process (a plugin added after it starts needs a restart to be used here).
+  Items merged before land runs recorded merges carry no record:
+  `scripts/console-merge-backfill.ts` prints the `archon workflow merged` lines for the ones a
+  run's own URL confirms, for the operator to run once. It lists every other item that looks
+  merged or whose state could not be read (its pull request found by branch, no merge time,
+  `unknown`, still pending) with why, and says what to do: confirm the pull request, then
+  record it by hand with `archon workflow merged`, or leave it when it never merged. A run
+  with nothing to record says so. The pull request is the one the
+  run's forge records name, else the one on a branch the item's runs recorded whose URL is
+  the change (an earlier run may have opened it). An
   empty change URL is no URL: the item takes the latest earlier run that named one. When no
   run named one but a delivery run returned an empty URL, the change is the first pull request
   found on the item's run branches, newest branch first, in the project's registered remote,
@@ -977,10 +992,16 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    which is open), median time from first run to merged ("median to merged"). Each tile is a
    number tile in the card language: a 16 px icon and its label in the Label role, then the
    figure at `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
-   (Visual standard, rule 6) in place of its figure; while any item's merge state is pending,
-   every number but needs you and found by the factory shows the skeleton bar too, never a count
-   that may be wrong. A first read that fails replaces the tiles with an alert saying so; a
-   refresh that fails says so above the last values read (as the map and the board do).
+   (Visual standard, rule 6) in place of its figure. An item whose merge state is not known
+   (pending, or unknown: the lookup failed or found no pull request, with no run working it)
+   is in no number but M, never a count that may be wrong. While one is pending, every number
+   but needs you and found by the factory shows the count of what is known with the skeleton
+   bar beside it (rule 6: a skeleton is loading, and a pending state settles in seconds). An
+   unknown one may never settle, so it gets no skeleton: a line under the tiles says how many
+   in words ("1 merge state could not be read", `--text-console-13`), linking to the board
+   narrowed to those cards (`?show=unknown`). A first read that fails replaces the tiles with
+   an alert saying so; a refresh that fails says so above the last values read (as the map and
+   the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet and opens the board with that panel open; it
    has its own read, so it never holds up the other five. Each tile opens what it counts (owner
@@ -1151,7 +1172,8 @@ first rule that matches. The board, the map and the item page all place through 
    so a card does not hop; else the workflow's first stage. A view opened while a run is
    between named steps has no last read, so for that moment it can show the workflow's first
    stage where a view open longer still holds the item.
-2. Its change **merged**: the Merged column.
+2. Its change **merged**: the Merged column. A view that held the item in Merged on its last
+   read keeps it there while its merge state is pending or unknown.
 3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
    also places a run that returns no outcome, such as the pack's `landgate`): that stage.
 4. Its last run's outcome is in `endings`: not on the board; counted in a folded row per ending
@@ -1195,7 +1217,8 @@ A card, in this order:
    while the server is still asking, it says "checking merge state", and the column holding
    it and the Merged column show a skeleton bar (Visual standard, rule 6) instead of a count
    and no state chips; an empty column in that state shows skeleton cards, not its empty
-   placeholder.
+   placeholder. Either way the card sits where its runs put it, except that a card already in
+   Merged stays there: it never moves back to a stage it left because an answer is missing.
 7. For a failed item: one line saying what stopped it, naming its stage and the step it failed
    at ("Build failed at Writes the change"), never the workflow id. For one that needs you, the approval
    card's face (owner change 3), from the project's attention queue Needs you reads

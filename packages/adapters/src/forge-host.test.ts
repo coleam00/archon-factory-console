@@ -2,10 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PluginDiscoveryError, type PluginDiscovery } from '@archon/forge/discovery';
 import type { dispatchForge } from '@archon/forge/dispatch';
 import type { ForgeRequest } from '@archon/forge/operations';
 import { trackTempRoots } from '@archon/paths/test-utils';
-import { changeMergeState, prRefFromAudits } from './forge-host';
+import { changeMergeState, forgeHostDiscoveryOnce, prRefFromAudits } from './forge-host';
 
 const URL10 = 'https://github.com/coleam00/archon-factory-console/pull/10';
 const byUrl = (rows: unknown[]) => ({ kind: 'url' as const, url: URL10, audits: rows });
@@ -65,6 +66,16 @@ const audits: unknown[] = [
   },
 ];
 
+// The dispatch is replaced in these tests, so the plugins it would run through do not matter.
+const none: PluginDiscovery = {
+  plugins: [],
+  unavailable: [],
+  byHost: new Map(),
+  hostConfig: new Map(),
+  pluginTokenEnv: new Map(),
+};
+const noPlugins = async (): Promise<PluginDiscovery> => none;
+
 type Dispatch = typeof dispatchForge;
 type Dispatched = Awaited<ReturnType<Dispatch>>;
 
@@ -102,11 +113,6 @@ const viewed = (state: 'open' | 'closed' | 'merged', mergedAt: string | null) =>
   }) as unknown as Dispatched['response'];
 
 describe('the merge state of a change', () => {
-  const track = trackTempRoots();
-  // A home with no config file and no plugins: discovery reads nothing of the operator's.
-  const home = async (): Promise<string> =>
-    track(await mkdtemp(join(tmpdir(), 'archon-forge-host-')));
-
   test('finds the pull request in the audit rows that carry its record', () => {
     expect(prRefFromAudits(URL10, audits)).toEqual({ repo, number: 10 });
     expect(prRefFromAudits(`${URL10}1`, audits)).toBeNull();
@@ -119,7 +125,7 @@ describe('the merge state of a change', () => {
   test('a merged pull request is merged, with when and its number; asked by number with pr.view', async () => {
     const { dispatch, asked } = answering(viewed('merged', '2026-11-17T01:00:00Z'));
     const state = await changeMergeState(byUrl(audits), noBranches, {
-      archonHome: await home(),
+      discovery: noPlugins,
       env: {},
       dispatch,
     });
@@ -139,21 +145,23 @@ describe('the merge state of a change', () => {
   });
 
   test('an open pull request, or one closed without merging, is not merged', async () => {
-    const archonHome = await home();
     for (const state of ['open', 'closed'] as const) {
       const { dispatch } = answering(viewed(state, null));
       expect(
-        await changeMergeState(byUrl(audits), noBranches, { archonHome, env: {}, dispatch })
+        await changeMergeState(byUrl(audits), noBranches, {
+          discovery: noPlugins,
+          env: {},
+          dispatch,
+        })
       ).toEqual({ url: URL10, merged: false, mergedAt: null, number: 10 });
     }
   });
 
   test('a forge failure or a throw is unknown, with why', async () => {
     const failing = answering(refused);
-    const archonHome = await home();
     expect(
       await changeMergeState(byUrl(audits), noBranches, {
-        archonHome,
+        discovery: noPlugins,
         env: {},
         dispatch: failing.dispatch,
       })
@@ -168,7 +176,11 @@ describe('the merge state of a change', () => {
       throw new Error('spawn failed');
     };
     expect(
-      await changeMergeState(byUrl(audits), noBranches, { archonHome, env: {}, dispatch: throwing })
+      await changeMergeState(byUrl(audits), noBranches, {
+        discovery: noPlugins,
+        env: {},
+        dispatch: throwing,
+      })
     ).toEqual({
       url: null,
       merged: 'unknown',
@@ -234,9 +246,6 @@ const other = (() => {
 })();
 
 describe('a change no audit row names: the pull request on a run branch', () => {
-  const track = trackTempRoots();
-  const home = async (): Promise<string> =>
-    track(await mkdtemp(join(tmpdir(), 'archon-forge-host-')));
   const heads = (asked: ForgeRequest[]): string[] =>
     asked.flatMap(request =>
       request.op === 'pr.view' && request.selector.kind === 'head' ? [request.selector.head] : []
@@ -249,7 +258,7 @@ describe('a change no audit row names: the pull request on a run branch', () => 
       oldest: viewed('merged', '2026-11-17T01:00:00Z'),
     });
     const state = await changeMergeState(byUrl([]), async () => ['newest', 'middle', 'oldest'], {
-      archonHome: await home(),
+      discovery: noPlugins,
       env: {},
       dispatch: forge.dispatch,
     });
@@ -269,7 +278,7 @@ describe('a change no audit row names: the pull request on a run branch', () => 
   test('a forge failure mid-walk is unknown, not not-found, and stops the walk', async () => {
     const forge = forgeWith({ newest: refused, oldest: viewed('merged', '2026-11-17T01:00:00Z') });
     const state = await changeMergeState(byUrl([]), async () => ['newest', 'oldest'], {
-      archonHome: await home(),
+      discovery: noPlugins,
       env: {},
       dispatch: forge.dispatch,
     });
@@ -284,11 +293,10 @@ describe('a change no audit row names: the pull request on a run branch', () => 
   });
 
   test('no branch, or none with the change, is unknown with why', async () => {
-    const archonHome = await home();
     const none = forgeWith({});
     expect(
       await changeMergeState(byUrl([]), async () => [], {
-        archonHome,
+        discovery: noPlugins,
         env: {},
         dispatch: none.dispatch,
       })
@@ -297,7 +305,7 @@ describe('a change no audit row names: the pull request on a run branch', () => 
     const elsewhere = forgeWith({ only: other });
     expect(
       await changeMergeState(byUrl([]), async () => ['only'], {
-        archonHome,
+        discovery: noPlugins,
         env: {},
         dispatch: elsewhere.dispatch,
       })
@@ -306,9 +314,6 @@ describe('a change no audit row names: the pull request on a run branch', () => 
 });
 
 describe('a run that named no URL: the first pull request on a run branch', () => {
-  const track = trackTempRoots();
-  const home = async (): Promise<string> =>
-    track(await mkdtemp(join(tmpdir(), 'archon-forge-host-')));
   const REMOTE = 'https://github.com/coleam00/archon-factory-console.git';
 
   test("resolves the project's remote, passes over a branch with none, takes the next whatever its URL", async () => {
@@ -316,7 +321,7 @@ describe('a run that named no URL: the first pull request on a run branch', () =
     const state = await changeMergeState(
       { kind: 'branch', remote: REMOTE },
       async () => ['newest', 'middle', 'oldest'],
-      { archonHome: await home(), env: {}, dispatch: forge.dispatch }
+      { discovery: noPlugins, env: {}, dispatch: forge.dispatch }
     );
     expect(state).toEqual({
       url: `${URL10.slice(0, -2)}9`,
@@ -336,7 +341,7 @@ describe('a run that named no URL: the first pull request on a run branch', () =
     const forge = forgeWith({ only: viewed('merged', null) });
     expect(
       await changeMergeState({ kind: 'branch', remote: null }, async () => ['only'], {
-        archonHome: await home(),
+        discovery: noPlugins,
         env: {},
         dispatch: forge.dispatch,
       })
@@ -348,5 +353,52 @@ describe('a run that named no URL: the first pull request on a run branch', () =
       reason: 'the project has no remote to look the change up in',
     });
     expect(forge.asked).toEqual([]);
+  });
+});
+
+describe('forge plugins for the merge lookups', () => {
+  const track = trackTempRoots();
+  // A home with no config file: discovery reads nothing of the operator's.
+  const home = async (): Promise<string> =>
+    track(await mkdtemp(join(tmpdir(), 'archon-forge-host-')));
+  // The audit rows name the pull request, so no branch is read.
+  const noBranches = async (): Promise<string[]> => [];
+
+  test('are discovered once for concurrent and later lookups', async () => {
+    let discovered = 0;
+    const discovery = forgeHostDiscoveryOnce(await home(), {}, async () => {
+      discovered += 1;
+      return none;
+    });
+    const { dispatch } = answering(viewed('merged', '2026-11-17T01:00:00Z'));
+    const lookup = () =>
+      changeMergeState(byUrl(audits), noBranches, { discovery, env: {}, dispatch });
+    await Promise.all([lookup(), lookup(), lookup()]);
+    await lookup();
+    expect(discovered).toBe(1);
+  });
+
+  test('a failed discovery, or one that left a plugin unavailable, is discovered again', async () => {
+    const answers: (() => PluginDiscovery)[] = [
+      () => {
+        throw new Error('handshake timed out');
+      },
+      () => ({ ...none, unavailable: [new PluginDiscoveryError('process_failed', 'gone')] }),
+      () => none,
+    ];
+    let discovered = 0;
+    const discovery = forgeHostDiscoveryOnce(await home(), {}, async () => {
+      const answer = answers[discovered] ?? (() => none);
+      discovered += 1;
+      return answer();
+    });
+    const { dispatch } = answering(viewed('merged', '2026-11-17T01:00:00Z'));
+    const lookup = () =>
+      changeMergeState(byUrl(audits), noBranches, { discovery, env: {}, dispatch });
+    expect((await lookup()).merged).toBe('unknown');
+    await lookup();
+    await lookup();
+    await lookup();
+    expect(discovered).toBe(3);
   });
 });
