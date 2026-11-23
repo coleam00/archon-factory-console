@@ -616,7 +616,7 @@ const PACK_ROUTES = [
     cost: 'The item waits for shaping, and the draft can stop merging while it does.',
   },
 ];
-/** A stage-check ask of that shape; the pack leaves `recommendation` out when it has none. */
+/** A stage-check ask of that shape; a `recommendation: null` the pack writes reaches it absent. */
 const packAsk = (context: string, recommended = true): NeedsYouItem => {
   const { recommendation, ...ask } = askItem({
     askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
