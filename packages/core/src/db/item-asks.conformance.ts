@@ -166,13 +166,15 @@ export function describeSqlItemAskConformance(makeHarness: () => Promise<Harness
         'UPDATE remote_agent_workflow_runs SET active_phase_started_at = NULL WHERE id = $1',
         [runId]
       );
-      expect(await harness.store.deleteOldWorkflowRuns(1)).toEqual({ count: 0 });
+      expect((await harness.store.deleteOldWorkflowRuns(1)).runs).toEqual([]);
       // Still answerable by its run's rule, and once closed the run deletes as before.
       const [ref] = await openRefs(harness);
       expect(
         await withdrawAttentionItem(itemDeps(harness), ref ?? '', operator, 'cli')
       ).toMatchObject({ kind: 'withdrawn', settled: true });
-      expect(await harness.store.deleteOldWorkflowRuns(1)).toEqual({ count: 1 });
+      expect((await harness.store.deleteOldWorkflowRuns(1)).runs.map(run => run.id)).toEqual([
+        runId,
+      ]);
       expect(await harness.store.getWorkflowRun(runId)).toBeNull();
     } finally {
       await harness.close();
@@ -237,7 +239,9 @@ export function describeSqlItemAskConformance(makeHarness: () => Promise<Harness
         'UPDATE remote_agent_workflow_runs SET active_phase_started_at = NULL WHERE id = $1',
         [swept]
       );
-      expect(await harness.store.deleteOldWorkflowRuns(1)).toEqual({ count: 1 });
+      expect((await harness.store.deleteOldWorkflowRuns(1)).runs.map(run => run.id)).toEqual([
+        swept,
+      ]);
       expect(await harness.store.getWorkflowRun(kept)).toBeNull();
       expect(await harness.store.getWorkflowRun(swept)).toBeNull();
 
@@ -283,6 +287,28 @@ export function describeSqlItemAskConformance(makeHarness: () => Promise<Harness
         { closed_as: 'replaced', replaced_by_run_id: second },
       ]);
       expect(await settledEvents(harness, first)).toEqual([]);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  test('an ask may leave no recommendation: accepting one is refused and an option answers it', async () => {
+    const harness = await makeHarness();
+    try {
+      await completeWithAsks(harness, [{ ...ask('Which way?'), recommendation: null }]);
+      const [item] = await openAskItems(harness.store);
+      if (item === undefined || !('ref' in item)) throw new Error('Expected one readable ask');
+      expect('recommendation' in item).toBe(false);
+      const deps = itemDeps(harness);
+      await expect(
+        answerAttentionItem(deps, item.ref, { recommended: true }, operator, 'cli')
+      ).rejects.toThrow(
+        `Ask ${item.ref} has no recommendation to accept. Choose one of its options.`
+      );
+      expect(await openRefs(harness)).toEqual([item.ref]);
+      expect(
+        await answerAttentionItem(deps, item.ref, { choose: ['drop'] }, operator, 'cli')
+      ).toMatchObject({ kind: 'ask_answered', settled: true });
     } finally {
       await harness.close();
     }

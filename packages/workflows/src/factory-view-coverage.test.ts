@@ -28,6 +28,7 @@ const arrow = (
 ): Arrow => ({
   from: { stage: `o/p:${from}`, ...when },
   to: `o/p:${to}`,
+  linked: null,
   active: false,
   declared: { binding: `${from}-${to}`, problems: [] },
   installed: null,
@@ -39,6 +40,8 @@ const arrow = (
  */
 const graph = (): PackGraph => ({
   pack: 'o.p',
+  loaded: [],
+  otherCopies: [],
   stages: [
     { name: 'o/p:plan', returns: 'plan', outcome: null, asks: true, nodes: [node('plan')] },
     {

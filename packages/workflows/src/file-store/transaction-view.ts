@@ -116,6 +116,24 @@ export { TERMINAL_RUN_EVENT_TYPES } from '../schemas/workflow-run';
 const log = createLogger('file-store');
 
 /**
+ * Every run with a sub-run that has not ended, at any depth: cleanup keeps each of them, up
+ * to the root, so the tree `concurrency.runs` counts as one is never cut.
+ */
+function ancestorsOfLiveRuns(runs: ReadonlyMap<string, WorkflowRun>): Set<string> {
+  const ancestors = new Set<string>();
+  for (const run of runs.values()) {
+    if (isTerminalRunStatus(run.status)) continue;
+    for (
+      let up: string | null = run.parent_run_id;
+      up !== null && !ancestors.has(up);
+      up = runs.get(up)?.parent_run_id ?? null
+    )
+      ancestors.add(up);
+  }
+  return ancestors;
+}
+
+/**
  * `artifacts` holds the manifests the caller walked before taking the store lock; a
  * terminal write never walks the filesystem itself.
  */
@@ -477,18 +495,24 @@ export function createTransactionView(
     },
     deleteOldWorkflowRuns: async days => {
       if (!Number.isInteger(days) || days < 0) throw new Error('Invalid olderThanDays');
-      const ids = [...runs.values()]
+      const retained = ancestorsOfLiveRuns(runs);
+      // A continuation that has not ended reads its source's artifacts, so the source stays.
+      for (const run of runs.values())
+        if (run.adopted_from_run_id !== null && !isTerminalRunStatus(run.status))
+          retained.add(run.adopted_from_run_id);
+      const removed = [...runs.values()]
         .filter(
           run =>
             isTerminalRunStatus(run.status) &&
+            !retained.has(run.id) &&
             Math.max(
               run.started_at.getTime(),
               run.active_phase_started_at?.getTime() ?? -Infinity
             ) <
               Date.now() - days * 86_400_000
         )
-        .map(run => run.id);
-      const deleted = new Set(ids);
+        .map(({ id, output_root, codebase_id }) => ({ id, output_root, codebase_id }));
+      const deleted = new Set(removed.map(run => run.id));
       for (const id of deleted) runs.delete(id);
       const kept = events.filter(event => !deleted.has(event.workflow_run_id));
       events.splice(0, events.length, ...kept);
@@ -497,7 +521,7 @@ export function createTransactionView(
         if (run.adopted_from_run_id !== null && deleted.has(run.adopted_from_run_id))
           run.adopted_from_run_id = null;
       }
-      return { count: ids.length };
+      return { runs: removed };
     },
     resolveAndCancelApprovalGate: async (id, gateEvents, cancellation, expected) => {
       const run = structuredClone(runs.get(id));

@@ -17,13 +17,16 @@ import {
   type WorkflowRun,
   type WorkflowRunStatus,
 } from '@archon/workflows/schemas/workflow-run';
+import {
+  WorkflowRunDeleteRefusedError,
+  liveAdoptersRefusal,
+  liveDescendantsRefusal,
+  type DeletedWorkflowRun,
+} from '@archon/workflows/store';
 import { getDatabase, getDialect, pool } from './connection';
 import { insertWorkflowEvent } from './workflow-events';
 import { getWorkflowRun } from './workflow-run-reads';
 import { getLog, lockedRunRow, normalizeMetadata } from './workflow-run-shared';
-
-/** Guard error for deleteWorkflowRun — re-thrown without wrapping in the outer catch. */
-class WorkflowRunGuardError extends Error {}
 
 /**
  * Write-once run checkout baseline (#3305). The `IS NULL` guard makes the first value
@@ -249,10 +252,8 @@ export async function updateWorkflowActivity(id: string): Promise<void> {
   );
 }
 
-/**
- * Delete terminal workflow runs older than the given number of days.
- * Returns the count of deleted runs.
- */
+const terminalList = TERMINAL_WORKFLOW_STATUSES.map(status => `'${status}'`).join(', ');
+
 /**
  * A run that left asks still open on its item is kept: its events hold the record of the
  * set (who answered, the settle), and its starter decides who may answer them. So is one
@@ -269,7 +270,52 @@ const NO_OPEN_ASKS = `NOT EXISTS (
   WHERE remote_agent_item_waits.run_id = CAST(remote_agent_workflow_runs.id AS TEXT)
     AND remote_agent_item_waits.closed_as IS NULL)`;
 
-export async function deleteOldWorkflowRuns(olderThanDays: number): Promise<{ count: number }> {
+/**
+ * A run with a sub-run that has not ended, at any depth, is kept: deleting it nulls the
+ * sub-run's parent link (ON DELETE SET NULL), which splits the tree `concurrency.runs`
+ * counts as one. The walk goes up from every live run, like `countedTrees`, so it keeps a
+ * finished middle run too and the tree is never half deleted.
+ *
+ * Neither this nor the single delete's check is atomic with a sub-run that starts or resumes
+ * while the delete runs: on PostgreSQL such a sub-run can miss the check and lose its parent,
+ * and the run limit then miscounts that tree by one until it ends. Locking the tree against
+ * that was ruled not worth its cost (2026-11-22): it orders deletion against admission and
+ * resume, which can deadlock, and makes cleanup lock every old tree.
+ */
+const NO_LIVE_DESCENDANTS = `remote_agent_workflow_runs.id NOT IN (
+  WITH RECURSIVE up(id, parent_run_id) AS (
+    SELECT id, parent_run_id FROM remote_agent_workflow_runs WHERE status NOT IN (${terminalList})
+    UNION
+    SELECT p.id, p.parent_run_id FROM remote_agent_workflow_runs p JOIN up ON p.id = up.parent_run_id)
+  SELECT id FROM up)`;
+
+/**
+ * A run that a run which has not ended continues from is kept: the adopter reads the
+ * source's artifacts as `$ADOPTED_RUN_DIR`, and deleting the source removes them.
+ */
+const NO_LIVE_ADOPTERS = `NOT EXISTS (
+  SELECT 1 FROM remote_agent_workflow_runs adopter
+  WHERE adopter.adopted_from_run_id = remote_agent_workflow_runs.id
+    AND adopter.status NOT IN (${terminalList}))`;
+
+/** Ids per `IN (...)` list: far under SQLite's and PostgreSQL's bound-parameter limits. */
+const DELETE_CHUNK = 500;
+
+/**
+ * Delete terminal workflow runs older than the given number of days, except those kept above.
+ * Returns the deleted rows, so the caller can remove their files.
+ *
+ * The SQLite adapter refuses `DELETE ... RETURNING`, so this selects the rows and then
+ * deletes exactly those ids. The select must lock what it returns: on PostgreSQL a run that
+ * resumes between the select and the delete would otherwise be deleted while running, and
+ * its files removed. `FOR UPDATE` makes such a resume wait for this transaction, and a resume
+ * that committed first leaves its row failing the status check, so it is not selected.
+ * SQLite needs no lock: a write committed after this transaction read reruns it from the
+ * start. A sub-run that starts in between is the gap `NO_LIVE_DESCENDANTS` already accepts.
+ */
+export async function deleteOldWorkflowRuns(
+  olderThanDays: number
+): Promise<{ runs: DeletedWorkflowRun[] }> {
   if (!Number.isInteger(olderThanDays) || olderThanDays < 0) {
     throw new Error(
       `Invalid olderThanDays: ${String(olderThanDays)} (must be a non-negative integer)`
@@ -278,26 +324,28 @@ export async function deleteOldWorkflowRuns(olderThanDays: number): Promise<{ co
   const cutoff = getDialect().nowMinusDays(1);
   try {
     return await getDatabase().withTransaction(async query => {
-      // Delete events first (FK reference)
-      await query(
-        `DELETE FROM remote_agent_workflow_events WHERE workflow_run_id IN (
-          SELECT id FROM remote_agent_workflow_runs
-          WHERE status IN ('completed', 'failed', 'cancelled')
-            AND started_at < ${cutoff}
-            AND COALESCE(active_phase_started_at, started_at) < ${cutoff}
-            AND ${NO_OPEN_ASKS}
-        )`,
-        [olderThanDays]
-      );
-      const result = await query(
-        `DELETE FROM remote_agent_workflow_runs
+      const selected = await query<DeletedWorkflowRun>(
+        `SELECT id, output_root, codebase_id FROM remote_agent_workflow_runs
          WHERE status IN ('completed', 'failed', 'cancelled')
            AND started_at < ${cutoff}
            AND COALESCE(active_phase_started_at, started_at) < ${cutoff}
-           AND ${NO_OPEN_ASKS}`,
+           AND ${NO_OPEN_ASKS}
+           AND ${NO_LIVE_DESCENDANTS}
+           AND ${NO_LIVE_ADOPTERS}${getDialect().rowLock()}`,
         [olderThanDays]
       );
-      return { count: result.rowCount ?? 0 };
+      const runs = [...selected.rows];
+      for (let start = 0; start < runs.length; start += DELETE_CHUNK) {
+        const ids = runs.slice(start, start + DELETE_CHUNK).map(run => run.id);
+        const list = ids.map((_, index) => `$${String(index + 1)}`).join(', ');
+        // Events first: they reference the run row.
+        await query(
+          `DELETE FROM remote_agent_workflow_events WHERE workflow_run_id IN (${list})`,
+          ids
+        );
+        await query(`DELETE FROM remote_agent_workflow_runs WHERE id IN (${list})`, ids);
+      }
+      return { runs };
     });
   } catch (error) {
     const err = error as Error;
@@ -310,7 +358,11 @@ export async function deleteOldWorkflowRuns(olderThanDays: number): Promise<{ co
  * Delete a workflow run and its associated events.
  * Only terminal runs (completed, failed, cancelled) can be deleted, and not one that left
  * asks or waits still open: those asks would have no rule for who may answer them and no
- * run to record the answer on, and those waits none for who may withdraw them.
+ * run to record the answer on, and those waits none for who may withdraw them. Nor one with
+ * a sub-run, at any depth, that has not ended: deleting it nulls the sub-run's parent link,
+ * which splits the tree `concurrency.runs` counts as one. Nor one that a run which has not
+ * ended continues from, whose artifacts that run still reads. Every refusal is a
+ * `WorkflowRunDeleteRefusedError` whose message names what to do first.
  */
 export async function deleteWorkflowRun(id: string): Promise<void> {
   try {
@@ -321,10 +373,10 @@ export async function deleteWorkflowRun(id: string): Promise<void> {
         [id]
       );
       if (check.rows.length === 0) {
-        throw new WorkflowRunGuardError(`Workflow run not found: ${id}`);
+        throw new WorkflowRunDeleteRefusedError(`Workflow run not found: ${id}`);
       }
       if (!TERMINAL_WORKFLOW_STATUSES.includes(check.rows[0].status as WorkflowRunStatus)) {
-        throw new WorkflowRunGuardError(
+        throw new WorkflowRunDeleteRefusedError(
           `Cannot delete workflow run in '${check.rows[0].status}' status — cancel it first`
         );
       }
@@ -334,7 +386,7 @@ export async function deleteWorkflowRun(id: string): Promise<void> {
       );
       const open = Number(asks.rows[0]?.open ?? 0);
       if (open > 0) {
-        throw new WorkflowRunGuardError(
+        throw new WorkflowRunDeleteRefusedError(
           `Cannot delete workflow run ${id}: it left ${String(open)} open ask(s) on its item. Answer or withdraw them first (archon workflow answer --withdraw <ref>); archon workflow attention lists their refs.`
         );
       }
@@ -343,15 +395,43 @@ export async function deleteWorkflowRun(id: string): Promise<void> {
         [id]
       );
       if (Number(waits.rows[0]?.open ?? 0) > 0) {
-        throw new WorkflowRunGuardError(
+        throw new WorkflowRunDeleteRefusedError(
           `Cannot delete workflow run ${id}: its item still waits for what it named (returns.waits). Withdraw the waits first (archon workflow answer --withdraw wait:${id}).`
+        );
+      }
+      const live = await query<{ id: string; status: string }>(
+        `WITH RECURSIVE down(id) AS (
+           SELECT id FROM remote_agent_workflow_runs WHERE parent_run_id = $1
+           UNION
+           SELECT c.id FROM remote_agent_workflow_runs c JOIN down ON c.parent_run_id = down.id)
+         SELECT r.id, r.status FROM remote_agent_workflow_runs r JOIN down ON r.id = down.id
+          WHERE r.status NOT IN (${terminalList})
+          ORDER BY r.started_at, r.id`,
+        [id]
+      );
+      if (live.rows.length > 0) {
+        throw liveDescendantsRefusal(
+          id,
+          live.rows.map(row => ({ id: String(row.id), status: row.status }))
+        );
+      }
+      const adopters = await query<{ id: string; status: string }>(
+        `SELECT id, status FROM remote_agent_workflow_runs
+          WHERE adopted_from_run_id = $1 AND status NOT IN (${terminalList})
+          ORDER BY started_at, id`,
+        [id]
+      );
+      if (adopters.rows.length > 0) {
+        throw liveAdoptersRefusal(
+          id,
+          adopters.rows.map(row => ({ id: String(row.id), status: row.status }))
         );
       }
       await query('DELETE FROM remote_agent_workflow_events WHERE workflow_run_id = $1', [id]);
       await query('DELETE FROM remote_agent_workflow_runs WHERE id = $1', [id]);
     });
   } catch (error) {
-    if (error instanceof WorkflowRunGuardError) throw error;
+    if (error instanceof WorkflowRunDeleteRefusedError) throw error;
     const err = error as Error;
     getLog().error({ err, workflowRunId: id }, 'db.workflow_run_delete_failed');
     throw new Error(`Failed to delete workflow run: ${err.message}`);

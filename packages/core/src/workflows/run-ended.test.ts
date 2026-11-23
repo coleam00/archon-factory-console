@@ -9,7 +9,17 @@ import { providerRegistry } from '@archon/providers';
 import type { EndedCheckout } from '@archon/workflows/schemas/resource-start';
 import type { AttentionRead } from '@archon/workflows/schemas/attention-degraded';
 import type { StoredItemAsk } from '@archon/workflows/schemas/item-ask';
-import { createRunEndedPreflight, createRunEndedStarts, launchProjectKey } from './run-ended';
+import {
+  createRunEndedPreflight,
+  createRunEndedStarts,
+  launchProjectKey,
+  readTriggerFileHosts,
+} from './run-ended';
+
+/** No project is registered in these tests. */
+const NO_PROJECT_LOOKUPS = {
+  projectOf: async () => null,
+};
 
 const track = trackTempRoots();
 
@@ -178,6 +188,7 @@ describe('run-ended starts', () => {
       ...dependencies,
       providers: providerRegistry,
       loadConfig: () => Promise.reject(new Error('a run with no item loads no config')),
+      ...NO_PROJECT_LOOKUPS,
     });
     expect(await preflight(noItem)).toBeUndefined();
   });
@@ -239,6 +250,101 @@ describe('run-ended starts', () => {
     expect(await starts(facts({ outcome: { kind: 'enum', value: 'blocked' } }))).toEqual({
       receipts: [],
       linked: [],
+    });
+  });
+
+  describe('a linked binding that names its items', () => {
+    const split = (inputs: Record<string, unknown> = { brief: { entry: '/brief' } }) =>
+      triggersWith({
+        'split.json': trigger({
+          sourceInstanceId: 'order-after-split',
+          on: {
+            runEnded: {
+              workflowName: 'plan',
+              outcome: 'planned',
+              linked: { kind: 'part_of', holder: 'from', items: '/start' },
+              inputs,
+            },
+          },
+        }),
+      });
+    const withStart = (start: unknown) =>
+      facts({ result: { outcome: 'planned', start } as RunEndedFacts['result'] });
+
+    test('names each item to start, with the inputs its own entry maps', async () => {
+      const starts = await split({ brief: { entry: '/brief' }, part_of: { item: 'key' } });
+      const { receipts, linked } = await starts(
+        withStart([
+          { key: 'm1', brief: 'first' },
+          { key: 'm2', brief: 'second' },
+        ])
+      );
+      expect(receipts).toEqual([]);
+      const [start] = linked;
+      if (!start || !('named' in start)) throw new Error('no named linked start');
+      expect(
+        start.named.map(named => [
+          named.key,
+          named.acceptance.receipt.itemKey,
+          named.acceptance.outcome === 'matched' ? named.acceptance.bindings[0]?.eventInputs : null,
+        ])
+      ).toEqual([
+        ['m1', 'm1', { brief: 'first', part_of: ITEM.key }],
+        ['m2', 'm2', { brief: 'second', part_of: ITEM.key }],
+      ]);
+      const [first, second] = start.named;
+      expect(first?.acceptance.receipt.contentDigest).not.toBe(
+        second?.acceptance.receipt.contentDigest
+      );
+      // What the write records on the ended run's item when 'm1' holds no such link.
+      expect(first?.unlinked).toMatchObject({
+        outcome: 'unmatched',
+        receipt: { itemKey: ITEM.key, deliveryId: `${endedRun().id}:unlinked:m1` },
+      });
+      expect(first?.unlinked.reason).toContain(
+        `item 'm1' is named at linked.items '/start' but holds no active part_of link (holder: from) to '${ITEM.key}'`
+      );
+    });
+
+    test('an entry may be the key itself, read whole by an empty pointer', async () => {
+      const starts = await split({ member: { entry: '' } });
+      const [start] = (await starts(withStart(['m1']))).linked;
+      if (!start || !('named' in start)) throw new Error('no named linked start');
+      expect(start.named[0]?.acceptance).toMatchObject({
+        receipt: { itemKey: 'm1' },
+        bindings: [{ eventInputs: { member: 'm1' } }],
+      });
+    });
+
+    test('an entry its input pointer misses refuses only its own start', async () => {
+      const starts = await split();
+      const [start] = (await starts(withStart([{ key: 'm1', brief: 'b' }, { key: 'm2' }]))).linked;
+      if (!start || !('named' in start)) throw new Error('no named linked start');
+      expect(start.named.map(named => named.acceptance.outcome)).toEqual(['matched', 'unmatched']);
+      expect(start.named[1]?.acceptance.reason).toContain("entry pointer '/brief' did not resolve");
+    });
+
+    test('an empty list starts nothing and records nothing', async () => {
+      expect(await (await split())(withStart([]))).toEqual({ receipts: [], linked: [] });
+    });
+
+    test.each([
+      ['a missing list', undefined, 'did not resolve'],
+      ['a value that is not a list', { key: 'm1' }, 'is not a list'],
+      ['an entry with no key', [{ brief: 'b' }], 'entry 0 names no item key'],
+      ['an empty key', ['m1', ''], 'entry 1 names no item key'],
+      ['a key named twice', ['m1', { key: 'm1' }], "names item 'm1' more than once"],
+    ])('%s refuses the binding on the ended item and starts none', async (_label, start, why) => {
+      const starts = await split();
+      const ended = start === undefined ? facts() : withStart(start);
+      const { receipts, linked } = await starts(ended);
+      expect(linked).toEqual([]);
+      expect(receipts).toHaveLength(1);
+      expect(receipts[0]).toMatchObject({
+        outcome: 'unmatched',
+        receipt: { itemKey: ITEM.key, deliveryId: endedRun().id },
+      });
+      expect(receipts[0]?.reason).toContain(`split.json: linked.items '/start' ${why}`);
     });
   });
 
@@ -336,6 +442,7 @@ describe('run-ended starts', () => {
           ...dependencies,
           providers: providerRegistry,
           loadConfig: () => Promise.reject(new Error('not reached')),
+          ...NO_PROJECT_LOOKUPS,
         })(endedRun()),
     ]) {
       const refused = read();
@@ -541,5 +648,58 @@ describe('run-ended starts', () => {
     const projectKeyOf = launchProjectKey(async () => ITEM.projectKey);
     expect(await projectKeyOf(present)).toBe(ITEM.projectKey);
     expect(await projectKeyOf(join(present, 'deleted'))).toBeNull();
+  });
+});
+
+describe('the hosts trigger files name', () => {
+  const file = (sourceInstanceId: string, hostId: string, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      version: 1,
+      sourceInstanceId,
+      binding: {
+        bindingId: sourceInstanceId,
+        bindingRevision: null,
+        hostId,
+        runAsUserId: 'user',
+        resource: 'build',
+        overlap: 'queue',
+        launch: {
+          cwd: '/project',
+          workflowName: 'build',
+          inputs: {},
+          isolation: { kind: 'in-place' },
+        },
+      },
+      ...extra,
+    });
+
+  test('are every distinct host, of any form, and a broken file is reported by name beside them', async () => {
+    const directory = track(await mkdtemp(join(tmpdir(), 'archon-trigger-hosts-')));
+    await writeFile(join(directory, 'a-fire.json'), file('fire', 'mac'));
+    await writeFile(
+      join(directory, 'b-timer.json'),
+      file('timer', 'linux', { schedule: { intervalSeconds: 60, runAtLoad: false } })
+    );
+    await writeFile(
+      join(directory, 'c-on.json'),
+      file('on', 'mac', {
+        on: { runEnded: { workflowName: 'plan', outcome: 'planned', inputs: {} } },
+      })
+    );
+    await writeFile(join(directory, 'd-broken.json'), '{ not json');
+    await writeFile(join(directory, 'e-staged.json.tmp'), file('staged', 'staged-host'));
+    const { hostIds, failures } = await readTriggerFileHosts(directory);
+    expect(hostIds).toEqual(['mac', 'linux']);
+    expect(failures.map(failure => failure.message)).toEqual([
+      expect.stringContaining('d-broken.json'),
+    ]);
+  });
+
+  test('are none when the directory does not exist', async () => {
+    const directory = track(await mkdtemp(join(tmpdir(), 'archon-trigger-hosts-')));
+    expect(await readTriggerFileHosts(join(directory, 'missing'))).toEqual({
+      hostIds: [],
+      failures: [],
+    });
   });
 });

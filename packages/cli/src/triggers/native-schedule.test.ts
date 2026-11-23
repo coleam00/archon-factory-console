@@ -8,6 +8,7 @@ import { removeTempTree } from '@archon/paths/test-utils';
 import {
   inspectNativeSchedule,
   installNativeSchedule,
+  listNativeSchedules,
   NativeScheduleUnsupportedError,
   removeNativeSchedule,
   scheduledJob,
@@ -379,6 +380,7 @@ describe('systemd user timer', () => {
 });
 
 describe('Task Scheduler', () => {
+  const launcher = ['C:\\Program Files\\archon\\archon.exe'] as const;
   const windowsJob = (overrides: Partial<NativeScheduleConfig> = {}) =>
     config({
       programArguments: [
@@ -407,7 +409,7 @@ describe('Task Scheduler', () => {
     expect(wrapper).toContain(
       '(cd /d "C:\\Users\\me\\Project (one)" && "C:\\Program Files\\archon\\archon.exe" "trigger" "fire" "--config" "C:\\packs\\a&b 100%%.json" "C:\\trailing\\\\")'
     );
-    expect(wrapper).toContain(`>> "C:\\home${join('/schedules', `${LABEL}.log`)}" 2>&1`);
+    expect(wrapper).toContain(`>> "C:\\home\\schedules\\${LABEL}.log" 2>&1`);
     expect(() =>
       renderTaskWrapper(scheduledJob(windowsJob({ path: 'C:\\"bin' }), 'win32'))
     ).toThrow('double quote');
@@ -415,7 +417,7 @@ describe('Task Scheduler', () => {
 
   it('renders a task that repeats in whole minutes, never overlaps and runs on battery', () => {
     const job = scheduledJob(windowsJob({ archonHome: 'C:\\home' }), 'win32');
-    const xml = renderTaskDefinition(job, 'DOMAIN\\me');
+    const xml = renderTaskDefinition(job, 'DOMAIN\\me', launcher);
     expect(xml).toContain('<Interval>PT5M</Interval>');
     expect(xml).toContain('<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>');
     expect(xml).toContain('<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>');
@@ -423,11 +425,16 @@ describe('Task Scheduler', () => {
     expect(xml).toContain('<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>');
     expect(xml).toContain('<LogonTrigger><UserId>DOMAIN\\me</UserId>');
     expect(xml).toContain('<LogonType>InteractiveToken</LogonType>');
-    expect(xml).toContain(`/c ""C:\\home${join('/schedules', `${LABEL}.cmd`)}""`);
+    // The wrapper runs through the launcher, whose own console has no window.
+    expect(xml).toContain('<Command>%SystemRoot%\\System32\\conhost.exe</Command>');
+    expect(xml).toContain(
+      `<Arguments>--headless &quot;C:\\Program Files\\archon\\archon.exe&quot; &quot;--internal-schedule-launch&quot; &quot;C:\\home${join('/schedules', `${LABEL}.cmd`)}&quot;</Arguments>`
+    );
     expect(
       renderTaskDefinition(
         scheduledJob(windowsJob({ schedule: { intervalSeconds: 60, runAtLoad: false } }), 'win32'),
-        'me'
+        'me',
+        launcher
       )
     ).not.toContain('LogonTrigger');
 
@@ -435,20 +442,36 @@ describe('Task Scheduler', () => {
       expect(() =>
         renderTaskDefinition(
           scheduledJob(windowsJob({ schedule: { intervalSeconds, runAtLoad: false } }), 'win32'),
-          'me'
+          'me',
+          launcher
         )
       ).toThrow(`${String(intervalSeconds)} seconds`);
     }
     expect(() =>
-      renderTaskDefinition(scheduledJob(windowsJob({ archonHome: 'C:\\%TEMP%' }), 'win32'), 'me')
+      renderTaskDefinition(
+        scheduledJob(windowsJob({ archonHome: 'C:\\%TEMP%' }), 'win32'),
+        'me',
+        launcher
+      )
     ).toThrow('%');
+    // Task Scheduler expands %NAME% in the launcher's path too, and cmd cannot quote a `"`.
+    const otherJob = scheduledJob(windowsJob(), 'win32');
+    expect(() => renderTaskDefinition(otherJob, 'me', ['C:\\%USERNAME%\\archon.exe'])).toThrow('%');
+    expect(() => renderTaskDefinition(otherJob, 'me', ['C:\\a"b\\archon.exe'])).toThrow(
+      'double quote'
+    );
   });
 
   it('installs, reports and removes the task and its two files, keeping the log', async () => {
     const archonHome = await scratchDirectory();
     const job = windowsJob({ archonHome });
     const { commands, runCommand } = recorder();
-    const win32 = { platform: 'win32' as const, windowsUserId: 'me', runCommand };
+    const win32 = {
+      platform: 'win32' as const,
+      windowsUserId: 'me',
+      windowsLauncher: launcher,
+      runCommand,
+    };
     const schedules = join(archonHome, 'schedules');
     const xml = join(schedules, `${LABEL}.xml`);
     const task = `\\Archon\\${LABEL}`;
@@ -461,7 +484,7 @@ describe('Task Scheduler', () => {
     const definition = await readFile(xml);
     expect([...definition.subarray(0, 2)]).toEqual([0xff, 0xfe]);
     expect(definition.subarray(2).toString('utf16le')).toBe(
-      renderTaskDefinition(scheduledJob(job, 'win32'), 'me')
+      renderTaskDefinition(scheduledJob(job, 'win32'), 'me', launcher)
     );
     expect(await readFile(join(schedules, `${LABEL}.cmd`), 'utf8')).toBe(
       renderTaskWrapper(scheduledJob(job, 'win32'))
@@ -523,6 +546,101 @@ describe('Task Scheduler', () => {
     ).rejects.toThrow('whole number of minutes');
     expect(commands).toEqual([]);
     expect(await readdir(archonHome)).toEqual([]);
+  });
+});
+
+// Check reads a job's command back from the file install rendered, so each reader must
+// return exactly what its renderer was given, including the characters it escapes.
+describe('reading installed jobs back', () => {
+  const posixConfig = `/tmp/a&b <c> "q" 'x' 100% $HOME\\.json`;
+
+  itOnPosixHost.each([
+    [
+      'launchd',
+      (directory: string) => ({
+        platform: 'darwin' as const,
+        uid: 501,
+        launchAgentsDirectory: directory,
+      }),
+    ],
+    [
+      'systemd',
+      (directory: string) => ({ platform: 'linux' as const, systemdUserDirectory: directory }),
+    ],
+  ] as const)(
+    '%s returns the argv and ARCHON_HOME it wrote, and only for that home',
+    async (_, options) => {
+      const root = await scratchDirectory();
+      const archonHome = join(root, 'home 100% $x');
+      const scheduler = { ...options(join(root, 'jobs')), runCommand: recorder().runCommand };
+      const programArguments = [
+        '/opt/archon/bin/archon',
+        'trigger',
+        'fire',
+        '--config',
+        posixConfig,
+      ] as const;
+      await installNativeSchedule(config({ archonHome, programArguments }), scheduler);
+      await installNativeSchedule(
+        config({ id: 'other-home', archonHome: join(root, 'other') }),
+        scheduler
+      );
+
+      expect(await listNativeSchedules(archonHome, scheduler)).toEqual([
+        expect.objectContaining({ label: LABEL, archonHome, programArguments }),
+      ]);
+      // ARCHON_HOME is taken as written; another spelling of the same home finds the job.
+      expect(await listNativeSchedules(`${archonHome}/`, scheduler)).toEqual([
+        expect.objectContaining({ label: LABEL }),
+      ]);
+    }
+  );
+
+  it('Task Scheduler returns the argv and ARCHON_HOME it wrote', async () => {
+    const archonHome = await scratchDirectory();
+    const programArguments = [
+      'C:\\Program Files\\archon\\archon.exe',
+      'trigger',
+      'fire',
+      '--config',
+      'C:\\packs\\a&b <c> 100% $x.json',
+      'C:\\trailing\\',
+    ] as const;
+    const win32 = {
+      platform: 'win32' as const,
+      windowsUserId: 'me',
+      runCommand: recorder().runCommand,
+    };
+    await installNativeSchedule(
+      config({
+        archonHome,
+        programArguments,
+        workingDirectory: 'C:\\Users\\me\\Project (one)',
+        path: 'C:\\Windows\\System32',
+        schedule: { intervalSeconds: 300, runAtLoad: false },
+      }),
+      win32
+    );
+
+    expect(await listNativeSchedules(archonHome, win32)).toEqual([
+      expect.objectContaining({
+        label: LABEL,
+        archonHome,
+        programArguments: [...programArguments],
+      }),
+    ]);
+  });
+
+  itOnPosixHost('keeps a job file it cannot read, as unreadable', async () => {
+    const directory = await scratchDirectory();
+    await writeFile(join(directory, `${LABEL}.plist`), '<plist/>');
+    expect(
+      await listNativeSchedules('/home', {
+        platform: 'darwin',
+        uid: 501,
+        launchAgentsDirectory: directory,
+      })
+    ).toEqual([expect.objectContaining({ label: LABEL, unreadable: expect.any(String) })]);
   });
 });
 

@@ -17,6 +17,7 @@ import type { RunActor } from '../run-authorization';
 import { hostname } from 'node:os';
 import { getLog, type OperationContext } from './context';
 import { rootRunIdOf } from './teardown';
+import { removeRunFiles, type RunFilesReport } from '../../services/cleanup/run-files';
 
 export interface WorkflowStatusData {
   runs: DashboardWorkflowRun[];
@@ -25,7 +26,8 @@ export interface WorkflowStatusData {
 /**
  * Why resume left a run unchanged.
  *
- * `not_resumable`: the run is in a status resume cannot continue.
+ * `not_resumable`: the run is in a status resume cannot continue, or it failed before it
+ *   got a checkout to continue in.
  * `awaiting_answer`: the run is paused at an attention wait that needs an answer.
  * `live_owner`: the run is `running` and its owner, or its root run's owner, answers on
  *   this host. A second executor would run the same work. It resumes once that process
@@ -70,16 +72,28 @@ export async function signalWorkflowWait(
   return ctx.store.signalWorkflowWait(runId, wait, payload);
 }
 
+/**
+ * Delete a terminal run's row, then its files. A file that cannot be removed is logged with
+ * its path and returned in the report; the row stays deleted, and
+ * `archon workflow cleanup --orphans` removes the file later.
+ */
 export async function deleteWorkflowRun(
   ctx: OperationContext,
   runId: string,
   actor: RunActor
-): Promise<void> {
+): Promise<RunFilesReport> {
   const run = await ctx.getRunOrThrow(runId, 'operations.workflow_delete_lookup_failed');
   await ctx.assertMayAct(run, actor, 'delete');
   if (!TERMINAL_WORKFLOW_STATUSES.includes(run.status))
     throw new Error(`Cannot delete workflow in '${run.status}' status — cancel it first`);
   await ctx.store.deleteWorkflowRun(runId);
+  const report = await removeRunFiles([run], ctx.store);
+  if (report.failed.length > 0 || report.unlocated.length > 0)
+    getLog().warn(
+      { runId, failed: report.failed, unlocated: report.unlocated },
+      'operations.workflow_run_files_remove_failed'
+    );
+  return report;
 }
 
 /** List running and paused workflow runs, optionally scoped to one codebase. */
@@ -112,6 +126,7 @@ export async function resumeWorkflow(
   await ctx.assertMayAct(run, actor, 'resume');
   if (run.status === 'running') {
     await assertNoLiveOwner(ctx, run);
+    assertHasCheckout(run);
     return run;
   }
   if (!RESUMABLE_WORKFLOW_STATUSES.includes(run.status)) {
@@ -131,7 +146,25 @@ export async function resumeWorkflow(
         'Answer it with answer instead of resuming it.'
     );
   }
+  assertHasCheckout(run);
   return run;
+}
+
+/**
+ * Refuse a run that has no checkout to continue in. A start fails this way when its
+ * worktree could not be prepared: the run was recorded first, with no working path, and
+ * failed before it got one. Preparing a checkout now would be a new start, so the refusal
+ * names the command that makes one: `workflow run --supersedes <id>` takes the workflow,
+ * its source, inputs and lane from this run's record. The line holds only the run id, so
+ * it pastes unchanged into any shell.
+ */
+function assertHasCheckout(run: WorkflowRun): void {
+  if (run.working_path) return;
+  throw new ResumeRefusedError(
+    'not_resumable',
+    `Run ${run.id} failed before its checkout was prepared, so there is nothing to resume. ` +
+      `Start it again with: archon workflow run --supersedes ${run.id}`
+  );
 }
 
 /**

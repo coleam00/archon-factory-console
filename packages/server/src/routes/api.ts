@@ -15,7 +15,10 @@ import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discover
 import { attentionQueueSource } from '@archon/core/operations/attention-queue';
 import { changeMergeState } from '@archon/adapters/forge-host';
 import { getArchonHome, projectKeyForCodebase } from '@archon/paths/archon-paths';
-import { registeredProjectKeyForPath } from '@archon/core/services/codebase-checkout-resolver';
+import {
+  registeredProjectForPath,
+  registeredProjectKeyForPath,
+} from '@archon/core/services/codebase-checkout-resolver';
 import { readPackGraph } from '@archon/core/workflows/pack-graph';
 import { getTriggersPath, launchProjectKey } from '@archon/core/workflows/run-ended';
 import type { WebAdapter } from '../adapters/web';
@@ -113,7 +116,7 @@ export function registerApiRoutes(
   registerProviderKeyRoutes(app);
   registerUserAiPrefsRoutes(app);
   registerConversationRoutes(app, { webAdapter, dispatchToOrchestrator });
-  registerMessageRoutes(app, { webAdapter, dispatchToOrchestrator });
+  registerMessageRoutes(app, { webAdapter, dispatchToOrchestrator, lockManager });
   registerCodebaseRoutes(app, registration);
 
   app.doc('/api/openapi.json', {
@@ -178,6 +181,7 @@ export function registerApiRoutes(
           providers: providerRegistry,
           triggersDirectory: getTriggersPath,
           projectKeyOf: launchProjectKey(path => registeredProjectKeyForPath(path, codebaseDb)),
+          projectOf: path => registeredProjectForPath(path, codebaseDb),
         },
         workflowSource === undefined ? {} : { workflowSource }
       ),

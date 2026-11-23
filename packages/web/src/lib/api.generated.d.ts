@@ -1257,6 +1257,92 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/conversations/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Stop the in-flight chat reply
+     * @description Aborts the provider call of the reply in progress. The partial reply stays in the conversation, followed by a `chat_interrupted` marker message. Queued messages still run. `cancelled` is false when nothing was in flight or the reply was already stopped.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Whether a reply was stopped */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['CancelConversationResponse'];
+          };
+        };
+        /** @description Bad request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Authentication required */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Server error */
+        500: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+        /** @description Identity backend unavailable */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['Error'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/codebases': {
     parameters: {
       query?: never;
@@ -3378,7 +3464,7 @@ export interface paths {
     };
     put?: never;
     post?: never;
-    /** Delete a workflow run and its events */
+    /** Delete a workflow run, its events and its files */
     delete: {
       parameters: {
         query?: never;
@@ -3390,13 +3476,13 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Deleted */
+        /** @description Deleted; files lists any of its paths still on disk */
         200: {
           headers: {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['WorkflowRunActionResponse'];
+            'application/json': components['schemas']['DeleteWorkflowRunResponse'];
           };
         };
         /** @description Bad request */
@@ -6295,6 +6381,9 @@ export interface components {
       /** @description Repeated files parts, each at most 10485760 bytes. Upload MIME type restrictions apply. */
       files?: string[];
     };
+    CancelConversationResponse: {
+      cancelled: boolean;
+    };
     CodebaseListResponse: components['schemas']['Codebase'][];
     Codebase: {
       id: string;
@@ -8533,6 +8622,10 @@ export interface components {
       runs: {
         id: string;
         workflow: string;
+        pack: {
+          key: string;
+          workflow: string;
+        } | null;
         /** @enum {string} */
         status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
         outcome: string | null;
@@ -8631,6 +8724,7 @@ export interface components {
           /** @enum {string|null} */
           owner: 'reachable' | 'unreachable' | 'unknown' | null;
         } | null;
+        waitsForRunLimit: boolean;
       }[];
       skipped: {
         requestId: string;
@@ -8653,9 +8747,14 @@ export interface components {
       held: {
         receiptId: string;
         bindingId: string;
+        hostId: string | null;
         workflow: string | null;
         receivedAt: string;
       }[];
+      runLimit: {
+        limit: number;
+        live: number;
+      } | null;
       waits: {
         event: string;
         about: string;
@@ -9199,6 +9298,10 @@ export interface components {
         runs: {
           id: string;
           workflow: string;
+          pack: {
+            key: string;
+            workflow: string;
+          } | null;
           /** @enum {string} */
           status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
           outcome: string | null;
@@ -9297,6 +9400,7 @@ export interface components {
             /** @enum {string|null} */
             owner: 'reachable' | 'unreachable' | 'unknown' | null;
           } | null;
+          waitsForRunLimit: boolean;
         }[];
         skipped: {
           requestId: string;
@@ -9319,9 +9423,14 @@ export interface components {
         held: {
           receiptId: string;
           bindingId: string;
+          hostId: string | null;
           workflow: string | null;
           receivedAt: string;
         }[];
+        runLimit: {
+          limit: number;
+          live: number;
+        } | null;
         waits: {
           event: string;
           about: string;
@@ -10480,6 +10589,18 @@ export interface components {
       recommended?: true;
       text?: string;
       as?: string;
+    };
+    DeleteWorkflowRunResponse: {
+      success: boolean;
+      message: string;
+      files: {
+        removedBytes: number;
+        failed: {
+          path: string;
+          error: string;
+        }[];
+        unlocated: string[];
+      };
     };
     ResetWorkflowNodeSessionsResponse: {
       success: boolean;
@@ -12076,6 +12197,10 @@ export interface components {
         runs: {
           id: string;
           workflow: string;
+          pack: {
+            key: string;
+            workflow: string;
+          } | null;
           /** @enum {string} */
           status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
           outcome: string | null;
@@ -12174,6 +12299,7 @@ export interface components {
             /** @enum {string|null} */
             owner: 'reachable' | 'unreachable' | 'unknown' | null;
           } | null;
+          waitsForRunLimit: boolean;
         }[];
         skipped: {
           requestId: string;
@@ -12196,9 +12322,14 @@ export interface components {
         held: {
           receiptId: string;
           bindingId: string;
+          hostId: string | null;
           workflow: string | null;
           receivedAt: string;
         }[];
+        runLimit: {
+          limit: number;
+          live: number;
+        } | null;
         waits: {
           event: string;
           about: string;
@@ -13065,6 +13196,18 @@ export interface components {
     };
     PackGraph: {
       pack: string;
+      loaded: {
+        /** @enum {string} */
+        source: 'project' | 'bundled' | 'global' | 'installed';
+        key: string;
+        dir: string | null;
+      }[];
+      otherCopies: {
+        /** @enum {string} */
+        source: 'project' | 'bundled' | 'global' | 'installed';
+        key: string;
+        dir: string | null;
+      }[];
       stages: {
         name: string;
         returns: string | null;
@@ -13106,6 +13249,16 @@ export interface components {
                   option?: string;
                 };
             to: string;
+            linked: {
+              /** @enum {string} */
+              kind: 'depends_on' | 'part_of' | 'duplicate_of';
+              /** @enum {string} */
+              holder: 'from' | 'to';
+              items?: string;
+              entries: {
+                [key: string]: string;
+              };
+            } | null;
             /** @enum {boolean} */
             active: true;
             declared: {
@@ -13131,6 +13284,16 @@ export interface components {
                   option?: string;
                 };
             to: string;
+            linked: {
+              /** @enum {string} */
+              kind: 'depends_on' | 'part_of' | 'duplicate_of';
+              /** @enum {string} */
+              holder: 'from' | 'to';
+              items?: string;
+              entries: {
+                [key: string]: string;
+              };
+            } | null;
             /** @enum {boolean} */
             active: false;
             declared: {

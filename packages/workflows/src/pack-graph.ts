@@ -18,13 +18,21 @@ import type { PackBinding } from './schemas/pack-bindings';
 import { kindedPackBinding } from './schemas/pack-bindings';
 import { loopBodyStepNamePrefix, resolvedBodyNodes } from './graph-plan';
 import { isComposeFanOutNode, isLoopGroupNode } from './schemas/node-guards';
-import { asksSettledTriggerSchema, type RunEndedLinked } from './schemas/resource-start';
-import type {
-  ResolvedWorkflow,
-  WorkflowLoadResult,
-  WorkflowSource,
-  WorkflowWithSource,
+import { isBinaryBuild } from './defaults/bundled-defaults';
+import { readsLinkedEntry } from './schemas/binding-input-source';
+import {
+  asksSettledTriggerSchema,
+  runEndedLinkedSchema,
+  type RunEndedLinked,
+} from './schemas/resource-start';
+import {
+  workflowSourceSchema,
+  type ResolvedWorkflow,
+  type WorkflowLoadResult,
+  type WorkflowSource,
+  type WorkflowWithSource,
 } from './schemas/workflow';
+import { packDirectory, splitInstalledPackKey, type WorkflowSourceRoots } from './workflow-source';
 
 const packGraphNodeSchema = z.object({
   /** The id the engine runs the node under: `<include>__<id>` for an included node. */
@@ -85,10 +93,36 @@ const arrowFromSchema = z.union([
 ]);
 export type PackGraphArrowFrom = z.infer<typeof arrowFromSchema>;
 
+/**
+ * The link an arrow starts its stage over: `on.runEnded.linked`, with the result list
+ * naming the items when it has `items`, and `entries`, each input of the started stage
+ * that reads the started item's own entry of that list, by its entry pointer.
+ */
+const arrowLinkSchema = z.object({
+  ...runEndedLinkedSchema.shape,
+  entries: z.record(z.string(), z.string()),
+});
+export type PackGraphLink = z.infer<typeof arrowLinkSchema>;
+
+/** The arrow's link from a binding's `linked` and its inputs, or null without `linked`. */
+export function graphLink(
+  linked: RunEndedLinked | undefined,
+  inputs: Readonly<Record<string, unknown>> | undefined
+): PackGraphLink | null {
+  if (linked === undefined) return null;
+  const entries: Record<string, string> = {};
+  for (const [target, source] of Object.entries(inputs ?? {}))
+    if (typeof source === 'object' && source !== null && readsLinkedEntry(source))
+      entries[target] = source.entry;
+  return { ...linked, entries };
+}
+
 const arrowEndsSchema = {
   from: arrowFromSchema,
   /** The workflow the arrow starts; it may be outside the pack. */
   to: z.string(),
+  /** The link the arrow starts its stage over, or null when it starts on the ended run's own item. */
+  linked: arrowLinkSchema.nullable(),
 };
 const declaredSourceSchema = z.object({
   binding: z.string(),
@@ -126,8 +160,27 @@ const packGraphArrowSchema = z.discriminatedUnion('active', [
   }),
 ]);
 
+/** One copy of a pack that discovery reached: its scope, its key there, and where it is read from. */
+export const packCopySchema = z.object({
+  source: workflowSourceSchema,
+  key: z.string(),
+  /** Null for a bundled pack a compiled binary reads from its own embedded bytes. */
+  dir: z.string().nullable(),
+});
+export type PackCopy = z.infer<typeof packCopySchema>;
+
 export const packGraphSchema = z.object({
   pack: z.string(),
+  /**
+   * The copies the graph was read from, nearest scope first: one, or several when a
+   * project and a home pack folder share the key and their workflows are merged.
+   */
+  loaded: z.array(packCopySchema),
+  /**
+   * The other copies of the same pack in reach under another key, such as the installed
+   * `<owner>.<name>` beside a project pack `<name>`. Naming that key reads that copy.
+   */
+  otherCopies: z.array(packCopySchema),
   stages: z.array(packGraphStageSchema),
   arrows: z.array(packGraphArrowSchema),
   /** The body of each fan-out include a stage or another body names, once per workflow. */
@@ -160,6 +213,53 @@ export class PackNotFoundError extends Error {
   }
 }
 
+/**
+ * The pack name a key stands for: an installed key is `<owner>.<name>`, every other
+ * scope's key is the pack folder's name.
+ */
+function packName(pack: { source: WorkflowSource; key: string }): string {
+  return pack.source === 'installed'
+    ? (splitInstalledPackKey(pack.key)?.name ?? pack.key)
+    : pack.key;
+}
+
+/** Each distinct pack (scope and key) of the discovered workflows, nearest scope first. */
+function discoveredPacks(
+  discovered: WorkflowLoadResult
+): { source: WorkflowSource; key: string }[] {
+  const packs = new Map<string, { source: WorkflowSource; key: string }>();
+  for (const { workflow } of [...discovered.workflows, ...(discovered.support ?? [])]) {
+    if (workflow.pack === undefined) continue;
+    const { source, key } = workflow.pack;
+    packs.set(`${source}\0${key}`, { source, key });
+  }
+  return [...packs.values()].sort((a, b) => SCOPE_RANK[a.source] - SCOPE_RANK[b.source]);
+}
+
+/**
+ * Every copy of the pack `packKey` names that discovery reached, split into the copies
+ * read under `packKey` and the copies of the same pack name under another key. `roots`
+ * are the roots discovery read, so each `dir` is where that copy's bytes come from.
+ */
+export async function packCopies(
+  discovered: WorkflowLoadResult,
+  roots: WorkflowSourceRoots,
+  packKey: string
+): Promise<{ loaded: PackCopy[]; otherCopies: PackCopy[] }> {
+  const loaded: PackCopy[] = [];
+  const otherCopies: PackCopy[] = [];
+  const wanted = discoveredPacks(discovered).find(pack => pack.key === packKey);
+  const name = wanted === undefined ? packKey : packName(wanted);
+  for (const pack of discoveredPacks(discovered)) {
+    if (packName(pack) !== name && pack.key !== packKey) continue;
+    const embedded = pack.source === 'bundled' && roots.kind === 'live' && isBinaryBuild();
+    const dir = embedded ? null : await packDirectory(roots, pack);
+    if (dir === null && !embedded) continue;
+    (pack.key === packKey ? loaded : otherCopies).push({ ...pack, dir });
+  }
+  return { loaded, otherCopies };
+}
+
 /** The pack's dispatchable workflows; none found throws `PackNotFoundError`. */
 export function packWorkflows(
   discovered: WorkflowLoadResult,
@@ -168,10 +268,24 @@ export function packWorkflows(
 ): readonly WorkflowWithSource[] {
   const workflows = discovered.workflows.filter(entry => entry.workflow.pack?.key === packKey);
   if (workflows.length === 0) {
+    // The same pack under another key: a project pack folder is keyed by its name, the
+    // installed copy by `<owner>.<name>`, and an author often types the other one.
+    // `packKey` may be either spelling, so both readings of it are tried.
+    const names = new Set([packKey, splitInstalledPackKey(packKey)?.name ?? packKey]);
+    const elsewhere = discoveredPacks(discovered)
+      .filter(pack => names.has(packName(pack)))
+      .map(
+        pack =>
+          `Pack '${packName(pack)}' is in reach as '${pack.key}' (${pack.source}); name '${pack.key}' to use it.`
+      );
     // An invalid declaration fails every workflow of its pack, so the reason is here.
     const errors = [...new Set(discovered.errors.map(e => `  ${e.filename}: ${e.error}`))];
     throw new PackNotFoundError(
-      [`No workflow pack '${packKey}' was found from ${from}.`, ...errors.slice(0, 20)].join('\n')
+      [
+        `No workflow pack '${packKey}' was found from ${from}.`,
+        ...elsewhere,
+        ...errors.slice(0, 20),
+      ].join('\n')
     );
   }
   return workflows;
@@ -247,10 +361,11 @@ export interface InstalledArrow {
   from: PackGraphArrowFrom;
   launchWorkflow: string;
   /**
-   * The link the file starts its stage over (`on.runEnded.linked`), or null when it starts
-   * on the ended run's own item. It matches only a declared arrow with the same link.
+   * The link the file starts its stage over (`on.runEnded.linked`, see `graphLink`), or
+   * null when it starts on the ended run's own item. It matches only a declared arrow with
+   * the same link.
    */
-  linked: RunEndedLinked | null;
+  linked: PackGraphLink | null;
   problems: readonly string[];
 }
 
@@ -348,11 +463,14 @@ interface DeclaredArrow {
   binding: { binding: string; problems: string[] };
   from: PackGraphArrowFrom;
   to: string;
-  linked: RunEndedLinked | null;
+  linked: PackGraphLink | null;
 }
 
-const sameLink = (a: RunEndedLinked | null, b: RunEndedLinked | null): boolean =>
-  a === null || b === null ? a === b : a.kind === b.kind && a.holder === b.holder;
+// Which inputs read an entry is the file's input mapping, which never parts two arrows.
+const sameLink = (a: PackGraphLink | null, b: PackGraphLink | null): boolean =>
+  a === null || b === null
+    ? a === b
+    : a.kind === b.kind && a.holder === b.holder && a.items === b.items;
 
 function declaredArrows(input: GraphInput): DeclaredArrow[] {
   const names = input.stages.map(stage => stage.name);
@@ -389,7 +507,7 @@ function declaredArrows(input: GraphInput): DeclaredArrow[] {
       binding: { binding: id, problems: [...problems] },
       from: { stage, outcome: value },
       to,
-      linked: linked ?? null,
+      linked: graphLink(linked, kinded.binding.inputs),
     }));
   });
 }
@@ -402,7 +520,7 @@ function graphArrows(input: GraphInput): PackGraphArrow[] {
   const arrows: PackGraphArrow[] = [];
   const matched = new Set<InstalledArrow>();
   for (const { binding, from, to, linked } of declaredArrows(input)) {
-    const ends = { from, to };
+    const ends = { from, to, linked };
     const files = input.installed.filter(
       entry =>
         sameLink(entry.linked, linked) &&
@@ -415,6 +533,8 @@ function graphArrows(input: GraphInput): PackGraphArrow[] {
       matched.add(entry);
       arrows.push({
         ...ends,
+        // What the installed file maps is what its starts receive.
+        linked: entry.linked,
         active: true,
         declared: binding,
         installed: installedSource(entry),
@@ -426,6 +546,7 @@ function graphArrows(input: GraphInput): PackGraphArrow[] {
     arrows.push({
       from: entry.from,
       to: entry.launchWorkflow,
+      linked: entry.linked,
       active: true,
       declared: null,
       installed: installedSource(entry),
@@ -459,9 +580,10 @@ function graphStage(stage: Stage, started: ReadonlySet<string>): PackGraph['stag
 
 /**
  * The graph of one pack from its stages (include-expanded), its declared bindings and the
- * install's run-ended and asks-settled files for its project.
+ * install's run-ended and asks-settled files for its project. Which copies of the pack it
+ * was read from is `packCopies`' answer, added by the reader that has the source roots.
  */
-export function buildPackGraph(input: GraphInput): PackGraph {
+export function buildPackGraph(input: GraphInput): Omit<PackGraph, 'loaded' | 'otherCopies'> {
   const arrows = graphArrows(input);
   // Only an outcome arrow starts something for an outcome; an asks arrow starts on answers.
   const started = new Set(

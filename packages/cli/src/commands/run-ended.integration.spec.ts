@@ -41,12 +41,17 @@ interface Fixture {
   /** Start the CLI without waiting for it; the caller awaits `exited`. */
   start: (args: string[]) => { exited: Promise<number> };
   rows: <T>(sql: string) => T[];
+  /**
+   * Write a fire-only trigger config and return its path: outside the triggers directory
+   * by default, so it names no host this install serves; inside it with `installed`.
+   */
   fireConfig: (
     name: string,
     workflowName: string,
     resource: string,
     capacity?: number,
-    hostId?: string
+    hostId?: string,
+    installed?: boolean
   ) => string;
   /**
    * Write a run-ended binding where the ending process reads it; by default it starts
@@ -255,8 +260,10 @@ async function makeFixture(label: string): Promise<Fixture> {
       return { exited: child.exited };
     },
     rows,
-    fireConfig: (name, workflowName, resource, capacity, hostId) => {
-      const path = join(root, `${name}.json`);
+    fireConfig: (name, workflowName, resource, capacity, hostId, installed = false) => {
+      const directory = installed ? join(archonHome, 'triggers') : root;
+      mkdirSync(directory, { recursive: true });
+      const path = join(directory, `${name}.json`);
       writeFileSync(
         path,
         JSON.stringify({
@@ -429,6 +436,7 @@ describe('a run-ended binding', () => {
       {
         from: { stage: 'chain-plan', outcome: 'planned' },
         to: 'chain-build',
+        linked: null,
         active: false,
         declared: { binding: 'build', problems: [] },
         installed: null,
@@ -675,7 +683,10 @@ describe('a run-ended binding', () => {
   test('a result pointer that does not resolve is reported where the run ends and in trigger list', async () => {
     const fixture = await makeFixture('pointer');
     fixture.bind('build-after-plan', {
-      runEnded: { ...RUN_ENDED.runEnded, inputs: { plan: { result: '/missing' } } },
+      runEnded: {
+        ...RUN_ENDED.runEnded,
+        inputs: { plan: { result: '/missing' }, issue: { input: 'issue' } },
+      },
     });
     const ended = await fixture.cli([
       'workflow',
@@ -823,7 +834,7 @@ describe('an asks-settled binding', () => {
     expect(startedLine).toContain(runs[0]?.id.slice(0, 8));
   }, 90_000);
 
-  test('a settlement recorded by a process that does not prepare it waits for its host, whose drain starts it once', async () => {
+  test('a settlement recorded by a process that does not prepare it is shown waiting, and the next wake pass starts it once', async () => {
     const fixture = await makeFixture('asks-recorded-elsewhere');
     fixture.bind('build-after-answers', ASKS_SETTLED, { workflowName: 'build-answers' });
     await fixture.cli([
@@ -874,9 +885,15 @@ await closeDatabase();
     expect(pending()).toEqual([{ host_id: HOST }]);
     expect(fixture.rows<RunRow>(RUNS_SQL).map(run => run.workflow_name)).toEqual(['ask-plan']);
 
-    await fixture.cli(['trigger', 'drain', '--host', HOST]);
-    await fixture.cli(['trigger', 'drain', '--host', HOST]);
-    const runs = await waitFor(() => completedRuns(fixture, 2), 'the build the drain started');
+    // Until a pass admits it, the item read names the start and what will admit it.
+    const text = await fixture.cli(['workflow', 'runs', '--item', 'issue-1']);
+    expect(text).toContain(`waits to be prepared on host ${HOST}`);
+    expect(text).toContain('wake watcher');
+    expect(text).toContain(`archon trigger drain --host ${HOST}`);
+
+    await fixture.cli(['workflow', 'wake']);
+    await fixture.cli(['workflow', 'wake']);
+    const runs = await waitFor(() => completedRuns(fixture, 2), 'the build the wake pass started');
     expect(runs.map(run => run.workflow_name)).toEqual(['ask-plan', 'build-answers']);
     expect(pending()).toEqual([]);
   }, 90_000);
@@ -917,10 +934,22 @@ await closeDatabase();
 
   test('trigger check reports a binding on a workflow with no asks, not one that starts its own', async () => {
     const fixture = await makeFixture('asks-check');
-    fixture.bind('no-asks', { asksSettled: { workflowName: 'stage-a', settled: 'any' } });
+    fixture.bind('no-asks', {
+      asksSettled: {
+        workflowName: 'stage-a',
+        settled: 'any',
+        inputs: { plan: { input: 'plan' }, issue: { input: 'issue' } },
+      },
+    });
     fixture.bind(
       'again',
-      { asksSettled: { workflowName: 'ask-plan', settled: 'answered' } },
+      {
+        asksSettled: {
+          workflowName: 'ask-plan',
+          settled: 'answered',
+          inputs: { issue: { input: 'issue' } },
+        },
+      },
       {
         workflowName: 'ask-plan',
       }
@@ -949,9 +978,15 @@ describe('trigger check', () => {
     // A linked binding starts the stage on other items: no duplicate of a same-item one.
     fixture.bind('order-after-plan', { runEnded: { ...RUN_ENDED.runEnded, linked } });
     fixture.bind('order-typo', {
-      runEnded: { workflowName: 'stage-a', outcome: 'plannned', linked },
+      runEnded: { ...RUN_ENDED.runEnded, outcome: 'plannned', linked },
     });
-    fixture.bind('order-missing', { runEnded: { workflowName: 'stage-z', outcome: 'x', linked } });
+    fixture.bind('order-missing', {
+      runEnded: { ...RUN_ENDED.runEnded, workflowName: 'stage-z', outcome: 'x', linked },
+    });
+    // Naming the items in the result does not part it from a file over the same link.
+    fixture.bind('order-named', {
+      runEnded: { ...RUN_ENDED.runEnded, linked: { ...linked, items: '/start' } },
+    });
 
     const checked = await fixture.attempt(['trigger', 'check']);
     expect(checked.exitCode).not.toBe(0);
@@ -967,7 +1002,8 @@ describe('trigger check', () => {
     expect(problems.get('plan-again')).toEqual([
       "binding starts 'stage-a', the workflow whose end fires it: each run that completes with 'planned' starts another on the same item",
     ]);
-    expect(problems.get('order-after-plan')).toEqual([]);
+    expect(problems.get('order-after-plan')).toEqual([duplicate('order-named')]);
+    expect(problems.get('order-named')).toEqual([duplicate('order-after-plan')]);
     expect(problems.get('order-typo')).toEqual([
       "outcome 'plannned' is not one 'stage-a' completes with ('planned', 'blocked')",
     ]);
@@ -1257,8 +1293,42 @@ describe('a run end on a trigger host', () => {
     expect(runs).toHaveLength(6);
   }, 90_000);
 
+  test('a hand-started run admits, when it ends, a start queued behind it on a host this install names', async () => {
+    const fixture = await makeFixture('hand-frees');
+    const held = fixture.start(['workflow', 'run', 'held', '--no-worktree']);
+    await waitFor(
+      () => (existsSync(join(fixture.projectRoot, 'held-started')) ? true : undefined),
+      'the held run to take the slot'
+    );
+    const queued = () =>
+      fixture.rows<{ status: string }>(
+        `SELECT status FROM remote_agent_resource_start_requests WHERE host_id = '${HOST}'`
+      );
+    try {
+      await fixture.cli([
+        'trigger',
+        'fire',
+        '--config',
+        fixture.fireConfig('quick', 'quick', 'pool', 1, HOST, true),
+      ]);
+      expect(queued()).toEqual([{ status: 'queued' }]);
+    } finally {
+      writeFileSync(join(fixture.projectRoot, 'release'), '');
+    }
+    expect(await held.exited).toBe(0);
+    // The hand run's process serves no host of its own; its end still drains this one.
+    await waitFor(
+      () => (existsSync(join(fixture.projectRoot, 'quick-ran')) ? true : undefined),
+      'the queued start to run'
+    );
+    expect(queued()).toEqual([{ status: 'admitted' }]);
+  }, 90_000);
+
   test('a hand start takes a free slot even when another host has a start queued on it', async () => {
     const fixture = await makeFixture('free-slot');
+    // The end of the held run drains the host this file names, never one known only from
+    // the store.
+    fixture.bind('build-after-plan', RUN_ENDED);
     const held = fixture.start(['workflow', 'run', 'held', '--no-worktree']);
     await waitFor(
       () => (existsSync(join(fixture.projectRoot, 'held-started')) ? true : undefined),
@@ -1294,6 +1364,11 @@ describe('a run end on a trigger host', () => {
     ]);
     expect(started.exitCode, started.stdout + started.stderr).toBe(0);
     expect(readFileSync(join(fixture.projectRoot, 'quick-ran'), 'utf8')).toBe('ran\n');
+    expect(queued()).toEqual([{ status: 'queued' }]);
+
+    // A wake pass does not take a host from ARCHON_TRIGGER_HOST either: no trigger file
+    // here names other-host, so its start stays queued for that host's own drain.
+    await fixture.cli(['workflow', 'wake'], { ARCHON_TRIGGER_HOST: 'other-host' });
     expect(queued()).toEqual([{ status: 'queued' }]);
   }, 90_000);
 });

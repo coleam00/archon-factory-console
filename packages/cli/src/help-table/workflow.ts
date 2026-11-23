@@ -25,7 +25,8 @@ export const workflowHelp: HelpGroup = {
       command: 'workflow',
       subcommand: 'run',
       spec: 'workflow run <name> [msg]',
-      description: 'Run a workflow with optional message',
+      description:
+        'Run a workflow with optional message\nWith no name, --supersedes <run-id> starts that run again from its record',
     },
     {
       command: 'workflow',
@@ -305,6 +306,11 @@ export const workflowHelp: HelpGroup = {
         "Record a link from one item of this project to another: depends_on, part_of or\nduplicate_of, read from --item to --to. Recording it again leaves one link; prints the link's id",
       scopedFlags: [
         {
+          spec: '--item-of <run-id>',
+          description:
+            'In place of --item: the item the run is on, in its own project; link it --to\nanother item, or --from another item to it',
+        },
+        {
           spec: '--end <link-id>',
           description: 'End a link instead; the record stays and says who ended it and when',
         },
@@ -332,6 +338,10 @@ export const workflowHelp: HelpGroup = {
       description:
         "Record that an item's change merged, as the forge reported it. Recorded once:\na second report keeps the first",
       scopedFlags: [
+        {
+          spec: '--item-of <run-id>',
+          description: 'In place of --item: the item the run is on, in its own project',
+        },
         { spec: '--change <ref>', description: 'The merged change, such as its pull request URL' },
         { spec: '--at <ISO>', description: 'When the forge says it merged' },
         { spec: '--commit <sha>', description: 'The merge commit, when the forge reported one' },
@@ -340,10 +350,21 @@ export const workflowHelp: HelpGroup = {
     {
       command: 'workflow',
       subcommand: 'landing',
-      spec: 'workflow landing --item <key> --branch <name>',
+      spec: 'workflow landing --item <key> --branch <name> [--from <start-point>]',
       description:
-        "Record the branch an item's change lands on. Every fresh run on the item, and on\nan item part_of it that records none, is cut from it and proposes against it.\nRecording again replaces it",
-      scopedFlags: [{ spec: '--branch <name>', description: 'The branch the item lands on' }],
+        "Record the branch an item's change lands on. Every fresh run on the item, and on\nan item part_of it that records none, is cut from it and proposes against it.\nRecording again replaces it. With --from, first create the branch on the remote",
+      scopedFlags: [
+        {
+          spec: '--item-of <run-id>',
+          description: 'In place of --item: the item the run is on, in its own project',
+        },
+        { spec: '--branch <name>', description: 'The branch the item lands on' },
+        {
+          spec: '--from <start-point>',
+          description:
+            "Create the branch on the remote from this commit or branch (<remote>/main for the\nremote's tip) before recording; an existing branch is left as it is",
+        },
+      ],
     },
     {
       command: 'workflow',
@@ -465,7 +486,19 @@ export const workflowHelp: HelpGroup = {
       command: 'workflow',
       subcommand: 'cleanup',
       spec: 'workflow cleanup [days]',
-      description: 'Delete terminal runs older than N days (default: 7)',
+      description:
+        'Delete terminal runs older than N days (default: 7) with their artifacts, logs and frozen sources',
+      scopedFlags: [
+        {
+          spec: '--orphans',
+          description:
+            'Instead, list files of runs that have no row (deleted earlier), older than 6 hours',
+        },
+        {
+          spec: '--yes',
+          description: 'With --orphans, remove the listed files',
+        },
+      ],
     },
   ],
 };

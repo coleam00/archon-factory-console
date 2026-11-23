@@ -1,4 +1,5 @@
 // @archon-test-isolated
+// @archon-test-windows
 import { runProject } from '@archon/workflows/attention-queue';
 import { watchAttentionQueue } from '@archon/workflows/attention-watch';
 import {
@@ -18,6 +19,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { trackTempRoots } from '@archon/paths/test-utils';
+import type { IsolationEnvironmentRow } from '@archon/isolation/types';
 import { providerRegistry } from '@archon/providers';
 import { registerBuiltinProviders } from '@archon/providers/in-process';
 import { loadConfig } from '@archon/core/config/config-loader';
@@ -45,7 +47,7 @@ import {
   createInMemoryWorkflowStore,
   createInMemoryWorkflowHostStore,
 } from '../test-support/workflow-store';
-import { registerFolder } from '@archon/core/handlers/clone';
+import { registerFolder, registerRepository } from '@archon/core/handlers/clone';
 import { triggerCommand } from './trigger';
 import { workflowGetCommand } from './workflow-query';
 import { createFileWorkflowHost } from '@archon/core/workflows/file-host';
@@ -660,6 +662,139 @@ test('a start cancelled before its starter holds the owner lock never prepares',
   }
 });
 
+function gitIn(cwd: string, ...args: string[]): string {
+  const result = Bun.spawnSync(['git', '-C', cwd, ...args]);
+  if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+  return result.stdout.toString().trim();
+}
+
+test("a binding start reads the base branch with the checkout's uncommitted config on top, and runs on that commit", async () => {
+  const root = await realpath(tempRoots(await mkdtemp(join(tmpdir(), 'archon-trigger-base-'))));
+  const remote = join(root, 'remote.git');
+  const upstream = join(root, 'upstream');
+  const project = join(root, 'project');
+  Bun.spawnSync(['git', 'init', '-q', '--bare', '--initial-branch=dev', remote]);
+  Bun.spawnSync(['git', 'clone', '-q', remote, upstream]);
+  for (const repo of [upstream]) {
+    gitIn(repo, 'config', 'user.name', 'Test');
+    gitIn(repo, 'config', 'user.email', 'test@example.com');
+  }
+  const workflow = (marker: string) =>
+    `name: portable\ndescription: Base trigger\nnodes:\n  - id: result\n    bash: echo ${marker} > ran.txt\n`;
+  await mkdir(join(upstream, '.archon/workflows'), { recursive: true });
+  await writeFile(join(upstream, '.archon/workflows/portable.yaml'), workflow('old'));
+  await writeFile(join(upstream, '.archon/config.yaml'), 'worktree:\n  initSubmodules: false\n');
+  gitIn(upstream, 'add', '-A');
+  gitIn(upstream, 'commit', '-qm', 'old');
+  gitIn(upstream, 'push', '-q', 'origin', 'dev');
+  // Windows runners set core.autocrlf=true, which would check the workflow out with CRLF
+  // and break the byte comparison that proves the checkout was left alone.
+  Bun.spawnSync(['git', 'clone', '-q', '-c', 'core.autocrlf=false', remote, project]);
+  // Landed on the base, never pulled into the operator's checkout.
+  await writeFile(join(upstream, '.archon/workflows/portable.yaml'), workflow('new'));
+  gitIn(upstream, 'commit', '-qam', 'new');
+  gitIn(upstream, 'push', '-q', 'origin', 'dev');
+  const base = gitIn(upstream, 'rev-parse', 'HEAD');
+  // The operator's own uncommitted config edit.
+  const localConfig = 'worktree:\n  initSubmodules: false\n# local trial\n';
+  await writeFile(join(project, '.archon/config.yaml'), localConfig);
+  const checkoutHead = gitIn(project, 'rev-parse', 'HEAD');
+
+  const previousHome = process.env.ARCHON_HOME;
+  process.env.ARCHON_HOME = join(root, 'home');
+  registerBuiltinProviders();
+  setPlatformPolicies([]);
+  try {
+    const host = hostForTest();
+    // The worktree lane registers the checkout it cuts; the test store keeps it in memory.
+    const environments = new Map<string, IsolationEnvironmentRow>();
+    host.records.isolation.create = async params => {
+      const row = {
+        ...params,
+        id: randomUUID(),
+        status: 'active',
+        metadata: params.metadata ?? {},
+      } as unknown as IsolationEnvironmentRow;
+      environments.set(row.id, row);
+      return row;
+    };
+    host.records.isolation.getById = async envId => environments.get(envId) ?? null;
+    await registerRepository(host.records.codebases, project);
+    const user = await host.records.users.findOrCreateUserByPlatformIdentity('cli', 'operator');
+    if (!user) throw new Error('Expected test identity');
+    await host.deps.store.acceptStartReceipt(
+      acceptance(
+        {
+          bindingId: 'binding',
+          bindingRevision: null,
+          hostId: 'host',
+          runAsUserId: user.id,
+          resource: 'portable',
+          capacity: 1,
+          overlap: 'queue',
+          launch: {
+            cwd: project,
+            workflowName: 'portable',
+            inputs: {},
+            isolation: { kind: 'default' },
+          },
+        },
+        'base'
+      )
+    );
+    const admitted: string[] = [];
+    await drainResourceStartHost({
+      ...host,
+      hostId: 'host',
+      startAdmitted: async id => {
+        admitted.push(id);
+        return null;
+      },
+    });
+    const [id] = admitted;
+    const prepared = await host.deps.store.getResourceStartRequest(id);
+    expect(prepared?.launch.run.metadata.workflow_source).toMatchObject({
+      origin: project,
+      definitions: {
+        from: 'base',
+        remote: 'origin',
+        branch: 'dev',
+        commit: base,
+        checkout: project,
+        local_files: [{ path: '.archon/config.yaml', change: 'modified' }],
+      },
+    });
+
+    // Another change lands while the start waits: the run still cuts its worktree from the
+    // commit its definitions were read at, not from the newer base.
+    await writeFile(join(upstream, '.archon/workflows/portable.yaml'), workflow('newer'));
+    gitIn(upstream, 'commit', '-qam', 'newer');
+    gitIn(upstream, 'push', '-q', 'origin', 'dev');
+
+    const result = await startAdmittedResourceStart({
+      host,
+      hostId: 'host',
+      requestId: id,
+      createPlatform: () => new HeadlessPlatform(),
+    });
+    expect(result.success).toBe(true);
+    const worktree = (await host.deps.store.getWorkflowRun(id))?.working_path;
+    if (!worktree) throw new Error('Expected a worktree');
+    expect(await readFile(join(worktree, 'ran.txt'), 'utf8')).toBe('new\n');
+    expect(gitIn(worktree, 'rev-parse', 'HEAD')).toBe(base);
+    // The local edit is in the capture, never in the run's checkout.
+    expect(await readFile(join(worktree, '.archon/config.yaml'), 'utf8')).not.toContain('local');
+    expect(gitIn(project, 'rev-parse', 'HEAD')).toBe(checkoutHead);
+    expect(await readFile(join(project, '.archon/workflows/portable.yaml'), 'utf8')).toBe(
+      workflow('old')
+    );
+    expect(await readFile(join(project, '.archon/config.yaml'), 'utf8')).toBe(localConfig);
+  } finally {
+    if (previousHome === undefined) delete process.env.ARCHON_HOME;
+    else process.env.ARCHON_HOME = previousHome;
+  }
+});
+
 test('receipt inspection rejects invalid limits through the in-memory store', async () => {
   const store = hostForTest().deps.store;
   for (const limit of [NaN, 1.5, 0, 1001]) {
@@ -732,6 +867,85 @@ test('trigger list shows a refused binding with its forge refusal and omits the 
     ]);
   } finally {
     stdout.mockRestore();
+  }
+});
+
+test('trigger list names the run limit on a receipt whose queued start only the limit holds', async () => {
+  const host = hostForTest();
+  const accepted = acceptance(
+    {
+      bindingId: 'queued',
+      bindingRevision: null,
+      hostId: 'host',
+      runAsUserId: 'operator',
+      resource: 'portable',
+      capacity: 1,
+      overlap: 'queue',
+      launch: {
+        cwd: '/portable',
+        workflowName: 'portable',
+        inputs: {},
+        isolation: { kind: 'in-place' },
+      },
+    },
+    'limited'
+  );
+  await host.deps.store.acceptStartReceipt(accepted);
+  // The in-memory store keeps no run limit; stand in for one with a start queued under it,
+  // or admitted by a drain after the limit was read (`admittedSince`).
+  let admittedSince = false;
+  const read = host.deps.store.getStartReceipt.bind(host.deps.store);
+  host.deps.store.getStartReceipt = async id => {
+    const receipt = await read(id);
+    return (
+      receipt && {
+        ...receipt,
+        bindings: receipt.bindings.map(binding => ({
+          ...binding,
+          ...(admittedSince
+            ? {
+                requestStatus: 'admitted' as const,
+                disposition: {
+                  status: 'admitted' as const,
+                  requestId: 'queued-request',
+                  runId: 'queued-request',
+                },
+              }
+            : {
+                requestStatus: 'queued' as const,
+                disposition: {
+                  status: 'queued' as const,
+                  requestId: 'queued-request',
+                  blocker: { kind: 'run' as const, id: 'holder' },
+                },
+              }),
+        })),
+      }
+    );
+  };
+  for (const [waiting, admitted, listed] of [
+    [['queued-request'], false, { limit: 1, live: 1 }],
+    [['another-request'], false, null],
+    [['queued-request'], true, null],
+  ] as const) {
+    host.deps.store.getRunLimit = async () => ({ limit: 1, live: 1, waiting });
+    admittedSince = admitted;
+    const stdout = spyOn(process.stdout, 'write').mockImplementation(((
+      _chunk: unknown,
+      callback?: () => void
+    ) => {
+      callback?.();
+      return true;
+    }) as typeof process.stdout.write);
+    try {
+      await triggerCommand(host, 'list', [], {});
+      const [receipt] = JSON.parse(stdout.mock.calls.map(call => String(call[0])).join('')) as {
+        runLimit: unknown;
+      }[];
+      expect(receipt?.runLimit).toEqual(listed);
+    } finally {
+      stdout.mockRestore();
+    }
   }
 });
 
@@ -1190,6 +1404,7 @@ test('keyed replays fail for every receipt queued on a resource whose drain fail
     const damaged = JSON.stringify(row);
     await writeFile(path, damaged);
     stdout.mockClear();
+    stderr.mockClear();
     for (const deliveryId of deliveries)
       await expect(
         triggerCommand(

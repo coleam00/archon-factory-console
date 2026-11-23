@@ -1,25 +1,29 @@
 /**
  * The stage graph of one pack as this install has it (`buildPackGraph`), read for the
  * project at `cwd`: the pack's workflows discovered from there (or from `workflowSource`,
- * as a binding's `launch.discoveryCwd` discovers them), its declared bindings, and the
+ * as a binding's `launch.discoveryCwd` discovers them), which copy of the pack that was
+ * and the other copies in reach (`packCopies`), its declared bindings, and the
  * run-ended and asks-settled trigger files whose binding launches in that project, each
  * checked as a run is checked before it starts. The CLI's `archon pack graph` and
  * `GET /api/packs/{pack}/graph` both read it here.
  */
 import { loadStoreSelection } from '../config/store-selection';
-import type { WorkflowDeps } from '@archon/workflows/deps';
 import { FileStoreUnsupportedError } from '@archon/workflows/file-store';
 import { existsSync } from 'node:fs';
 import {
   buildPackGraph,
+  graphLink,
   nearestPackBindings,
+  packCopies,
   packWorkflowIdentities,
   packWorkflows,
   type InstalledArrow,
   type PackGraph,
 } from '@archon/workflows/pack-graph';
 import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
+import { liveSourceRoots } from '@archon/workflows/workflow-source';
 import { asksSettledBindingCheck } from './asks-settled';
+import type { BindingDefinitionsDeps } from './definition-source';
 import {
   bindingProjectKey,
   readOnBindings,
@@ -28,14 +32,15 @@ import {
   type RunEndedStartsDependencies,
 } from './run-ended';
 
-type GraphDeps = Pick<WorkflowDeps, 'loadConfig' | 'providers'> &
+type GraphDeps = BindingDefinitionsDeps &
   Pick<RunEndedStartsDependencies, 'triggersDirectory' | 'projectKeyOf'>;
 
-/** Where an installed file's arrow starts, as the file spells it. */
 /** The link a run-ended file starts its stage over, or null for a same-item start. */
 function installedLink(file: OnBinding): InstalledArrow['linked'] {
-  return 'runEnded' in file ? (file.runEnded.linked ?? null) : null;
+  return 'runEnded' in file ? graphLink(file.runEnded.linked, file.runEnded.inputs) : null;
 }
+
+/** Where an installed file's arrow starts, as the file spells it. */
 
 function installedFrom(file: OnBinding): InstalledArrow['from'] {
   return 'runEnded' in file
@@ -120,7 +125,8 @@ export async function readPackGraph(
     declared
   );
   const touches = (name: string): boolean => own.has(name);
-  return buildPackGraph({
+  const copies = await packCopies(discovered, liveSourceRoots(source), packKey);
+  const graph = buildPackGraph({
     packKey,
     stages,
     declared,
@@ -128,4 +134,5 @@ export async function readPackGraph(
     workflows: [...discovered.workflows, ...(discovered.support ?? [])].map(e => e.workflow),
     discoveryErrors: discovered.errors,
   });
+  return { ...graph, ...copies };
 }

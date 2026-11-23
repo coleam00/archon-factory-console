@@ -248,6 +248,14 @@ function draftChange(
   );
 }
 
+function closeChange(request: OpRequest<'pr.close'>, value: OpValue<'pr.close'>): boolean {
+  return (
+    sameTarget(value.target, mutationTarget(request)) &&
+    sameRef(value.pr, request.ref) &&
+    value.pr.state === 'closed'
+  );
+}
+
 function matchesPrView(request: OpRequest<'pr.view'>, value: OpValue<'pr.view'>): boolean {
   const selector = request.selector;
   // Only a head selector may find nothing; an explicit number must resolve.
@@ -347,6 +355,8 @@ const resultMatchers: { [Op in ForgeOp]: ResultMatcher<Op> } = {
     sameRepo(value.repo, request.repo) &&
     value.label === request.label &&
     value.items.every(item => item.state === 'open' && sameRepo(item.ref.repo, request.repo)),
+  'workitem.label.added': (request, value) =>
+    sameSubject(value.subject, request.subject) && value.name === request.name,
   'workitem.create': (request, value) =>
     sameTarget(value.target, request.repo) &&
     sameRepo(value.workitem.ref.repo, request.repo) &&
@@ -405,6 +415,7 @@ const resultMatchers: { [Op in ForgeOp]: ResultMatcher<Op> } = {
     value.bodyDigest === contentDigest(request.body),
   'pr.ready': draftChange,
   'pr.draft': draftChange,
+  'pr.close': closeChange,
   'pr.thread.reply': (request, value) =>
     sameTarget(value.target, request.ref) &&
     value.thread === request.thread &&

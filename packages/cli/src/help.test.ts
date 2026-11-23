@@ -154,6 +154,7 @@ Commands:
                              List compact workflow descriptions
                              Use <name> --full for one exact description
   workflow run <name> [msg]  Run a workflow with optional message
+                             With no name, --supersedes <run-id> starts that run again from its record
   workflow status            Show running/paused workflows for this project
   workflow runs              List recent runs (all statuses) for this project
   workflow get <run-id>      Show detail for a single run (any status)
@@ -197,10 +198,10 @@ Commands:
   workflow merged --item <key> --change <ref> --at <ISO>
                              Record that an item's change merged, as the forge reported it. Recorded once:
                              a second report keeps the first
-  workflow landing --item <key> --branch <name>
+  workflow landing --item <key> --branch <name> [--from <start-point>]
                              Record the branch an item's change lands on. Every fresh run on the item, and on
                              an item part_of it that records none, is cut from it and proposes against it.
-                             Recording again replaces it
+                             Recording again replaces it. With --from, first create the branch on the remote
   workflow notice <text>     Inside a workflow node: say what the run did, for whoever watches attention
                              with --notices. Never pauses the run and cannot be answered
   workflow event emit        Emit a workflow event into a run
@@ -260,15 +261,17 @@ Commands:
 Options:
   --chat-project-id <id>     Confine chat workflow commands to a registered project ID
   --cwd <path>               Override working directory (default: current directory)
-  --project <id|name>        Bind to a registered repository (see project list). Source/config come from --cwd;
-                             isolated execution uses the registered checkout. Use --no-worktree to execute in --cwd.
+  --project <id|name>        Bind to a registered repository (see project list). Definitions come from the base branch
+                             with --cwd's uncommitted changes on top; isolated execution uses the registered checkout.
+                             Use --no-worktree to execute in --cwd.
                              Cannot combine with ${RUN_PROJECT_CONFLICT_FLAGS.map(flag => `--${flag}`).join(', ')}.
   --branch, -b <name>        Create worktree for branch (or reuse existing)
   --from, --from-branch <name> Create new branch from specific start point
   --base-branch <name>       Initial repository registration only; omit to follow the remote default. Use --base for a run override.
   --base <branch>            Per-dispatch base override for epic slices (worktree cut-from + PR target)
-  --workflow-source <path>   Read the workflow, its commands and scripts from this checkout root
-                             (<path>/.archon/workflows) instead of --cwd (which stays the workspace the run acts on)
+  --workflow-source <path>   Read the workflow, its commands and scripts from this checkout root as it is
+                             (<path>/.archon/workflows), instead of the base branch with --cwd's uncommitted changes on top
+                             (--cwd stays the workspace the run acts on)
   --no-worktree              Run on branch directly without worktree isolation
   --folder                   Register the target directory (the project add path, else the current directory), with or without git, as a folder project; workflow run runs in place
   --container                Run a folder project in container isolation
@@ -278,7 +281,8 @@ Options:
   --config <path>            Load a sparse YAML config layer for one fresh workflow run
   --config-from-run <run-id> Start a fresh run with the run config another run was started with
   --adopt <run-id>           Start a new run adopting a terminal run's worktree/branch + artifacts ($ADOPTED_RUN_DIR)
-  --supersedes <run-id>      Record this fresh run as replacing the prior run's open item (no lane inheritance)
+  --supersedes <run-id>      Record this fresh run as replacing the prior run's open item; with a workflow name, no lane inheritance.
+                             With no name, start that run again from its record: workflow, source, inputs and checkout hand-off
   --dry-run                  Simulate workflow DAG control flow without creating a run or contacting a provider
   --stubs <path>             YAML node-output map for --dry-run
   --stubs-init <path>        Write a dry-run stub scaffold and exit; omits child workflows.

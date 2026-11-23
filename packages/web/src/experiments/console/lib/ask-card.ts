@@ -85,12 +85,15 @@ export function tileOrder(wait: AttentionWait): WaitOption[] {
  * `attentionAnswerProblem` holds in `@archon/workflows` (`schemas/run-wait.ts`), which every
  * answer surface follows. `@archon/web` must not import `@archon/workflows`, so this mirrors
  * it, and `scripts/attention-answer-parity.test.ts` runs both on the same cases. A message
- * takes text only (blank included); approval and select take exactly one declared option;
+ * takes text only, and not blank text; approval and select take exactly one declared option;
  * multi_select one or more distinct declared options; the reserved `other` option needs text.
  */
 export function answerProblem(wait: AttentionWait, answer: AnswerDraft): string | undefined {
   const form = wait.form;
-  if (form === 'message') return answer.choose.length > 0 ? 'takes only text' : undefined;
+  if (form === 'message') {
+    if (answer.choose.length > 0) return 'takes only text';
+    return answer.text.trim() === '' ? 'needs text.' : undefined;
+  }
   const declared = wait.options.map(option => option.id);
   if (answer.choose.some(id => !declared.includes(id))) return 'chooses an undeclared option';
   if (form === 'multi_select') {

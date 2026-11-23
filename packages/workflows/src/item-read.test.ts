@@ -8,6 +8,7 @@ import type { StoredItemAsk } from './schemas/item-ask';
 import type { ItemLink } from './schemas/item-link';
 import type { ItemRuling } from './schemas/item-ruling';
 import type { WorkflowEventRow } from './schemas/workflow-event';
+import { RUN_DISPATCH_METADATA_KEY } from './schemas/run-metadata';
 import type { WorkflowItem, WorkflowRun } from './schemas/workflow-run';
 
 const item: WorkflowItem = { id: 'item-row', projectKey: 'acme/web', key: 'issue-7' };
@@ -204,6 +205,7 @@ const source: ItemReadSource = {
     listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
     listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
     getInstallHold: async () => null,
+    getRunLimit: async () => null,
     listHeldItemStarts: async () => [],
     listStartReceiptSources: async ids =>
       new Map(
@@ -290,6 +292,7 @@ describe('reading an item', () => {
       {
         id: 'first',
         workflow: 'deliver',
+        pack: null,
         status: 'completed',
         outcome: 'built',
         startedAt: '2026-11-01T09:00:00.000Z',
@@ -305,6 +308,7 @@ describe('reading an item', () => {
       {
         id: 'second',
         workflow: 'deliver',
+        pack: null,
         status: 'running',
         outcome: null,
         startedAt: '2026-11-01T11:00:00.000Z',
@@ -374,6 +378,31 @@ describe('reading an item', () => {
     expect(read?.degraded).toEqual([]);
   });
 
+  test('reads the run limit the store reports, and marks the queued starts only it holds', async () => {
+    const queued = (requestId: string) => ({
+      requestId,
+      workflow: 'review',
+      resource: 'build',
+      hostId: 'host',
+      queuedAt: '2026-11-01T09:35:00.000Z',
+      ahead: 0,
+    });
+    const limited: ItemReadSource = {
+      ...source,
+      store: {
+        ...source.store,
+        listQueuedItemStarts: async () => new Map([[item.id, [queued('held'), queued('free')]]]),
+        getRunLimit: async () => ({ limit: 2, live: 2, waiting: ['held'] }),
+      },
+    };
+    const read = await readItem(limited, item.projectKey, item.key);
+    expect(read?.runLimit).toEqual({ limit: 2, live: 2 });
+    expect(read?.queued.map(start => [start.requestId, start.waitsForRunLimit])).toEqual([
+      ['held', true],
+      ['free', false],
+    ]);
+  });
+
   test('a landing that cannot be resolved is reported, and the rest of the item still reads', async () => {
     const unreadable: ItemReadSource = {
       ...source,
@@ -410,6 +439,7 @@ describe('reading an item', () => {
       queued: [],
       skipped: [],
       hold: null,
+      runLimit: null,
       held: [],
       waits: [],
       questions: [],
@@ -419,6 +449,52 @@ describe('reading an item', () => {
       links: [],
       degraded: [],
     });
+  });
+
+  test('a run reads the pack and in-pack name its dispatch recorded, not its public name', async () => {
+    const dispatched = (pack: string, source: string) => ({
+      [RUN_DISPATCH_METADATA_KEY]: {
+        base_branch: 'dev',
+        pack,
+        pack_workflow: 'stage-check',
+        source,
+      },
+    });
+    const project = run('project', {
+      workflow_name: 'stage-check',
+      metadata: dispatched('archon-software-factory', 'project'),
+    });
+    // An entrypoint may publish the workflow under another name than its `name:`.
+    const installed = run('installed', {
+      workflow_name: 'acme/archon-software-factory:check',
+      metadata: dispatched('acme.archon-software-factory', 'installed'),
+    });
+    // Recorded by an older build: a pack but no in-pack name, which is not guessed.
+    const older = run('older', {
+      workflow_name: 'stage-check',
+      metadata: {
+        [RUN_DISPATCH_METADATA_KEY]: { base_branch: 'dev', pack: 'archon-software-factory' },
+      },
+    });
+    const packed: ItemReadSource = {
+      ...source,
+      store: {
+        ...source.store,
+        getItemRuns: async () => ({ item, runs: [project, installed, older], descendantIds: [] }),
+      },
+    };
+    const read = await readItem(packed, item.projectKey, item.key);
+    expect(read?.runs.map(({ workflow, pack }) => ({ workflow, pack }))).toEqual([
+      {
+        workflow: 'stage-check',
+        pack: { key: 'archon-software-factory', workflow: 'stage-check' },
+      },
+      {
+        workflow: 'acme/archon-software-factory:check',
+        pack: { key: 'acme.archon-software-factory', workflow: 'stage-check' },
+      },
+      { workflow: 'stage-check', pack: null },
+    ]);
   });
 
   test('a start admitted while the item is read is listed once, as a run', async () => {
