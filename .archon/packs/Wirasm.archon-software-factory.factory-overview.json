@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "How the factory works",
-  "caption": "Work comes in as an issue, a work order, or something the factory found while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. Whenever something needs a decision, the factory stops and asks you, and your answer restarts the stage that asked. On a change in delivery you pick what happens: send it back to the builder, back to Plan, take it as it is, or hold it. What the checks and CI find goes back to the same builder, for up to three rounds; an item that needs a different approach goes back to Plan.",
+  "caption": "Work comes in as a work order, or as an issue someone adds the factory label to; agents also find work while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it. When something needs a decision, the factory asks you, and your answer restarts the stage that asked. On a change in delivery you pick what happens: send it back to the builder or to Plan, take it as it is, drop it, or reshape it. What the checks and CI find goes back to the same builder, for up to three rounds; an item that needs a different approach goes back to Plan.",
   "root": "factory",
   "views": {
     "factory": {
@@ -11,7 +11,7 @@
         {
           "id": "issue",
           "title": "An issue",
-          "text": "Someone files what they want built",
+          "text": "Someone adds the factory label to an issue",
           "icon": "issue",
           "kind": "input",
           "col": 1,
@@ -21,7 +21,7 @@
         {
           "id": "order",
           "title": "A work order",
-          "text": "A request you hand the factory yourself",
+          "text": "Handed to the factory as a work order",
           "icon": "order",
           "kind": "input",
           "col": 1,
@@ -158,7 +158,7 @@
         {
           "id": "triage-item",
           "title": "The item",
-          "text": "An issue, a work order or a finding",
+          "text": "A work order, a labelled issue or a finding",
           "icon": "inbox",
           "kind": "input",
           "col": 1,

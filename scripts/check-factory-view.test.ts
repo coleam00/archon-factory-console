@@ -9,6 +9,7 @@ import { FACTORY_VIEW_PROJECT_SUFFIX } from '../packages/workflows/src/schemas/f
 import {
   type InstalledRead,
   installedGraph,
+  packShape,
   namedPlugins,
   type ReadInstalled,
   runCheck,
@@ -169,6 +170,20 @@ describe('namedPlugins', () => {
     const env = { ARCHON_FACTORY_LIVE_HOME: 'live', ARCHON_HOME: 'home' };
     expect(namedPlugins(env)).toBe(getPluginsPath('live'));
     expect(namedPlugins({ ...env, ARCHON_FACTORY_LIVE_HOME: '' })).toBe(getPluginsPath('home'));
+  });
+});
+
+describe('packShape', () => {
+  test('drops where the copies were read from, so two reads of one pack are equal', () => {
+    const copy = (dir: string) => ({ source: 'installed' as const, key: 'o.p', dir });
+    const read = (dir: string): PackGraph => ({
+      ...graph(),
+      loaded: [copy(dir)],
+      otherCopies: [copy(`${dir}-other`)],
+    });
+    expect(Bun.deepEquals(read('/tmp/a'), read('/tmp/b'))).toBe(false);
+    expect(packShape(read('/tmp/a'))).toEqual(packShape(read('/tmp/b')));
+    expect(packShape(read('/tmp/a'))).toEqual({ ...read('/tmp/a'), loaded: [], otherCopies: [] });
   });
 });
 

@@ -248,6 +248,7 @@ describe('the facts of one run', () => {
         change: null,
         partOf: null,
         parked: null,
+        awaits: null,
         shadows: [],
       });
     // Triage's one declared shadow step decided (its old split step is no shadow the view
@@ -399,7 +400,8 @@ function triageRun(
   id: string,
   recommend: string,
   why: unknown,
-  at: string
+  at: string,
+  rest: Record<string, unknown> = {}
 ): { run: WorkflowRun; events: WorkflowEventRow[] } {
   const run = {
     ...triage1.run,
@@ -417,7 +419,7 @@ function triageRun(
         ...data,
         terminal_record: {
           ...data.terminal_record,
-          returns: { ...data.terminal_record.returns, value: { recommend, why } },
+          returns: { ...data.terminal_record.returns, value: { recommend, why, ...rest } },
         },
       },
     };
@@ -455,6 +457,42 @@ describe('a parked item, from its last declared run', () => {
       expect(
         (await progressOf([triageRun('t1', verb, 'Why.', '2026-11-16T00:00:00Z')])).parked
       ).toBeNull();
+  });
+});
+
+describe('an item waiting on a person, from its last declared run', () => {
+  test('a triage run that asked for shaping gives the label, its why and its open questions', async () => {
+    const shape = triageRun('t1', 'shape', ' Worth doing. ', '2026-11-16T00:00:00Z', {
+      open_questions: [' Which surfaces? ', '', 7, 'Who owns it?'],
+    });
+    expect((await progressOf([shape])).awaits).toEqual({
+      label: 'Needs shaping',
+      why: 'Worth doing.',
+      questions: ['Which surfaces?', 'Who owns it?'],
+    });
+    expect((await progressOf([shape])).parked).toBeNull();
+  });
+
+  test('questions that are not a list read as none; the item still waits', async () => {
+    for (const open_questions of ['Which surfaces?', null, undefined]) {
+      const shape = triageRun('t1', 'shape', 'Why.', '2026-11-16T00:00:00Z', { open_questions });
+      expect((await progressOf([shape])).awaits).toEqual({
+        label: 'Needs shaping',
+        why: 'Why.',
+        questions: [],
+      });
+    }
+  });
+
+  test('a run after it takes the item up: it waits no more', async () => {
+    const shape = triageRun('t1', 'shape', 'Later.', '2026-11-16T00:00:00Z', {
+      open_questions: ['Which?'],
+    });
+    const again = triageRun('t2', 'build', 'Now.', '2026-11-17T00:00:00Z');
+    expect((await progressOf([shape, again])).awaits).toBeNull();
+    expect(
+      (await progressOf([triageRun('t1', 'park', 'Later.', '2026-11-16T00:00:00Z')])).awaits
+    ).toBeNull();
   });
 });
 
@@ -577,6 +615,7 @@ describe("an item's progress", () => {
       ],
       shadows: factsOf(triage1).shadows,
       parked: null,
+      awaits: null,
     });
     expect(seen).toEqual([[PR10, factsOf(deliver1).change?.audits.length ?? -1]]);
   });
@@ -794,6 +833,8 @@ describe('the facts memo', () => {
     ).toBeUndefined();
     // And which outcomes park an item, and where their reason is.
     expect(memo.get({ ...view, parked: {} }, PACK, deliver1.run)).toBeUndefined();
+    // And which outcomes leave it waiting on a person, and where their words are.
+    expect(memo.get({ ...view, awaits: {} }, PACK, deliver1.run)).toBeUndefined();
   });
 
   test('is bounded, oldest out', () => {

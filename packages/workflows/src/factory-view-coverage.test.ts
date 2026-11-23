@@ -364,19 +364,115 @@ describe('outcomes: each one placed or ended, and only declared ones named', () 
       placement: { 'plan:planned': 'build', 'plan:parked': 'plan' },
       endings: { 'plan:closed': 'Closed' },
       parked: { 'plan:parked': { label: 'Parked' } },
+      awaits: { 'plan:shaped': { label: 'Needs shaping' } },
       asked: ['plan:asked'],
     };
     expect(findings(view, withPlanOutcomes('planned'))).toEqual([
       ['unknown-outcome', 'placement.plan:parked'],
       ['unknown-outcome', 'endings.plan:closed'],
       ['unknown-outcome', 'parked.plan:parked'],
+      ['unknown-outcome', 'awaits.plan:shaped'],
       ['unknown-outcome', 'asked.0'],
     ]);
+  });
+
+  test('an awaits outcome is placed through placement, so it needs no ending', () => {
+    const view = {
+      ...clean(),
+      placement: { 'plan:planned': 'build', 'plan:shape': 'plan' },
+      awaits: { 'plan:shape': { label: 'Needs shaping', questions: '/open_questions' } },
+    };
+    expect(findings(view, withPlanOutcomes('planned', 'shape'))).toEqual([]);
   });
 
   test('a workflow that declares no outcome is not compared', () => {
     const view = { ...clean(), placement: { 'deliver:anything': 'ship' } };
     expect(findings(view)).toEqual([]);
+  });
+});
+
+/** `graph()` after the pack dropped `deliver`: its stage and every arrow touching it gone. */
+const withoutDeliver = (): PackGraph => {
+  const of = graph();
+  of.stages = of.stages.filter(stage => stage.name !== 'o/p:deliver');
+  of.arrows = of.arrows.filter(
+    entry => entry.from.stage !== 'o/p:deliver' && entry.to !== 'o/p:deliver'
+  );
+  return of;
+};
+
+/**
+ * `clean()` with `deliver` retired, still worded everywhere for its old runs: placed, ended,
+ * told, its steps named and a step of it a shadow. The plan -> build arrow only deliver backed
+ * is gone, as the view's author would drop it.
+ */
+const retiredView = (): FactoryView => {
+  const view = clean();
+  return factoryViewSchema.parse({
+    ...view,
+    retired: ['deliver'],
+    placement: { 'deliver:ready': 'ship', 'deliver:returned': 'build' },
+    endings: { 'deliver:stop': 'Stopped' },
+    asked: ['deliver:ask'],
+    returns: [{ workflow: 'deliver', node: 'rounds.review__review', outcome: 'return' }],
+    verdicts: { deliver: { 'rounds.review__review': { sound: 'approved' } } },
+    rounds: { workflow: 'deliver', loop: 'rounds' },
+    change: { workflow: 'deliver', pointer: '/change' },
+    story: {
+      outcomes: { 'deliver:ready': 'Delivered', 'deliver:*': 'Deliver finished' },
+      steps: { deliver: { 'rounds.review__review': 'The checks read it' } },
+    },
+    shadows: [
+      {
+        workflow: 'deliver',
+        node: 'rounds.checks',
+        label: 'Project checks',
+        reads: 'checks',
+        results: '/results',
+        entry: { name: '/name', passed: '/passed' },
+      },
+    ],
+    map: {
+      ...view.map,
+      arrows: view.map.arrows.filter(entry => entry.from !== 'plan' || entry.to !== 'build'),
+    },
+  });
+};
+
+describe('retired workflows: kept for their old runs, compared with nothing', () => {
+  test('a retired workflow the pack no longer has yields no finding anywhere the view names it', () => {
+    expect(findings(retiredView(), withoutDeliver())).toEqual([]);
+  });
+
+  test('the same view without retired reports the workflow the pack lacks', () => {
+    const view = { ...retiredView(), retired: undefined };
+    expect(findings(view, withoutDeliver())).toEqual([
+      ['unknown-workflow', 'stages.1.workflows.0'],
+      ['unknown-workflow', 'stages.2.workflows.0'],
+      ['unknown-step', 'stages.1.nodes.0'],
+      ['unknown-step', 'stages.1.nodes.1'],
+      ['unknown-step', 'stages.2.nodes.0'],
+      ['unknown-workflow', 'shadows.0.workflow'],
+    ]);
+  });
+
+  test('a stage node naming no step the view records for a retired workflow is still reported', () => {
+    const view = retiredView();
+    view.stages[1]!.nodes = ['build__build', 'rounds', 'rounds.fixx'];
+    expect(findings(view, withoutDeliver())).toEqual([['unknown-step', 'stages.1.nodes.2']]);
+  });
+
+  test('a retired workflow the pack still has is reported, and nothing of it is compared', () => {
+    const view = retiredView();
+    view.stages[1]!.nodes = ['build__build', 'rounds', 'rounds.fixx'];
+    const found = factoryViewCoverage(view, graph());
+    expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
+      ['retired-present', 'retired.0'],
+      ['unknown-step', 'stages.1.nodes.2'],
+    ]);
+    expect(found[0]?.message).toBe(
+      'names retired workflow "deliver", which pack "o.p" still has; remove it from retired or stop retiring it'
+    );
   });
 });
 

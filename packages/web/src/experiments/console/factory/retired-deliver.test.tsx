@@ -15,7 +15,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
-import { boardModel } from './lib/board';
+import { boardModel, positionOf } from './lib/board';
 import { delivering, PAGE, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
 
@@ -65,7 +65,7 @@ function boardAndMap(): unknown {
   return {
     columns: model.columns.map(column => ({
       id: column.id,
-      cards: column.cards.map(placed => ({ stage: placed.column, card: placed.card })),
+      cards: column.cards.map(placed => ({ at: positionOf(placed.column), card: placed.card })),
     })),
     ended: model.ended.map(row => ({ label: row.label, keys: row.cards.map(c => c.card.key) })),
     map: [...live.positions],

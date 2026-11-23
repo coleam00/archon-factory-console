@@ -2,12 +2,12 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "Software factory",
-  "summary": "Work comes in as work orders. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. A person steps in only to answer the questions an item asks.",
+  "summary": "Work comes in as a work order, or as an issue someone adds the factory label to. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. A person steps in only to answer the questions an item asks, and to shape an item triage or your answer sent back to shaping.",
   "stages": [
     {
       "id": "order",
       "label": "Order",
-      "blurb": "Takes a work order and makes it one item the factory can read.",
+      "blurb": "Takes a work order, or an issue someone added the factory label to, and makes it one item the factory can read.",
       "short": "Turns orders into items",
       "group": "intake",
       "workflows": [
@@ -20,7 +20,7 @@
             "cards": [
               {
                 "title": "Take the order",
-                "text": "Turns a work order into one item the factory can read",
+                "text": "Turns a work order, or an issue given the factory label, into one item the factory can read",
                 "icon": "inbox",
                 "kind": "script",
                 "covers": [
@@ -461,20 +461,6 @@
                 ]
               },
               {
-                "title": "Project checks",
-                "text": "Runs the project's declared checks",
-                "icon": "clipboard-list",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "stage-check",
-                    "steps": [
-                      "checks"
-                    ]
-                  }
-                ]
-              },
-              {
                 "title": "Code review",
                 "text": "Reviews the change",
                 "icon": "search-code",
@@ -536,20 +522,6 @@
             "label": "Round ends (stage)",
             "cards": [
               {
-                "title": "Post the review",
-                "text": "Posts the checks' findings on the pull request",
-                "icon": "message-square",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "stage-check",
-                    "steps": [
-                      "rounds"
-                    ]
-                  }
-                ]
-              },
-              {
                 "title": "Count the round",
                 "text": "Records the round and the rounds allowed",
                 "icon": "ruler",
@@ -578,16 +550,29 @@
                 ]
               },
               {
-                "title": "Report",
-                "text": "Leaves the report on the pull request and hands on",
-                "icon": "message-square",
+                "title": "Hand on",
+                "text": "Hands the change on to CI, back to the builder or to you",
+                "icon": "send",
                 "kind": "script",
                 "covers": [
                   {
                     "workflow": "stage-check",
                     "steps": [
-                      "end",
-                      "reported"
+                      "end"
+                    ]
+                  }
+                ]
+              },
+              {
+                "title": "Report",
+                "text": "Writes the factory's report on the pull request",
+                "icon": "message-square",
+                "kind": "agent",
+                "covers": [
+                  {
+                    "workflow": "stage-check",
+                    "steps": [
+                      "report__report"
                     ]
                   }
                 ]
@@ -719,16 +704,29 @@
                 ]
               },
               {
-                "title": "Report",
-                "text": "Closes the report and hands the change on",
-                "icon": "message-square",
+                "title": "Hand on",
+                "text": "Hands the change on to the merge gate, back to the builder or to you",
+                "icon": "send",
                 "kind": "script",
                 "covers": [
                   {
                     "workflow": "stage-host",
                     "steps": [
-                      "end",
-                      "reported"
+                      "end"
+                    ]
+                  }
+                ]
+              },
+              {
+                "title": "Report",
+                "text": "Writes the factory's report on the pull request",
+                "icon": "message-square",
+                "kind": "agent",
+                "covers": [
+                  {
+                    "workflow": "stage-host",
+                    "steps": [
+                      "report__report"
                     ]
                   }
                 ]
@@ -748,12 +746,13 @@
     {
       "id": "ready",
       "label": "Ready to merge",
-      "blurb": "A gate reads the approved change and either lets it through or asks you; told \"land\", the factory merges it.",
+      "blurb": "A gate reads the approved change and either lets it through or asks you; told \"land\", the factory merges it. Told to drop or reshape it, the factory closes the change or turns it back into a draft.",
       "short": "Gated, merged on land",
       "group": "land",
       "workflows": [
         "landgate",
-        "land"
+        "land",
+        "close"
       ],
       "drilldown": {
         "phases": [
@@ -817,6 +816,25 @@
                     "workflow": "land",
                     "steps": [
                       "end"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "label": "Drop or reshape",
+            "cards": [
+              {
+                "title": "Drop or reshape",
+                "text": "Closes or drafts the change you dropped or reshaped, and says why on it",
+                "icon": "git-pull-request",
+                "kind": "script",
+                "covers": [
+                  {
+                    "workflow": "close",
+                    "steps": [
+                      "close"
                     ]
                   }
                 ]
@@ -905,6 +923,9 @@
       ]
     }
   ],
+  "retired": [
+    "deliver"
+  ],
   "placement": {
     "order:ready": "triage",
     "triage:build": "plan",
@@ -936,7 +957,11 @@
     "stage-host:return": "build",
     "stage-host:waiting": "host",
     "stage-host:ask": "host",
-    "landed:*": "landed"
+    "landed:*": "landed",
+    "triage:shape": "triage",
+    "close:reshape": "triage",
+    "close:not_closed": "ready",
+    "close:none": "ready"
   },
   "endings": {
     "order:refused": "Refused at intake",
@@ -948,7 +973,8 @@
     "triage:native": "Handled another way",
     "plan:stop": "Stopped at planning",
     "land:stop": "Stopped before merging",
-    "split:split": "Split into pieces"
+    "split:split": "Split into pieces",
+    "close:dropped": "Dropped by you"
   },
   "landed": {
     "stage": "landed"
@@ -1056,6 +1082,21 @@
       "why": "/why"
     }
   },
+  "awaits": {
+    "triage:shape": {
+      "label": "Needs shaping",
+      "why": "/why",
+      "questions": "/open_questions"
+    },
+    "close:reshape": {
+      "label": "Needs shaping",
+      "why": "/why"
+    },
+    "close:not_closed": {
+      "label": "Close the change by hand",
+      "why": "/why"
+    }
+  },
   "change": [
     {
       "workflow": "deliver",
@@ -1115,19 +1156,6 @@
     {
       "workflow": "deliver",
       "node": "rounds.checks",
-      "label": "Project checks",
-      "reads": "checks",
-      "results": "/results",
-      "entry": {
-        "name": "/name",
-        "passed": "/passed",
-        "seconds": "/seconds",
-        "tail": "/tail"
-      }
-    },
-    {
-      "workflow": "stage-check",
-      "node": "checks",
       "label": "Project checks",
       "reads": "checks",
       "results": "/results",
@@ -1205,23 +1233,21 @@
     },
     "stage-check": {
       "base": "Reads the base commit",
-      "checks": "Project checks",
       "review__review": "Code review",
       "tests__tests": "Test check",
       "product__product": "Product check",
       "verdict__verdict": "Verdict",
-      "rounds": "Posts the review",
       "allowance": "Reads the rounds allowed",
       "exhausted": "Rounds ran out",
       "end": "Hands the change on",
-      "reported": "Reports the ending"
+      "report__report": "Writes the report"
     },
     "stage-host": {
       "rounds__host": "Reads CI and PR reviews",
       "allowance": "Reads the rounds allowed",
       "exhausted": "Rounds ran out",
       "end": "Hands the change on",
-      "reported": "Reports the ending"
+      "report__report": "Writes the report"
     },
     "landed": {
       "landed": "Checks the branch after the merge"
@@ -1231,6 +1257,9 @@
     },
     "land": {
       "end": "Hands on the merge's answer"
+    },
+    "close": {
+      "close": "Carries out drop or reshape"
     }
   },
   "story": {
@@ -1278,7 +1307,12 @@
       "land:stop": "Merging stopped it",
       "land:ask": "Merging asked you",
       "landed:*": "The factory checked the branch after the merge",
-      "discoveries:*": "The factory looked for other work it noticed"
+      "discoveries:*": "The factory looked for other work it noticed",
+      "triage:shape": "Triage judged it worth doing, once a maintainer settles its open questions",
+      "close:dropped": "You dropped it; the change was closed without merging",
+      "close:reshape": "You sent it back to shaping; the change stays open as a draft",
+      "close:not_closed": "The factory could not close the change; close it by hand",
+      "close:none": "Close found no drop or reshape answer and did nothing"
     },
     "steps": {
       "deliver": {
@@ -1347,7 +1381,7 @@
       {
         "from": "host",
         "to": "ready",
-        "label": "ready"
+        "label": "ready, drop, reshape"
       },
       {
         "from": "ready",
@@ -1378,7 +1412,7 @@
       {
         "from": "ready",
         "to": "ready",
-        "label": "land",
+        "label": "land, drop, reshape",
         "person": true
       },
       {
@@ -1423,6 +1457,16 @@
         "to": "plan",
         "label": "replan",
         "person": true
+      },
+      {
+        "from": "build",
+        "to": "ready",
+        "label": "drop, reshape"
+      },
+      {
+        "from": "checks",
+        "to": "ready",
+        "label": "drop, reshape"
       }
     ],
     "notes": [

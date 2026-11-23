@@ -11838,6 +11838,14 @@ export interface components {
               why?: string;
             };
           };
+          awaits?: {
+            [key: string]: {
+              label: string;
+              why?: string;
+              questions?: string;
+            };
+          };
+          retired?: string[];
           change?:
             | {
                 workflow: string;
@@ -12934,6 +12942,11 @@ export interface components {
             label: string;
             why: string | null;
           } | null;
+          awaits: {
+            label: string;
+            why: string | null;
+            questions: string[];
+          } | null;
         } | null;
       };
       runs: {
@@ -13099,6 +13112,11 @@ export interface components {
           parked: {
             label: string;
             why: string | null;
+          } | null;
+          awaits: {
+            label: string;
+            why: string | null;
+            questions: string[];
           } | null;
         } | null;
       };

@@ -5,8 +5,9 @@
  * workflows the view lists, and every outcome such a workflow declares is placed or ended while
  * every outcome the view names is one it declares, and every result the view reads a change or
  * a round from is one the workflow returns. A workflow no stage lists is not compared (`unlistedWorkflows`
- * names them). The schema cannot see the pack's workflows; this check reads them as the pack
- * graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
+ * names them), and nor is a workflow the view declares `retired`: its old runs still read, so
+ * the view keeps wording them, and the pack need not have it. The schema cannot see the pack's
+ * workflows; this check reads them as the pack graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
  */
 import { packWorkflowName, type PackGraph } from './pack-graph';
@@ -29,6 +30,7 @@ export type CoverageFindingKind =
   | 'untold-outcome'
   | 'unknown-outcome'
   | 'no-result'
+  | 'retired-present'
   | 'graph-incomplete';
 
 export interface CoverageFinding {
@@ -42,11 +44,19 @@ type ViewPath = CoverageFinding['path'];
 type GraphStage = PackGraph['stages'][number];
 type GraphNode = GraphStage['nodes'][number];
 
-/** Each workflow the view lists, by its name in the view, to its stage in the graph. */
+const isRetired = (view: FactoryView, workflow: string): boolean =>
+  view.retired?.includes(workflow) === true;
+
+/**
+ * Each workflow the view lists and has not retired, by its name in the view, to its stage in
+ * the graph. Every comparison with the graph reads through it, so a retired workflow is
+ * compared nowhere.
+ */
 function graphStagesOf(view: FactoryView, graph: PackGraph): Map<string, GraphStage> {
   const names = graph.stages.map(stage => stage.name);
   const found = new Map<string, GraphStage>();
   for (const workflow of view.stages.flatMap(stage => stage.workflows)) {
+    if (isRetired(view, workflow)) continue;
     // `packWorkflowName` owns how a pack's own name is qualified in an install.
     const name = packWorkflowName(names, workflow);
     const stage = graph.stages.find(entry => entry.name === name);
@@ -185,7 +195,32 @@ function uncovered(view: FactoryView, workflow: string, node: GraphNode): Covera
   };
 }
 
-/** Every step a stage's `nodes`, the `steps` or the `verdicts` names is a real step of its workflow. */
+/**
+ * The steps the view itself names for `workflow`: what its drill-down cards and loop cover and
+ * what `steps`, `story.steps`, `verdicts`, `returns`, `approves`, a loop-form `rounds` source and
+ * `shadows` name. For a retired workflow, which the graph no longer has, this is the record a
+ * stage's `nodes` entry is held to.
+ */
+function viewSteps(view: FactoryView, workflow: string): Set<string> {
+  const points = [...(view.returns ?? []), ...(view.approves ?? []), ...(view.shadows ?? [])];
+  const loops = roundsSources(view).flatMap(source => (isLoopRounds(source) ? [source] : []));
+  const of = <T extends { workflow: string }>(list: readonly T[]): T[] =>
+    list.filter(entry => entry.workflow === workflow);
+  return new Set([
+    ...of(coverersOf(view)).map(coverer => coverer.step),
+    ...[view.steps, view.story?.steps, view.verdicts].flatMap(byWorkflow =>
+      Object.keys(byWorkflow?.[workflow] ?? {})
+    ),
+    ...of(points).map(point => point.node),
+    ...of(loops).map(source => source.loop),
+  ]);
+}
+
+/**
+ * Every step a stage's `nodes`, the `steps` or the `verdicts` names is a real step of its
+ * workflow. A `nodes` entry matches a step of a workflow of the stage the graph has, or one the
+ * view names for a retired workflow of the stage (`viewSteps`).
+ */
 function namedStepFindings(
   view: FactoryView,
   stages: ReadonlyMap<string, GraphStage>
@@ -197,9 +232,13 @@ function namedStepFindings(
     message: `names step "${step}", which workflow "${workflow}" does not have`,
   });
   view.stages.forEach((stage, s) => {
+    const retired = stage.workflows.filter(workflow => isRetired(view, workflow));
+    const known = [
+      ...stage.workflows.flatMap(w => (stages.get(w)?.nodes ?? []).map(node => node.id)),
+      ...retired.flatMap(workflow => [...viewSteps(view, workflow)]),
+    ];
     stage.nodes?.forEach((entry, n) => {
-      const real = stage.workflows.flatMap(w => stages.get(w)?.nodes ?? []);
-      if (!real.some(node => matchesEntry(node.id, entry)))
+      if (!known.some(step => matchesEntry(step, entry)))
         findings.push(unknown(['stages', s, 'nodes', n], stage.workflows.join(', '), entry));
     });
   });
@@ -345,6 +384,7 @@ function shadowFindings(view: FactoryView, graph: PackGraph): CoverageFinding[] 
   const names = graph.stages.map(stage => stage.name);
   const findings: CoverageFinding[] = [];
   view.shadows?.forEach((shadow, index) => {
+    if (isRetired(view, shadow.workflow)) return;
     const name = packWorkflowName(names, shadow.workflow);
     const graphStage = graph.stages.find(stage => stage.name === name);
     if (graphStage === undefined)
@@ -441,7 +481,7 @@ function storyStepFindings(
 }
 
 /**
- * Every exact `workflow:outcome` key of `placement`, `endings`, `parked`, `asked` and
+ * Every exact `workflow:outcome` key of `placement`, `endings`, `parked`, `awaits`, `asked` and
  * `story.outcomes` names an
  * outcome the workflow declares. A `*` key, and a workflow whose stage declares no outcome, are
  * not compared; a workflow the graph lacks is reported as unknown-workflow.
@@ -454,6 +494,7 @@ function unknownOutcomeFindings(
     ...Object.keys(view.placement).map((key): [ViewPath, string] => [['placement', key], key]),
     ...Object.keys(view.endings).map((key): [ViewPath, string] => [['endings', key], key]),
     ...Object.keys(view.parked ?? {}).map((key): [ViewPath, string] => [['parked', key], key]),
+    ...Object.keys(view.awaits ?? {}).map((key): [ViewPath, string] => [['awaits', key], key]),
     ...(view.asked ?? []).map((key, index): [ViewPath, string] => [['asked', index], key]),
     ...Object.keys(view.story?.outcomes ?? {}).map((key): [ViewPath, string] => [
       ['story', 'outcomes', key],
@@ -485,9 +526,18 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
       path: [],
       message: `${String(graph.discoveryErrors.length)} of the pack's workflows failed to load: ${graph.discoveryErrors.map(e => e.filename).join(', ')}`,
     });
+  const names = graph.stages.map(stage => stage.name);
+  view.retired?.forEach((workflow, index) => {
+    if (packWorkflowName(names, workflow) !== undefined)
+      findings.push({
+        kind: 'retired-present',
+        path: ['retired', index],
+        message: `names retired workflow "${workflow}", which pack "${graph.pack}" still has; remove it from retired or stop retiring it`,
+      });
+  });
   view.stages.forEach((stage, s) => {
     stage.workflows.forEach((workflow, w) => {
-      if (!stages.has(workflow))
+      if (!stages.has(workflow) && !isRetired(view, workflow))
         findings.push({
           kind: 'unknown-workflow',
           path: ['stages', s, 'workflows', w],
@@ -499,7 +549,6 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
   // hand-offs of it are compared, and `unlistedWorkflows` still names it.
   const { discoveries } = view;
   if (discoveries !== undefined) {
-    const names = graph.stages.map(stage => stage.name);
     if (packWorkflowName(names, discoveries.workflow) === undefined)
       findings.push({
         kind: 'unknown-workflow',
