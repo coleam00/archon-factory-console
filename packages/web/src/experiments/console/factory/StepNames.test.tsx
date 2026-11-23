@@ -5,7 +5,7 @@
  * visible words and accessible names are scanned for an id's shape. `title` and `href` may
  * hold the raw id: that is where it belongs.
  */
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
@@ -22,8 +22,17 @@ import { projectRoutes } from '../routes/project-routes';
 import { MapDetails } from './map/MapDetails';
 import { itemDetail, shippedListed } from './item-detail.test-fixtures';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
-import { delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
+import { FIXTURE_NOW, delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
+
+// The board sets aside items idle past a line counted from now, so the fixtures' items are read
+// at the time they were copied, never at the day the test runs.
+beforeAll(() => {
+  setSystemTime(FIXTURE_NOW);
+});
+afterAll(() => {
+  setSystemTime();
+});
 
 const ID = 'cb-1';
 const DELIVER = deliverJson as FactoryWorkflow;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import { boardModel } from './board';
-import { PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
+import { FIXTURE_NOW, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
 import { factoryNumbers } from './numbers';
 import {
   displayKeyOf,
@@ -37,7 +37,7 @@ function namedBy(item: FactoryItem, order: string): FactoryItem {
 }
 
 function ordersOf(items: FactoryItem[], members: Record<string, string[]> = {}): WorkOrder[] {
-  return workOrders(items, boardModel(VIEW, 'cb-1', items, new Map()), members);
+  return workOrders(items, boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW), members);
 }
 
 describe("an item's key as it reads", () => {
@@ -90,7 +90,7 @@ describe("an item's work order", () => {
 describe('the work orders on a board', () => {
   test('an order with no runs is no card, and its members, linked or not yet started, count', () => {
     const items = [linkTo(realItem('5'), '48'), linkTo(realItem('2'), '48'), realItem('3')];
-    const model = boardModel(VIEW, 'cb-1', items, new Map());
+    const model = boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW);
     // 48 is in no column: only its members are on the board.
     expect(model.positions.has('48')).toBe(false);
     const [order, ...rest] = workOrders(items, model, { '48': ['5', '2', '9'] });
@@ -133,7 +133,7 @@ describe('the work orders on a board', () => {
     const now = new Date('2026-11-17T12:00:00Z');
     const linked = PAGE.items.map(item => linkTo(item, '48'));
     const numbersOf = (items: FactoryItem[]) =>
-      factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map()), now);
+      factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW), now);
     expect(numbersOf(linked)).toEqual(numbersOf(PAGE.items));
   });
 });

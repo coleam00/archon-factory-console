@@ -6,6 +6,7 @@ import { PillBadge } from './BoardCard';
 import { boardModel, itemPath, type FactoryDeclaration } from './lib/board';
 import { workOrders, type WorkOrder } from './lib/work-orders';
 import { useFactoryItemsRead } from './useFactoryItems';
+import { useMinuteClock } from './useMinuteClock';
 import { useReadRetry, type ReadRetry } from './useReadRetry';
 
 /**
@@ -24,6 +25,8 @@ export function useWorkOrders(
   const read = useFactoryItemsRead(projectId);
   const { data } = read;
   const retry = useReadRetry(read);
+  // A member set aside is named by why; the board's clock decides which are.
+  const now = useMinuteClock();
   const ownKey = own?.key;
   // A string, so a new array of the same keys on each render does not re-derive.
   const ownMembers = own === undefined ? undefined : JSON.stringify(own.members);
@@ -33,8 +36,8 @@ export function useWorkOrders(
       ownKey === undefined || ownMembers === undefined || ownKey in data.members
         ? data.members
         : { ...data.members, [ownKey]: JSON.parse(ownMembers) as string[] };
-    return workOrders(data.items, boardModel(view, projectId, data.items, new Map()), members);
-  }, [view, projectId, data, ownKey, ownMembers]);
+    return workOrders(data.items, boardModel(view, projectId, data.items, new Map(), now), members);
+  }, [view, projectId, data, ownKey, ownMembers, now]);
   return { orders, ...retry };
 }
 

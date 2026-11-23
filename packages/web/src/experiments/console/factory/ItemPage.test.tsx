@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryItemDetail, FactoryViews } from '../skills/factory';
@@ -7,7 +7,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
-import { declaredAwaits } from './lib/board.test-fixtures';
+import { FIXTURE_NOW, declaredAwaits } from './lib/board.test-fixtures';
 import { PILL_CLASS } from './BoardCard';
 import { itemPill } from './lib/board';
 import { askItem } from '../lib/needs-you.test-fixtures';
@@ -16,6 +16,15 @@ import { formatDateTime } from '../lib/format';
 import { Window } from 'happy-dom';
 import { documentPageProblems } from './document.test-helpers';
 import { firstSentence } from './lib/item-story';
+
+// The board sets aside items idle past a line counted from now, so the fixtures' items are read
+// at the time they were copied, never at the day the test runs.
+beforeAll(() => {
+  setSystemTime(FIXTURE_NOW);
+});
+afterAll(() => {
+  setSystemTime();
+});
 
 afterEach(() => {
   invalidate('factory-views');

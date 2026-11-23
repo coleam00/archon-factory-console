@@ -8,6 +8,8 @@
 import type { FactoryItem } from '../../skills/factory';
 import { displayItemKey } from './item-key';
 import type { BoardModel, Pill, PlacedCard } from './board';
+import { UNPLACED_LABEL } from './placement';
+import { SET_ASIDE_LABEL } from './set-aside';
 
 type ItemLink = FactoryItem['links'][number];
 
@@ -124,7 +126,7 @@ interface Where {
   landed: boolean;
 }
 
-/** Every card on the board, unfiltered, with the column or ending it sits in. */
+/** Every card on the board, unfiltered, with the stage it sits in or why it is not in one. */
 function placedByKey(model: BoardModel): Map<string, Where> {
   const placed = new Map<string, Where>();
   for (const column of model.columns)
@@ -138,9 +140,15 @@ function placedByKey(model: BoardModel): Map<string, Where> {
         landed: stage?.id === model.landedStage,
       });
     }
-  for (const group of model.ended)
-    for (const card of group.cards)
-      placed.set(card.card.key, { placed: card, label: group.label, landed: false });
+  // A member the board set aside still resolves, named by why: its ending or parked label.
+  for (const entry of model.setAside)
+    placed.set(entry.placed.card.key, {
+      placed: entry.placed,
+      label: entry.kind === 'idle' ? SET_ASIDE_LABEL : entry.why,
+      landed: false,
+    });
+  for (const card of model.unplaced)
+    placed.set(card.card.key, { placed: card, label: UNPLACED_LABEL, landed: false });
   return placed;
 }
 

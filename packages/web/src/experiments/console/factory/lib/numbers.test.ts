@@ -11,6 +11,7 @@ import {
   readyWithMerge,
   realItem,
   VIEW,
+  FIXTURE_NOW,
 } from './board.test-fixtures';
 import { showsCard } from './board-show';
 import { mergeUnsettled } from './merge-pending';
@@ -56,7 +57,7 @@ function closedByTriage(): FactoryItem {
 }
 
 const numbers = (items: FactoryItem[], now: Date) =>
-  factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map()), now);
+  factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW), now);
 
 describe('the numbers strip', () => {
   test('in flight, landed and M over the real items', () => {
@@ -71,14 +72,14 @@ describe('the numbers strip', () => {
     expect(counts).toMatchObject({ inFlight: 1, total: 1 });
   });
 
-  test('a parked item is in M and not in flight', () => {
+  test('a parked item is set aside: not in flight and not in M', () => {
     const merged = Array.from({ length: 48 }, (_, n) =>
       landed(`m${String(n)}`, local(16, 0), local(16, 1))
     );
     expect(numbers([...merged, parkedByTriage()], local(17, 12))).toMatchObject({
       inFlight: 0,
       landed: 48,
-      total: 49,
+      total: 48,
     });
   });
 
@@ -144,14 +145,21 @@ describe('the numbers strip', () => {
 
 describe('the board under a number', () => {
   const now = local(17, 12);
-  const model = boardModel(VIEW, 'cb-1', [...PAGE.items, asking(), closedByTriage()], new Map());
+  const model = boardModel(
+    VIEW,
+    'cb-1',
+    [...PAGE.items, asking(), closedByTriage()],
+    new Map(),
+    FIXTURE_NOW
+  );
   const keys = (shown: typeof model) =>
     shown.columns.flatMap(column => column.cards.map(placed => placed.card.key)).sort();
 
-  test('shows exactly the cards the number counts, and hides the folded endings', () => {
+  test('shows exactly the cards the number counts, and hides the set-aside items', () => {
     const shown = filterBoard(model, '', 'landed', now);
     expect(keys(shown)).toEqual(['1', '2', '7']);
-    expect(shown.ended).toEqual([]);
+    expect(model.setAside).not.toEqual([]);
+    expect(shown.setAside).toEqual([]);
     expect(keys(filterBoard(model, '', 'needs-you', now))).toEqual(['6a']);
   });
 
@@ -160,8 +168,8 @@ describe('the board under a number', () => {
   });
 
   test('an ended item is in no filter', () => {
-    const [ended] = model.ended.flatMap(group => group.cards);
-    if (ended === undefined) throw new Error('the triage ending is folded');
+    const ended = model.setAside.find(entry => entry.kind === 'ended')?.placed;
+    if (ended === undefined) throw new Error('the triage ending is set aside');
     for (const show of ['in-flight', 'needs-you', 'landed', 'landed-today'] as const)
       expect(showsCard(show, ended, VIEW.landed.stage, now)).toBe(false);
   });

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import type { PlacedCard } from './board';
 import { boardModel } from './board';
-import { progressOf, realItem, VIEW } from './board.test-fixtures';
+import { FIXTURE_NOW, progressOf, realItem, VIEW } from './board.test-fixtures';
 import { earlierSearch, mergedWindow } from './merged-window';
 
 /** Real item 7 (merged) keyed `key`, merged at `at` (a local time); null for no merge time. */
@@ -14,7 +14,9 @@ function mergedAt(key: string, at: Date | null): PlacedCard {
     ...progress,
     change: { ...progress.change, mergedAt: at === null ? null : at.toISOString() },
   };
-  const placed = boardModel(VIEW, 'cb-1', [item], new Map()).columns.flatMap(c => c.cards)[0];
+  const placed = boardModel(VIEW, 'cb-1', [item], new Map(), FIXTURE_NOW).columns.flatMap(
+    c => c.cards
+  )[0];
   if (placed === undefined) throw new Error('the merged item has no card');
   return placed;
 }

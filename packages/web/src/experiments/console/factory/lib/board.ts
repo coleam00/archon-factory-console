@@ -14,8 +14,9 @@ import { awaitingItems, needsYou } from '../../lib/needs-you';
 import { BOARD_SHOW, showsCard, waitsOnYou, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
-import { pageItemColumn, stageOfWorkflow, type ItemColumn } from './placement';
+import { pageItemColumn, stageOfWorkflow, UNPLACED_LABEL, type ItemColumn } from './placement';
 import { boardShadowLine, type ShadowWords } from './shadows';
+import { bySinceNewest, setAsideOf, type SetAside } from './set-aside';
 import { roundsSources, runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
 import { membershipOf } from './work-orders';
@@ -315,19 +316,18 @@ export interface BoardModel {
   landedColumn: string;
   columns: BoardColumn[];
   /**
-   * The folded rows under the board: items an ending took off it, by label, and items
-   * placement found no column for, under `UNPLACED_LABEL`.
+   * Items with nothing left to happen (`setAsideOf`), newest last run first: an ending took
+   * them off the board, they are parked, or they sat idle. In no column and no count.
    */
-  ended: { label: string; cards: PlacedCard[] }[];
+  setAside: SetAside[];
+  /** Items placement found no column for, in the toolbar's `UNPLACED_LABEL` row. */
+  unplaced: PlacedCard[];
   /**
    * Where every item sits, filter or not: a stage id (not its column's: placement holds a run
    * between named steps in the stage it read last), or `ended:<label>`.
    */
   positions: Map<string, string>;
 }
-
-/** The folded row of items placement found no column for; the item page says the same. */
-export const UNPLACED_LABEL = 'Position unknown';
 
 /** Where an item sits, as one comparable string: a stage id, or `ended:<label>`. */
 export function positionOf(column: ItemColumn | null): string {
@@ -350,13 +350,15 @@ export function cardMatches(card: BoardCard, query: string): boolean {
 /**
  * The board for these items. Columns are the declared columns in order (one per stage when
  * the view declares none), the landed stage's among them; a card goes to the column holding
- * its stage. `previous` holds each item's position on the last read.
+ * its stage, unless the board sets it aside as of `now` (`setAsideOf`). `previous` holds each
+ * item's position on the last read.
  */
 export function boardModel(
   view: FactoryDeclaration,
   projectId: string,
   items: readonly FactoryItem[],
-  previous: ReadonlyMap<string, string>
+  previous: ReadonlyMap<string, string>,
+  now: Date
 ): BoardModel {
   const columns: BoardColumn[] = boardColumns(view).map(column => ({
     ...column,
@@ -366,20 +368,20 @@ export function boardModel(
   const byStage = new Map(
     columns.flatMap(column => column.stages.map(stage => [stage, column] as const))
   );
-  const ended = new Map<string, PlacedCard[]>();
-  const fold = (label: string, placed: PlacedCard): void => {
-    ended.set(label, [...(ended.get(label) ?? []), placed]);
-  };
+  const setAside: SetAside[] = [];
+  const unplaced: PlacedCard[] = [];
   const positions = new Map<string, string>();
   for (const item of items) {
     const column = pageItemColumn(view, item, previous.get(item.item.key));
     positions.set(item.item.key, positionOf(column));
     const placed = { item, column, card: cardFields(view, projectId, item, column) };
+    const aside = setAsideOf(view, placed, now);
     const stage = stageIdOf(placed);
     const holder = stage === null ? undefined : byStage.get(stage);
-    // The schema puts every stage in one column; a stage in none still folds, never drops.
-    if (holder !== undefined) holder.cards.push(placed);
-    else fold(column !== null && 'ended' in column ? column.ended : UNPLACED_LABEL, placed);
+    if (aside !== null) setAside.push({ ...aside, placed });
+    // The schema puts every stage in one column; a stage in none still shows, never drops.
+    else if (holder !== undefined) holder.cards.push(placed);
+    else unplaced.push(placed);
   }
   const anyPending = anyMergePending(items);
   for (const column of columns)
@@ -395,23 +397,24 @@ export function boardModel(
     landedStage: view.landed.stage,
     landedColumn: byStage.get(view.landed.stage)?.id ?? view.landed.stage,
     columns,
-    ended: [...ended].map(([label, cards]) => ({ label, cards })),
+    setAside: setAside.sort(bySinceNewest),
+    unplaced,
     positions,
   };
 }
 
 /**
  * The board narrowed to the cards `query` finds by key, title or work order and, when given, to the
- * cards `show` picks (the numbers strip's links). While `show` narrows it, the folded
- * endings are hidden: no number counts them. A show that narrows nothing (Found opens a
- * panel) leaves the board to the query. `positions` keeps every item, so narrowing never
- * reads as a card moving.
+ * cards `show` picks (the numbers strip's links). The set-aside items and the Position unknown
+ * row narrow by the query too; while `show` narrows the board they are hidden: no number counts
+ * them. A show that narrows nothing (Found opens a panel) leaves the board to the query.
+ * `positions` keeps every item, so narrowing never reads as a card moving.
  */
 export function filterBoard(
   model: BoardModel,
   query: string,
-  show?: BoardShow,
-  now: Date = new Date()
+  show: BoardShow | undefined,
+  now: Date
 ): BoardModel {
   const narrowing = show !== undefined && BOARD_SHOW[show].narrows ? show : undefined;
   if (query.trim() === '' && narrowing === undefined) return model;
@@ -422,19 +425,16 @@ export function filterBoard(
         cardMatches(placed.card, query) &&
         (narrowing === undefined || showsCard(narrowing, placed, landed, now))
     );
+  const folded = narrowing === undefined;
   return {
     ...model,
     columns: model.columns.map(column => ({ ...column, cards: keep(column.cards) })),
-    ended:
-      narrowing === undefined
-        ? model.ended
-            .map(group => ({ ...group, cards: keep(group.cards) }))
-            .filter(group => group.cards.length > 0)
-        : [],
+    setAside: folded ? model.setAside.filter(entry => cardMatches(entry.placed.card, query)) : [],
+    unplaced: folded ? keep(model.unplaced) : [],
   };
 }
 
-/** The stage a placed card sits in; null for one an ending folded away or none holds. */
+/** The stage a placed card sits in; null for one an ending took off the board or none holds. */
 export function stageIdOf(placed: Pick<PlacedCard, 'column'>): string | null {
   const { column } = placed;
   return column !== null && 'stage' in column ? column.stage.id : null;

@@ -8,12 +8,15 @@ import { Board } from './BoardPage';
 import type { FactoryItem } from '../skills/factory';
 import {
   endLastRun,
+  idleInPlan,
   keepRuns,
   needsShaping,
   PAGE,
+  parkedByTriage,
   readyWithMerge,
   realItem,
   VIEW,
+  FIXTURE_NOW,
 } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { boardModel } from './lib/board';
@@ -62,6 +65,7 @@ const QUIET = {
 };
 // The Merged column lists the last 7 local days; the fixtures merged on 2026-11-17.
 const NOW = new Date(2026, 10, 18, 12, 0);
+const DAY = 24 * 60 * 60 * 1000;
 afterEach(() => {
   cancelRereads();
   cancelMergeWatches();
@@ -351,16 +355,51 @@ describe('the Pipeline view', () => {
     }
   });
 
-  test('an item an ending took off the board is in the folded row, linking to its page', async () => {
+  test('items with nothing left to happen fold into one Set aside line under the board', async () => {
     const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
-    const { container, unmount } = await mount([closed, realItem('7')]);
+    const idle = idleInPlan('i', new Date(NOW.getTime() - 4 * DAY).toISOString());
+    const { container, unmount } = await mount([closed, idle, parkedByTriage('p'), realItem('7')]);
     try {
-      const folded = container.querySelector('details');
-      expect(folded?.querySelector('summary')?.textContent).toBe('1 folded into another item');
-      expect(folded?.querySelector('a')?.getAttribute('href')).toBe(
+      expect(cardKeys(container)).toEqual(['7']);
+      // Endings no longer have toolbar rows: the board has no folded row at all.
+      expect(container.querySelector('details')).toBeNull();
+      const strip = container.querySelector('section[aria-labelledby="set-aside-heading"]');
+      const toggle = strip?.querySelector('button');
+      expect(strip?.textContent).toBe('3 set aside·show them');
+      expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+      await act(async () => toggle?.click());
+      expect(toggle?.textContent).toBe('hide them');
+      const rows = [...(strip?.querySelectorAll('li') ?? [])];
+      // Newest last run first: each says its key, title, why and when.
+      expect(rows.map(row => row.querySelector('a')?.textContent)).toEqual(['#6', 'p', 'i']);
+      expect(rows[0]?.querySelector('a')?.getAttribute('href')).toBe(
         `/console/p/${ID}/factory/items/6`
       );
-      expect(cardKeys(container)).toEqual(['7']);
+      // Each row's leaves: its key, title, why and when.
+      const [, parked, idleRow] = rows.map(row =>
+        [...row.querySelectorAll('a, span')]
+          .filter(element => element.children.length === 0)
+          .map(element => element.textContent)
+      );
+      const title = realItem('6').progress?.title ?? '';
+      expect(parked).toEqual([
+        'p',
+        title,
+        'Parked by triage',
+        formatDateTime(parkedByTriage('p').runs[0]?.completedAt ?? ''),
+      ]);
+      expect(idleRow?.[2]).toBe('No change was proposed');
+      expect(rows[0]?.textContent).toContain('Folded into another item');
+      expect(strip?.textContent).not.toMatch(/archived|deleted/i);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('with nothing set aside, there is no Set aside line', async () => {
+    const { container, unmount } = await mount(PAGE.items);
+    try {
+      expect(container.querySelector('section[aria-labelledby="set-aside-heading"]')).toBeNull();
     } finally {
       await unmount();
     }
@@ -550,7 +589,7 @@ describe('a board opened from a number', () => {
 
   const rowKeys = (container: HTMLElement, selector = 'tbody tr'): string[] =>
     [...container.querySelectorAll(selector)].map(row => row.getAttribute('data-card') ?? '');
-  const model = () => boardModel(VIEW, ID, PAGE.items, new Map());
+  const model = () => boardModel(VIEW, ID, PAGE.items, new Map(), FIXTURE_NOW);
 
   test('"N of M merged": the Table of every item on the board, the merged ones marked', async () => {
     const { container, unmount } = await mount(
@@ -619,10 +658,8 @@ describe('a board opened from a number', () => {
     );
     try {
       expect(cardKeys(container)).toHaveLength(PAGE.items.length - 1);
-      // Nothing narrowed: the folded ending stays, as a show that narrows would hide it.
-      expect(container.querySelector('details summary')?.textContent).toBe(
-        '1 folded into another item'
-      );
+      // Nothing narrowed: the set-aside line stays, as a show that narrows would hide it.
+      expect(container.querySelector('#set-aside-heading')?.textContent).toBe('1 set aside');
       expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
       expect(container.textContent).toContain('Showing: found by the factory');
     } finally {
