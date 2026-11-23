@@ -633,7 +633,8 @@ titles and accessible names alike. A split member, keyed `<order key>-<piece>` b
 split, reads as its work order and its piece in words: `issue-136-item-keys` in `issue-136` reads
 `#136 · item keys`. Which order an item is in comes from its `part_of` membership (its active link,
 else its order run's result), never from the key, so a key that only looks like a member reads as
-it is, and a member keyed by its own issue (`71` in `64`) still reads `#71`. Any other key reads as
+it is, and a member keyed by its own issue (`71` in `64`) still reads `#71`. The Runs page's
+pending-input banner reads no items, so it cannot know an order and reads a member's key as it is. Any other key reads as
 it is. One function gives it
 (`factory/lib/item-key.ts`). The raw key stays in every route, href, lookup, search and filter
 match, so `/items/issue-136` still opens the item that reads `#136`. Where this document quotes

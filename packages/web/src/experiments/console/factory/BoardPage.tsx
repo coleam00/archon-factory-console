@@ -116,9 +116,10 @@ export function Board({
     [all, query, show]
   );
   const asks = useBoardAsks({ all, shown, queue: attention.data, declaration: view });
+  const names = useMemo(() => itemNames(items), [items]);
   const naming = useMemo(
-    () => askNaming(projectId, { declaration: view }, itemNames(items)),
-    [projectId, view, items]
+    () => askNaming(projectId, { declaration: view }, names),
+    [projectId, view, names]
   );
   const showView = (next: 'pipeline' | 'table'): void => {
     // Its trigger is in the view being left.
@@ -181,6 +182,7 @@ export function Board({
         <div className="shrink-0">
           <FoundByTheFactory
             projectId={projectId}
+            names={names}
             above={shown !== undefined}
             oneLine
             opened={spec?.panel === true}

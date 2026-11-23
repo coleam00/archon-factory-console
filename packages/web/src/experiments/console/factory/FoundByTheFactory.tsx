@@ -7,6 +7,7 @@ import {
   type RefObject,
 } from 'react';
 import { displayItemKey } from './lib/item-key';
+import type { ItemName } from '../lib/ask-naming';
 import { Link, useLocation } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
 import { SkeletonFigure, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
@@ -54,11 +55,14 @@ function useScrollWhenOpened(ready: boolean): RefObject<HTMLElement | null> {
  */
 export function FoundByTheFactory({
   projectId,
+  names,
   above = true,
   oneLine = false,
   opened = false,
 }: {
   projectId: string;
+  /** The board's items by key, so a finding's item reads as the board reads it (a split member under its order). */
+  names: ReadonlyMap<string, ItemName>;
   /**
    * Whether what is drawn above the panel has its final height. The board passes false
    * until its columns are drawn: scrolling earlier would leave the panel pushed down.
@@ -88,7 +92,7 @@ export function FoundByTheFactory({
       {/* The shadow accent (Visual standard, rule 10): the drains did nothing. */}
       <span aria-hidden className="absolute inset-x-0 top-0 h-0.75 bg-[color:var(--node-opaque)]" />
       {expanded ? (
-        <FoundBody projectId={projectId} read={read} listed={listed} />
+        <FoundBody projectId={projectId} names={names} read={read} listed={listed} />
       ) : (
         <FoundLine
           read={read}
@@ -165,10 +169,12 @@ function FoundLine({
 /** The panel's contents for each state of its read. */
 function FoundBody({
   projectId,
+  names,
   read,
   listed,
 }: {
   projectId: string;
+  names: ReadonlyMap<string, ItemName>;
   read: ReturnType<typeof useFactoryDiscoveries>;
   /** Whether the findings start listed. */
   listed: boolean;
@@ -193,7 +199,7 @@ function FoundBody({
     <>
       <Heading shadow={data.shadow} />
       <StaleRead error={read.error} />
-      <FoundPanel projectId={projectId} read={data} listed={listed} />
+      <FoundPanel projectId={projectId} names={names} read={data} listed={listed} />
     </>
   );
 }
@@ -231,10 +237,12 @@ function FoundSkeleton({ read }: { read: ReturnType<typeof useFactoryDiscoveries
 /** The count, the chips, and the findings behind a toggle. */
 export function FoundPanel({
   projectId,
+  names,
   read,
   listed = false,
 }: {
   projectId: string;
+  names: ReadonlyMap<string, ItemName>;
   read: FactoryDiscoveries;
   /** Whether the findings start listed. */
   listed?: boolean;
@@ -288,6 +296,7 @@ export function FoundPanel({
                   key={`${finding.runId}:${finding.title}`}
                   projectId={projectId}
                   finding={finding}
+                  partOf={names.get(finding.from.key)?.partOf ?? null}
                 />
               ))}
             </ul>
@@ -331,9 +340,12 @@ function NothingFound({ shadow }: { shadow: boolean }): ReactElement {
 function FindingRow({
   projectId,
   finding,
+  partOf,
 }: {
   projectId: string;
   finding: FactoryFinding;
+  /** The work order the finding's item is in, which its key reads under. */
+  partOf: string | null;
 }): ReactElement {
   const kind = kindLabel(finding.kind);
   return (
@@ -350,7 +362,7 @@ function FindingRow({
           to={itemPath(projectId, finding.from.key)}
           className="font-mono text-text-primary hover:underline"
         >
-          {displayItemKey(finding.from.key, null)}
+          {displayItemKey(finding.from.key, partOf)}
         </Link>
         {finding.from.title === null ? '' : ` · ${finding.from.title}`} ·{' '}
         {formatDateTime(finding.decidedAt)}

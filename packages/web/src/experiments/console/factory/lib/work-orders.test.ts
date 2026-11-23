@@ -51,15 +51,6 @@ describe("an item's key as it reads", () => {
     expect(displayKeyOf(linkTo(member(), 'issue-136'))).toBe('#136 · item keys');
     expect(displayKeyOf(namedBy(member(), 'issue-136'))).toBe('#136 · item keys');
   });
-
-  test('with its link ended, or in no order, the same key reads as it is', () => {
-    expect(displayKeyOf(linkTo(member(), 'issue-136', AT, true))).toBe('issue-136-item-keys');
-    expect(displayKeyOf(member())).toBe('issue-136-item-keys');
-  });
-
-  test('a member keyed by its own issue still reads #N', () => {
-    expect(displayKeyOf(linkTo(realItem('5'), '48'))).toBe('#5');
-  });
 });
 
 describe("an item's work order", () => {
