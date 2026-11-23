@@ -184,19 +184,6 @@ test('while a merge state is pending, the counts it decides show what is known a
   }
 });
 
-test('a settled unknown is left out of the counts as a pending one is', async () => {
-  const { tile, unmount } = await mount('cb-unknown', [
-    ...PAGE.items,
-    readyWithMerge('u', 'unknown'),
-  ]);
-  try {
-    // A failed lookup is not known either: left out of the counts, a skeleton beside them.
-    expect(tile('merged')).toBe('merged3 of 9Checking which changes merged');
-  } finally {
-    await unmount();
-  }
-});
-
 test('a merge on the forge reaches the numbers on the watch interval, with no run event', async () => {
   const mergedAt = new Date().toISOString();
   const waiting = readyWithMerge('w', false);

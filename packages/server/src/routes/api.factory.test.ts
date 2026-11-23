@@ -715,6 +715,34 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
     expect(branchesSeen).toEqual([['branch-run-a']]);
   });
 
+  test("both routes hand an item's recorded merge to the cache: merged as recorded, the forge never asked", async () => {
+    const lookups: unknown[] = [];
+    const app = await itemsApp(withView, lookups);
+    const item = items.find(entry => entry.key === '1');
+    if (item === undefined) throw new Error('item 1 is in the fixture');
+    const at = '2026-11-17T02:00:00.000Z';
+    const read = source.store.getItemMerge;
+    source.store.getItemMerge = async id =>
+      id === item.id
+        ? { change: CHANGE, commit: null, at, recordedAt: at, via: 'cli', fromRun: null }
+        : null;
+    try {
+      // The run's audit row names PR 7, so not even the background number lookup runs.
+      const recorded = { url: CHANGE, merged: true, mergedAt: at, number: 7 };
+      const progress = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
+      expect(
+        factoryProgressResponseSchema.parse(await progress.json()).progress['1']?.change
+      ).toEqual(recorded);
+      const detail = await app.request('/api/factory/item?codebaseId=cb-1&key=1');
+      expect(
+        factoryItemDetailResponseSchema.parse(await detail.json()).item.progress?.change
+      ).toEqual(recorded);
+      expect(lookups).toEqual([]);
+    } finally {
+      source.store.getItemMerge = read;
+    }
+  });
+
   test("an empty change URL: the PR the forge finds on the item's branches in the project's remote", async () => {
     const lookups: unknown[] = [];
     const branchesSeen: string[][] = [];

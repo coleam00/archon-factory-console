@@ -143,8 +143,9 @@ export function registerApiRoutes(
     codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     loadConfig,
   });
-  // One forge plugin discovery for every merge lookup these routes make (`forgeHostDiscoveryOnce`).
-  const forgeDiscovery = forgeHostDiscoveryOnce(getArchonHome(), process.env);
+  // One forge plugin discovery for every merge lookup these routes make (`forgeHostDiscoveryOnce`),
+  // made on the first lookup: registering the routes reads nothing, not even the home.
+  let forgeDiscovery: ReturnType<typeof forgeHostDiscoveryOnce> | undefined;
   registerFactoryRoutes(app, {
     codebase: async id => {
       const codebase = await codebaseDb.getCodebase(id);
@@ -169,7 +170,11 @@ export function registerApiRoutes(
     itemsSource: attentionQueueSource(createWorkflowStore(), createWorkflowHostStore().isolation),
     discoveriesSource: createWorkflowStore(),
     changeMergeState: (lookup, branches) =>
-      changeMergeState(lookup, branches, { discovery: forgeDiscovery, env: process.env }),
+      changeMergeState(lookup, branches, {
+        discovery: () =>
+          (forgeDiscovery ??= forgeHostDiscoveryOnce(getArchonHome(), process.env))(),
+        env: process.env,
+      }),
     discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerPackGraphRoute(app, {
