@@ -1,0 +1,1029 @@
+{
+  "item111": "<section class=\"flex h-full flex-col\"><header class=\"flex flex-col gap-3 border-b border-border px-6 py-4\"><div class=\"flex min-h-9.5 items-center justify-between gap-4\"><div class=\"min-w-0\"><h1 class=\"truncate text-base font-medium text-text-primary\">Project</h1><div class=\"truncate text-xs text-text-tertiary\"><span role=\"status\" class=\"flex h-4 items-center\"><span class=\"sr-only\">Loading the project</span><span aria-hidden=\"true\" data-skeleton=\"line\" class=\"block h-3 rounded w-2/5 bg-surface-elevated motion-safe:animate-pulse\"></span></span></div></div></div><div class=\"flex flex-wrap items-center gap-1\"><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/needs-you\" data-discover=\"true\">Needs you</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961\" data-discover=\"true\">Runs</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/chat\" data-discover=\"true\">Chat</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/metrics\" data-discover=\"true\">Metrics</a><a aria-current=\"page\" class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out bg-surface-elevated text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory\" data-discover=\"true\">Factory<span aria-hidden=\"true\" data-tab-bar=\"true\" class=\"brand-bar pointer-events-none absolute inset-x-1 -bottom-0.5 h-0.5 rounded-full\"></span></a></div></header><div class=\"flex-1 overflow-y-auto p-4 md:p-6 \"><div class=\"flex flex-col gap-6 max-w-5xl\"><div class=\"flex max-w-5xl flex-col gap-1.5\"><div class=\"flex flex-wrap items-baseline gap-x-6 gap-y-2\"><h2 class=\"min-w-0 text-console-22 font-semibold tracking-console-heading text-text-primary [overflow-wrap:anywhere]\">Software factory</h2><nav aria-label=\"Factory\" class=\"flex flex-wrap items-center gap-1\"><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory\" data-discover=\"true\">Overview</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory/board\" data-discover=\"true\">Board</a></nav></div></div><div class=\"flex flex-col gap-6\"><a data-back-link=\"true\" class=\"inline-flex items-center gap-1 self-start rounded text-console-13 text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-left size-4 shrink-0\" aria-hidden=\"true\"><path d=\"m15 18-6-6 6-6\"></path></svg>Back to the overview</a><div data-doc-page=\"\" class=\"grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]\"><section aria-label=\"Summary\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 p-5 lg:col-span-2\"><div class=\"flex flex-wrap items-start justify-between gap-x-6 gap-y-2\"><div class=\"flex min-w-0 flex-col gap-1\"><h2 class=\"text-console-22 font-semibold tracking-console-heading text-text-primary [overflow-wrap:anywhere]\"><span class=\"mr-2 font-mono text-text-tertiary\">#111</span>A delivery ask shows what the stage offered, above the four answers</h2><p class=\"max-w-[80ch] text-console-14 text-text-secondary\">Its change merged.</p></div><div class=\"flex flex-wrap items-center gap-3\"><span class=\"shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium bg-[color:var(--success-soft)] text-success\">Merged</span><span class=\"flex items-center gap-2\"><a href=\"https://github.com/coleam00/archon-factory-console/pull/112\" target=\"_blank\" rel=\"noreferrer\" class=\"inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-console-13 font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-pull-request size-4 shrink-0 text-text-tertiary\" aria-hidden=\"true\"><circle cx=\"18\" cy=\"18\" r=\"3\"></circle><circle cx=\"6\" cy=\"6\" r=\"3\"></circle><path d=\"M13 6h3a2 2 0 0 1 2 2v7\"></path><line x1=\"6\" x2=\"6\" y1=\"9\" y2=\"21\"></line></svg>PR #112</a><span data-merge-state=\"true\" class=\"whitespace-nowrap text-console-13 text-text-tertiary\">merged</span></span></div></div><ul aria-label=\"Key facts\" class=\"flex flex-wrap gap-2\"><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">1 h 6 min</span>order to merge</li><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">$21.94</span>cost</li><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">2 of 3</span>check rounds</li><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">0</span>asks answered</li></ul></section><section aria-label=\"Journey\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated p-4 lg:col-span-2\"><div class=\"overflow-x-auto\"><ol class=\"flex w-full min-w-max gap-3\"><li data-journey-segment=\"intake\" data-static=\"\" style=\"--card-tone:var(--tone-intake)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--tone-intake)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Intake</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">1 min</span></li><li data-journey-segment=\"plan-build\" data-static=\"\" style=\"--card-tone:var(--node-wait)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--node-wait)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Plan &amp; build</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">39 min</span></li><li data-journey-segment=\"checks-review\" data-static=\"\" style=\"--card-tone:var(--node-approval)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--node-approval)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Checks &amp; review</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">22 min</span><span data-journey-loop=\"1\" class=\"flex items-center gap-1.5 rounded-full border border-dashed border-[color:var(--node-approval)] px-2 py-0.5 text-console-12 text-[color:var(--node-approval)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2 lucide-undo-2 size-3.5 shrink-0\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>sent back 1x to Plan &amp; build</span></li><li data-journey-segment=\"ready\" data-static=\"\" style=\"--card-tone:var(--node-script)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--node-script)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Ready to merge</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">3 min</span></li><li data-journey-segment=\"merged\" data-lit=\"\" data-static=\"\" style=\"--card-tone:var(--success)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--success)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Merged</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">Merged</span><span class=\"text-console-12 text-text-secondary\">It is here now</span></li></ol></div></section><section data-doc-section=\"\" aria-labelledby=\"item-story\" class=\"flex min-w-0 flex-col gap-4\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-book-open size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M12 7v14\"></path><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"></path></svg>What happened</span><h2 id=\"item-story\" class=\"text-console-17 font-semibold text-text-primary\">The story</h2></div></div><div class=\"flex min-w-0 flex-col gap-4\" aria-label=\"The story\"><section aria-labelledby=\"story-order:1\" data-story-panel=\"order\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--tone-intake)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--tone-intake)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-inbox size-4 shrink-0\" aria-hidden=\"true\"><polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"></polyline><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"></path></svg>Intake</span><h2 id=\"story-order:1\" class=\"text-console-17 font-semibold text-text-primary\">Order</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Order took the work order and made it an item.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">14 s</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">Not recorded</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/d36fa8fc-8de4-4709-8328-f6383c353799\" data-discover=\"true\">d36fa8fc</a></span></dd></div></dl></section><section aria-labelledby=\"story-triage:1\" data-story-panel=\"triage\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--tone-intake)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--tone-intake)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-inbox size-4 shrink-0\" aria-hidden=\"true\"><polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"></polyline><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"></path></svg>Intake</span><h2 id=\"story-triage:1\" class=\"text-console-17 font-semibold text-text-primary\">Triage</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Triage judged it worth building.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">1 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$0.721</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Model</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-sonnet-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/19c31920-9b8a-47bc-908b-420b1ba68c89\" data-discover=\"true\">19c31920</a></span></dd></div></dl><ol aria-label=\"What its shadow steps would have done\" class=\"flex flex-col gap-1.5\"><li data-shadow=\"Would it start on its own\" class=\"flex min-w-0 flex-col gap-1\"><p class=\"flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-console-13 text-text-tertiary\"><span data-shadow-badge=\"true\" class=\"shrink-0 rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)] \">shadow</span><span>Would it start on its own</span><span class=\"\">would ask you first</span><button type=\"button\" aria-expanded=\"false\" class=\"rounded text-console-12 font-medium text-text-tertiary hover:text-text-primary\">Why</button></p></li></ol></section><section aria-labelledby=\"story-plan:1\" data-story-panel=\"plan\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-wait)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-wait)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z\"></path></svg>Plan &amp; build</span><h2 id=\"story-plan:1\" class=\"text-console-17 font-semibold text-text-primary\">Plan</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Plan wrote the approach.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">5 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$2.17</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Model</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-opus-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/85be42d5-9cf8-4cd8-8ba0-5fc12879b24d\" data-discover=\"true\">85be42d5</a></span></dd></div></dl></section><section aria-labelledby=\"story-build:1\" data-story-panel=\"build\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-wait)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-wait)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z\"></path></svg>Plan &amp; build</span><h2 id=\"story-build:1\" class=\"text-console-17 font-semibold text-text-primary\">Build</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Build wrote the change and opened <a href=\"https://github.com/coleam00/archon-factory-console/pull/112\" target=\"_blank\" rel=\"noreferrer\" class=\"font-medium text-accent-bright hover:underline\">PR #112</a>.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">20 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$18.14 for the whole run, across its stages</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Models (all its runs)</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-opus-5-5, claude-haiku-5-5, claude-sonnet-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/aba8f7aa-f3ae-47df-b495-88e04cda9bc1\" data-discover=\"true\">aba8f7aa</a></span></dd></div></dl></section><section aria-labelledby=\"story-checks:1\" data-story-panel=\"checks\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-approval)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-approval)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-search-code size-4 shrink-0\" aria-hidden=\"true\"><path d=\"m13 13.5 2-2.5-2-2.5\"></path><path d=\"m21 21-4.3-4.3\"></path><path d=\"M9 8.5 7 11l2 2.5\"></path><circle cx=\"11\" cy=\"11\" r=\"8\"></circle></svg>Checks &amp; review</span><h2 id=\"story-checks:1\" class=\"text-console-17 font-semibold text-text-primary\">Checks</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Checks sent it back once, then approved it.</p></div><div data-doc-panel=\"inset\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-inset flex flex-col gap-3 p-3\"><p class=\"text-console-13 text-text-secondary\"><span class=\"font-medium text-text-primary\">Sent back</span>: a check found something to fix and returned the change to the builder. <span class=\"font-medium text-text-primary\">Approved</span>: the check passed.</p><div class=\"overflow-x-auto\"><table class=\"w-full min-w-lg border-collapse text-left\"><caption class=\"sr-only\">Check rounds</caption><thead><tr><th scope=\"col\" class=\"py-1.5 pr-4 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Check</th><th scope=\"col\" class=\"py-1.5 pr-4 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Round 1 of 3</th><th scope=\"col\" class=\"py-1.5 pr-4 text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Round 2 of 3</th></tr></thead><tbody><tr data-grid-row=\"Code review\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-primary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">Code review</span></span></th><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"returned\" title=\"rounds.review__review\nReturn: the approach is right, but the parser does not fall back when the offered list only partly matches. It shows the options before the first line that does not match, under the heading &quot;What the stage offered&quot;, and moves the rest, which can include the option the stage recommended, back into the clamped context. The installed pack writes a stage&#x27;s `does`/`cost` without removing newlines, so a multi-line `does` triggers this today, and so would any rewording of the option lines. The fix makes the parse smaller: the producer always writes the list last, so require every line after the marker to be an option line and return null otherwise. Also correct the regex comment about which cost is taken. Everything else holds: 29 tests pass, tsc and biome are clean, the compact forms are untouched, and the board popover, item page and Needs you all reach it through AskGroup -&gt; AskCard.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-[color:var(--node-approval)] font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2 lucide-undo-2 size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>Sent back</span></span></td><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"approved\" title=\"rounds.review__review\nApprove. All five findings from the last round are fixed in 01acbb2e8. parseOffered now returns null when anything after the marker is not an option line, so the card never shows part of the list as the whole. The cost comment now matches the regex. The CRLF test that could not fail and the duplicate placeholder assertion are gone. The Something else test now clicks a real reserved option. The fix touches only the parser and its tests, plus one DESIGN.md sentence that describes the new fallback. Both test files pass (29/29). The PR describes a live-DB browser pass after the fix, at both sizes, on Needs you and the board popover, including the two-line fallback case.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-success font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg>Approved</span></span></td></tr><tr data-grid-row=\"Test check\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-primary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">Test check</span></span></th><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"returned\" title=\"rounds.tests__tests\nThe new tests mostly earn their place. Each thing the item asks for has a test that fails when I break it: the offered block sitting between the question and the tiles, its rows never clamped, the rest of the context keeping its clamp, plain-word ids, the green Recommended mark (both the badge and the fill), the placeholder that asks which option is meant, no block when the marker is missing, a marker with nothing under it, an option with no cost, and the dry-run shape. All 29 tests in the two files passed three runs in a row.\n\nI am returning the change for two small things:\n- The CRLF unit test passes when the break it guards is made: splitting on &#x27;\\n&#x27; alone still passes it.\n- One placeholder unit assertion repeats what the component test already checks.\n\nNeither touches the feature&#x27;s behaviour.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-[color:var(--node-approval)] font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2 lucide-undo-2 size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>Sent back</span></span></td><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"approved\" title=\"rounds.tests__tests\nSound. All four test findings from the last round are fixed, and the tests the fix added or changed each fail for the break they claim to guard. In a scratch copy, putting back the old partial-list `break` failed both new fall-back-to-null tests. Letting the offered placeholder win over Something else failed the reworked Something else test, which now clicks a real reserved option. Widening or untrimming the rest of the context failed the dry-run parse test and the component test. Both test files passed 29/29 on three runs in a row, with no flakes. The comment now matches the regex (first ` (cost: `). The CRLF test and the duplicate placeholder assertion are gone. The item&#x27;s parse cases (dry run, no cost, no marker, marker with nothing under it) and the component case (unclamped block above the tiles, recommended option marked) are each guarded. I have not checked the browser pass the builder describes in the PR; it is not a test.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-success font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg>Approved</span></span></td></tr><tr data-grid-row=\"Product check\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-primary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">Product check</span></span></th><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"returned\" title=\"rounds.product__product\nFor the ask the item describes, the change works: in a browser, the stage&#x27;s own options show whole between the context and the four routes. The recommended one carries the green mark, the rest of the context keeps its 3-line clamp, and the layout holds at 760 px, at the 480 px popover width, and at 390x844. One defect: when an offered option&#x27;s text holds a line break, the card shows only part of the list. Nothing in the pack stops that, since the option&#x27;s `does` is a plain `{ type: string }` and the pack&#x27;s script writes it raw. The block is still headed &quot;What the stage offered&quot;, so it reads as complete. The rest of the options go behind &quot;More&quot; with a stray &quot;(cost: One roun…&quot; fragment, and the answer prompt lists only the options it parsed. The item promises the opposite: if the card can&#x27;t read the list, it falls back to today&#x27;s rendering. The fix is small. The pack always puts the list at the end of the context, so the parse can return null when anything other than option lines follows the marker. A unit test for that case should come with it. Everything else is ready to land.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-[color:var(--node-approval)] font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2 lucide-undo-2 size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>Sent back</span></span></td><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"approved\" title=\"rounds.product__product\nApprove. On all three full-card surfaces (the Needs you tab, the item page Asks, the board popover), a delivery ask of the issue&#x27;s shape now shows &quot;What the stage offered&quot; whole, between the context and the four tiles. &quot;Build it&quot; and &quot;Leave it&quot; appear in plain words with their does and cost, and the stage&#x27;s pick wears the tiles&#x27; green Recommended mark. The rest of the context keeps its 3-line clamp, and an ask without the marker renders as before. Picking Send back or Replan sets the note&#x27;s placeholder to &quot;Say which the stage offered you mean: Build it or Leave it&quot;. The parser matches the installed pack&#x27;s exact output (deliver.yaml:458,461). The compact board face is unchanged (&quot;Recommended: Send back&quot;), and nothing overflows at 1440x900 or 390x844. The 31 targeted tests pass in a scratch copy. Two judgment calls are below in notes, neither grounded in a project passage strong enough to return on: the offered rows look like the answer tiles, and the placeholder also appears on Hold and Take as is.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-success font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg>Approved</span></span></td></tr><tr data-grid-row=\"Verdict\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-primary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">Verdict</span></span></th><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"returned\" title=\"rounds.verdict__verdict\nReturn. The approach and the main behaviour hold: the offered block renders unclamped between the question and the tiles, the Recommended mark works, and the compact forms are untouched. Three reports agree the parser must fall back to null when the offered list only partly parses, which is the item&#x27;s &quot;falls back to today&#x27;s rendering&quot; rule; that is the main fix. The rest is one false comment and three test-quality fixes, all small and test-only apart from the comment.\nBrowser evidence on a live-DB copy (the item&#x27;s Done-when) is not yet done. The product review used a scratch fixture, so the builder must do the live-DB pass after the parser fix and describe it in the PR.\nBuild the fix, then re-run the two test files and the browser pass.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-[color:var(--node-approval)] font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-undo2 lucide-undo-2 size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"></path><path d=\"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11\"></path></svg>Sent back</span></span></td><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"approved\" title=\"rounds.verdict__verdict\nApprove PR #112 (item 111), with no findings. The reports agree that a delivery ask&#x27;s offered list now shows as its own unclamped block above the four tiles, that the recommended offered option is marked, and that asks without the marker render as before. All four parse cases and the component case are covered, and the test check confirmed the new fallback tests fail for the break they guard.\nNotes for the maintainer: the placeholder appears on every tile pick (Hold and Take as is too), not only send-back and replan, which is the recorded rule 1 resolution. The offered rows look like answer tiles, and the PR&#x27;s &quot;AttentionAnswerPanel unchanged&quot; wording is loose.\nTwo reports disagree on environment facts, not on the item: whether build:web passes (product fails in a fresh install copy, builder exit 0), and the test count (29 vs 31). Both are kept under disagreements and noticed.\" class=\"inline-flex items-start gap-1.5 text-console-13 text-success font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg>Approved</span></span></td></tr><tr data-grid-row=\"Build\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-primary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">Build</span></span></th><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"fixed\" title=\"rounds.fix\" class=\"inline-flex items-start gap-1.5 text-console-13 text-text-secondary font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z\"></path></svg>Fixed</span></span></td><td class=\"py-2 pr-4 align-top\"><span data-cell=\"absent\" class=\"inline-flex items-start gap-1.5 text-console-13 text-text-tertiary font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-minus size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M5 12h14\"></path></svg>Not run</span></td></tr><tr data-grid-row=\"CI and review\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-primary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">CI and review</span></span></th><td class=\"py-2 pr-4 align-top\"><span data-cell=\"absent\" class=\"inline-flex items-start gap-1.5 text-console-13 text-text-tertiary font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-minus size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M5 12h14\"></path></svg>Not run</span></td><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"approved\" class=\"inline-flex items-start gap-1.5 text-console-13 text-success font-medium whitespace-nowrap\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M20 6 9 17l-5-5\"></path></svg>Approved</span></span></td></tr><tr data-grid-row=\"Project checks\" class=\"border-t border-border\"><th scope=\"row\" class=\"py-2 pr-4 text-console-13 font-medium text-text-tertiary\"><span class=\"flex flex-wrap items-center gap-x-2 gap-y-1\"><span class=\"whitespace-nowrap\">Project checks</span><span data-shadow-badge=\"true\" class=\"shrink-0 rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)] \">shadow</span></span></th><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"shadow\" class=\"inline-flex items-start gap-1.5 text-console-13 text-[color:var(--node-opaque)] font-medium \"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-dot size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><circle cx=\"12\" cy=\"12\" r=\"1\"></circle></svg>4 checks · all passed · 3 min</span></span></td><td class=\"py-2 pr-4 align-top\"><span class=\"flex flex-col gap-1\"><span data-cell=\"shadow\" class=\"inline-flex items-start gap-1.5 text-console-13 text-[color:var(--node-opaque)] font-medium \"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-circle-dot size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><circle cx=\"12\" cy=\"12\" r=\"1\"></circle></svg>4 checks · all passed · 4 min</span></span></td></tr></tbody></table></div><ul aria-label=\"Why the rounds sent it back\" class=\"flex flex-col gap-2\"><li class=\"flex min-w-0 flex-col gap-1 text-console-13 text-text-secondary\"><p class=\"break-words\"><span class=\"font-medium text-text-primary\">Round 1: </span>Return. The approach and the main behaviour hold: the offered block renders unclamped between the question and the tiles, the Recommended m… <button type=\"button\" aria-expanded=\"false\" class=\"rounded text-console-12 font-medium text-text-tertiary hover:text-text-primary\">More</button></p></li></ul></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">35 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$18.14 for the whole run, across its stages</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Models (all its runs)</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-opus-5-5, claude-haiku-5-5, claude-sonnet-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/aba8f7aa-f3ae-47df-b495-88e04cda9bc1\" data-discover=\"true\">aba8f7aa</a></span></dd></div></dl></section><section aria-labelledby=\"story-host:1\" data-story-panel=\"host\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-approval)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-approval)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-search-code size-4 shrink-0\" aria-hidden=\"true\"><path d=\"m13 13.5 2-2.5-2-2.5\"></path><path d=\"m21 21-4.3-4.3\"></path><path d=\"M9 8.5 7 11l2 2.5\"></path><circle cx=\"11\" cy=\"11\" r=\"8\"></circle></svg>Checks &amp; review</span><h2 id=\"story-host:1\" class=\"text-console-17 font-semibold text-text-primary\">CI and review</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">The checks and CI passed; it is ready to merge.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">58 s</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$18.14 for the whole run, across its stages</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Models (all its runs)</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-opus-5-5, claude-haiku-5-5, claude-sonnet-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/aba8f7aa-f3ae-47df-b495-88e04cda9bc1\" data-discover=\"true\">aba8f7aa</a></span></dd></div></dl></section><section aria-label=\"Found by the factory\" data-story-panel=\"drain\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-opaque)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-opaque)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-telescope size-4 shrink-0\" aria-hidden=\"true\"><path d=\"m10.065 12.493-6.18 1.318a.934.934 0 0 1-1.108-.702l-.537-2.15a1.07 1.07 0 0 1 .691-1.265l13.504-4.44\"></path><path d=\"m13.56 11.747 4.332-.924\"></path><path d=\"m16 21-3.105-6.21\"></path><path d=\"M16.485 5.94a2 2 0 0 1 1.455-2.425l1.09-.272a1 1 0 0 1 1.212.727l1.515 6.06a1 1 0 0 1-.727 1.213l-1.09.272a2 2 0 0 1-2.425-1.455z\"></path><path d=\"m6.158 8.633 1.114 4.456\"></path><path d=\"m8 21 3.105-6.21\"></path><circle cx=\"12\" cy=\"13\" r=\"2\"></circle></svg>Beside the work</span><h2 class=\"text-console-17 font-semibold text-text-primary\">Found by the factory</h2></div></div><p data-story-sentence=\"\" class=\"text-console-14 text-text-secondary\">The factory looked for other work it noticed.</p><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">10 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$0.657</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Model</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-opus-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/ecb37c45-8126-42e1-8f1a-836c4fe36d14\" data-discover=\"true\">ecb37c45</a></span></dd></div></dl><ol aria-label=\"What its shadow steps would have done\" class=\"flex flex-col gap-1.5\"><li data-shadow=\"What it would file\" class=\"flex min-w-0 flex-col gap-1\"><p class=\"flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-console-13 text-text-tertiary\"><span data-shadow-badge=\"true\" class=\"shrink-0 rounded border border-dashed border-[color:var(--node-opaque)] px-1.5 text-console-12 text-[color:var(--node-opaque)] \">shadow</span><span>What it would file</span><span class=\"\">would hold 1 · would drop 2</span><button type=\"button\" aria-expanded=\"false\" class=\"rounded text-console-12 font-medium text-text-tertiary hover:text-text-primary\">Why</button></p></li></ol></section><section aria-labelledby=\"story-ready:1\" data-story-panel=\"ready\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-script)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-script)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-pull-request size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"18\" cy=\"18\" r=\"3\"></circle><circle cx=\"6\" cy=\"6\" r=\"3\"></circle><path d=\"M13 6h3a2 2 0 0 1 2 2v7\"></path><line x1=\"6\" x2=\"6\" y1=\"9\" y2=\"21\"></line></svg>Ready to merge</span><h2 id=\"story-ready:1\" class=\"text-console-17 font-semibold text-text-primary\">Ready to merge</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">The merge gate read the change.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">1 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$0.257</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Model</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"font-mono text-console-13\">claude-sonnet-5-5</span></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/7465840d-7466-42b8-aa70-9f3e987ceb9f\" data-discover=\"true\">7465840d</a></span></dd></div></dl></section><section aria-label=\"Merged\" data-story-panel=\"merged\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--success)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--success)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-merge size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"18\" cy=\"18\" r=\"3\"></circle><circle cx=\"6\" cy=\"6\" r=\"3\"></circle><path d=\"M6 21V9a9 9 0 0 0 9 9\"></path></svg>Merged</span><h2 class=\"text-console-17 font-semibold text-text-primary\">Merged</h2></div></div><p data-story-sentence=\"\" class=\"text-console-15 text-text-primary\">The change merged <time>.</p></section></div></section><section data-doc-section=\"\" aria-labelledby=\"item-about\" class=\"flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-info size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 16v-4\"></path><path d=\"M12 8h.01\"></path></svg>Around it</span><h2 id=\"item-about\" class=\"text-console-17 font-semibold text-text-primary\">About this item</h2></div></div><div class=\"flex flex-col gap-4\"><section aria-labelledby=\"item-links\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 p-4\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-link2 lucide-link-2 size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M9 17H7A5 5 0 0 1 7 7h2\"></path><path d=\"M15 7h2a5 5 0 1 1 0 10h-2\"></path><line x1=\"8\" x2=\"16\" y1=\"12\" y2=\"12\"></line></svg>Links</span><h2 id=\"item-links\" class=\"text-console-17 font-semibold text-text-primary\">Other items</h2></div></div><div class=\"flex flex-col items-start gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-link2 lucide-link-2 size-5 shrink-0 text-text-tertiary\" aria-hidden=\"true\"><path d=\"M9 17H7A5 5 0 0 1 7 7h2\"></path><path d=\"M15 7h2a5 5 0 1 1 0 10h-2\"></path><line x1=\"8\" x2=\"16\" y1=\"12\" y2=\"12\"></line></svg><p class=\"min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]\">No links to other items.</p></div></section><section aria-labelledby=\"item-answers\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 p-4\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scale size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M12 3v18\"></path><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\"></path><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M7 21h10\"></path></svg>On the record</span><h2 id=\"item-answers\" class=\"text-console-17 font-semibold text-text-primary\">Rulings and answers</h2></div></div><div class=\"flex flex-col items-start gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scale size-5 shrink-0 text-text-tertiary\" aria-hidden=\"true\"><path d=\"M12 3v18\"></path><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\"></path><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M7 21h10\"></path></svg><p class=\"min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]\">Nothing has been ruled or answered yet.</p></div></section></div></section></div></div></div></div></section>",
+  "item1": "<section class=\"flex h-full flex-col\"><header class=\"flex flex-col gap-3 border-b border-border px-6 py-4\"><div class=\"flex min-h-9.5 items-center justify-between gap-4\"><div class=\"min-w-0\"><h1 class=\"truncate text-base font-medium text-text-primary\">Project</h1><div class=\"truncate text-xs text-text-tertiary\"><span role=\"status\" class=\"flex h-4 items-center\"><span class=\"sr-only\">Loading the project</span><span aria-hidden=\"true\" data-skeleton=\"line\" class=\"block h-3 rounded w-2/5 bg-surface-elevated motion-safe:animate-pulse\"></span></span></div></div></div><div class=\"flex flex-wrap items-center gap-1\"><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/needs-you\" data-discover=\"true\">Needs you</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961\" data-discover=\"true\">Runs</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/chat\" data-discover=\"true\">Chat</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/metrics\" data-discover=\"true\">Metrics</a><a aria-current=\"page\" class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out bg-surface-elevated text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory\" data-discover=\"true\">Factory<span aria-hidden=\"true\" data-tab-bar=\"true\" class=\"brand-bar pointer-events-none absolute inset-x-1 -bottom-0.5 h-0.5 rounded-full\"></span></a></div></header><div class=\"flex-1 overflow-y-auto p-4 md:p-6 \"><div class=\"flex flex-col gap-6 max-w-5xl\"><div class=\"flex max-w-5xl flex-col gap-1.5\"><div class=\"flex flex-wrap items-baseline gap-x-6 gap-y-2\"><h2 class=\"min-w-0 text-console-22 font-semibold tracking-console-heading text-text-primary [overflow-wrap:anywhere]\">Software factory</h2><nav aria-label=\"Factory\" class=\"flex flex-wrap items-center gap-1\"><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory\" data-discover=\"true\">Overview</a><a class=\"relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out text-text-tertiary hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory/board\" data-discover=\"true\">Board</a></nav></div></div><div class=\"flex flex-col gap-6\"><a data-back-link=\"true\" class=\"inline-flex items-center gap-1 self-start rounded text-console-13 text-text-secondary transition-colors duration-150 ease-out hover:text-text-primary\" href=\"/console/p/c9a89726701fe4be95346226c359a961/factory\" data-discover=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-chevron-left size-4 shrink-0\" aria-hidden=\"true\"><path d=\"m15 18-6-6 6-6\"></path></svg>Back to the overview</a><div data-doc-page=\"\" class=\"grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]\"><section aria-label=\"Summary\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 p-5 lg:col-span-2\"><div class=\"flex flex-wrap items-start justify-between gap-x-6 gap-y-2\"><div class=\"flex min-w-0 flex-col gap-1\"><h2 class=\"text-console-22 font-semibold tracking-console-heading text-text-primary [overflow-wrap:anywhere]\"><span class=\"mr-2 font-mono text-text-tertiary\">#1</span>The live-home guard and dev:console have tests</h2><p class=\"max-w-[80ch] text-console-14 text-text-secondary\">Its change merged.</p></div><div class=\"flex flex-wrap items-center gap-3\"><span class=\"shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-console-12 font-medium bg-[color:var(--success-soft)] text-success\">Merged</span><span class=\"flex items-center gap-2\"><a href=\"https://github.com/coleam00/archon-factory-console/pull/10\" target=\"_blank\" rel=\"noreferrer\" class=\"inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1 text-console-13 font-medium text-text-primary transition-colors duration-150 ease-out hover:border-border-bright hover:bg-surface-elevated\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-pull-request size-4 shrink-0 text-text-tertiary\" aria-hidden=\"true\"><circle cx=\"18\" cy=\"18\" r=\"3\"></circle><circle cx=\"6\" cy=\"6\" r=\"3\"></circle><path d=\"M13 6h3a2 2 0 0 1 2 2v7\"></path><line x1=\"6\" x2=\"6\" y1=\"9\" y2=\"21\"></line></svg>PR #10</a><span data-merge-state=\"true\" class=\"whitespace-nowrap text-console-13 text-text-tertiary\">merged</span></span></div></div><ul aria-label=\"Key facts\" class=\"flex flex-wrap gap-2\"><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">34 min</span>order to merge</li><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">$7.00</span>cost</li><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">2 of 3</span>check rounds</li><li data-stat-chip=\"neutral\" class=\"inline-flex items-baseline gap-1.5 rounded-full px-3 py-1 text-console-13 bg-surface-inset text-text-secondary\"><span class=\"font-semibold tabular-nums text-text-primary\">0</span>asks answered</li></ul></section><section aria-label=\"Journey\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated p-4 lg:col-span-2\"><div class=\"overflow-x-auto\"><ol class=\"flex w-full min-w-max gap-3\"><li data-journey-segment=\"intake\" data-static=\"\" style=\"--card-tone:var(--tone-intake)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--tone-intake)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Intake</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">1 min</span></li><li data-journey-segment=\"plan-build\" data-static=\"\" style=\"--card-tone:var(--node-wait)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--node-wait)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Plan &amp; build</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">32 min</span></li><li data-journey-segment=\"checks-review\" data-static=\"\" style=\"--card-tone:var(--node-approval)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 opacity-60\"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--border)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Checks &amp; review</span><span class=\"text-console-17 font-semibold tabular-nums text-text-tertiary\">Not reached</span></li><li data-journey-segment=\"ready\" data-static=\"\" style=\"--card-tone:var(--node-script)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--node-script)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Ready to merge</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">1 min</span></li><li data-journey-segment=\"merged\" data-lit=\"\" data-static=\"\" style=\"--card-tone:var(--success)\" class=\"factory-card relative flex min-w-40 flex-1 flex-col gap-1.5 overflow-hidden rounded-console-12 border bg-surface-inset px-3 pb-3 pt-4 \"><span aria-hidden=\"true\" class=\"absolute inset-x-0 top-0 h-0.75\" style=\"background-color:var(--success)\"></span><span class=\"text-console-12 font-medium uppercase tracking-console-label text-text-tertiary\">Merged</span><span class=\"text-console-17 font-semibold tabular-nums text-text-primary\">Merged</span><span class=\"text-console-12 text-text-secondary\">It is here now</span></li></ol></div></section><section data-doc-section=\"\" aria-labelledby=\"item-story\" class=\"flex min-w-0 flex-col gap-4\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-book-open size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M12 7v14\"></path><path d=\"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z\"></path></svg>What happened</span><h2 id=\"item-story\" class=\"text-console-17 font-semibold text-text-primary\">The story</h2></div></div><div class=\"flex min-w-0 flex-col gap-4\" aria-label=\"The story\"><section aria-labelledby=\"story-triage:1\" data-story-panel=\"triage\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--tone-intake)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--tone-intake)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-inbox size-4 shrink-0\" aria-hidden=\"true\"><polyline points=\"22 12 16 12 14 15 10 15 8 12 2 12\"></polyline><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"></path></svg>Intake</span><h2 id=\"story-triage:1\" class=\"text-console-17 font-semibold text-text-primary\">Triage</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Triage judged it worth building.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">1 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$0.737</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/88640c6d-975d-4232-8371-c55226236e2a\" data-discover=\"true\">88640c6d</a></span></dd></div></dl></section><section aria-labelledby=\"story-plan:1\" data-story-panel=\"plan\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-wait)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-wait)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z\"></path></svg>Plan &amp; build</span><h2 id=\"story-plan:1\" class=\"text-console-17 font-semibold text-text-primary\">Plan</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">Plan wrote the approach.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">1 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$0.676</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/147ff872-555d-43fe-ae98-3ee9e3b884ab\" data-discover=\"true\">147ff872</a></span></dd></div></dl></section><section aria-labelledby=\"story-build:1\" data-story-panel=\"build\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--node-wait)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-4 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--node-wait)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-wrench size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z\"></path></svg>Plan &amp; build</span><h2 id=\"story-build:1\" class=\"text-console-17 font-semibold text-text-primary\">Build</h2></div></div><div class=\"flex max-w-[80ch] flex-col gap-1.5\"><p data-story-sentence=\"\" class=\"break-words text-console-15 text-text-primary\">The checks and CI passed; it is ready to merge.</p></div><dl class=\"grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-[160px_1fr] \"><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">When</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><time> to <time></dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Took</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">30 min</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Cost</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\">$5.59</dd></div><div class=\"contents\"><dt class=\"min-w-0 text-console-13 text-text-tertiary [overflow-wrap:anywhere]\">Run</dt><dd class=\"min-w-0 text-console-14 text-text-primary [overflow-wrap:anywhere]\"><span class=\"flex flex-wrap gap-x-3 gap-y-1\"><a class=\"font-mono text-console-13 text-accent-bright hover:underline\" href=\"/console/p/c9a89726701fe4be95346226c359a961/r/c90ebf41-6ea3-4261-b63b-b460ad78045e\" data-discover=\"true\">c90ebf41</a></span></dd></div></dl></section><section aria-label=\"Merged\" data-story-panel=\"merged\" data-doc-panel=\"panel\" style=\"--doc-tone:var(--success)\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 py-4 pl-6 pr-5\"><span aria-hidden=\"true\" data-doc-bar=\"left\" class=\"absolute bg-[color:var(--doc-tone)] inset-y-0 left-0 w-0.75\"></span><div data-doc-heading=\"\" style=\"--doc-tone:var(--success)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-git-merge size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"18\" cy=\"18\" r=\"3\"></circle><circle cx=\"6\" cy=\"6\" r=\"3\"></circle><path d=\"M6 21V9a9 9 0 0 0 9 9\"></path></svg>Merged</span><h2 class=\"text-console-17 font-semibold text-text-primary\">Merged</h2></div></div><p data-story-sentence=\"\" class=\"text-console-15 text-text-primary\">The change merged <time>.</p></section></div></section><section data-doc-section=\"\" aria-labelledby=\"item-about\" class=\"flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-info size-4 shrink-0\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><path d=\"M12 16v-4\"></path><path d=\"M12 8h.01\"></path></svg>Around it</span><h2 id=\"item-about\" class=\"text-console-17 font-semibold text-text-primary\">About this item</h2></div></div><div class=\"flex flex-col gap-4\"><section aria-labelledby=\"item-links\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 p-4\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-link2 lucide-link-2 size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M9 17H7A5 5 0 0 1 7 7h2\"></path><path d=\"M15 7h2a5 5 0 1 1 0 10h-2\"></path><line x1=\"8\" x2=\"16\" y1=\"12\" y2=\"12\"></line></svg>Links</span><h2 id=\"item-links\" class=\"text-console-17 font-semibold text-text-primary\">Other items</h2></div></div><div class=\"flex flex-col items-start gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-link2 lucide-link-2 size-5 shrink-0 text-text-tertiary\" aria-hidden=\"true\"><path d=\"M9 17H7A5 5 0 0 1 7 7h2\"></path><path d=\"M15 7h2a5 5 0 1 1 0 10h-2\"></path><line x1=\"8\" x2=\"16\" y1=\"12\" y2=\"12\"></line></svg><p class=\"min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]\">No links to other items.</p></div></section><section aria-labelledby=\"item-answers\" data-doc-panel=\"panel\" class=\"relative min-w-0 overflow-hidden rounded-console-12 border border-border [overflow-wrap:anywhere] bg-surface-elevated flex flex-col gap-3 p-4\"><div data-doc-heading=\"\" style=\"--doc-tone:var(--text-tertiary)\" class=\"flex flex-wrap items-end gap-x-3\"><div class=\"flex min-w-0 flex-col gap-1\"><span class=\"flex items-center gap-2 text-console-12 font-medium uppercase tracking-console-label text-[color:var(--doc-tone)]\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scale size-4 shrink-0\" aria-hidden=\"true\"><path d=\"M12 3v18\"></path><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\"></path><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M7 21h10\"></path></svg>On the record</span><h2 id=\"item-answers\" class=\"text-console-17 font-semibold text-text-primary\">Rulings and answers</h2></div></div><div class=\"flex flex-col items-start gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-scale size-5 shrink-0 text-text-tertiary\" aria-hidden=\"true\"><path d=\"M12 3v18\"></path><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\"></path><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\"></path><path d=\"M7 21h10\"></path></svg><p class=\"min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]\">Nothing has been ruled or answered yet.</p></div></section></div></section></div></div></div></div></section>",
+  "board": {
+    "columns": [
+      {
+        "id": "intake",
+        "cards": []
+      },
+      {
+        "id": "plan-build",
+        "cards": [
+          {
+            "stage": {
+              "stage": {
+                "id": "build",
+                "label": "Build",
+                "blurb": "Writes the change and opens a draft pull request, then fixes what comes back.",
+                "short": "Writes the change and PR",
+                "group": "build",
+                "workflows": ["deliver", "stage-build"],
+                "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "Write",
+                      "cards": [
+                        {
+                          "title": "Write the change",
+                          "text": "Writes the change and opens a draft pull request",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Build stage",
+                          "text": "Writes or fixes the change, in the session it had",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Fix",
+                      "cards": [
+                        {
+                          "title": "Fix what checks found",
+                          "text": "Fixes what the checks sent back",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.fix"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Fix what CI raised",
+                          "text": "Fixes what CI and the pull request reviews raised",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["hostrounds.hostfix"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Hand off",
+                      "cards": [
+                        {
+                          "title": "Hand off",
+                          "text": "Says whether the change goes to the checks or back to CI",
+                          "icon": "send",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["end"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "5",
+              "title": "The factory map on the Overview: stages and hand-offs, live, with details on click",
+              "pill": "running",
+              "round": null,
+              "run": {
+                "parts": ["Build", "Writes the change"],
+                "text": "Build · Writes the change",
+                "step": "build__build",
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/r/f4e603d9-bdeb-4614-a411-77e76eb77777"
+              },
+              "stage": "Build",
+              "returned": null,
+              "change": null,
+              "mergedAt": null,
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          },
+          {
+            "stage": {
+              "stage": {
+                "id": "build",
+                "label": "Build",
+                "blurb": "Writes the change and opens a draft pull request, then fixes what comes back.",
+                "short": "Writes the change and PR",
+                "group": "build",
+                "workflows": ["deliver", "stage-build"],
+                "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "Write",
+                      "cards": [
+                        {
+                          "title": "Write the change",
+                          "text": "Writes the change and opens a draft pull request",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Build stage",
+                          "text": "Writes or fixes the change, in the session it had",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Fix",
+                      "cards": [
+                        {
+                          "title": "Fix what checks found",
+                          "text": "Fixes what the checks sent back",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.fix"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Fix what CI raised",
+                          "text": "Fixes what CI and the pull request reviews raised",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["hostrounds.hostfix"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Hand off",
+                      "cards": [
+                        {
+                          "title": "Hand off",
+                          "text": "Says whether the change goes to the checks or back to CI",
+                          "icon": "send",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["end"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "4",
+              "title": "The board: every item in the column of its stage, with round, live step, returns and landed time",
+              "pill": "running",
+              "round": null,
+              "run": {
+                "parts": ["Build", "Writes the change"],
+                "text": "Build · Writes the change",
+                "step": "build__build",
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/r/fdef09db-c751-43a0-9eb5-c6386b8f8b60"
+              },
+              "stage": "Build",
+              "returned": null,
+              "change": null,
+              "mergedAt": null,
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          },
+          {
+            "stage": {
+              "stage": {
+                "id": "build",
+                "label": "Build",
+                "blurb": "Writes the change and opens a draft pull request, then fixes what comes back.",
+                "short": "Writes the change and PR",
+                "group": "build",
+                "workflows": ["deliver", "stage-build"],
+                "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "Write",
+                      "cards": [
+                        {
+                          "title": "Write the change",
+                          "text": "Writes the change and opens a draft pull request",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Build stage",
+                          "text": "Writes or fixes the change, in the session it had",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Fix",
+                      "cards": [
+                        {
+                          "title": "Fix what checks found",
+                          "text": "Fixes what the checks sent back",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.fix"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Fix what CI raised",
+                          "text": "Fixes what CI and the pull request reviews raised",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["hostrounds.hostfix"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Hand off",
+                      "cards": [
+                        {
+                          "title": "Hand off",
+                          "text": "Says whether the change goes to the checks or back to CI",
+                          "icon": "send",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["end"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "6",
+              "title": "The item page: an item's timeline of runs and rounds, its asks, links and change",
+              "pill": "waiting",
+              "round": null,
+              "run": null,
+              "stage": "Build",
+              "returned": null,
+              "change": null,
+              "mergedAt": null,
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          },
+          {
+            "stage": {
+              "stage": {
+                "id": "build",
+                "label": "Build",
+                "blurb": "Writes the change and opens a draft pull request, then fixes what comes back.",
+                "short": "Writes the change and PR",
+                "group": "build",
+                "workflows": ["deliver", "stage-build"],
+                "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "Write",
+                      "cards": [
+                        {
+                          "title": "Write the change",
+                          "text": "Writes the change and opens a draft pull request",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Build stage",
+                          "text": "Writes or fixes the change, in the session it had",
+                          "icon": "pencil",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["build__build"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Fix",
+                      "cards": [
+                        {
+                          "title": "Fix what checks found",
+                          "text": "Fixes what the checks sent back",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.fix"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Fix what CI raised",
+                          "text": "Fixes what CI and the pull request reviews raised",
+                          "icon": "wrench",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["hostrounds.hostfix"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Hand off",
+                      "cards": [
+                        {
+                          "title": "Hand off",
+                          "text": "Says whether the change goes to the checks or back to CI",
+                          "icon": "send",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-build",
+                              "steps": ["end"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "3",
+              "title": "A read-only page of a project's items with each item's live progress (running step, round, returns, change)",
+              "pill": "waiting",
+              "round": {
+                "text": "round 2 of 3",
+                "dots": [
+                  {
+                    "iteration": 1,
+                    "verdict": "returned",
+                    "label": "round 1: returned"
+                  },
+                  {
+                    "iteration": 2,
+                    "verdict": "undecided",
+                    "label": "round 2: needs a decision"
+                  }
+                ]
+              },
+              "run": null,
+              "stage": "Build",
+              "returned": {
+                "count": 2,
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/factory/items/3"
+              },
+              "change": {
+                "href": "https://github.com/coleam00/archon-factory-console/pull/14",
+                "label": "the change",
+                "mergeState": "unknown"
+              },
+              "mergedAt": null,
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "checks-review",
+        "cards": [
+          {
+            "stage": {
+              "stage": {
+                "id": "checks",
+                "label": "Checks",
+                "blurb": "A review, a test check and a product check read the change and approve it or send it back.",
+                "short": "Review, tests, product",
+                "group": "check",
+                "workflows": ["deliver", "stage-check"],
+                "nodes": [
+                  "rounds.base",
+                  "rounds.review__review",
+                  "rounds.tests__tests",
+                  "rounds.product__product",
+                  "rounds.checks",
+                  "rounds.verdict__verdict",
+                  "rounds.shown",
+                  "exhausted"
+                ],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "Prepare",
+                      "cards": [
+                        {
+                          "title": "Read the base",
+                          "text": "Reads the commit the change is checked against",
+                          "icon": "git-branch",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.base"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Check",
+                      "cards": [
+                        {
+                          "title": "Code review",
+                          "text": "Reads the change for bugs and the project's rules",
+                          "icon": "search-code",
+                          "kind": "check",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.review__review"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Test check",
+                          "text": "Runs and reads the tests the change needs",
+                          "icon": "flask-conical",
+                          "kind": "check",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.tests__tests"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Product check",
+                          "text": "Checks the change does what the item asked",
+                          "icon": "monitor-check",
+                          "kind": "check",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.product__product"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Project checks",
+                          "text": "Runs the project's declared checks and records the result; nothing acts on it",
+                          "icon": "shield-check",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.checks"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Verdict",
+                      "cards": [
+                        {
+                          "title": "Verdict",
+                          "text": "Approves the change or sends it back",
+                          "icon": "gavel",
+                          "kind": "check",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.verdict__verdict"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Post the review",
+                          "text": "Posts the checks' findings on the pull request",
+                          "icon": "message-square",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["rounds.shown"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Out of rounds",
+                      "cards": [
+                        {
+                          "title": "Rounds ran out",
+                          "text": "Says what is still wrong when every round is used",
+                          "icon": "circle-alert",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "deliver",
+                              "steps": ["exhausted"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Check round (stage)",
+                      "cards": [
+                        {
+                          "title": "Read the base",
+                          "text": "Reads the commit the change is checked against",
+                          "icon": "git-branch",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["base"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Project checks",
+                          "text": "Runs the project's declared checks",
+                          "icon": "clipboard-list",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["checks"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Code review",
+                          "text": "Reviews the change",
+                          "icon": "search-code",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["review__review"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Test check",
+                          "text": "Checks the tests prove the change",
+                          "icon": "flask-conical",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["tests__tests"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Product check",
+                          "text": "Looks at the change in a browser",
+                          "icon": "monitor-check",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["product__product"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Verdict",
+                          "text": "Approves the change or sends it back",
+                          "icon": "gavel",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["verdict__verdict"]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Round ends (stage)",
+                      "cards": [
+                        {
+                          "title": "Post the review",
+                          "text": "Posts the checks' findings on the pull request",
+                          "icon": "message-square",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["rounds"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Count the round",
+                          "text": "Records the round and the rounds allowed",
+                          "icon": "ruler",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["allowance"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Rounds ran out",
+                          "text": "Asks you when the allowed rounds are used up",
+                          "icon": "circle-alert",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["exhausted"]
+                            }
+                          ]
+                        },
+                        {
+                          "title": "Report",
+                          "text": "Leaves the report on the pull request and hands on",
+                          "icon": "message-square",
+                          "kind": "script",
+                          "covers": [
+                            {
+                              "workflow": "stage-check",
+                              "steps": ["end", "reported"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "loop": {
+                    "label": "Up to 3 rounds",
+                    "from": 1,
+                    "to": 3,
+                    "workflow": "deliver",
+                    "step": "rounds"
+                  }
+                }
+              }
+            },
+            "card": {
+              "key": "8",
+              "title": "Stage and step pages: a stage's workflows as step graphs, and a step's prompt and YAML",
+              "pill": "running",
+              "round": {
+                "text": "round 1 of 3",
+                "dots": [
+                  {
+                    "iteration": 1,
+                    "verdict": "running",
+                    "label": "round 1: running"
+                  }
+                ]
+              },
+              "run": {
+                "parts": ["Checks", "Product check", "round 1"],
+                "text": "Checks · Product check · round 1",
+                "step": "rounds.product__product",
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/r/3696a51b-3a35-4f62-8aa2-3f4bf1d726b4"
+              },
+              "stage": "Checks",
+              "returned": null,
+              "change": {
+                "href": "https://github.com/coleam00/archon-factory-console/pull/15",
+                "label": "the change",
+                "mergeState": "unknown"
+              },
+              "mergedAt": null,
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "ready",
+        "cards": []
+      },
+      {
+        "id": "merged",
+        "cards": [
+          {
+            "stage": {
+              "stage": {
+                "id": "landed",
+                "label": "Merged",
+                "blurb": "The change is merged.",
+                "short": "The change is merged",
+                "group": "land",
+                "workflows": ["landed"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "After the merge",
+                      "cards": [
+                        {
+                          "title": "Is the branch still sound",
+                          "text": "Reads the branch after the merge, and orders a fix when it broke",
+                          "icon": "shield-check",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "landed",
+                              "steps": ["landed"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "7",
+              "title": "Needs you: open asks and paused runs listed with the recommendation first, answered in place",
+              "pill": "landed",
+              "round": {
+                "text": "round 2 of 3",
+                "dots": [
+                  {
+                    "iteration": 1,
+                    "verdict": "returned",
+                    "label": "round 1: returned"
+                  },
+                  {
+                    "iteration": 2,
+                    "verdict": "approved",
+                    "label": "round 2: approved"
+                  }
+                ]
+              },
+              "run": null,
+              "stage": null,
+              "returned": {
+                "count": 1,
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/factory/items/7"
+              },
+              "change": {
+                "href": "https://github.com/coleam00/archon-factory-console/pull/13",
+                "label": "PR #13",
+                "mergeState": null
+              },
+              "mergedAt": "<time>",
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          },
+          {
+            "stage": {
+              "stage": {
+                "id": "landed",
+                "label": "Merged",
+                "blurb": "The change is merged.",
+                "short": "The change is merged",
+                "group": "land",
+                "workflows": ["landed"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "After the merge",
+                      "cards": [
+                        {
+                          "title": "Is the branch still sound",
+                          "text": "Reads the branch after the merge, and orders a fix when it broke",
+                          "icon": "shield-check",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "landed",
+                              "steps": ["landed"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "2",
+              "title": "The Factory tab: a pack's factory view declaration, discovered per project, opens a Software Factory section",
+              "pill": "landed",
+              "round": {
+                "text": "round 3 of 3",
+                "dots": [
+                  {
+                    "iteration": 1,
+                    "verdict": "returned",
+                    "label": "round 1: returned"
+                  },
+                  {
+                    "iteration": 2,
+                    "verdict": "returned",
+                    "label": "round 2: returned"
+                  },
+                  {
+                    "iteration": 3,
+                    "verdict": "approved",
+                    "label": "round 3: approved"
+                  }
+                ]
+              },
+              "run": null,
+              "stage": null,
+              "returned": {
+                "count": 2,
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/factory/items/2"
+              },
+              "change": {
+                "href": "https://github.com/coleam00/archon-factory-console/pull/11",
+                "label": "PR #11",
+                "mergeState": null
+              },
+              "mergedAt": "<time>",
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          },
+          {
+            "stage": {
+              "stage": {
+                "id": "landed",
+                "label": "Merged",
+                "blurb": "The change is merged.",
+                "short": "The change is merged",
+                "group": "land",
+                "workflows": ["landed"],
+                "drilldown": {
+                  "phases": [
+                    {
+                      "label": "After the merge",
+                      "cards": [
+                        {
+                          "title": "Is the branch still sound",
+                          "text": "Reads the branch after the merge, and orders a fix when it broke",
+                          "icon": "shield-check",
+                          "kind": "agent",
+                          "covers": [
+                            {
+                              "workflow": "landed",
+                              "steps": ["landed"]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "card": {
+              "key": "1",
+              "title": "The live-home guard and dev:console have tests",
+              "pill": "landed",
+              "round": {
+                "text": "round 2 of 3",
+                "dots": [
+                  {
+                    "iteration": 1,
+                    "verdict": "returned",
+                    "label": "round 1: returned"
+                  },
+                  {
+                    "iteration": 2,
+                    "verdict": "approved",
+                    "label": "round 2: approved"
+                  }
+                ]
+              },
+              "run": null,
+              "stage": null,
+              "returned": {
+                "count": 2,
+                "href": "/console/p/c9a89726701fe4be95346226c359a961/factory/items/1"
+              },
+              "change": {
+                "href": "https://github.com/coleam00/archon-factory-console/pull/10",
+                "label": "PR #10",
+                "mergeState": null
+              },
+              "mergedAt": "<time>",
+              "stopLine": null,
+              "order": null,
+              "shadow": null
+            }
+          }
+        ]
+      }
+    ],
+    "ended": [],
+    "map": [
+      ["8", "checks"],
+      ["5", "build"],
+      ["4", "build"],
+      ["6", "build"],
+      ["3", "build"],
+      ["7", "landed"],
+      ["2", "landed"],
+      ["1", "landed"]
+    ],
+    "running": [
+      ["build__build", [["8", "build"]]],
+      ["rounds.fix", [["8", "build"]]],
+      ["rounds.review__review", [["8", "checks"]]],
+      ["rounds.checks", [["8", "checks"]]],
+      ["rounds.verdict__verdict", [["8", "checks"]]],
+      ["hostrounds.host__host", [["8", "host"]]],
+      ["hostrounds.hostfix", [["8", "build"]]],
+      ["result", [["8", "host"]]],
+      ["reported", [["8", "host"]]],
+      [null, [["8", "build"]]]
+    ]
+  }
+}
