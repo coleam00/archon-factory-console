@@ -484,7 +484,8 @@ const factoryViewShape = z.strictObject({
    * What choosing an option of an ask a run of `workflow` left starts, by `workflow:option`, in
    * one plain sentence ("Closes the PR without merging"). It decides nothing: the pack's
    * bindings do. A console shows it beside the option and in place of naming the run the answer
-   * started; an option no key names reads as before.
+   * started; an option no key names reads as before. `bun run check:factory-view` reports a key
+   * whose workflow has no asks-settled hand-off on that option.
    */
   answers: z.record(answerKeySchema, z.strictObject({ starts: sentenceSchema })).optional(),
   map: mapSchema,

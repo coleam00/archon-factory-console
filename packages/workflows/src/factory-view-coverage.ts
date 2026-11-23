@@ -4,8 +4,9 @@
  * (shadows included) is real, the map's arrows are exactly the hand-offs the pack graph reports between the
  * workflows the view lists, and every outcome such a workflow declares is placed or ended while
  * every outcome the view names is one it declares, and every result the view reads a change or
- * a round from is one the workflow returns. A workflow no stage lists is not compared (`unlistedWorkflows`
- * names them), and nor is a workflow the view declares `retired`: its old runs still read, so
+ * a round from is one the workflow returns, and every option an `answers` key words is one an
+ * asks-settled hand-off of its workflow leaves on. A workflow no stage lists is not compared
+ * (`unlistedWorkflows` names them), and nor is a workflow the view declares `retired`: its old runs still read, so
  * the view keeps wording them, and the pack need not have it. The schema cannot see the pack's
  * workflows; this check reads them as the pack graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
@@ -29,6 +30,7 @@ export type CoverageFindingKind =
   | 'unplaced-outcome'
   | 'untold-outcome'
   | 'unknown-outcome'
+  | 'unbacked-answer'
   | 'no-result'
   | 'retired-present'
   | 'graph-incomplete';
@@ -516,6 +518,40 @@ function unknownOutcomeFindings(
   });
 }
 
+/**
+ * Every `answers` key names an option that an asks-settled hand-off of its workflow leaves on,
+ * so the sentence a console shows beside the option is backed by a binding that starts
+ * something. An arrow with no option backs every option unless it is on `withdrawn`: an
+ * `answered` or `any` binding starts on whatever answer was chosen, while a withdrawal chooses
+ * no option. A retired workflow, and one the graph lacks (reported as unknown-workflow), are
+ * not compared.
+ */
+function unbackedAnswerFindings(
+  view: FactoryView,
+  graph: PackGraph,
+  stages: ReadonlyMap<string, GraphStage>
+): CoverageFinding[] {
+  return Object.keys(view.answers ?? {}).flatMap((key): CoverageFinding[] => {
+    const { workflow, outcome: option } = outcomeKey(key);
+    const graphStage = stages.get(workflow);
+    if (graphStage === undefined) return [];
+    const backed = graph.arrows.some(
+      ({ from }) =>
+        'settled' in from &&
+        from.stage === graphStage.name &&
+        (from.option === option || (from.option === undefined && from.settled !== 'withdrawn'))
+    );
+    if (backed) return [];
+    return [
+      {
+        kind: 'unbacked-answer',
+        path: ['answers', key],
+        message: `words what option "${option}" of workflow "${workflow}" starts, but no asks-settled hand-off of the pack leaves it on that option`,
+      },
+    ];
+  });
+}
+
 /** Every way `view` disagrees with the pack's real workflows and hand-offs; empty when none. */
 export function factoryViewCoverage(view: FactoryView, graph: PackGraph): CoverageFinding[] {
   const stages = graphStagesOf(view, graph);
@@ -567,6 +603,7 @@ export function factoryViewCoverage(view: FactoryView, graph: PackGraph): Covera
     ...shadowFindings(view, graph),
     ...unplacedOutcomeFindings(view, stages),
     ...unknownOutcomeFindings(view, stages),
+    ...unbackedAnswerFindings(view, graph, stages),
     ...untoldOutcomeFindings(view, stages),
     ...storyStepFindings(view, stages),
   ];
