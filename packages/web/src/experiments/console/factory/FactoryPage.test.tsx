@@ -207,6 +207,8 @@ describe('the Overview', () => {
       'Open the table: every item, merged ones marked',
       'Open the table of merged items sorted by time to merge, the median marked',
       'Open the board with Found by the factory open',
+      // Item 3's merge state could not be read: said under the tiles, linking to it.
+      'Open the board, only the items whose merge state could not be read',
     ];
     expect([...strip.matchAll(/class="sr-only">, ([^<]*)</g)].map(([, said]) => said)).toEqual(
       opens

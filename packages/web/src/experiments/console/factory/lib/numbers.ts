@@ -6,7 +6,7 @@
 import { filterBoard, type BoardModel } from './board';
 import type { BoardShow } from './board-show';
 import { timeToLand } from './board-table';
-import { mergeUnsettled } from './merge-pending';
+import { mergePending } from './merge-pending';
 
 export interface FactoryNumbers {
   inFlight: number;
@@ -18,10 +18,15 @@ export interface FactoryNumbers {
   /** Median from an item's first declared run to its change merging; null when none landed. */
   medianToLandMs: number | null;
   /**
-   * Whether some item on the board has a merge state not known yet (`mergeUnsettled`): the
+   * Whether some item on the board has a merge state still being read (`mergePending`): the
    * counts above leave it out, and the strip shows a skeleton beside them for it.
    */
-  unsettled: boolean;
+  pending: boolean;
+  /**
+   * How many items on the board have a merge state that could not be read (`mergeUnknown`):
+   * the counts above leave them out, and the strip says how many in words.
+   */
+  unknown: number;
 }
 
 const cardCount = (model: BoardModel): number =>
@@ -47,8 +52,7 @@ export function factoryNumbers(model: BoardModel, now: Date): FactoryNumbers {
     landed: cardCount(shown('landed')),
     total: cardCount(shown('landed-of-all')),
     medianToLandMs: median(times),
-    unsettled: model.columns.some(column =>
-      column.cards.some(placed => mergeUnsettled(placed.item))
-    ),
+    pending: model.columns.some(column => column.cards.some(placed => mergePending(placed.item))),
+    unknown: cardCount(shown('unknown')),
   };
 }

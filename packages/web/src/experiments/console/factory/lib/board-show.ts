@@ -7,7 +7,7 @@
 import { ensureUtc } from '../../lib/format';
 import type { PlacedCard } from './board';
 import type { TableSort } from './board-table';
-import { mergeUnsettled } from './merge-pending';
+import { mergeUnknown, mergeUnsettled } from './merge-pending';
 
 /** `?view=table` shows the board's Table view; Pipeline is the default. */
 export const VIEW_PARAM = 'view';
@@ -23,6 +23,7 @@ export const BOARD_SHOWS = [
   'landed-of-all',
   'median-to-land',
   'found',
+  'unknown',
 ] as const;
 export type BoardShow = (typeof BOARD_SHOWS)[number];
 
@@ -85,6 +86,12 @@ export const BOARD_SHOW: Record<BoardShow, BoardShowSpec> = {
     sort: { by: 'toLand', descending: false },
     mark: 'median',
   },
+  unknown: {
+    label: 'merge state could not be read',
+    opens: 'Open the board, only the items whose merge state could not be read',
+    narrows: true,
+    table: false,
+  },
   found: {
     label: 'found by the factory',
     opens: 'Open the board with Found by the factory open',
@@ -125,8 +132,8 @@ function sameLocalDay(iso: string, now: Date): boolean {
  * all: anywhere on the board (the M of "N of M"). Found narrows nothing (`filterBoard` never
  * asks). An item an ending took off the board, or one placement found no column for, is in
  * none. An item whose merge state is not known (`mergeUnsettled`) is in no show that says
- * what merged or what is in flight, as either might be wrong; the Overview shows a skeleton
- * for it.
+ * what merged or what is in flight, as either might be wrong. Unknown: on the board, its merge
+ * state could not be read (`mergeUnknown`), the set the Overview's line names.
  */
 export function showsCard(
   show: BoardShow,
@@ -149,6 +156,8 @@ export function showsCard(
     case 'landed-of-all':
     case 'found':
       return true;
+    case 'unknown':
+      return mergeUnknown(item);
     case 'landed-today': {
       const mergedAt = item.progress?.change?.mergedAt ?? null;
       return landed && mergedAt !== null && sameLocalDay(mergedAt, now);

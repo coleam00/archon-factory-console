@@ -40,10 +40,12 @@ function useMinuteClock(): Date {
 
 /**
  * A tile whose items are not read shows a skeleton bar (rule 6), never a wrong count and
- * never "…". One whose count leaves out items with a merge state not known yet shows the
- * known count with a skeleton bar beside it (`unsettled`).
+ * never "…". One whose count leaves out items with a merge state still being read shows the
+ * known count with a skeleton bar beside it (`pending`). Items whose merge state could not be
+ * read are left out too, but said in words under the strip (`UnknownMerges`), since a
+ * skeleton means loading and they may never settle.
  */
-type TileValue = { value: null } | { value: string; unsettled: boolean };
+type TileValue = { value: null } | { value: string; pending: boolean };
 
 type Tile = TileValue & {
   to: string;
@@ -74,9 +76,7 @@ function tiles(
   const board = (show: BoardShow): Pick<Tile, 'to' | 'opens'> => boardLink(projectId, show);
   // Every number but "needs you" depends on which items merged (placement rule 2).
   const merged = (value: (n: Numbers) => string): TileValue =>
-    numbers === undefined
-      ? { value: null }
-      : { value: value(numbers), unsettled: numbers.unsettled };
+    numbers === undefined ? { value: null } : { value: value(numbers), pending: numbers.pending };
   return [
     {
       ...board('in-flight'),
@@ -87,9 +87,7 @@ function tiles(
     {
       to: needsYouPath(projectId),
       opens: 'Open Needs you',
-      ...(waiting === undefined
-        ? { value: null }
-        : { value: waiting.toString(), unsettled: false }),
+      ...(waiting === undefined ? { value: null } : { value: waiting.toString(), pending: false }),
       label: waiting === 1 ? 'needs you' : 'need you',
       icon: MessageCircleQuestionMark,
     },
@@ -170,11 +168,14 @@ export function FactoryNumbers({
             ) : (
               <span className="whitespace-nowrap">{tile.value}</span>
             )}
-            {tile.value !== null && tile.unsettled ? <BesideSkeleton /> : null}
+            {tile.value !== null && tile.pending ? <BesideSkeleton /> : null}
           </NumberTile>
         ))}
         {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
       </ul>
+      {numbers === undefined || numbers.unknown === 0 ? null : (
+        <UnknownMerges projectId={projectId} count={numbers.unknown} />
+      )}
     </div>
   );
 }
@@ -230,7 +231,28 @@ function FigureSkeleton({ title }: { title: string }): ReactElement {
 }
 
 /**
- * The bar beside a known count that leaves out items with a merge state not known yet. The
+ * How many items the numbers leave out because their merge state could not be read, linking
+ * to the board narrowed to them. Said in words (Visual standard rule 6: an error says what
+ * could not be read), not as a skeleton, which would read as loading that never ends.
+ */
+function UnknownMerges({ projectId, count }: { projectId: string; count: number }): ReactElement {
+  const link = boardLink(projectId, 'unknown');
+  return (
+    <p className="text-console-13 text-text-secondary">
+      <Link
+        to={link.to}
+        title={link.opens}
+        className="text-accent transition-colors duration-150 ease-out hover:text-text-primary"
+      >
+        {count} merge {count === 1 ? 'state' : 'states'} could not be read
+      </Link>
+      <span className="sr-only">, {link.opens}</span>
+    </p>
+  );
+}
+
+/**
+ * The bar beside a known count that leaves out items with a merge state still being read. The
  * figure never wraps: in a narrow tile the bar gives way, clipped to the room left.
  */
 function BesideSkeleton(): ReactElement {

@@ -963,10 +963,15 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    number tile in the card language: a 16 px icon and its label in the Label role, then the
    figure at `--text-console-22`. Until the items read first answers, each tile shows a skeleton bar
    (Visual standard, rule 6) in place of its figure. An item whose merge state is not known
-   (pending, or unknown after a failed lookup, with no run working it) is in no number but M:
-   while there is one, every number but needs you and found by the factory shows the count of
-   what is known with the skeleton bar beside it, never a count that may be wrong. A first
-   read that fails replaces the tiles with an alert saying so; a refresh that fails says so above the last values read (as the map and the board do).
+   (pending, or unknown: the lookup failed or found no pull request, with no run working it)
+   is in no number but M, never a count that may be wrong. While one is pending, every number
+   but needs you and found by the factory shows the count of what is known with the skeleton
+   bar beside it (rule 6: a skeleton is loading, and a pending state settles in seconds). An
+   unknown one may never settle, so it gets no skeleton: a line under the tiles says how many
+   in words ("1 merge state could not be read", `--text-console-13`), linking to the board
+   narrowed to those cards (`?show=unknown`). A first read that fails replaces the tiles with
+   an alert saying so; a refresh that fails says so above the last values read (as the map and
+   the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet and opens the board with that panel open; it
    has its own read, so it never holds up the other five. Each tile opens what it counts (owner

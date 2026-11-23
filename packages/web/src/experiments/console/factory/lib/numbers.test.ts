@@ -63,7 +63,7 @@ describe('the numbers strip', () => {
     const counts = numbers([...PAGE.items, asking(), closedByTriage()], local(17, 12));
     // 8, 5, 4, 6 and the asking copy of 6 are on the board outside Landed; 7, 2, 1 landed.
     // Item 3's merge state is unknown, so it counts only in M.
-    expect(counts).toMatchObject({ inFlight: 5, landed: 3, total: 9, unsettled: true });
+    expect(counts).toMatchObject({ inFlight: 5, landed: 3, total: 9, pending: false, unknown: 1 });
   });
 
   test('an item closed by triage is not in M, nor in flight', () => {
@@ -175,16 +175,22 @@ test('an item whose merge state is not known is counted only in M, and the strip
   const now = local(17, 12);
   const settled = PAGE.items.filter(item => !mergeUnsettled(item));
   const known = numbers(settled, now);
-  expect(known.unsettled).toBe(false);
-  for (const merged of ['pending', 'unknown'] as const)
-    expect(numbers([...settled, readyWithMerge('x', merged)], now)).toEqual({
-      ...known,
-      total: known.total + 1,
-      unsettled: true,
-    });
+  expect(known).toMatchObject({ pending: false, unknown: 0 });
+  // Pending: a skeleton stands for it. Unknown: the strip says how many.
+  expect(numbers([...settled, readyWithMerge('x', 'pending')], now)).toEqual({
+    ...known,
+    total: known.total + 1,
+    pending: true,
+  });
+  expect(numbers([...settled, readyWithMerge('x', 'unknown')], now)).toEqual({
+    ...known,
+    total: known.total + 1,
+    unknown: 1,
+  });
   // Not merged is known: in flight.
   expect(numbers([...settled, readyWithMerge('x', false)], now)).toMatchObject({
     inFlight: known.inFlight + 1,
-    unsettled: false,
+    pending: false,
+    unknown: 0,
   });
 });

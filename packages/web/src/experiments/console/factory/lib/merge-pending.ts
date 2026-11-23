@@ -4,8 +4,10 @@
  * merge state `pending` while its first lookup still runs (`GET /api/factory/progress`), and
  * the console re-reads until it settles. A pending or `unknown` item is placed by its runs
  * (it never moves back from the landed column, `itemColumn`), and the board's columns show a
- * pending one as loading. The Overview's numbers count only items whose state is known and
- * show a skeleton beside them for the rest (`mergeUnsettled`). An item whose progress could
+ * pending one as loading. The Overview's numbers count only items whose state is known
+ * (`mergeUnsettled`): a skeleton stands beside them while one is pending (Visual standard
+ * rule 6: a skeleton means loading), and a line says how many could not be read while one is
+ * `unknown` (`mergeUnknown`), which may never settle. An item whose progress could
  * not be read and one with no change are counted where placement puts them. A settled
  * `false` or `unknown` is still asked about again on an interval (`awaitingMerge`).
  */
@@ -32,6 +34,15 @@ export function mergeUnsettled(item: FactoryItem): boolean {
   const progress = item.progress;
   const merged = progress?.change?.merged;
   return (merged === 'pending' || merged === 'unknown') && progress?.running == null;
+}
+
+/**
+ * Whether the item's merge state could not be read: `unknown` (the lookup failed, or found no
+ * pull request) with no run working it. Unlike `pending` it may never settle, so the Overview
+ * says it in words rather than as loading.
+ */
+export function mergeUnknown(item: FactoryItem): boolean {
+  return item.progress?.change?.merged === 'unknown' && item.progress.running == null;
 }
 
 export function anyMergePending(items: readonly FactoryItem[]): boolean {
