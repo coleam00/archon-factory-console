@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { askItem, gateItem, overdueWaitItem, usageLimitItem } from './needs-you.test-fixtures';
+import { needsShaping } from '../factory/lib/board.test-fixtures';
 import { askQuestion, askTile } from './ask-card';
 import {
   askRunId,
   askWorkflow,
   needsYou,
+  awaitingItems,
   needsYouCount,
   needsYouPath,
   needsYouSubjectWords,
@@ -36,6 +38,18 @@ describe('needsYou', () => {
 
   test('a queue holding only a usage limit needs no one', () => {
     expect(needsYou([usageLimitItem({ ref: 'limit:1' })])).toEqual([]);
+  });
+});
+
+describe('needsYouCount with a factory', () => {
+  test('counts the items waiting on you with no ask open, and an item with an ask once', () => {
+    const queue = { items: [askItem({ ref: 'ask:1' })] };
+    const shaping = needsShaping('9s', ['Which?']);
+    const asking = { ...needsShaping('9t', []), questions: [askItem({ ref: 'ask:9t' })] };
+    expect(awaitingItems([shaping, asking]).map(item => item.item.key)).toEqual(['9s']);
+    expect(needsYouCount(queue, [shaping, asking])).toBe(2);
+    // Without the factory's items it is the asks and waits alone.
+    expect(needsYouCount(queue)).toBe(1);
   });
 });
 

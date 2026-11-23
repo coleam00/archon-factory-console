@@ -92,6 +92,39 @@ export function parkedByTriage(key = '6p'): FactoryItem {
   };
 }
 
+/**
+ * Real item 6 cut to its first run, keyed `key`, that run read as a completed run of
+ * `workflow` with `outcome` (a triage that asked for shaping, a close carrying out your drop or
+ * reshape), its progress carrying `awaits` as the server reads it for that outcome.
+ */
+export function lastRunAs(
+  key: string,
+  workflow: string,
+  outcome: string,
+  awaits: NonNullable<FactoryItem['progress']>['awaits'] = null
+): FactoryItem {
+  const item = endLastRun(keepRuns(realItem('6'), 1), 'completed', outcome);
+  const progress = progressOf(item);
+  return {
+    ...item,
+    item: { ...item.item, key },
+    progress: {
+      ...progress,
+      runs: progress.runs.map(run => ({ ...run, workflow })),
+      awaits,
+    },
+  };
+}
+
+/** Triage judged item `key` worth doing once a maintainer settles `questions`. */
+export function needsShaping(key: string, questions: string[]): FactoryItem {
+  return lastRunAs(key, 'triage', 'shape', {
+    label: 'Needs shaping',
+    why: 'Worth doing; the scope is open.',
+    questions,
+  });
+}
+
 /** Item 8 with its deliver run working `step` in round `iteration` of 3. */
 export function delivering(step: string | null, iteration = 2): FactoryItem {
   const item = realItem('8');

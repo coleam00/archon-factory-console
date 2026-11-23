@@ -57,12 +57,29 @@ export function itemAsks(
 }
 
 /**
- * How many asks and waits need a person: the one count the Needs you tab's badge, the Needs you
- * heading and the Factory Overview's number all read, so they never
- * disagree.
+ * The factory items waiting on a person with no ask open: their last run completed with an
+ * outcome the view declares `awaits` (shaped again, closed by hand). An item that also has an
+ * open question is not among them: its ask is what needs you, and it is counted once, there.
+ * The board's `awaits` pill takes the same items.
  */
-export function needsYouCount(queue: Pick<AttentionQueue, 'items'>): number {
-  return needsYou(queue.items).length;
+export function awaitingItems<T extends Pick<FactoryItem, 'questions' | 'progress'>>(
+  items: readonly T[]
+): T[] {
+  return items.filter(
+    item => item.progress?.awaits != null && needsYou(item.questions).length === 0
+  );
+}
+
+/**
+ * How many things need a person: the asks and waits, and, given a factory's items, the items
+ * waiting on a person (`awaitingItems`). The one count the Needs you tab's badge, the Needs you
+ * heading and the Factory Overview's number all read, so they never disagree.
+ */
+export function needsYouCount(
+  queue: Pick<AttentionQueue, 'items'>,
+  items: readonly Pick<FactoryItem, 'questions' | 'progress'>[] = []
+): number {
+  return needsYou(queue.items).length + awaitingItems(items).length;
 }
 
 /**

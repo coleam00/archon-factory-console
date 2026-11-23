@@ -10,6 +10,7 @@ const PILL_DOT_CLASS: Record<Pill, string> = {
   running: statusDotClass.running,
   'needs-you': 'bg-warning',
   failed: 'bg-error',
+  awaits: 'bg-warning',
   parked: 'bg-text-secondary',
   waiting: 'bg-text-tertiary/60',
   landed: 'bg-success',

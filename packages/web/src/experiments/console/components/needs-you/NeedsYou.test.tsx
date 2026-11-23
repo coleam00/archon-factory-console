@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import { documentPageProblems } from '../../factory/document.test-helpers';
 import { shippedListed } from '../../factory/item-detail.test-fixtures';
+import { needsShaping } from '../../factory/lib/board.test-fixtures';
 import { run, settledItem, type TestRun } from '../../factory/lib/map.test-fixtures';
 import { DRY_RUN_CONTEXT, DRY_RUN_ROUTES, DRY_RUN_WHY } from '../../lib/ask-offered.test-fixtures';
 import { askItem, gateItem, overdueWaitItem } from '../../lib/needs-you.test-fixtures';
@@ -290,6 +291,48 @@ describe('the empty state', () => {
     expect(empty).not.toBeNull();
     expect(empty?.querySelector('[data-skeleton="line"] .bg-surface-hover')).not.toBeNull();
     expect(text(empty)).not.toContain('appears here to answer');
+  });
+});
+
+describe('items waiting on you with no ask open', () => {
+  const shaping = needsShaping('9s', ['Which surfaces?', 'Who owns it?']);
+
+  test('each is a panel under Waiting on you, with its label, title, reason and questions', () => {
+    const root = render(withView, busy, [shaping]);
+    const section = root.querySelector('section[data-needs-you="awaiting"]');
+    expect(section).not.toBeNull();
+    const panel = section?.querySelector('article');
+    expect(panel?.getAttribute('data-doc-panel')).toBe('panel');
+    expect(text(panel)).toContain('Needs shaping');
+    expect(text(panel)).toContain('#9s');
+    expect(text(panel)).toContain('Worth doing; the scope is open.');
+    expect([...(panel?.querySelectorAll('li') ?? [])].map(text)).toEqual([
+      'Which surfaces?',
+      'Who owns it?',
+    ]);
+    expect(panel?.querySelector('a')?.getAttribute('href')).toBe(
+      `/console/p/${ID}/factory/items/9s`
+    );
+    // Only an open ask pings.
+    expect(section?.querySelector('[data-ping]')).toBeNull();
+    // One count: the three asks and the item.
+    expect(chipWords(chip(root, 'waiting now'))).toBe('4 waiting now');
+    expect(text(root.querySelector('section[aria-label="Summary"] h2'))).toBe('4 things need you');
+    expect(text(root.querySelector('section[aria-label="Summary"]'))).toContain(
+      '1 item waits on you to shape or settle it.'
+    );
+  });
+
+  test('with no ask open, the item still needs you: no empty state', () => {
+    const root = render(withView, quiet, [shaping]);
+    expect(root.querySelector('section[aria-label="Nothing needs you"]')).toBeNull();
+    expect(chipWords(chip(root, 'waiting now'))).toBe('1 waiting now');
+    expect(documentPageProblems(root)).toEqual([]);
+  });
+
+  test('without a factory view there are none', () => {
+    const root = render(none, quiet, [shaping]);
+    expect(root.querySelector('section[data-needs-you="awaiting"]')).toBeNull();
   });
 });
 

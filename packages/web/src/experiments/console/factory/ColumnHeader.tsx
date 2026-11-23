@@ -7,7 +7,7 @@ import { SkeletonFigure } from '../components/Skeleton';
 const CHECKING = { title: 'Checking which changes merged', word: 'checking' };
 
 /** A state chip: the state's colour as text on its soft background (rule 5). */
-export const CHIP_CLASS: Record<Exclude<Pill, 'landed'>, string> = {
+export const CHIP_CLASS: Record<Exclude<Pill, 'landed' | 'awaits'>, string> = {
   running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
   'needs-you': 'bg-[color:var(--warning-soft)] text-warning',
   failed: 'bg-[color:var(--error-soft)] text-error',
@@ -36,7 +36,7 @@ export function ColumnHeader({
   tone: ColumnTone;
   /** Null while it is not known. */
   count: number | null;
-  chips: readonly { pill: Exclude<Pill, 'landed'>; count: number }[];
+  chips: readonly { pill: Exclude<Pill, 'landed' | 'awaits'>; count: number }[];
   /** Why a null count is not known: a merge answer outstanding, unless the items are unread. */
   waiting?: { title: string; word: string };
 }): ReactElement {

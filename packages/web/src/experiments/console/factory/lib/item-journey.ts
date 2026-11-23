@@ -110,8 +110,8 @@ export function stopWords(
   // A merged change is where the item ends, however it rested before (a held item a person
   // merged by hand): the strip lights Merged.
   if (detail.item.progress?.change?.merged === true) return null;
-  const parked = detail.item.progress?.parked;
-  if (parked != null) return parked.label;
+  const held = detail.item.progress?.awaits ?? detail.item.progress?.parked;
+  if (held != null) return held.label;
   const last = lastStageRun(view, detail);
   if (detail.item.progress?.running != null || last === undefined) return null;
   if (last.status === 'failed') return 'Failed';

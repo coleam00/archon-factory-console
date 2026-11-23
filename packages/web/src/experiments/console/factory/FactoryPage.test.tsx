@@ -8,7 +8,7 @@ import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from '../skills/factory';
-import { PAGE, VIEW } from './lib/board.test-fixtures';
+import { needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { askItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
 
@@ -154,6 +154,23 @@ describe('the Overview', () => {
     expect(badges).toEqual(['2']);
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
     expect(strip.replace(/<[^>]*>/g, '')).toContain('need you2');
+  });
+
+  test('the tab, the Overview number and its "more" line count an item waiting on you too', () => {
+    const queue: AttentionQueue = {
+      items: [askItem({ ref: 'ask:a' }), askItem({ ref: 'ask:b' })],
+      runs: [],
+      degraded: [],
+    };
+    const html = render(`/console/p/${ID}/factory`, withView, queue, [
+      needsShaping('9s', ['Which?']),
+    ]);
+    const badges = [...html.matchAll(/aria-label="(\d+) waiting"/g)].map(match => match[1]);
+    expect(badges).toEqual(['3']);
+    const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
+    expect(strip.replace(/<[^>]*>/g, '')).toContain('need you3');
+    // Two asks shown, the item waiting on you on Needs you.
+    expect(html).toContain('1 more on Needs you');
   });
 
   test('shows the summary only on the Overview; other pages show the title alone', () => {

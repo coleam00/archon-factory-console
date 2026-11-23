@@ -10,6 +10,7 @@ import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { Panel, SectionHeading } from './document';
 import { FactoryLoading } from './FactoryLoading';
+import { ItemAwaitsPanel, type Awaits } from './ItemAwaits';
 import { readFailed } from './lib/deadline';
 import type { StoryPanel } from './lib/item-story';
 import type { FactoryViewListed } from './lib/views';
@@ -20,7 +21,8 @@ import { DrainStoryPanel, MergedStoryPanel, StageStoryPanel } from './StoryPanel
  * The item's story (owner change 8): one panel per stage visit in the order it ran. An open ask
  * shows as the ask card, answerable in place, in the panel of the run that asked; one no panel
  * holds waits on its own panel at the top. Answered cards are held in place for a moment
- * (`useAnsweredHold`), held here so the last answer does not unmount its own card.
+ * (`useAnsweredHold`), held here so the last answer does not unmount its own card. An item
+ * waiting on you with no ask open says what it waits on first.
  */
 export function ItemStory({
   projectId,
@@ -29,6 +31,7 @@ export function ItemStory({
   asks,
   questions,
   attention,
+  awaits,
 }: {
   projectId: string;
   view: FactoryViewListed;
@@ -37,6 +40,8 @@ export function ItemStory({
   /** How many questions the item read says are open, so a queue still loading shows a skeleton. */
   questions: number;
   attention: EntityView<AttentionQueue>;
+  /** What the item waits on when its pill is `awaits`; null otherwise. */
+  awaits: Awaits | null;
 }): ReactElement {
   const hold = useAnsweredHold(asks);
   const queue = attention.data;
@@ -55,6 +60,7 @@ export function ItemStory({
     );
   return (
     <div className="flex min-w-0 flex-col gap-4" aria-label="The story">
+      {awaits === null ? null : <ItemAwaitsPanel awaits={awaits} />}
       <Waiting
         loose={
           queue === undefined || loose.length === 0 ? null : (

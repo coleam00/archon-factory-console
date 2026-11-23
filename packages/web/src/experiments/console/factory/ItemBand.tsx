@@ -27,12 +27,15 @@ const UNTIL: Record<Journey['until'], string> = {
 export function ItemBand({
   detail,
   pill,
+  pillLabel,
   column,
   journey,
   workOrder = false,
 }: {
   detail: FactoryItemDetail;
   pill: Pill;
+  /** The pill's words, as `itemPill` gives them (an `awaits` item's declared label). */
+  pillLabel: string;
   /** Where `placement.ts` puts the item; null when no declared stage holds it. */
   column: ItemColumn | null;
   journey: Journey;
@@ -60,7 +63,7 @@ export function ItemBand({
       aside={
         workOrder || !started ? undefined : (
           <div className="flex flex-wrap items-center gap-3">
-            <PillBadge pill={pill} />
+            <PillBadge pill={pill} label={pillLabel} />
             <ChangeLink change={item.progress?.change ?? null} />
           </div>
         )
@@ -102,7 +105,10 @@ function BandChips({
   );
 }
 
-/** Where the item is, in one sentence: merged, ended, parked, or the stage it is in. */
+/**
+ * Where the item is, in one sentence: merged, ended, waiting on you (its declared label and
+ * reason), parked, or the stage it is in.
+ */
 function whereWords(
   item: FactoryItem,
   pill: Pill,
@@ -112,7 +118,9 @@ function whereWords(
   if (pill === 'landed') return 'Its change merged.';
   if (item.progress === null || column === null) return 'Where it is could not be worked out.';
   if ('ended' in column) return `${column.ended}.`;
-  const { parked } = item.progress;
+  const { awaits, parked } = item.progress;
+  if (pill === 'awaits' && awaits !== null)
+    return awaits.why === null ? `${awaits.label}.` : `${awaits.label}: ${awaits.why}`;
   if (parked !== null)
     return parked.why === null ? `${parked.label}.` : `${parked.label}: ${parked.why}`;
   // Failed, stopped or held: it rests in its stage until someone starts it again.

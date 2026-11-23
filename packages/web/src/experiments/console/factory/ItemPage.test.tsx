@@ -266,6 +266,37 @@ describe('the item page', () => {
     expect(sentences(html)).toContainEqual(['triage', 'Triage parked it for later.']);
   });
 
+  test('item 86 had triage asked for shaping: Needs shaping, soft, with the questions to settle', () => {
+    const detail = structuredClone(itemDetail('86'));
+    const progress = detail.item.progress;
+    const triage = detail.item.runs.at(-1);
+    if (progress === null || triage === undefined) throw new Error('item 86 has a triage run');
+    triage.outcome = 'shape';
+    progress.parked = null;
+    progress.awaits = {
+      label: 'Needs shaping',
+      why: 'Worth doing once the scope is settled.',
+      questions: ['Which surfaces does it touch?', 'Is it one change or two?'],
+    };
+    const html = render(detail);
+    // The soft needs-you pill in the item's own words; only an open ask's pill is filled.
+    expect(section(html, 'Summary')).toContain(pill('awaits', 'Needs shaping'));
+    expect(PILL_CLASS.awaits).not.toContain('bg-warning ');
+    expect(text(section(html, 'Summary'))).toContain(
+      'Needs shaping: Worth doing once the scope is settled.'
+    );
+    expect(text(section(html, 'Journey'))).toContain('Stopped here: Needs shaping');
+    const panel = /data-awaits=""[^>]*>([\s\S]*?)<\/section>/.exec(html)?.[1] ?? '';
+    expect(text(panel)).toContain('Questions to settle');
+    expect(text(panel)).toContain('Which surfaces does it touch?');
+    expect(text(panel)).toContain('Is it one change or two?');
+    expect(panel).not.toContain('data-ping');
+    expect(sentences(html)).toContainEqual([
+      'triage',
+      'Triage judged it worth doing, once a maintainer settles its open questions.',
+    ]);
+  });
+
   test('item 6 runs: the Running pill, and its stage working on it now, by step name', () => {
     const html = render(itemDetail('6'));
     expect(html).toContain(pill('running', 'Running'));

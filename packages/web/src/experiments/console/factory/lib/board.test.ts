@@ -19,6 +19,8 @@ import {
   keepRuns,
   landRunning,
   PAGE,
+  lastRunAs,
+  needsShaping,
   parkedByTriage,
   progressOf,
   realItem,
@@ -442,6 +444,69 @@ describe('grouped columns', () => {
     expect(model.ended).toEqual([]);
     expect(model.positions.get('6p')).toBe('triage');
     expect(columnChips(intake?.cards ?? [])).toEqual([{ pill: 'parked', count: 1 }]);
+  });
+
+  test('an item triage sent to shaping sits in Intake, waiting on you in its words, its questions on its line', () => {
+    const questions = ['Which surfaces?', 'Who owns it?', 'Is it one change?', 'By when?'];
+    const model = boardModel(VIEW, PROJECT, [needsShaping('9s', questions)], new Map());
+    const intake = model.columns.find(column => column.id === 'intake');
+    expect(
+      intake?.cards.map(placed => [
+        placed.card.key,
+        placed.card.pill,
+        placed.card.pillLabel,
+        placed.card.stage,
+        placed.card.stopLine,
+      ])
+    ).toEqual([
+      [
+        '9s',
+        'awaits',
+        'Needs shaping',
+        'Triage',
+        'Which surfaces? · Who owns it? · Is it one change? · 1 more',
+      ],
+    ]);
+    // It waits on a person: the column counts it in the needs-you chip, and Needs you shows it.
+    expect(columnChips(intake?.cards ?? [])).toEqual([{ pill: 'needs-you', count: 1 }]);
+    expect(filterBoard(model, '', 'needs-you').columns.flatMap(c => c.cards)).toHaveLength(1);
+    // With no questions recorded, the line is its reason.
+    expect(card(needsShaping('9t', [])).stopLine).toBe('Worth doing; the scope is open.');
+  });
+
+  test('an item with an open ask too reads Needs you: the ask is what needs you', () => {
+    const asking = { ...needsShaping('9s', ['Which?']), questions: [askItem()] };
+    expect(card(asking).pill).toBe('needs-you');
+  });
+
+  test('close: dropped ends the item, reshape waits in Intake, not closed and none wait in Ready to merge', () => {
+    const shaped = { label: 'Needs shaping', why: null, questions: [] };
+    const byHand = { label: 'Close the change by hand', why: 'The forge refused.', questions: [] };
+    const model = boardModel(
+      VIEW,
+      PROJECT,
+      [
+        lastRunAs('c1', 'close', 'dropped'),
+        lastRunAs('c2', 'close', 'reshape', shaped),
+        lastRunAs('c3', 'close', 'not_closed', byHand),
+        lastRunAs('c4', 'close', 'none'),
+      ],
+      new Map()
+    );
+    expect(model.ended.map(row => [row.label, row.cards.map(placed => placed.card.key)])).toEqual([
+      ['Dropped by you', ['c1']],
+    ]);
+    const where = (key: string) =>
+      model.columns.flatMap(column =>
+        column.cards
+          .filter(placed => placed.card.key === key)
+          .map(placed => [column.id, placed.card.stage, placed.card.pill, placed.card.pillLabel])
+      );
+    expect(where('c2')).toEqual([['intake', 'Triage', 'awaits', 'Needs shaping']]);
+    expect(where('c3')).toEqual([
+      ['ready', 'Ready to merge', 'awaits', 'Close the change by hand'],
+    ]);
+    expect(where('c4')).toEqual([['ready', 'Ready to merge', 'waiting', 'Waiting']]);
   });
 
   test("a column's chips count its cards by state, only states above 0", () => {

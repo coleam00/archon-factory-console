@@ -15,7 +15,7 @@ import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
-import { boardModel, positionOf } from './lib/board';
+import { boardModel, PILL_LABEL, positionOf, type PlacedCard } from './lib/board';
 import { delivering, PAGE, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
 
@@ -46,6 +46,15 @@ function itemPage(detail: FactoryItemDetail): string {
   );
 }
 
+/**
+ * A card as the pin holds it: `pillLabel` came after the pin, and an old deliver item's is its
+ * pill's fixed words, which the test checks apart.
+ */
+function pinnedCard({ column, card }: PlacedCard): unknown {
+  const { pillLabel: _, ...rest } = card;
+  return { at: positionOf(column), card: rest };
+}
+
 /** Where every item of the real page sits, with the card it shows and the map stage. */
 function boardAndMap(): unknown {
   const model = boardModel(VIEW, PROJECT, PAGE.items, new Map());
@@ -65,7 +74,7 @@ function boardAndMap(): unknown {
   return {
     columns: model.columns.map(column => ({
       id: column.id,
-      cards: column.cards.map(placed => ({ at: positionOf(placed.column), card: placed.card })),
+      cards: column.cards.map(pinnedCard),
     })),
     ended: model.ended.map(row => ({ label: row.label, keys: row.cards.map(c => c.card.key) })),
     map: [...live.positions],
@@ -84,6 +93,8 @@ test('an old deliver item reads as it did before deliver was retired', () => {
   };
   if (process.env.PIN_WRITE === '1') writeFileSync(PINNED, `${JSON.stringify(actual, null, 1)}\n`);
   expect(actual).toEqual(JSON.parse(readFileSync(PINNED, 'utf8')));
+  for (const column of boardModel(VIEW, PROJECT, PAGE.items, new Map()).columns)
+    for (const { card } of column.cards) expect(card.pillLabel).toBe(PILL_LABEL[card.pill]);
   // The pin is only worth something if it holds the story and the rounds grid.
   expect(actual.item111).toContain('Check rounds');
   expect(actual.item111).toContain('Project checks');
