@@ -30,6 +30,15 @@ export const VIEW = read(
 ) as FactoryDeclaration;
 
 /**
+ * Item 114 exactly as the board read it on 2026-11-23 from a copy of the live database: its
+ * deliver run ended `ask` at 2026-11-20 21:38:49 UTC, the ask was answered take-as-is and
+ * started nothing, and it never opened a pull request (its change reads `unknown`, no URL).
+ */
+export const ITEM_114 = withLaterFields(
+  (read(join(import.meta.dir, '__fixtures__', 'item-114.json')) as { item: unknown }).item
+) as FactoryItem;
+
+/**
  * The time a test reads the fixture board at: the day after the copy's last run ended, so the
  * set-aside idle rule (`SET_ASIDE_IDLE_MS`) takes none of its items unless a test ages one.
  */

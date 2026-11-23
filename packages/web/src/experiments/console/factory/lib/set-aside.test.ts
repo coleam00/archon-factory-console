@@ -8,6 +8,7 @@ import {
   endLastRun,
   FIXTURE_NOW,
   idleInPlan,
+  ITEM_114,
   keepRuns,
   lastRunAs,
   needsShaping,
@@ -65,6 +66,28 @@ describe('which items the board sets aside', () => {
       const board = model([idleInPlan('i', at)]);
       expect(asideKeys(board)).toEqual([]);
       expect(columnKeys(board)).toEqual(['i']);
+    }
+  });
+
+  test('#114 as read: deliver ended ask, the ask answered, no pull request; set aside once 3 days pass', () => {
+    // Its last run ended 2026-11-20 21:38:49 UTC, so the line falls at 2026-11-23 21:38:49 UTC.
+    const at = (iso: string): BoardModel =>
+      boardModel(VIEW, 'cb-1', [ITEM_114], new Map(), new Date(iso));
+    for (const iso of ['2026-11-23T19:50:22Z', '2026-11-23T21:38:49Z']) {
+      const before = at(iso);
+      expect(before.setAside).toEqual([]);
+      expect(
+        before.columns.flatMap(column =>
+          column.cards.map(placed => [placed.card.key, placed.card.stage, placed.card.pill])
+        )
+      ).toEqual([['114', 'Build', 'waiting']]);
+    }
+    for (const iso of ['2026-11-23T21:38:50Z', '2026-12-02T15:00:00Z']) {
+      const after = at(iso);
+      expect(columnKeys(after)).toEqual([]);
+      expect(
+        after.setAside.map(entry => [entry.placed.card.key, entry.kind, entry.why, entry.since])
+      ).toEqual([['114', 'idle', 'Its merge state could not be read', '2026-11-20T21:38:49.000Z']]);
     }
   });
 
