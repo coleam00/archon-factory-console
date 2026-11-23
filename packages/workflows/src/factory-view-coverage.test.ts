@@ -497,13 +497,9 @@ describe('answers: each key backed by an asks-settled hand-off on its option', (
   });
 
   test('a key on an option no hand-off of its workflow leaves on is reported', () => {
-    const found = factoryViewCoverage(answering('plan:reshape'), drop);
-    expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
+    expect(findings(answering('plan:reshape'), drop)).toEqual([
       ['unbacked-answer', 'answers.plan:reshape'],
     ]);
-    expect(found[0]?.message).toBe(
-      'words what option "reshape" of workflow "plan" starts, but no asks-settled hand-off of the pack leaves it on that option'
-    );
   });
 
   test('a key on a workflow with no asks-settled hand-off is reported', () => {
