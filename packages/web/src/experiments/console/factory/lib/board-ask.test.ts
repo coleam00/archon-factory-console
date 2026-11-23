@@ -42,6 +42,7 @@ describe('an answer held on the card', () => {
     itemKey: '#7',
     runId,
     title: null,
+    partOf: null,
     answered: 1,
     withdrawn: 0,
     at: '2026-11-18T10:00:00.000Z',

@@ -169,6 +169,7 @@ function ItemRead({
         <div className="flex flex-col gap-4">
           <ItemLinks
             projectId={projectId}
+            itemKey={data.item.item.key}
             links={data.item.links}
             membership={membershipOf(data.item)}
             order={order}
@@ -209,7 +210,7 @@ function ItemUnread({
   if (failed !== undefined)
     return (
       <ReadFailure retry={retry}>
-        Item <span className="font-mono">{displayItemKey(itemKey)}</span> could not be read:{' '}
+        Item <span className="font-mono">{displayItemKey(itemKey, null)}</span> could not be read:{' '}
         {readFailure(failed)}
       </ReadFailure>
     );
@@ -237,8 +238,8 @@ function NoSuchItem({
       <ItemSkeleton read={read} />
     ) : (
       <ReadFailure retry={orders.retry}>
-        Item <span className="font-mono">{displayItemKey(itemKey)}</span> could not be checked: the
-        items could not be read to look for it: {readFailure(orders.failed)}
+        Item <span className="font-mono">{displayItemKey(itemKey, null)}</span> could not be
+        checked: the items could not be read to look for it: {readFailure(orders.failed)}
       </ReadFailure>
     );
   const order = orders.orders.find(entry => entry.key === itemKey);

@@ -6,7 +6,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
-import { issueNumber } from './lib/item-key';
+import { displayItemKey } from './lib/item-key';
 import { Link, useLocation } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
 import { SkeletonFigure, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
@@ -350,7 +350,7 @@ function FindingRow({
           to={itemPath(projectId, finding.from.key)}
           className="font-mono text-text-primary hover:underline"
         >
-          #{issueNumber(finding.from.key) ?? finding.from.key}
+          {displayItemKey(finding.from.key, null)}
         </Link>
         {finding.from.title === null ? '' : ` · ${finding.from.title}`} ·{' '}
         {formatDateTime(finding.decidedAt)}

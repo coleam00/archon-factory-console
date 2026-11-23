@@ -14,6 +14,8 @@ import { OfferedBlock } from './OfferedBlock';
 /** The item (or run) an ask is about, as its card's header names and links it. */
 export interface AskSubject {
   key: string;
+  /** The work order the item is a member of, which its key reads under; null for a run or an item in none. */
+  partOf: string | null;
   title?: string;
   /** The factory item page when the project has a factory view, else the run; none when neither is known. */
   href?: string;
@@ -112,7 +114,9 @@ export function SubjectName({ subject }: { subject: AskSubject }): ReactElement 
   const words = (
     <>
       {/* The key is how a person names the item: it never shrinks or wraps; the title truncates. */}
-      <span className="shrink-0 whitespace-nowrap font-mono">{displayItemKey(subject.key)}</span>
+      <span className="shrink-0 whitespace-nowrap font-mono">
+        {displayItemKey(subject.key, subject.partOf)}
+      </span>
       {subject.title === undefined ? null : (
         <span className="min-w-0 truncate text-text-secondary"> {subject.title}</span>
       )}

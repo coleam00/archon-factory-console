@@ -30,7 +30,7 @@ export function EndedRows({
                   to={itemPath(projectId, card.key)}
                   className="font-mono text-console-12 text-accent-bright hover:underline"
                 >
-                  {displayItemKey(card.key)}
+                  {displayItemKey(card.key, card.order)}
                 </Link>
                 <span className="min-w-0 truncate text-text-secondary">{card.title}</span>
               </li>

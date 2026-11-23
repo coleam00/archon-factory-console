@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { askNaming, itemTitles } from '../lib/ask-naming';
+import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
@@ -117,7 +117,7 @@ export function Board({
   );
   const asks = useBoardAsks({ all, shown, queue: attention.data, declaration: view });
   const naming = useMemo(
-    () => askNaming(projectId, { declaration: view }, itemTitles(items)),
+    () => askNaming(projectId, { declaration: view }, itemNames(items)),
     [projectId, view, items]
   );
   const showView = (next: 'pipeline' | 'table'): void => {

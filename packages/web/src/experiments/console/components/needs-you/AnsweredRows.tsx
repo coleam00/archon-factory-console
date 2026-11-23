@@ -130,6 +130,7 @@ function AnsweredLine({
         <SubjectName
           subject={{
             key: row.itemKey,
+            partOf: row.partOf,
             ...(row.title === null ? {} : { title: row.title }),
             ...(href === undefined ? {} : { href }),
           }}

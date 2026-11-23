@@ -132,11 +132,13 @@ function BoardRow({
       className={`border-b border-border ${moved ? 'bg-[color:var(--accent-soft)]' : ''} motion-safe:transition-colors`}
     >
       <Cell>
-        <ItemLink projectId={projectId} itemKey={card.key} />
+        <ItemLink projectId={projectId} itemKey={card.key} order={card.order} />
       </Cell>
       <Cell className="min-w-48 text-text-primary">{card.title}</Cell>
       <Cell>
-        {card.order === null ? null : <ItemLink projectId={projectId} itemKey={card.order} />}
+        {card.order === null ? null : (
+          <ItemLink projectId={projectId} itemKey={card.order} order={null} />
+        )}
       </Cell>
       <Cell className="text-text-secondary">{row.column}</Cell>
       <Cell className="max-w-48 text-text-secondary">
@@ -175,13 +177,22 @@ function BoardRow({
   );
 }
 
-function ItemLink({ projectId, itemKey }: { projectId: string; itemKey: string }): ReactElement {
+/** An item key linking to its page; `order` is the work order the item is a member of, if any. */
+function ItemLink({
+  projectId,
+  itemKey,
+  order,
+}: {
+  projectId: string;
+  itemKey: string;
+  order: string | null;
+}): ReactElement {
   return (
     <Link
       to={itemPath(projectId, itemKey)}
       className="font-mono text-console-12 text-accent-bright hover:underline"
     >
-      {displayItemKey(itemKey)}
+      {displayItemKey(itemKey, order)}
     </Link>
   );
 }

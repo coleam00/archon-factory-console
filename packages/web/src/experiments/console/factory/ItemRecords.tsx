@@ -19,11 +19,14 @@ import type { Membership, WorkOrder } from './lib/work-orders';
  */
 export function ItemLinks({
   projectId,
+  itemKey,
   links: all,
   membership = null,
   order,
 }: {
   projectId: string;
+  /** This item's key: the order an active incoming `part_of` link's other item is a member of. */
+  itemKey: string;
   links: FactoryItem['links'];
   membership?: Membership | null;
   order?: WorkOrder;
@@ -58,7 +61,7 @@ export function ItemLinks({
             to={factoryPath(projectId, `/items/${encodeURIComponent(named)}`)}
             className="font-mono text-console-12 text-accent-bright hover:underline"
           >
-            {displayItemKey(named)}
+            {displayItemKey(named, null)}
           </Link>
           <span className="text-console-13 text-text-tertiary">as its order run recorded</span>
         </p>
@@ -82,7 +85,12 @@ export function ItemLinks({
                 to={factoryPath(projectId, `/items/${encodeURIComponent(link.other.key)}`)}
                 className="font-mono text-console-12 text-accent-bright hover:underline"
               >
-                {displayItemKey(link.other.key)}
+                {displayItemKey(
+                  link.other.key,
+                  link.kind === 'part_of' && link.direction === 'incoming' && link.ended === null
+                    ? itemKey
+                    : null
+                )}
               </Link>
               {link.ended === null ? null : (
                 <span className="text-console-13 text-text-tertiary">ended</span>

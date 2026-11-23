@@ -448,7 +448,9 @@ test('the item key never shrinks or wraps beside a long title; the title truncat
     await act(async () =>
       root.render(
         <MemoryRouter>
-          <SubjectName subject={{ key: '91', title: `title:${LONG}`, href: '/console/p/cb-1' }} />
+          <SubjectName
+            subject={{ key: '91', partOf: null, title: `title:${LONG}`, href: '/console/p/cb-1' }}
+          />
         </MemoryRouter>
       )
     );

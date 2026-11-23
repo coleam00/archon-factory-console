@@ -629,7 +629,12 @@ become spaces). The raw id appears only on hover and on the step page.
 
 **Item keys, everywhere a person reads:** an item keyed `issue-N` (how the pack's `order-on-label`
 binding keys an issue) or plain `N` reads `#N`: on cards, rows, titles, link text, sentences, hover
-titles and accessible names alike. Any other key reads as it is. One function gives it
+titles and accessible names alike. A split member, keyed `<order key>-<piece>` by the pack's
+split, reads as its work order and its piece in words: `issue-136-item-keys` in `issue-136` reads
+`#136 · item keys`. Which order an item is in comes from its `part_of` membership (its active link,
+else its order run's result), never from the key, so a key that only looks like a member reads as
+it is, and a member keyed by its own issue (`71` in `64`) still reads `#71`. Any other key reads as
+it is. One function gives it
 (`factory/lib/item-key.ts`). The raw key stays in every route, href, lookup, search and filter
 match, so `/items/issue-136` still opens the item that reads `#136`. Where this document quotes
 `<key>` in words a person reads, it means the key as it reads.

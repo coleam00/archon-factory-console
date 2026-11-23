@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { displayItemKey } from '../lib/item-key';
+import { displayKeyOf } from '../lib/work-orders';
 import { Link } from 'react-router';
 import type { FactoryViewListed } from '../lib/views';
 import type { NotOnMap } from '../lib/map-live';
@@ -33,7 +33,7 @@ export function MapNotOnMap({
               to={factoryPath(projectId, `/items/${encodeURIComponent(entry.item.item.key)}`)}
               className="font-mono text-console-12 text-text-primary hover:underline"
             >
-              {displayItemKey(entry.item.item.key)}
+              {displayKeyOf(entry.item)}
             </Link>{' '}
             <Why view={view} why={entry.why} />
           </li>

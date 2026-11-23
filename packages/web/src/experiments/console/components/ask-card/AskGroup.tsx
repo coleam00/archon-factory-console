@@ -34,7 +34,9 @@ export function AskGroup({
   const shown = outer === undefined ? own.asks : asks;
   return (
     <section
-      aria-label={subject === undefined ? 'Asks' : `Asks on ${displayItemKey(subject.key)}`}
+      aria-label={
+        subject === undefined ? 'Asks' : `Asks on ${displayItemKey(subject.key, subject.partOf)}`
+      }
       className="flex flex-col gap-3"
     >
       {subject === undefined ? null : (

@@ -175,19 +175,20 @@ function Popover({
     // Answering the item's last open ask ends the popover; the card says what was answered.
     if (!more) board.settle(open.key, ask, label);
   };
+  const subject = naming.subject(first);
   return createPortal(
     <div
       ref={box}
       role="dialog"
       aria-modal="false"
-      aria-label={`Asks on ${displayItemKey(open.key)}`}
+      aria-label={`Asks on ${displayItemKey(subject.key, subject.partOf)}`}
       style={place == null ? undefined : { top: place.top, left: place.left }}
       className={SHELL}
     >
       <div className={`flex w-full flex-col gap-3 ${WIDTH}`}>
         <AskGroup
           projectId={projectId}
-          subject={naming.subject(first)}
+          subject={subject}
           asks={hold.asks}
           hold={{ ...hold, onAnswered }}
           queue={queue}

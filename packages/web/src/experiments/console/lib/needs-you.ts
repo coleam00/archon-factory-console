@@ -20,7 +20,7 @@ export function entryRun(entry: NeedsYouItem): { id: string; workflow: string } 
 
 /** What an `owner_lost` entry says: a run holds its item with no process to carry it on. */
 export function ownerLostMessage(item: Extract<NeedsYouItem, { kind: 'owner_lost' }>): string {
-  return `The ${item.run.workflow} run lost its owner and still holds ${item.item === undefined ? 'its item' : displayItemKey(item.item.key)}.`;
+  return `The ${item.run.workflow} run lost its owner and still holds ${item.item === undefined ? 'its item' : displayItemKey(item.item.key, null)}.`;
 }
 
 /**

@@ -12,6 +12,7 @@ import type { ItemRead } from '../../skills/items';
 import { humaniseId, shortWorkflow } from '../../lib/ask-card';
 import { answererName } from './item-answers';
 import { stageOfWorkflow } from './placement';
+import { membershipOf } from './work-orders';
 import type { FactoryViewListed } from './views';
 
 type Answer = ItemRead['answers'][number];
@@ -32,6 +33,8 @@ export interface SettledAsks {
   runId: string;
   /** The item's title when the board's progress names one. */
   title: string | null;
+  /** The work order the item is a member of, which its key reads under; null when in none. */
+  partOf: string | null;
   answered: number;
   withdrawn: number;
   /** When the last ask of the set closed. */
@@ -126,6 +129,7 @@ export function recentlySettled(
       itemKey: item.item.key,
       runId: settled.runId,
       title: item.progress?.title ?? null,
+      partOf: membershipOf(item)?.order ?? null,
       answered: settled.answered,
       withdrawn: settled.withdrawn,
       at: settled.at,
@@ -139,6 +143,7 @@ export function recentlySettled(
 export interface AnsweredRow {
   itemKey: string;
   title: string | null;
+  partOf: string | null;
   /** The asking run, which with the row's place in its set keys it. */
   runId: string;
   question: string;
@@ -163,6 +168,7 @@ export function answeredRows(
       entry.asks.map(ask => ({
         itemKey: entry.itemKey,
         title: entry.title,
+        partOf: entry.partOf,
         runId: entry.runId,
         ...ask,
         restart: entry.restart,
