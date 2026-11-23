@@ -888,11 +888,7 @@ three-stage delivery. `close` (it carries out a drop or reshape answer) is a ste
 merge, and `report` runs only as the `report__report` step of `stage-check` and `stage-host`.
 Its `answers` field words what the pack's `drop` and `reshape` routes start, for the five
 workflows whose asks the pack binds them on (`stage-build`, `stage-check`, `stage-host`,
-`landgate`, `land`). The coverage check does not yet compare these keys with the pack's
-bindings. The pack graph carries each `asks_settled` arrow's option (`from.option`), and the
-committed snapshot now carries d7f8c36's `close` bindings, so a key with no arrow from its
-workflow for its option could be reported; that rule is not built yet, and until it is the keys
-follow the pack's `close` bindings by hand.
+`landgate`, `land`); the coverage check holds each key to those bindings (#144).
 
 `map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
 included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
@@ -908,9 +904,11 @@ covers or two cover, and on a step or workflow the view names that the pack does
 fails, too, on an outcome a listed workflow declares that neither `placement` nor `endings` takes
 (exactly or by `workflow:*`), so a completed run never leaves its item where no rule put it, and on
 an exact `placement`, `endings`, `parked`, `awaits` or `asked` key naming an outcome its workflow
-does not declare (#100). It fails, too, on a `returns` or `approves` step the workflow does not have, a
-loop-form `rounds` source naming no loop group, and a `change` or stage-form `rounds` source on
-a workflow that returns no result. A `retired` workflow is not required of the pack and none of
+does not declare (#100). It fails, too, on an `answers` key whose workflow has no asks-settled
+hand-off on that option (`unbacked-answer`, #144): a binding with no option backs every option
+of its workflow, one on withdrawn asks none. It fails, too, on a `returns` or `approves` step
+the workflow does not have, a loop-form `rounds` source naming no loop group, and a `change` or
+stage-form `rounds` source on a workflow that returns no result. A `retired` workflow is not required of the pack and none of
 its steps, arrows or outcomes is compared with the graph (nothing in code names one); a stage's
 `nodes` entry for it is held to the steps the view itself names for it, so a misspelt one still
 fails, and a retired workflow the pack has again fails as `retired-present`. The snapshot holds

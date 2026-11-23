@@ -24,7 +24,7 @@ const node = (id: string, kind = 'agent', loopGroup: string | null = null): Node
 const arrow = (
   from: string,
   to: string,
-  when: { outcome: string } | { settled: 'answered' }
+  when: { outcome: string } | { settled: 'answered' | 'withdrawn' | 'any'; option?: string }
 ): Arrow => ({
   from: { stage: `o/p:${from}`, ...when },
   to: `o/p:${to}`,
@@ -470,6 +470,61 @@ describe('retired workflows: kept for their old runs, compared with nothing', ()
     expect(found[0]?.message).toBe(
       'names retired workflow "deliver", which pack "o.p" still has; remove it from retired or stop retiring it'
     );
+  });
+});
+
+/** `clean()` wording what the given `workflow:option` keys start. */
+const answering = (...keys: string[]): FactoryView =>
+  factoryViewSchema.parse({
+    ...clean(),
+    answers: Object.fromEntries(keys.map(key => [key, { starts: 'Closes the PR.' }])),
+  });
+
+/** `graph()` with plan's answered-asks arrow settled `when` instead. */
+const planAsks = (when: { settled: 'answered' | 'withdrawn'; option?: string }): PackGraph => {
+  const of = graph();
+  of.arrows = of.arrows.map(entry =>
+    'settled' in entry.from ? arrow('plan', 'plan', when) : entry
+  );
+  return of;
+};
+
+describe('answers: each key backed by an asks-settled hand-off on its option', () => {
+  const drop = planAsks({ settled: 'answered', option: 'drop' });
+
+  test('a key whose workflow has an asks-settled hand-off on its option yields nothing', () => {
+    expect(findings(answering('plan:drop'), drop)).toEqual([]);
+  });
+
+  test('a key on an option no hand-off of its workflow leaves on is reported', () => {
+    const found = factoryViewCoverage(answering('plan:reshape'), drop);
+    expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
+      ['unbacked-answer', 'answers.plan:reshape'],
+    ]);
+    expect(found[0]?.message).toBe(
+      'words what option "reshape" of workflow "plan" starts, but no asks-settled hand-off of the pack leaves it on that option'
+    );
+  });
+
+  test('a key on a workflow with no asks-settled hand-off is reported', () => {
+    expect(findings(answering('deliver:drop'), drop)).toEqual([
+      ['unbacked-answer', 'answers.deliver:drop'],
+    ]);
+  });
+
+  test('a hand-off with no option backs every option, unless it is on withdrawn asks', () => {
+    expect(findings(answering('plan:anything'))).toEqual([]);
+    expect(findings(answering('plan:anything'), planAsks({ settled: 'withdrawn' }))).toEqual([
+      ['unbacked-answer', 'answers.plan:anything'],
+    ]);
+  });
+
+  test('a key on a retired workflow is not compared', () => {
+    const view = factoryViewSchema.parse({
+      ...retiredView(),
+      answers: { 'deliver:drop': { starts: 'Closes the PR.' } },
+    });
+    expect(findings(view, withoutDeliver())).toEqual([]);
   });
 });
 
