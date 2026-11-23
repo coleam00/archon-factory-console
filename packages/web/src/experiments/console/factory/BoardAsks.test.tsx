@@ -300,6 +300,28 @@ describe('the ask popover', () => {
     }
   });
 
+  test("a stage's drop tile says what it starts, in the view's words", async () => {
+    const dropAsk = askOn(six, {
+      ref: 'ask:drop',
+      askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
+      options: [
+        { id: 'send-back', does: 'Continues.' },
+        { id: 'drop', does: 'Closes it.' },
+      ],
+      recommendation: { option: 'send-back', why: 'Small.' },
+    });
+    const { container, unmount } = await mount([asking(six, [dropAsk])], queueOf([dropAsk]));
+    try {
+      await click(face(container, '6'));
+      expect(dialogButton('Send back').querySelector('[data-starts]')).toBeNull();
+      expect(dialogButton('Drop').querySelector('[data-starts]')?.textContent).toBe(
+        'Closes the PR without merging'
+      );
+    } finally {
+      await unmount();
+    }
+  });
+
   test('Esc closes it and focus returns to the card that opened it', async () => {
     const { container, unmount } = await mount(items, queue);
     try {

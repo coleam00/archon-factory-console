@@ -103,9 +103,23 @@ describe('asks settled lately, and the stage each started again', () => {
     });
     const at = '2026-11-17T11:00:00.000Z';
     expect(entry?.asks).toEqual([
-      { question: 'Send it back?', answer: 'Send back once more', withdrawn: false, at, by: null },
-      { question: 'Which base?', answer: 'Something else', withdrawn: false, at, by: null },
-      { question: 'Split it?', answer: 'withdrawn', withdrawn: true, at, by: null },
+      {
+        question: 'Send it back?',
+        answer: 'Send back once more',
+        withdrawn: false,
+        at,
+        by: null,
+        starts: null,
+      },
+      {
+        question: 'Which base?',
+        answer: 'Something else',
+        withdrawn: false,
+        at,
+        by: null,
+        starts: null,
+      },
+      { question: 'Split it?', answer: 'withdrawn', withdrawn: true, at, by: null, starts: null },
     ]);
     expect(entry?.askedAt).toBe(deliver.runs[0]?.completedAt ?? null);
   });
@@ -138,8 +152,10 @@ describe('Answered lately, one row per answer', () => {
       withdrawn: false,
       at,
       by: 'cole-owner',
+      starts: null,
     })),
     restart,
+    restarts: restart === null ? 0 : 1,
   });
   const started = { runId: 'run-a-1', status: 'running' as const, label: 'Plan' };
 
@@ -166,6 +182,54 @@ describe('Answered lately, one row per answer', () => {
       ],
     };
     expect(recentlySettled(null, [item])[0]?.asks[0]?.by).toBe('someone-else');
+  });
+});
+
+describe("an option the view words reads the view's sentence", () => {
+  /** `deliver`'s set, asked by a run of `workflow`, answered with `ids` (one ask each). */
+  const answeredWith = (workflow: string, ids: string[], restarts = 1) => {
+    const asking = { ...deliver.runs[0], workflow: `Wirasm/archon-software-factory:${workflow}` };
+    const again = deliver.runs[1];
+    if (asking.id === undefined || again === undefined) throw new Error('fixture lacks its runs');
+    const extra = Array.from({ length: restarts - 1 }, (_, index) => ({
+      ...again,
+      id: `run-d-again-${index.toString()}`,
+    }));
+    return {
+      ...deliver,
+      runs: [asking, again, ...extra] as typeof deliver.runs,
+      answers: [
+        ...deliver.answers.filter(answer => answer.kind !== 'ask'),
+        ...ids.map(id => askAnswer(`Answered ${id}?`, { id, does: `Does ${id}.` })),
+      ],
+    };
+  };
+
+  test('a drop on a stage-check ask says it closes the PR, a send-back what it started again', () => {
+    const [entry] = recentlySettled(shippedView, [
+      answeredWith('stage-check', ['drop', 'send-back']),
+    ]);
+    expect(entry?.asks.map(ask => [ask.answer, ask.starts])).toEqual([
+      ['Drop', 'Closes the PR without merging'],
+      ['Send back', null],
+    ]);
+    expect(entry?.restarts).toBe(1);
+  });
+
+  test('the same option id on a workflow the view does not word it for reads as before', () => {
+    const [entry] = recentlySettled(shippedView, [answeredWith('plan', ['drop'])]);
+    expect(entry?.asks.map(ask => ask.starts)).toEqual([null]);
+  });
+
+  test('a set that started two runs counts both, and its rows carry the count', () => {
+    const settled = recentlySettled(shippedView, [
+      answeredWith('stage-check', ['drop', 'send-back'], 2),
+    ]);
+    expect(settled[0]?.restarts).toBe(2);
+    expect(answeredRows(settled).map(row => [row.answer, row.starts, row.restarts])).toEqual([
+      ['Drop', 'Closes the PR without merging', 2],
+      ['Send back', null, 2],
+    ]);
   });
 });
 
