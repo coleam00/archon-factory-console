@@ -2,7 +2,8 @@
  * The check rounds of one Checks panel as a grid (DESIGN.md, The item page): rows are the
  * checks, columns the rounds, each cell an icon and a word. A loop-form delivery records its
  * rounds inside one run; a stage-form one records each round as its own run. Both arrive as
- * `rounds` on the item read's runs (the server normalises them), so the grid reads one shape.
+ * `rounds` on the item read's runs (the server normalises them), so the grid reads one shape;
+ * only their numbering differs (`roundNumbers`).
  * Rows come from declared data only: a step with a declared meaning (`returns`, `approves`,
  * `verdicts`), the builder's fixes between rounds, the stage that read CI and the reviews after
  * the last round, and the shadow steps' decisions (rule 10). Nothing here names a pack's step.
@@ -10,7 +11,7 @@
 import type { FactoryItemDetail } from '../../skills/factory';
 import { shadowOf, shadowWords } from './shadows';
 import { stageOfStep, stageOfWorkflow } from './placement';
-import { stepLabel } from './step-label';
+import { roundsSources, stepLabel } from './step-label';
 import type { RunKind, TimelineRow } from './timeline';
 import type { RunFacts, StoryVisit } from './item-visits';
 import type { FactoryViewListed } from './views';
@@ -45,11 +46,18 @@ export interface GridCell {
 
 export interface GridColumn {
   /**
-   * The round's place among the item's rounds since it was last planned (1, 2, 3...), the
-   * number a person reads. Never the number a run recorded: a stage-form run's `/round` can
-   * repeat one (two runs that both recorded round 1), so the grid counts them itself.
+   * The number a person reads (`roundNumbers`): a loop-form round's place in its own run, a
+   * stage-form round's place among the item's stage-form rounds since it was last planned.
+   * Never the number a run recorded: a stage-form run's `/round` can repeat one (two runs that
+   * both recorded round 1), so the grid counts them itself.
    */
   number: number;
+  /**
+   * The column's run's place (1, 2...) among the item's loop-form delivery runs that recorded
+   * a round, so two runs' "Round 1" columns read apart. Null on a stage-form column, and on
+   * every column of an item with at most one such run, which reads as plain rounds.
+   */
+  delivery: number | null;
   /** The round as the run recorded it: a loop's iteration, or a stage-form run's `/round`. */
   iteration: number;
   /** The allowance the round's run recorded; null when it recorded none. */
@@ -80,6 +88,20 @@ export const MEANING_WORD: Record<'approved' | 'returned' | 'asked' | 'fixed', s
   asked: 'Asked you',
   fixed: 'Fixed',
 };
+
+/** A column's header: "Round 2 of 3", or "Delivery 2 · round 1 of 3" (`delivery`). */
+export function roundHeading(column: GridColumn): string {
+  const allowance = column.max === null ? '' : ` of ${column.max.toString()}`;
+  return `${roundLead(column)}${allowance}`;
+}
+
+/** A column's name before its allowance, the lead of its reason: "Round 2", "Delivery 2 · round 1". */
+export function roundLead(column: GridColumn): string {
+  const round = column.number.toString();
+  return column.delivery === null
+    ? `Round ${round}`
+    : `Delivery ${column.delivery.toString()} · round ${round}`;
+}
 
 const MEANING_CELL: Record<Meaning, CellMeaning> = {
   approved: 'approved',
@@ -142,30 +164,63 @@ interface GridContext {
   facts: ReadonlyMap<string, RunFacts>;
   rows: ReadonlyMap<string, TimelineRow>;
   order: ReadonlyMap<string, number>;
-  /** Each round's number on the item (`roundNumbers`), by `roundKey`. */
-  numbers: ReadonlyMap<string, number>;
+  /** Each round's number and delivery on the item (`roundNumbers`), by `roundKey`. */
+  numbers: ReadonlyMap<string, RoundNumber>;
 }
 
 const roundKey = (runId: string, iteration: number): string => `${runId}|${iteration.toString()}`;
 
+interface RoundNumber {
+  number: number;
+  delivery: number | null;
+}
+
+/** Whether `workflow` records its rounds inside one run, as a declared loop. */
+const loopForm = (view: Declaration, workflow: string): boolean =>
+  roundsSources(view).some(source => 'loop' in source && source.workflow === workflow);
+
 /**
- * Each check round's number on the item: its place, in run order, among the rounds since the
- * item was last planned. A run on an intake-group stage (the item taken in, judged or planned
- * again) starts the count over; a fix's own steps are no round. Both delivery shapes count
- * alike: a loop's iterations in order, and one round per stage-form run.
+ * Each check round's number on the item. A loop-form run numbers its own iterations from 1, as
+ * the board card, the header band and the server's round do; with more than one such run on
+ * the item, each round also carries its run's place among them. Stage-form runs share one
+ * count, a round per run, in run order: a run on an intake-group stage (the item taken in,
+ * judged or planned again) starts it over. A fix's own steps are no round.
  */
-function roundNumbers(view: Declaration, detail: FactoryItemDetail): Map<string, number> {
-  const numbers = new Map<string, number>();
+function roundNumbers(view: Declaration, detail: FactoryItemDetail): Map<string, RoundNumber> {
+  const numbers = new Map<string, RoundNumber>();
   const facts = new Map(detail.runs.map(run => [run.runId, run]));
+  const workflows = detail.item.runs.map(run => facts.get(run.id)?.workflow ?? null);
+  // A delivery run that recorded no round has no column, so it takes no place: the columns
+  // never read "Delivery 2" with no Delivery 1 beside them.
+  const delivered = (run: FactoryItemDetail['item']['runs'][number], index: number): boolean => {
+    const workflow = workflows[index] ?? null;
+    return (
+      workflow !== null &&
+      loopForm(view, workflow) &&
+      (facts.get(run.id)?.rounds?.rounds.length ?? 0) > 0
+    );
+  };
+  const deliveries = detail.item.runs.filter(delivered).length;
   let count = 0;
-  for (const run of detail.item.runs) {
-    const fact = facts.get(run.id);
-    const workflow = fact?.workflow ?? null;
-    if (workflow === null) continue;
+  let delivery = 0;
+  detail.item.runs.forEach((run, index) => {
+    const workflow = workflows[index] ?? null;
+    if (workflow === null) return;
     if (stageOfWorkflow(view, workflow, null)?.group === 'intake') count = 0;
-    for (const round of fact?.rounds?.rounds ?? [])
-      numbers.set(roundKey(run.id, round.iteration), ++count);
-  }
+    const rounds = facts.get(run.id)?.rounds?.rounds ?? [];
+    if (loopForm(view, workflow)) {
+      if (delivered(run, index)) delivery += 1;
+      rounds.forEach((round, at) =>
+        numbers.set(roundKey(run.id, round.iteration), {
+          number: at + 1,
+          delivery: deliveries > 1 ? delivery : null,
+        })
+      );
+      return;
+    }
+    for (const round of rounds)
+      numbers.set(roundKey(run.id, round.iteration), { number: ++count, delivery: null });
+  });
   return numbers;
 }
 
@@ -181,18 +236,22 @@ function gridColumns(
     const { max } = fact.rounds;
     return fact.rounds.rounds
       .filter(round => roundStage(ctx.view, workflow, round) === panel.stage.id)
-      .map(round => ({
-        column: {
-          number: ctx.numbers.get(roundKey(runId, round.iteration)) ?? round.iteration,
-          iteration: round.iteration,
-          max,
-          verdict: round.verdict,
-          runId,
-          reason: round.verdict === 'returned' ? round.summary : null,
-        },
-        round,
-        workflow,
-      }));
+      .map(round => {
+        const numbered = ctx.numbers.get(roundKey(runId, round.iteration));
+        return {
+          column: {
+            number: numbered?.number ?? round.iteration,
+            delivery: numbered?.delivery ?? null,
+            iteration: round.iteration,
+            max,
+            verdict: round.verdict,
+            runId,
+            reason: round.verdict === 'returned' ? round.summary : null,
+          },
+          round,
+          workflow,
+        };
+      });
   });
 }
 
