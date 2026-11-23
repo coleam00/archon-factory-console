@@ -5,7 +5,7 @@
 import type { AskSubject } from '../components/ask-card/AskCard';
 import { stageOfWorkflow } from '../factory/lib/placement';
 import { TONES, type Tone } from '../factory/tones';
-import type { FactoryItem } from '../skills/factory';
+import { membershipOf, type MemberSource } from '../factory/lib/work-orders';
 import { answerStarts } from '../factory/lib/answer-starts';
 import { factoryPath, type FactoryViewListed } from '../factory/lib/views';
 import { shortWorkflow } from './ask-card';
@@ -23,13 +23,13 @@ export interface AskNaming {
 export type AskStarts = (ask: NeedsYouItem, optionId: string) => string | undefined;
 
 /**
- * The naming for one project. `view` is its factory view, when one applies; `titles` the
- * item titles its items read names, by key.
+ * The naming for one project. `view` is its factory view, when one applies; `names` what its
+ * items read says of each item, by key.
  */
 export function askNaming(
   projectId: string,
   view: Pick<FactoryViewListed, 'declaration'> | undefined,
-  titles: ReadonlyMap<string, string> = new Map()
+  names: ReadonlyMap<string, ItemName> = new Map()
 ): AskNaming {
   const runHref = (ask: NeedsYouItem): string | undefined => {
     const runId = askRunId(ask);
@@ -44,15 +44,18 @@ export function askNaming(
         const runId = askRunId(ask);
         return {
           key: runId === undefined ? 'A run' : `Run ${runId.slice(0, 8)}`,
+          partOf: null,
           ...(href === undefined ? {} : { href }),
         };
       }
       const key = ask.item.key;
-      const title = titles.get(key);
+      const name = names.get(key);
+      const title = name?.title ?? undefined;
       const itemHref =
         view === undefined ? href : factoryPath(projectId, `/items/${encodeURIComponent(key)}`);
       return {
         key,
+        partOf: name?.partOf ?? null,
         ...(title === undefined || title === key ? {} : { title }),
         ...(itemHref === undefined ? {} : { href: itemHref }),
       };
@@ -74,14 +77,21 @@ export function askNaming(
   };
 }
 
-/** The titles the board's progress names, by item key, for `askNaming`. */
-export function itemTitles(
-  items: readonly Pick<FactoryItem, 'item' | 'progress'>[] | undefined
-): Map<string, string> {
+/** What an ask names an item by: the title the board's progress gives it, and its work order. */
+export interface ItemName {
+  title: string | null;
+  partOf: string | null;
+}
+
+/**
+ * What the items read says of each item, by key, for `askNaming`. The engine's item read
+ * carries the links, so an item's work order is known without a view; the title needs one.
+ */
+export function itemNames(items: readonly MemberSource[] | undefined): Map<string, ItemName> {
   return new Map(
-    (items ?? []).flatMap(item => {
-      const title = item.progress?.title ?? null;
-      return title === null ? [] : [[item.item.key, title] as const];
-    })
+    (items ?? []).map(item => [
+      item.item.key,
+      { title: item.progress?.title ?? null, partOf: membershipOf(item)?.order ?? null },
+    ])
   );
 }

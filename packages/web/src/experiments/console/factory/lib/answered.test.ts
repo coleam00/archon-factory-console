@@ -142,6 +142,7 @@ describe('Answered lately, one row per answer', () => {
     itemKey,
     runId: `run-${itemKey}`,
     title: null,
+    partOf: null,
     answered: times.length,
     withdrawn: 0,
     at: times[times.length - 1] ?? '',

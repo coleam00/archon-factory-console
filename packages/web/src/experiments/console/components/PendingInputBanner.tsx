@@ -215,7 +215,7 @@ function OwnerLostCard({
       setBusy(false);
     }
   };
-  const item = holder.itemKey === null ? '(unread)' : displayItemKey(holder.itemKey);
+  const item = holder.itemKey === null ? '(unread)' : displayItemKey(holder.itemKey, null);
   return (
     <article
       data-owner-lost-run-id={holder.runId}

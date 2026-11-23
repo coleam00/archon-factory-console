@@ -102,10 +102,9 @@ describe('ownerLostMessage', () => {
     observedStatus: 'running',
   });
 
-  test('names the held item as a person reads its key', () => {
-    const words = 'The build run lost its owner and still holds';
-    expect(ownerLostMessage(holder('issue-7'))).toBe(`${words} #7.`);
-    expect(ownerLostMessage(holder('7'))).toBe(`${words} #7.`);
-    expect(ownerLostMessage(holder(undefined))).toBe(`${words} its item.`);
+  test('says the run still holds its item, leaving the naming to what is drawn above it', () => {
+    const words = 'The build run lost its owner and still holds its item.';
+    for (const key of ['issue-136-item-keys', 'issue-7', undefined])
+      expect(ownerLostMessage(holder(key))).toBe(words);
   });
 });

@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AskCard } from '../components/ask-card/AskCard';
-import { askNaming, itemTitles } from '../lib/ask-naming';
+import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import { needsYou, needsYouPath } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
@@ -52,7 +52,7 @@ export function OverviewAsks({
   }
   const asks = needsYou(queue.items);
   if (asks.length === 0) return null;
-  const naming = askNaming(projectId, view, itemTitles(items.data));
+  const naming = askNaming(projectId, view, itemNames(items.data));
   const more = asks.length - OVERVIEW_ASKS_SHOWN;
   return (
     <section aria-label="Needs you" className="flex flex-col gap-3">

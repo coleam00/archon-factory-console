@@ -5,11 +5,16 @@ const HOUR = 3_600_000;
 const START = '2026-11-17T10:00:00Z';
 
 /** A row whose item merged `hours` after its one declared run started; never merged when null. */
-function row(key: string, hours: number | null, stage = 'landed'): TableRow {
+function row(
+  key: string,
+  hours: number | null,
+  stage = 'landed',
+  order: string | null = null
+): TableRow {
   const mergedAt = hours === null ? null : new Date(Date.parse(START) + hours * HOUR).toISOString();
   return {
     placed: {
-      card: { key, pill: 'landed' },
+      card: { key, pill: 'landed', order },
       column: { stage: { id: stage } },
       item: {
         progress: { change: { mergedAt }, runs: [{ runId: `r${key}` }] },
@@ -39,6 +44,21 @@ describe('the Table under a number', () => {
       '111',
       'issue-136',
       '140',
+    ]);
+  });
+
+  test('sorted by Key, a split member sits right after its order, as it reads (#136 · …)', () => {
+    const rows = [
+      row('issue-137', 1),
+      row('issue-136-item-keys', 1, 'landed', 'issue-136'),
+      row('135', 1),
+      row('issue-136', 1),
+    ];
+    expect(keys(sortRows(rows, { by: 'key', descending: false }))).toEqual([
+      '135',
+      'issue-136',
+      'issue-136-item-keys',
+      'issue-137',
     ]);
   });
 

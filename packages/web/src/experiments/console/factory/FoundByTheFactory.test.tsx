@@ -7,6 +7,7 @@ import { formatDateTime } from '../lib/format';
 import { K } from '../store/keys';
 import { FoundByTheFactory } from './FoundByTheFactory';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
+import type { ItemName } from '../lib/ask-naming';
 
 // The toggle and the scroll follow a render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -40,14 +41,25 @@ afterAll(async () => {
   }
 });
 
-async function mount(opened = false, above = true, oneLine = false) {
+async function mount(
+  opened = false,
+  above = true,
+  oneLine = false,
+  names: ReadonlyMap<string, ItemName> = new Map()
+) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
     root.render(
       <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
-        <FoundByTheFactory projectId={ID} above={above} oneLine={oneLine} opened={opened} />
+        <FoundByTheFactory
+          projectId={ID}
+          names={names}
+          above={above}
+          oneLine={oneLine}
+          opened={opened}
+        />
       </MemoryRouter>
     )
   );
@@ -198,6 +210,22 @@ test('as one line, opened from the Overview tile, it starts open with its findin
   try {
     expect(container.textContent).toContain('files nothing yet');
     expect(container.querySelectorAll('#found-by-the-factory-list > li')).toHaveLength(2);
+  } finally {
+    await unmount();
+  }
+});
+
+test('a finding from a split member names it under its order; its link keeps the key', async () => {
+  const KEY = 'issue-136-item-keys';
+  set(K.factoryDiscoveries(ID), {
+    ...DISCOVERIES,
+    findings: [{ ...DISCOVERIES.findings[0]!, from: { key: KEY, title: null } }],
+  });
+  const names = new Map([[KEY, { title: null, partOf: 'issue-136' }]]);
+  const { container, unmount } = await mount(true, true, true, names);
+  try {
+    const link = container.querySelector(`#found-by-the-factory-list a[href$="/items/${KEY}"]`);
+    expect(link?.textContent).toBe('#136 · item keys');
   } finally {
     await unmount();
   }

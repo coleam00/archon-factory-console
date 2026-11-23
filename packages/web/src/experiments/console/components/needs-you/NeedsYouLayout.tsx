@@ -18,7 +18,7 @@ import { factoryPath, type FactoryViewListed } from '../../factory/lib/views';
 import { useFactoryItems } from '../../factory/useFactoryItems';
 import { useFactoryRead } from '../../factory/useFactoryRead';
 import { groupBySubject } from '../../lib/ask-card';
-import { askNaming, itemTitles, type AskNaming } from '../../lib/ask-naming';
+import { askNaming, itemNames, type AskNaming } from '../../lib/ask-naming';
 import { needsYou, needsYouCount, type NeedsYouItem } from '../../lib/needs-you';
 import { listItemWindow, type ItemRead } from '../../skills/items';
 import type { AttentionQueue } from '../../skills/runs';
@@ -57,12 +57,12 @@ function FactoryNeedsYou({
   view,
 }: ContentProps & { view: FactoryViewListed }): ReactElement {
   const items = useFactoryItems(projectId);
-  const titles = useMemo(() => itemTitles(items.data), [items.data]);
+  const names = useMemo(() => itemNames(items.data), [items.data]);
   return (
     <NeedsYouLayout
       projectId={projectId}
       queue={queue}
-      naming={askNaming(projectId, view, titles)}
+      naming={askNaming(projectId, view, names)}
       declaration={view.declaration}
       items={items.data}
       failed={readFailed(items.error)}
@@ -77,11 +77,13 @@ function WindowNeedsYou({ projectId, queue }: ContentProps): ReactElement {
   const items = useFactoryRead<ItemRead[]>(K.projectItems(projectId), within =>
     readEveryItem(projectId, listItemWindow, within)
   );
+  // The engine's read carries links, so a member names its work order without a view too.
+  const names = useMemo(() => itemNames(items.data), [items.data]);
   return (
     <NeedsYouLayout
       projectId={projectId}
       queue={queue}
-      naming={askNaming(projectId, undefined)}
+      naming={askNaming(projectId, undefined, names)}
       declaration={null}
       items={items.data}
       failed={readFailed(items.error)}

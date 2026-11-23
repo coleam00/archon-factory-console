@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { displayItemKey } from '../lib/item-key';
+import { displayKeyOf } from '../lib/work-orders';
 import { Link } from 'react-router';
 import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
 import type { FactoryItem } from '../../skills/factory';
@@ -105,10 +105,10 @@ function ItemRow({
       >
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className="shrink-0 font-mono text-console-12 text-text-tertiary">
-            {displayItemKey(item.item.key)}
+            {displayKeyOf(item)}
           </span>
           <span className="min-w-0 truncate text-console-12 text-text-primary">
-            {item.progress?.title ?? displayItemKey(item.item.key)}
+            {item.progress?.title ?? displayKeyOf(item)}
           </span>
           {needsYou ? (
             <span className="ml-auto shrink-0 rounded-full bg-[color:var(--warning-soft)] px-2 text-console-12 font-semibold text-warning">

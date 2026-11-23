@@ -4,6 +4,7 @@ import { boardModel } from './board';
 import { PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
 import { factoryNumbers } from './numbers';
 import {
+  displayKeyOf,
   highlightedKeys,
   membershipOf,
   NOT_STARTED,
@@ -38,6 +39,19 @@ function namedBy(item: FactoryItem, order: string): FactoryItem {
 function ordersOf(items: FactoryItem[], members: Record<string, string[]> = {}): WorkOrder[] {
   return workOrders(items, boardModel(VIEW, 'cb-1', items, new Map()), members);
 }
+
+describe("an item's key as it reads", () => {
+  /** `realItem('5')` keyed as a split member of `issue-136`. */
+  const member = (): FactoryItem => {
+    const item = realItem('5');
+    return { ...item, item: { ...item.item, key: 'issue-136-item-keys' } };
+  };
+
+  test("a member of a work order reads as the order's number and its piece", () => {
+    expect(displayKeyOf(linkTo(member(), 'issue-136'))).toBe('#136 · item keys');
+    expect(displayKeyOf(namedBy(member(), 'issue-136'))).toBe('#136 · item keys');
+  });
+});
 
 describe("an item's work order", () => {
   test('from an active part_of link', () => {

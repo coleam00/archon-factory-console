@@ -98,7 +98,7 @@ export function ItemAsksSection({
                 Item
               </span>
               <span className="font-mono text-sm text-text-primary">
-                {item === undefined ? 'Item not found' : displayItemKey(item.key)}
+                {item === undefined ? 'Item not found' : displayItemKey(item.key, null)}
               </span>
               {showProject && project !== null ? (
                 <span className="truncate text-console-11 text-text-secondary">
