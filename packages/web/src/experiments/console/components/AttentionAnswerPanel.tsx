@@ -49,15 +49,22 @@ export function answerByRef(ref: string): SubmitAnswer {
   };
 }
 
-function tilesOf(wait: AttentionWait): AskTile[] {
-  return tileOrder(wait).map(option => ({
-    id: option.id,
-    label: optionLabel(wait, option),
-    ...(option.does === undefined ? {} : { does: option.does }),
-    ...(option.cost === undefined ? {} : { cost: option.cost }),
-    recommended: option.id === wait.recommendation?.option,
-    other: isOtherOption(wait, option.id),
-  }));
+function tilesOf(
+  wait: AttentionWait,
+  starts: ((optionId: string) => string | undefined) | undefined
+): AskTile[] {
+  return tileOrder(wait).map(option => {
+    const started = starts?.(option.id);
+    return {
+      id: option.id,
+      label: optionLabel(wait, option),
+      ...(started === undefined ? {} : { starts: started }),
+      ...(option.does === undefined ? {} : { does: option.does }),
+      ...(option.cost === undefined ? {} : { cost: option.cost }),
+      recommended: option.id === wait.recommendation?.option,
+      other: isOtherOption(wait, option.id),
+    };
+  });
 }
 
 /**
@@ -90,18 +97,24 @@ function draftOf(
  * only once its text has a non-blank character, which the engine does not require. `submit` sends; a
  * refusal shows in the server's own words. `onAnswered` hears the chosen words once sent.
  * `offered`, from the ask card, is what the stage offered in its own words (`parseOffered`).
+ * `starts` gives what choosing an option starts, in the factory view's words, and
+ * `unrecommended` why a stage that left the ask could not choose (`unrecommendedOf`).
  */
 export function AttentionAnswerForm({
   wait,
   submit,
   onAnswered,
   offered = null,
+  starts,
+  unrecommended,
   refusal,
 }: {
   wait: AttentionWait;
   submit: SubmitAnswer;
   onAnswered?: (label: string) => void;
   offered?: Offered | null;
+  starts?: (optionId: string) => string | undefined;
+  unrecommended?: string;
   /** The server's reason the caller may not answer: the options show, with no way to choose. */
   refusal?: string;
 }): ReactElement {
@@ -109,7 +122,7 @@ export function AttentionAnswerForm({
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const tiles = tilesOf(wait);
+  const tiles = tilesOf(wait, starts);
   const draft = draftOf(wait, tiles, picks, offered);
   const open = refusal === undefined && (wait.form === 'message' || picks.length > 0);
 
@@ -149,7 +162,7 @@ export function AttentionAnswerForm({
           }}
         />
       )}
-      <RecommendationWhy wait={wait} />
+      <RecommendationWhy wait={wait} unrecommended={unrecommended} />
       {refusal === undefined ? null : (
         <p className="text-console-13 text-text-secondary">You can't answer this: {refusal}</p>
       )}
@@ -172,10 +185,27 @@ export function AttentionAnswerForm({
   );
 }
 
-/** One line under the tiles: why the recommended option, naming it when no tile carries it. */
-function RecommendationWhy({ wait }: { wait: AttentionWait }): ReactElement | null {
+/**
+ * One line under the tiles: why the recommended option, naming it when no tile carries it; for
+ * an ask without one, why the stage could not choose, when the card says.
+ */
+function RecommendationWhy({
+  wait,
+  unrecommended,
+}: {
+  wait: AttentionWait;
+  unrecommended: string | undefined;
+}): ReactElement | null {
   const { recommendation } = wait;
-  if (recommendation === undefined) return null;
+  if (recommendation === undefined)
+    return unrecommended === undefined ? null : (
+      <p
+        data-unrecommended=""
+        className="text-console-13 text-text-secondary [overflow-wrap:anywhere]"
+      >
+        {unrecommended}
+      </p>
+    );
   const matched = wait.options.some(option => option.id === recommendation.option);
   return (
     <p className="text-console-13 text-text-secondary [overflow-wrap:anywhere]">

@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { markProps, RECOMMENDED_BG, RecommendedBadge } from './tile-marks';
 
@@ -7,6 +7,8 @@ export interface AskTile {
   id: string;
   /** Its words (rule 8); never a raw id. */
   label: string;
+  /** What choosing it starts, in the factory view's words, when the view says. */
+  starts?: string;
   /** What choosing it does, when the ask says. */
   does?: string;
   /** What choosing it costs, when the ask says. */
@@ -64,7 +66,11 @@ export function AskTiles({
             aria-pressed={picked}
             data-recommended={tile.recommended || undefined}
             disabled={disabled}
-            title={[tile.does, tile.cost === undefined ? undefined : `Cost: ${tile.cost}`]
+            title={[
+              tile.starts,
+              tile.does,
+              tile.cost === undefined ? undefined : `Cost: ${tile.cost}`,
+            ]
               .filter(line => line !== undefined)
               .join('\n')}
             onClick={() => {
@@ -85,7 +91,8 @@ const WORDS = 'w-full text-console-13 text-text-secondary [overflow-wrap:anywher
 
 /**
  * A tile's words: its label (with the check when chosen), the green badge when recommended,
- * then what it does and costs, each wrapping a long unbroken path inside the tile. At rest
+ * what choosing it starts when the factory view words it (whole, never clamped), then what it
+ * does and costs, each wrapping a long unbroken path inside the tile. At rest
  * those clamp to 2 lines (rule 9); a chosen tile shows them whole, and so does a tile with
  * keyboard focus, so the operator reads what an option costs before Confirm, on touch or
  * keyboard as well as by hover.
@@ -102,6 +109,15 @@ function TileBody({ tile, picked }: { tile: AskTile; picked: boolean }): ReactEl
         {picked ? <Check aria-hidden className="size-4 shrink-0 text-accent" /> : null}
       </span>
       {tile.recommended ? <RecommendedBadge /> : null}
+      {tile.starts === undefined ? null : (
+        <span
+          data-starts=""
+          className="flex w-full items-start gap-1.5 text-console-13 font-medium text-text-primary [overflow-wrap:anywhere]"
+        >
+          <ArrowRight aria-hidden className="mt-0.5 size-3.5 shrink-0 text-text-tertiary" />
+          <span className="min-w-0">{tile.starts}</span>
+        </span>
+      )}
       {does === undefined ? null : <span className={`${clamp} ${WORDS}`}>{does}</span>}
       {tile.cost === undefined ? null : (
         <span className={`${clamp} ${WORDS}`}>Cost: {tile.cost}</span>

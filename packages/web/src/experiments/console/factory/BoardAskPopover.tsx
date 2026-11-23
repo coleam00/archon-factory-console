@@ -192,6 +192,7 @@ function Popover({
           hold={{ ...hold, onAnswered }}
           queue={queue}
           where={naming.where}
+          starts={naming.starts}
         />
         {/* A later preview (a prototype of the change) goes here, under the options. */}
         <div data-preview-slot="" />

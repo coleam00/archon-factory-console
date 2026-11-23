@@ -5,11 +5,13 @@
  * records `cause: { kind: 'asks_settled', runId }` naming the same run. Derived from reads
  * alone, so an answer given through the CLI or by an agent shows as one given here does. It
  * reads the engine's item read, so it needs no factory view: with one, a run is named by its
- * stage; without, by its workflow.
+ * stage; without, by its workflow. An answer whose option the view words (`answers`) says what
+ * it started in the view's sentence instead.
  */
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemRead } from '../../skills/items';
 import { humaniseId, shortWorkflow } from '../../lib/ask-card';
+import { answerStarts } from './answer-starts';
 import { answererName } from './item-answers';
 import { stageOfWorkflow } from './placement';
 import type { FactoryViewListed } from './views';
@@ -46,6 +48,8 @@ export interface SettledAsks {
     at: string;
     /** Who answered, as the read records them; null when unsaid. */
     by: string | null;
+    /** What the chosen option starts, in the view's words (`answers`); null when it words none. */
+    starts: string | null;
   }[];
   /** The run the settling started; null until one has. */
   restart: {
@@ -54,6 +58,8 @@ export interface SettledAsks {
     /** The stage the run starts on when a view names it, else its workflow in words. */
     label: string;
   } | null;
+  /** How many runs settling the set started: one per route its answers took. */
+  restarts: number;
 }
 
 /**
@@ -94,7 +100,12 @@ export function answerWords(answer: AskAnswer): string {
   return 'answered';
 }
 
-function asksOf(item: AnsweredSource, settled: Settled): SettledAsks['asks'] {
+function asksOf(
+  view: Declaration | null,
+  item: AnsweredSource,
+  settled: Settled
+): SettledAsks['asks'] {
+  const workflow = item.runs.find(run => run.id === settled.runId)?.workflow;
   return item.answers
     .filter(
       (answer): answer is AskAnswer => answer.kind === 'ask' && answer.runId === settled.runId
@@ -105,6 +116,10 @@ function asksOf(item: AnsweredSource, settled: Settled): SettledAsks['asks'] {
       withdrawn: answer.withdrawn,
       at: answer.at,
       by: answererName(answer.by),
+      starts:
+        answer.withdrawn || answer.chosen === null
+          ? null
+          : (answerStarts(view, workflow, answer.chosen.id) ?? null),
     }));
 }
 
@@ -130,8 +145,9 @@ export function recentlySettled(
       withdrawn: settled.withdrawn,
       at: settled.at,
       askedAt: item.runs.find(run => run.id === settled.runId)?.completedAt ?? null,
-      asks: asksOf(item, settled),
+      asks: asksOf(view, item, settled),
       restart: restartOf(view, item, settled.runId),
+      restarts: item.runs.filter(run => asksSettledRunId(run.cause) === settled.runId).length,
     }));
 }
 
@@ -146,8 +162,12 @@ export interface AnsweredRow {
   withdrawn: boolean;
   at: string;
   by: string | null;
+  /** What the chosen option starts, in the view's words; null when it words none. */
+  starts: string | null;
   /** What settling the set this answer closed started; null when nothing has. */
   restart: SettledAsks['restart'];
+  /** How many runs settling the set started. */
+  restarts: number;
 }
 
 /**
@@ -166,6 +186,7 @@ export function answeredRows(
         runId: entry.runId,
         ...ask,
         restart: entry.restart,
+        restarts: entry.restarts,
       }))
     )
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))

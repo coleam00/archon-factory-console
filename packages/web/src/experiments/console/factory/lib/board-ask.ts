@@ -80,14 +80,24 @@ export function answerStands(
 /**
  * What the card says for a held answer: "Answered · <stage> started again" once the item read
  * records the set it settled and the run that settling started, matched by the asking run;
- * until then "Answered: <label>". The card never guesses a restart.
+ * until then "Answered: <label>". When the set's answers chose options the view words
+ * (`answers`), the view's sentence stands in for the stage, but only when the set started one
+ * run and its answers word one sentence; otherwise "Answered: <label>". The card never guesses
+ * a restart.
  */
 export function answeredLine(held: HeldAnswer, settled: readonly SettledAsks[]): string {
-  const restart =
+  const entry =
     held.askingRun === null
       ? undefined
-      : settled.find(entry => entry.runId === held.askingRun && entry.restart !== null)?.restart;
-  return restart == null ? `Answered: ${held.label}` : `Answered · ${restart.label} started again`;
+      : settled.find(candidate => candidate.runId === held.askingRun && candidate.restart !== null);
+  if (entry?.restart == null) return `Answered: ${held.label}`;
+  const declared = [
+    ...new Set(entry.asks.flatMap(ask => (ask.starts === null ? [] : [ask.starts]))),
+  ];
+  if (declared.length === 0) return `Answered · ${entry.restart.label} started again`;
+  return declared.length === 1 && entry.restarts === 1
+    ? `Answered · ${declared[0] ?? ''}`
+    : `Answered: ${held.label}`;
 }
 
 interface Rect {
