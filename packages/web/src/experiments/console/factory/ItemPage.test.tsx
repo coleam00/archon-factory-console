@@ -201,6 +201,19 @@ describe('the item page', () => {
     expect(chips(render(itemDetail('113')))).toContain('1 ask answered');
   });
 
+  test("item 125 answered reshape: the view's sentence for what it started, not the stage", () => {
+    const detail = structuredClone(itemDetail('125'));
+    detail.item.answers = detail.item.answers.map(answer =>
+      answer.kind === 'ask' && answer.chosen?.id === 'take-as-is'
+        ? { ...answer, chosen: { id: 'reshape', does: 'The change stays open as a draft.' } }
+        : answer
+    );
+    const checks = panel(render(detail), 'checks');
+    expect(text(checks)).toContain('You said Reshape');
+    expect(checks).toContain('data-started="Leaves the PR as a draft until the item is shaped"');
+    expect(checks).not.toContain('data-started="CI and review started again"');
+  });
+
   test('item 125, the three-stage delivery: four rounds, then the asks that took it on', () => {
     const html = render(itemDetail('125'));
     const checks = panel(html, 'checks');
@@ -356,6 +369,19 @@ describe('the item page', () => {
     expect(html.split('data-ask=')).toHaveLength(3);
     expect(words).toContain('Use dev Recommended Rebases onto dev.');
     expect(html.split('aria-pressed="false"').length - 1).toBe(4);
+  });
+
+  test("an open stage ask's drop tile says what it starts, in the view's words", () => {
+    const detail = itemDetail('3');
+    const ask = askItem({
+      ref: 'ask:drop',
+      item: { ...detail.item.item },
+      askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
+      options: [{ id: 'drop', does: 'Closes it.' }],
+      recommendation: { option: 'drop', why: 'It is done.' },
+    });
+    const html = render(detail, { items: [ask], runs: [], degraded: [] });
+    expect(html).toMatch(/data-starts=""[^>]*>[\s\S]*?Closes the PR without merging/);
   });
 
   test('an open ask on a running item: Needs you, as its board card says', () => {

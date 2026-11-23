@@ -48,14 +48,36 @@ describe('an answer held on the card', () => {
     askedAt: null,
     asks: [],
     restart,
+    restarts: restart === null ? 0 : 1,
   });
   const restart = { runId: 'run-again', status: 'running' as const, label: 'Plan' };
+  const declared = (starts: (string | null)[], restarts = 1): SettledAsks => ({
+    ...settled(restart),
+    asks: starts.map((sentence, index) => ({
+      question: `Question ${index.toString()}?`,
+      answer: 'Drop',
+      withdrawn: false,
+      at: '2026-11-18T10:00:00.000Z',
+      by: null,
+      starts: sentence,
+    })),
+    restarts,
+  });
 
   test('says what was answered until the read records the restart of the asking run', () => {
     expect(answeredLine(held, [])).toBe('Answered: Use dev');
     expect(answeredLine(held, [settled(null)])).toBe('Answered: Use dev');
     expect(answeredLine(held, [settled(restart, 'run-other')])).toBe('Answered: Use dev');
     expect(answeredLine(held, [settled(restart)])).toBe('Answered · Plan started again');
+  });
+
+  test("an option the view words reads the view's sentence, unless the set started several runs", () => {
+    const drop = 'Closes the PR without merging';
+    expect(answeredLine(held, [declared([drop, null])])).toBe(`Answered · ${drop}`);
+    expect(answeredLine(held, [declared([drop, null], 2)])).toBe('Answered: Use dev');
+    expect(answeredLine(held, [declared([drop, 'Leaves the PR as a draft'])])).toBe(
+      'Answered: Use dev'
+    );
   });
 
   test('a gate settles no set, so it never reads as a restart', () => {

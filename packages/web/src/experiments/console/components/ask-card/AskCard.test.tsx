@@ -8,7 +8,9 @@ import {
   DRY_RUN_WHY,
   MARKER,
 } from '../../lib/ask-offered.test-fixtures';
+import { askNaming } from '../../lib/ask-naming';
 import { askItem, gateItem } from '../../lib/needs-you.test-fixtures';
+import { shippedView } from '../../factory/item-detail.test-fixtures';
 import type { NeedsYouItem } from '../../lib/needs-you';
 import { toRun } from '../../primitives/run';
 import { get, set } from '../../store/cache';
@@ -59,13 +61,17 @@ function serve(answer: () => Response = () => Response.json({ success: true })) 
  * One item's asks, as a popover over a board card would mount them: the group alone, with
  * its props and no page, route or provider around it (a router only for its links).
  */
-async function mount(asks: NeedsYouItem[], runs: ReturnType<typeof toRun>[] = []) {
+async function mount(
+  asks: NeedsYouItem[],
+  runs: ReturnType<typeof toRun>[] = [],
+  starts?: (ask: NeedsYouItem, optionId: string) => string | undefined
+) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   const render = (current: NeedsYouItem[]): ReactElement => (
     <MemoryRouter>
-      <AskGroup projectId="cb-1" asks={current} queue={{ runs }} />
+      <AskGroup projectId="cb-1" asks={current} queue={{ runs }} starts={starts} />
     </MemoryRouter>
   );
   await act(async () => root.render(render(asks)));
@@ -577,6 +583,122 @@ test("a long unbroken path in an offered option's words wraps inside the card", 
       expect(found.length).toBeGreaterThan(0);
       for (const el of found) expect([text, wrapsAnywhere(el, article)]).toEqual([text, true]);
     }
+  } finally {
+    await card.unmount();
+  }
+});
+
+/** The routes every delivery ask of the pack's `ending.ts` offers (pack d7f8c36), rounds left. */
+const PACK_ROUTES = [
+  {
+    id: 'send-back',
+    does: 'The same builder continues on the change with what you say in your answer, and the checks look at it again.',
+    cost: 'One build run and one check round.',
+  },
+  {
+    id: 'replan',
+    does: 'The item goes back to planning with what you say in your answer.',
+    cost: 'The work so far may be discarded.',
+  },
+  {
+    id: 'take-as-is',
+    does: 'The change goes on to the host round as it is.',
+    cost: 'What was returned stays unfixed.',
+  },
+  {
+    id: 'drop',
+    does: 'The change is closed without merging and the item ends here. Your answer is written on the change as the reason.',
+    cost: 'The work on this change is given up; its branch stays.',
+  },
+  {
+    id: 'reshape',
+    does: 'The change stays open as a draft and nothing more is built until the item is shaped again. Your answer is written on the change.',
+    cost: 'The item waits for shaping, and the draft can stop merging while it does.',
+  },
+];
+/** A stage-check ask of that shape; a `recommendation: null` the pack writes reaches it absent. */
+const packAsk = (context: string, recommended = true): NeedsYouItem => {
+  const { recommendation, ...ask } = askItem({
+    askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
+    message: 'The checks returned the change again. What should happen to it now?',
+    context,
+    options: PACK_ROUTES,
+    recommendation: { option: 'send-back', why: 'What was returned is small.' },
+  });
+  return recommended ? { ...ask, recommendation } : ask;
+};
+const viewStarts = askNaming('cb-1', { declaration: shippedView }).starts;
+const startsOf = (tile: HTMLElement): string | null =>
+  tile.querySelector('[data-starts]')?.textContent ?? null;
+
+test("drop and reshape tiles say what they start, in the view's words; the other routes do not", async () => {
+  serve();
+  const card = await mount([packAsk('The checks returned it.')], [], viewStarts);
+  try {
+    expect(
+      ['Send back', 'Replan', 'Take as is', 'Drop', 'Reshape'].map(label => [
+        label,
+        startsOf(card.button(label)),
+      ])
+    ).toEqual([
+      ['Send back', null],
+      ['Replan', null],
+      ['Take as is', null],
+      ['Drop', 'Closes the PR without merging'],
+      ['Reshape', 'Leaves the PR as a draft until the item is shaped'],
+    ]);
+    // Read whole, never clamped, and named in the tile's title for hover too.
+    const drop = card.button('Drop');
+    expect(drop.querySelector('[data-starts]')?.className).not.toContain('line-clamp');
+    expect(drop.title.split('\n')[0]).toBe('Closes the PR without merging');
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('an ask the stage left without a recommendation marks no tile and says why under them', async () => {
+  serve();
+  const card = await mount(
+    [
+      packAsk(
+        'Round 3 of 3 allowed on this item.\n\nNo recommendation: the judgment of what is left did not run.',
+        false
+      ),
+    ],
+    [],
+    viewStarts
+  );
+  try {
+    expect(card.container.querySelector('[data-recommended]')).toBeNull();
+    expect(card.container.textContent).not.toContain('Recommended');
+    const why = card.container.querySelector('[data-unrecommended]');
+    expect(why?.textContent).toBe(
+      'The stage could not choose: the judgment of what is left did not run.'
+    );
+    const options = card.container.querySelector('[role=group][aria-label=Options]');
+    if (why === null || options === null) throw new Error('Missing part of the card');
+    expect(
+      (options.compareDocumentPosition(why) & dom.Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    ).toBe(true);
+    // The reason is said once: the clamped context loses its paragraph.
+    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(
+      'Round 3 of 3 allowed on this item.'
+    );
+    // Declared order: no tile moves first.
+    expect(card.container.querySelector('[role=group] button')?.textContent).toContain('Send back');
+  } finally {
+    await card.unmount();
+  }
+});
+
+test('a recommended ask quoting the marker keeps its context whole and its green tile', async () => {
+  serve();
+  const context = 'Left.\n\nNo recommendation: quoted from the script.';
+  const card = await mount([packAsk(context)]);
+  try {
+    expect(card.container.querySelector('[data-unrecommended]')).toBeNull();
+    expect(card.container.querySelector('[data-recommended]')?.textContent).toContain('Send back');
+    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(context);
   } finally {
     await card.unmount();
   }

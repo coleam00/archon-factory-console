@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { ArrowRight, MessageCircleQuestion } from 'lucide-react';
 import { AskGroup } from '../components/ask-card/AskGroup';
 import type { AnsweredHold } from '../components/ask-card/useAnsweredHold';
+import type { AskNaming } from '../lib/ask-naming';
 import { formatDateTime } from '../lib/format';
 import type { NeedsYouItem } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
@@ -11,7 +12,7 @@ import type { AnsweredAsk } from './lib/item-story';
 /**
  * An ask a stage left, answered, where it happened in the story (owner change 8): the question,
  * the option chosen in plain words with its id as a tag, who chose it and when, and what that
- * started ("Build started again", "Nothing started").
+ * started ("Build started again", "Nothing started", or the view's sentence for the option).
  */
 export function AnsweredAskBlock({ ask }: { ask: AnsweredAsk }): ReactElement {
   return (
@@ -50,14 +51,23 @@ export function OpenAsks({
   asks,
   hold,
   queue,
-  where,
+  naming,
 }: {
   projectId: string;
   asks: readonly NeedsYouItem[];
   hold: AnsweredHold;
   queue: Pick<AttentionQueue, 'runs'>;
-  where: (ask: NeedsYouItem) => string | undefined;
+  naming: Pick<AskNaming, 'where' | 'starts'>;
 }): ReactElement | null {
   if (asks.length === 0) return null;
-  return <AskGroup projectId={projectId} asks={asks} hold={hold} queue={queue} where={where} />;
+  return (
+    <AskGroup
+      projectId={projectId}
+      asks={asks}
+      hold={hold}
+      queue={queue}
+      where={naming.where}
+      starts={naming.starts}
+    />
+  );
 }
