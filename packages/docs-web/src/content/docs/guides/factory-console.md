@@ -113,7 +113,8 @@ page, keeping the query string. Inside the tab:
   never while a run works it, it has an open question, an `awaits` outcome leaves it waiting on
   you, or a start is queued or held for it. It is a reading of the items, not a state: nothing
   is stored or written, and a new run brings the item back to its column at once. An item set
-  aside counts in no column and no number.
+  aside counts in no column, not in flight and not in M; an open question on it still shows in
+  Needs you.
 - **Item page**: the story of one item. A header band gives its number and title, its state
   pill, its pull request, where it is (a parked item reads its declared `parked` label and its
   run's reason, an item waiting on you its `awaits` label and reason) and its key facts: the time from its order to its merge (or to now), its cost,

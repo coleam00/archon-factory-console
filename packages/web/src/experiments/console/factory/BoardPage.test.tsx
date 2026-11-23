@@ -369,27 +369,28 @@ describe('the Pipeline view', () => {
       expect(toggle?.getAttribute('aria-expanded')).toBe('false');
       await act(async () => toggle?.click());
       expect(toggle?.textContent).toBe('hide them');
-      const rows = [...(strip?.querySelectorAll('li') ?? [])];
-      // Newest last run first: each says its key, title, why and when.
-      expect(rows.map(row => row.querySelector('a')?.textContent)).toEqual(['#6', 'p', 'i']);
-      expect(rows[0]?.querySelector('a')?.getAttribute('href')).toBe(
-        `/console/p/${ID}/factory/items/6`
-      );
-      // Each row's leaves: its key, title, why and when.
-      const [, parked, idleRow] = rows.map(row =>
-        [...row.querySelectorAll('a, span')]
+      // Each row by its key (the order is the model's), as its leaves: key, title, why, when.
+      const row = (key: string): (string | null)[] | undefined => {
+        const li = [...(strip?.querySelectorAll('li') ?? [])].find(
+          item => item.querySelector('a')?.textContent === key
+        );
+        if (li === undefined) return undefined;
+        return [...li.querySelectorAll('a, span')]
           .filter(element => element.children.length === 0)
-          .map(element => element.textContent)
-      );
+          .map(element => element.textContent);
+      };
+      expect(strip?.querySelectorAll('li')).toHaveLength(3);
+      const link = [...(strip?.querySelectorAll('li a') ?? [])].find(a => a.textContent === '#6');
+      expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/6`);
       const title = realItem('6').progress?.title ?? '';
-      expect(parked).toEqual([
+      expect(row('p')).toEqual([
         'p',
         title,
         'Parked by triage',
         formatDateTime(parkedByTriage('p').runs[0]?.completedAt ?? ''),
       ]);
-      expect(idleRow?.[2]).toBe('No change was proposed');
-      expect(rows[0]?.textContent).toContain('Folded into another item');
+      expect(row('i')?.[2]).toBe('No change was proposed');
+      expect(row('#6')?.[2]).toBe('Folded into another item');
       expect(strip?.textContent).not.toMatch(/archived|deleted/i);
     } finally {
       await unmount();

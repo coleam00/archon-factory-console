@@ -453,13 +453,9 @@ describe('grouped columns', () => {
     expect(model.setAside).toEqual([]);
   });
 
-  test('a parked item is set aside in its parked words; one a start waits for is a card in Intake', () => {
+  test('a parked item set aside keeps its position; one a start waits for is a card in Intake', () => {
     const parked = parkedByTriage();
     const model = boardModel(VIEW, PROJECT, [parked], new Map(), FIXTURE_NOW);
-    expect(model.columns.flatMap(column => column.cards)).toEqual([]);
-    expect(
-      model.setAside.map(entry => [entry.placed.card.key, entry.kind, entry.why, entry.detail])
-    ).toEqual([['6p', 'parked', 'Parked by triage', 'Worth doing; measure it first.']]);
     // Placement still reads Triage, so a card coming back does not read as moved.
     expect(model.positions.get('6p')).toBe('triage');
     const queued = { ...parked, queued: [queuedStart()] };

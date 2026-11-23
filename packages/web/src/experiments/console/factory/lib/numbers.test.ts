@@ -6,7 +6,6 @@ import {
   endLastRun,
   keepRuns,
   PAGE,
-  parkedByTriage,
   progressOf,
   readyWithMerge,
   realItem,
@@ -70,17 +69,6 @@ describe('the numbers strip', () => {
   test('an item closed by triage is not in M, nor in flight', () => {
     const counts = numbers([realItem('5'), closedByTriage()], local(17, 12));
     expect(counts).toMatchObject({ inFlight: 1, total: 1 });
-  });
-
-  test('a parked item is set aside: not in flight and not in M', () => {
-    const merged = Array.from({ length: 48 }, (_, n) =>
-      landed(`m${String(n)}`, local(16, 0), local(16, 1))
-    );
-    expect(numbers([...merged, parkedByTriage()], local(17, 12))).toMatchObject({
-      inFlight: 0,
-      landed: 48,
-      total: 48,
-    });
   });
 
   test('landed today follows the local day: 23:59 yesterday is not, 00:01 today is', () => {

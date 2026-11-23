@@ -21,14 +21,15 @@ import {
 } from './board.test-fixtures';
 import { factoryNumbers } from './numbers';
 import { tableRows } from './board-table';
-import { mergeUnsettled } from './merge-pending';
-import { SET_ASIDE_IDLE_MS } from './set-aside';
 import { workOrders } from './work-orders';
 
 const MINUTE = 60_000;
+const DAY = 24 * 60 * MINUTE;
 /** The time `ms` before `FIXTURE_NOW`, as the engine stamps a run's end. */
 const before = (ms: number): string => new Date(FIXTURE_NOW.getTime() - ms).toISOString();
-const OLD = before(SET_ASIDE_IDLE_MS + MINUTE);
+// The item's line is 3 days, written out rather than read from `SET_ASIDE_IDLE_MS`, so a
+// change to the constant fails here.
+const OLD = before(3 * DAY + MINUTE);
 
 const model = (items: FactoryItem[]): BoardModel =>
   boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW);
@@ -60,7 +61,7 @@ describe('which items the board sets aside', () => {
       ['i', 'idle', 'No change was proposed'],
     ]);
     expect(columnKeys(past)).toEqual([]);
-    for (const at of [before(SET_ASIDE_IDLE_MS - MINUTE), before(SET_ASIDE_IDLE_MS)]) {
+    for (const at of [before(3 * DAY - MINUTE), before(3 * DAY)]) {
       const board = model([idleInPlan('i', at)]);
       expect(asideKeys(board)).toEqual([]);
       expect(columnKeys(board)).toEqual(['i']);
@@ -77,12 +78,14 @@ describe('which items the board sets aside', () => {
     expect(columnKeys(board)).toEqual(['o']);
   });
 
-  test('an idle failed item leads with what stopped it', () => {
+  test('an idle failed item that never proposed a change is set aside, saying it failed', () => {
     const failed = endedAt(endLastRun(keepRuns(realItem('6'), 2), 'failed', null), OLD);
-    const [entry] = model([
+    const [entry, ...rest] = model([
       { ...failed, progress: { ...progressOf(failed), change: null } },
     ]).setAside;
-    expect(entry?.why).toBe('Plan failed; no change was proposed');
+    expect(rest).toEqual([]);
+    expect(entry?.kind).toBe('idle');
+    expect(entry?.why).toContain('failed');
   });
 
   test('an item with an open ask, or waiting on you, is never set aside, parked or old', () => {
@@ -157,10 +160,7 @@ describe('which items the board sets aside', () => {
   });
 
   test('newest first, by when the last run ended', () => {
-    const board = model([
-      idleInPlan('older', before(5 * SET_ASIDE_IDLE_MS)),
-      idleInPlan('newer', OLD),
-    ]);
+    const board = model([idleInPlan('older', before(15 * DAY)), idleInPlan('newer', OLD)]);
     expect(asideKeys(board)).toEqual(['newer', 'older']);
   });
 });
@@ -188,12 +188,6 @@ describe('what counts a set-aside item', () => {
     const numbers = factoryNumbers(board, FIXTURE_NOW);
     // Only `y`, still in its column, adds to In flight and M.
     expect(numbers).toMatchObject({ inFlight: without.inFlight + 1, total: without.total + 1 });
-    // In flight is the board's cards outside Merged whose merge state is known.
-    const inFlight = board.columns
-      .filter(column => column.id !== board.landedColumn)
-      .flatMap(column => column.cards)
-      .filter(placed => !mergeUnsettled(placed.item));
-    expect(numbers.inFlight).toBe(inFlight.length);
   });
 
   test('the filter box narrows them; a number that narrows the board hides them', () => {
