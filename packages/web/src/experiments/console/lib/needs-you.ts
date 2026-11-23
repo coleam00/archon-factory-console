@@ -1,4 +1,5 @@
 import type { FactoryItem } from '../skills/factory';
+import { displayItemKey } from '../factory/lib/item-key';
 import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
 
 /** A queue item a person acts on: everything but a usage limit. */
@@ -19,7 +20,7 @@ export function entryRun(entry: NeedsYouItem): { id: string; workflow: string } 
 
 /** What an `owner_lost` entry says: a run holds its item with no process to carry it on. */
 export function ownerLostMessage(item: Extract<NeedsYouItem, { kind: 'owner_lost' }>): string {
-  return `The ${item.run.workflow} run lost its owner and still holds ${item.item?.key ?? 'its item'}.`;
+  return `The ${item.run.workflow} run lost its owner and still holds ${item.item === undefined ? 'its item' : displayItemKey(item.item.key)}.`;
 }
 
 /**
