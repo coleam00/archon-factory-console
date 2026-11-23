@@ -134,7 +134,7 @@ function BoardRow({
       <Cell>
         <ItemLink projectId={projectId} itemKey={card.key} order={card.order} />
       </Cell>
-      <Cell className="min-w-48 text-text-primary">{card.title}</Cell>
+      <Cell className="min-w-32 text-text-primary">{card.title}</Cell>
       <Cell>
         {card.order === null ? null : (
           <ItemLink projectId={projectId} itemKey={card.order} order={null} />
@@ -188,7 +188,7 @@ function ItemLink({
   return (
     <Link
       to={itemPath(projectId, itemKey)}
-      className="font-mono text-console-12 text-accent-bright hover:underline"
+      className="whitespace-nowrap font-mono text-console-12 text-accent-bright hover:underline"
     >
       {displayItemKey(itemKey, order)}
     </Link>

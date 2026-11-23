@@ -19,7 +19,7 @@ export function TabLink({
     <Link
       to={to}
       aria-current={active ? 'page' : undefined}
-      className={`relative flex items-center gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out ${
+      className={`relative flex shrink-0 items-center whitespace-nowrap gap-1.5 rounded px-2 py-1 text-console-12 font-medium uppercase tracking-console-label transition-colors duration-150 ease-out ${
         active
           ? 'bg-surface-elevated text-text-primary'
           : 'text-text-tertiary hover:text-text-primary'

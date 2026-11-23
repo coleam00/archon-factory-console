@@ -348,12 +348,8 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
     // "build, narrow" stacks one outcome per line in one pill.
     // "fixed for CI" (build to CI and review) joins "built": the cards are neighbours.
     // A drop or reshape from Build skips Checks & review, so it names its target on that pill.
-    expect(forward).toEqual([
-      'build,narrow',
-      'built,fixed for CI,drop or reshape → Ready to merge',
-      'ready,drop or reshape',
-      'merged',
-    ]);
+    // Three outcomes are past the pill's two lines: it reads the first and how many more.
+    expect(forward).toEqual(['build,narrow', 'built +2', 'ready,drop or reshape', 'merged']);
     // Each is a declared arrow.
     const declared = shippedListed.declaration.map.arrows.map((_, i) => `decl:${i.toString()}`);
     for (const g of container.querySelectorAll('g[data-arrow]'))
@@ -384,6 +380,75 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
     expect(
       container.querySelector('[data-legend="send-back"]')?.getAttribute('stroke-dasharray')
     ).toBe('6 4');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a pill past two lines lists its outcomes on hover, focus and tap, and Escape shuts the list', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const tips = [...container.querySelectorAll<HTMLButtonElement>('[data-pill-tip]')];
+    // Only the pill that hides outcomes has one: "build, narrow" and "ready, drop or reshape" show all theirs.
+    expect(tips).toHaveLength(1);
+    const [tip] = tips as [HTMLButtonElement];
+    const declared = layoutMap(shippedListed.declaration).arrows.find(
+      arrow => arrow.from === 'plan-build'
+    );
+    expect(tip.getAttribute('data-pill-tip')).toBe(declared?.id ?? '');
+    const outcomes = ['built', 'fixed for CI', 'drop or reshape → Ready to merge'];
+    expect(tip.getAttribute('aria-label')).toBe(
+      `Plan & build to Checks & review: ${outcomes.join(', ')}`
+    );
+    const listed = (): string[] | undefined => {
+      const shown = container.querySelector('[role="tooltip"]');
+      return shown === null ? undefined : [...shown.children].map(line => line.textContent ?? '');
+    };
+    expect(listed()).toBeUndefined();
+    await act(async () => tip.focus());
+    expect(listed()).toEqual(outcomes);
+    expect(tip.getAttribute('aria-expanded')).toBe('true');
+    await act(async () =>
+      tip.dispatchEvent(
+        new dom.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }) as unknown as Event
+      )
+    );
+    expect(listed()).toBeUndefined();
+    await act(async () => tip.blur());
+    // A tap: a touch browser focuses no button, so the click alone opens it.
+    await act(async () => tip.click());
+    expect(listed()).toEqual(outcomes);
+    // A press on the pill keeps it open; one anywhere else shuts it, as the next tap does.
+    const press = (target: Element): Promise<void> =>
+      act(async () => {
+        target.dispatchEvent(
+          new dom.PointerEvent('pointerdown', { bubbles: true }) as unknown as Event
+        );
+      });
+    await press(tip);
+    expect(listed()).toEqual(outcomes);
+    await press(container);
+    expect(listed()).toBeUndefined();
+    await act(async () => tip.click());
+    expect(listed()).toEqual(outcomes);
+    await act(async () =>
+      tip.dispatchEvent(
+        new dom.MouseEvent('mouseout', {
+          bubbles: true,
+          relatedTarget: dom.document.body,
+        }) as unknown as Event
+      )
+    );
+    expect(listed()).toBeUndefined();
+    await act(async () =>
+      tip.dispatchEvent(
+        new dom.MouseEvent('mouseover', {
+          bubbles: true,
+          relatedTarget: dom.document.body,
+        }) as unknown as Event
+      )
+    );
+    expect(listed()).toEqual(outcomes);
   } finally {
     await unmount();
   }

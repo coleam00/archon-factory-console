@@ -192,6 +192,33 @@
 }
 
 /*
+ * A tab row (`TabRow`) stays one line and scrolls sideways where its tabs do not fit, with no
+ * scrollbar drawn. It fades only the edge tabs are hidden past (`data-fade-start`,
+ * `data-fade-end`, measured in `tab-row.ts`), so a row that fits shows every tab whole.
+ */
+.console-root .tab-row {
+  scrollbar-width: none;
+}
+.console-root .tab-row::-webkit-scrollbar {
+  display: none;
+}
+.console-root .tab-row[data-fade-end] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.console-root .tab-row[data-fade-start] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 24px), transparent);
+}
+.console-root .tab-row[data-fade-start][data-fade-end] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 24px,
+    #000 calc(100% - 24px),
+    transparent
+  );
+}
+
+/*
  * The canvases' identity (DESIGN.md, "Visual identity, 2026-11-19"): the map, How it works and
  * the stage drill-down's cards, and the two canvas viewports. Every value is static: no filter,
  * no animation, nothing a pan repaints. Named "depth", never "shadow": a shadow is a step that

@@ -386,6 +386,26 @@ describe('a stage opened over the Overview', () => {
     }
   });
 
+  test("its head lists where items go from the stage, in the view file's words", async () => {
+    const { unmount } = await mount(`${OVERVIEW}?stage=build`);
+    try {
+      const list = dialog()?.querySelector('[aria-label="Where items go from here"]');
+      expect(list?.querySelector('h4')?.textContent).toBe('Where items go from here');
+      // Every arrow out of Build, the map's "built +2" among them; not its own "answers".
+      expect([...(list?.querySelectorAll('li') ?? [])].map(li => li.textContent)).toEqual([
+        'built → Checks',
+        'fixed for CI → CI and review',
+        'replan → Plan',
+        'drop or reshape → Ready to merge',
+      ]);
+      // It sits in the head, so it stays put on every tab.
+      await click(inDialog('Items here now'));
+      expect(dialog()?.querySelector('[aria-label="Where items go from here"]')).not.toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
   test('a failed items read says why in Items here now, and Retry reads them again', async () => {
     itemsAnswer = () => Response.json({ error: 'The items read failed.' }, { status: 500 });
     const { container, unmount } = await mount(`${OVERVIEW}?stage=build`, null);

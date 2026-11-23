@@ -996,7 +996,7 @@ describe('an issue key on the board', () => {
     }
   });
 
-  test("a split member's Table row reads #136 · item keys, whose link keeps the key", async () => {
+  test("a split member's Table row reads #136 · item keys on one line, whose link keeps the key", async () => {
     const { container, unmount } = await mount(
       [member()],
       `/console/p/${ID}/factory/board?view=table`
@@ -1004,6 +1004,8 @@ describe('an issue key on the board', () => {
     try {
       const link = container.querySelector('tbody tr[data-card="issue-136-item-keys"] td a');
       expect(link?.textContent).toBe('#136 · item keys');
+      // A key never breaks inside itself: the title beside it wraps instead (#146).
+      expect(link?.classList.contains('whitespace-nowrap')).toBe(true);
       expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/issue-136-item-keys`);
     } finally {
       await unmount();

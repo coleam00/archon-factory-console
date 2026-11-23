@@ -14,6 +14,7 @@ import { ReadFailure } from '../ReadFailure';
 import { useFactoryItems } from '../useFactoryItems';
 import { ItemsHere } from './StageItems';
 import { StageDrilldown } from './StageDrilldown';
+import { StageHandOffs } from './StageHandOffs';
 import { StageWorkflow } from './StageWorkflow';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -55,7 +56,7 @@ export function useStageTab(
 
 /**
  * One stage opened, as the Overview's modal and the stage page both show it: its label and
- * blurb, then three tabs. "What this stage does" is the view file's summary, "Items here now"
+ * blurb, where items go from it, then three tabs. "What this stage does" is the view file's summary, "Items here now"
  * what sits in it, and "The real workflow" the step graph of each workflow behind it. The
  * caller holds the tab (`useStageTab`). `frame` lays out the head and the body; the modal
  * passes one that scrolls the body alone under a fixed head, the page the default column.
@@ -92,6 +93,7 @@ export function StageView({
           <p className="max-w-3xl text-console-14 leading-relaxed text-text-secondary">
             {stage.blurb}
           </p>
+          <StageHandOffs view={view} stage={stage.id} />
         </div>
         <StageTabs active={tab} onSelect={onTab} />
         <ItemsReadNotice items={items} />

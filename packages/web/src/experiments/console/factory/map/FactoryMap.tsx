@@ -16,6 +16,7 @@ import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
+import { MapPillTips } from './MapPillTips';
 import { StageModal } from './StageModal';
 import { useMapCamera } from './useMapCamera';
 import { useStageLive } from '../stage/useStageLive';
@@ -175,6 +176,7 @@ function MapCanvas({
                 card.stages.some(stage => (live.stages.get(stage)?.working ?? 0) > 0)
               }
             />
+            <MapPillTips cards={cards} arrows={layout.arrows} />
           </div>
           <MapControls zoomIn={camera.zoomIn} zoomOut={camera.zoomOut} fit={camera.fit} />
         </div>

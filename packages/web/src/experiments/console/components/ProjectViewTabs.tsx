@@ -6,6 +6,7 @@ import { needsYouCount } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
 import { useProjectAttention } from './ProjectAttention';
 import { TabLink } from './TabLink';
+import { TabRow } from './TabRow';
 
 type ProjectView = 'needs-you' | 'runs' | 'chat' | 'metrics' | 'factory';
 
@@ -26,9 +27,10 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
  * Needs you | Runs | Chat | Metrics tab control under a project, then Factory when a factory
  * view applies to the project. Needs you carries how many things need a person (`needsYouCount`:
  * the asks and waits, and on a factory project the items waiting on you), in the needs-you
- * colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the
- * active one). Only meaningful when a project is scoped, so it is rendered only under
- * `ProjectAttentionLayout`, never on the All-projects view.
+ * colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the active one),
+ * on one `TabRow`, which scrolls sideways on a phone rather than wrap. Only meaningful when a
+ * project is scoped, so it is rendered only under `ProjectAttentionLayout`, never on the
+ * All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
   const { data: factoryViews } = useFactoryViews(projectId);
@@ -36,7 +38,7 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
   const factory = factoryTabShown(factoryViews);
   const tabs = factory ? [...TABS, FACTORY_TAB] : TABS;
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <TabRow active={active}>
       {tabs.map(({ key, label, suffix }) => (
         <TabLink key={key} to={`/console/p/${projectId}${suffix}`} active={key === active}>
           {label}
@@ -47,7 +49,7 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
           )}
         </TabLink>
       ))}
-    </div>
+    </TabRow>
   );
 }
 
