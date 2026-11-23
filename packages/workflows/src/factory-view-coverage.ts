@@ -5,8 +5,8 @@
  * workflows the view lists, and every outcome such a workflow declares is placed or ended while
  * every outcome the view names is one it declares, and every result the view reads a change or
  * a round from is one the workflow returns, and every option an `answers` key words is one an
- * asks-settled hand-off of its workflow leaves on. A workflow no stage lists is not compared (`unlistedWorkflows`
- * names them), and nor is a workflow the view declares `retired`: its old runs still read, so
+ * asks-settled hand-off of its workflow leaves on. A workflow no stage lists is not compared
+ * (`unlistedWorkflows` names them), and nor is a workflow the view declares `retired`: its old runs still read, so
  * the view keeps wording them, and the pack need not have it. The schema cannot see the pack's
  * workflows; this check reads them as the pack graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
