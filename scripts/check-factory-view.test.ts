@@ -151,6 +151,44 @@ describe('runCheck', () => {
     expect(report.err.some(line => line.includes('o.p.factory-overview.json'))).toBe(true);
   });
 
+  test('fails on an overview edge between two stages the pack graph does not connect', () => {
+    const dir = packsDir();
+    const card = (id: string, col: number, opens?: string) => ({
+      id,
+      title: id,
+      text: id,
+      icon: 'list',
+      kind: 'stage',
+      col,
+      row: 1,
+      ...(opens === undefined ? {} : { opens }),
+    });
+    const closer = (id: string) => ({ cards: [card(id, 1)], edges: [] });
+    // Cards opening the view's two stages, joined both ways; the stand-in graph has no arrows.
+    const overview = {
+      version: 1,
+      pack: 'o/p',
+      title: 'How it works',
+      caption: 'How it works.',
+      root: 'top',
+      views: {
+        top: {
+          cards: [card('plan', 1, 'plan'), card('landed', 2, 'landed')],
+          edges: [
+            { from: 'plan', to: 'landed', kind: 'feeds' },
+            { from: 'landed', to: 'plan', kind: 'loops-back' },
+          ],
+        },
+        plan: closer('plan-step'),
+        landed: closer('landed-step'),
+      },
+    };
+    writeFileSync(join(dir, 'o.p.factory-overview.json'), JSON.stringify(overview));
+    const report = runCheck({ packsDir: dir, plugins: undefined, ...source({ pinned: atPin }) });
+    expect(report.code).toBe(1);
+    expect(report.err).toContain('o.p.factory-overview.json:');
+  });
+
   test('fails on a step name the pack lacks, naming it', () => {
     const dir = packsDir();
     writeFileSync(

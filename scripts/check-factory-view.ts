@@ -34,7 +34,6 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { z } from 'zod';
 import { getPluginsPath } from '@archon/paths';
 import { workflowPackReceiptSchema } from '../packages/plugin-manifest/src/index';
 import { packTreePath, receiptPath } from '../packages/plugin-manifest/src/store';
@@ -54,11 +53,32 @@ const packs = join(root, '.archon', 'packs');
 const PIN_SUFFIX = '.pack-pin.json';
 
 /** The one place a pack's commit is pinned: its GitHub `owner/name` and the commit checked. */
-const pinSchema = z.strictObject({
-  repo: z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'owner/name'),
-  commit: z.string().regex(/^[0-9a-f]{40}$/, 'a full commit sha'),
-});
-export type PackPin = z.infer<typeof pinSchema>;
+export interface PackPin {
+  repo: string;
+  commit: string;
+}
+
+/**
+ * A pin file's contents, or what is wrong with them. Read by hand rather than with zod: the
+ * repository root does not depend on zod, and a script resolves its imports from the root.
+ */
+export function parsePin(value: unknown): PackPin | { problems: string[] } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return { problems: ['expected an object { repo, commit }'] };
+  const fields = new Map(Object.entries(value));
+  const repo = fields.get('repo');
+  const commit = fields.get('commit');
+  const problems = [...fields.keys()]
+    .filter(key => key !== 'repo' && key !== 'commit')
+    .map(key => `${key}: not a pin field`);
+  const repoOk = typeof repo === 'string' && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
+  const commitOk = typeof commit === 'string' && /^[0-9a-f]{40}$/.test(commit);
+  if (!repoOk) problems.push('repo: expected owner/name');
+  if (!commitOk) problems.push('commit: expected a full commit sha');
+  return problems.length === 0 && typeof repo === 'string' && typeof commit === 'string'
+    ? { repo, commit }
+    : { problems };
+}
 
 /** The `plugins/` of the home `env` names, whether or not it exists; undefined when none is. */
 export function namedPlugins(env: Record<string, string | undefined>): string | undefined {
@@ -215,22 +235,20 @@ function readGraph(
   const pinPath = join(packsDir, `${packKey}${PIN_SUFFIX}`);
   if (!existsSync(pinPath))
     return { fails: [`${pinPath}: [pin] missing; it names the pack's repo and commit`] };
-  const pin = pinSchema.safeParse(readJson(pinPath));
-  if (!pin.success)
-    return { fails: pin.error.issues.map(issue => `${pinPath}: ${line('pin', issue)}`) };
+  const pin = parsePin(readJson(pinPath));
+  if ('problems' in pin)
+    return { fails: pin.problems.map(problem => `${pinPath}: [pin] ${problem}`) };
   if (plugins === undefined) {
-    const read = source.pinned(packKey, pin.data);
+    const read = source.pinned(packKey, pin);
     return 'error' in read
       ? {
-          fails: [
-            `${pinPath}: [pin] could not read ${pin.data.repo} at ${pin.data.commit}: ${read.error}`,
-          ],
+          fails: [`${pinPath}: [pin] could not read ${pin.repo} at ${pin.commit}: ${read.error}`],
         }
       : { graph: read.graph };
   }
   // Naming a home says the pack is installed there, and the CLI decides whether it is: a quiet
   // fallback to the pin would hide that it is not.
-  const read = source.installed(plugins, packKey, pin.data);
+  const read = source.installed(plugins, packKey, pin);
   if ('error' in read)
     return {
       fails: [
@@ -238,10 +256,10 @@ function readGraph(
           'Install the pack in that home, or unset ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME to check the pinned commit.',
       ],
     };
-  if (read.commit !== pin.data.commit)
+  if (read.commit !== pin.commit)
     return {
       fails: [
-        `${pinPath}: [pin] the pack installed in ${plugins} is at ${read.commit}, the pin at ${pin.data.commit}; ` +
+        `${pinPath}: [pin] the pack installed in ${plugins} is at ${read.commit}, the pin at ${pin.commit}; ` +
           `run \`bun run check:factory-view --pin ${packKey}\` and commit it`,
       ],
     };
@@ -341,7 +359,11 @@ function pin(packKey: string): number {
     return 1;
   }
   const path = join(packs, `${packKey}${PIN_SUFFIX}`);
-  const current = pinSchema.parse(readJson(path));
+  const current = parsePin(readJson(path));
+  if ('problems' in current) {
+    console.error(`${path}: ${current.problems.join('; ')}`);
+    return 1;
+  }
   const commit = installedCommit(plugins, current.repo);
   if (commit === undefined) {
     console.error(

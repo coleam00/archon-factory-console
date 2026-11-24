@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "Software factory",
-  "summary": "Work comes in as a work order, or as an issue someone adds the factory label to. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. A person steps in only to answer the questions an item asks, and to shape an item triage or your answer sent back to shaping.",
+  "summary": "Work comes in as a work order, or as an issue someone adds the factory label to. Order turns each one into an item the factory can read. Triage decides whether the item is worth building. Link holds it until what it depends on has landed. Plan writes down the approach. Build writes the change and opens a draft pull request. Three checks then read it (a review, a test check and a product check) and send what they find back to the builder, for up to three rounds. Once they approve, the factory reads CI and the reviews on the pull request and fixes what they raise. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it itself. A person steps in only to answer the questions an item asks, and to shape an item triage or your answer sent back to shaping.",
   "stages": [
     {
       "id": "order",
