@@ -858,11 +858,11 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
   fit the frame, the map pans sideways, opening (and Fit returning) at the row's start, so the
-  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1470 px
-  wide with its padding, so at 1440x900 Intake shows whole and Merged is off the right; it pans
-  more on smaller screens.
-- **Cards in the card language** (rule 2), at least 184 px wide by 168 tall and sized by the
-  card holding the most stages (216 by 216 for the shipped file, whose Intake holds Order,
+  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1345 px
+  wide with its padding, so at 1440x900 Intake shows whole and Merged is partly off the right;
+  it pans more on smaller screens.
+- **Cards in the card language** (rule 2), 184 px wide and at least 168 tall, the height set
+  by the card holding the most stages (216 for the shipped file, whose Intake holds Order,
   Triage and Link), every card one size so the lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
   label ("Intake", "Build", "Check", "Merge", "Merged"), then:
   - a card of one stage: the stage label (Card title role, two lines at most), its one short

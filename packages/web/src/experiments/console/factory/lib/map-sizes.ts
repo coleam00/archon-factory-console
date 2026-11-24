@@ -17,12 +17,14 @@
  *   last gap, so 72 + 48 per stage: 168 for two.
  *
  * The width holds a chip row of "2 here" and "1 needs you" (about 150 px) inside the padding,
- * so no chip row wraps. A card grows wider with its height, so it stays wider than tall.
+ * so no chip row wraps. It stays 184 whatever the height: only the rows of a card of three
+ * stages need the height, and nothing in a card needs more width.
  *
- * Fit width: the shipped map is five cards of 216 (Intake holds three stages: 72 + 3 x 48)
- * and four gaps sized to their pills, about 1470 px. The Overview's frame at 1440x900 is
- * narrower, so there the map pans at zoom 1, opening at the row's start (Intake whole, Merged
- * off the right); at 1280x720 and on a phone it pans more.
+ * Fit width: the shipped map is five cards of 184 by 216 (Intake holds three stages: 72 + 3 x
+ * 48) and four gaps sized to their pills, 1313 px, plus twice `FIT_PAD`: 1345 px. The
+ * Overview's frame at 1440x900 is narrower, so there the map pans a little at zoom 1, opening
+ * at the row's start (Intake whole, Merged partly off the right); at 1280x720 and on a phone it
+ * pans more.
  */
 export const CARD_W = 184;
 /** A card of one stage, and of two. */
@@ -34,7 +36,7 @@ const STAGE_ROW_H = 48;
 /** The size every card takes when the fullest holds `most` stages. */
 export function cardSize(most: number): { w: number; h: number } {
   const h = Math.max(CARD_H, GROUP_BASE_H + STAGE_ROW_H * most);
-  return { w: Math.max(CARD_W, h), h };
+  return { w: CARD_W, h };
 }
 
 /** The least room between two cards (rule 3), and the room kept each side of a pill there. */

@@ -945,9 +945,11 @@
       "landed": "Checks the branch after the merge"
     },
     "landgate": {
+      "gate": "Decides whether it may merge",
       "end": "Hands on the gate's answer"
     },
     "land": {
+      "land": "Merges the change",
       "end": "Hands on the merge's answer"
     },
     "close": {
