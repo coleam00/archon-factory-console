@@ -205,7 +205,7 @@ describe('the Overview', () => {
     }
   });
 
-  test('the numbers strip counts the board, each number a plain figure; only the unknown line links', () => {
+  test('the numbers strip counts the board, each number a plain figure', () => {
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     // The strip alone: the map's cards below are links drawn the same way.
     const strip = html.slice(
@@ -226,17 +226,6 @@ describe('the Overview', () => {
       expect.stringMatching(/ median to merged$/),
       // Its own read, not answered in a static render: a skeleton, no figure.
       ' found by the factory',
-    ]);
-    // Item 3's merge state could not be read: said under the tiles, the strip's one link.
-    const links = [...strip.matchAll(/<a [^>]*>/g)].map(([tag]) => [
-      /href="([^"]*)"/.exec(tag)?.[1]?.replaceAll('&amp;', '&'),
-      /title="([^"]*)"/.exec(tag)?.[1],
-    ]);
-    expect(links).toEqual([
-      [
-        `/console/p/${ID}/factory/board?show=unknown`,
-        'Open the board, only the items whose merge state could not be read',
-      ],
     ]);
     // The median says what it means on hover; no tile says where it goes.
     expect([...strip.matchAll(/<div title="([^"]*)"/g)].map(([, title]) => title)).toEqual([

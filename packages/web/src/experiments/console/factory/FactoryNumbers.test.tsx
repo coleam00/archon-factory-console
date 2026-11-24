@@ -313,8 +313,6 @@ test('a view that declares discoveries adds a tile; one that does not, none', as
     const found = [...container.querySelectorAll('[aria-label="Numbers"] li')].at(-1);
     // Two of the three findings: an item carries the third.
     expect(shown(found)).toBe('found by the factory2');
-    // A plain figure, as every tile is.
-    expect(found?.querySelector('a')).toBeNull();
     await act(async () =>
       root.render(
         <MemoryRouter>
@@ -331,7 +329,7 @@ test('a view that declares discoveries adds a tile; one that does not, none', as
   }
 });
 
-test('the tiles are plain figures: no link, nothing to focus, no words on where they go', async () => {
+test('the tiles are plain figures: no link, nothing to focus or hover, no words on where they go', async () => {
   set(K.factoryItems('cb-plain'), { items: PAGE.items, members: {} });
   set(K.factoryDiscoveries('cb-plain'), DISCOVERIES);
   const container = document.createElement('div');
@@ -353,7 +351,15 @@ test('the tiles are plain figures: no link, nothing to focus, no words on where 
       ...[...strip.querySelectorAll('*')].map(el => el.textContent ?? ''),
       ...[...strip.querySelectorAll('[title]')].map(el => el.getAttribute('title') ?? ''),
     ];
-    expect(words.filter(text => /Open/.test(text))).toEqual([]);
+    expect(words.filter(text => /Open/.test(text))).toEqual([]);
+    // No hover or pointer affordance: nothing in the strip changes under the cursor.
+    const affordances = [...strip.querySelectorAll('[class]')].flatMap(el =>
+      [...el.classList].filter(
+        name =>
+          name.startsWith('hover:') || name === 'cursor-pointer' || name.startsWith('transition')
+      )
+    );
+    expect(affordances).toEqual([]);
   } finally {
     await act(async () => root.unmount());
     container.remove();
