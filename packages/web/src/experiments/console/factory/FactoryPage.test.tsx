@@ -264,9 +264,10 @@ describe('the Overview', () => {
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
   });
 
-  test('the sub-navigation is Overview and Board only, on both pages', () => {
+  test('the sub-navigation is Overview, Board and Settings, on each page', () => {
     // The view's pack is listed and an ask waits: what used to add How it works and a
-    // counted Needs you link. Both live elsewhere now (the sidebar, the project tab).
+    // counted Needs you link. Both live elsewhere now (the sidebar, the project tab); the
+    // project's Settings live here (owner change of 2026-11-23).
     set(K.factoryPacks, {
       packs: [
         {
@@ -290,7 +291,11 @@ describe('the Overview', () => {
           .matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g),
       ].map(([, href, body]) => `${href ?? ''} ${(body ?? '').replace(/<[^>]*>/g, '')}`);
     };
-    const links = [`/console/p/${ID}/factory Overview`, `/console/p/${ID}/factory/board Board`];
+    const links = [
+      `/console/p/${ID}/factory Overview`,
+      `/console/p/${ID}/factory/board Board`,
+      `/console/p/${ID}/factory/settings Settings`,
+    ];
     const overview = render(`/console/p/${ID}/factory`, withView, asking);
     expect(subNav(overview)).toEqual(links);
     expect(overview).not.toContain('/console/factory/acme.kit');

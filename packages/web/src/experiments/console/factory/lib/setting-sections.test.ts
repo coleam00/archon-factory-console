@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryPackSettings } from '../../skills/factory';
-import { groupSettings, OTHER_SECTION, projectInFocus, settingCounts } from './setting-sections';
+import { groupSettings, OTHER_SECTION, settingCounts } from './setting-sections';
 
 type Setting = FactoryPackSettings['settings'][number];
 type Section = FactoryPackSettings['sections'][number];
@@ -80,26 +80,5 @@ describe('settingCounts', () => {
     const none = { total: 6, set: null, packDefault: null, shadows: 2 };
     expect(settingCounts(SETTINGS, project({}, 'not valid YAML'))).toEqual(none);
     expect(settingCounts(SETTINGS, undefined)).toEqual(none);
-  });
-});
-
-describe('projectInFocus', () => {
-  const project = (codebaseId: string, name: string): ProjectSettings => ({
-    codebaseId,
-    name,
-    error: null,
-    values: {},
-    undeclared: [],
-  });
-  const projects = [project('cb-1', 'web'), project('cb-2', 'api')];
-
-  test('the requested project, else the first by name, else none', () => {
-    expect(projectInFocus(projects, 'cb-1').project?.name).toBe('web');
-    expect(projectInFocus(projects, null).project?.name).toBe('api');
-    expect(projectInFocus([], null)).toEqual({ project: undefined, unknown: null });
-  });
-
-  test('a requested id no project has is named, and no project is shown', () => {
-    expect(projectInFocus(projects, 'cb-9')).toEqual({ project: undefined, unknown: 'cb-9' });
   });
 });

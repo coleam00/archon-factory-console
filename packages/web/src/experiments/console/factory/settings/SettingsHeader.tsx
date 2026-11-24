@@ -1,7 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { useLocation } from 'react-router';
 import type { FactoryPackSettings } from '../../skills/factory';
-import { TabLink } from '../../components/TabLink';
 import { HeaderBand, StatChip } from '../document';
 import { settingCounts } from '../lib/setting-sections';
 
@@ -10,9 +8,8 @@ type ProjectSettings = FactoryPackSettings['projects'][number];
 const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
 
 /**
- * The Settings page's header band (owner change 6 of 2026-11-21): how the project in focus has
- * set up its factory, counted; with no project, how the pack is set up. With several projects,
- * a link to each.
+ * The Settings page's header band (owner change 6 of 2026-11-21): how this project has set up
+ * its factory, counted; with no project read, how the pack is set up. It names no other project.
  */
 export function SettingsHeader({
   settings,
@@ -56,41 +53,18 @@ export function SettingsHeader({
           : `How ${project.name} has set up its factory`
       }
       sentence={
-        project === undefined
-          ? `Every setting of ${packName}, grouped by what it governs, with the pack's defaults.`
-          : `Every setting of ${packName}, grouped by what it governs: what ${project.name} sets, and where it falls back to the pack.`
+        <>
+          {project === undefined
+            ? `Every setting of ${packName}, grouped by what it governs, with the pack's defaults.`
+            : `Every setting of ${packName}, grouped by what it governs: what ${project.name} sets, and where it falls back to the pack.`}
+          {/* Where the page reads, quietly: the band replaces the pack page's Source toggle. */}
+          <span className="block text-console-13 text-text-tertiary">
+            Read from <span title={settings.declaration?.path}>the pack&apos;s declaration</span>{' '}
+            and this project&apos;s <span className="font-mono">{settings.settingsFile}</span>
+          </span>
+        </>
       }
       chips={chips}
-      aside={
-        settings.projects.length > 1 ? (
-          <ProjectSwitch projects={settings.projects} focus={project} />
-        ) : undefined
-      }
     />
-  );
-}
-
-/** One link per project that runs the pack, the one in focus active; the query keeps the page. */
-export function ProjectSwitch({
-  projects,
-  focus,
-}: {
-  projects: readonly ProjectSettings[];
-  focus: ProjectSettings | undefined;
-}): ReactElement {
-  const { pathname } = useLocation();
-  const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name));
-  return (
-    <nav aria-label="Project" className="flex flex-wrap items-center gap-1">
-      {sorted.map(project => (
-        <TabLink
-          key={project.codebaseId}
-          to={`${pathname}?project=${encodeURIComponent(project.codebaseId)}`}
-          active={project.codebaseId === focus?.codebaseId}
-        >
-          {project.name}
-        </TabLink>
-      ))}
-    </nav>
   );
 }

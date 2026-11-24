@@ -45,7 +45,7 @@ test('the map counts what the board counts: a set-aside item is in no stage', ()
   const onBoard = board.columns.flatMap(column =>
     column.cards.map(placed => [stageIdOf(placed), placed.item.item.key])
   );
-  const onMap = [...map.stages].flatMap(([stage, live]) =>
+  const onMap: (string | null)[][] = [...map.stages].flatMap(([stage, live]) =>
     live.items.map(item => [stage, item.item.key])
   );
   expect(onMap).toEqual(onBoard);
