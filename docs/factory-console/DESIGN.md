@@ -380,7 +380,7 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   columns fit beside the sidebar at 1440x900, 5 x 208 + 4 x 12 = 1088 of 1100 px; narrower
   windows scroll sideways).
 - The project tabs stay one line: where they do not fit (on a phone), the row scrolls sideways
-  with no scrollbar. A tab link (`TabLink`) never wraps or squeezes its label.
+  with no scrollbar and brings the active tab into view (owner, 2026-11-24). A tab link (`TabLink`) never wraps or squeezes its label.
 
 ### 4. Lines
 

@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import { factoryTabShown } from '../factory/lib/views';
 import { useFactoryItems } from '../factory/useFactoryItems';
 import { useFactoryViews } from '../factory/useFactoryViews';
@@ -28,8 +28,8 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
  * the asks and waits, and on a factory project the items waiting on you), in the needs-you
  * colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the active one),
  * on one row, which scrolls sideways on a phone rather than wrap (no scrollbar drawn; the
- * bottom padding holds the active tab's brand bar, which a scrolling row would clip). Only meaningful when a
- * project is scoped, so it is rendered only under `ProjectAttentionLayout`, never on the
+ * bottom padding holds the active tab's brand bar, which a scrolling row would clip). Only
+ * meaningful when a project is scoped, so it is rendered only under `ProjectAttentionLayout`, never on the
  * All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
@@ -37,8 +37,28 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
   const attention = useProjectAttention();
   const factory = factoryTabShown(factoryViews);
   const tabs = factory ? [...TABS, FACTORY_TAB] : TABS;
+  const row = useRef<HTMLDivElement>(null);
+  // Bring the active tab into view, on the tab count too: Factory, last, joins once the views
+  // are read. Again once the web font has loaded, which widens every tab after a first paint.
+  // The row scrolls itself; scrollIntoView would scroll the page as well.
+  useEffect(() => {
+    const reveal = (): void => {
+      const tab = row.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      if (row.current == null || tab == null) return;
+      const { scrollLeft, clientWidth } = row.current;
+      if (tab.offsetLeft < scrollLeft) row.current.scrollLeft = tab.offsetLeft;
+      else if (tab.offsetLeft + tab.offsetWidth > scrollLeft + clientWidth)
+        row.current.scrollLeft = tab.offsetLeft + tab.offsetWidth - clientWidth;
+    };
+    reveal();
+    // happy-dom has no font loading.
+    void document.fonts?.ready.then(reveal);
+  }, [active, tabs.length]);
   return (
-    <div className="tab-row flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto pb-0.5">
+    <div
+      ref={row}
+      className="tab-row relative flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto pb-0.5"
+    >
       {tabs.map(({ key, label, suffix }) => (
         <TabLink key={key} to={`/console/p/${projectId}${suffix}`} active={key === active}>
           {label}

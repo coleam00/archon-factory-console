@@ -85,3 +85,48 @@ test('on a phone the project tabs stay one line and scroll sideways, no tab sque
     container.remove();
   }
 });
+
+test('on a phone the active Factory tab, last in the row, is scrolled into view', async () => {
+  // happy-dom lays nothing out: each tab is 90 px wide, 100 px after the last, in a 390 px row,
+  // so Factory sits at 400..490 and the row must scroll 100 px to show it whole.
+  const proto = dom.HTMLElement.prototype;
+  const stubbed = {
+    clientWidth: () => 390,
+    offsetWidth: () => 90,
+    offsetLeft(this: HTMLElement) {
+      const parent = this.parentElement;
+      return parent === null ? 0 : [...parent.children].indexOf(this) * 100;
+    },
+  };
+  const originals = Object.keys(stubbed).map(
+    key => [key, Object.getOwnPropertyDescriptor(proto, key)] as const
+  );
+  for (const [key, get] of Object.entries(stubbed))
+    Object.defineProperty(proto, key, { configurable: true, get });
+  // Factory joins once the views are read: the row reveals it then too.
+  invalidate('factory-views');
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    const render = () =>
+      root.render(
+        <MemoryRouter>
+          <ProjectAttentionProvider projectId={ID}>
+            <ProjectViewTabs projectId={ID} active="factory" />
+          </ProjectAttentionProvider>
+        </MemoryRouter>
+      );
+    await act(async () => render());
+    const row = container.querySelector<HTMLElement>('a')?.parentElement;
+    expect(row?.scrollLeft).toBe(0);
+    await act(async () => set(K.factoryViews(ID), { views: [shippedListed], errors: [] }));
+    expect(row?.scrollLeft).toBe(100);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    for (const [key, original] of originals)
+      if (original) Object.defineProperty(proto, key, original);
+      else Reflect.deleteProperty(proto, key);
+  }
+});
