@@ -52,6 +52,7 @@ const delivered = (recorded: DeliveredRun['recorded']): DeliveredRun => ({
   branches: async () => ['archon/task-1'],
   recorded,
 });
+const MERGED_AT = '2026-11-20T12:00:00.000Z';
 const url = `changeRun=r1&changeUrl=${encodeURIComponent(PR)}`;
 
 describe('GET /api/forge/subjects', () => {
@@ -70,13 +71,42 @@ describe('GET /api/forge/subjects', () => {
     expect(asked.changes).toBe(1);
   });
 
-  test('an unrecorded change asks the forge once within the cache time', async () => {
+  test('an unrecorded change asks once within the cache time, then refreshes until it merged', async () => {
     let clock = 0;
-    const { read, asked } = appWith({ runs: { r1: delivered(null) }, now: () => clock });
+    let merged = false;
+    const { read, asked } = appWith({
+      runs: { r1: delivered(null) },
+      now: () => clock,
+      state: async () => ({ url: PR, merged, mergedAt: merged ? MERGED_AT : null, number: 112 }),
+    });
     expect((await read(url)).body.changes[0]).toMatchObject({ merged: false, number: 112 });
     clock = 30_000;
     await read(url);
     expect(asked.changes).toBe(1);
+    // A minute on, the change merged on the forge: the stale answer is served once while it
+    // refreshes, and the next read has the merge.
+    merged = true;
+    clock = 60_000;
+    expect((await read(url)).body.changes[0]?.merged).toBe(false);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    expect((await read(url)).body.changes[0]).toMatchObject({ merged: true, mergedAt: MERGED_AT });
+    expect(asked.changes).toBe(2);
+    // A merge does not come undone: it is never asked again.
+    clock = 10_000_000;
+    await read(url);
+    expect(asked.changes).toBe(2);
+  });
+
+  test('a forge that throws answers unknown, and the read still answers', async () => {
+    const { read } = appWith({
+      runs: { r1: delivered(null) },
+      state: async () => {
+        throw new Error('forge down');
+      },
+    });
+    const { status, body } = await read(url);
+    expect(status).toBe(200);
+    expect(body.changes[0]).toMatchObject({ url: PR, merged: 'unknown' });
   });
 
   test('a slow forge answers pending, and the next read has its answer', async () => {

@@ -157,7 +157,7 @@ function readOf(item: FactoryItem): ItemRead {
 /**
  * The record a run's progress was derived from, as far as the board reads it: the step it
  * runs, the step it failed at, and the change it named. Rounds, returns and held items are
- * read from real records in `run-facts.test.ts`, not rebuilt here.
+ * tested over records in `run-facts.test.ts` and `item-progress.test.ts`, not rebuilt here.
  */
 function recordOf(item: FactoryItem, run: FactoryItem['runs'][number]): RunRecord {
   const progress = item.progress;

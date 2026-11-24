@@ -68,7 +68,10 @@ shape until the graph is read, which can take a while the first time. A
   title, pull request, when it merged). On a phone the columns stack and each shows its first
   three cards, with "show all N" for the rest. An item's title is its issue's, as the project's
   forge names it, for a key that names an issue (`issue-<n>` or `<n>`); any other key, or one
-  the forge has not answered for yet, reads as the key.
+  the forge has not answered for yet, reads as the key. A forge that cannot answer (no plugin,
+  or `gh` not signed in) leaves every card on its key until a later read succeeds: the server
+  logs `forge_issue_unknown` with why, and keeps a failed answer for 10 minutes before asking
+  again.
   A **Table** view lists the same fields as sortable columns, the stage and the board column
   among them. The filter box finds an item by
   key, title or the key of its work order.

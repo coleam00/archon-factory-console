@@ -33,8 +33,8 @@ export interface DeriveReads {
 
 type ItemRun = ItemRead['runs'][number];
 
-/** The most run ids one records request names (the route's bound). */
-const RECORDS_PAGE = 100;
+/** The most run ids one records request names: the route's bound, `RUN_RECORDS_MAX` (scripts/run-records-page-parity.test.ts). */
+export const RECORDS_PAGE = 100;
 /** The most issues and changes one forge request names, keeping its URL short. */
 const FORGE_PAGE = 40;
 /** How many ended runs' records a page keeps; about every run of a large project. */

@@ -18,6 +18,9 @@ import {
 } from './store/event-types';
 import { buildNodeOutcomes, getTerminalRecord } from './terminal-record';
 
+/** The most runs one records read names (`GET /api/workflows/runs/records`). */
+export const RUN_RECORDS_MAX = 100;
+
 /** The event types `runRecord` reads: node state, loop iterations and the terminal events. */
 export const RUN_RECORD_EVENT_TYPES: readonly WorkflowEventType[] = [
   ...NODE_STATE_EVENT_TYPES,

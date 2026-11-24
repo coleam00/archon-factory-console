@@ -134,3 +134,24 @@ test('members come from links; an order the window lacks is read by key, and one
   expect(result.members['48']).toEqual(['49', '50', '51']);
   expect('60' in result.members).toBe(false);
 });
+
+test('a project with more runs than one records request holds is read a page at a time', async () => {
+  // Each item has one run; 150 of them is more than the server's 100 ids a request.
+  const items = Array.from({ length: 150 }, (_, i) =>
+    at(captured[0]!, `k${String(i)}`, '2026-11-17T00:00:00.000Z')
+  );
+  const { deps } = reads([page(items, null)], items);
+  const asked: number[] = [];
+  const paged: FactoryItemsReads = {
+    ...deps,
+    getRunRecords: async (ids, fields, init) => {
+      asked.push(ids.length);
+      // As the server answers: more than 100 ids is a 400.
+      if (ids.length > 100) throw new HttpError(400, '/api/workflows/runs/records', '');
+      return deps.getRunRecords(ids, fields, init);
+    },
+  };
+  const read = await readEveryFactoryItem('cb-1', paged, within);
+  expect(Math.max(...asked)).toBeLessThanOrEqual(100);
+  expect(read.items.every(item => item.progress !== null)).toBe(true);
+});

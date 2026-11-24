@@ -18,7 +18,7 @@ import { loopRoundSchema } from '@archon/workflows/schemas/loop-rounds';
 import { openAttentionQueueCountsSchema } from '@archon/workflows/attention-counts';
 import { attentionQueueItemSchema } from '@archon/workflows/attention-queue';
 import { itemReadSchema } from '@archon/workflows/item-read';
-import { runRecordSchema } from '@archon/workflows/run-records';
+import { RUN_RECORDS_MAX, runRecordSchema } from '@archon/workflows/run-records';
 import { itemWindowSchema } from '@archon/workflows/item-window';
 import { packGraphSchema } from '@archon/workflows/pack-graph';
 import { itemRulingSchema } from '@archon/workflows/schemas/item-ruling';
@@ -232,9 +232,6 @@ export const workflowEventSchema = workflowEventRowSchema
     }),
   })
   .openapi('WorkflowEvent');
-
-/** The most runs one `GET /api/workflows/runs/records` request reads. */
-export const RUN_RECORDS_MAX = 100;
 
 /** GET /api/workflows/runs/records query: `runId` repeated once per run. */
 export const runRecordsQuerySchema = z.object({
