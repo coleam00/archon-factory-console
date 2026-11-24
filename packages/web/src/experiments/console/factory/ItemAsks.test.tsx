@@ -151,7 +151,12 @@ describe("an item's open ask", () => {
     const six = realItem('6');
     const ask = askOn(six);
     set(FK.factoryViews(PROJECT), { views: [shippedListed], errors: [] });
-    set(FK.factoryItems(PROJECT), { items: [{ ...six, questions: [ask] }], members: {} });
+    set(FK.factoryItems(PROJECT), {
+      items: [{ ...six, questions: [ask] }],
+      members: {},
+      lookups: {},
+      titlesPending: false,
+    });
     set(K.runsAttention, attentionRead([ask]));
     const page = await mount(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory`]}>
