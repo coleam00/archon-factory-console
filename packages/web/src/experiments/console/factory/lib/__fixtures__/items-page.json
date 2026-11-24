@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/items?limit=100 from bun run dev:console, seeded 2026-11-17 with a read-only copy of the live factory database. Item answers dropped; nothing else changed.",
+  "note": "GET /api/factory/items?limit=100 from bun run dev:console, seeded 2026-11-17 with a read-only copy of the live factory database. Item answers dropped. Fields the API gained after the capture are filled as an item without them reads them (run pack, spend, pause and result fields; item skipped, waits, run limit, merged and landing; progress partOf; each run_ended cause the arrow id the same arrow carries in later captures). The retired round verdict `ended` reads as the API reads it now: approve as approved, ask as undecided.",
   "pack": "Wirasm/archon-software-factory",
   "items": [
     {

@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 111, copied 2026-11-22 from dev:console on a fresh read-only copy of the live factory database, after #122 added each run's change, said, models and steps.",
+  "note": "GET /api/factory/item for item 111, copied 2026-11-22 from dev:console on a fresh read-only copy of the live factory database, after #122 added each run's change, said, models and steps. Run pack and the item run limit, which the API gained after the capture, filled as null.",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {

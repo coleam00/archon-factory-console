@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 1, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided. progress.runs added after capture, from this response's runs[].workflow (none of these runs failed, so failedStep is null).",
+  "note": "GET /api/factory/item for item 1, copied 2026-11-17 from the live factory via dev:console (a read-only copy of its database); long strings trimmed. Round verdicts 'ended' re-read under #4's declared approval: 'approve' as approved, any other outcome undecided. progress.runs added after capture, from this response's runs[].workflow (none of these runs failed, so failedStep is null). Fields the API gained after the capture are filled as an item without them reads them (run pack, spend, pause and result fields; item skipped, waits, run limit, merged and landing; progress partOf; each run_ended cause the arrow id the same arrow carries in later captures).",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {

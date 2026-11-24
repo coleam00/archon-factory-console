@@ -1,5 +1,5 @@
 {
-  "note": "GET /api/factory/item for item 113, copied 2026-11-22 from dev:console on a fresh read-only copy of the live factory database, after #122 added each run's change, said, models and steps.",
+  "note": "GET /api/factory/item for item 113, copied 2026-11-22 from dev:console on a fresh read-only copy of the live factory database, after #122 added each run's change, said, models and steps. Run pack and the item run limit, which the API gained after the capture, filled as null. The live home path is replaced by <live-home>.",
   "response": {
     "pack": "Wirasm/archon-software-factory",
     "item": {
@@ -310,7 +310,7 @@
                   "name": "lint",
                   "passed": false,
                   "seconds": 1,
-                  "tail": "$ bun run scripts/check-test-cleanup-drift.ts && bun run scripts/check-mock-modules.ts && bun run scripts/check-pack-portability.ts && bun run scripts/check-workflow-persistence.ts && bun run scripts/check-sdk-type-drift.ts && bun run scripts/check-web-api-types.ts && bun run scripts/check-console-tokens.ts && biome lint --error-on-warnings .\nerror: Cannot find package 'typescript' from 'C:\\Users\\colem\\.archon-fc\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\check-test-cleanup-drift.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"lint\" exited with code 1"
+                  "tail": "$ bun run scripts/check-test-cleanup-drift.ts && bun run scripts/check-mock-modules.ts && bun run scripts/check-pack-portability.ts && bun run scripts/check-workflow-persistence.ts && bun run scripts/check-sdk-type-drift.ts && bun run scripts/check-web-api-types.ts && bun run scripts/check-console-tokens.ts && biome lint --error-on-warnings .\nerror: Cannot find package 'typescript' from '<live-home>\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\check-test-cleanup-drift.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"lint\" exited with code 1"
                 },
                 {
                   "name": "format",
@@ -322,7 +322,7 @@
                   "name": "web tests",
                   "passed": false,
                   "seconds": 2,
-                  "tail": "$ bun run ../../scripts/package-tests.ts\nerror: Cannot find module '@archon/paths/test-utils' from 'C:\\Users\\colem\\.archon-fc\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\bun-test-command.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"test\" exited with code 1"
+                  "tail": "$ bun run ../../scripts/package-tests.ts\nerror: Cannot find module '@archon/paths/test-utils' from '<live-home>\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\bun-test-command.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"test\" exited with code 1"
                 }
               ]
             }
@@ -540,7 +540,7 @@
                   "name": "lint",
                   "passed": false,
                   "seconds": 1,
-                  "tail": "$ bun run scripts/check-test-cleanup-drift.ts && bun run scripts/check-mock-modules.ts && bun run scripts/check-pack-portability.ts && bun run scripts/check-workflow-persistence.ts && bun run scripts/check-sdk-type-drift.ts && bun run scripts/check-web-api-types.ts && bun run scripts/check-console-tokens.ts && biome lint --error-on-warnings .\nerror: Cannot find package 'typescript' from 'C:\\Users\\colem\\.archon-fc\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\check-test-cleanup-drift.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"lint\" exited with code 1"
+                  "tail": "$ bun run scripts/check-test-cleanup-drift.ts && bun run scripts/check-mock-modules.ts && bun run scripts/check-pack-portability.ts && bun run scripts/check-workflow-persistence.ts && bun run scripts/check-sdk-type-drift.ts && bun run scripts/check-web-api-types.ts && bun run scripts/check-console-tokens.ts && biome lint --error-on-warnings .\nerror: Cannot find package 'typescript' from '<live-home>\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\check-test-cleanup-drift.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"lint\" exited with code 1"
                 },
                 {
                   "name": "format",
@@ -552,7 +552,7 @@
                   "name": "web tests",
                   "passed": false,
                   "seconds": 2,
-                  "tail": "$ bun run ../../scripts/package-tests.ts\nerror: Cannot find module '@archon/paths/test-utils' from 'C:\\Users\\colem\\.archon-fc\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\bun-test-command.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"test\" exited with code 1"
+                  "tail": "$ bun run ../../scripts/package-tests.ts\nerror: Cannot find module '@archon/paths/test-utils' from '<live-home>\\workspaces\\coleam00\\archon-factory-console\\worktrees\\archon\\task-wirasm-archon-software-factory-deliver-2ec16169\\scripts\\bun-test-command.ts'\n\nBun v1.4.2 (Windows x64)\nerror: script \"test\" exited with code 1"
                 }
               ]
             }
