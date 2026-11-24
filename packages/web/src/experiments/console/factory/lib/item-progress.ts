@@ -91,10 +91,29 @@ const board = (rounds: readonly FactoryRound[]): BoardRound['rounds'] =>
   rounds.map(({ iteration, verdict, outcome }) => ({ iteration, verdict, outcome }));
 
 /**
+ * A stage-form source's rounds across its runs (newest first, each a run's one round), taken
+ * while each older round is numbered below the one after it: the rounds since the item was
+ * last planned, as the pack numbered them. Oldest first.
+ */
+function stageRounds(
+  newestFirst: readonly ItemRun[],
+  facts: ReadonlyMap<string, RunFacts>
+): { runId: string; max: number | null; round: FactoryRound }[] {
+  const taken: { runId: string; max: number | null; round: FactoryRound }[] = [];
+  for (const run of newestFirst) {
+    const own = facts.get(run.id)?.rounds;
+    const round = own?.rounds.at(-1);
+    if (own == null || round === undefined) continue;
+    const after = taken.at(-1);
+    if (after !== undefined && round.iteration >= after.round.iteration) break;
+    taken.push({ runId: run.id, max: own.max, round });
+  }
+  return taken.reverse();
+}
+
+/**
  * The item's rounds, from the rounds source of the newest declared run that recorded one: the
- * loop on that run, or, for a stage-form source, its runs' rounds newest first, taken while
- * each older round is numbered below the one after it (the rounds since the item was last
- * planned, as the pack numbered them).
+ * loop on that run, or a stage-form source's rounds across its runs (`stageRounds`).
  */
 function itemRound(
   view: FactoryViewListed,
@@ -115,16 +134,10 @@ function itemRound(
         max: rounds.max,
         rounds: board(rounds.rounds),
       };
-    const taken: { runId: string; max: number | null; round: FactoryRound }[] = [];
-    for (const other of newestFirst.filter(o => workflowOf(o) === workflowOf(run))) {
-      const own = facts.get(other.id)?.rounds;
-      const round = own?.rounds.at(-1);
-      if (own == null || round === undefined) continue;
-      const after = taken.at(-1);
-      if (after !== undefined && round.iteration >= after.round.iteration) break;
-      taken.push({ runId: other.id, max: own.max, round });
-    }
-    taken.reverse();
+    const taken = stageRounds(
+      newestFirst.filter(o => workflowOf(o) === workflowOf(run)),
+      facts
+    );
     const newest = taken.at(-1);
     if (newest === undefined) return null;
     return {

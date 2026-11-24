@@ -110,17 +110,25 @@ export async function recordsOf(
     pages.map(page => within(signal => reads.getRunRecords(page, fields, { signal })))
   );
   for (const read of pageReads) for (const record of read.records) records.set(record.id, record);
+  keep(runs, fields, records);
+  return records;
+}
+
+/** Keeps the records of `runs` that ended, as read, the oldest going first past the bound. */
+function keep(
+  runs: readonly ItemRun[],
+  fields: RecordFields,
+  records: ReadonlyMap<string, RunRecord>
+): void {
   for (const run of runs) {
     const key = keyOf(run, fields);
     const record = records.get(run.id);
-    if (key === null || record === undefined || record.status !== run.status) continue;
-    kept.set(key, record);
+    if (key !== null && record !== undefined && record.status === run.status) kept.set(key, record);
   }
   for (const oldest of kept.keys()) {
     if (kept.size <= KEPT_RECORDS) break;
     kept.delete(oldest);
   }
-  return records;
 }
 
 /** The facts of every declared run of `items` that has a record. */

@@ -60,9 +60,10 @@ function appWith(runs: WorkflowRun[], events: Record<string, WorkflowEventRow[]>
   };
   const app = new OpenAPIHono();
   registerRunRecordsRoute(app, deps);
-  const read = async (ids: string[]) => {
+  const read = async (ids: string[], outputKeys: string[] = []) => {
     const query = new URLSearchParams();
     for (const id of ids) query.append('runId', id);
+    for (const key of outputKeys) query.append('outputKey', key);
     return app.request(`/api/workflows/runs/records?${query.toString()}`);
   };
   return { read, loaded };
@@ -105,6 +106,20 @@ describe('GET /api/workflows/runs/records', () => {
     await read(['ended', 'going']);
     await read(['ended', 'going']);
     expect(loaded).toEqual([['ended', 'going'], ['going']]);
+  });
+
+  test('keeps only the output and result fields asked for', async () => {
+    const done = run('done', 'completed');
+    const output = { outcome: 'approve', summary: 'ok', findings: ['long'] };
+    const { read } = appWith([done], {
+      done: [
+        event('done', 1, 'node_started', 'a'),
+        event('done', 2, 'node_completed', 'a', { structured_output: output }),
+      ],
+    });
+    const res = await read(['done'], ['outcome']);
+    const body = runRecordsResponseSchema.parse(await res.json());
+    expect(body.records[0]?.node_outcomes.nodes[0]?.output).toEqual({ outcome: 'approve' });
   });
 
   test('refuses more than 100 ids', async () => {
