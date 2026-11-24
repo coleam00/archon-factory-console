@@ -35,10 +35,13 @@ Visual standard below still bind everything a person sees):
   counted or described, and no code exists to do so.
 - **Regex parsing of agent prose**: no reading of ask options, "The stage recommends", "No
   recommendation:", item titles or findings out of text. Ask options and the recommendation
-  come from what the workflow declares (#6139); titles from the item record or the forge;
+  come from the ask record (its structured options and `recommendation.option`; #6139 lets a
+  workflow declare them); titles from the item record or the forge;
   findings link to items by id.
 - **Any change to Archon's own Console outside `factory/`**: the answer panel, the ask card, the
-  project tab order, Needs you, and every generic page stay exactly as on Archon dev. The
+  project tabs (Runs, Chat, Metrics) and every generic page stay exactly as on Archon dev. There
+  is no Needs you tab: Archon dev has none, and the factory's asks show on its board and item
+  pages through Archon's own ask components. The
   factory adds a sidebar entry, a project tab and their routes, nothing else, and its view is
   read only for a project whose pack has one.
 
