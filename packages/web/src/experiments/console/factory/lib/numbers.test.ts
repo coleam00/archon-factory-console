@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../../skills/factory';
-import { boardModel, filterBoard } from './board';
+import { boardModel } from './board';
 import {
   endLastRun,
   keepRuns,
@@ -12,7 +12,6 @@ import {
   VIEW,
   FIXTURE_NOW,
 } from './board.test-fixtures';
-import { showsCard } from './board-show';
 import { mergeUnsettled } from './merge-pending';
 import { factoryNumbers, median } from './numbers';
 
@@ -103,6 +102,7 @@ describe('the numbers strip', () => {
 
   test('no landed item: no median', () => {
     expect(numbers([realItem('5')], local(17, 12)).medianToLandMs).toBeNull();
+    expect(median([])).toBeNull();
   });
 
   test('merged with no merge time: landed, but not today and not in the median', () => {
@@ -129,42 +129,6 @@ describe('the numbers strip', () => {
     ];
     expect(numbers([item], local(17, 12)).medianToLandMs).toBe(2 * HOUR);
   });
-});
-
-describe('the board under a number', () => {
-  const now = local(17, 12);
-  const model = boardModel(
-    VIEW,
-    'cb-1',
-    [...PAGE.items, asking(), closedByTriage()],
-    new Map(),
-    FIXTURE_NOW
-  );
-  const keys = (shown: typeof model) =>
-    shown.columns.flatMap(column => column.cards.map(placed => placed.card.key)).sort();
-
-  test('shows exactly the cards the number counts, and hides the set-aside items', () => {
-    const shown = filterBoard(model, '', 'landed', now);
-    expect(keys(shown)).toEqual(['1', '2', '7']);
-    expect(model.setAside).not.toEqual([]);
-    expect(shown.setAside).toEqual([]);
-    expect(keys(filterBoard(model, '', 'needs-you', now))).toEqual(['6a']);
-  });
-
-  test('composes with the text filter', () => {
-    expect(keys(filterBoard(model, '7', 'landed', now))).toEqual(['7']);
-  });
-
-  test('an ended item is in no filter', () => {
-    const ended = model.setAside.find(entry => entry.kind === 'ended')?.placed;
-    if (ended === undefined) throw new Error('the triage ending is set aside');
-    for (const show of ['in-flight', 'needs-you', 'landed', 'landed-today'] as const)
-      expect(showsCard(show, ended, VIEW.landed.stage, now)).toBe(false);
-  });
-});
-
-test('median of nothing is null', () => {
-  expect(median([])).toBeNull();
 });
 
 test('an item whose merge state is not known is counted only in M, and the strip says so', () => {

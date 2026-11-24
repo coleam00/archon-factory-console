@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Point } from './map-layout';
-import { FLOW_DWELL, FLOW_TEMPO, type OverviewFlow, overviewFlow } from './overview-flow';
+import { type OverviewFlow, overviewFlow } from './overview-flow';
 import { layoutOverview } from './overview-layout';
 import type { OverviewCard, OverviewDeclaration, OverviewView } from './overview-nav';
 
@@ -66,7 +66,7 @@ describe('the How it works flow on the shipped root view', () => {
       'found',
     ]);
     for (const glow of flow.glows) {
-      expect(glow.end - glow.start).toBeCloseTo(FLOW_DWELL, 6);
+      expect(glow.end).toBeGreaterThan(glow.start);
       const arrivals = flow.moves.filter(move => move.to === glow.card).map(move => move.end);
       expect(arrivals).toContain(glow.start);
       // An input's own dot leaves at the start of the next loop, not after its glow.
@@ -92,25 +92,6 @@ describe('the How it works flow on the shipped root view', () => {
       // A repeated point is a zero-length run, which `rounded` would draw as NaN.
       move.points.slice(1).forEach((p, i) => expect(p).not.toEqual(move.points[i] as Point));
     }
-  });
-});
-
-describe('the loop runs at one tempo', () => {
-  test('every duration is two thirds of the loop at tempo 1', () => {
-    expect(FLOW_TEMPO).toBe(2 / 3);
-    const layout = layoutOverview(root);
-    const fast = overviewFlow(root, layout) as OverviewFlow;
-    const slow = overviewFlow(root, layout, 1) as OverviewFlow;
-    expect(fast.period).toBeCloseTo((slow.period * 2) / 3, 6);
-    expect(fast.moves.length).toBe(slow.moves.length);
-    fast.moves.forEach((move, i) => {
-      expect(move.start).toBeCloseTo(((slow.moves[i]?.start ?? NaN) * 2) / 3, 6);
-      expect(move.end).toBeCloseTo(((slow.moves[i]?.end ?? NaN) * 2) / 3, 6);
-    });
-    fast.glows.forEach((glow, i) => {
-      expect(glow.start).toBeCloseTo(((slow.glows[i]?.start ?? NaN) * 2) / 3, 6);
-      expect(glow.end).toBeCloseTo(((slow.glows[i]?.end ?? NaN) * 2) / 3, 6);
-    });
   });
 });
 

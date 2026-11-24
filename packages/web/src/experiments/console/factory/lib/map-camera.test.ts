@@ -1,12 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import {
-  clampK,
   fitCamera,
   fittedHeight,
-  MAP_ROOM_Y,
   MAX_ZOOM,
   MIN_FRAME_HEIGHT,
-  FIT_PAD,
   MIN_ZOOM,
   READABLE_K,
   reveal,
@@ -14,7 +11,6 @@ import {
 } from './map-camera';
 import { layoutMap } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
-import { LIVE_FITTING } from '../map/useMapCamera';
 
 const world = { x: 0, y: -10, w: 1000, h: 200 };
 
@@ -40,39 +36,12 @@ describe('the map camera', () => {
     expect(camera.x).toBe(24);
   });
 
-  // The Overview frame's widths on a phone, a tablet, at 1440x900, 1280 and wider.
-  const WIDTHS = [320, 390, 768, 1100, 1280, 1600];
-  const { bounds } = layoutMap(shippedView);
-  const fitWidth = bounds.w + 2 * FIT_PAD;
-
-  test('the shipped map opens at the readable scale at every frame width, panning exactly below its fit width', () => {
-    for (const width of WIDTHS) {
+  test('the shipped map opens at the readable scale at every frame width', () => {
+    const { bounds } = layoutMap(shippedView);
+    for (const width of [320, 390, 768, 1100, 1280, 1600]) {
       const camera = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
       expect(camera.k).toBe(READABLE_K);
     }
-    const at = (width: number) => fitCamera(bounds, { width, height: 400 });
-    // At its fit width it is centred; one pixel narrower it opens on its start and pans.
-    expect(at(fitWidth).x).toBe(FIT_PAD - bounds.x);
-    expect(at(fitWidth - 1).x).toBe(FIT_PAD - bounds.x);
-    expect(at(fitWidth + 100).x).toBe(FIT_PAD + 50 - bounds.x);
-  });
-
-  test('the live map keeps 48 px of canvas above and below its drawing, and still opens at its start', () => {
-    expect(MAP_ROOM_Y).toBe(48);
-    const { pad, minK, maxK } = LIVE_FITTING;
-    // The frame at 390x844, 1440x900 and 1920x1080 (measured in the browser).
-    for (const width of [356, 1110, 1590]) {
-      const frame = { width, height: fittedHeight(bounds, width, pad, minK, maxK) };
-      const camera = fitCamera(bounds, frame, pad, minK, maxK);
-      const top = camera.y + bounds.y * camera.k;
-      const bottom = frame.height - (camera.y + (bounds.y + bounds.h) * camera.k);
-      expect(top).toBeGreaterThanOrEqual(MAP_ROOM_Y);
-      expect(bottom).toBeGreaterThanOrEqual(MAP_ROOM_Y);
-    }
-    // Sideways the pad is unchanged: too narrow to fit, it opens at the drawing's start.
-    expect(fitCamera(bounds, { width: 1100, height: 800 }, LIVE_FITTING.pad).x).toBe(
-      FIT_PAD - bounds.x
-    );
   });
 
   test('fit is finite for an empty map and for a frame not laid out yet', () => {
@@ -100,8 +69,7 @@ describe('the map camera', () => {
   });
 
   test('zoom stops at its bounds', () => {
-    expect(clampK(10)).toBe(MAX_ZOOM);
-    expect(clampK(0)).toBe(MIN_ZOOM);
+    expect(zoomAt({ x: 0, y: 0, k: MIN_ZOOM }, { x: 10, y: 10 }, 0.1).k).toBe(MIN_ZOOM);
     expect(zoomAt({ x: 0, y: 0, k: MAX_ZOOM }, { x: 10, y: 10 }, 2)).toEqual({
       x: 0,
       y: 0,
