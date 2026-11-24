@@ -5,7 +5,7 @@
  * no grammar of its own.
  */
 import { findAndReplace } from 'mdast-util-find-and-replace';
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 
 type StepReference = FactoryWorkflow['steps'][number]['references'][number];
 

@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { Offered } from '../../lib/ask-offered';
 import { overdueWaitMessage, ownerLostMessage } from '../../lib/needs-you';
-import { answerByRef, AttentionAnswerForm, isLegacyAttention } from '../AttentionAnswerPanel';
+import { answerByRef, AttentionAnswerForm, isLegacyAttention } from './AskAnswerForm';
 import type { AskCardProps } from './AskCard';
 import { GateAnswer } from './GateAnswer';
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { shippedView } from '../item-detail.test-fixtures';
 import { answeredRows, answeredToday, recentlySettled, type SettledAsks } from './answered';
 import { run, settledItem } from './map.test-fixtures';

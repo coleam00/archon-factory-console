@@ -1,7 +1,7 @@
 import { type ReactElement, type ReactNode, useId } from 'react';
 import { SlidersHorizontal, TriangleAlert } from 'lucide-react';
-import type { FactoryPackSettings } from '../../skills/factory';
-import { EmptyNote } from '../../components/EmptyNote';
+import type { FactoryPackSettings } from '../api';
+import { EmptyNote } from '../ui/EmptyNote';
 import { DefinitionGrid, Panel, SectionHeading } from '../document';
 
 type ProjectSettings = FactoryPackSettings['projects'][number];

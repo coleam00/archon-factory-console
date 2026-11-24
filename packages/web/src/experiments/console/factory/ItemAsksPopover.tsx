@@ -6,19 +6,17 @@ import {
   type ReactElement,
   type RefObject,
 } from 'react';
-import { displayItemKey } from './lib/item-key';
 import { createPortal } from 'react-dom';
-import { AskGroup } from '../components/ask-card/AskGroup';
-import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
-import type { AskNaming } from '../lib/ask-naming';
-import type { NeedsYouItem } from '../lib/needs-you';
-import type { AttentionQueue } from '../skills/runs';
-import { popoverPlace } from './lib/board-ask';
+import type { FactoryItem } from './api';
+import { ItemAsksBody } from './ItemAsksBody';
+import { displayItemKey } from './lib/item-key';
+import { popoverPlace } from './lib/popover-place';
 import type { BoardAsks, OpenAsk } from './useBoardAsks';
+import type { FactoryAsks } from './useItemAsks';
 
 // console-token-exception md:max-h-[calc(100vh-32px)] -- beside a card the popover keeps 16 px from the window's top and bottom, as popoverPlace places it.
 const TALLEST = 'md:max-h-[calc(100vh-32px)]';
-// console-token-exception md:w-[480px] -- Visual standard rule 9: the ask card is 480 px wide in the board popover.
+// console-token-exception md:w-[480px] -- Visual standard rule 9: the ask view is 480 px wide over the board.
 const WIDTH = 'md:w-[480px]';
 /** From md up, a box beside the card; under md, a sheet from the bottom that leaves the board's top in view. */
 const SHELL = `console-root fixed z-50 flex flex-col gap-3 overflow-y-auto rounded-console-16 border border-border-bright bg-surface-elevated p-3 text-text-primary shadow-lg max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[85vh] max-md:rounded-b-none ${TALLEST}`;
@@ -110,34 +108,40 @@ function useDismiss(
   }, [box, trigger, close]);
 }
 
+/** The item an ask view is open on: its read, and the key and title its card shows. */
+export interface AskedItem {
+  item: FactoryItem;
+  title: string;
+  order: string | null;
+}
+
 /**
- * The open ask's popover over the board (owner change 3): the item's asks as the ask cards
- * Needs you draws, from the same queue entries (`itemAsks`), answered in place. From md up it
- * sits beside the card that opened it; under md it is a sheet from the bottom. Nothing when no
- * popover is open, or the item has no open ask to draw.
+ * The ask view over the board (owner change 3): the item's asks as Archon's own ask section
+ * draws them (`ItemAsksBody`), answered in place. From md up it sits beside the card that
+ * opened it; under md it is a sheet from the bottom. Nothing when none is open or the item
+ * has left the board.
  */
-export function BoardAskPopover({
+export function ItemAsksPopover({
   projectId,
   board,
-  queue,
-  naming,
+  asks,
+  itemOf,
 }: {
   projectId: string;
   board: BoardAsks;
-  queue: AttentionQueue | undefined;
-  naming: AskNaming;
+  asks: FactoryAsks;
+  itemOf: (key: string) => AskedItem | undefined;
 }): ReactElement | null {
   const { open } = board;
-  const asks = open === null ? null : board.asksOf(open.key);
-  if (open === null || queue === undefined || asks === null || asks.length === 0) return null;
+  const asked = open === null ? undefined : itemOf(open.key);
+  if (open === null || asked === undefined) return null;
   return (
     <Popover
       key={open.key}
       projectId={projectId}
       open={open}
+      asked={asked}
       asks={asks}
-      queue={queue}
-      naming={naming}
       board={board}
     />
   );
@@ -146,57 +150,39 @@ export function BoardAskPopover({
 function Popover({
   projectId,
   open,
+  asked,
   asks,
-  queue,
-  naming,
   board,
 }: {
   projectId: string;
   open: OpenAsk;
-  asks: NeedsYouItem[];
-  queue: AttentionQueue;
-  naming: AskNaming;
+  asked: AskedItem;
+  asks: FactoryAsks;
   board: BoardAsks;
-}): ReactElement | null {
+}): ReactElement {
   const box = useRef<HTMLDivElement>(null);
-  // Held here, so an answered card shows its answer while the item's other asks stay open.
-  const hold = useAnsweredHold(asks);
   const place = usePlace(box, open.trigger);
   useDismiss(box, open.trigger, board.close);
   useEffect(() => {
-    box.current?.querySelector<HTMLElement>('[data-ask]')?.focus({ preventScroll: true });
+    box.current
+      ?.querySelector<HTMLElement>('button, textarea, input')
+      ?.focus({ preventScroll: true });
   }, []);
-  const first = hold.asks[0];
-  if (first === undefined) return null;
-  const onAnswered = (ask: NeedsYouItem, label: string): void => {
-    hold.onAnswered(ask, label);
-    // The queue may not have dropped the asks answered here yet: they count as answered.
-    const more = asks.some(entry => entry.ref !== ask.ref && !hold.answered.has(entry.ref));
-    // Answering the item's last open ask ends the popover; the card says what was answered.
-    if (!more) board.settle(open.key, ask, label);
-  };
-  const subject = naming.subject(first);
+  const key = displayItemKey(asked.item.item.key, asked.order);
   return createPortal(
     <div
       ref={box}
       role="dialog"
       aria-modal="false"
-      aria-label={`Asks on ${displayItemKey(subject.key, subject.partOf)}`}
+      aria-label={`Asks on ${key}`}
       style={place == null ? undefined : { top: place.top, left: place.left }}
       className={SHELL}
     >
       <div className={`flex w-full flex-col gap-3 ${WIDTH}`}>
-        <AskGroup
-          projectId={projectId}
-          subject={subject}
-          asks={hold.asks}
-          hold={{ ...hold, onAnswered }}
-          queue={queue}
-          where={naming.where}
-          starts={naming.starts}
-        />
-        {/* A later preview (a prototype of the change) goes here, under the options. */}
-        <div data-preview-slot="" />
+        <p className="line-clamp-2 text-console-13 font-semibold text-text-secondary">
+          <span className="font-mono">{key}</span> {asked.title}
+        </p>
+        <ItemAsksBody projectId={projectId} item={asked.item} asks={asks} />
       </div>
     </div>,
     document.body

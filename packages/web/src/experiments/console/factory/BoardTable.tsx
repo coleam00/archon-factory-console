@@ -9,7 +9,7 @@ import { statusTextClass } from '../lib/run-status';
 import type { TableMark } from './lib/board-show';
 import { durationWords } from './lib/duration';
 import { TONES } from './tones';
-import { RowAnswer, RowAsk } from './BoardAskFace';
+import { RowAnswer, RowAsk } from './BoardCardAsk';
 import type { BoardAsks } from './useBoardAsks';
 import {
   markedKeys,
@@ -169,7 +169,7 @@ function BoardRow({
       <Cell
         className={`min-w-32 max-w-56 ${card.pill === 'failed' ? 'text-error' : 'text-warning'}`}
       >
-        <RowAsk card={card} asks={asks} />
+        <RowAsk card={card} />
       </Cell>
     </tr>
   );

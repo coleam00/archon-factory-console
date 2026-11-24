@@ -1,6 +1,6 @@
 import { RotateCcw } from 'lucide-react';
 import { useMemo, type ReactElement } from 'react';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { displayKeyOf } from '../lib/work-orders';
 import type { EntityView } from '../../store/cache';
 import { drilldownLive, type DrilldownLive, type FactoryDrilldown } from '../lib/drilldown-live';

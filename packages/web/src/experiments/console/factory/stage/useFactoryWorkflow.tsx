@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
-import * as skill from '../../skills';
-import type { FactoryWorkflow } from '../../skills/factory';
+import { getFactoryWorkflow } from '../api';
+import type { FactoryWorkflow } from '../api';
 import type { EntityView } from '../../store/cache';
-import { K } from '../../store/keys';
+import { FK } from '../keys';
 import { retryOnceOnNetworkFailure } from '../lib/network-retry';
 import { readFailure } from '../lib/read-failure';
 import { ReadFailure } from '../ReadFailure';
@@ -20,9 +20,9 @@ interface WorkflowRead extends ReadRetry {
  * failure is shown with a Retry (`WorkflowReadFailure`) that visibly retries (`useReadRetry`).
  */
 export function useFactoryWorkflow(projectId: string, workflow: string): WorkflowRead {
-  const read = useFactoryRead<FactoryWorkflow>(K.factoryWorkflow(projectId, workflow), within =>
+  const read = useFactoryRead<FactoryWorkflow>(FK.factoryWorkflow(projectId, workflow), within =>
     retryOnceOnNetworkFailure(() =>
-      within(signal => skill.getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
+      within(signal => getFactoryWorkflow({ codebaseId: projectId, workflow }, { signal }))
     )
   );
   return { read, ...useReadRetry(read) };

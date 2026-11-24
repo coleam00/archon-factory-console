@@ -18,7 +18,7 @@ import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
-import { SkeletonFigure } from '../components/Skeleton';
+import { SkeletonFigure } from './ui/Skeleton';
 import { StaleRead } from './StaleRead';
 import { openFindings } from './lib/discoveries';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
@@ -42,8 +42,8 @@ type Tile = TileValue & {
 
 /**
  * The five tiles, each a skeleton while `numbers` is not read (undefined). `waiting` is the
- * project's asks and waits (`needsYouCount`, undefined until the queue loads): the count the
- * Needs you tab and its heading show.
+ * factory's asks and waits (`factoryWaitingCount`, undefined until Archon's attention read
+ * loads).
  */
 function tiles(numbers: Numbers | undefined, waiting: number | undefined): Tile[] {
   // Every number but "needs you" depends on which items merged (placement rule 2).
@@ -92,7 +92,7 @@ export function FactoryNumbers({
 }: {
   projectId: string;
   view: FactoryDeclaration;
-  /** The project's asks and waits (`needsYouCount`); undefined until the queue loads. */
+  /** The factory's asks and waits (`factoryWaitingCount`); undefined until the asks load. */
   waiting: number | undefined;
 }): ReactElement {
   const items = useFactoryItems(projectId);

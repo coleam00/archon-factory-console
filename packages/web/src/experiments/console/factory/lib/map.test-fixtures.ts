@@ -1,4 +1,4 @@
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { PAGE } from './board.test-fixtures';
 import type { ChangeMerged } from './merge-pending';
 

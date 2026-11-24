@@ -1,12 +1,12 @@
 import type { ReactElement, ReactNode } from 'react';
 import { displayItemKey } from './lib/item-key';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 import { Link } from 'react-router';
-import { EmptyNote } from '../components/EmptyNote';
-import { SkeletonFigure, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
+import { EmptyNote } from './ui/EmptyNote';
+import { SkeletonFigure, SkeletonGroup, SkeletonLine } from './ui/Skeleton';
 import { formatDateTime } from '../lib/format';
 import { errorDetail } from '../lib/http';
-import type { FactoryDiscoveries } from '../skills/factory';
+import type { FactoryDiscoveries } from './api';
 import { itemPath } from './lib/board';
 import { readFailed } from './lib/deadline';
 import { ShadowBadge } from './ShadowBadge';

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { installDom } from '../../test-dom.test-helpers';
+import { installDom } from '../test-dom.test-helpers';
 import type { ReferenceChip } from '../lib/prompt-references';
 import { StepPrompt } from './StepPrompt';
 

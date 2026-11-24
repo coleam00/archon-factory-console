@@ -3,7 +3,7 @@
  * definition grid. Each row comes from something the console already reads: the engine's step
  * read, and the view file. A row whose source says nothing is left out, never guessed.
  */
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 import { conditionText } from './step-graph';
 import { KIND_WORDS } from './step-kinds';
 import { referenceLabel } from './prompt-references';

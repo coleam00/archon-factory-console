@@ -1,14 +1,14 @@
 import { afterEach, expect, test } from 'bun:test';
-import type { FactoryItem, FactoryProgress } from '../skills/factory';
+import type { FactoryItem, FactoryProgress } from './api';
 import { get, invalidate, set } from '../store/cache';
-import { K } from '../store/keys';
+import { FK } from './keys';
 import { readyWithMerge } from './lib/board.test-fixtures';
 import type { FactoryItemsRead } from './lib/factory-items-read';
 import { cancelMergeWatches, watchMerges, type MergeWatchDeps } from './merge-watch';
 
 afterEach(() => {
   cancelMergeWatches();
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 /** Enough turns for several ticks at a zero delay to ask and settle. */
@@ -41,9 +41,9 @@ function forge(state: Record<string, Merged> = {}) {
 }
 
 const read = (projectId: string): FactoryItemsRead =>
-  get(K.factoryItems(projectId)) as FactoryItemsRead;
+  get(FK.factoryItems(projectId)) as FactoryItemsRead;
 const seed = (projectId: string, items: FactoryItem[]): void =>
-  set(K.factoryItems(projectId), { items, members: {} });
+  set(FK.factoryItems(projectId), { items, members: {} });
 
 test('once the forge says merged, the item is merged and nothing more is asked', async () => {
   seed('cb-merge', [readyWithMerge('b', false)]);
@@ -103,7 +103,7 @@ test('an item that leaves the board, or the last release, stops the asking', asy
 test('an open item page takes the answer too, so its header agrees with the board', async () => {
   const item = readyWithMerge('b', false);
   seed('cb-detail', [item]);
-  const detailKey = K.factoryItem('cb-detail', 'b');
+  const detailKey = FK.factoryItem('cb-detail', 'b');
   set(detailKey, { pack: 'p', item, runs: [] });
   const host = forge({ b: true });
   const release = watchMerges('cb-detail', { getProgress: host.getProgress, delayMs: 0 });

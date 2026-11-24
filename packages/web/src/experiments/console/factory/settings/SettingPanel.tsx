@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import type { FactoryPackSettings } from '../../skills/factory';
+import type { FactoryPackSettings } from '../api';
 import { ClampedSummary } from '../ClampedSummary';
 import { IdTag, Panel, type ToneColor } from '../document';
 import { ShadowBadge } from '../ShadowBadge';

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement } from 'react';
 import { Link } from 'react-router';
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 import { Panel, type ToneColor } from '../document';
 import { stepPagePath, type StepPageState } from '../lib/stage-steps';
 import { loopWords } from '../lib/step-facts';

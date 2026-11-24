@@ -50,3 +50,12 @@ export function useProjectAttention(): EntityView<AttentionQueue> {
     throw new Error('useProjectAttention needs a page routed under ProjectAttentionLayout');
   return attention;
 }
+
+/**
+ * The project's attention queue when a page is routed under `ProjectAttentionLayout`, else
+ * null. Only the project tabs read it this way: the Factory section's tests draw its pages,
+ * tabs included, without the console's layout.
+ */
+export function useProjectAttentionIfMounted(): EntityView<AttentionQueue> | null {
+  return useContext(ProjectAttentionContext);
+}

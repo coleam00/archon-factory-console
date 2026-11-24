@@ -1,4 +1,4 @@
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { itemsOnStep, type ItemOnStep } from './items-on-step';
 import type { FactoryStage } from './stage-steps';
 

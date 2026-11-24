@@ -1,6 +1,6 @@
 import { afterEach, expect, jest, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { invalidate } from '../store/cache';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 import { FACTORY_READ_DEADLINE_MS } from './lib/deadline';

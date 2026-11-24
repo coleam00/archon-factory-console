@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { FileText } from 'lucide-react';
-import type { FactoryPackSettings } from '../../skills/factory';
+import type { FactoryPackSettings } from '../api';
 import { DefinitionGrid, Panel } from '../document';
 
 type Setting = FactoryPackSettings['settings'][number];

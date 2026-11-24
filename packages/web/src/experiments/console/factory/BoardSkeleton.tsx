@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { SkeletonGroup } from '../components/Skeleton';
+import { SkeletonGroup } from './ui/Skeleton';
 import { CardSkeletons } from './BoardColumn';
 import { ColumnHeader } from './ColumnHeader';
 import { boardModel, type FactoryDeclaration } from './lib/board';

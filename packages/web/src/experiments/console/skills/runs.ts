@@ -74,20 +74,6 @@ export async function listAttentionQueue(
   };
 }
 
-type AnswerAttentionItemBody = components['schemas']['AnswerAttentionItemBody'];
-
-/**
- * Answer an attention queue item by its ref: an ask no run holds, or a paused run's wait.
- * The server decides who may answer and refuses a ref that is closed, moved or unknown.
- */
-export async function answerAttentionItem(
-  ref: string,
-  answer: { choose: string[]; text?: string }
-): Promise<void> {
-  const body: AnswerAttentionItemBody = { ref, choose: answer.choose, text: answer.text };
-  await requestJson('/api/attention/answer', 'post', { body });
-}
-
 export async function listGlobalCounts(): Promise<RunCounts> {
   // Counts without any codebase filter — used by top chrome pill.
   const res = await requestJson('/api/dashboard/runs', 'get', { query: { limit: '1' } });
@@ -135,6 +121,18 @@ export async function answerRun(
 ): Promise<void> {
   const body: AnswerWorkflowRunBody = { occurrence, choose, text };
   await requestJson('/api/workflows/runs/{runId}/answer', 'post', { params: { runId: id }, body });
+}
+
+/**
+ * Answer an attention item by its ref, through the answer operation the CLI's
+ * `workflow answer --ref` uses. An ask a completed run left is answered only this way.
+ */
+export async function answerAttentionItem(
+  ref: string,
+  choose: string[],
+  text?: string
+): Promise<void> {
+  await requestJson('/api/attention/answer', 'post', { body: { ref, choose, text } });
 }
 
 /** Asks the server to resume a run; resolves to the server's account of what it started. */

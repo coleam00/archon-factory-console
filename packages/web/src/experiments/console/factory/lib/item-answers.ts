@@ -1,5 +1,5 @@
 import type { components } from '@/lib/api.generated';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 
 type ItemAnswer = FactoryItem['answers'][number];
 /**

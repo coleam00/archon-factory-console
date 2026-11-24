@@ -2,10 +2,10 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItem, FactoryViews, FactoryWorkflow } from '../../skills/factory';
+import type { FactoryItem, FactoryViews, FactoryWorkflow } from '../api';
 import { invalidate, set } from '../../store/cache';
-import { K } from '../../store/keys';
-import { projectRoutes } from '../../routes/project-routes';
+import { FK } from '../keys';
+import { factoryTestRoutes } from '../test-routes';
 import { documentPageProblems } from '../document.test-helpers';
 import { capturedItemsPage } from '../lib/fixtures/factory-items-page';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
@@ -16,7 +16,7 @@ const dom = new Window();
 afterEach(() => {
   invalidate('factory-views');
   invalidate('factory-workflow');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate('project');
 });
 afterAll(async () => {
@@ -95,13 +95,13 @@ const views: FactoryViews = {
 };
 
 function page(stepKey: string, items: FactoryItem[] = []): HTMLElement {
-  set(K.factoryViews(ID), views);
-  set(K.factoryWorkflow(ID, 'deliver'), WITH_PROMPT);
-  set(K.factoryItems(ID), { items, members: {} });
+  set(FK.factoryViews(ID), views);
+  set(FK.factoryWorkflow(ID, 'deliver'), WITH_PROMPT);
+  set(FK.factoryItems(ID), { items, members: {} });
   const root = dom.document.createElement('div');
   root.innerHTML = renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/steps/deliver/${stepKey}`]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
   return root as unknown as HTMLElement;

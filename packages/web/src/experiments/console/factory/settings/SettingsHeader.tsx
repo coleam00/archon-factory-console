@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import type { FactoryPackSettings } from '../../skills/factory';
+import type { FactoryPackSettings } from '../api';
 import { HeaderBand, StatChip } from '../document';
 import { settingCounts } from '../lib/setting-sections';
 

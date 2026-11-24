@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
-import { useProjectAttention } from '../components/ProjectAttention';
-import { BoardAskPopover } from './BoardAskPopover';
+import { ItemAsksPopover, type AskedItem } from './ItemAsksPopover';
 import { BoardSkeleton } from './BoardSkeleton';
 import { BoardPipeline } from './BoardPipeline';
 import { BoardTable } from './BoardTable';
@@ -26,7 +24,9 @@ import type { BoardShowSpec } from './lib/board-show';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
+import { itemNames } from './lib/item-names';
 import { useBoardAsks, type BoardAsks } from './useBoardAsks';
+import { useItemAsks } from './useItemAsks';
 import { useBoardShow } from './useBoardShow';
 
 /** How long a card that changed stage stays highlighted. */
@@ -87,8 +87,8 @@ export function Board({
   now?: Date;
 }): ReactElement {
   const read = useFactoryItemsRead(projectId);
-  // The project's attention queue, the one read Needs you draws: each card's asks come from it.
-  const attention = useProjectAttention();
+  // Archon's attention read with each item's questions: each card's asks come from it.
+  const factoryAsks = useItemAsks(projectId);
   const items = read.data?.items;
   const [params] = useSearchParams();
   const { showParam, show, spec, table, setView, clearShow } = useBoardShow();
@@ -119,12 +119,9 @@ export function Board({
     () => (all === undefined ? undefined : filterBoard(all, query, show, at)),
     [all, query, show, at]
   );
-  const asks = useBoardAsks({ all, shown, queue: attention.data, declaration: view });
+  const asks = useBoardAsks({ all, shown, asks: factoryAsks });
   const names = useMemo(() => itemNames(items), [items]);
-  const naming = useMemo(
-    () => askNaming(projectId, { declaration: view }, names),
-    [projectId, view, names]
-  );
+  const asked = useMemo(() => askedItems(all), [all]);
   const showView = (next: 'pipeline' | 'table'): void => {
     // Its trigger is in the view being left.
     asks.close();
@@ -188,11 +185,11 @@ export function Board({
           filtered={shown !== all}
           asks={asks}
         />
-        <BoardAskPopover
+        <ItemAsksPopover
           projectId={projectId}
           board={asks}
-          queue={attention.data}
-          naming={naming}
+          asks={factoryAsks}
+          itemOf={key => asked.get(key)}
         />
         <BoardStripsLine
           projectId={projectId}
@@ -213,6 +210,18 @@ export function Board({
         />
       ) : null}
     </div>
+  );
+}
+
+/** Each item on the board's columns, by key, as its ask view names it. */
+function askedItems(model: BoardModel | undefined): Map<string, AskedItem> {
+  return new Map(
+    (model?.columns ?? []).flatMap(column =>
+      column.cards.map(({ item, card }) => [
+        card.key,
+        { item, title: card.title, order: card.order },
+      ])
+    )
   );
 }
 

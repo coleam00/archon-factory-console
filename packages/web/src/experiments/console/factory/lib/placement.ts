@@ -3,7 +3,7 @@
  * ruling 2 on #5), and which declared stage a step of a workflow counts in. An item's state
  * pill is the board's (`itemPill` in `board.ts`).
  */
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import type { ChangeMerged } from './merge-pending';
 import { stagesOfWorkflow, stepInStage, type FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';

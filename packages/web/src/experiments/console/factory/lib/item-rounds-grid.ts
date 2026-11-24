@@ -8,7 +8,7 @@
  * `verdicts`), the builder's fixes between rounds, the stage that read CI and the reviews after
  * the last round, and the shadow steps' decisions (rule 10). Nothing here names a pack's step.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { shadowOf, shadowWords } from './shadows';
 import { stageOfStep, stageOfWorkflow } from './placement';
 import { roundsSources, stepLabel } from './step-label';

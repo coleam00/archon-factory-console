@@ -5,7 +5,7 @@
 import type { ToneColor } from '../document';
 import { KINDS as OVERVIEW_KINDS } from '../overview/overview-kinds';
 import { KINDS as DRILLDOWN_KINDS } from '../stage/drilldown-kinds';
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 
 export type FactoryStepKind = FactoryWorkflow['steps'][number]['kind'];
 

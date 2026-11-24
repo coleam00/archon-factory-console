@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../components/Skeleton';
+import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from './ui/Skeleton';
 
 /**
  * A step graph or a step's page still loading: the graph frame's shape (Visual standard, rule
