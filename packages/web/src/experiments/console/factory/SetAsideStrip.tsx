@@ -1,62 +1,51 @@
-import { useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import { formatDateTime } from '../lib/format';
 import { itemPath } from './lib/board';
 import { displayItemKey } from './lib/item-key';
 import type { SetAside } from './lib/set-aside';
 
-const LIST_ID = 'set-aside-list';
+const HEADING_ID = 'set-aside-heading';
 
 /**
- * The items the board set aside, under the board beside "Found by the factory": one line,
- * "N set aside · show them", opening a short list of each item's key, title, why it was set
- * aside and when its last run ended. The list opens over the board, above the line, and
- * scrolls in its own height, so opening it leaves the columns theirs (as the toolbar's
- * Position unknown row opens over them). Nothing when none is set aside.
+ * The items the board set aside, as one line under the board beside "Found by the factory":
+ * "N set aside". The board's one toggle, beside it, opens {@link SetAsideList} below the board.
+ * The board draws neither when none is set aside.
  */
-export function SetAsideStrip({
+export function SetAsideLine({ count }: { count: number }): ReactElement {
+  return (
+    <section
+      aria-labelledby={HEADING_ID}
+      className="rounded-console-12 border border-border bg-surface px-4 py-2"
+    >
+      <h2 id={HEADING_ID} className="text-console-15 font-semibold text-text-primary">
+        <span className="tabular-nums">{count}</span> set aside
+      </h2>
+    </section>
+  );
+}
+
+/**
+ * Each item set aside: its key, title, why it was set aside and when its last run ended. It
+ * opens below the board, in the page, so the page scrolls to it and nothing covers the board.
+ */
+export function SetAsideList({
   projectId,
   entries,
 }: {
   projectId: string;
   entries: readonly SetAside[];
-}): ReactElement | null {
-  const [open, setOpen] = useState(false);
-  if (entries.length === 0) return null;
+}): ReactElement {
   return (
     <section
-      aria-labelledby="set-aside-heading"
-      className="relative rounded-console-12 border border-border bg-surface px-4 py-2"
+      aria-labelledby={HEADING_ID}
+      className="rounded-console-12 border border-border bg-surface px-4 py-3"
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h2 id="set-aside-heading" className="text-console-15 font-semibold text-text-primary">
-          <span className="tabular-nums">{entries.length}</span> set aside
-        </h2>
-        <span aria-hidden className="text-console-13 text-text-secondary">
-          ·
-        </span>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={LIST_ID}
-          onClick={() => {
-            setOpen(!open);
-          }}
-          className="text-console-13 text-accent transition-colors duration-150 ease-out hover:text-text-primary"
-        >
-          {open ? 'hide them' : 'show them'}
-        </button>
-      </div>
-      {open ? (
-        <ul
-          id={LIST_ID}
-          className="absolute inset-x-0 bottom-full z-10 mb-1 flex max-h-72 flex-col gap-2 overflow-y-auto rounded-console-12 border border-border bg-surface-elevated px-4 py-3 shadow-lg"
-        >
-          {entries.map(entry => (
-            <SetAsideRow key={entry.placed.card.key} projectId={projectId} entry={entry} />
-          ))}
-        </ul>
-      ) : null}
+      <ul id="set-aside-list" className="flex flex-col gap-2">
+        {entries.map(entry => (
+          <SetAsideRow key={entry.placed.card.key} projectId={projectId} entry={entry} />
+        ))}
+      </ul>
     </section>
   );
 }

@@ -56,7 +56,7 @@ export function BoardTable({
     setSort(current => ({ by, descending: current.by === by ? !current.descending : false }));
   };
   return (
-    <div className="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
+    <div className="overflow-x-auto md:min-h-0 md:flex-1 md:basis-0 md:overflow-y-auto">
       <table className="w-full text-left text-console-13">
         <thead className="sticky top-0 z-10 bg-background">
           <tr className="border-b border-border text-console-12 uppercase tracking-wider text-text-tertiary">

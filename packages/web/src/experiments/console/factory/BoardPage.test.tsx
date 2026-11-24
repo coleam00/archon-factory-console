@@ -156,30 +156,151 @@ describe('before the items are read', () => {
   });
 });
 
-describe('Found by the factory', () => {
-  test('a view that declares discoveries draws the panel under the columns', async () => {
+/** Items the board sets aside: one ended, one long idle, one parked. */
+const setAsideItems = (): FactoryItem[] => [
+  endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold'),
+  idleInPlan('i', new Date(NOW.getTime() - 4 * DAY).toISOString()),
+  parkedByTriage('p'),
+];
+
+/** The one toggle under the board, which opens both strips. */
+const stripsToggle = (container: HTMLElement): HTMLButtonElement | null =>
+  container.querySelector('[data-board-strips] > button');
+
+const viewButton = (container: HTMLElement, label: 'Pipeline' | 'Table'): HTMLButtonElement =>
+  [...container.querySelectorAll('button')].find(
+    button => button.textContent === label
+  ) as HTMLButtonElement;
+
+describe('the strips under the board', () => {
+  test('a view that declares discoveries draws the Found line under the columns', async () => {
     const { container, unmount } = await mount(PAGE.items);
     try {
-      const panel = container.querySelector(
-        'section[aria-labelledby="found-by-the-factory-heading"]'
+      const line = container.querySelector(
+        '[data-board-strips] section[aria-labelledby="found-by-the-factory-heading"]'
       );
-      expect(panel?.querySelector('h2')?.textContent).toBe('Found by the factory');
-      // On the board it is one line (owner ruling), so the columns keep their height: the
-      // full panel's chips are not drawn until "show the findings" opens it.
-      expect(
-        [...(panel?.querySelectorAll('button') ?? [])].some(
-          button => button.textContent === 'show the findings'
-        )
-      ).toBe(true);
-      expect(panel?.querySelector('ul[aria-label="What the drains decided"]')).toBeNull();
+      expect(line?.querySelector('h2')?.textContent).toBe('Found by the factory');
+      // One line (owner ruling), so the columns keep their height: the panel's chips are not
+      // drawn until the toggle opens it.
+      expect(stripsToggle(container)?.textContent).toBe('show them');
+      expect(stripsToggle(container)?.getAttribute('aria-expanded')).toBe('false');
+      expect(container.querySelector('ul[aria-label="What the drains decided"]')).toBeNull();
       const lastColumn = [...container.querySelectorAll('header[data-column]')].at(-1);
       expect(lastColumn).toBeDefined();
       // After every column in document order: under the board, not above it.
       expect(
-        lastColumn!.compareDocumentPosition(panel!) & dom.Node.DOCUMENT_POSITION_FOLLOWING
+        lastColumn!.compareDocumentPosition(line!) & dom.Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
     } finally {
       await unmount();
+    }
+  });
+
+  test('one toggle opens and closes Found by the factory and Set aside together', async () => {
+    const { container, unmount } = await mount([...setAsideItems(), realItem('7')]);
+    try {
+      const line = container.querySelector('[data-board-strips]');
+      // One control for both: neither line card has a button of its own.
+      expect(line?.querySelectorAll('button')).toHaveLength(1);
+      expect(line?.querySelectorAll('section button')).toHaveLength(0);
+      const toggle = stripsToggle(container);
+      await act(async () => toggle?.click());
+      expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+      expect(toggle?.textContent).toBe('hide them');
+      expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
+      expect(container.querySelector('#set-aside-list')).not.toBeNull();
+      await act(async () => toggle?.click());
+      expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+      expect(container.querySelector('#found-by-the-factory-list')).toBeNull();
+      expect(container.querySelector('#set-aside-list')).toBeNull();
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('neither strip is absolutely or fixed positioned, open or closed', async () => {
+    const { container, unmount } = await mount([...setAsideItems(), realItem('7')]);
+    try {
+      const positioned = (): string[] =>
+        [
+          ...container.querySelectorAll(
+            '[data-board-strips], [data-board-strips] *, [data-board-strips-open], [data-board-strips-open] *'
+          ),
+        ]
+          // The shadow accent bar is decoration drawn inside its own card.
+          .filter(element => !element.hasAttribute('aria-hidden'))
+          .filter(element =>
+            [...element.classList].some(token => /(^|:)(absolute|fixed)$/.test(token))
+          )
+          .map(element => element.outerHTML.slice(0, 80));
+      expect(positioned()).toEqual([]);
+      await act(async () => stripsToggle(container)?.click());
+      expect(container.querySelector('[data-board-strips-open]')).not.toBeNull();
+      expect(positioned()).toEqual([]);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('opened in the Table, every row is drawn above the strips, outside the table', async () => {
+    const items = [...setAsideItems(), ...PAGE.items];
+    const { container, unmount } = await mount(items, `/console/p/${ID}/factory/board?view=table`);
+    try {
+      await act(async () => stripsToggle(container)?.click());
+      const opened = container.querySelector('[data-board-strips-open]');
+      const table = container.querySelector('table');
+      expect(opened).not.toBeNull();
+      expect(container.querySelectorAll('tbody tr')).toHaveLength(PAGE.items.length);
+      expect(
+        table!.compareDocumentPosition(opened!) & dom.Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+      expect(table!.parentElement?.contains(opened)).toBe(false);
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('switching Pipeline and Table leaves the strips as they were', async () => {
+    const { container, unmount } = await mount([...setAsideItems(), realItem('7')]);
+    try {
+      await act(async () => stripsToggle(container)?.click());
+      await act(async () => viewButton(container, 'Table').click());
+      expect(container.querySelector('table')).not.toBeNull();
+      expect(container.querySelector('#set-aside-list')).not.toBeNull();
+      await act(async () => viewButton(container, 'Pipeline').click());
+      expect(container.querySelector('table')).toBeNull();
+      expect(container.querySelector('#set-aside-list')).not.toBeNull();
+      expect(stripsToggle(container)?.textContent).toBe('hide them');
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('one strip with something to say still gets the line and the toggle; none, no line', async () => {
+    const quiet = { ...VIEW, discoveries: undefined };
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const render = async (items: FactoryItem[]): Promise<void> => {
+      set(K.factoryItems(ID), { items, members: {} });
+      await act(async () =>
+        root.render(
+          <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
+            <Board projectId={ID} view={quiet} attention={QUIET} now={NOW} />
+          </MemoryRouter>
+        )
+      );
+    };
+    try {
+      await render([...setAsideItems(), realItem('7')]);
+      expect(container.querySelector('#found-by-the-factory-heading')).toBeNull();
+      expect(container.querySelector('#set-aside-heading')?.textContent).toBe('3 set aside');
+      expect(stripsToggle(container)).not.toBeNull();
+      await render(PAGE.items);
+      expect(container.querySelector('[data-board-strips]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
     }
   });
 });
@@ -356,19 +477,17 @@ describe('the Pipeline view', () => {
   });
 
   test('items with nothing left to happen fold into one Set aside line under the board', async () => {
-    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
-    const idle = idleInPlan('i', new Date(NOW.getTime() - 4 * DAY).toISOString());
-    const { container, unmount } = await mount([closed, idle, parkedByTriage('p'), realItem('7')]);
+    const { container, unmount } = await mount([...setAsideItems(), realItem('7')]);
     try {
       expect(cardKeys(container)).toEqual(['7']);
       // Endings no longer have toolbar rows: the board has no folded row at all.
       expect(container.querySelector('details')).toBeNull();
-      const strip = container.querySelector('section[aria-labelledby="set-aside-heading"]');
-      const toggle = strip?.querySelector('button');
-      expect(strip?.textContent).toBe('3 set aside·show them');
-      expect(toggle?.getAttribute('aria-expanded')).toBe('false');
-      await act(async () => toggle?.click());
-      expect(toggle?.textContent).toBe('hide them');
+      expect(
+        container.querySelector('[data-board-strips] section[aria-labelledby="set-aside-heading"]')
+          ?.textContent
+      ).toBe('3 set aside');
+      await act(async () => stripsToggle(container)?.click());
+      const strip = container.querySelector('#set-aside-list');
       // Each row by its key (the order is the model's), as its leaves: key, title, why, when.
       const row = (key: string): (string | null)[] | undefined => {
         const li = [...(strip?.querySelectorAll('li') ?? [])].find(
@@ -651,7 +770,15 @@ describe('a board opened from a number', () => {
     }
   });
 
-  test('found by the factory: the whole board, its panel open with the findings listed', async () => {
+  test('found by the factory: the whole board, the strips open, their line scrolled to once', async () => {
+    const scrolled: Element[] = [];
+    const proto = dom.HTMLElement.prototype as unknown as {
+      scrollIntoView: (this: Element, options?: unknown) => void;
+    };
+    const original = proto.scrollIntoView;
+    proto.scrollIntoView = function (this: Element): void {
+      scrolled.push(this);
+    };
     const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
     const { container, unmount } = await mount(
       [closed, ...PAGE.items.filter(item => item.item.key !== '6')],
@@ -661,10 +788,28 @@ describe('a board opened from a number', () => {
       expect(cardKeys(container)).toHaveLength(PAGE.items.length - 1);
       // Nothing narrowed: the set-aside line stays, as a show that narrows would hide it.
       expect(container.querySelector('#set-aside-heading')?.textContent).toBe('1 set aside');
+      // The one toggle's state opened both strips.
+      expect(stripsToggle(container)?.textContent).toBe('hide them');
       expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
+      expect(container.querySelector('#set-aside-list')).not.toBeNull();
       expect(container.textContent).toContain('Showing: found by the factory');
+      // The line, not the findings: it holds both names, the shadow badge and the toggle.
+      // By identity: a failing toEqual on a happy-dom Element hangs bun while it formats the diff.
+      expect(scrolled).toHaveLength(1);
+      expect(scrolled[0] === container.querySelector('[data-board-strips]')).toBe(true);
+      expect(scrolled[0]?.querySelector('#found-by-the-factory-heading')).not.toBeNull();
+      expect(scrolled[0]?.textContent).toContain('shadow');
+      // A view switch rewrites the address; it must not scroll the page away from the board.
+      await act(async () => viewButton(container, 'Table').click());
+      await act(async () => viewButton(container, 'Pipeline').click());
+      // Nor does closing and reopening: the person asked for the strips, not to be moved.
+      await act(async () => stripsToggle(container)?.click());
+      await act(async () => stripsToggle(container)?.click());
+      expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
+      expect(scrolled).toHaveLength(1);
     } finally {
       await unmount();
+      proto.scrollIntoView = original;
     }
   });
 

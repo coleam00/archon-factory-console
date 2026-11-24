@@ -15,7 +15,10 @@ const LOADING = { title: 'Loading', word: 'loading' };
 export function BoardSkeleton({ view }: { view: FactoryDeclaration }): ReactElement {
   const { columns, landedColumn } = boardModel(view, '', [], new Map(), new Date(0));
   return (
-    <SkeletonGroup label="Loading the board" className="flex flex-col gap-3 md:min-h-80 md:flex-1">
+    <SkeletonGroup
+      label="Loading the board"
+      className="flex flex-col gap-3 md:min-h-80 md:flex-1 md:basis-0"
+    >
       <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:flex-row md:gap-3 md:overflow-x-auto">
         {columns.map(column => (
           <section

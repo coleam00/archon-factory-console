@@ -1,14 +1,7 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactElement,
-  type ReactNode,
-  type RefObject,
-} from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { displayItemKey } from './lib/item-key';
 import type { ItemName } from '../lib/ask-naming';
-import { Link, useLocation } from 'react-router';
+import { Link } from 'react-router';
 import { EmptyNote } from '../components/EmptyNote';
 import { SkeletonFigure, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { formatDateTime } from '../lib/format';
@@ -30,98 +23,30 @@ import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
 const HEADING_ID = `${FOUND_BY_THE_FACTORY}-heading`;
 
-/**
- * Scroll the panel into view once its read has answered, when the page was opened on it (the
- * board's `?show=found` address, which a shared link may carry): once per page visit.
- */
-function useScrollWhenOpened(ready: boolean): RefObject<HTMLElement | null> {
-  const ref = useRef<HTMLElement>(null);
-  const { key } = useLocation();
-  const scrolled = useRef<string | null>(null);
-  useEffect(() => {
-    if (!ready || scrolled.current === key) return;
-    scrolled.current = key;
-    ref.current?.scrollIntoView({ block: 'start' });
-  }, [ready, key]);
-  return ref;
-}
-
-/**
- * The board's "Found by the factory" panel: what the discoveries drains decided to file
- * from what agents noticed outside their scope, that no item on the project carries yet.
- * Read-only. Mount it only when the view declares `discoveries`. While the drains are a
- * shadow (the view says so) it reads as one: they decide what they would file and file
- * nothing. The Overview's tile opens it through the board's `?show=found`.
- */
-export function FoundByTheFactory({
-  projectId,
-  names,
-  above = true,
-  oneLine = false,
-  opened = false,
-}: {
-  projectId: string;
-  /** The board's items by key, so a finding's item reads as the board reads it (a split member under its order). */
-  names: ReadonlyMap<string, ItemName>;
-  /**
-   * Whether what is drawn above the panel has its final height. The board passes false
-   * until its columns are drawn: scrolling earlier would leave the panel pushed down.
-   */
-  above?: boolean;
-  /**
-   * Start as one line (the count and "show the findings"), which opens the full panel in
-   * place: the board's columns keep the height at 1440x900. No top margin of its own: the
-   * board's gap already sets it apart.
-   */
-  oneLine?: boolean;
-  /** Opened on the panel (the board's `?show=found`): it starts open, its findings listed. */
-  opened?: boolean;
-}): ReactElement {
-  const read = useFactoryDiscoveries(projectId);
-  const ref = useScrollWhenOpened(opened && above && read.data !== undefined);
-  const [expanded, setExpanded] = useState(!oneLine || opened);
-  // Listed when the person asked for the findings: from the one line or from the tile.
-  const [listed, setListed] = useState(oneLine && opened);
+/** The shadow accent (Visual standard, rule 10): the drains did nothing. */
+function ShadowAccent(): ReactElement {
   return (
-    <section
-      ref={ref}
-      id={FOUND_BY_THE_FACTORY}
-      aria-labelledby={HEADING_ID}
-      className={`relative flex scroll-mt-6 ${oneLine ? '' : 'mt-3'} flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface ${expanded ? 'p-4' : 'px-4 py-2'}`}
-    >
-      {/* The shadow accent (Visual standard, rule 10): the drains did nothing. */}
-      <span aria-hidden className="absolute inset-x-0 top-0 h-0.75 bg-[color:var(--node-opaque)]" />
-      {expanded ? (
-        <FoundBody projectId={projectId} names={names} read={read} listed={listed} />
-      ) : (
-        <FoundLine
-          read={read}
-          onOpen={() => {
-            setListed(true);
-            setExpanded(true);
-          }}
-        />
-      )}
-    </section>
+    <span aria-hidden className="absolute inset-x-0 top-0 h-0.75 bg-[color:var(--node-opaque)]" />
   );
 }
 
 /**
- * The one-line panel: its name, the shadow badge, and "14 the factory would file · show the
- * findings", or what its read says when there is nothing to show yet.
+ * "Found by the factory" as one line under the board: its name, the shadow badge, and "14 the
+ * factory would file", or what its read says when there is nothing to show yet. The board's one
+ * toggle, beside it, opens the panel below the board. Mount it only when the view declares
+ * `discoveries`.
  */
-function FoundLine({
-  read,
-  onOpen,
-}: {
-  read: ReturnType<typeof useFactoryDiscoveries>;
-  onOpen: () => void;
-}): ReactElement {
+export function FoundByTheFactoryLine({ projectId }: { projectId: string }): ReactElement {
+  const read = useFactoryDiscoveries(projectId);
   const { data } = read;
   const failed = data === undefined ? readFailed(read.error) : undefined;
   const findings = data === undefined ? [] : openFindings(data);
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <section
+      aria-labelledby={HEADING_ID}
+      className="relative flex flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden rounded-console-12 border border-border bg-surface px-4 py-2"
+    >
+      <ShadowAccent />
       <h2 id={HEADING_ID} className="text-console-15 font-semibold text-text-primary">
         Found by the factory
       </h2>
@@ -149,77 +74,49 @@ function FoundLine({
             {findings.length}
           </span>
           <span className="text-console-13 text-text-secondary">
-            {data.shadow ? 'the factory would file' : 'filed, not on the board yet'} ·
+            {data.shadow ? 'the factory would file' : 'filed, not on the board yet'}
           </span>
-          <button
-            type="button"
-            aria-expanded={false}
-            aria-controls={FOUND_BY_THE_FACTORY}
-            onClick={onOpen}
-            className="text-console-13 text-accent transition-colors duration-150 ease-out hover:text-text-primary"
-          >
-            show the findings
-          </button>
         </span>
       )}
-    </div>
+    </section>
   );
 }
 
-/** The panel's contents for each state of its read. */
-function FoundBody({
+/**
+ * The board's "Found by the factory" panel, opened below the board by its one toggle: what the
+ * discoveries drains decided to file from what agents noticed outside their scope, that no item
+ * on the project carries yet, each finding listed. Read-only. While the drains are a shadow
+ * (the view says so) it reads as one: they decide what they would file and file nothing. Its
+ * heading is on the line ({@link FoundByTheFactoryLine}), as are the skeleton and a failed
+ * read's error, so it draws nothing until the read has answered.
+ */
+export function FoundByTheFactory({
   projectId,
   names,
-  read,
-  listed,
 }: {
   projectId: string;
+  /** The board's items by key, so a finding's item reads as the board reads it (a split member under its order). */
   names: ReadonlyMap<string, ItemName>;
-  read: ReturnType<typeof useFactoryDiscoveries>;
-  /** Whether the findings start listed. */
-  listed: boolean;
-}): ReactElement {
+}): ReactElement | null {
+  const read = useFactoryDiscoveries(projectId);
   const { data } = read;
-  if (data === undefined) {
-    const failed = readFailed(read.error);
-    return (
-      <>
-        <Heading shadow={false} />
-        {failed === undefined ? (
-          <FoundSkeleton read={read} />
-        ) : (
-          <p role="alert" className="text-console-13 text-error">
-            What the factory found could not be read: {errorDetail(failed)}
-          </p>
-        )}
-      </>
-    );
-  }
+  if (data === undefined) return null;
   return (
-    <>
-      <Heading shadow={data.shadow} />
-      <StaleRead error={read.error} />
-      <FoundPanel projectId={projectId} names={names} read={data} listed={listed} />
-    </>
-  );
-}
-
-function Heading({ shadow }: { shadow: boolean }): ReactElement {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 id={HEADING_ID} className="text-console-17 font-semibold text-text-primary">
-          Found by the factory
-        </h2>
-        {shadow ? <ShadowBadge /> : null}
-      </div>
-      {shadow ? (
+    <section
+      id={FOUND_BY_THE_FACTORY}
+      aria-labelledby={HEADING_ID}
+      className="relative flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-4"
+    >
+      <ShadowAccent />
+      {data.shadow ? (
         <p className="text-console-13 text-text-tertiary">
           Would file what agents noticed outside their work: the factory decides what it would file,
           and files nothing yet.
         </p>
       ) : null}
-    </div>
+      <StaleRead error={read.error} />
+      <FoundPanel projectId={projectId} names={names} read={data} />
+    </section>
   );
 }
 
@@ -234,20 +131,16 @@ function FoundSkeleton({ read }: { read: ReturnType<typeof useFactoryDiscoveries
   );
 }
 
-/** The count, the chips, and the findings behind a toggle. */
-export function FoundPanel({
+/** The count, the chips, and the findings listed. */
+function FoundPanel({
   projectId,
   names,
   read,
-  listed = false,
 }: {
   projectId: string;
   names: ReadonlyMap<string, ItemName>;
   read: FactoryDiscoveries;
-  /** Whether the findings start listed. */
-  listed?: boolean;
 }): ReactElement {
-  const [open, setOpen] = useState(listed);
   const findings = openFindings(read);
   const covered = read.findings.length - findings.length;
   return (
@@ -277,31 +170,16 @@ export function FoundPanel({
       {findings.length === 0 ? (
         <NothingFound shadow={read.shadow} />
       ) : (
-        <>
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={`${FOUND_BY_THE_FACTORY}-list`}
-            onClick={() => {
-              setOpen(value => !value);
-            }}
-            className="self-start text-console-13 text-accent transition-colors duration-150 ease-out hover:text-text-primary"
-          >
-            {open ? 'Hide the findings' : `Show the ${findings.length.toString()} findings`}
-          </button>
-          {open ? (
-            <ul id={`${FOUND_BY_THE_FACTORY}-list`} className="flex flex-col gap-3">
-              {findings.map(finding => (
-                <FindingRow
-                  key={`${finding.runId}:${finding.title}`}
-                  projectId={projectId}
-                  finding={finding}
-                  partOf={names.get(finding.from.key)?.partOf ?? null}
-                />
-              ))}
-            </ul>
-          ) : null}
-        </>
+        <ul id={`${FOUND_BY_THE_FACTORY}-list`} className="flex flex-col gap-3">
+          {findings.map(finding => (
+            <FindingRow
+              key={`${finding.runId}:${finding.title}`}
+              projectId={projectId}
+              finding={finding}
+              partOf={names.get(finding.from.key)?.partOf ?? null}
+            />
+          ))}
+        </ul>
       )}
     </div>
   );
