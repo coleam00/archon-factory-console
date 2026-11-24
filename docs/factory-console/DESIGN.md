@@ -650,8 +650,10 @@ documents through Neon live queries.
   its answer panel and ask card, and where it answers asks. The factory adds a project tab, a
   sidebar entry and their routes, nothing else.
 - A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a pack with a
-  factory view lists the project among those its view applies to (`GET /api/factory/packs`, the
-  cached read the sidebar entry already makes), so a Runs, Chat or Metrics page reads no view. Without one, nothing else changes.
+  factory overview file lists the project among those a factory view of the pack applies to
+  (`GET /api/factory/packs`, the cached read the sidebar entry already makes), so a Runs, Chat or
+  Metrics page reads no view. A project whose pack has no overview file, or whose own view file
+  is broken, gets no tab. Without one, nothing else changes.
 - A **Factory** entry in the console's sidebar (`ProjectRail`), directly above Settings, for what
   explains a pack rather than a project (owner change 5). It shows only when at least one
   installed pack has a factory overview file, or a broken one. Its routes:
