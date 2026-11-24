@@ -18,6 +18,7 @@ import { loopRoundSchema } from '@archon/workflows/schemas/loop-rounds';
 import { openAttentionQueueCountsSchema } from '@archon/workflows/attention-counts';
 import { attentionQueueItemSchema } from '@archon/workflows/attention-queue';
 import { itemReadSchema } from '@archon/workflows/item-read';
+import { runRecordSchema } from '@archon/workflows/run-records';
 import { itemWindowSchema } from '@archon/workflows/item-window';
 import { packGraphSchema } from '@archon/workflows/pack-graph';
 import { itemRulingSchema } from '@archon/workflows/schemas/item-ruling';
@@ -231,6 +232,28 @@ export const workflowEventSchema = workflowEventRowSchema
     }),
   })
   .openapi('WorkflowEvent');
+
+/** The most runs one `GET /api/workflows/runs/records` request reads. */
+export const RUN_RECORDS_MAX = 100;
+
+/** GET /api/workflows/runs/records query: `runId` repeated once per run. */
+export const runRecordsQuerySchema = z.object({
+  runId: z
+    .union([z.string().min(1), z.array(z.string().min(1)).min(1).max(RUN_RECORDS_MAX)])
+    .openapi({ description: 'A run id; repeat `runId` once per run, at most 100.' }),
+});
+
+/** GET /api/workflows/runs/records response. */
+export const runRecordsResponseSchema = z
+  .object({
+    /** One record per run read, in the order asked. */
+    records: z.array(runRecordSchema.meta({ id: 'RunRecord' })),
+    /** The ids no run has. */
+    missing: z.array(z.string()),
+    /** The runs whose events did not fold into a record, with why. */
+    unreadable: z.array(z.object({ id: z.string(), error: z.string() })),
+  })
+  .meta({ id: 'RunRecords' });
 
 /** GET /api/workflows/runs/:runId response. */
 export const workflowRunDetailSchema = z

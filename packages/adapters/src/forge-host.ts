@@ -161,6 +161,25 @@ async function findChange(
 /** The plugins one lookup dispatches through. */
 type Discovery = () => Promise<PluginDiscovery>;
 
+/** How a read reaches the forge: its plugins (`forgePluginsOnce`) and the environment. */
+export interface ForgeHostOptions {
+  plugins: Discovery;
+  env: NodeJS.ProcessEnv;
+  dispatch?: typeof dispatchForge;
+}
+
+/** The dispatch a read asks the forge through. */
+function asker(options: ForgeHostOptions): Ask {
+  return async request =>
+    (
+      await (options.dispatch ?? dispatchForge)(request, {
+        discovery: await options.plugins(),
+        env: options.env,
+        credentialEnv: options.env,
+      })
+    ).response;
+}
+
 /**
  * The forge plugins under `archonHome`, discovered once for the process and shared by every
  * lookup, since a discovery runs each plugin's metadata handshake: discovering per lookup
@@ -170,7 +189,7 @@ type Discovery = () => Promise<PluginDiscovery>;
  * added or changed after that needs a server restart to be seen: the read is display-only,
  * and runs and the CLI discover for themselves.
  */
-export function forgeHostDiscoveryOnce(
+export function forgePluginsOnce(
   archonHome: string,
   env: NodeJS.ProcessEnv,
   discover: typeof discoverPlugins = discoverPlugins
@@ -209,24 +228,17 @@ export function forgeHostDiscoveryOnce(
  * gives the item's runs' recorded branches, newest first, read only then, and the pull
  * request on one of them whose URL is the change is taken. A branch lookup (the run named
  * no URL) takes the first pull request on those branches in the project remote's
- * repository, whatever its URL. Plugins come from `discovery` (`forgeHostDiscoveryOnce`).
+ * repository, whatever its URL. Plugins come from `plugins` (`forgePluginsOnce`).
  * Never throws: a failure, a failed discovery included, is `unknown` with its reason.
  * Nothing is audited, as nothing here belongs to a run.
  */
 export async function changeMergeState(
   lookup: ChangeLookup,
   branches: () => Promise<readonly string[]>,
-  options: { discovery: Discovery; env: NodeJS.ProcessEnv; dispatch?: typeof dispatchForge }
+  options: ForgeHostOptions
 ): Promise<ChangeMergeState> {
   try {
-    const ask: Ask = async request =>
-      (
-        await (options.dispatch ?? dispatchForge)(request, {
-          discovery: await options.discovery(),
-          env: options.env,
-          credentialEnv: options.env,
-        })
-      ).response;
+    const ask = asker(options);
     const found = await findChange(ask, lookup, branches);
     if ('reason' in found) return unknown(found.reason);
     const { pr, timestamps } = found.view;
@@ -235,5 +247,39 @@ export async function changeMergeState(
       : { url: pr.url, merged: false, mergedAt: null, number: pr.number };
   } catch (error) {
     return unknown((error as Error).message);
+  }
+}
+
+/** An issue as the forge shows it, or why it could not say. */
+export type WorkItemAnswer =
+  | { number: number; title: string; state: 'open' | 'closed'; url: string }
+  | { number: number; unknown: string };
+
+/**
+ * Issue `number` in the repository the project's git `remote` resolves to, asked of its forge
+ * with `workitem.view`. Never throws: a failure, a failed plugin search included, is
+ * `unknown` with its reason. Nothing is audited, as nothing here belongs to a run.
+ */
+export async function viewWorkItem(
+  number: number,
+  remote: string | null,
+  options: ForgeHostOptions
+): Promise<WorkItemAnswer> {
+  try {
+    const ask = asker(options);
+    const repo = await repoOf(ask, { kind: 'branch', remote });
+    if ('reason' in repo) return { number, unknown: repo.reason };
+    const response = await ask({
+      op: 'workitem.view',
+      operationId: randomUUID(),
+      ref: { repo: repo.repo, number },
+    });
+    if (!response.ok) return { number, unknown: failed(response) };
+    if (response.result.op !== 'workitem.view')
+      return { number, unknown: 'the forge answered another operation' };
+    const { title, state, url } = response.result.value;
+    return { number, title, state, url };
+  } catch (error) {
+    return { number, unknown: (error as Error).message };
   }
 }
