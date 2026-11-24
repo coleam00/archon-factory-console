@@ -58,6 +58,27 @@ test('once the forge says merged, the item is merged and nothing more is asked',
   }
 });
 
+test('a failed ask keeps the board as it was and asks again next time', async () => {
+  seed('cb-fail', [readyWithMerge('b', false)]);
+  const before = read('cb-fail');
+  const host = forge({ b: true });
+  host.fail = true;
+  const warn = console.warn;
+  console.warn = () => undefined;
+  const release = watchMerges('cb-fail', { getProgress: host.getProgress, delayMs: 0 });
+  try {
+    await ticks(3);
+    expect(host.asked.length).toBeGreaterThan(1);
+    expect(read('cb-fail')).toBe(before);
+    host.fail = false;
+    await ticks();
+    expect(read('cb-fail').items[0]?.progress?.change?.merged).toBe(true);
+  } finally {
+    console.warn = warn;
+    release();
+  }
+});
+
 test('an item that leaves the board, or the last release, stops the asking', async () => {
   seed('cb-leave', [readyWithMerge('b', false)]);
   const host = forge();

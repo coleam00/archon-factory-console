@@ -147,6 +147,102 @@ describe('the merge state of a change', () => {
   });
 });
 
+const refused = {
+  operationId: 'op',
+  ok: false,
+  error: { kind: 'no_credential', message: 'none configured' },
+} as unknown as Dispatched['response'];
+const resolved = {
+  operationId: 'op',
+  ok: true,
+  result: {
+    op: 'resolve',
+    value: {
+      kind: 'resolved',
+      forge: 'github',
+      repo,
+      plugin: { name: 'github', version: '1' },
+      subject: { kind: 'pr', number: 10 },
+    },
+  },
+} as unknown as Dispatched['response'];
+const noPr = { operationId: 'op', ok: true, result: { op: 'pr.view', value: null } };
+
+/** A forge that resolves any remote to `repo` and has the pull request `heads` names on each head. */
+function forgeWith(heads: Record<string, Dispatched['response'] | null>) {
+  const asked: ForgeRequest[] = [];
+  const dispatch: Dispatch = async request => {
+    asked.push(request);
+    const response =
+      request.op === 'resolve'
+        ? resolved
+        : request.op === 'pr.view' && request.selector.kind === 'head'
+          ? (heads[request.selector.head] ?? (noPr as unknown as Dispatched['response']))
+          : refused;
+    return { response, plugin: null, audit: {} as Dispatched['audit'] };
+  };
+  const walked = () =>
+    asked.flatMap(r => (r.op === 'pr.view' && r.selector.kind === 'head' ? [r.selector.head] : []));
+  return { dispatch, asked, walked };
+}
+
+/** A merged pull request on another head, at another URL (#9). */
+const other = (() => {
+  const view = viewed('merged', '2026-11-16T00:00:00Z') as unknown as {
+    result: { value: { pr: Record<string, unknown> } };
+  };
+  view.result.value.pr = { ...view.result.value.pr, number: 9, url: `${URL10.slice(0, -2)}9` };
+  return view as unknown as Dispatched['response'];
+})();
+
+describe('when the forge cannot say, or no audit row names the change', () => {
+  test('a forge failure or a throw is unknown, with why', async () => {
+    const throwing: Dispatch = async () => {
+      throw new Error('spawn failed');
+    };
+    for (const [dispatch, reason] of [
+      [answering(refused).dispatch, 'no_credential: none configured'],
+      [throwing, 'spawn failed'],
+    ] as const) {
+      expect(await changeMergeState(byUrl(audits), async () => [], via(dispatch))).toMatchObject({
+        merged: 'unknown',
+        number: null,
+        reason,
+      });
+    }
+  });
+
+  test('walks the run branches newest first, past none and another URL, to the change', async () => {
+    const forge = forgeWith({
+      newest: null,
+      middle: other,
+      oldest: viewed('merged', '2026-11-17T01:00:00Z'),
+    });
+    const branches = async () => ['newest', 'middle', 'oldest'];
+    expect(await changeMergeState(byUrl([]), branches, via(forge.dispatch))).toEqual({
+      url: URL10,
+      merged: true,
+      mergedAt: '2026-11-17T01:00:00Z',
+      number: 10,
+    });
+    expect(forge.asked[0]).toMatchObject({ op: 'resolve', remote: URL10, web: true });
+    expect(forge.walked()).toEqual(['newest', 'middle', 'oldest']);
+  });
+
+  test("a run that named no URL resolves the project's remote and takes the first pull request", async () => {
+    const REMOTE = 'https://github.com/coleam00/archon-factory-console.git';
+    const forge = forgeWith({ newest: null, middle: other });
+    const branches = async () => ['newest', 'middle'];
+    const state = await changeMergeState(
+      { kind: 'branch', remote: REMOTE },
+      branches,
+      via(forge.dispatch)
+    );
+    expect(state).toMatchObject({ merged: true, number: 9 });
+    expect(forge.asked[0]).toMatchObject({ op: 'resolve', remote: REMOTE });
+  });
+});
+
 describe('forge plugins for the merge lookups', () => {
   const track = trackTempRoots();
   // A home with no config file: discovery reads nothing of the operator's.

@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { act } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, NavigationType, RouterProvider } from 'react-router';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueue } from '../../skills/runs';
@@ -144,6 +144,29 @@ describe('a stage opened over the Overview', () => {
       expect(document.activeElement).toBe(opener);
     } finally {
       await unmount();
+    }
+  });
+
+  test('Back closes it and closing goes back; a pasted ?stage= closes in place', async () => {
+    const opened = await mount();
+    try {
+      const { container, router } = opened;
+      await click(stageLink(container, 'checks'));
+      await act(async () => router.navigate(-1));
+      expect(dialog()).toBeNull();
+      await click(stageLink(container, 'checks'));
+      await click(inDialog('Close'));
+      expect(router.state.historyAction).toBe(NavigationType.Pop);
+    } finally {
+      await opened.unmount();
+    }
+    const pasted = await mount(`${OVERVIEW}?stage=checks`);
+    try {
+      await click(inDialog('Close'));
+      expect(pasted.router.state.historyAction).toBe(NavigationType.Replace);
+      expect(pasted.router.state.location.search).toBe('');
+    } finally {
+      await pasted.unmount();
     }
   });
 

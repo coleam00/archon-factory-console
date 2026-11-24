@@ -165,8 +165,11 @@ describe('a declaration the schema rejects, at the path a pack author fixes', ()
     expect(issuePaths(viewWith(patch))).toEqual(paths);
   });
 
-  test('an unknown field is rejected', () => {
-    expect(factoryViewSchema.safeParse(viewWith({ colour: 'red' })).success).toBe(false);
+  test('an unknown field is rejected, as unknown', () => {
+    const issues = factoryViewSchema.safeParse(viewWith({ colour: 'red' })).error?.issues ?? [];
+    expect(issues.map(issue => [issue.code, issue.path.join('.')])).toEqual([
+      ['unrecognized_keys', ''],
+    ]);
   });
 
   test('a bad rounds source says which entry and which key to fix', () => {

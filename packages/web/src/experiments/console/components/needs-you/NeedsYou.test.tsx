@@ -76,14 +76,22 @@ const answeredOn = (key: string, at: string, restarted?: TestRun): FactoryItem =
 test('a busy page counts what waits, groups asks by item, names gate runs, and holds the page rule', () => {
   const now = Date.now();
   const ago = (ms: number): string => new Date(now - ms).toISOString();
-  const queue = queueOf(
-    askItem({ ref: 'ask:7a', item: seven, pausedAt: ago(20 * 60_000) }),
-    askItem({ ref: 'ask:9', item: nine, recommendation: undefined, pausedAt: ago(2 * 3_600_000) }),
-    askItem({ ref: 'ask:7b', item: seven, message: 'Rebase?', pausedAt: ago(60 * 60_000) }),
-    gateItem({ ref: 'gate:1' }),
-    // A usage limit retries by itself: it needs no one.
-    usageLimitItem()
-  );
+  const queue: AttentionQueue = {
+    ...queueOf(
+      askItem({ ref: 'ask:7a', item: seven, pausedAt: ago(20 * 60_000) }),
+      askItem({
+        ref: 'ask:9',
+        item: nine,
+        recommendation: undefined,
+        pausedAt: ago(2 * 3_600_000),
+      }),
+      askItem({ ref: 'ask:7b', item: seven, message: 'Rebase?', pausedAt: ago(60 * 60_000) }),
+      gateItem({ ref: 'gate:1' }),
+      // A usage limit retries by itself: it needs no one.
+      usageLimitItem()
+    ),
+    degraded: [{ type: 'degraded', reason: 'run_unreadable', runId: 'r-x' }],
+  } as AttentionQueue;
   const root = render(none, queue, [answeredOn('a', ago(0)), answeredOn('b', ago(7 * 86_400_000))]);
   expect(root.querySelector('[aria-label="4 waiting"]')).not.toBeNull();
   expect(chipWords(root, 'waiting now')).toBe('4 waiting now');
@@ -99,7 +107,19 @@ test('a busy page counts what waits, groups asks by item, names gate runs, and h
     seventh.indexOf('Rebase?')
   );
   expect(root.innerHTML).toContain(`href="/console/p/${ID}/r/run-gate"`);
+  expect(text(root)).toContain(
+    'One paused run could not be read, so what it waits on is not listed.'
+  );
   expect(documentPageProblems(root)).toEqual([]);
+});
+
+test('a wait on a run no item holds is counted and named as a run, its workflow named once', () => {
+  const root = render(none, queueOf(gateItem({ ref: 'gate:1' })));
+  expect(text(root)).toContain('1 thing needs you');
+  expect(text(root)).toContain('on 1 run');
+  expect(
+    text(root.querySelector('[aria-label="Asks on Run run-gate"]')).match(/deliver/g)
+  ).toHaveLength(1);
 });
 
 test('with nothing open: "Nothing needs you", when last asked, the board and the runs', () => {

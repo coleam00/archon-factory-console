@@ -409,4 +409,46 @@ describe('a board opened from a number', () => {
       }
     }
   );
+
+  test('?show=found: the whole board, both strips open, their line scrolled to once', async () => {
+    const scrolled: Element[] = [];
+    const proto = dom.HTMLElement.prototype as unknown as { scrollIntoView: () => void };
+    const original = proto.scrollIntoView;
+    proto.scrollIntoView = function (this: Element): void {
+      scrolled.push(this);
+    };
+    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
+    const rest = PAGE.items.filter(item => item.item.key !== '6');
+    const { container, unmount } = await mount(
+      [closed, ...rest],
+      `/console/p/${ID}/factory/board?show=found`
+    );
+    try {
+      expect(cardKeys(container)).toHaveLength(rest.length);
+      expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
+      expect(container.querySelector('#set-aside-list')).not.toBeNull();
+      // By identity: a failing toEqual on a happy-dom Element hangs bun while it formats the diff.
+      expect(
+        scrolled.length === 1 && scrolled[0] === container.querySelector('[data-board-strips]')
+      ).toBe(true);
+    } finally {
+      await unmount();
+      proto.scrollIntoView = original;
+    }
+  });
+
+  test('an unknown ?show= says so and filters nothing', async () => {
+    const { container, unmount } = await mount(
+      PAGE.items,
+      `/console/p/${ID}/factory/board?show=bogus`
+    );
+    try {
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'Unknown filter "bogus"'
+      );
+      expect(cardKeys(container)).toHaveLength(PAGE.items.length);
+    } finally {
+      await unmount();
+    }
+  });
 });

@@ -34,9 +34,14 @@ type At = { merged?: PlacementInput['merged']; previous?: string };
 type Row = [rule: string, runs: PlacementRun[], expected: string, at?: At];
 const TRIAGE_VERBS = [
   ['build', 'plan'],
+  ['narrow', 'plan'],
   ['park', 'triage'],
   ['close', 'ended: Closed by triage'],
+  ['decline', 'ended: Closed by triage'],
+  ['deprecate', 'ended: Closed by triage'],
   ['fold', 'ended: Folded into another item'],
+  ['recipe', 'ended: Handled another way'],
+  ['native', 'ended: Handled another way'],
 ] as const;
 // Rules 1-6 of DESIGN.md's placement, first that matches, over the shipped view.
 const RULES: Row[] = [
@@ -77,6 +82,7 @@ const RULES: Row[] = [
   ['5 an unnamed failed step', [failed('deliver', 'rounds')], 'build'],
   ['5 cancelled', [run('triage', 'cancelled')], 'triage'],
   ['6 no runs', [], 'order'],
+  ['6 undeclared runs do not count', [going(null, 'build__build')], 'order'],
 ];
 
 describe('where an item sits', () => {

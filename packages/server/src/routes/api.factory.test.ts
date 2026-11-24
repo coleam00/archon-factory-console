@@ -631,6 +631,25 @@ describe('the merge-state cache', () => {
     expect((await state(change, noBranches, null, null)).merged).toBe('unknown');
     expect(lookups).toBe(1);
   });
+
+  test('a recorded merge whose audit rows name its pull request never asks the change host', async () => {
+    let lookups = 0;
+    const state = changeStateCache({
+      changeMergeState: async () => {
+        lookups++;
+        return { url: null, merged: false, mergedAt: null, number: null };
+      },
+    });
+    const at = '2026-11-17T01:00:00.000Z';
+    const audited = { ...change, audits: [PR7_AUDIT] };
+    expect(await state(audited, noBranches, null, { change: CHANGE, at })).toEqual({
+      url: CHANGE,
+      merged: true,
+      mergedAt: at,
+      number: 7,
+    });
+    expect(lookups).toBe(0);
+  });
 });
 
 /** Workflow discovery as runs see it, without the bundled defaults. */

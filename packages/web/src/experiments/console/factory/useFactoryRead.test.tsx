@@ -64,3 +64,37 @@ test('a read that missed its deadline says so and retries itself, waiting longer
     invalidate(key);
   }
 });
+
+test('a read slower than the first deadline on every attempt still lands, on a longer one', async () => {
+  jest.useFakeTimers();
+  const key = 'factory-slow-read-test';
+  // Healthy but slow: every attempt answers after 9 s, past the first 8 s deadline.
+  const slowRead = (signal: AbortSignal): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve('the data'), 9_000);
+      signal.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(new DOMException('aborted', 'AbortError'));
+      });
+    });
+  function Slow(): ReactElement {
+    const read = useFactoryRead(key, within => within(slowRead));
+    return read.data === undefined ? (
+      <FactoryLoading read={read}>L</FactoryLoading>
+    ) : (
+      <p>{read.data}</p>
+    );
+  }
+  const page = await mount(<Slow />);
+  try {
+    await advance(FACTORY_READ_DEADLINE_MS);
+    expect(page.container.textContent).toBe(`${SLOW_READ_NOTICE}L`);
+    // The retry, 2 s later, gets a 16 s deadline, which the 9 s answer meets.
+    await advance(2_000);
+    await advance(9_000);
+    expect(page.container.textContent).toBe('the data');
+  } finally {
+    await page.unmount();
+    invalidate(key);
+  }
+});

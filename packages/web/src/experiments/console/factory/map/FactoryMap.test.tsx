@@ -18,7 +18,7 @@ import { installDom } from '../../test-dom.test-helpers';
 import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
-const { mount: mountTree } = await installDom();
+const { dom, mount: mountTree } = await installDom();
 
 // The map sets aside items as the board does, idle ones by the clock: read the fixtures at the
 // time they were copied, never at the day the test runs.
@@ -183,6 +183,42 @@ test('while a merge state is pending, Ready to merge and Merged say they are che
       'Merged: checking merge state'
     );
     expect(hereChip(container, 'build')).toContain('1');
+  } finally {
+    await unmount();
+  }
+});
+
+test('a drag that ends on a card pans the map and does not open the card', async () => {
+  const { container, unmount } = await mount();
+  try {
+    const target = card(container, 'build');
+    // The pan is the layer's transform; a drag moves it.
+    const layer = () => container.querySelector<HTMLElement>('[style*="scale("]')?.style.transform;
+    const before = layer();
+    const pointer = (type: string, init: Record<string, number>): Event =>
+      new dom.PointerEvent(type, { bubbles: true, cancelable: true, ...init }) as unknown as Event;
+    await act(async () => {
+      target.dispatchEvent(
+        pointer('pointerdown', { button: 0, buttons: 1, pointerId: 1, clientX: 100, clientY: 100 })
+      );
+      target.dispatchEvent(
+        pointer('pointermove', { buttons: 1, pointerId: 1, clientX: 140, clientY: 100 })
+      );
+      target.dispatchEvent(pointer('pointerup', { pointerId: 1, clientX: 140, clientY: 100 }));
+      target.dispatchEvent(
+        new dom.MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          detail: 1,
+        }) as unknown as Event
+      );
+    });
+    expect(stagePage(container)).toBeUndefined();
+    expect(layer()).not.toBe(before);
+    // The guard lasts one task: the next click opens the card.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await act(async () => card(container, 'build').click());
+    expect(stagePage(container)).toBe('build');
   } finally {
     await unmount();
   }

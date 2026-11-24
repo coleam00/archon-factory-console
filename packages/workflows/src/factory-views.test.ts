@@ -92,6 +92,20 @@ describe('discoverFactoryViews', () => {
     expect(listing.errors[0]?.error).toContain('placement.deliver:ready');
     expect(listing.errors[1]?.error).toContain(packFile('bad-json'));
   });
+
+  test('a declaration naming another pack than its file is an error', async () => {
+    await write(projectFile('acme.kit'), view('acme/other', 'Mislabelled'));
+    await write(packFile('folder'), view('elsewhere', 'Mislabelled'));
+
+    const listing = await discoverFactoryViews(roots);
+    expect(listing.views).toEqual([]);
+    expect(listing.errors.map(({ pack, source }) => [pack, source])).toEqual([
+      ['acme.kit', 'project-file'],
+      ['folder', 'project'],
+    ]);
+    expect(listing.errors[0]?.error).toContain('acme/other');
+    expect(listing.errors[1]?.error).toContain('elsewhere');
+  });
 });
 
 describe('factoryViewsForProject', () => {

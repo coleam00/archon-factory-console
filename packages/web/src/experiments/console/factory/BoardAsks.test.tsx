@@ -251,12 +251,49 @@ describe('answering from the board', () => {
       await act(async () => set(K.factoryItems(ID), { items: [settled], members: {} }));
       expect(card(container, '6').textContent).toContain('Answered · Plan started again');
 
+      // The restarted run fails in the same stage: the card says so, not what was answered.
+      const failed = settledItem(
+        '6',
+        run('plan', 'completed', 'ask'),
+        '2026-11-18T11:00:00.000Z',
+        run('plan', 'failed', null, 'plan')
+      );
+      await act(async () => set(K.factoryItems(ID), { items: [failed], members: {} }));
+      expect(card(container, '6').textContent).toContain('Failed');
+      expect(card(container, '6').textContent).not.toContain('Answered');
+
       // A read that moves the card ends it.
       const moved = itemWith('6', [
         run('plan', 'completed', 'ask'),
         run('deliver', 'running', null, 'implement'),
       ]);
       await act(async () => set(K.factoryItems(ID), { items: [moved], members: {} }));
+      expect(card(container, '6').textContent).not.toContain('Answered');
+    } finally {
+      serveAnswers();
+      await unmount();
+    }
+  });
+
+  test('one of several: the popover stays open with the rest, and the card is not held', async () => {
+    serveAnswers();
+    const other = askOn(waiting, {
+      ref: 'ask:other',
+      pausedAt: '2026-11-16T08:00:00.000Z',
+      message: 'Split the item?',
+      options: [{ id: 'split', label: 'Split it' }],
+      recommendation: undefined,
+    });
+    const { container, unmount } = await mount(
+      [asking(waiting, [ask, other])],
+      queueOf([ask, other])
+    );
+    try {
+      await click(face(container, '6'));
+      await click(dialogButton('Use dev'));
+      await click(dialogButton('Confirm'));
+      expect(dialog()?.textContent).toContain('Answered: Use dev');
+      expect(dialog()?.textContent).toContain('Split the item?');
       expect(card(container, '6').textContent).not.toContain('Answered');
     } finally {
       serveAnswers();
