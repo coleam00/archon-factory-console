@@ -3,7 +3,7 @@ import { Factory } from 'lucide-react';
 import { Link, Navigate } from 'react-router';
 import { EmptyState } from '../../components/EmptyState';
 import { errorDetail } from '../../lib/http';
-import type { FactoryPacksRead } from '../../skills/factory';
+import type { FactoryPacksRead } from '../api';
 import { FactoryErrors } from '../FactoryFrame';
 import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';

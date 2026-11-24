@@ -1,8 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
 import { BookOpen, MessageCircleQuestion } from 'lucide-react';
 import { useAnsweredHold } from '../components/ask-card/useAnsweredHold';
-import { EmptyNote } from '../components/EmptyNote';
-import { SkeletonBlock, SkeletonGroup } from '../components/Skeleton';
+import { EmptyNote } from './ui/EmptyNote';
+import { SkeletonBlock, SkeletonGroup } from './ui/Skeleton';
 import { askNaming } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import { askRunId, type NeedsYouItem } from '../lib/needs-you';

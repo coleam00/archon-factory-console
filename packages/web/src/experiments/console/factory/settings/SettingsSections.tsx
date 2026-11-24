@@ -1,6 +1,6 @@
 import { type ReactElement, useId } from 'react';
 import { SlidersHorizontal, type LucideIcon } from 'lucide-react';
-import type { FactoryPackSettings } from '../../skills/factory';
+import type { FactoryPackSettings } from '../api';
 import { SectionHeading, type ToneColor } from '../document';
 import { groupSettings, type SettingGroup } from '../lib/setting-sections';
 import { ICONS, KINDS } from '../overview/overview-kinds';

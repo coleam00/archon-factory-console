@@ -11,7 +11,7 @@
  * not be read and one with no change are counted where placement puts them. A settled
  * `false` or `unknown` is still asked about again on an interval (`awaitingMerge`).
  */
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 
 /** A change's merge state as the items read carries it. */
 export type ChangeMerged = NonNullable<NonNullable<FactoryItem['progress']>['change']>['merged'];

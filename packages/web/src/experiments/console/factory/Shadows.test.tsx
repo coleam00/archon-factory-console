@@ -14,7 +14,7 @@ import { MapDetails } from './map/MapDetails';
 import { MapLegend } from './map/MapLegend';
 import { DrilldownCard } from './stage/DrilldownCard';
 import type { BoardAsks } from './useBoardAsks';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 
 // A shadow row's disclosure is a click, which static markup cannot reach.
 const { dom, mount } = await installDom();

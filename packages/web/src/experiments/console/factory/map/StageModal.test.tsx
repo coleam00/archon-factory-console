@@ -2,11 +2,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test }
 import { act } from 'react';
 import { createMemoryRouter, NavigationType, RouterProvider } from 'react-router';
 import { askItem } from '../../lib/needs-you.test-fixtures';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import type { AttentionQueue } from '../../skills/runs';
 import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import { FK } from '../keys';
 import { shippedListed } from '../item-detail.test-fixtures';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
@@ -15,7 +16,7 @@ import { PILL_LABEL } from '../lib/board';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { cancelRereads } from '../merge-reread';
 import { cancelMergeWatches } from '../merge-watch';
-import { installDom } from '../../test-dom.test-helpers';
+import { installDom } from '../test-dom.test-helpers';
 import { FactoryMap } from './FactoryMap';
 
 // Opening, closing, keys, focus and Back are events, which static markup cannot reach.
@@ -46,7 +47,7 @@ globalThis.fetch = Object.assign(
 afterEach(() => {
   cancelRereads();
   cancelMergeWatches();
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate('factory-workflow');
 });
 
@@ -63,7 +64,7 @@ const queue: AttentionQueue = {
 /** The map at `path`, in a router whose history a test can walk. */
 async function mount(path = OVERVIEW, read: FactoryItem[] | null = items) {
   // null leaves the items cold, so they are read through `itemsAnswer`.
-  if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
+  if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
   set(K.projectAttention(ID), queue);
   const router = createMemoryRouter(
     [

@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Link, useLocation } from 'react-router';
 import { FileCode, FileText, Info, ListChecks, Workflow } from 'lucide-react';
 import { YamlPreview } from '../../builder/components/YamlPreview';
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 import {
   DefinitionGrid,
   DocumentColumns,

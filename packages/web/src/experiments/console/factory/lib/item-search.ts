@@ -1,4 +1,4 @@
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 
 /** The most suggestions a search lists: enough to find a mistyped key, short enough to read. */
 export const ITEM_SEARCH_LIMIT = 8;

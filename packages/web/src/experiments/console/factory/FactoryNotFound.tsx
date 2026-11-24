@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { FileQuestionMark } from 'lucide-react';
 import { Link, useParams } from 'react-router';
-import { EmptyNote } from '../components/EmptyNote';
+import { EmptyNote } from './ui/EmptyNote';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
 import { factoryPath } from './lib/views';

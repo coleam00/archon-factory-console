@@ -1,9 +1,8 @@
 import { afterEach, expect, jest, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { ProjectAttentionLayout } from '../components/ProjectAttention';
 import { invalidate } from '../store/cache';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { FactoryFrame } from './FactoryFrame';
 import { FACTORY_READ_DEADLINE_MS } from './lib/deadline';
 
@@ -38,7 +37,7 @@ test('a stalled first views read, on a cold page load, says so and is retried', 
   const { container, unmount } = await mount(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
       <Routes>
-        <Route path="/console/p/:projectId" element={<ProjectAttentionLayout />}>
+        <Route path="/console/p/:projectId">
           <Route
             path="factory"
             element={<FactoryFrame section="overview">{() => null}</FactoryFrame>}

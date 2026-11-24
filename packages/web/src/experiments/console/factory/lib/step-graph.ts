@@ -1,4 +1,4 @@
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 import type { StepWorker } from './stage-steps';
 
 type WorkflowStep = FactoryWorkflow['steps'][number];

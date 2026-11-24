@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { itemDetail, shippedView } from '../item-detail.test-fixtures';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { endLastRun, landRunning, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
 import {
   itemColumn,

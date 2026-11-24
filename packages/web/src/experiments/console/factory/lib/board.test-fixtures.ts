@@ -7,7 +7,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import type { FactoryDeclaration } from './board';
 
 const read = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));

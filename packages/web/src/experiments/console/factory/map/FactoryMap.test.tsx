@@ -5,7 +5,8 @@ import type { AttentionQueue } from '../../skills/runs';
 import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import type { FactoryItem } from '../../skills/factory';
+import { FK } from '../keys';
+import type { FactoryItem } from '../api';
 import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { FIXTURE_NOW } from '../lib/board.test-fixtures';
@@ -14,7 +15,7 @@ import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
 import { cancelMergeWatches } from '../merge-watch';
-import { installDom } from '../../test-dom.test-helpers';
+import { installDom } from '../test-dom.test-helpers';
 import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
@@ -32,7 +33,7 @@ afterAll(() => {
 afterEach(() => {
   cancelRereads();
   cancelMergeWatches();
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 const ID = 'cb-1';
@@ -55,7 +56,7 @@ async function mount(
   read: FactoryItem[] | null = items,
   listed: FactoryViewListed = shippedListed
 ): ReturnType<typeof mountTree> {
-  if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
+  if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
   set(K.projectAttention(ID), queue);
   return mountTree(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
@@ -233,7 +234,7 @@ test('a failed refresh says so and keeps the map it last read', async () => {
   // The harness's fetch throws: every read the map makes here fails.
   const { container, unmount } = await mount();
   try {
-    await act(async () => invalidate(K.factoryItems(ID)));
+    await act(async () => invalidate(FK.factoryItems(ID)));
     await settle(() => container.querySelector('[role="status"]') !== null);
     const status = container.querySelector('[role="status"]')?.textContent;
     expect(status).toContain('Could not refresh: the test fetched');

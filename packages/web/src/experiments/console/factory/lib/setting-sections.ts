@@ -1,4 +1,4 @@
-import type { FactoryPackSettings } from '../../skills/factory';
+import type { FactoryPackSettings } from '../api';
 
 type Setting = FactoryPackSettings['settings'][number];
 type Section = FactoryPackSettings['sections'][number];

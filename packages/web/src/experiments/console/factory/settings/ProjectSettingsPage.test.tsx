@@ -4,11 +4,12 @@
  */
 import { afterEach, expect, test } from 'bun:test';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryPackSettings, FactoryViews } from '../../skills/factory';
+import type { FactoryPackSettings, FactoryViews } from '../api';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import { projectRoutes } from '../../routes/project-routes';
-import { installDom } from '../../test-dom.test-helpers';
+import { FK } from '../keys';
+import { factoryTestRoutes } from '../test-routes';
+import { installDom } from '../test-dom.test-helpers';
 import { documentPageProblems } from '../document.test-helpers';
 
 const { mount } = await installDom();
@@ -22,7 +23,7 @@ let unmount: (() => Promise<void>) | undefined;
 afterEach(async () => {
   await unmount?.();
   invalidate('factory-views');
-  invalidate(K.factoryPackSettings('acme.kit'));
+  invalidate(FK.factoryPackSettings('acme.kit'));
 });
 
 const views: FactoryViews = {
@@ -121,12 +122,12 @@ const SETTINGS: FactoryPackSettings = {
 
 /** The Settings page of this project, its pack's settings read as `settings`. */
 async function settingsPage(settings: FactoryPackSettings = SETTINGS): Promise<HTMLElement> {
-  set(K.factoryViews(ID), views);
+  set(FK.factoryViews(ID), views);
   set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
-  set(K.factoryPackSettings('acme.kit'), settings);
+  set(FK.factoryPackSettings('acme.kit'), settings);
   const page = await mount(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/settings`]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
   unmount = page.unmount;

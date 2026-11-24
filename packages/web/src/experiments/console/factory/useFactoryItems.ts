@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { EntityView } from '../store/cache';
-import { K } from '../store/keys';
+import { FK } from './keys';
 import {
   FACTORY_ITEMS_READS,
   readEveryFactoryItem,
@@ -10,7 +10,7 @@ import { anyMergePending, awaitingMerge } from './lib/merge-pending';
 import { scheduleReread } from './merge-reread';
 import { watchMerges } from './merge-watch';
 import { useFactoryRead } from './useFactoryRead';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 
 /**
  * Every item of the project with its progress, and the members of every work order they
@@ -21,7 +21,7 @@ import type { FactoryItem } from '../skills/factory';
  * on an interval (`watchMerges`), because a merge on the forge is no run event.
  */
 export function useFactoryItemsRead(projectId: string): EntityView<FactoryItemsRead> {
-  const read = useFactoryRead(K.factoryItems(projectId), within =>
+  const read = useFactoryRead(FK.factoryItems(projectId), within =>
     readEveryFactoryItem(projectId, FACTORY_ITEMS_READS, within)
   );
   const { data, error } = read;
@@ -29,7 +29,7 @@ export function useFactoryItemsRead(projectId: string): EntityView<FactoryItemsR
   // still schedule the next one.
   useEffect(() => {
     if (data !== undefined && anyMergePending(data.items))
-      scheduleReread(K.factoryItems(projectId));
+      scheduleReread(FK.factoryItems(projectId));
   }, [data, error, projectId]);
   // Keyed on the boolean, not `data`: a refresh that still waits keeps the watch's clock.
   const waiting = data !== undefined && data.items.some(awaitingMerge);

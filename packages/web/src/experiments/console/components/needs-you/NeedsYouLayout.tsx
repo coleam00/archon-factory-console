@@ -23,7 +23,7 @@ import { awaitingItems, needsYou, needsYouCount, type NeedsYouItem } from '../..
 import type { FactoryItem } from '../../skills/factory';
 import { listItemWindow, type ItemRead } from '../../skills/items';
 import type { AttentionQueue } from '../../skills/runs';
-import { K } from '../../store/keys';
+import { FK } from '../../factory/keys';
 import { useAnsweredHold, type AnsweredHold } from '../ask-card/useAnsweredHold';
 import { AnsweredLately } from './AnsweredRows';
 import { AwaitingSection } from './AwaitingSection';
@@ -77,8 +77,8 @@ function FactoryNeedsYou({
 }
 
 function WindowNeedsYou({ projectId, queue }: ContentProps): ReactElement {
-  // Under the `factory-items:<id>` prefix, so an ask opening or closing reads it again.
-  const items = useFactoryRead<ItemRead[]>(K.projectItems(projectId), within =>
+  // Under the `runs:factory-items:<id>` prefix, so an ask opening or closing reads it again.
+  const items = useFactoryRead<ItemRead[]>(FK.projectItems(projectId), within =>
     readEveryItem(projectId, listItemWindow, within)
   );
   // The engine's read carries links, so a member names its work order without a view too.

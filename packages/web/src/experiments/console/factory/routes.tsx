@@ -8,9 +8,9 @@ import { StepPage } from './StepPage';
 import { ProjectSettingsPage } from './settings/ProjectSettingsPage';
 
 /**
- * The Factory section's routes, a child of the project's route (`projectRoutes`), whose
- * layout shares the attention stream. A function returning a `<Route>` rather than a
- * component, because `<Routes>` reads its children's route elements directly.
+ * The Factory section's routes, a child of the project's route, where the console mounts
+ * them. A function returning a `<Route>` rather than a component, because `<Routes>` reads
+ * its children's route elements directly.
  */
 export function factoryRoutes(): ReactElement {
   return (

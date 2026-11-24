@@ -33,7 +33,7 @@ afterAll(() => {
   for (const prefix of [
     'factory-views',
     'factory-workflow',
-    'factory-items',
+    'runs:factory-items',
     'factory-item',
     'runs',
   ])

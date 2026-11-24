@@ -1,4 +1,4 @@
-import type { FactoryItem, FactoryItemProgress } from '../../skills/factory';
+import type { FactoryItem, FactoryItemProgress } from '../api';
 import { durationWords } from './duration';
 import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';

@@ -1,4 +1,4 @@
-import type { FactoryItem } from '../../../skills/factory';
+import type { FactoryItem } from '../../api';
 import { DELIVER_AFTER_PLAN, realItem } from '../map.test-fixtures';
 
 type Progress = NonNullable<FactoryItem['progress']>;

@@ -1,6 +1,6 @@
 import { expect, mock, test } from 'bun:test';
-import type { FactoryItem } from '../../skills/factory';
-import type { ItemWindow } from '../../skills/items';
+import type { FactoryItem } from '../api';
+import type { ItemWindow } from '../api';
 import { deadlineOf, FACTORY_READ_DEADLINE_MS } from './deadline';
 import { readEveryFactoryItem, readEveryItem, type FactoryItemsReads } from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';

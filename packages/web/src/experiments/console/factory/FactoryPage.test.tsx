@@ -1,13 +1,14 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
+import type { FactoryViews, FactoryWorkflow } from './api';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
+import { FK } from './keys';
+import { factoryTestRoutes } from './test-routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { askItem } from '../lib/needs-you.test-fixtures';
@@ -28,7 +29,7 @@ afterEach(() => {
   invalidate('factory-workflow');
   invalidate('project');
   invalidate('runs');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
@@ -104,13 +105,13 @@ function render(
   attention: AttentionQueue = quiet,
   items: FactoryItem[] = []
 ): string {
-  set(K.factoryViews(ID), listing);
+  set(FK.factoryViews(ID), listing);
   set(K.projectAttention(ID), attention);
-  set(K.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
-  set(K.factoryItems(ID), { items, members: {} });
+  set(FK.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
+  set(FK.factoryItems(ID), { items, members: {} });
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
 }

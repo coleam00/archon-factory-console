@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { EmptyNote } from '../components/EmptyNote';
-import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../components/Skeleton';
+import { EmptyNote } from './ui/EmptyNote';
+import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from './ui/Skeleton';
 import { BoardCard, MergedCard } from './BoardCard';
 import { ColumnHeader } from './ColumnHeader';
 import { toneColor } from './tones';

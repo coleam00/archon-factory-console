@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
 import { errorDetail } from '../../lib/http';
-import type { FactoryPackSettings } from '../../skills/factory';
-import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../../components/Skeleton';
+import type { FactoryPackSettings } from '../api';
+import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../ui/Skeleton';
 import { Panel } from '../document';
 import { FactoryFrame } from '../FactoryFrame';
 import { FactoryLoading } from '../FactoryLoading';

@@ -1,10 +1,6 @@
-import {
-  getFactoryProgress,
-  type FactoryItemDetail,
-  type FactoryProgress,
-} from '../skills/factory';
+import { getFactoryProgress, type FactoryItemDetail, type FactoryProgress } from './api';
 import { get, patch } from '../store/cache';
-import { K } from '../store/keys';
+import { FK } from './keys';
 import { FACTORY_READ_DEADLINE_MS, withDeadline } from './lib/deadline';
 import { PAGE_LIMIT, withProgress, type FactoryItemsRead } from './lib/factory-items-read';
 import { awaitingMergeKeys } from './lib/merge-pending';
@@ -39,7 +35,7 @@ interface Watch {
 const watches = new Map<string, Watch>();
 
 /**
- * Watches the merge state of `K.factoryItems(projectId)` while the caller holds it: every
+ * Watches the merge state of `FK.factoryItems(projectId)` while the caller holds it: every
  * `deps.delayMs` it asks `GET /api/factory/progress` about the items whose change is not
  * merged (`awaitingMerge`), only those keys, and patches the answers into the items, so the
  * board, the Merged column and the Overview's numbers place them from the same value. It
@@ -137,12 +133,12 @@ function waitUntilVisible(
  * landed meanwhile is newer than this ask, so the answer is dropped for that value.
  */
 async function readWaiting(projectId: string, watch: Watch): Promise<void> {
-  const key = K.factoryItems(projectId);
+  const key = FK.factoryItems(projectId);
   const before = get(key) as FactoryItemsRead | undefined;
   if (before === undefined) return;
   const keys = awaitingMergeKeys(before.items);
   const details = keys.map(itemKey => {
-    const detailKey = K.factoryItem(projectId, itemKey);
+    const detailKey = FK.factoryItem(projectId, itemKey);
     return { itemKey, detailKey, detail: get(detailKey) as FactoryItemDetail | undefined };
   });
   const answers: FactoryProgress[] = [];

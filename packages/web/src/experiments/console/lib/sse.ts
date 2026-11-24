@@ -62,12 +62,10 @@ export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
       const ev = parse(e.data);
       if (ev?.type === undefined || ev.type === 'heartbeat') return;
       if (ev.type === 'workflow_status' || ev.type === 'dag_node') {
-        // Refetch every runs:* key (runs:all, runs:project:<id>).
+        // Refetch every runs:* key (runs:all, runs:project:<id>, the factory's item reads).
         invalidate('runs');
         // Node outputs record metrics, so every metrics:* report may have changed.
         invalidate('metrics');
-        // A run starting, changing step or ending moves an item on the factory board.
-        invalidate('factory-items');
         // Also refresh any open run-detail cache so the detail page picks
         // up status / node-transition changes without its own SSE round-trip.
         if (typeof ev.runId === 'string') {

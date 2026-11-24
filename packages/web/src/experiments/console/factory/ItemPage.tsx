@@ -2,12 +2,12 @@ import { useEffect, useMemo, useRef, type ReactElement, type ReactNode } from 'r
 import { displayItemKey } from './lib/item-key';
 import { useParams } from 'react-router';
 import { BookOpen, Info } from 'lucide-react';
-import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
-import * as skill from '../skills';
-import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
+import { SkeletonBlock, SkeletonGroup, SkeletonLine } from './ui/Skeleton';
+import { getFactoryItem } from './api';
+import type { FactoryItem, FactoryItemDetail } from './api';
 import { useProjectAttention } from '../components/ProjectAttention';
 import type { EntityView } from '../store/cache';
-import { K } from '../store/keys';
+import { FK } from './keys';
 import { useFactoryRead } from './useFactoryRead';
 import { BackLink } from './BackLink';
 import { FactoryFrame } from './FactoryFrame';
@@ -43,9 +43,9 @@ export function ItemPage(): ReactElement {
 function ItemBody({ view }: { view: FactoryViewListed }): ReactElement {
   const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
   // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
-  const itemKey = K.factoryItem(projectId, key);
+  const itemKey = FK.factoryItem(projectId, key);
   const read = useFactoryRead<FactoryItemDetail>(itemKey, within =>
-    within(signal => skill.getFactoryItem({ codebaseId: projectId, key }, { signal }))
+    within(signal => getFactoryItem({ codebaseId: projectId, key }, { signal }))
   );
   // As `useFactoryItems`: read again while the server is still asking whether it merged.
   const { data, error } = read;

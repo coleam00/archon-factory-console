@@ -35,9 +35,9 @@ export function isLegacyAttention(attention: { occurrence: string }): boolean {
 }
 
 /**
- * Answer a queue item by its ref, then refresh every `runs` key (the project's queue, which
- * the answered item leaves, and the runs feed the answer moved on) and every `factory-items`
- * key (an item page lists the answer among its answers). A refusal refreshes too: it usually
+ * Answer a queue item by its ref, then refresh every `runs` key: the project's queue, which
+ * the answered item leaves, the runs feed the answer moved on, and the factory's item reads
+ * (an item page lists the answer among its answers). A refusal refreshes too: it usually
  * means the item closed, so the stale card should go.
  */
 export function answerByRef(ref: string): SubmitAnswer {
@@ -46,7 +46,6 @@ export function answerByRef(ref: string): SubmitAnswer {
       await skill.answerAttentionItem(ref, choose, text);
     } finally {
       invalidate('runs');
-      invalidate('factory-items');
     }
   };
 }

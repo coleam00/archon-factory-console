@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { errorDetail } from '../../lib/http';
 import { useProjectAttention } from '../../components/ProjectAttention';
 import type { EntityView } from '../../store/cache';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
 import { layoutMap } from '../lib/map-layout';

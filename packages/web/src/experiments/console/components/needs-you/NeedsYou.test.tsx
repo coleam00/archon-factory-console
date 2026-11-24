@@ -18,6 +18,7 @@ import type { ItemRead } from '../../skills/items';
 import type { AttentionQueue } from '../../skills/runs';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import { FK } from '../../factory/keys';
 import { installDom } from '../../test-dom.test-helpers';
 import { ANSWERED_SHOWN_MS } from '../ask-card/useAnsweredHold';
 import { NeedsYouContent } from './NeedsYouLayout';
@@ -29,7 +30,8 @@ const unserved = globalThis.fetch;
 afterEach(() => {
   jest.useRealTimers();
   globalThis.fetch = unserved;
-  for (const prefix of ['factory-views', 'factory-items', 'runs', 'project']) invalidate(prefix);
+  for (const prefix of ['factory-views', 'runs:factory-items', 'runs', 'project'])
+    invalidate(prefix);
 });
 
 const none: FactoryViews = { views: [], errors: [] };
@@ -45,11 +47,11 @@ const quiet = queueOf();
 
 /** The tab as the route draws it, parsed into a DOM to query. */
 function render(listing: FactoryViews, queue: AttentionQueue, items: FactoryItem[] = []): Element {
-  set(K.factoryViews(ID), listing);
+  set(FK.factoryViews(ID), listing);
   set(K.projectAttention(ID), queue);
-  set(K.factoryItems(ID), { items, members: {} });
+  set(FK.factoryItems(ID), { items, members: {} });
   set(
-    K.projectItems(ID),
+    FK.projectItems(ID),
     items.map(({ progress: _progress, ...read }): ItemRead => read)
   );
   const root = document.createElement('div');
@@ -264,6 +266,6 @@ test('answering the last ask keeps it in its panel, saying so, before the empty 
   } finally {
     jest.useRealTimers();
     await unmount();
-    invalidate('factory-items');
+    invalidate('runs:factory-items');
   }
 });

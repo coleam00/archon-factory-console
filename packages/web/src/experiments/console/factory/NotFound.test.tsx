@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
-import { installDom } from '../test-dom.test-helpers';
+import { factoryTestRoutes } from './test-routes';
+import { installDom } from './test-dom.test-helpers';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
@@ -19,7 +19,7 @@ const originalFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate('factory-workflow');
   invalidate(K.project(PROJECT));
 });
@@ -89,7 +89,7 @@ async function renderAt(
   set(K.projectAttention(PROJECT), { items: [], runs: [], degraded: [] });
   const { container, unmount } = await mount(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/${path}`]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
   try {

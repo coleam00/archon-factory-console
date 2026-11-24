@@ -18,7 +18,7 @@ import { factoryNumbers, type FactoryNumbers as Numbers } from './lib/numbers';
 import { factoryPath } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
-import { SkeletonFigure } from '../components/Skeleton';
+import { SkeletonFigure } from './ui/Skeleton';
 import { StaleRead } from './StaleRead';
 import { openFindings } from './lib/discoveries';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';

@@ -4,7 +4,7 @@ import { useFactoryItems } from '../factory/useFactoryItems';
 import { useFactoryViews } from '../factory/useFactoryViews';
 import { needsYouCount } from '../lib/needs-you';
 import type { AttentionQueue } from '../skills/runs';
-import { useProjectAttention } from './ProjectAttention';
+import { useProjectAttentionIfMounted } from './ProjectAttention';
 import { TabLink } from './TabLink';
 
 type ProjectView = 'needs-you' | 'runs' | 'chat' | 'metrics' | 'factory';
@@ -34,7 +34,7 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
   const { data: factoryViews } = useFactoryViews(projectId);
-  const attention = useProjectAttention();
+  const attention = useProjectAttentionIfMounted();
   const factory = factoryTabShown(factoryViews);
   const tabs = factory ? [...TABS, FACTORY_TAB] : TABS;
   const row = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
       {tabs.map(({ key, label, suffix }) => (
         <TabLink key={key} to={`/console/p/${projectId}${suffix}`} active={key === active}>
           {label}
-          {key !== 'needs-you' || attention.data === undefined ? null : factory ? (
+          {key !== 'needs-you' || attention?.data === undefined ? null : factory ? (
             <FactoryWaitingBadge projectId={projectId} queue={attention.data} />
           ) : (
             <WaitingBadge count={needsYouCount(attention.data)} />

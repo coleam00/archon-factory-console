@@ -1,5 +1,5 @@
-import { getFactoryProgress, type FactoryItem, type FactoryProgress } from '../../skills/factory';
-import { listItemWindow, type ItemRead, type ItemWindow } from '../../skills/items';
+import { getFactoryProgress, type FactoryItem, type FactoryProgress } from '../api';
+import { listItemWindow, type ItemRead, type ItemWindow } from '../api';
 import type { WithinDeadline } from './deadline';
 import { membershipOf } from './work-orders';
 
@@ -64,7 +64,7 @@ export async function readEveryItem(
   return items.sort((a, b) => activityOf(b) - activityOf(a) || a.item.id.localeCompare(b.item.id));
 }
 
-/** What `K.factoryItems(projectId)` holds for every Factory page. */
+/** What `FK.factoryItems(projectId)` holds for every Factory page. */
 export interface FactoryItemsRead {
   /** Every item with a run, newest activity first, ties by item id. */
   items: FactoryItem[];
@@ -78,7 +78,7 @@ export interface FactoryItemsRead {
 
 /**
  * Every item of one project, newest activity first, ties by item id, with the members of
- * every work order they name: the value `K.factoryItems(projectId)` holds. It walks the engine's items
+ * every work order they name: the value `FK.factoryItems(projectId)` holds. It walks the engine's items
  * window page by page (the cursor carries the window), and joins each page with the
  * progress the board needs from `GET /api/factory/progress`. The window pages by item id,
  * and the board keeps input order within a column, so the order is set here. A failed page

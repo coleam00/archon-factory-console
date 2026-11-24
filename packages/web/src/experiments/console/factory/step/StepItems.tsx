@@ -1,8 +1,8 @@
 import { useMemo, type ReactElement } from 'react';
 import { Link } from 'react-router';
 import { Activity, Inbox } from 'lucide-react';
-import { EmptyNote } from '../../components/EmptyNote';
-import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
+import { EmptyNote } from '../ui/EmptyNote';
+import { SkeletonGroup, SkeletonLine } from '../ui/Skeleton';
 import { BoardCard } from '../BoardCard';
 import { FactoryLoading } from '../FactoryLoading';
 import { WAY_ON_LINK } from '../FactoryNotFound';

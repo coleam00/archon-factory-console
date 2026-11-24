@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { PAGE, VIEW, realItem } from './board.test-fixtures';
 import {
   boardShadowLine,

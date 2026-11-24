@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { PILL_LABEL, type Pill } from './lib/board';
 import type { ColumnTone } from './lib/board-columns';
 import { toneColor } from './tones';
-import { SkeletonFigure } from '../components/Skeleton';
+import { SkeletonFigure } from './ui/Skeleton';
 
 const CHECKING = { title: 'Checking which changes merged', word: 'checking' };
 

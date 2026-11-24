@@ -8,7 +8,7 @@ import { useProjectAttention } from '../components/ProjectAttention';
 import { readFailed } from './lib/deadline';
 import type { FactoryViewListed } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
-import { SkeletonBlock, SkeletonGroup } from '../components/Skeleton';
+import { SkeletonBlock, SkeletonGroup } from './ui/Skeleton';
 import { useFactoryItems } from './useFactoryItems';
 
 /** How many asks the Overview shows before "N more" leads to the Needs you tab. */

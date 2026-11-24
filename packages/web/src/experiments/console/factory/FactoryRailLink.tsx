@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Factory } from 'lucide-react';
-import { RailNavLink } from '../components/RailNavLink';
+import { RailNavLink } from './ui/RailNavLink';
 import { useFactoryPacks } from './useFactoryPacks';
 
 /**

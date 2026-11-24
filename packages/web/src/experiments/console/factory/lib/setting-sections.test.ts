@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryPackSettings } from '../../skills/factory';
+import type { FactoryPackSettings } from '../api';
 import { groupSettings, OTHER_SECTION, settingCounts } from './setting-sections';
 
 type Setting = FactoryPackSettings['settings'][number];

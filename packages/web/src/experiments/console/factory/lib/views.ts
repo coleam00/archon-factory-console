@@ -1,5 +1,5 @@
 import type { To } from 'react-router';
-import type { FactoryPacksRead, FactoryViews } from '../../skills/factory';
+import type { FactoryPacksRead, FactoryViews } from '../api';
 
 /** One view the server listed, with where it was found. */
 export type FactoryViewListed = FactoryViews['views'][number];

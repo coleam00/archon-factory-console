@@ -1,13 +1,13 @@
 import type { ReactElement, ReactNode } from 'react';
 import { useParams } from 'react-router';
 import { EmptyState } from '../components/EmptyState';
-import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
-import { TabLink } from '../components/TabLink';
-import { ProjectHeader } from '../components/ProjectHeader';
+import { SkeletonGroup, SkeletonLine } from './ui/Skeleton';
+import { TabLink } from './ui/TabLink';
+import { ProjectHeader } from './ui/ProjectHeader';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
-import * as skill from '../skills';
-import type { FactoryViews } from '../skills/factory';
+import { getFactoryProject } from './api';
+import type { FactoryViews } from './api';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { ClampedSummary } from './ClampedSummary';
@@ -51,7 +51,7 @@ export function FactoryFrame({
 }: FactoryFrameProps): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const project = useFactoryRead<Project>(K.project(projectId), within =>
-    within(signal => skill.getProject(projectId, { signal }))
+    within(signal => getFactoryProject(projectId, { signal }))
   );
   const listing = useFactoryViews(projectId);
   const view = currentView(listing.data);

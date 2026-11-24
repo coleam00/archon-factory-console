@@ -8,7 +8,7 @@
  */
 import { formatDateTime } from '../../lib/format';
 import { displayItemKey } from './item-key';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { askQuestion } from '../../lib/ask-card';
 import { awaitingItems, needsYou } from '../../lib/needs-you';
 import { BOARD_SHOW, showsCard, waitsOnYou, type BoardShow } from './board-show';

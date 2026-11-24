@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Hourglass } from 'lucide-react';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import { Panel, SectionHeading } from './document';
 
 export type Awaits = NonNullable<NonNullable<FactoryItem['progress']>['awaits']>;

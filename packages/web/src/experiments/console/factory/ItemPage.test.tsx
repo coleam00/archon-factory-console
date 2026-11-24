@@ -1,11 +1,12 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItemDetail, FactoryViews } from '../skills/factory';
+import type { FactoryItemDetail, FactoryViews } from './api';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
+import { FK } from './keys';
+import { factoryTestRoutes } from './test-routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { FIXTURE_NOW, declaredAwaits } from './lib/board.test-fixtures';
 import { askItem } from '../lib/needs-you.test-fixtures';
@@ -23,7 +24,7 @@ afterAll(() => {
 
 afterEach(() => {
   invalidate('factory-views');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate('project');
   invalidate('runs');
 });
@@ -33,12 +34,12 @@ const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
 
 function render(detail: FactoryItemDetail, attention: AttentionQueue = quiet): string {
   const key = detail.item.item.key;
-  set(K.factoryViews(PROJECT), listing);
+  set(FK.factoryViews(PROJECT), listing);
   set(K.projectAttention(PROJECT), attention);
-  set(K.factoryItem(PROJECT, key), detail);
+  set(FK.factoryItem(PROJECT, key), detail);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/${key}`]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
 }
@@ -273,11 +274,11 @@ describe('the item page', () => {
   });
 
   test('while the item is read: skeletons, never Loading…', () => {
-    set(K.factoryViews(PROJECT), listing);
+    set(FK.factoryViews(PROJECT), listing);
     set(K.projectAttention(PROJECT), quiet);
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/77`]}>
-        <Routes>{projectRoutes('/console/')}</Routes>
+        <Routes>{factoryTestRoutes()}</Routes>
       </MemoryRouter>
     );
     expect(text(html)).toContain('Loading the item');
@@ -294,7 +295,7 @@ describe('work orders on the item page', () => {
       item: { ...three.item, key: 'issue-3' },
       progress: { ...three.progress!, title: null, partOf: '48' },
     };
-    set(K.factoryItems(PROJECT), { items: [placed], members: { '48': ['issue-3', '10'] } });
+    set(FK.factoryItems(PROJECT), { items: [placed], members: { '48': ['issue-3', '10'] } });
     const base = itemDetail('1');
     const html = render({
       ...base,
@@ -328,7 +329,7 @@ describe('work orders on the item page', () => {
   test('a member its order run placed, with no link: Part of the order it named', () => {
     const detail = itemDetail('3');
     const item = { ...detail.item, progress: { ...detail.item.progress!, partOf: '48' } };
-    set(K.factoryItems(PROJECT), { items: [item], members: {} });
+    set(FK.factoryItems(PROJECT), { items: [item], members: {} });
     const html = render({ ...detail, item });
     expect(text(html)).toContain('Part of #48 as its order run recorded');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/48"`);

@@ -5,7 +5,7 @@
  * different stages, and an item the board sets aside is in no stage. "needs you" is the item
  * page's `itemAsks`, which reads the Needs-you list's `needsYou`, so the chip agrees with both.
  */
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import type { AttentionQueueItem } from '../../skills/runs';
 import { anyMergePending, stageCountPending } from './merge-pending';
 import { awaitingItems, itemAsks } from '../../lib/needs-you';

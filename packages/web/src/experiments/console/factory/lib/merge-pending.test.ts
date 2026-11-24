@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { delivering, progressOf, readyWithMerge, realItem } from './board.test-fixtures';
 import { awaitingMerge, awaitingMergeKeys, mergePending, stageCountPending } from './merge-pending';
 

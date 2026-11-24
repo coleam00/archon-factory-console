@@ -1,9 +1,9 @@
 import { afterEach, expect, test } from 'bun:test';
 import { MemoryRouter } from 'react-router';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { invalidate, set } from '../store/cache';
 import { formatDateTime } from '../lib/format';
-import { K } from '../store/keys';
+import { FK } from './keys';
 import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import type { ItemName } from '../lib/ask-naming';
@@ -13,7 +13,7 @@ const { mount: render } = await installDom();
 
 const ID = 'cb-found';
 afterEach(() => {
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 /** The line and the opened panel, as the board draws them with its strips open. */
@@ -34,7 +34,7 @@ async function mount(names: ReadonlyMap<string, ItemName> = new Map()) {
 }
 
 test('the line: its name, the shadow badge and the count', async () => {
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   const { line, unmount } = await mount();
   try {
     expect(line.querySelector('h2')?.textContent).toBe('Found by the factory');
@@ -50,7 +50,7 @@ test('the line: its name, the shadow badge and the count', async () => {
 });
 
 test('opened: the count no item covers, the chips, the shadow line and the findings listed', async () => {
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   const { body, unmount } = await mount();
   try {
     // The heading is the line's, once on the page.
@@ -101,7 +101,7 @@ test.each([
     'Nothing the factory would file now.',
   ],
 ] as const)('%s', async (_name, change, onLine, inBody) => {
-  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, ...change });
+  set(FK.factoryDiscoveries(ID), { ...DISCOVERIES, ...change });
   const { container, line, body, unmount } = await mount();
   try {
     expect(line.textContent).toContain(onLine);

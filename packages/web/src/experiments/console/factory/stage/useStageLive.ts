@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import type { AttentionQueueItem } from '../../skills/runs';
 import { stageLive, type MapLive, type Unread } from '../lib/map-live';
 import type { FactoryViewListed } from '../lib/views';

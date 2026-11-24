@@ -1,7 +1,7 @@
 import { afterEach, expect, jest, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
@@ -17,7 +17,7 @@ afterEach(() => {
   jest.useRealTimers();
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 const ID = 'cb-slow-readers';

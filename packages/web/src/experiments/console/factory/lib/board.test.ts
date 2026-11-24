@@ -9,7 +9,7 @@ import {
   hiddenColumnsHint,
   movedKeys,
 } from './board';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import {
   readyWithMerge,
   delivering,

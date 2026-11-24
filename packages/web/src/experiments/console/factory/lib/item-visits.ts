@@ -5,7 +5,7 @@
  * each step placed by the stage whose `nodes` name it (`stageOfStep`), so placement stays the
  * board's. A step no stage names (a loop group between rounds) leaves the run where it was.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { placedStage, stageOfStep, stageOfWorkflow } from './placement';
 import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';

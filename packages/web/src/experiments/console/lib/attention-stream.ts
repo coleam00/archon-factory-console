@@ -6,6 +6,7 @@ import * as skill from '../skills';
 import type { AttentionQueue } from '../skills/runs';
 import { invalidate, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
+import { FK } from '../factory/keys';
 import { useFactoryRead } from '../factory/useFactoryRead';
 
 type StreamLineType = components['schemas']['AttentionStreamLine']['type'];
@@ -98,13 +99,13 @@ function followAttentionStream(
 
 /**
  * What an attention change refreshes: the project's queue, and its item reads (every page
- * and item key under `factory-items:<projectId>`, read with or without a factory view),
+ * and item key under `runs:factory-items:<projectId>`, read with or without a factory view),
  * whose questions and answers an ask opening or closing changes too. The dashboard SSE
  * does not carry asks.
  */
 export function refreshOnAttentionChange(projectId: string): void {
   invalidate(K.projectAttention(projectId));
-  invalidate(K.factoryItems(projectId));
+  invalidate(FK.factoryItems(projectId));
 }
 
 /**

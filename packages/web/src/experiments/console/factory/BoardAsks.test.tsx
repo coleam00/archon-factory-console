@@ -2,12 +2,13 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { LONG } from '../components/ask-card/wrap.test-fixtures';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { askItem } from '../lib/needs-you.test-fixtures';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
+import { FK } from './keys';
 import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { Board } from './BoardPage';
 import { realItem, VIEW } from './lib/board.test-fixtures';
@@ -43,7 +44,7 @@ const NOW = new Date(2026, 10, 18, 12, 0);
 afterEach(() => {
   cancelRereads();
   cancelMergeWatches();
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 /** An ask on `item`, as the queue and the item read both list it. */
@@ -67,8 +68,8 @@ const queueOf = (items: AttentionQueueItem[]): AttentionQueue => ({
 
 /** The board with `queue` as the project's attention queue; `null` for one not read yet. */
 async function mount(items: FactoryItem[], queue: AttentionQueue | null, path = '') {
-  set(K.factoryItems(ID), { items, members: {} });
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryItems(ID), { items, members: {} });
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   if (queue === null) invalidate('runs');
   else set(K.projectAttention(ID), queue);
   return render(
@@ -267,7 +268,7 @@ describe('answering from the board', () => {
           '2026-11-18T11:00:00.000Z',
           run('plan', 'running', null, 'plan')
         );
-        await act(async () => set(K.factoryItems(ID), { items: [settled], members: {} }));
+        await act(async () => set(FK.factoryItems(ID), { items: [settled], members: {} }));
         expect(held().textContent).toContain('Answered · Plan started again');
 
         // The restarted run fails in the same stage: the card says so, not what was answered.
@@ -277,7 +278,7 @@ describe('answering from the board', () => {
           '2026-11-18T11:00:00.000Z',
           run('plan', 'failed', null, 'plan')
         );
-        await act(async () => set(K.factoryItems(ID), { items: [failed], members: {} }));
+        await act(async () => set(FK.factoryItems(ID), { items: [failed], members: {} }));
         expect(held().textContent).toContain('Failed');
         expect(held().textContent).not.toContain('Answered');
 
@@ -286,7 +287,7 @@ describe('answering from the board', () => {
           run('plan', 'completed', 'ask'),
           run('deliver', 'running', null, 'implement'),
         ]);
-        await act(async () => set(K.factoryItems(ID), { items: [moved], members: {} }));
+        await act(async () => set(FK.factoryItems(ID), { items: [moved], members: {} }));
         expect(held().textContent).not.toContain('Answered');
       } finally {
         serveAnswers();

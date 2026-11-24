@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryWorkflow } from '../../skills/factory';
+import type { FactoryWorkflow } from '../api';
 import deliverJson from './fixtures/deliver-workflow.json';
 import { stepGraph } from './step-graph';
 import { layoutStepGraph, type Box } from './step-graph-layout';
