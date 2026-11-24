@@ -156,22 +156,20 @@ export function Board({
           {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
             height: the Position unknown row, the hidden-columns hint. */}
           {table ? null : (
-            <>
-              <span className="flex flex-wrap items-center gap-3 md:ml-auto">
-                {shown === undefined ? null : (
-                  <UnplacedRow projectId={projectId} cards={shown.unplaced} />
-                )}
-                {hint === null ? null : (
-                  // Only where the columns sit side by side: on a phone they stack and none is hidden.
-                  <span
-                    className="hidden text-console-12 text-text-tertiary md:inline"
-                    aria-live="polite"
-                  >
-                    {hint} →
-                  </span>
-                )}
-              </span>
-            </>
+            <span className="flex flex-wrap items-center gap-3 md:ml-auto">
+              {shown === undefined ? null : (
+                <UnplacedRow projectId={projectId} cards={shown.unplaced} />
+              )}
+              {hint === null ? null : (
+                // Only where the columns sit side by side: on a phone they stack and none is hidden.
+                <span
+                  className="hidden text-console-12 text-text-tertiary md:inline"
+                  aria-live="polite"
+                >
+                  {hint} →
+                </span>
+              )}
+            </span>
           )}
         </BoardToolbar>
         {table ? null : <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />}

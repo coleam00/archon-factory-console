@@ -100,7 +100,7 @@ function WorkOrdersHeader({
         aria-expanded={open}
         aria-controls={list}
         onClick={onToggle}
-        className="-ml-2 flex items-center gap-1.5 whitespace-nowrap rounded px-2 py-1 text-console-14 font-semibold text-text-primary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:bg-surface-hover"
+        className="-ml-2 flex items-center gap-2 whitespace-nowrap rounded px-2 py-1 text-console-14 font-semibold text-text-primary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:bg-surface-hover"
       >
         {summary}
         <ChevronDown
@@ -177,7 +177,7 @@ function WorkOrderRow({
           />
         </span>
       </span>
-      <span className="relative z-10 flex shrink-0 flex-wrap items-center gap-1">
+      <span className="relative z-10 flex flex-wrap items-center gap-1 md:shrink-0">
         {order.members.map(member => {
           const label = `${displayItemKey(member.key, order.key)}: ${member.pillLabel ?? PILL_LABEL[member.pill]}`;
           return (
