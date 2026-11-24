@@ -32,7 +32,7 @@ const HEADING_ID = `${FOUND_BY_THE_FACTORY}-heading`;
 
 /**
  * Scroll the panel into view once its read has answered, when the page was opened on it (the
- * Overview's tile links to the board's `?show=found`): once per page visit.
+ * board's `?show=found` address, which a shared link may carry): once per page visit.
  */
 function useScrollWhenOpened(ready: boolean): RefObject<HTMLElement | null> {
   const ref = useRef<HTMLElement>(null);
