@@ -146,9 +146,9 @@ describe('the Overview', () => {
       `/console/p/${ID}/factory Overview`,
     ]);
     expect(html).toContain(`href="/console/p/${ID}/factory/board"`);
-    // Needs you is the project's tab; the numbers' tile links there, the sub-navigation not.
+    // Needs you is the project's tab, which links there; the sub-navigation and the tiles do not.
     expect(html).not.toContain(`href="/console/p/${ID}/factory/needs-you"`);
-    expect(html.split(`href="/console/p/${ID}/needs-you"`)).toHaveLength(3);
+    expect(html.split(`href="/console/p/${ID}/needs-you"`)).toHaveLength(2);
   });
 
   test('the tab and the Overview number read one count: asks and waits', () => {
@@ -205,7 +205,7 @@ describe('the Overview', () => {
     }
   });
 
-  test('the numbers strip counts the board, each number opening what it counts and saying where', () => {
+  test('the numbers strip counts the board, each number a plain figure; only the unknown line links', () => {
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     // The strip alone: the map's cards below are links drawn the same way.
     const strip = html.slice(
@@ -214,46 +214,34 @@ describe('the Overview', () => {
     );
     const tiles = [
       ...strip.matchAll(
-        /<li data-tile="([^"]*)"><a [^>]*href="([^"]*)"[^>]*>.*?<\/span><span[^>]*>(?:<span[^>]*>)?([^<]*)</g
+        /<li data-tile="([^"]*)"><div[^>]*>.*?<\/span><span[^>]*>(?:<span[^>]*>)?([^<]*)</g
       ),
-    ].map(
-      ([, label, href, value]) =>
-        `${value ?? ''} ${label ?? ''} → ${(href ?? '').replaceAll('&amp;', '&')}`
-    );
-    const board = `/console/p/${ID}/factory/board`;
+    ].map(([, label, value]) => `${value ?? ''} ${label ?? ''}`);
     expect(tiles).toEqual([
       // Item 3's merge state is unknown: counted only in M.
-      `4 in flight → ${board}?show=in-flight`,
-      `0 need you → /console/p/${ID}/needs-you`,
-      expect.stringMatching(new RegExp(`^\\d+ merged today → ${board}\\?show=landed-today$`)),
-      `3 of 8 merged → ${board}?view=table&show=landed-of-all`,
-      expect.stringMatching(
-        new RegExp(` median to merged → ${board}\\?view=table&show=median-to-land$`)
-      ),
+      '4 in flight',
+      '0 need you',
+      expect.stringMatching(/^\d+ merged today$/),
+      '3 of 8 merged',
+      expect.stringMatching(/ median to merged$/),
       // Its own read, not answered in a static render: a skeleton, no figure.
-      ` found by the factory → ${board}?show=found`,
+      ' found by the factory',
     ]);
-    // Each says where it goes, to a screen reader (the end of its name) and on hover.
-    const opens = [
-      'Open the board, in flight only',
-      'Open Needs you',
-      'Open the board, merged today only',
-      'Open the table: every item, merged ones marked',
-      'Open the table of merged items sorted by time to merge, the median marked',
-      'Open the board with Found by the factory open',
-      // Item 3's merge state could not be read: said under the tiles, linking to it.
-      'Open the board, only the items whose merge state could not be read',
-    ];
-    expect([...strip.matchAll(/class="sr-only">, ([^<]*)</g)].map(([, said]) => said)).toEqual(
-      opens
-    );
-    expect([...strip.matchAll(/<a [^>]*title="([^"]*)"/g)].map(([, title]) => title)).toEqual(
-      opens.map((said, i) =>
-        i === 4
-          ? `The median time from an item&#x27;s first run to its change merging. ${said}`
-          : said
-      )
-    );
+    // Item 3's merge state could not be read: said under the tiles, the strip's one link.
+    const links = [...strip.matchAll(/<a [^>]*>/g)].map(([tag]) => [
+      /href="([^"]*)"/.exec(tag)?.[1]?.replaceAll('&amp;', '&'),
+      /title="([^"]*)"/.exec(tag)?.[1],
+    ]);
+    expect(links).toEqual([
+      [
+        `/console/p/${ID}/factory/board?show=unknown`,
+        'Open the board, only the items whose merge state could not be read',
+      ],
+    ]);
+    // The median says what it means on hover; no tile says where it goes.
+    expect([...strip.matchAll(/<div title="([^"]*)"/g)].map(([, title]) => title)).toEqual([
+      'The median time from an item&#x27;s first run to its change merging',
+    ]);
     // Above the map.
     expect(html.indexOf('aria-label="Numbers"')).toBeLessThan(html.indexOf('aria-label="The map"'));
   });

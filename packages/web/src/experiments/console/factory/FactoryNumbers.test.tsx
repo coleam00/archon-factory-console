@@ -32,14 +32,9 @@ for (const [key, value] of Object.entries(globals)) {
 }
 const { createRoot } = await import('react-dom/client');
 
-/** What a tile says before where it goes: the link's last span, for a screen reader only. */
-const shown = (el: Element | null | undefined): string | null | undefined => {
-  if (el === null || el === undefined) return el;
-  const copy = el.cloneNode(true) as Element;
-  const opens = copy.querySelector('a')?.lastElementChild;
-  if (opens?.classList.contains('sr-only') === true) opens.remove();
-  return copy.textContent;
-};
+/** What a tile says. */
+const shown = (el: Element | null | undefined): string | null | undefined =>
+  el === null || el === undefined ? el : el.textContent;
 /** The project's asks and waits, as the Overview hands them down. */
 const WAITING = 2;
 const originalFetch = globalThis.fetch;
@@ -300,7 +295,7 @@ test('while pending it reads again on its own, and keeps trying after a failed r
   }
 });
 
-test('a view that declares discoveries adds a tile linking to the board panel; one that does not, none', async () => {
+test('a view that declares discoveries adds a tile; one that does not, none', async () => {
   set(K.factoryItems('cb-found'), { items: PAGE.items, members: {} });
   set(K.factoryDiscoveries('cb-found'), DISCOVERIES);
   const container = document.createElement('div');
@@ -318,8 +313,8 @@ test('a view that declares discoveries adds a tile linking to the board panel; o
     const found = [...container.querySelectorAll('[aria-label="Numbers"] li')].at(-1);
     // Two of the three findings: an item carries the third.
     expect(shown(found)).toBe('found by the factory2');
-    const link = found?.querySelector('a');
-    expect(link?.getAttribute('href')).toBe('/console/p/cb-found/factory/board?show=found');
+    // A plain figure, as every tile is.
+    expect(found?.querySelector('a')).toBeNull();
     await act(async () =>
       root.render(
         <MemoryRouter>
@@ -333,5 +328,36 @@ test('a view that declares discoveries adds a tile linking to the board panel; o
     await act(async () => root.unmount());
     container.remove();
     invalidate(K.factoryDiscoveries('cb-found'));
+  }
+});
+
+test('the tiles are plain figures: no link, nothing to focus, no words on where they go', async () => {
+  set(K.factoryItems('cb-plain'), { items: PAGE.items, members: {} });
+  set(K.factoryDiscoveries('cb-plain'), DISCOVERIES);
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter>
+          <FactoryNumbers projectId="cb-plain" view={VIEW} waiting={WAITING} />
+        </MemoryRouter>
+      )
+    );
+    const strip = container.querySelector('ul[aria-label="Numbers"]');
+    if (strip === null) throw new Error('the strip renders');
+    expect(strip.querySelectorAll('li')).toHaveLength(6);
+    expect(strip.querySelectorAll('a, button, [tabindex], [href]')).toHaveLength(0);
+    const words = [
+      ...[...strip.querySelectorAll('*')].map(el => el.textContent ?? ''),
+      ...[...strip.querySelectorAll('[title]')].map(el => el.getAttribute('title') ?? ''),
+    ];
+    expect(words.filter(text => /Open/.test(text))).toEqual([]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    invalidate(K.factoryDiscoveries('cb-plain'));
+    invalidate('factory-items');
   }
 });
