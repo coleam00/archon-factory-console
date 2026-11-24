@@ -1,11 +1,6 @@
 import type { ReactElement } from 'react';
 import { ArrowRight, MessageCircleQuestion } from 'lucide-react';
-import { AskGroup } from '../components/ask-card/AskGroup';
-import type { AnsweredHold } from '../components/ask-card/useAnsweredHold';
-import type { AskNaming } from '../lib/ask-naming';
 import { formatDateTime } from '../lib/format';
-import type { NeedsYouItem } from '../lib/needs-you';
-import type { AttentionQueue } from '../skills/runs';
 import { IdTag, Panel } from './document';
 import type { AnsweredAsk } from './lib/item-story';
 
@@ -42,32 +37,5 @@ export function AnsweredAskBlock({ ask }: { ask: AnsweredAsk }): ReactElement {
         {ask.started}
       </p>
     </Panel>
-  );
-}
-
-/** Open asks in the story: the ask card Needs you draws, answerable in place. */
-export function OpenAsks({
-  projectId,
-  asks,
-  hold,
-  queue,
-  naming,
-}: {
-  projectId: string;
-  asks: readonly NeedsYouItem[];
-  hold: AnsweredHold;
-  queue: Pick<AttentionQueue, 'runs'>;
-  naming: Pick<AskNaming, 'where' | 'starts'>;
-}): ReactElement | null {
-  if (asks.length === 0) return null;
-  return (
-    <AskGroup
-      projectId={projectId}
-      asks={asks}
-      hold={hold}
-      queue={queue}
-      where={naming.where}
-      starts={naming.starts}
-    />
   );
 }

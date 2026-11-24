@@ -34,18 +34,15 @@ function columnOf(view: Declaration, stage: string): { label: string; tone: Colu
 /**
  * One stage of the story (owner change 8): a panel in its column's colour, the stage as its
  * heading (a later visit numbered), one plain sentence of what happened, the check rounds as a
- * grid on a Checks panel, the asks it left where they happened, its details, and the shadow
+ * grid on a Checks panel, the asks it left answered where they happened, its details, and the shadow
  * steps' decisions, quieter than the real steps (rule 10).
  */
 export function StageStoryPanel({
   view,
   panel,
-  asks,
 }: {
   view: Declaration;
   panel: StagePanel;
-  /** The open ask cards of this panel's runs. */
-  asks: ReactNode;
 }): ReactElement {
   const column = columnOf(view, panel.stage.id);
   const tone = toneColor(column.tone);
@@ -72,7 +69,6 @@ export function StageStoryPanel({
       {panel.answered.map(ask => (
         <AnsweredAskBlock key={`${ask.runId}|${ask.at}|${ask.question}`} ask={ask} />
       ))}
-      {asks}
       <DefinitionGrid rows={detailRows(panel.details, panel.merged)} />
       <Shadows shadows={panel.shadows} />
     </Panel>

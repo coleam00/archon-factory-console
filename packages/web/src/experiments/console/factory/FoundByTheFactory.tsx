@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { displayItemKey } from './lib/item-key';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 import { Link } from 'react-router';
 import { EmptyNote } from './ui/EmptyNote';
 import { SkeletonFigure, SkeletonGroup, SkeletonLine } from './ui/Skeleton';

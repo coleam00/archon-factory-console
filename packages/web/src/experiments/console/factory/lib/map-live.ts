@@ -2,13 +2,13 @@
  * The map's live chips: which items sit on each card, how many a run works now, and which
  * need a person. An item is placed and set aside by `board.ts`'s `placeItem`, the board's own
  * decision, so the map counts what the board counts: a card and a board column never name
- * different stages, and an item the board sets aside is in no stage. "needs you" is the item
- * page's `itemAsks`, which reads the Needs-you list's `needsYou`, so the chip agrees with both.
+ * different stages, and an item the board sets aside is in no stage. "needs you" is
+ * `itemOpenEntries`, as the board card's ask count and the item page read it, so they agree.
  */
 import type { FactoryItem } from '../api';
-import type { AttentionQueueItem } from '../../skills/runs';
+import type { ItemAsk } from '../../primitives/run';
 import { anyMergePending, stageCountPending } from './merge-pending';
-import { awaitingItems, itemAsks } from '../../lib/needs-you';
+import { awaitingItems, itemOpenEntries } from './attention';
 import { placeItem } from './board';
 import { stageIdOf } from './placement';
 import type { FactoryViewListed } from './views';
@@ -75,7 +75,7 @@ export function stageLive(
   view: FactoryViewListed['declaration'],
   projectId: string,
   items: readonly FactoryItem[],
-  attention: readonly AttentionQueueItem[],
+  asks: readonly ItemAsk[],
   previous: ReadonlyMap<string, string>,
   now: Date
 ): MapLive {
@@ -98,7 +98,7 @@ export function stageLive(
     }
     positions.set(item.item.key, stage);
     if (aside !== null) continue;
-    countHere(live, item, attention);
+    countHere(live, item, asks);
     if (!carded.has(stage)) notOnMap.push({ item, why: { kind: 'no-card', stage } });
   }
   markPending(view.landed.stage, items, stages);
@@ -106,23 +106,19 @@ export function stageLive(
 }
 
 /** Counts `item` on the stage it sits in: here, worked by a run now, needing a person. */
-function countHere(
-  live: StageLive,
-  item: FactoryItem,
-  attention: readonly AttentionQueueItem[]
-): void {
+function countHere(live: StageLive, item: FactoryItem, asks: readonly ItemAsk[]): void {
   live.items.push(item);
   // `progress.running` is the latest running run of a declared workflow.
   if (item.progress?.running != null) live.working += 1;
-  if (needsYouHere(item, attention)) live.needYou.push(item);
+  if (needsYouHere(item, asks)) live.needYou.push(item);
 }
 
 /**
  * Whether the item needs a person: an open ask on it, or, with none, a run that left it waiting
- * on one (`awaitingItems`), as Needs you counts it.
+ * on one (`awaitingItems`), as the Overview's number counts it.
  */
-function needsYouHere(item: FactoryItem, attention: readonly AttentionQueueItem[]): boolean {
-  return itemAsks(item, attention).length > 0 || awaitingItems([item]).length > 0;
+function needsYouHere(item: FactoryItem, asks: readonly ItemAsk[]): boolean {
+  return itemOpenEntries(item, asks).length > 0 || awaitingItems([item]).length > 0;
 }
 
 /** Marks each stage whose count waits on a merge answer, as the board marks its columns. */

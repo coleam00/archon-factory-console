@@ -5,7 +5,6 @@ import { BookOpen, Info } from 'lucide-react';
 import { SkeletonBlock, SkeletonGroup, SkeletonLine } from './ui/Skeleton';
 import { getFactoryItem } from './api';
 import type { FactoryItem, FactoryItemDetail } from './api';
-import { useProjectAttention } from '../components/ProjectAttention';
 import type { EntityView } from '../store/cache';
 import { FK } from './keys';
 import { useFactoryRead } from './useFactoryRead';
@@ -19,7 +18,6 @@ import { ItemAnswers, ItemLinks } from './ItemRecords';
 import { isNoSuchItem, useWorkOrders, WorkOrderOnly } from './ItemWorkOrder';
 import { itemPill } from './lib/board';
 import { mergePending } from './lib/merge-pending';
-import { itemAsks } from '../lib/needs-you';
 import { itemColumn, placementInput, stageIdOf } from './lib/placement';
 import { itemJourney } from './lib/item-journey';
 import { itemStory } from './lib/item-story';
@@ -33,7 +31,8 @@ import { readFailure } from './lib/read-failure';
 import { ReadFailure } from './ReadFailure';
 import { useReadRetry } from './useReadRetry';
 import { useFactoryItemsRead } from './useFactoryItems';
-import { itemNames } from '../lib/ask-naming';
+import { itemNames } from './lib/item-names';
+import { useItemAsks } from './useItemAsks';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
 export function ItemPage(): ReactElement {
@@ -42,7 +41,8 @@ export function ItemPage(): ReactElement {
 
 function ItemBody({ view }: { view: FactoryViewListed }): ReactElement {
   const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
-  // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
+  // Under the factory's item prefix, which sits under `runs:`, so the dashboard SSE refreshes it
+  // on every run event.
   const itemKey = FK.factoryItem(projectId, key);
   const read = useFactoryRead<FactoryItemDetail>(itemKey, within =>
     within(signal => getFactoryItem({ codebaseId: projectId, key }, { signal }))
@@ -72,7 +72,8 @@ function ItemRead({
   read: EntityView<FactoryItemDetail>;
 }): ReactNode {
   const { data } = read;
-  const attention = useProjectAttention();
+  // Archon's attention read with the item's questions; the answers given here stay on this page.
+  const asks = useItemAsks(projectId);
   const orders = useWorkOrders(
     view.declaration,
     projectId,
@@ -106,7 +107,6 @@ function ItemRead({
         orders={orders}
       />
     );
-  const asks = itemAsks(data.item, attention.data?.items ?? []);
   const declaration = view.declaration;
   // The placement every view shares, and the board's pill, so the band says what the item's
   // card says and the strip lights the card's column.
@@ -145,8 +145,8 @@ function ItemRead({
           projectId={projectId}
           view={view}
           panels={itemStory(declaration, projectId, data, timeline, now)}
+          item={data.item}
           asks={asks}
-          questions={data.item.questions.length}
           awaits={state.pill === 'awaits' ? (data.item.progress?.awaits ?? null) : null}
         />
       </section>

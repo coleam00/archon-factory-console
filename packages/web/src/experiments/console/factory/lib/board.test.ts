@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { formatDateTime } from '../../lib/format';
-import { askItem } from '../../lib/needs-you.test-fixtures';
+import { askItem } from './attention.test-fixtures';
 import {
   boardModel,
   cardFields,

@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { displayItemKey } from './lib/item-key';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 import { Link2, Scale } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyNote } from './ui/EmptyNote';

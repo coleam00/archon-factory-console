@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { errorDetail } from '../../lib/http';
-import { useProjectAttention } from '../../components/ProjectAttention';
+import type { ItemAsk } from '../../primitives/run';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../api';
 import { StaleRead } from '../StaleRead';
@@ -26,6 +26,8 @@ import { readFailed, SlowReadError } from '../lib/deadline';
 interface FactoryMapProps {
   projectId: string;
   view: FactoryViewListed;
+  /** The project's asks from Archon's attention read (`useItemAsks`), for the needs-you chips. */
+  asks: readonly ItemAsk[];
 }
 
 /** What the map draws from. */
@@ -38,22 +40,23 @@ interface MapInputs {
  * The Overview's map: the stages and arrows the view file declares, and live chips from the
  * items read.
  */
-export function FactoryMap({ projectId, view }: FactoryMapProps): ReactElement {
+export function FactoryMap({ projectId, view, asks }: FactoryMapProps): ReactElement {
   const items = useFactoryItems(projectId);
   return (
     <section aria-label="The map" className="flex flex-col gap-2.5">
       <h3 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         The map
       </h3>
-      <MapBody projectId={projectId} view={view.declaration} items={items} />
+      <MapBody projectId={projectId} view={view.declaration} items={items} asks={asks} />
     </section>
   );
 }
 
 function MapBody({
   items,
+  asks,
   ...inputs
-}: MapInputs & { items: EntityView<FactoryItem[]> }): ReactElement {
+}: MapInputs & { items: EntityView<FactoryItem[]>; asks: readonly ItemAsk[] }): ReactElement {
   // One shape in every state: a notice above one canvas, so the items answering fills the
   // chips in on the cards already drawn rather than mounting a new map.
   return (
@@ -62,6 +65,7 @@ function MapBody({
       <MapLiveCanvas
         {...inputs}
         items={items.data}
+        asks={asks}
         unread={readFailed(items.error) === undefined ? 'loading' : 'failed'}
       />
     </>
@@ -91,11 +95,15 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
  */
 function MapLiveCanvas({
   items,
+  asks,
   unread,
   ...inputs
-}: MapInputs & { items: FactoryItem[] | undefined; unread: Unread }): ReactElement {
-  const attention = useProjectAttention();
-  const live = useStageLive(inputs.view, inputs.projectId, items, unread, attention.data?.items);
+}: MapInputs & {
+  items: FactoryItem[] | undefined;
+  asks: readonly ItemAsk[];
+  unread: Unread;
+}): ReactElement {
+  const live = useStageLive(inputs.view, inputs.projectId, items, unread, asks);
   return (
     <>
       <MapCanvas {...inputs} live={live} items={items ?? unread} />

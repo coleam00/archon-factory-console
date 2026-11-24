@@ -1,87 +1,63 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { AskCard } from '../components/ask-card/AskCard';
-import { askNaming, itemNames } from '../lib/ask-naming';
-import { errorDetail } from '../lib/http';
-import { awaitingItems, needsYou, needsYouPath } from '../lib/needs-you';
-import { useProjectAttention } from '../components/ProjectAttention';
-import { readFailed } from './lib/deadline';
-import type { FactoryViewListed } from './lib/views';
-import { FactoryLoading } from './FactoryLoading';
-import { SkeletonBlock, SkeletonGroup } from './ui/Skeleton';
-import { useFactoryItems } from './useFactoryItems';
+import { askGroupKey, ItemAsksSection } from '../components/ItemAsksSection';
+import type { ItemAsk } from '../primitives/run';
+import type { FactoryItem } from './api';
+import { awaitingItems, isRefAsk, itemOpenEntries, openEntries } from './lib/attention';
+import { boardShowSearch } from './lib/board-show';
+import { factoryPath } from './lib/views';
+import type { FactoryAsks } from './useItemAsks';
 
-/** How many asks the Overview shows before "N more" leads to the Needs you tab. */
-const OVERVIEW_ASKS_SHOWN = 3;
+/** How many items' asks the Overview shows before "N more" leads to the board. */
+const OVERVIEW_ITEMS_SHOWN = 3;
 
 /**
- * The Overview's Needs you: the newest asks as compact cards (the question and the
- * recommended tile), each opening on the Needs you tab, where it is answered; then how many
- * more wait there, the items waiting on you with no ask open (`awaitingItems`) among them, so
- * the line and the Need you number agree. Nothing shows when nothing waits.
+ * The Overview's Needs you: the asks of the newest items that wait on you, in Archon's own ask
+ * section, answerable in place; then how many more wait, the items waiting on you with no ask
+ * open (`awaitingItems`) among them, linking to the board's "needs you" show. Nothing shows
+ * when nothing waits.
  */
 export function OverviewAsks({
   projectId,
-  view,
+  items,
+  asks,
 }: {
   projectId: string;
-  view: FactoryViewListed;
+  items: readonly FactoryItem[] | undefined;
+  asks: FactoryAsks;
 }): ReactNode {
-  const attention = useProjectAttention();
-  // The items the Overview's numbers and map read already: the cards name each item's title.
-  const items = useFactoryItems(projectId);
-  const queue = attention.data;
-  if (queue === undefined) {
-    const failed = readFailed(attention.error);
-    if (failed !== undefined)
-      return (
-        <p role="alert" className="text-console-14 text-error">
-          What needs you could not be loaded: {errorDetail(failed)}
-        </p>
-      );
-    return (
-      <FactoryLoading read={attention}>
-        <SkeletonGroup label="Loading what needs you" className="flex max-w-3xl flex-col gap-3">
-          {[0, 1, 2].map(index => (
-            <SkeletonBlock key={index} height="h-24" rounded="rounded-console-16" />
-          ))}
-        </SkeletonGroup>
-      </FactoryLoading>
-    );
-  }
-  const asks = needsYou(queue.items);
-  const awaiting = awaitingItems(items.data ?? []).length;
-  if (asks.length === 0 && awaiting === 0) return null;
-  const naming = askNaming(projectId, view, itemNames(items.data));
-  const more = Math.max(0, asks.length - OVERVIEW_ASKS_SHOWN) + awaiting;
+  const answered = new Set(asks.section.answered.map(record => record.ask.ref));
+  const open = projectAsks(items ?? [], asks.asks).filter(ask => !answered.has(ask.ref));
+  const awaiting = awaitingItems(items ?? []).length;
+  const groups = [...new Set(open.map(askGroupKey))];
+  const shownGroups = new Set(groups.slice(0, OVERVIEW_ITEMS_SHOWN));
+  const shown = open.filter(ask => shownGroups.has(askGroupKey(ask)));
+  if (shown.length === 0 && asks.section.answered.length === 0 && awaiting === 0) return null;
+  const more = open.length - shown.length + awaiting;
   return (
-    <section aria-label="Needs you" className="flex flex-col gap-3">
+    <section aria-label="Needs you" className="flex max-w-3xl flex-col gap-3">
       <h3 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         Needs you
       </h3>
-      {asks.slice(0, OVERVIEW_ASKS_SHOWN).map(ask => {
-        const where = naming.where(ask);
-        return (
-          <AskCard
-            key={ask.ref}
-            projectId={projectId}
-            ask={ask}
-            queue={queue}
-            subject={naming.subject(ask)}
-            {...(where === undefined ? {} : { where })}
-            variant="compact"
-            openHref={needsYouPath(projectId, ask.ref)}
-          />
-        );
-      })}
-      {more > 0 ? <MoreLink projectId={projectId} more={more} shown={asks.length > 0} /> : null}
+      <ItemAsksSection {...asks.section} asks={shown} showProject={false} />
+      {more > 0 ? <MoreLink projectId={projectId} more={more} shown={shown.length > 0} /> : null}
     </section>
   );
 }
 
+/** The project's asks answered by ref, newest first: every item's, and those Archon's read names, each once. */
+function projectAsks(items: readonly FactoryItem[], asks: readonly ItemAsk[]): ItemAsk[] {
+  const byRef = new Map<string, ItemAsk>();
+  for (const item of items)
+    for (const entry of itemOpenEntries(item, asks))
+      if (isRefAsk(entry)) byRef.set(entry.ref, entry);
+  for (const ask of asks) byRef.set(ask.ref, ask);
+  return openEntries([...byRef.values()]).filter(isRefAsk);
+}
+
 /**
- * The line to the Needs you tab: "N more on Needs you" under the asks shown, or, with none to
- * show (only items waiting on you with no ask open), how many items wait there.
+ * The line to the board's "needs you" show: "N more on the board" under the asks shown, or,
+ * with none to show (only items waiting on you with no ask open), how many items wait there.
  */
 function MoreLink({
   projectId,
@@ -94,12 +70,12 @@ function MoreLink({
 }): ReactElement {
   return (
     <Link
-      to={needsYouPath(projectId)}
+      to={factoryPath(projectId, `/board${boardShowSearch('needs-you')}`)}
       className="self-start text-console-13 text-text-secondary hover:text-text-primary hover:underline"
     >
       {shown
-        ? `${more.toString()} more on Needs you`
-        : `${more.toString()} ${more === 1 ? 'item waits' : 'items wait'} for you on Needs you`}
+        ? `${more.toString()} more on the board`
+        : `${more.toString()} ${more === 1 ? 'item waits' : 'items wait'} for you on the board`}
     </Link>
   );
 }

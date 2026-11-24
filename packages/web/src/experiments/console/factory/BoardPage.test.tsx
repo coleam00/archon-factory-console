@@ -5,7 +5,6 @@ import { installDom } from './test-dom.test-helpers';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
-import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { Board } from './BoardPage';
 import type { FactoryItem } from './api';
 import {
@@ -24,6 +23,7 @@ import { boardColumns } from './lib/board-columns';
 import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches } from './merge-watch';
 import { formatDateTime } from '../lib/format';
+import { attentionRead } from './lib/attention.test-fixtures';
 
 // Filtering, sorting, the strips and the move highlight follow a re-render, which static markup
 // cannot reach. The rules behind each check are tested in lib/ (board, placement, set-aside,
@@ -43,8 +43,8 @@ afterEach(() => {
 
 /** `board` under a project queue where nothing waits on a person: asks are BoardAsks.test.tsx's. */
 function quiet(board: ReactElement): ReactElement {
-  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
-  return <ProjectAttentionProvider projectId={ID}>{board}</ProjectAttentionProvider>;
+  set(K.runsAttention, attentionRead());
+  return board;
 }
 
 async function mount(

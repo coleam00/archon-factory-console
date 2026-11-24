@@ -64,9 +64,7 @@ describe("the item's story", () => {
   };
 
   test('a decision sits in the panel of its stage: the badge, the label, what it would do', async () => {
-    const page = await render(
-      <StageStoryPanel view={shippedView} panel={stagePanel('triage')} asks={null} />
-    );
+    const page = await render(<StageStoryPanel view={shippedView} panel={stagePanel('triage')} />);
     const row = page.querySelector('[data-shadow]');
     expect(row?.textContent).toContain('shadow');
     expect(row?.textContent).toContain('Would it start on its own');
@@ -79,9 +77,7 @@ describe("the item's story", () => {
   });
 
   test("the project checks are the rounds grid's shadow row, in the round they decided in", async () => {
-    const page = await render(
-      <StageStoryPanel view={shippedView} panel={stagePanel('checks')} asks={null} />
-    );
+    const page = await render(<StageStoryPanel view={shippedView} panel={stagePanel('checks')} />);
     const row = page.querySelector('[data-grid-row="Project checks"]');
     expect(row?.textContent).toContain('shadow');
     const cells = [...(row?.querySelectorAll('td') ?? [])].map(cell => cell.textContent);
@@ -131,13 +127,11 @@ describe('a board card in Triage', () => {
     if (triage === undefined) throw new Error('the shipped view has a triage stage');
     const fields = cardFields(VIEW, PROJECT, item, { stage: triage });
     const asks: BoardAsks = {
-      asksOf: () => [],
-      faceOf: () => null,
-      answeredLine: () => null,
+      entriesOf: () => [],
+      unread: () => false,
       open: null,
       openFor: () => undefined,
       close: () => undefined,
-      settle: () => undefined,
     };
     const page = await render(
       <BoardCard

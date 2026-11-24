@@ -11,6 +11,7 @@ import { FK } from '../keys';
 import { factoryTestRoutes } from '../test-routes';
 import { installDom } from '../test-dom.test-helpers';
 import { documentPageProblems } from '../document.test-helpers';
+import { attentionRead } from '../lib/attention.test-fixtures';
 
 const { mount } = await installDom();
 // A read the cache does not answer never answers.
@@ -123,7 +124,7 @@ const SETTINGS: FactoryPackSettings = {
 /** The Settings page of this project, its pack's settings read as `settings`. */
 async function settingsPage(settings: FactoryPackSettings = SETTINGS): Promise<HTMLElement> {
   set(FK.factoryViews(ID), views);
-  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
+  set(K.runsAttention, attentionRead());
   set(FK.factoryPackSettings('acme.kit'), settings);
   const page = await mount(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/settings`]}>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import type { SetAside } from './lib/set-aside';
 import { SetAsideLine, SetAsideList } from './SetAsideStrip';

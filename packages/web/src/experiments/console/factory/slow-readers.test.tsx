@@ -2,9 +2,7 @@ import { afterEach, expect, jest, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
 import { installDom } from './test-dom.test-helpers';
-import { ProjectAttentionProvider } from '../components/ProjectAttention';
-import { invalidate, set } from '../store/cache';
-import { K } from '../store/keys';
+import { invalidate } from '../store/cache';
 import { SLOW_READ_NOTICE } from './FactoryLoading';
 import { FactoryMap } from './map/FactoryMap';
 import { shippedListed } from './item-detail.test-fixtures';
@@ -33,12 +31,9 @@ test('the map draws its cards while the items read misses its first deadline, an
       }),
     { preconnect: originalFetch.preconnect }
   );
-  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
   const { container, unmount } = await mount(
     <MemoryRouter>
-      <ProjectAttentionProvider projectId={ID}>
-        <FactoryMap projectId={ID} view={shippedListed} />
-      </ProjectAttentionProvider>
+      <FactoryMap projectId={ID} view={shippedListed} asks={[]} />
     </MemoryRouter>
   );
   try {

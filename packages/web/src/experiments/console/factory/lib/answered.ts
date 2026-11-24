@@ -10,7 +10,7 @@
  */
 import type { FactoryItem } from '../api';
 import type { ItemRead } from '../api';
-import { humaniseId, shortWorkflow } from '../../lib/ask-card';
+import { humaniseId, shortWorkflow } from './attention';
 import { answerStarts } from './answer-starts';
 import { answererName } from './item-answers';
 import { stageOfWorkflow } from './placement';

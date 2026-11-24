@@ -1,16 +1,13 @@
 import { afterAll, afterEach, beforeAll, expect, setSystemTime, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
-import type { AttentionQueue } from '../../skills/runs';
-import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
-import { K } from '../../store/keys';
 import { FK } from '../keys';
 import type { FactoryItem } from '../api';
 import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { FIXTURE_NOW } from '../lib/board.test-fixtures';
-import { askItem } from '../../lib/needs-you.test-fixtures';
+import { refAsk } from '../lib/attention.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
@@ -39,11 +36,7 @@ afterEach(() => {
 const ID = 'cb-1';
 const asking = itemWith('9', [run('deliver', 'completed', 'ask')]);
 const items = [realItem('5'), realItem('4'), realItem('7'), asking];
-const queue: AttentionQueue = {
-  items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
-  runs: [],
-  degraded: [],
-};
+const asks = [refAsk({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })];
 
 /** The stage the URL opens over the map, for the tests to read. */
 function OpenStage(): React.ReactElement | null {
@@ -57,17 +50,16 @@ async function mount(
   listed: FactoryViewListed = shippedListed
 ): ReturnType<typeof mountTree> {
   if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
-  set(K.projectAttention(ID), queue);
   return mountTree(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
       <Routes>
         <Route
           path="/console/p/:projectId/factory"
           element={
-            <ProjectAttentionProvider projectId={ID}>
-              <FactoryMap projectId={ID} view={listed} />
+            <>
+              <FactoryMap projectId={ID} view={listed} asks={asks} />
               <OpenStage />
-            </ProjectAttentionProvider>
+            </>
           }
         />
       </Routes>

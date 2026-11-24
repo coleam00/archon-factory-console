@@ -2,7 +2,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test }
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from './api';
-import type { AttentionQueue } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
@@ -11,7 +10,8 @@ import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from './api';
 import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
-import { askItem } from '../lib/needs-you.test-fixtures';
+import { attentionRead, refAsk } from './lib/attention.test-fixtures';
+import type { RunsAttention } from '../primitives/run';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs.
@@ -32,7 +32,7 @@ afterEach(() => {
   invalidate('runs:factory-items');
 });
 
-const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
+const quiet = attentionRead();
 
 const withView: FactoryViews = {
   views: [
@@ -102,11 +102,11 @@ const currentLinks = (html: string): string[] =>
 function render(
   path: string | { pathname: string; state: unknown },
   listing: FactoryViews,
-  attention: AttentionQueue = quiet,
+  attention: RunsAttention = quiet,
   items: FactoryItem[] = []
 ): string {
   set(FK.factoryViews(ID), listing);
-  set(K.projectAttention(ID), attention);
+  set(K.runsAttention, attention);
   set(FK.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
   set(FK.factoryItems(ID), { items, members: {} });
   return renderToStaticMarkup(
@@ -116,20 +116,19 @@ function render(
   );
 }
 
-/** Six open asks, newest last: more than the Overview shows. */
-const sixAsks: AttentionQueue = {
-  items: Array.from({ length: 6 }, (_, i) =>
-    askItem({
+/** Six open asks on six items, newest last: more than the Overview shows. */
+const sixAsks = attentionRead(
+  Array.from({ length: 6 }, (_, i) =>
+    refAsk({
       ref: `ask:${i.toString()}`,
+      item: { id: `item-${i.toString()}`, projectKey: 'acme', key: `#${i.toString()}` },
       message: `Question ${i.toString()}?`,
       pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
     })
-  ),
-  runs: [],
-  degraded: [],
-};
+  )
+);
 /** How many ask cards are drawn. */
-const askCards = (html: string): number => html.split('data-ask=').length - 1;
+const askCards = (html: string): number => html.split('data-ask-ref=').length - 1;
 const text = (html: string): string => html.replace(/<[^>]*>/g, '');
 const SUMMARY = 'Issues come in; changes go out.';
 /** The Factory sub-navigation's links, as `href label`. */
@@ -149,19 +148,6 @@ const SUB_NAV = [
 ];
 
 describe('the Factory section', () => {
-  test('its tab follows Metrics when a view applies, and is absent when none does', () => {
-    const html = render(`/console/p/${ID}/needs-you`, withView);
-    expect(html.match(/>(Needs you|Runs|Chat|Metrics|Factory)</g)).toEqual([
-      '>Needs you<',
-      '>Runs<',
-      '>Chat<',
-      '>Metrics<',
-      '>Factory<',
-    ]);
-    expect(html).toContain(`href="/console/p/${ID}/factory"`);
-    expect(render(`/console/p/${ID}/needs-you`, none)).not.toContain('Factory');
-  });
-
   test('a busy Overview: title, summary, one count of what waits, the newest three asks, then the map', () => {
     const html = render(`/console/p/${ID}/factory`, withView, sixAsks, [
       needsShaping('9s', ['Which?']),
@@ -173,17 +159,15 @@ describe('the Factory section', () => {
       `/console/p/${ID}/factory Overview`,
     ]);
     expect(subNav(html)).toEqual(SUB_NAV);
-    // Six asks and an item waiting on you: the tab and the tile read the same count.
-    expect([...html.matchAll(/aria-label="(\d+) waiting"/g)].map(match => match[1])).toEqual(['7']);
+    // Six asks and an item waiting on you.
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
     expect(text(strip)).toContain('need you7');
     expect(askCards(html)).toBe(3);
     for (const i of [5, 4, 3]) expect(html).toContain(`Question ${i.toString()}?`);
-    expect(html).toContain('4 more on Needs you');
-    expect(html).toContain('>Recommended<');
-    // Compact: no answer is sent from the Overview, and Needs you is the project's tab.
-    expect(html).not.toContain('aria-pressed');
-    expect(html).not.toContain(`href="/console/p/${ID}/factory/needs-you"`);
+    expect(html).toContain('4 more on the board');
+    // Archon's ask section, answerable here: the recommendation and each option's button.
+    expect(text(html)).toContain('Recommended: Use dev');
+    expect(text(html)).toContain('Use dev (recommended)');
     const needsYou = html.indexOf('aria-label="Needs you"');
     expect(needsYou).toBeGreaterThan(-1);
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
@@ -193,8 +177,8 @@ describe('the Factory section', () => {
     const waiting = render(`/console/p/${ID}/factory`, withView, quiet, [
       needsShaping('9s', ['Which?']),
     ]);
-    expect(waiting).toContain('1 item waits for you on Needs you');
-    expect(waiting).not.toContain('more on Needs you');
+    expect(waiting).toContain('1 item waits for you on the board');
+    expect(waiting).not.toContain('more on the board');
 
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     const strip = text(
@@ -203,14 +187,6 @@ describe('the Factory section', () => {
     // Item 3's merge state is unknown: counted only in M.
     for (const tile of ['in flight4', 'need you0', 'merged3 of 8', 'median to merged'])
       expect(strip).toContain(tile);
-  });
-
-  test('Needs you is the project tab, listing every ask, without the Factory frame', () => {
-    const html = render(`/console/p/${ID}/needs-you`, withView, sixAsks);
-    expect(currentLinks(html)).toEqual([`/console/p/${ID}/needs-you Needs you6`]);
-    expect(html).toContain('6 things need you');
-    expect(askCards(html)).toBe(6);
-    expect(html).not.toContain(SUMMARY);
   });
 
   test('the board sits under Board, its columns the declared stages, the title without the summary', () => {

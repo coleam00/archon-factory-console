@@ -36,18 +36,15 @@ export function useItemsOnStep(
 }
 
 /**
- * The cards carry no ask's face here: an item on a step is one a run works now, and an ask is
- * answered from the board or Needs you, which hold the project's queue. With no face a card
- * shows its stop line, as the board does before its queue is read.
+ * The cards carry no ask control here: an item on a step is one a run works now, and an ask is
+ * answered from the board or the item page. With none a card shows its stop line.
  */
 const NO_ASKS: BoardAsks = {
-  asksOf: () => null,
-  faceOf: () => null,
-  answeredLine: () => null,
+  entriesOf: () => [],
+  unread: () => false,
   open: null,
   openFor: () => undefined,
   close: () => undefined,
-  settle: () => undefined,
 };
 
 const ITEMS_TONE = 'var(--running)';

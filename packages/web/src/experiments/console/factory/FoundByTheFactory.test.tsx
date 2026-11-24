@@ -6,7 +6,7 @@ import { formatDateTime } from '../lib/format';
 import { FK } from './keys';
 import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 
 // A failed read follows a render, which static markup cannot reach.
 const { mount: render } = await installDom();
