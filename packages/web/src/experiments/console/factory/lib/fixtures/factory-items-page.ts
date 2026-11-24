@@ -26,6 +26,8 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           cause: {
             kind: 'run_ended',
             runId: '5da88866-18d3-4045-9019-2a11d45899aa',
+            sourceInstanceId:
+              'Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838',
           },
           awaitingExecution: null,
           spend: { usd: null, inputTokens: null, outputTokens: null },
@@ -167,6 +169,8 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           cause: {
             kind: 'run_ended',
             runId: '2e291009-82e8-4582-8b36-8dd45ec8ee7e',
+            sourceInstanceId:
+              'Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838',
           },
           awaitingExecution: null,
           spend: { usd: null, inputTokens: null, outputTokens: null },
@@ -226,6 +230,8 @@ export const capturedItemsPage: { items: FactoryItem[] } = {
           cause: {
             kind: 'run_ended',
             runId: '8ec270ee-657c-4513-99ba-45935a7d08dc',
+            sourceInstanceId:
+              'Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838',
           },
           awaitingExecution: null,
           spend: { usd: null, inputTokens: null, outputTokens: null },

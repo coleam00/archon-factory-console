@@ -12,6 +12,7 @@
         {
           "id": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d",
           "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
           "status": "completed",
           "outcome": "build",
           "startedAt": "2026-11-16T23:30:52.000Z",
@@ -21,59 +22,81 @@
             "receiptId": "cb2c2c9b-b80b-411a-9d8d-b7f95bbc1837",
             "sourceInstanceId": "fc-start-triage"
           },
-          "awaitingExecution": null
+          "awaitingExecution": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": false,
+          "resultCommit": null
         },
         {
           "id": "d4e76223-9187-490b-ba5f-ce8aff023767",
           "workflow": "Wirasm/archon-software-factory:plan",
+          "pack": null,
           "status": "completed",
           "outcome": "planned",
           "startedAt": "2026-11-16T23:31:55.000Z",
           "completedAt": "2026-11-16T23:39:32.000Z",
           "cause": {
             "kind": "run_ended",
-            "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d"
+            "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f"
           },
-          "awaitingExecution": null
+          "awaitingExecution": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": false,
+          "resultCommit": null
         },
         {
           "id": "934682d0-bf74-494c-9949-7b0f7697d9d9",
           "workflow": "Wirasm/archon-software-factory:deliver",
+          "pack": null,
           "status": "completed",
           "outcome": "ready",
           "startedAt": "2026-11-16T23:39:38.000Z",
           "completedAt": "2026-11-17T03:01:06.000Z",
           "cause": {
             "kind": "run_ended",
-            "runId": "d4e76223-9187-490b-ba5f-ce8aff023767"
+            "runId": "d4e76223-9187-490b-ba5f-ce8aff023767",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838"
           },
-          "awaitingExecution": null
+          "awaitingExecution": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": false,
+          "resultCommit": null
         }
       ],
+      "queued": [],
+      "skipped": [],
+      "hold": null,
+      "held": [],
+      "runLimit": null,
+      "waits": [],
       "questions": [],
       "answers": [],
       "links": [],
+      "merged": null,
+      "landing": null,
       "degraded": [],
       "progress": {
         "title": "The Factory tab: a pack's factory view declaration, discovered per project, opens a Software Factory section",
         "running": null,
-        "runs": [
-          {
-            "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d",
-            "workflow": "triage",
-            "failedStep": null
-          },
-          {
-            "runId": "d4e76223-9187-490b-ba5f-ce8aff023767",
-            "workflow": "plan",
-            "failedStep": null
-          },
-          {
-            "runId": "934682d0-bf74-494c-9949-7b0f7697d9d9",
-            "workflow": "deliver",
-            "failedStep": null
-          }
-        ],
         "round": {
           "runId": "934682d0-bf74-494c-9949-7b0f7697d9d9",
           "iteration": 3,
@@ -96,6 +119,7 @@
             }
           ]
         },
+        "partOf": null,
         "returned": 2,
         "change": {
           "url": "https://github.com/coleam00/archon-factory-console/pull/11",
@@ -103,13 +127,27 @@
           "merged": true,
           "mergedAt": "2026-11-17T03:05:25Z"
         },
+        "runs": [
+          {
+            "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d",
+            "workflow": "triage",
+            "failedStep": null
+          },
+          {
+            "runId": "d4e76223-9187-490b-ba5f-ce8aff023767",
+            "workflow": "plan",
+            "failedStep": null
+          },
+          {
+            "runId": "934682d0-bf74-494c-9949-7b0f7697d9d9",
+            "workflow": "deliver",
+            "failedStep": null
+          }
+        ],
         "shadows": [],
         "parked": null,
         "awaits": null
-      },
-      "queued": [],
-      "held": [],
-      "hold": null
+      }
     },
     "runs": [
       {
@@ -134,7 +172,8 @@
         "workflow": "plan",
         "cause": {
           "kind": "run_ended",
-          "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d"
+          "runId": "59c892d1-90c3-4f70-9a68-ce4ea1425d9d",
+          "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-plan-after-triage-build-831924269c5f"
         },
         "costUsd": 3.2227326,
         "step": null,
@@ -150,7 +189,8 @@
         "workflow": "deliver",
         "cause": {
           "kind": "run_ended",
-          "runId": "d4e76223-9187-490b-ba5f-ce8aff023767"
+          "runId": "d4e76223-9187-490b-ba5f-ce8aff023767",
+          "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-console-deliver-after-plan-planned-a996def02838"
         },
         "costUsd": 32.01725652,
         "step": null,

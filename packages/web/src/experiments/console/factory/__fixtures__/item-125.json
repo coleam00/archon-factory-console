@@ -12,6 +12,7 @@
         {
           "id": "bd5ea7d5-3ae0-4d6e-b676-db1c61c09841",
           "workflow": "Wirasm/archon-software-factory:order",
+          "pack": null,
           "status": "completed",
           "outcome": "ready",
           "startedAt": "2026-11-22T02:40:54.000Z",
@@ -35,6 +36,7 @@
         {
           "id": "337f403e-b1f5-4176-be9f-4d28765b8fb4",
           "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
           "status": "completed",
           "outcome": "build",
           "startedAt": "2026-11-22T02:41:50.000Z",
@@ -58,6 +60,7 @@
         {
           "id": "28d7be31-b6d8-4bf8-b59c-d29b39b6f173",
           "workflow": "Wirasm/archon-software-factory:plan",
+          "pack": null,
           "status": "cancelled",
           "outcome": null,
           "startedAt": "2026-11-22T02:44:39.000Z",
@@ -81,6 +84,7 @@
         {
           "id": "f327dd85-8c55-4deb-85da-562a2a83fbbd",
           "workflow": "Wirasm/archon-software-factory:order",
+          "pack": null,
           "status": "completed",
           "outcome": "ready",
           "startedAt": "2026-11-22T02:50:30.000Z",
@@ -104,6 +108,7 @@
         {
           "id": "aaed7cbb-7d0f-4052-b5df-1d1adc3fdadf",
           "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
           "status": "completed",
           "outcome": "split",
           "startedAt": "2026-11-22T02:51:42.000Z",
@@ -127,6 +132,7 @@
         {
           "id": "40ecd9bf-d2bc-48c1-bd96-5dea359f75fc",
           "workflow": "Wirasm/archon-software-factory:split",
+          "pack": null,
           "status": "completed",
           "outcome": "whole",
           "startedAt": "2026-11-22T02:54:45.000Z",
@@ -150,6 +156,7 @@
         {
           "id": "d6816af4-e71b-4c3c-a1b8-05df295c9661",
           "workflow": "Wirasm/archon-software-factory:plan",
+          "pack": null,
           "status": "completed",
           "outcome": "planned",
           "startedAt": "2026-11-22T02:56:29.000Z",
@@ -173,6 +180,7 @@
         {
           "id": "6766bfc4-ca1e-42f6-b28b-b81747822c43",
           "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
           "status": "completed",
           "outcome": "built",
           "startedAt": "2026-11-22T03:17:47.000Z",
@@ -196,6 +204,7 @@
         {
           "id": "20e1db24-c3da-4525-b76f-f362dba2dd2e",
           "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
           "status": "completed",
           "outcome": "return",
           "startedAt": "2026-11-22T04:51:52.000Z",
@@ -219,6 +228,7 @@
         {
           "id": "8d95ba65-ffc7-4b90-b3c7-9152c8043356",
           "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
           "status": "completed",
           "outcome": "built",
           "startedAt": "2026-11-22T05:22:43.000Z",
@@ -242,6 +252,7 @@
         {
           "id": "bb11ef33-963a-4a1a-8bf5-3f50e84a711e",
           "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
           "status": "completed",
           "outcome": "return",
           "startedAt": "2026-11-22T05:30:35.000Z",
@@ -265,6 +276,7 @@
         {
           "id": "f734fcaa-2f48-44c0-9b08-8539303f633c",
           "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
           "status": "completed",
           "outcome": "ask",
           "startedAt": "2026-11-22T06:19:39.000Z",
@@ -288,6 +300,7 @@
         {
           "id": "5380dbc6-db5f-4070-934f-672620717bcf",
           "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
           "status": "completed",
           "outcome": "built",
           "startedAt": "2026-11-22T06:31:13.000Z",
@@ -310,6 +323,7 @@
         {
           "id": "9ffaf8a1-da68-42ae-a43e-cbb167a7213c",
           "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
           "status": "completed",
           "outcome": "ask",
           "startedAt": "2026-11-22T06:34:52.000Z",
@@ -333,6 +347,7 @@
         {
           "id": "9aafcbaa-5d54-4a2f-8be7-ca4172609002",
           "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
           "status": "completed",
           "outcome": "built",
           "startedAt": "2026-11-22T06:59:05.000Z",
@@ -355,6 +370,7 @@
         {
           "id": "02e5f706-fb01-4039-8867-940e65e59c09",
           "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
           "status": "completed",
           "outcome": "ask",
           "startedAt": "2026-11-22T07:05:55.000Z",
@@ -378,6 +394,7 @@
         {
           "id": "52f46ea3-f4d0-4455-85b5-f7c8e0e8b316",
           "workflow": "Wirasm/archon-software-factory:stage-host",
+          "pack": null,
           "status": "completed",
           "outcome": "return",
           "startedAt": "2026-11-22T07:23:29.000Z",
@@ -400,6 +417,7 @@
         {
           "id": "5063913b-7863-4f5e-a444-0c7e417fb1c3",
           "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
           "status": "completed",
           "outcome": "built_for_host",
           "startedAt": "2026-11-22T07:28:30.000Z",
@@ -423,6 +441,7 @@
         {
           "id": "d2faac1f-6d47-47f5-b30e-f441b6d83b52",
           "workflow": "Wirasm/archon-software-factory:stage-host",
+          "pack": null,
           "status": "completed",
           "outcome": "ready",
           "startedAt": "2026-11-22T07:42:59.000Z",
@@ -446,6 +465,7 @@
         {
           "id": "de4b08d3-152a-42c3-9268-0de9f83fd398",
           "workflow": "Wirasm/archon-software-factory:landgate",
+          "pack": null,
           "status": "completed",
           "outcome": "ask",
           "startedAt": "2026-11-22T07:51:35.000Z",
@@ -469,6 +489,7 @@
         {
           "id": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
           "workflow": "Wirasm/archon-software-factory:land",
+          "pack": null,
           "status": "completed",
           "outcome": "landed",
           "startedAt": "2026-11-22T07:55:13.000Z",
@@ -491,6 +512,7 @@
         {
           "id": "77baacc9-492b-4d08-bb86-5f419cff1a9b",
           "workflow": "Wirasm/archon-software-factory:discoveries",
+          "pack": null,
           "status": "completed",
           "outcome": null,
           "startedAt": "2026-11-22T07:59:48.000Z",
@@ -514,6 +536,7 @@
         {
           "id": "621679a2-a90a-4fae-91c0-9f9d8ef29812",
           "workflow": "Wirasm/archon-software-factory:landed",
+          "pack": null,
           "status": "completed",
           "outcome": "waiting",
           "startedAt": "2026-11-22T07:59:55.000Z",
@@ -539,6 +562,7 @@
       "skipped": [],
       "hold": null,
       "held": [],
+      "runLimit": null,
       "waits": [],
       "questions": [],
       "answers": [

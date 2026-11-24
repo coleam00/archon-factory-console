@@ -12,6 +12,7 @@
         {
           "id": "44eb5f37-1d04-4835-828b-ea8203a1a68d",
           "workflow": "Wirasm/archon-software-factory:order",
+          "pack": null,
           "status": "completed",
           "outcome": "ready",
           "startedAt": "2026-11-20T21:31:57.000Z",
@@ -35,6 +36,7 @@
         {
           "id": "bd1e7dc0-b4cc-4eed-8a3b-3a4fe824f67e",
           "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
           "status": "completed",
           "outcome": "build",
           "startedAt": "2026-11-20T21:32:23.000Z",
@@ -58,6 +60,7 @@
         {
           "id": "4dacfc2d-582c-457f-aa70-39688a131224",
           "workflow": "Wirasm/archon-software-factory:plan",
+          "pack": null,
           "status": "completed",
           "outcome": "planned",
           "startedAt": "2026-11-20T21:33:53.000Z",
@@ -81,6 +84,7 @@
         {
           "id": "2ec16169-a850-4759-a4f5-efb27a267a9c",
           "workflow": "Wirasm/archon-software-factory:deliver",
+          "pack": null,
           "status": "completed",
           "outcome": "ask",
           "startedAt": "2026-11-20T21:35:49.000Z",
@@ -104,6 +108,7 @@
         {
           "id": "2fd6990d-2a82-429a-b93e-3511309e9676",
           "workflow": "Wirasm/archon-software-factory:deliver",
+          "pack": null,
           "status": "completed",
           "outcome": "ready",
           "startedAt": "2026-11-20T21:39:55.000Z",
@@ -126,6 +131,7 @@
         {
           "id": "df30b636-bef1-4f38-8ab5-474217919693",
           "workflow": "Wirasm/archon-software-factory:discoveries",
+          "pack": null,
           "status": "completed",
           "outcome": null,
           "startedAt": "2026-11-20T21:48:56.000Z",
@@ -149,6 +155,7 @@
         {
           "id": "955a6328-6f83-40ec-97ec-ed19abedb125",
           "workflow": "Wirasm/archon-software-factory:landgate",
+          "pack": null,
           "status": "completed",
           "outcome": null,
           "startedAt": "2026-11-20T21:48:59.000Z",
@@ -174,6 +181,7 @@
       "skipped": [],
       "hold": null,
       "held": [],
+      "runLimit": null,
       "waits": [],
       "questions": [],
       "answers": [
