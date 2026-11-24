@@ -44,12 +44,12 @@ export interface SendBack {
   label: string | undefined;
 }
 
-export interface LanePath extends SendBack {
+interface LanePath extends SendBack {
   /** The SVG path, in M, H and V, ending where the arrowhead points into the target. */
   d: string;
 }
 
-export interface LanePill {
+interface LanePill {
   /** The stage its leg rises into. */
   stage: string;
   /** Its send-backs' outcomes, each once, in declared order. */
@@ -62,7 +62,7 @@ export interface LanePill {
  * do not draw two dashed lines over each other, out of step. `head` ends a piece in an
  * arrowhead into a card.
  */
-export interface LaneStroke {
+interface LaneStroke {
   points: Point[];
   head: boolean;
 }

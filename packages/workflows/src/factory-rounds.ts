@@ -51,7 +51,7 @@ export type Outcomes = ReturnType<typeof buildNodeOutcomes>['nodes'];
 /** A declared return or approval: a step, and the outcome it records that decides. */
 export type DecisionPoint = NonNullable<FactoryView['returns']>[number];
 /** The declared returns and approvals of one workflow. */
-export interface DecisionPoints {
+interface DecisionPoints {
   returns: readonly DecisionPoint[];
   approves: readonly DecisionPoint[];
 }
@@ -132,7 +132,7 @@ function roundSteps(
   return steps;
 }
 
-export function roundFacts(
+function roundFacts(
   loop: string,
   points: DecisionPoints,
   run: WorkflowRun,
@@ -185,7 +185,7 @@ function countAt(value: unknown, pointer: string): number | null {
  * verdict is the loop form's, read over the whole run; its steps are every step that recorded a
  * structured outcome but the one that returns the result, which restates the decision.
  */
-export function stageRoundFacts(
+function stageRoundFacts(
   source: FactoryStageRounds,
   points: DecisionPoints,
   run: WorkflowRun,
@@ -236,7 +236,7 @@ export function stageRoundFacts(
  * last planned and no earlier cycle's, as the pack numbered them. Oldest first; empty when no
  * run recorded a round.
  */
-export function stageRoundsOf(
+function stageRoundsOf(
   newestFirst: readonly { runId: string; rounds: FactoryRunFacts['rounds'] }[]
 ): { runId: string; max: number | null; round: FactoryRound }[] {
   const taken: { runId: string; max: number | null; round: FactoryRound }[] = [];

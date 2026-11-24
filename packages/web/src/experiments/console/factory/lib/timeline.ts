@@ -20,7 +20,7 @@ type RunFacts = FactoryItemDetail['runs'][number];
  * words (`mono` false); a pack's own token the declaration does not map stays as that
  * identifier, drawn in mono (`mono` true). Console code never words a pack's tokens itself.
  */
-export interface OutcomeWords {
+interface OutcomeWords {
   text: string;
   mono: boolean;
 }

@@ -19,20 +19,20 @@ import { installedPackKey } from './workflow-source/installed-packs';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 /** One kind of pack file: its name in a pack, its project-file suffix, and its schema. */
-export interface PackFileKind<T extends { pack: string }> {
+interface PackFileKind<T extends { pack: string }> {
   fileName: string;
   projectSuffix: string;
   schema: z.ZodType<T>;
 }
 
-export interface PackFileFound<T> {
+interface PackFileFound<T> {
   pack: string;
   source: FactoryViewSource;
   path: string;
   declaration: T;
 }
 
-export interface PackFileError {
+interface PackFileError {
   pack: string;
   source: FactoryViewSource;
   path: string;

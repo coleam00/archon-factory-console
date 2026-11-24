@@ -113,7 +113,7 @@ const MEANING_CELL: Record<Meaning, CellMeaning> = {
  * A step's outcome as the view declares it: `returned` or `approved` where `returns` or
  * `approves` names that step and outcome, its `verdicts` meaning where one is given, else null.
  */
-export function stepMeaning(view: Declaration, workflow: string, step: RoundStep): Meaning | null {
+function stepMeaning(view: Declaration, workflow: string, step: RoundStep): Meaning | null {
   const declares = (points: Declaration['returns']): boolean =>
     (points ?? []).some(
       point =>

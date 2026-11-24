@@ -74,7 +74,7 @@ function FactoryWaitingBadge({
  * counts needs-you stays soft (Visual standard, rule 5): the filled pill is a card's own Needs
  * you state.
  */
-export function WaitingBadge({ count }: { count: number }): ReactElement | null {
+function WaitingBadge({ count }: { count: number }): ReactElement | null {
   if (count === 0) return null;
   return (
     <span

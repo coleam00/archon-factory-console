@@ -22,7 +22,7 @@ import { BackLink } from './BackLink';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
 /** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
-export type FactorySection = 'overview' | 'board' | 'settings' | null;
+type FactorySection = 'overview' | 'board' | 'settings' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;

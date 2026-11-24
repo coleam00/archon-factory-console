@@ -51,7 +51,7 @@ export const PILL_LABEL: Record<Pill, string> = {
 };
 
 /** Plain words for each verdict a round can have; a new verdict fails the type-check here. */
-export const VERDICT_LABEL: Record<RoundVerdict, string> = {
+const VERDICT_LABEL: Record<RoundVerdict, string> = {
   approved: 'approved',
   returned: 'returned',
   undecided: 'needs a decision',
@@ -221,7 +221,7 @@ export function cardFields(
  * open question, with "N questions" when it recorded several, else the reason its run gave
  * (null when it gave neither).
  */
-export function awaitsLine(
+function awaitsLine(
   awaits: NonNullable<Progress['awaits']>
 ): Pick<BoardCard, 'stopLine' | 'stopCount'> {
   const [first] = awaits.questions;
@@ -320,7 +320,7 @@ export function positionOf(column: ItemColumn | null): string {
  * Whether `query` finds the card by key, title or the key of its work order, ignoring case.
  * An empty query finds all.
  */
-export function cardMatches(card: BoardCard, query: string): boolean {
+function cardMatches(card: BoardCard, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (needle === '') return true;
   return [card.key, card.title, card.order ?? ''].some(field =>
@@ -429,7 +429,7 @@ export function filterBoard(
   };
 }
 
-export type ChipPill = Exclude<Pill, 'landed' | 'awaits'>;
+type ChipPill = Exclude<Pill, 'landed' | 'awaits'>;
 const CHIP_PILLS: readonly ChipPill[] = ['running', 'needs-you', 'failed', 'parked', 'waiting'];
 
 /**

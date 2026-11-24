@@ -3,7 +3,7 @@
  * whole prompt". Counted in source lines, which a reader can check against the command file:
  * about what the folded panel's height shows of a prompt with a few headings and lists.
  */
-export const PROMPT_FOLD_LINES = 30;
+const PROMPT_FOLD_LINES = 30;
 
 /** Whether `prompt` is long enough to fold. */
 export function foldsPrompt(prompt: string): boolean {

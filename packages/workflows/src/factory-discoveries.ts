@@ -21,14 +21,14 @@ import type { WorkflowItem, WorkflowRun } from './schemas/workflow-run';
 import type { IWorkflowStore } from './store';
 import { getTerminalRecord } from './terminal-record';
 
-export type FactoryDiscoveriesDeclaration = NonNullable<FactoryView['discoveries']>;
+type FactoryDiscoveriesDeclaration = NonNullable<FactoryView['discoveries']>;
 
 export type DiscoveriesSource = Pick<
   IWorkflowStore,
   'listItemsInWindow' | 'getItemRuns' | 'listEventsForRuns'
 >;
 
-export const factoryFindingSchema = z.object({
+const factoryFindingSchema = z.object({
   title: z.string(),
   /** The drain's kind for it (the pack's word, such as `defect`); null when it gave none. */
   kind: z.string().nullable(),
@@ -57,13 +57,13 @@ export const factoryDiscoveriesSchema = z.object({
 });
 export type FactoryDiscoveries = z.infer<typeof factoryDiscoveriesSchema>;
 
-export interface DrainEntry {
+interface DrainEntry {
   title: string;
   kind: string | null;
   verified: string | null;
 }
 
-export interface DrainDecisions {
+interface DrainDecisions {
   filed: DrainEntry[];
   held: number;
   dropped: number;
@@ -115,7 +115,7 @@ export function coveredBy(
   return null;
 }
 
-export interface ReadFactoryDiscoveriesInput {
+interface ReadFactoryDiscoveriesInput {
   view: FactoryView;
   pack: string;
   projectKey: string;

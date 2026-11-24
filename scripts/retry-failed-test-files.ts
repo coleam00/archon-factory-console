@@ -20,7 +20,7 @@ import { RUNNER_SUITE } from './package-test-reports';
  * all reported and all passed) fails the leg without a rerun.
  */
 
-export interface FailedFiles {
+interface FailedFiles {
   /**
    * Files to rerun, in report order: those with a failing or erroring test or suite, then those
    * a failed group names that left no suite in the report.

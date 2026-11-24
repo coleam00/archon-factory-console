@@ -56,7 +56,7 @@ export function stageModalLink(projectId: string, stage: string, tab?: StageTab)
 }
 
 /** A link from one stage's real workflow to another stage's, and how to follow it. */
-export interface StageSwitchLink {
+interface StageSwitchLink {
   to: To;
   /** Whether following it replaces the entry on screen rather than pushing one. */
   replace: boolean;

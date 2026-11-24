@@ -8,7 +8,7 @@ import type { NeedsYouItem } from './needs-you';
 const MARKER = 'No recommendation: ';
 const PARAGRAPHS = /\n[ \t]*\n/;
 
-export interface Unrecommended {
+interface Unrecommended {
   /** The context without the marker paragraph; '' when nothing else was said. */
   rest: string;
   /** The reason the paragraph gives, trimmed; never empty. */
@@ -33,7 +33,7 @@ export function parseUnrecommended(context: string): Unrecommended | null {
 }
 
 /** What an ask a stage left without a recommendation shows: the line under its tiles, and the context left. */
-export interface UnrecommendedAsk {
+interface UnrecommendedAsk {
   line: string;
   context: string | undefined;
 }

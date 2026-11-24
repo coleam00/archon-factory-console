@@ -13,7 +13,7 @@ import { placeItem } from './board';
 import { stageIdOf } from './placement';
 import type { FactoryViewListed } from './views';
 
-export interface StageLive {
+interface StageLive {
   /** The items placed on this stage, in the order the items read returned them. */
   items: FactoryItem[];
   /** How many of them a run works now. */
@@ -44,7 +44,7 @@ export const stageReadOf = (live: MapLive | Unread, stage: string): StageRead =>
   typeof live === 'string' ? live : (live.stages.get(stage) ?? EMPTY_STAGE_LIVE);
 
 /** Why an item is on no card: so the reader knows whether to fix the read or the view. */
-export type NotOnMapWhy =
+type NotOnMapWhy =
   /** Placement found no column: the view names no stage for it (as the item page's "Position unknown"). */
   | { kind: 'no-column' }
   /** Placed on `stage`, which the map draws no card for. */

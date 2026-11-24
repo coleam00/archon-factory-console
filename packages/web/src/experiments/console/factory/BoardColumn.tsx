@@ -175,7 +175,7 @@ export function CardSkeletons({ label }: { label: string }): ReactElement {
  * Why a column shows no card, so the sentence is true: the cards it is given may be narrowed
  * by a filter or, for Merged, by the 7-day window, and only then is the column itself empty.
  */
-export function emptySentence(label: string, filtered: boolean, earlier: number): string {
+function emptySentence(label: string, filtered: boolean, earlier: number): string {
   // Older merges first: under a filter they are matches, listed by "N earlier" below.
   if (earlier > 0)
     return filtered ? 'No match merged in the last 7 days' : 'Nothing merged in the last 7 days';

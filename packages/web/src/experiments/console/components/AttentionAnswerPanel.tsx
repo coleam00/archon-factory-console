@@ -22,7 +22,7 @@ import { AskTiles, type AskTile } from './ask-card/AskTiles';
 type Attention = Extract<NonNullable<Run['attention']>, { kind: 'attention' }>;
 
 /** Sends a chosen answer; throws the server's refusal. */
-export type SubmitAnswer = (choose: string[], text: string | undefined) => Promise<void>;
+type SubmitAnswer = (choose: string[], text: string | undefined) => Promise<void>;
 
 /**
  * True for a wait paused before answers existed; only `resume` continues it. Takes the

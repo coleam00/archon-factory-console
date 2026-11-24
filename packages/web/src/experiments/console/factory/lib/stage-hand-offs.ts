@@ -3,7 +3,7 @@ import type { FactoryViewListed } from './views';
 type Declaration = FactoryViewListed['declaration'];
 
 /** One arrow out of a stage, in the view file's words. */
-export interface HandOff {
+interface HandOff {
   /** The arrow's label; undefined for an unlabelled one. */
   label: string | undefined;
   /** The stage it goes to, by id and by its label. */

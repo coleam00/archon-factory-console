@@ -160,7 +160,7 @@ export function times(count: number): string {
  * What the view says a completed run did: `workflow:outcome`, else `workflow:*`. An entry worded
  * by whether the item has a change (`{ withChange, withoutChange }`) reads `hasChange`.
  */
-export function toldOutcome(
+function toldOutcome(
   view: Declaration,
   workflow: string,
   outcome: string | null,

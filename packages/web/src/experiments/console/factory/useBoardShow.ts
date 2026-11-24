@@ -9,7 +9,7 @@ import {
   VIEW_PARAM,
 } from './lib/board-show';
 
-export interface BoardShowState {
+interface BoardShowState {
   /** `?show=` as written; null when absent. */
   showParam: string | null;
   /** What `?show=` names; undefined when absent or unknown, and the board is then whole. */

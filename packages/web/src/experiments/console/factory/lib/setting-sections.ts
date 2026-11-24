@@ -39,7 +39,7 @@ export function groupSettings(
 }
 
 /** The header band's figures; `set` and `packDefault` are null when no project's file is read. */
-export interface SettingCounts {
+interface SettingCounts {
   total: number;
   set: number | null;
   packDefault: number | null;

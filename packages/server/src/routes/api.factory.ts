@@ -243,7 +243,7 @@ const getFactoryItemRoute = createRoute({
 });
 
 /** The merge state of one change, as the forge seam answered it (`changeMergeState`). */
-export type ChangeMergeLookup = (
+type ChangeMergeLookup = (
   lookup: ChangeLookup,
   branches: () => Promise<readonly string[]>
 ) => Promise<ChangeMergeState>;
@@ -314,7 +314,7 @@ type ChangeAnswer = Awaited<ReturnType<ChangeMergeLookup>>;
 /** What a read answers: the host's answer, or `pending` while its lookup still runs. */
 type ShownAnswer = Awaited<ReturnType<FactoryChangeState>>;
 /** The change state of the project whose remote a branch lookup searches. */
-export type ProjectChangeState = (
+type ProjectChangeState = (
   lookup: FactoryChangeLookup,
   branches: () => Promise<readonly string[]>,
   remote: string | null,
@@ -439,10 +439,7 @@ export function changeStateCache(
 const DISCOVERY_FRESH_MS = 30_000;
 
 /** A project's workflows for the stage graph; `fresh` waits on a new discovery. */
-export type StageDiscovery = (
-  cwd: string,
-  options?: { fresh?: boolean }
-) => Promise<WorkflowLoadResult>;
+type StageDiscovery = (cwd: string, options?: { fresh?: boolean }) => Promise<WorkflowLoadResult>;
 
 /**
  * Workflow discovery for a stage's step graph, kept per project checkout. A discovery

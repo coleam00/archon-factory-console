@@ -12,7 +12,7 @@ import { SkeletonBlock, SkeletonGroup } from '../components/Skeleton';
 import { useFactoryItems } from './useFactoryItems';
 
 /** How many asks the Overview shows before "N more" leads to the Needs you tab. */
-export const OVERVIEW_ASKS_SHOWN = 3;
+const OVERVIEW_ASKS_SHOWN = 3;
 
 /**
  * The Overview's Needs you: the newest asks as compact cards (the question and the

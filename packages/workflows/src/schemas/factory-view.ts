@@ -18,7 +18,7 @@ export const FACTORY_VIEW_FILE = 'factory-view.json';
 /** Appended to a pack key to name the project file: `<pack key>.factory-view.json`. */
 export const FACTORY_VIEW_PROJECT_SUFFIX = '.factory-view.json';
 /** A map note may sit by the Needs-you list instead of a stage. */
-export const FACTORY_VIEW_NEEDS_YOU = 'needs-you';
+const FACTORY_VIEW_NEEDS_YOU = 'needs-you';
 
 const labelSchema = z.string().min(1).max(80);
 const stageIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/, 'a lowercase slug such as "plan"');
@@ -71,7 +71,6 @@ export const factoryDrilldownIconSchema = z.enum([
   'shield-check',
   'git-merge',
 ]);
-export type FactoryDrilldownIcon = z.infer<typeof factoryDrilldownIconSchema>;
 
 /** One card of a drill-down: a plain-words box standing for some of a workflow's real steps. */
 const drilldownCardSchema = z.strictObject({
@@ -201,7 +200,7 @@ const roundsSourceSchema = z.union([loopRoundsSchema, stageRoundsSchema], {
  * What a step's outcome means to a person, so a console can word it in its own words. The set
  * is closed: a console words each meaning, and never a pack's token.
  */
-export const factoryVerdictMeaningSchema = z.enum(['approved', 'returned', 'asked']);
+const factoryVerdictMeaningSchema = z.enum(['approved', 'returned', 'asked']);
 
 const mapSchema = z.strictObject({
   cards: z.array(
@@ -498,9 +497,9 @@ const factoryViewShape = z.strictObject({
 type FactoryViewShape = z.infer<typeof factoryViewShape>;
 type Issue = { path: (string | number)[]; message: string };
 
-export type FactoryChangeSource = z.infer<typeof changeSourceSchema>;
-export type FactoryRoundsSource = z.infer<typeof roundsSourceSchema>;
-export type FactoryLoopRounds = Extract<FactoryRoundsSource, { loop: string }>;
+type FactoryChangeSource = z.infer<typeof changeSourceSchema>;
+type FactoryRoundsSource = z.infer<typeof roundsSourceSchema>;
+type FactoryLoopRounds = Extract<FactoryRoundsSource, { loop: string }>;
 export type FactoryStageRounds = Extract<FactoryRoundsSource, { round: string }>;
 
 /** The declared change sources as a list, a single one included; empty when none. */
@@ -725,8 +724,6 @@ export type FactoryView = z.infer<typeof factoryViewSchema>;
 export type FactoryStage = FactoryView['stages'][number];
 export type FactoryDrilldown = NonNullable<FactoryStage['drilldown']>;
 export type FactoryShadow = NonNullable<FactoryView['shadows']>[number];
-export type FactoryShadowReads = FactoryShadow['reads'];
-export type FactoryStory = NonNullable<FactoryView['story']>;
 
 /** Where a view was found: a pack's own file, or the project's file for a pack. */
 export const factoryViewSourceSchema = z.enum([...workflowSourceSchema.options, 'project-file']);

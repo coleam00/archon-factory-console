@@ -52,7 +52,7 @@ export function stagesOfWorkflow(
 }
 
 /** A stage as a step's tag names it: its id to open it, its label, its group's colour. */
-export type StepStage = Pick<FactoryStage, 'id' | 'label' | 'group'>;
+type StepStage = Pick<FactoryStage, 'id' | 'label' | 'group'>;
 
 /**
  * Who works a step of the graph a stage draws: the open stage (`this`), another stage that

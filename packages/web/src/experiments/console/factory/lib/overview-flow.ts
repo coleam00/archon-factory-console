@@ -39,7 +39,7 @@ export interface FlowMove {
   shadow: boolean;
 }
 
-export interface FlowGlow {
+interface FlowGlow {
   card: string;
   start: number;
   end: number;

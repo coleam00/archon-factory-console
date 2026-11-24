@@ -16,7 +16,7 @@ import {
 
 export const LINE = 'var(--text-tertiary)';
 /** A forward line's ends: dim where it leaves, brighter where it arrives (its head's colour). */
-export const LINE_FROM = 'var(--border-bright)';
+const LINE_FROM = 'var(--border-bright)';
 export const LINE_TO = 'var(--text-secondary)';
 /** A forward line's width; every other line is `STROKE`. */
 export const MAIN_STROKE = 2;

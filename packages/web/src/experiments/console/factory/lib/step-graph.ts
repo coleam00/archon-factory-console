@@ -28,7 +28,7 @@ export type StepGraphGroup = Pick<
 > & { condition: string | null };
 
 /** Always between two steps: a dependency on a loop group is drawn to and from its steps. */
-export interface StepGraphEdge {
+interface StepGraphEdge {
   from: string;
   to: string;
 }

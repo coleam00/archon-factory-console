@@ -39,7 +39,7 @@ import { readPackWorkflowFolders } from './workflow-discovery/pack-layout';
 import { listInstalledPacks, packDirectory } from './workflow-source/installed-packs';
 import type { WorkflowSourceRoots } from './workflow-source/roots';
 
-export interface FactoryStepsContext {
+interface FactoryStepsContext {
   /** The project; owns config. */
   cwd: string;
   deps: Pick<WorkflowDeps, 'loadConfig'>;

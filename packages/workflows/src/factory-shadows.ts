@@ -44,7 +44,7 @@ const shadowReadSchema = z.discriminatedUnion('reads', [
   /** The step completed, but its value does not read as the declaration says. */
   z.object({ reads: z.literal('unreadable') }),
 ]);
-export type FactoryShadowRead = z.infer<typeof shadowReadSchema>;
+type FactoryShadowRead = z.infer<typeof shadowReadSchema>;
 
 export const factoryShadowDecisionSchema = z.object({
   /** The workflow and step as the view's `shadows` entry names them. */

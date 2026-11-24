@@ -11,7 +11,7 @@ export function overdueWaitMessage(item: Extract<NeedsYouItem, { kind: 'overdue_
 }
 
 /** The run an entry sits on, whatever its kind: the run holding the wait or the ask. */
-export function entryRun(entry: NeedsYouItem): { id: string; workflow: string } | undefined {
+function entryRun(entry: NeedsYouItem): { id: string; workflow: string } | undefined {
   if (entry.kind === 'overdue_wait')
     return { id: entry.waitingIn.runId, workflow: entry.waitingIn.workflow };
   return entry.run;

@@ -46,7 +46,7 @@ export interface Point {
 }
 
 /** One card on the map: a board column, holding the stages of it the map shows. */
-export interface MapCardDecl {
+interface MapCardDecl {
   /** The column's id. */
   id: string;
   label: string;

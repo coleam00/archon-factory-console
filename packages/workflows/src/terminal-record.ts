@@ -272,7 +272,7 @@ export function buildNodeOutcomes(
 }
 
 /** One completed node invocation and the record data its completion wrote. */
-export interface CompletedNodeData {
+interface CompletedNodeData {
   path: string;
   loopPath: NodeInvocation['loopPath'];
   data: Record<string, unknown>;

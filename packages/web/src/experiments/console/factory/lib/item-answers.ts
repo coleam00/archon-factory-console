@@ -13,7 +13,7 @@ type AttentionAnswerer = NonNullable<AttentionWait['answeredBy']>;
 type ItemLink = FactoryItem['links'][number];
 
 /** One recorded answer or ruling, in words. */
-export interface AnswerLine {
+interface AnswerLine {
   label: string;
   text: string;
   /** Further lines: the option chosen, the note given with it, who gave it. */

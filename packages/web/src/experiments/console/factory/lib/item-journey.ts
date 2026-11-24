@@ -15,13 +15,13 @@ import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
 
-export interface JourneyLoop {
+interface JourneyLoop {
   /** The earlier column it was sent back to. */
   to: string;
   count: number;
 }
 
-export interface JourneyPause {
+interface JourneyPause {
   /** How long it waited on you; to now while the ask is open. */
   ms: number;
   open: boolean;
@@ -101,7 +101,7 @@ function lastStageRun(view: Declaration, detail: FactoryItemDetail) {
 }
 
 /** What stopped the item where it is, in the view's words; null for an item in flight. */
-export function stopWords(
+function stopWords(
   view: Declaration,
   detail: FactoryItemDetail,
   column: ItemColumn | null
@@ -125,7 +125,7 @@ export function stopWords(
  * nothing started. The answer's route (hold, take as is) is not on the item read, so the page
  * does not claim the item was held.
  */
-export const RESTING = 'Nothing started after your answer';
+const RESTING = 'Nothing started after your answer';
 
 /**
  * Resting after your answer: the last stage run asked, every ask is settled, nothing waits on

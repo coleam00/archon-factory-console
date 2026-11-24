@@ -19,7 +19,7 @@ export function openFindings(read: FactoryDiscoveries): FactoryFinding[] {
   return read.findings.filter(finding => finding.coveredBy === null);
 }
 
-export interface FoundChip {
+interface FoundChip {
   label: string;
   count: number;
 }

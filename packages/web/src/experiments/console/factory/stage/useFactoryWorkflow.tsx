@@ -10,7 +10,7 @@ import { useFactoryRead } from '../useFactoryRead';
 import { useReadRetry, type ReadRetry } from '../useReadRetry';
 
 /** A workflow's steps as the stage graph and the step page read them, and what to show if it failed. */
-export interface WorkflowRead extends ReadRetry {
+interface WorkflowRead extends ReadRetry {
   read: EntityView<FactoryWorkflow>;
 }
 
