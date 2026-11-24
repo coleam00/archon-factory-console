@@ -1,7 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
+import { Navigate, useParams } from 'react-router';
 import { FactoryErrors } from '../FactoryFrame';
 import { OverviewBody } from '../overview/OverviewPage';
-import type { FactoryPackListed } from '../lib/views';
+import { factoryPackPath, type FactoryPackListed } from '../lib/views';
 import { PackFrame } from './PackFrame';
 import { PackLookup, packHeading } from './PackLookup';
 
@@ -12,7 +13,29 @@ import { PackLookup, packHeading } from './PackLookup';
  * not in a project, and names none (owner change of 2026-11-23).
  */
 export function PackPage(): ReactElement {
-  return <PackLookup render={pack => <HowItWorks pack={pack} />} />;
+  const { pack: key = '' } = useParams<{ pack: string }>();
+  return (
+    <PackLookup
+      subtitle={key}
+      pick={packs => packs.find(listed => listed.key === key)}
+      missing={`No installed pack keyed "${key}" has a factory overview file.`}
+      render={pack => <HowItWorks pack={pack} />}
+    />
+  );
+}
+
+/**
+ * `/console/factory`: there is no pack index (DESIGN.md, v2 direction). It opens How it works
+ * of the first listed pack; the server lists them by name, so with several the first by name.
+ */
+export function FactoryHome(): ReactElement {
+  return (
+    <PackLookup
+      pick={packs => packs[0]}
+      missing="No installed pack has a factory overview file."
+      render={pack => <Navigate replace to={factoryPackPath(pack.key)} />}
+    />
+  );
 }
 
 function HowItWorks({ pack }: { pack: FactoryPackListed }): ReactElement {
