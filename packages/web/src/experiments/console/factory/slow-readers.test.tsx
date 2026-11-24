@@ -5,11 +5,10 @@ import { MemoryRouter } from 'react-router';
 import { NeedsYouContent } from '../components/needs-you/NeedsYouLayout';
 import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
-import { invalidate } from '../store/cache';
+import { invalidate, set } from '../store/cache';
+import { K } from '../store/keys';
 import { SLOW_READ_NOTICE } from './FactoryLoading';
 import { FactoryMap } from './map/FactoryMap';
-import type { AttentionQueue } from '../skills/runs';
-import type { EntityView } from '../store/cache';
 import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
 import { run, settledItem } from './lib/map.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
@@ -153,19 +152,16 @@ test('the map draws its cards while the items read misses its first deadline, an
       }),
     { preconnect: originalFetch.preconnect }
   );
-  const attention: EntityView<AttentionQueue> = {
-    data: { items: [], runs: [], degraded: [] },
-    error: undefined,
-    loading: false,
-    refetch: () => undefined,
-  };
+  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
     root.render(
       <MemoryRouter>
-        <FactoryMap projectId={ID} view={shippedListed} attention={attention} />
+        <ProjectAttentionProvider projectId={ID}>
+          <FactoryMap projectId={ID} view={shippedListed} />
+        </ProjectAttentionProvider>
       </MemoryRouter>
     )
   );

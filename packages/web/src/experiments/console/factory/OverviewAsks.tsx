@@ -4,8 +4,7 @@ import { AskCard } from '../components/ask-card/AskCard';
 import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import { awaitingItems, needsYou, needsYouPath } from '../lib/needs-you';
-import type { AttentionQueue } from '../skills/runs';
-import type { EntityView } from '../store/cache';
+import { useProjectAttention } from '../components/ProjectAttention';
 import { readFailed } from './lib/deadline';
 import type { FactoryViewListed } from './lib/views';
 import { FactoryLoading } from './FactoryLoading';
@@ -24,12 +23,11 @@ export const OVERVIEW_ASKS_SHOWN = 3;
 export function OverviewAsks({
   projectId,
   view,
-  attention,
 }: {
   projectId: string;
   view: FactoryViewListed;
-  attention: EntityView<AttentionQueue>;
 }): ReactNode {
+  const attention = useProjectAttention();
   // The items the Overview's numbers and map read already: the cards name each item's title.
   const items = useFactoryItems(projectId);
   const queue = attention.data;

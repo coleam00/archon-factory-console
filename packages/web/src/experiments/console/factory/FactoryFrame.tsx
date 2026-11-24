@@ -4,12 +4,10 @@ import { EmptyState } from '../components/EmptyState';
 import { SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import { TabLink } from '../components/TabLink';
 import { ProjectHeader } from '../components/ProjectHeader';
-import { useProjectAttention } from '../components/ProjectAttention';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
 import type { FactoryViews } from '../skills/factory';
-import type { AttentionQueue } from '../skills/runs';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { ClampedSummary } from './ClampedSummary';
@@ -36,12 +34,8 @@ interface FactoryFrameProps {
    * is too short for the page's minimum height. Below md the page scrolls as others do.
    */
   fill?: boolean;
-  /**
-   * The page body, drawn under the view's header once a view applies, with the project's
-   * attention queue: the project's one read (`useProjectAttention`), so the count and a page's
-   * cards share one fetch and stream.
-   */
-  children: (view: FactoryViewListed, attention: EntityView<AttentionQueue>) => ReactNode;
+  /** The page body, drawn under the view's header once a view applies. */
+  children: (view: FactoryViewListed) => ReactNode;
 }
 
 /**
@@ -115,12 +109,11 @@ function FactoryViewed({
   errors: FactoryViews['errors'];
   children: FactoryFrameProps['children'];
 }): ReactElement {
-  const attention = useProjectAttention();
   return (
     <>
       <FactoryHeading projectId={projectId} view={view} section={section} />
       <FactoryErrors errors={errors} />
-      {children(view, attention)}
+      {children(view)}
     </>
   );
 }

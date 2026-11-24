@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { errorDetail } from '../../lib/http';
-import type { AttentionQueue } from '../../skills/runs';
+import { useProjectAttention } from '../../components/ProjectAttention';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../../skills/factory';
 import { StaleRead } from '../StaleRead';
@@ -26,28 +26,26 @@ import { readFailed, SlowReadError } from '../lib/deadline';
 interface FactoryMapProps {
   projectId: string;
   view: FactoryViewListed;
-  attention: EntityView<AttentionQueue>;
 }
 
-/** What the map draws from: the declaration and the attention queue. */
+/** What the map draws from. */
 interface MapInputs {
   projectId: string;
   view: FactoryViewListed['declaration'];
-  attention: EntityView<AttentionQueue>;
 }
 
 /**
  * The Overview's map: the stages and arrows the view file declares, and live chips from the
  * items read.
  */
-export function FactoryMap({ projectId, view, attention }: FactoryMapProps): ReactElement {
+export function FactoryMap({ projectId, view }: FactoryMapProps): ReactElement {
   const items = useFactoryItems(projectId);
   return (
     <section aria-label="The map" className="flex flex-col gap-2.5">
       <h3 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         The map
       </h3>
-      <MapBody projectId={projectId} view={view.declaration} items={items} attention={attention} />
+      <MapBody projectId={projectId} view={view.declaration} items={items} />
     </section>
   );
 }
@@ -94,9 +92,9 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
 function MapLiveCanvas({
   items,
   unread,
-  attention,
   ...inputs
 }: MapInputs & { items: FactoryItem[] | undefined; unread: Unread }): ReactElement {
+  const attention = useProjectAttention();
   const live = useStageLive(inputs.view, inputs.projectId, items, unread, attention.data?.items);
   return (
     <>
@@ -111,7 +109,7 @@ function MapCanvas({
   view,
   live,
   items,
-}: Omit<MapInputs, 'attention'> & {
+}: MapInputs & {
   live: MapLive | Unread;
   /** Every item read, for what each shadow step decided lately; why there is none until then. */
   items: ShadowItems;

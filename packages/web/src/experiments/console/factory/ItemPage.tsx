@@ -5,7 +5,7 @@ import { BookOpen, Info } from 'lucide-react';
 import { SkeletonBlock, SkeletonGroup, SkeletonLine } from '../components/Skeleton';
 import * as skill from '../skills';
 import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
-import type { AttentionQueue } from '../skills/runs';
+import { useProjectAttention } from '../components/ProjectAttention';
 import type { EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { useFactoryRead } from './useFactoryRead';
@@ -37,20 +37,10 @@ import { itemNames } from '../lib/ask-naming';
 
 /** `/console/p/:projectId/factory/items/:key`: one item, all of it. */
 export function ItemPage(): ReactElement {
-  return (
-    <FactoryFrame section={null}>
-      {(view, attention) => <ItemBody view={view} attention={attention} />}
-    </FactoryFrame>
-  );
+  return <FactoryFrame section={null}>{view => <ItemBody view={view} />}</FactoryFrame>;
 }
 
-function ItemBody({
-  view,
-  attention,
-}: {
-  view: FactoryViewListed;
-  attention: EntityView<AttentionQueue>;
-}): ReactElement {
+function ItemBody({ view }: { view: FactoryViewListed }): ReactElement {
   const { projectId = '', key = '' } = useParams<{ projectId: string; key: string }>();
   // Under the `factory-items` prefix, so the dashboard SSE refreshes it on every run event.
   const itemKey = K.factoryItem(projectId, key);
@@ -65,7 +55,7 @@ function ItemBody({
   return (
     <div className="flex flex-col gap-6">
       <BackLink to={factoryPath(projectId)} label="Back to the overview" />
-      <ItemRead view={view} projectId={projectId} itemKey={key} read={read} attention={attention} />
+      <ItemRead view={view} projectId={projectId} itemKey={key} read={read} />
     </div>
   );
 }
@@ -75,15 +65,14 @@ function ItemRead({
   projectId,
   itemKey,
   read,
-  attention,
 }: {
   view: FactoryViewListed;
   projectId: string;
   itemKey: string;
   read: EntityView<FactoryItemDetail>;
-  attention: EntityView<AttentionQueue>;
 }): ReactNode {
   const { data } = read;
+  const attention = useProjectAttention();
   const orders = useWorkOrders(
     view.declaration,
     projectId,
@@ -158,7 +147,6 @@ function ItemRead({
           panels={itemStory(declaration, projectId, data, timeline, now)}
           asks={asks}
           questions={data.item.questions.length}
-          attention={attention}
           awaits={state.pill === 'awaits' ? (data.item.progress?.awaits ?? null) : null}
         />
       </section>

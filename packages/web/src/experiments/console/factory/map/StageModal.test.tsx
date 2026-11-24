@@ -5,7 +5,7 @@ import { createMemoryRouter, NavigationType, RouterProvider } from 'react-router
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueue } from '../../skills/runs';
-import type { EntityView } from '../../store/cache';
+import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { shippedListed } from '../item-detail.test-fixtures';
@@ -20,7 +20,21 @@ import { FactoryMap } from './FactoryMap';
 
 // Opening, closing, keys, focus and Back are events, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The project's attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -86,15 +100,10 @@ const ID = 'cb-1';
 const OVERVIEW = `/console/p/${ID}/factory`;
 const asking = itemWith('9', [run('deliver', 'completed', 'ask')]);
 const items = [realItem('5'), realItem('4'), realItem('7'), asking];
-const attention: EntityView<AttentionQueue> = {
-  data: {
-    items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
-    runs: [],
-    degraded: [],
-  },
-  error: undefined,
-  loading: false,
-  refetch: () => undefined,
+const queue: AttentionQueue = {
+  items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
+  runs: [],
+  degraded: [],
 };
 
 type Listed = typeof shippedListed;
@@ -122,11 +131,16 @@ async function mount(
 ) {
   // null leaves the items cold, so they are read through `itemsAnswer`.
   if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
+  set(K.projectAttention(ID), queue);
   const router = createMemoryRouter(
     [
       {
         path: '/console/p/:projectId/factory',
-        element: <FactoryMap projectId={ID} view={view} attention={attention} />,
+        element: (
+          <ProjectAttentionProvider projectId={ID}>
+            <FactoryMap projectId={ID} view={view} />
+          </ProjectAttentionProvider>
+        ),
       },
     ],
     { initialEntries: [path] }
