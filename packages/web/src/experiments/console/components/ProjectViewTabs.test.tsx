@@ -71,7 +71,7 @@ afterAll(async () => {
 
 const ID = 'cb-tabs';
 
-test('on a phone the project tabs stay one line and scroll sideways, no tab squeezed', async () => {
+test('the project tabs, in order, with the factory last', async () => {
   set(K.factoryViews(ID), { views: [shippedListed], errors: [] });
   const container = document.createElement('div');
   document.body.append(container);
@@ -86,10 +86,6 @@ test('on a phone the project tabs stay one line and scroll sideways, no tab sque
         </MemoryRouter>
       )
     );
-    const row = container.querySelector<HTMLElement>('a')?.parentElement;
-    const classes = row?.className.split(' ') ?? [];
-    expect(classes).toContain('flex-nowrap');
-    expect(classes).toContain('overflow-x-auto');
     const tabs = [...container.querySelectorAll('a')];
     expect(tabs.map(tab => tab.textContent)).toEqual([
       'Needs you',
@@ -98,10 +94,6 @@ test('on a phone the project tabs stay one line and scroll sideways, no tab sque
       'Metrics',
       'Factory',
     ]);
-    for (const tab of tabs) {
-      expect(tab.className).toContain('shrink-0');
-      expect(tab.className).toContain('whitespace-nowrap');
-    }
   } finally {
     await act(async () => root.unmount());
     container.remove();

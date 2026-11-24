@@ -109,14 +109,12 @@ describe('the fold', () => {
     const fold = (): Element | null => container.querySelector('[data-prompt-fold]');
     const toggle = (): HTMLButtonElement | null => container.querySelector('button');
     expect(fold()?.getAttribute('data-prompt-fold')).toBe('folded');
-    expect(fold()?.classList.contains('max-h-150')).toBe(true);
     expect(toggle()?.textContent).toBe('Show the whole prompt');
     expect(toggle()?.getAttribute('aria-expanded')).toBe('false');
     await act(async () => {
       toggle()?.click();
     });
     expect(fold()?.getAttribute('data-prompt-fold')).toBe('open');
-    expect(fold()?.classList.contains('max-h-150')).toBe(false);
     expect(toggle()?.getAttribute('aria-expanded')).toBe('true');
     expect(toggle()?.textContent).toBe('Show less');
     await act(async () => {

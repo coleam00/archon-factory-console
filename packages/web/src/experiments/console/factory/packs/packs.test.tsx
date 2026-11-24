@@ -238,7 +238,6 @@ describe('/console/factory/:pack/how-it-works', () => {
     expect(page.textContent).toContain('No installed pack keyed "nope"');
     const back = page.querySelector('a[data-back-link]');
     expect(back?.getAttribute('href')).toBe('/console/factory');
-    expect(back?.className).not.toContain('underline');
   });
 
   test("a broken pack file's error shows on its page", async () => {

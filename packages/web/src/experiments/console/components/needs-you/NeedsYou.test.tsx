@@ -83,6 +83,9 @@ const text = (el: Element | null | undefined): string =>
   (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 const chip = (root: Element, label: string): Element | undefined =>
   [...root.querySelectorAll('[data-stat-chip]')].find(el => text(el).endsWith(label));
+/** The words of each element inside `el`, so a key is found whole as its own words. */
+const keysIn = (el: Element | null | undefined): string[] =>
+  [...(el?.querySelectorAll('*') ?? [])].map(text);
 /** A chip's figure and label, as a person reads them. */
 const chipWords = (el: Element | undefined): string =>
   [...(el?.childNodes ?? [])]
@@ -137,7 +140,7 @@ describe('the header band', () => {
 });
 
 describe('open asks', () => {
-  test('grouped by item: one panel per item with the needs-you bar and one ping, its asks inside', () => {
+  test('grouped by item: one panel per item with its bar and one ping, its asks inside', () => {
     const root = render(none, busy);
     const open = root.querySelector('section[data-needs-you="open"]');
     const panels = [...(open?.querySelectorAll('article[data-doc-panel]') ?? [])];
@@ -146,25 +149,22 @@ describe('open asks', () => {
       'Asks on #9',
     ]);
     for (const panel of panels) {
-      expect(panel.getAttribute('style')).toContain('--doc-tone:var(--warning)');
       expect(panel.querySelectorAll('[data-doc-bar="left"]')).toHaveLength(1);
       expect(panel.querySelectorAll('[data-ping]')).toHaveLength(1);
     }
     expect(panels[0]?.querySelectorAll('[data-ask]')).toHaveLength(2);
     // #9's ask recommends nothing: it still carries the bar and the ping.
     expect(panels[1]?.querySelectorAll('[data-recommended]')).toHaveLength(0);
-    // The question in the primary text colour.
-    expect(panels[0]?.querySelector('[data-ask] h3')?.className).toContain('text-text-primary');
   });
 
-  test('the stage that asked heads each ask, in its group colour with a view, tertiary without', () => {
-    const tones = (listing: FactoryViews): (string | null | undefined)[] =>
+  test('the stage that asked heads each ask, named by the view when there is one', () => {
+    const heads = (listing: FactoryViews): string[] =>
       [...render(listing, queueOf(gateItem())).querySelectorAll('[data-ask-stage]')].map(el =>
-        el.getAttribute('style')
+        text(el)
       );
-    // `deliver` begins on Build, which is in the build group.
-    expect(tones(withView)).toEqual(['color:var(--node-wait)']);
-    expect(tones(none)).toEqual(['color:var(--text-tertiary)']);
+    // `deliver` begins on Build; its group colour is browser-checked.
+    expect(heads(withView)).toEqual(['Build']);
+    expect(heads(none)).toEqual(['deliver']);
   });
 
   test("a stage's drop and reshape tiles say what they start, in the view's words", () => {
@@ -215,20 +215,20 @@ describe('paused waits', () => {
 
 describe('answered lately', () => {
   const at = (hour: number): string => `2026-11-17T${hour.toString().padStart(2, '0')}:00:00.000Z`;
-  const restarts: [string, TestRun | undefined, string][] = [
-    ['none', undefined, 'text-text-tertiary'],
-    ['pending', run('plan', 'pending', null), 'text-[color:var(--running)]'],
-    ['running', run('plan', 'running', null, 'plan'), 'text-[color:var(--running)]'],
-    ['completed', run('plan', 'completed', 'planned'), 'text-success'],
-    ['failed', run('plan', 'failed', null), 'text-error'],
-    ['paused', run('plan', 'paused', null), 'text-warning'],
-    ['cancelled', run('plan', 'cancelled', null), 'text-text-tertiary'],
+  const restarts: [string, TestRun | undefined][] = [
+    ['none', undefined],
+    ['pending', run('plan', 'pending', null)],
+    ['running', run('plan', 'running', null, 'plan')],
+    ['completed', run('plan', 'completed', 'planned')],
+    ['failed', run('plan', 'failed', null)],
+    ['paused', run('plan', 'paused', null)],
+    ['cancelled', run('plan', 'cancelled', null)],
   ];
   const items = restarts.map(([key, restarted], index) =>
     answeredOn(key, at(index + 1), restarted)
   );
 
-  test("one compact row per answer, with what its set started in that state's colour", () => {
+  test('one compact row per answer, with what its set started and in which state', () => {
     const root = render(none, quiet, items);
     const aside = root.querySelector('section[aria-label="Answered lately"]');
     const rows = [...(aside?.querySelectorAll('li') ?? [])];
@@ -240,17 +240,14 @@ describe('answered lately', () => {
     expect(text(first)).toContain('cancelled');
     expect(text(first?.querySelector('[data-answer-pill]'))).toBe('Approve');
     expect(text(first)).toContain('by cole-owner');
-    // The withdrawn answer of the set reads as withdrawn, struck through.
-    expect(rows.some(row => row.querySelector('.line-through') !== null)).toBe(true);
-    for (const [key, , color] of restarts) {
+    // The withdrawn answer of the set reads as withdrawn.
+    expect(rows.some(row => text(row).includes('Withdrawn'))).toBe(true);
+    // Each row carries its restart's state; the state's colour is browser-checked.
+    for (const [key] of restarts) {
       const shown = renderStarted(key, items);
-      if (key === 'none') {
-        expect(text(shown)).toBe('Nothing started');
-        expect(shown?.className).toContain(color);
-      } else {
-        expect(text(shown?.querySelector('a'))).toBe('Plan started again');
-        expect(shown?.querySelector('a')?.className).toContain(color);
-      }
+      expect([key, shown?.getAttribute('data-started')]).toEqual([key, key]);
+      if (key === 'none') expect(text(shown)).toBe('Nothing started');
+      else expect(text(shown?.querySelector('a'))).toBe('Plan started again');
     }
   });
 
@@ -320,18 +317,15 @@ describe('answered lately', () => {
     expect(text(aside?.querySelector('[data-skeleton="true"]'))).toBe(
       'Loading what was answered lately'
     );
-    // Lines a shade off the panel's fill, so they show on it.
-    expect(aside?.querySelectorAll('.bg-surface-hover').length).toBeGreaterThan(0);
   });
 });
 
 describe('the empty state', () => {
-  test('a check in a soft success tint, "Nothing needs you", when last asked, the board and the runs', () => {
+  test('a check, "Nothing needs you", when last asked, the board and the runs', () => {
     const root = render(withView, quiet, [answeredOn('a', '2026-11-17T10:00:00.000Z')]);
     const empty = root.querySelector('section[aria-label="Nothing needs you"]');
     expect(empty?.getAttribute('data-doc-panel')).toBe('panel');
     const icon = empty?.querySelector('[data-empty-icon]') ?? null;
-    expect(icon?.className).toContain('var(--success-soft)');
     expect(icon?.querySelector('svg') ?? null).not.toBeNull();
     expect(text(empty)).toContain('Nothing needs you');
     expect(text(empty)).toContain('Last asked');
@@ -358,7 +352,7 @@ describe('the empty state', () => {
       'section[aria-label="Nothing needs you"]'
     );
     expect(empty).not.toBeNull();
-    expect(empty?.querySelector('[data-skeleton="line"] .bg-surface-hover')).not.toBeNull();
+    expect(empty?.querySelector('[data-skeleton="line"]')).not.toBeNull();
     expect(text(empty)).not.toContain('appears here to answer');
   });
 });
@@ -440,7 +434,6 @@ describe('the page holds to the document-page rule', () => {
       const page = root.querySelector('[data-doc-page]');
       const last = page?.lastElementChild;
       expect(last?.getAttribute('aria-label')).toBe('Answered lately');
-      expect(last?.className).toContain('lg:col-start-3');
     });
 });
 
@@ -575,7 +568,7 @@ describe('an issue key on Needs you', () => {
       const link = root.querySelector(
         `section[aria-label="Answered lately"] li a[href="/console/p/${ID}/factory/items/${key}"]`
       );
-      expect(text(link?.querySelector('.font-mono'))).toBe('#7');
+      expect(keysIn(link)).toContain('#7');
     }
   });
 
@@ -605,7 +598,7 @@ describe('an issue key on Needs you', () => {
       const root = render(listing, queueOf(ask), [member(answered)]);
       const panel = root.querySelector('section[data-needs-you="open"] article[data-doc-panel]');
       expect(panel?.getAttribute('aria-label')).toBe('Asks on #136 · item keys');
-      expect(text(panel?.querySelector('h3 .font-mono'))).toBe('#136 · item keys');
+      expect(keysIn(panel?.querySelector('h3'))).toContain('#136 · item keys');
     }
     const link = render(withView, queueOf(ask), [member(answered)]).querySelector(
       'section[data-needs-you="open"] h3 a'
@@ -618,6 +611,6 @@ describe('an issue key on Needs you', () => {
     const link = root.querySelector(
       `section[aria-label="Answered lately"] li a[href="/console/p/${ID}/factory/items/${KEY}"]`
     );
-    expect(text(link?.querySelector('.font-mono'))).toBe('#136 · item keys');
+    expect(keysIn(link)).toContain('#136 · item keys');
   });
 });

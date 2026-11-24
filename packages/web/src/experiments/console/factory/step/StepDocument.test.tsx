@@ -179,7 +179,7 @@ describe('the step page as a document page', () => {
       '1git fetch origin main',
       '2git diff --stat origin/main',
     ]);
-    expect(root.querySelector('.chat-markdown')).toBeNull();
+    expect(root.textContent).not.toContain('The prompt');
     // A shell step with a model declared still shows no model: it runs no agent.
     expect(chips(root).some(chip => chip.includes('model'))).toBe(false);
     expect(root.querySelector('aside dl')?.textContent).not.toContain('Runs on');

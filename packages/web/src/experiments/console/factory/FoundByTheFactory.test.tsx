@@ -113,7 +113,7 @@ test('opened: the count no item covers, the chips, the shadow line and the findi
     );
     // The verified line is on hover, and read out to a screen reader.
     expect(first?.getAttribute('title')).toBe(DISCOVERIES.findings[0]?.verified ?? '');
-    expect(first?.querySelector('.sr-only')?.textContent).toContain('Verified:');
+    expect(first?.textContent).toContain(`Verified: ${DISCOVERIES.findings[0]?.verified ?? ''}`);
     expect(second?.textContent).toContain('Cleanup');
     expect(second?.hasAttribute('title')).toBe(false);
     // The covered finding is not listed.

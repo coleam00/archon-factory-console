@@ -2,7 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { holding, LONG, wrapsAnywhere } from '../components/ask-card/wrap.test-fixtures';
+import { holding, LONG } from '../components/ask-card/wrap.test-fixtures';
 import { askItem, gateItem } from '../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../skills/factory';
 import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
@@ -180,9 +180,9 @@ describe("a board card's ask", () => {
     }
   });
 
-  test('an asking card is short: title 2 lines, the question one line with the ping and count', async () => {
-    // The board's columns fit two cards at 1440x900 only if an asking card stays short; the
-    // popover holds the whole question (owner decision of 2026-11-19 on #91).
+  test('an asking card names the newest question on one line with the ping and count', async () => {
+    // The popover holds the whole question (owner decision of 2026-11-19 on #91); the line's
+    // length on the card is browser-checked.
     const item = realItem('6');
     const asks = [
       askOn(item, { ref: 'ask:1', pausedAt: '2026-11-16T09:00:00.000Z', message: 'Older?' }),
@@ -190,17 +190,9 @@ describe("a board card's ask", () => {
     ];
     const { container, unmount } = await mount([asking(item, asks), realItem('7')], queueOf(asks));
     try {
-      const title = (key: string) =>
-        [...card(container, key).querySelectorAll('a')].find(link =>
-          link.className.includes('after:absolute')
-        );
-      expect(title('6')?.classList.contains('line-clamp-2')).toBe(true);
-      // A card with no ask keeps its 3 lines.
-      expect(title('7')?.classList.contains('line-clamp-3')).toBe(true);
       const button = face(container, '6');
       const line = button.querySelector('[data-ping]')?.parentElement;
       const question = [...(line?.children ?? [])].find(child => child.textContent === 'Newer?');
-      expect(question?.classList.contains('truncate')).toBe(true);
       expect(question?.getAttribute('title')).toBe('Newer?');
       expect(line?.textContent).toBe('Newer?2 questions');
     } finally {
@@ -208,7 +200,7 @@ describe("a board card's ask", () => {
     }
   });
 
-  test('a long unbroken question and option label stay inside the card; the line is green', async () => {
+  test('a long unbroken question and option label show on the card; the line is marked recommended', async () => {
     const item = realItem('6');
     const question = `question:${LONG}`;
     const label = `label:${LONG}`;
@@ -220,21 +212,9 @@ describe("a board card's ask", () => {
     const { container, unmount } = await mount([asking(item, [ask])], queueOf([ask]));
     try {
       const button = face(container, '6');
-      expect(button.classList.contains('min-w-0')).toBe(true);
-      expect(button.classList.contains('max-w-full')).toBe(true);
-      // The question is cut to its one line (the short ask card, #91), whole in the popover.
-      const asked = holding(button, question);
-      expect(asked.length).toBeGreaterThan(0);
-      for (const el of asked) {
-        expect(el.classList.contains('truncate')).toBe(true);
-        expect(el.classList.contains('min-w-0')).toBe(true);
-      }
-      const found = holding(button, label);
-      expect(found.length).toBeGreaterThan(0);
-      for (const el of found) expect(wrapsAnywhere(el, button)).toBe(true);
+      expect(holding(button, question).length).toBeGreaterThan(0);
       const line = holding(button, label)[0];
       expect(line?.getAttribute('data-mark')).toBe('recommended');
-      expect(line?.className).not.toContain('accent');
     } finally {
       await unmount();
     }

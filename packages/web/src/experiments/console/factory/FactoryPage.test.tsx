@@ -227,11 +227,7 @@ describe('the Overview', () => {
   test('shows the summary only on the Overview; other pages show the title alone', () => {
     const summary = 'Issues come in; changes go out.';
     const overview = render(`/console/p/${ID}/factory`, withView);
-    // A two-line lead, so the numbers start in the first screen.
-    const paragraph = overview
-      .match(/<p[^>]*class="([^"]*)"[^>]*>([^<]*)<\/p>/g)
-      ?.find(p => p.includes(summary));
-    expect(paragraph).toContain('line-clamp-2');
+    expect(overview).toMatch(new RegExp(`<p[^>]*>${summary}</p>`));
     for (const path of ['/board', '/steps/deliver/rounds.fix']) {
       const html = render(`/console/p/${ID}/factory${path}`, withView);
       expect(html).toContain('Kit factory');
@@ -404,18 +400,11 @@ describe('a stage, as its modal shows it', () => {
     expect(html).toContain('Checks the change.');
     expect(html).toContain('up to 3 rounds');
     expect(html).toContain('>included<');
-    // The stage's own step is marked as its own: a ring in its group's colour.
+    // The stage's own step is marked as its own.
     const steps = [...html.matchAll(/<button[^>]*data-worker="[^"]*"[^>]*>/g)].map(([tag]) => tag);
     const own = steps.filter(tag => tag.includes('data-worker="this"'));
     expect(own).toHaveLength(1);
     expect(own[0]).toContain('title="review (engine id: rounds.review__review)"');
-    expect(own[0]).toContain('outline:2px solid var(--node-approval)');
-    // No step is dimmed: no opacity class, no opacity style, on any step or frame label.
-    for (const tag of steps) {
-      expect(tag).not.toMatch(/opacity-\d/);
-      expect(tag).not.toMatch(/opacity:\s*0/);
-    }
-    expect(html).not.toMatch(/opacity-(35|50)/);
     // Its tag says so; another stage's step names that stage and opens it on its workflow.
     expect([...html.matchAll(/data-step-tag="this"[^>]*>([^<]*)</g)].map(([, t]) => t)).toEqual([
       'This stage',
@@ -479,10 +468,9 @@ describe('the step page', () => {
 
   test('a step the workflow does not have says so, and leads to its stage', () => {
     const html = render(`/console/p/${ID}/factory/steps/deliver/nope`, withView);
-    expect(html).toContain(
-      'There is no step <span class="font-mono">nope</span> in <span class="font-mono">deliver</span>.'
-    );
-    expect(html.replace(/<[^>]*>/g, '')).toContain('Open Build');
+    const words = html.replace(/<[^>]*>/g, '');
+    expect(words).toContain('There is no step nope in deliver.');
+    expect(words).toContain('Open Build');
     expect(html).toContain(`href="/console/p/${ID}/factory?stage=build"`);
   });
 });

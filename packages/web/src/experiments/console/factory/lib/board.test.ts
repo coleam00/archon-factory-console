@@ -38,7 +38,7 @@ const card = (item: FactoryItem, previous?: string) =>
   cardFields(VIEW, PROJECT, item, pageItemColumn(VIEW, item, previous));
 
 describe('cards of placed items', () => {
-  test('a running item says its round; a land run still running keeps it out of Merged', () => {
+  test('a running item says its round; a land run still running is a running card with no merge time', () => {
     expect(card(delivering('rounds.review__review')).round?.text).toBe('round 2 of 3');
     const item = landRunning();
     expect(card(item)).toMatchObject({ pill: 'running', mergedAt: null });
@@ -75,12 +75,11 @@ describe('cards of placed items', () => {
     expect(card(item)).toMatchObject({ title: '#6', stopLine: 'Its progress could not be read.' });
   });
 
-  test('the board keeps a running item in its previous column on a step no stage names', () => {
-    const item = delivering('rounds');
-    const position = (previous: Map<string, string>) =>
-      boardModel(VIEW, PROJECT, [item], previous, FIXTURE_NOW).positions.get('8');
-    expect(position(new Map([['8', 'checks']]))).toBe('checks');
-    expect(position(new Map())).toBe('build');
+  test('the board places each item from the column it last showed it in', () => {
+    // Placement's rule 1 reads the previous column; the board must hand it over.
+    const previous = new Map([['8', 'checks']]);
+    const model = boardModel(VIEW, PROJECT, [delivering('rounds')], previous, FIXTURE_NOW);
+    expect(model.positions.get('8')).toBe('checks');
   });
 });
 

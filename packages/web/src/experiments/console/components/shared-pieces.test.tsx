@@ -19,33 +19,28 @@ describe('the section-wide pieces of the Visual standard', () => {
       </SkeletonGroup>
     );
     expect(html).toContain('role="status"');
-    expect(html).toContain('<span class="sr-only">Loading the board</span>');
+    expect(html.replace(/<[^>]*>/g, '')).toBe('Loading the board');
     expect(html).toContain('data-skeleton="line"');
-    expect(html).toContain('w-3/5');
-    expect(html).toContain('h-5.5 w-12');
+    expect(html).toContain('data-skeleton="figure"');
     expect(html.match(/aria-hidden="true"/g)?.length).toBe(2);
-    expect(html).toContain('motion-safe:animate-pulse');
     expect(html).not.toContain('Loading…');
   });
 
   test('an empty note is an icon, one sentence and its link', () => {
     const html = routed(<EmptyNote sentence="Nothing here yet" link={<a href="/x">More</a>} />);
-    expect(html).toContain('<svg');
-    expect(html).toContain(
-      'min-w-0 text-console-14 text-text-secondary [overflow-wrap:anywhere]">Nothing here yet</p>'
-    );
-    expect(html).toContain('text-console-13');
+    expect(html).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(html).toMatch(/<p[^>]*>Nothing here yet<\/p>/);
+    expect(html).toContain('<a href="/x">More</a>');
   });
 
-  test('a back link is a chevron and its label, never an underlined accent link', () => {
+  test('a back link is a chevron and its label, leading where it says', () => {
     const html = routed(<BackLink to="/console/p/p1/factory" label="Overview" />);
-    expect(html).toContain('lucide-chevron-left');
-    expect(html).toContain('Overview');
-    expect(html).not.toContain('underline');
-    expect(html).not.toContain('text-accent');
+    expect(html).toContain('href="/console/p/p1/factory"');
+    expect(html).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(html.replace(/<[^>]*>/g, '')).toBe('Overview');
   });
 
-  test('only the active tab carries the brand-bar underline', () => {
+  test('only the active tab carries the bar under it', () => {
     const html = routed(
       <>
         <TabLink to="/a" active>
@@ -56,7 +51,7 @@ describe('the section-wide pieces of the Visual standard', () => {
         </TabLink>
       </>
     );
-    expect(html.match(/brand-bar/g)?.length).toBe(1);
+    expect(html.match(/data-tab-bar/g)?.length).toBe(1);
     expect(html.match(/aria-current="page"/g)?.length).toBe(1);
   });
 
