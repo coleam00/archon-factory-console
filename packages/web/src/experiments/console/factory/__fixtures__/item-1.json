@@ -96,27 +96,15 @@
           "url": "https://github.com/coleam00/archon-factory-console/pull/10",
           "number": 10,
           "merged": true,
-          "mergedAt": "2026-11-17T00:03:14Z",
-          "number": 10
+          "mergedAt": "2026-11-17T00:03:14Z"
         },
-        "runs": [
-          {
-            "runId": "88640c6d-975d-4232-8371-c55226236e2a",
-            "workflow": "triage",
-            "failedStep": null
-          },
-          {
-            "runId": "147ff872-555d-43fe-ae98-3ee9e3b884ab",
-            "workflow": "plan",
-            "failedStep": null
-          },
-          {
-            "runId": "c90ebf41-6ea3-4261-b63b-b460ad78045e",
-            "workflow": "deliver",
-            "failedStep": null
-          }
-        ]
-      }
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     "runs": [
       {
@@ -129,7 +117,12 @@
         },
         "costUsd": 0.7374944999999999,
         "step": null,
-        "rounds": null
+        "rounds": null,
+        "shadows": [],
+        "change": null,
+        "said": null,
+        "models": [],
+        "steps": []
       },
       {
         "runId": "147ff872-555d-43fe-ae98-3ee9e3b884ab",
@@ -140,7 +133,12 @@
         },
         "costUsd": 0.6756357999999999,
         "step": null,
-        "rounds": null
+        "rounds": null,
+        "shadows": [],
+        "change": null,
+        "said": null,
+        "models": [],
+        "steps": []
       },
       {
         "runId": "c90ebf41-6ea3-4261-b63b-b460ad78045e",
@@ -216,7 +214,12 @@
               ]
             }
           ]
-        }
+        },
+        "shadows": [],
+        "change": null,
+        "said": null,
+        "models": [],
+        "steps": []
       }
     ]
   }

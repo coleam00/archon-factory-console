@@ -90,7 +90,8 @@
         "parked": {
           "label": "Parked by triage",
           "why": "The cause is unproven: discovery in forge-host.ts looks cheap and async, so measure where the event loop stalls before changing engine code."
-        }
+        },
+        "awaits": null
       }
     },
     "runs": [

@@ -136,8 +136,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -218,8 +224,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -300,8 +312,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -359,8 +377,14 @@
             "workflow": "plan",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -476,8 +500,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -574,8 +604,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -677,8 +713,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -775,8 +817,14 @@
             "workflow": "deliver",
             "failedStep": null
           }
-        ]
-      }
+        ],
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     }
   ],
   "next": null

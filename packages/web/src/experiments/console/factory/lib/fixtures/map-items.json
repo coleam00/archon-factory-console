@@ -96,8 +96,14 @@
           ]
         },
         "returned": 1,
-        "change": null
-      }
+        "change": null,
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -218,8 +224,14 @@
           "number": null,
           "merged": "unknown",
           "mergedAt": null
-        }
-      }
+        },
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -335,8 +347,14 @@
           "number": null,
           "merged": "unknown",
           "mergedAt": null
-        }
-      }
+        },
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -467,8 +485,14 @@
           "number": null,
           "merged": true,
           "mergedAt": "2026-11-17T05:54:48Z"
-        }
-      }
+        },
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -584,8 +608,14 @@
           "number": null,
           "merged": "unknown",
           "mergedAt": null
-        }
-      }
+        },
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     },
     {
       "item": {
@@ -682,8 +712,14 @@
           "number": 13,
           "merged": true,
           "mergedAt": "2026-11-17T04:30:22Z"
-        }
-      }
+        },
+        "shadows": [],
+        "parked": null,
+        "awaits": null
+      },
+      "queued": [],
+      "held": [],
+      "hold": null
     }
   ]
 }

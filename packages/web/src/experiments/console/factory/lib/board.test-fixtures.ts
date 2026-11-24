@@ -9,13 +9,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItem } from '../../skills/factory';
 import type { FactoryDeclaration } from './board';
-import { withLaterFields } from './fixtures/later-fields';
 
 const read = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
-export const PAGE = withLaterFields(
-  read(join(import.meta.dir, '__fixtures__', 'items-page.json'))
-) as {
+export const PAGE = read(join(import.meta.dir, '__fixtures__', 'items-page.json')) as {
   items: FactoryItem[];
 };
 
@@ -34,9 +31,9 @@ export const VIEW = read(
  * deliver run ended `ask` at 2026-11-20 21:38:49 UTC, the ask was answered take-as-is and
  * started nothing, and it never opened a pull request (its change reads `unknown`, no URL).
  */
-export const ITEM_114 = withLaterFields(
-  (read(join(import.meta.dir, '__fixtures__', 'item-114.json')) as { item: unknown }).item
-) as FactoryItem;
+export const ITEM_114 = (
+  read(join(import.meta.dir, '__fixtures__', 'item-114.json')) as { item: FactoryItem }
+).item;
 
 /**
  * The time a test reads the fixture board at: the day after the copy's last run ended, so the
