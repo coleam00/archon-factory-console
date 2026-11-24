@@ -25,15 +25,28 @@ The factory building this repository runs Archon from another checkout, on the h
 
 ## Scope of a change
 
+- The v2 direction in `DESIGN.md` (top section) wins over everything here. Main is slimmed to it
+  issue by issue: a change is held to these rules for what it touches, and is not returned for
+  older code its own issue does not cover (DESIGN.md, "While main is being slimmed").
 - No database migrations and no change to engine tables. New server code only reads.
-- Keep factory code together: web under `packages/web/src/experiments/console/factory/`
-  (components, pure `lib/`, the page routes), server under `packages/server/src/routes/api.factory.ts`
-  plus a reader in `packages/core` or `packages/workflows` where the data access belongs. The
-  declaration schemas live in `packages/workflows/src/schemas/factory-view.ts` (the view file)
-  and `factory-overview.ts` (the overview file); both files are found by one reader,
-  `packages/workflows/src/factory-pack-files.ts`. The server
-  asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins
-  through `@archon/forge/host-plugins` as the CLI's `archon forge` does.
+- The engine reads only generic things: items, runs and outcomes, asks with the options their
+  workflow declares, item links, the pack graph (`GET /api/packs/{pack}/graph`) and the view
+  file. No new pack-specific read model in `packages/workflows`, `packages/core` or
+  `packages/server`: nothing there knows rounds, returns, shadows, parked items, discoveries,
+  work orders, item stories or stage groups. The web composes those.
+- The view schema (`packages/workflows/src/schemas/factory-view.ts` and `factory-overview.ts`,
+  found through the generic `pack-declarations.ts` reader, today via `factory-pack-files.ts`) is
+  presentation only: words, grouping, order, layout. It holds
+  no step lists, outcome lists, arrows, ask flags, shadow flags, settings or stage-group enum.
+- Factory web code stays under `packages/web/src/experiments/console/factory/` (components, pure
+  `lib/`, the page routes), and nothing outside that folder imports from it, except the one
+  place that mounts its routes and sidebar entry. Archon's own Console files (the answer panel,
+  the ask card, the project tabs, Needs you, every generic page and component) stay as they are
+  on Archon dev.
+- Server code is `packages/server/src/routes/api.factory.ts`, kept to the view-file read and
+  what the web cannot get from existing routes. The server asks the change host through
+  `packages/adapters/src/forge-host.ts`, which finds plugins through
+  `@archon/forge/host-plugins` as the CLI's `archon forge` does.
 - A new or changed server route regenerates the web API types: `bun run --cwd packages/server generate:api-types`
   (`check:api-types` fails CI otherwise). Two open changes that both add routes conflict in
   `api.generated.d.ts`; regenerate after rebasing rather than hand-merging it.
@@ -71,4 +84,4 @@ of "works" without having looked is not.
 ## Windows
 
 This machine is Windows. Use Git Bash syntax in bash steps; paths with forward slashes. Bun is
-1.4.2. `agent-browser` is on PATH and muted.
+1.4.5. `agent-browser` is on PATH and muted.

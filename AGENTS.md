@@ -11,7 +11,8 @@ This file is the canonical project guidance for coding agents. Keep it short, du
 
 This is a copy of Archon dev where the Software Factory section of the web console is being
 built (owner: Cole Medin). Before changing anything, read `docs/factory-console/DESIGN.md` (what
-to build, binding; its Visual standard section binds everything a person sees) and
+to build, binding; its "v2 direction" section at the top wins over everything else in it, and
+its Visual standard binds everything a person sees) and
 `docs/factory-console/ENGINEERING.md` (how: no migrations, and never start a server on the live
 factory's home; use `bun run dev:console`).
 

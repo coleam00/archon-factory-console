@@ -4,6 +4,77 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## v2 direction, 2026-11-24 (owner; binds every later change; wins over everything below)
+
+The owner accepted the review of draft Archon PR #6151 by Archon's core maintainer (Rasmus), all
+of it. The section is slimmed down so it can go upstream as a small pull request: about 8-11K web
+source lines and a small generic server part. Where any later section of this page says
+otherwise, this section wins.
+
+**What stays.** The curated factory view, as beautiful as it is now (the Visual identity and the
+Visual standard below still bind everything a person sees):
+
+- **How it works**, in the sidebar Factory entry.
+- The project's **Factory** tab: the **Overview** with its map and the stage modal, and the
+  **Board** (with its strips under the board, its work orders section and its Table view).
+- The **item page**, as the item's ONE history: story, rounds and asks in one account.
+- The **view JSON** (the factory view and overview files), hand-written and curated per pack,
+  as **presentation only**: labels, blurbs, grouping, order, layout, captions, edge labels and
+  story wording. It moves into the owner's own copy of the pack later; until then it lives in
+  this repository.
+
+**What goes.**
+
+- **Step pages.** A step links to Archon's own workflow page (`/console/builder/:name`) where
+  one exists, else it is plain text.
+- **The Settings page** (sidebar and project tab) and the pack-settings read. Archon issue
+  #5317 owns pack settings.
+- **The pack index page.** `/console/factory` opens How it works.
+- **Shadows**, everywhere: no shadow step, badge, line, count, colour or explanation is drawn,
+  counted or described, and no code exists to do so.
+- **Regex parsing of agent prose**: no reading of ask options, "The stage recommends", "No
+  recommendation:", item titles or findings out of text. Ask options and the recommendation
+  come from what the workflow declares (#6139); titles from the item record or the forge;
+  findings link to items by id.
+- **Any change to Archon's own Console outside `factory/`**: the answer panel, the ask card, the
+  project tab order, Needs you, and every generic page stay exactly as on Archon dev. The
+  factory adds a sidebar entry, a project tab and their routes, nothing else, and its view is
+  read only for a project whose pack has one.
+
+**Structure comes from the pack graph.** `GET /api/packs/{pack}/graph` gives stages, steps,
+outcomes, asks and arrows. The view JSON names workflows, steps and outcomes only to give them
+words, a group and a position; it never lists or adds structure. A check fails when the view
+names something the graph lacks and warns when the graph has something the view leaves out.
+
+**One of each.** One items-in-a-stage list (board column, map card, stage modal), one ask
+(Archon's own ask card), one item history (the item page), one graph renderer (Archon's existing
+one where it can draw it, else exactly one new one), and placement computed once, in the web,
+with no parity test.
+
+**The engine has no pack vocabulary.** `packages/workflows` and `packages/server` expose only
+generic reads (items, runs and outcomes, asks with declared options, item links, the pack graph,
+the view file) and know nothing of rounds, returns, shadows, parked items, discoveries, work
+orders, item stories or stage groups. The web composes those from the generic reads and the view
+JSON's words. The batched item-start read stays.
+
+**Tests assert behaviour a person sees.** No assertion on a CSS class, a colour, a token or an
+exact sentence of copy. Test lines stay at most half of source lines.
+
+**Carried over** (owner-approved, keep them working): the strips under the board with one
+toggle (#152); work orders as a board section, each row opening its order (#153); a step card
+opening directly, now Archon's workflow page (#154); plain number tiles, map counts that match
+the board, and How it works naming no project (#151); the phone tab row revealing the active
+tab (#155); #111's story still tells; 390 px works everywhere. "Found by the factory" and "Set
+aside" stay only while their data is generic (discoveries as items or links, parked as an
+outcome the view names); otherwise they go.
+
+**While main is being slimmed.** Main still holds much of what this section removes or rules
+out (pages, engine read models, view-file fields, tests that pin visuals, Console changes outside
+`factory/`, imports from `factory/`); the removals land issue by issue. No change adds to or
+extends any of it. A change is not returned for leaving such code in place when its own issue
+does not cover it, nor for removing it. Sections below that still describe it describe today's
+code, not a requirement.
+
 ## Owner changes of 2026-11-23 (bind every later change; win over everything below, 2026-11-21 included)
 
 From the owner's review on 2026-11-23 (#151).
@@ -11,15 +82,10 @@ From the owner's review on 2026-11-23 (#151).
 1. **The sidebar Factory is How it works only.** It is the Archon software factory that ships
    with Archon: a general view of how the pack works, not one project's factory. A pack's page
    has no tabs and no Settings, and nothing on it names a project: where the overview file was
-   read from says "a project's copy", not which project. The index (`/console/factory`) lists
-   packs only, each with how many projects run it, and names and links no project. The one
-   exception is its warning about projects that could not be read, which names them so the
-   failure can be found (owner decision on #151). An old `/console/factory/:pack/settings` link still lands: with `?project=` on
-   that project's Settings, else on How it works.
-2. **Settings belong to each project's Factory.** The project's Factory tab has three pages:
-   Overview, Board and Settings. Settings is the page owner changes 5 and 6 of 2026-11-21
-   describe, headed for this project and reading only this project's values; it names no other
-   project.
+   read from says "a project's copy", not which project. There is no pack index page:
+   `/console/factory` opens How it works (v2 direction).
+2. *(Removed in the v2 direction: there is no Settings page, in the sidebar or a project's
+   Factory tab. Archon issue #5317 owns pack settings.)*
 3. **Overview number tiles are plain numbers.** They are not links: no hover or focus state, no
    "Open the board..." words. They still count with the board's shows, so a number and the
    board agree.
@@ -49,28 +115,13 @@ not polish: reshape a page when restyling it would not make it read well.
    and below its bottom edge, at the opening zoom and after Fit, at 1440x900 and on a wide screen.
    The canvas grows taller to make that room (the drawing is never squeezed to fit a fixed
    height); it still opens at Intake and pans sideways.
-3. **A number tile opens what it counts, not just the board.** Each tile says where it goes
-   (its tooltip and its accessible name) and lands on a view that shows exactly that set, with the
-   filter named on screen and one click to clear it:
-   - **In flight**: the board showing only the items in flight.
-   - **Need you**: the project's Needs you tab.
-   - **Merged today**: the board showing only what merged today.
-   - **Merged N of M**: the board's table view, every item, with merged ones marked.
-   - **Median to merged**: the board's table view sorted by time to merge, with the median row
-     marked, so the number can be checked.
-   - **Found by the factory**: the board with the "Found by the factory" panel open.
-   A board address carries its filter (a query parameter), so these views are links a person can
-   share and reload.
-   *Superseded by owner change 3 of 2026-11-23 (#151): the tiles are plain figures, not links.
-   The board's `?show=` addresses still work, and the strip still counts through them.*
-4. **"The real workflow" dims nothing.** Every step of the generated graph is drawn at full
-   strength. The steps the open stage works are marked as its own (a ring in the stage's group
-   colour and a "This stage" tag); each other step carries a small tag naming the stage that works
-   it ("Checks"), which opens that stage. The sentence above the graph says this, instead of
-   "Other stages work the dimmed steps".
+3. *(Superseded by owner change 3 of 2026-11-23: the number tiles are plain figures, not links.
+   The board's `?show=` addresses still work, and the strip still counts through them.)*
+4. *(Removed in the v2 direction: "The real workflow" no longer draws its own step graph. It
+   lists the stage's steps from the pack graph, each linking to Archon's workflow page or plain
+   text; see The map, Click.)*
 5. **Document pages get a design of their own.** Every page in the section that is not a canvas
-   (a project's Settings page, a step page, an item page, the Needs you tab, a stage's "Items here
-   now") follows these rules, which win over rules 2, 3 and 5 of the Visual standard where they
+   (an item page, a stage's "Items here now") follows these rules, which win over rules 2, 3 and 5 of the Visual standard where they
    differ:
    - **Content sits on filled panels, never outlines on the page colour.** A panel is
      `--surface-elevated` (or `--surface` on an elevated page) with a 1 px `--border`,
@@ -95,41 +146,15 @@ not polish: reshape a page when restyling it would not make it read well.
    - **No dead space inside a box.** A label and its value sit on one row in a definition grid
      (label column about 160 px), not stacked with blank lines between; a panel is as tall as its
      content. Long values wrap (owner change 2 of 2026-11-19).
-   - **Plain words first, ids second.** A heading is what a person calls the thing ("Land policy");
-     the id (`land_policy`) is a small mono tag beside it, never the heading.
+   - **Plain words first, ids second.** A heading is what a person calls the thing ("Code
+     review"); the id (`review`) is a small mono tag beside it, never the heading.
    The shared pieces (panel, section heading, header band, stat chip, definition grid) are built
-   once, in one module of the factory section, and every document page uses them. A test holds
-   the pages to them (every top-level box a panel or a section, no section without a heading row);
-   that no box is an outline alone on the page background is checked in the browser.
-6. **A project's Settings page is rebuilt on those rules.** It reads as "how this project has set
-   up its factory", not a list of fields (the page is a project's Factory page since owner change
-   2 of 2026-11-23):
-   - The header band says how many settings there are, how many this project sets, how many fall
-     back to the pack's default, and how many are shadows today.
-   - Settings are grouped into sections with their own colour, by what they govern, for example:
-     *What work is held to* (the triage, plan, split, build, review, test, product, propose and
-     host policies), *What may go ahead without you* (admit, land), *How a change is proven*
-     (validate command, checks file), *What gets filed* (discoveries). The grouping comes from the
-     display file's map, not from code naming the pack.
-   - Each setting is a compact panel in a two- or three-across grid: its plain name, the id tag,
-     one line of what it does (the rest behind "More"), and the project's value as the most
-     prominent thing in it: a path with a file icon, or a command in mono, or a clear "Pack
-     default" pill when the project sets nothing. A shadow setting carries the shadow badge and
-     says what would change when it stops being one.
-   - The checks file shows its checks as rows (name and command), not a raw dump.
-7. **A step page is a page about one step.** Reached from a step of "The real workflow" or a
-   card of "What this stage does" (for example `steps/land/land` or a step of `stage-check`), it
-   shows:
-   - a header band: the step's plain name, its workflow and stage, its kind in its kind colour,
-     the model it runs on, and how many items are on it now;
-   - an aside with the facts in a definition grid (kind, model, inputs it reads, outcomes it can
-     end with, what starts after each outcome) and a small drawing of its workflow with this step
-     marked, each other step a link;
-   - the main column with "What it does" in plain words first, then the prompt as a readable
-     document on a panel: its headings as headings, `$INPUTS.x` shown as named chips (not raw
-     text), long prompts folded after the first screen with "Show the whole prompt";
-   - items on this step now, as board cards.
-   A step that is a script shows its script on a code panel with line numbers instead of a prompt.
+   once, in one module of the factory section, and every document page uses them. That every
+   top-level box is a panel or a section with a heading row, and no box is an outline alone on
+   the page background, is checked in the browser, not by a test.
+6. *(Removed in the v2 direction: the Settings page.)*
+7. *(Removed in the v2 direction: step pages. A step links to Archon's workflow page,
+   `/console/builder/:name`, or is plain text.)*
 8. **The item page tells the story of the item.** Today it is a list of runs and a wall of red and
    green chips nobody can read. It becomes a story a person follows top to bottom:
    - **A journey strip** across the top: the item's path through the groups (Intake, Plan & build,
@@ -141,29 +166,15 @@ not polish: reshape a page when restyling it would not make it read well.
      what happened ("Triage judged it worth building", "Build wrote the change and opened PR
      #112", "The checks sent it back once: the offered block was unclamped"), then its details.
    - **Check rounds as a grid, not chips**: rows are the checks (Code review, Tests, Product
-     check, Verdict, CI and reviews, and the project's checks as a shadow row), columns are
+     check, Verdict, CI and reviews), columns are
      rounds; each cell is an icon and a word ("Sent back", "Approved", "Fixed") in its state
      colour, with a legend saying what sent back and approved mean. The reason a round was sent
      back is one readable sentence under the grid, the full text behind "More". The rule to
      remember: a person must be able to say what happened in each round without hovering.
    - Asks and their answers appear in the story where they happened (the question, the option
      chosen, who chose it and what that started), not only in a separate list.
-   - Shadow rows stay shadows (rule 10) but sit in the stage they belong to, quieter than real
-     steps.
-9. **Needs you is designed, not plain text.** Today it is white text on the page colour. It
-   follows rule 5's document-page design:
-   - a header band with the count waiting, the oldest wait, and how many were answered today;
-   - each open ask on a filled panel with the needs-you colour as its left bar and ping, the
-     item's number and title as its heading row, the question in `--text-primary`, the option tiles
-     as in rule 9 of the Visual standard (recommended in green, selected in accent), so an open
-     ask is the most colourful thing on the screen;
-   - "Answered lately" as compact rows on a quieter panel, each with the option chosen as a pill
-     and what it started ("Plan started again", "Nothing started", or the view's `answers`
-     sentence for the option: "Closes the PR without merging") in a state colour;
-   - an empty state that looks designed: an icon, "Nothing needs you", when something was last
-     asked, and links to the board and the runs.
-   Check it with open asks (seed a copy of the live database with its asks reopened), not only
-   empty.
+9. *(Removed in the v2 direction: the Needs you tab is Archon's own, as on Archon dev; the
+   factory section does not redesign it.)*
 10. **The section shows that the factory merges.** On the three-stage delivery the pack lands a
    change itself when the land gate or an operator says so. Wherever a person reads how merging
    works (the map's Ready to merge card and its drill-down, How it works, the item page), it says
@@ -173,18 +184,14 @@ not polish: reshape a page when restyling it would not make it read well.
 
 From the owner's review of the finished work order #64. The section is close; these make it presentable.
 
-1. **Less purple and pink, more green.** The brand magenta is an accent, not the page's colour. In the factory section and the ask card:
-   - the recommended option is marked in **green** (`--success` family, soft background, a "Recommended" badge in green), never in the accent;
-   - the option the person has **selected** gets its own selected state (accent border, check icon), and the recommended mark never looks selected, so two tiles never both look chosen;
-   - the Confirm button stays the accent pink but **toned down** (a softer fill, for example the accent at reduced strength or `--accent-soft` with accent text), never the full-strength magenta block;
-   - elsewhere, purple and pink are for one thing each (the running state, the active tab), not for card borders, headings or chips.
-2. **Text never leaves its box.** Every card, tile, chip and heading in the section wraps long unbroken text (paths, URLs, ids: `overflow-wrap: anywhere`, `min-width: 0` on flex and grid children) and clamps where the standard says. A test renders a long unbroken path in an ask card and asserts nothing overflows.
-3. **The Factory tab has two pages: Overview and Board.** Its sub-navigation drops Needs you (the project tab "Needs you" is that page) and How it works (the sidebar Factory entry is that page). Old links keep redirecting. *Owner change 2 of 2026-11-23 adds a third, Settings.*
+1. **Less purple and pink, more green.** The brand magenta is an accent, not the page's colour. In the factory section, purple and pink are for one thing each (the running state, the active tab), not for card borders, headings or chips; a recommended option the factory names (the board card's "Recommended: <label>") is green (`--success`), never the accent. Archon's ask card keeps its own look (v2 direction).
+2. **Text never leaves its box.** Every card, tile, chip and heading in the section wraps long unbroken text (paths, URLs, ids: `overflow-wrap: anywhere`, `min-width: 0` on flex and grid children) and clamps where the standard says; checked in the browser with a long unbroken path.
+3. **The Factory tab has two pages: Overview and Board.** Its sub-navigation has no How it works (the sidebar Factory entry is that page). Old links keep redirecting.
 4. **The board is tall enough to use.** At 1440x900 every column shows at least two full cards without scrolling the page; the work-order strip collapses to one line (expand on click) and the found-by panel stays one line.
 5. **A stage opens in place, not on its own page.** Clicking a stage on the Overview map opens a large modal over the Overview (Esc and the backdrop close it; the map keeps its position and zoom). The modal says plainly what it shows:
    - "What this stage does": the view file's curated drill-down;
    - "Items here now": the items in the stage, linking to their item pages;
-   - "The real workflow": the step graph read from the pack's workflow files, behind a clearly labelled tab with one sentence saying it is generated from the YAML.
+   - "The real workflow": the stage's steps read from the pack graph (v2 direction), behind a clearly labelled tab with one sentence saying where they come from.
    A failed read shows a retry, never a dead "Could not load".
 6. **How it works moves and comes alive.** The sidebar Factory page is the only home of How it works. Its canvas shows the flow as a quiet, looping animation: three dots leave An issue, A work order and Found by agents and travel into Triage, on through Plan, Build, Checks and CI and reviews; there one dot goes on to Merged and one returns along the "unrelated finds" lane to Found by agents; the loop repeats. Off under reduced motion, pausable. Each kind on the canvas has its own colour: "A check on the change" and "What comes out" must differ.
 7. **A look of its own, not the default.** The map and the How it works canvas get a considered visual identity: depth (soft shadow and a faint inner glow on cards), a subtle texture or grid on the canvas, light that follows the flow. Restraint is the rule: no neon, no heavy 3D, no motion that competes with the content, and nothing that slows rendering. If a treatment looks gimmicky at 1440x900 on a projector, it is out.
@@ -200,18 +207,10 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    works, work order strips: "3 of 5 merged"). Engine and pack ids keep `land` (`landgate`,
    `landed`); only the words a person reads change. An option id is never shown raw: a person reads
    the option's label.
-2. **Needs you is Archon core, not a factory feature.** "The thing used the most, by me and by my
-   agent, is the attention queue. It needs to be front and center." It becomes a **project tab,
-   "Needs you", left of Runs, on every project** (factory or not): every open ask and paused wait
-   on the project's items, from any workflow, answerable in place, its count on the tab. The
-   Factory sub-navigation links to it with the same count.
-   *Superseded by owner change 3 of 2026-11-19: the sub-navigation no longer links to it.*
-   The ask card is the one design used everywhere an ask is answered: question, context, option
-   tiles with what each does and costs, the recommended option first and marked, "Something else"
-   (free text), confirm in place.
+2. *(Removed in the v2 direction: the Needs you tab, its order and the ask card are Archon's own, as on Archon dev; the factory section adds no Needs you page and no ask design.)*
 3. **The board card is the approval card.** An item with an open ask shows its question and the
-   recommended option on its board card, with a visible ping. Clicking it opens the full ask card
-   in a popover over the board, answered in place, without leaving the board. *Amended by the
+   recommended option on its board card, with a visible ping. Clicking it opens Archon's own ask
+   card (v2 direction) in a popover over the board, answered in place, without leaving the board. *Amended by the
    owner on 2026-11-19 (#91), so the board fits its cards: such a card is short. Its title takes
    2 lines; the question takes 1 line, with the ping and "N questions" on it. The popover holds
    the rest.*
@@ -220,39 +219,30 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    **Checks & review** (the check rounds, CI and PR reviews) | **Ready to merge** | **Merged**.
    Each column scrolls on its own; the page never grows with the longest column. A card still
    names its stage and step ("Checks · Code review · round 2"). The map still opens every stage on its own.
-5. **Where the factory lives.** Factory-wide things (How it works, and later the pack's settings)
-   move to a **Factory** entry in the console's sidebar, next to Settings, one page per installed
-   pack. The project's Factory tab keeps the live parts: Overview, Board, item, stage and step
-   pages; its How it works link opens the sidebar page for its pack. *Superseded by owner change
-   3 of 2026-11-19: the tab has no How it works link.* *The pack's settings did not stay there: owner change 2 of 2026-11-23 puts
-   them in each project's Factory tab; the sidebar Factory is How it works only.*
-6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
-   would do and do nothing (admit, split, discoveries filing, the project's declared checks,
-   order linking). The land gate is not one: it acts, and the factory merges on its "land"
-   (owner decision on #120). Wherever one appears (map, board, stage modal, item
-   timeline) it reads plainly as "would ..." with what it would have done, marked "shadow", never as
-   if it acted. Which steps are shadows is declared in the view file, not in code.
+5. **Where the factory lives.** Factory-wide things (How it works) move to a **Factory** entry in
+   the console's sidebar, next to Settings, one page per installed pack. The project's Factory
+   tab keeps the live parts: Overview, Board, item pages and the stage modal. There are no step
+   pages and no settings pages (v2 direction).
+6. *(Removed in the v2 direction: shadow steps are not drawn, counted or explained anywhere. The land gate acts, and the factory merges on its "land", owner decision on #120.)*
 7. **Send-backs and found work.** How it works draws several labelled lines going back (returned
    by checks, sent back by CI or review, replan, answered asks restart a stage) and "unrelated finds
-   become new work" from the discoveries drain to intake, marked as a shadow while the pack only
-   decides what it would file.
-8. **Later, not now:** a read-only page of the pack's settings and policies (under the sidebar
-   Factory entry); reading engine-reported rounds and limits per item when the engine reports them
-   instead of deriving rounds from events. *The read-only settings page is built (#74), first as
-   the Settings tab of the pack's sidebar page. Superseded by owner change 2 of 2026-11-23
-   (#151): it is a project's Factory Settings page, and the sidebar Factory has no Settings.*
+   become new work" from the discoveries drain to intake.
+8. **Later, not now:** reading engine-reported rounds and limits per item when the engine reports
+   them instead of deriving rounds from events. (A settings page was built in #74 and is removed
+   in the v2 direction: Archon issue #5317 owns pack settings.)
 
 Not ours to build: forge views of issues and PRs (Thomas works on those in the existing UI), and a
-YAML-to-graph generator for the detailed authoring view (Rasmus has one). Our view and overview files
-stay the curated, simplified ones.
+YAML-to-graph generator (Rasmus has one: `GET /api/packs/{pack}/graph`, which is where the
+section now reads structure). Our view and overview files stay the curated, simplified
+presentation of it.
 
 ## Visual identity, 2026-11-19 (carries out owner change 7; binds the canvases)
 
 Binds the Overview map, the How it works canvas (root and every drill-down) and the cards of the
 stage modal's "What this stage does" (rule 2: one card language). The tokens live in
 `packages/web/src/experiments/console/theme.css`; the line constants in `factory/canvas-lines.tsx`.
-`factory/identity.test.ts` holds the canvas sources to them (no shadow utility, inline
-box-shadow, oklch or hex literal), and `factory/tones.test.ts` holds the group colours apart.
+They are checked in the browser, not pinned by tests (v2 direction: no test asserts a class or a
+colour).
 
 **Why the canvases looked generic.** Every card was the same flat box: one 1 px border, one
 radius, a flat `--surface` fill, no light and no depth, so the cards read as outlines on a
@@ -273,9 +263,8 @@ miss on a projector. Intake on the map was purple.
 - **Light.** A map card that holds an item is lit (`data-lit`): `--card-glow`, a 1 px ring of its
   group colour at 30% and a glow `0 8px 28px -8px` at 45%. The Merged card is never lit: it holds
   every merged item for good, so its light would say nothing. A stage drill-down card with items
-  on its steps (`data-running`) wears the step graph's running mark, the same as the loop pill
-  beside it: `--running-border` and `--running-ring` (a 3 px ring), the tokens StepGraph's
-  `RUNNING_GLOW` reads; its tint stays its kind's colour. How it works has no live
+  on its steps (`data-running`) wears the running mark, the same as the loop pill
+  beside it: `--running-border` and `--running-ring` (a 3 px ring); its tint stays its kind's colour. How it works has no live
   items; its light is the flow loop's glow round the card a dot rests on (rule 7). *Light
   carries information, where work is, and nothing else.*
 - **Canvas.** Both viewports take `.factory-canvas`: `--canvas-texture`, a vignette
@@ -285,7 +274,7 @@ miss on a projector. Intake on the map was purple.
   panning, and the canvas reads as a surface.*
 - **Lines.** A forward line is 2 px (`MAIN_STROKE`) with a gradient along the flow from
   `--border-bright` to `--text-secondary`, its head in the bright end. Send-backs stay 1.5 px
-  dashed at 0.85 opacity (`BACK_OPACITY`); asks and shadow lines are unchanged. *The main flow
+  dashed at 0.85 opacity (`BACK_OPACITY`); ask lines are unchanged. *The main flow
   leads the eye and the loops step back; no glow, no animation on lines.*
 - **Type.** Rule 1's hierarchy on a card (kind 12 uppercase tertiary, title 15 semibold, text 13
   secondary) already holds. Only the map's live chips change, to `tabular-nums`, so a count does
@@ -294,18 +283,16 @@ miss on a projector. Intake on the map was purple.
   `oklch(0.8 0.15 112)`, a lime 27 degrees from warning and 28 from land. The canvases' one
   accent use is the selected map card (a 2 px `--accent-muted` ring, the border unchanged); neither
   canvas, nor the stage drill-down's cards, has purple: the drill-down's Agent kind moves from
-  `--node-prompt` to `--node-wait`, the teal How it works gives a stage
-  (`stage/drilldown-kinds.test.ts`). *Owner change 1: more green, purple and pink kept for one thing each.*
+  `--node-prompt` to `--node-wait`, the teal How it works gives a stage. *Owner change 1: more green, purple and pink kept for one thing each.*
 - **Flow dot.** How it works: a dot 10 px across with a halo 20 px across at 0.28 opacity (a second circle in
-  the same moving group, not a blur), in the kind colour of the card it travels to, a shadow move
-  in `--node-opaque`. The glow round the card it rests on reaches 6 px out with a 12% fill. The
+  the same moving group, not a blur), in the kind colour of the card it travels to. The glow round the card it rests on reaches 6 px out with a 12% fill. The
   map's dot is 10 px across in `--running` with a soft halo (`.map-flow-dot`; the legend's swatch,
   `.map-flow-swatch`, wears the same). *Presence on a projector (the #93 operator note), still
   only position and opacity animate.*
 
 **Ruled out:** WebGL; SVG or CSS filters (blur, drop-shadow) on anything; noise images; animated
 backgrounds; card lift or translate on hover. These tokens are named "depth", "glow" and
-"tint", never "shadow": a shadow is a step that does nothing (rule 10).
+"tint".
 
 ## Visual standard (owner, 2026-11-18)
 
@@ -351,8 +338,8 @@ Geist for everything a person reads; Geist Mono for workflow, step and key names
 
 ### 2. Cards
 
-One card language for the map, How it works, the board, stage drill-downs, Needs you and the ask
-card's option tiles (rule 9).
+One card language for the map, How it works, the board and stage drill-downs. Archon's ask card
+keeps its own look (rule 9).
 
 - Box: `--radius-console-12` (`rounded-console-12`), 1 px `--border`, `--surface` background.
   Hover: `--border-bright` border, `--surface-elevated` background. On the map, How it works
@@ -406,7 +393,8 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Group colours: intake `--tone-intake`, build `--node-wait`, check `--node-approval`, land
   `--node-script` (`factory/tones.ts`, which the board, the item page, the map and its
   legend all read). None is purple or pink, and each is at least 25 degrees of hue from the
-  others and from `--running` and `--warning` (`tones.test.ts`).
+  others and from `--running` and `--warning` (checked when a colour changes, not pinned by a
+  test).
 - Board columns (owner change 4): Intake takes intake's colour, Plan & build build's, Checks &
   review check's, Ready to merge land's, and Merged `--success`.
 - A group colour appears only as the accent bar, the icon, the legend swatch, and on the
@@ -418,8 +406,7 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - How it works kind colours (`overview/overview-kinds.ts`): input `--node-command`, stage
   `--node-wait`, check `--node-approval`, a person `--node-script`, gate `--node-bash`, outcome
   `--success`. No two are less than 25 degrees of hue apart and none is purple or pink (owner
-  changes 1 and 6 of 2026-11-19); `overview-kinds.test.ts` resolves each token to its oklch value
-  and holds both. Besides the uses listed below, a kind colour is a card's faint top tint, the
+  changes 1 and 6 of 2026-11-19). Besides the uses listed below, a kind colour is a card's faint top tint, the
   faint glow the flow loop draws round a card while a dot rests on it, and the flow dot travelling
   to that card with its halo (rule 7). The check swatch shares `--node-approval` with the
   send-back lines, as the check group does above; the legend tells them apart the same way.
@@ -434,7 +421,6 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   - waits on you with no ask open (a declared `awaits` outcome): the needs-you colours,
     `--warning` on `--warning-soft`, soft like a chip: never filled and never the ping, which
     stay an open ask's
-  - shadow: `--node-opaque` (rule 10)
 - A state pill or chip is the state's colour as text on its soft background.
 - **"Needs you" is the one loud colour.** A card's Needs you state pill is the only filled pill
   (`--warning` background, semibold `--surface-inset` text), and only needs-you has the ping
@@ -451,7 +437,7 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
   (`motion-safe:animate-pulse`).
 - **Empty** shows a 20 px icon in `--text-tertiary`, one sentence at `--text-console-14`,
   `--text-secondary` saying what will appear here, and the most useful link at
-  `--text-console-13` (for example "Answered lately").
+  `--text-console-13` (for example "Open the board").
 - **Errors** keep today's wording rules: the alert says what could not be read, and what is
   already drawn stays drawn.
 
@@ -473,118 +459,29 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - **"Merged" replaces "Landed"** everywhere a person reads: the column, the pill, "merged today",
   the map card, How it works, the item page, "N of M merged". Engine and pack ids keep `land`
   (`landgate`, `landed`).
-- **An option id is never shown raw.** A person reads the option's `label` when it has one, else
+- **An option id is never shown raw** on the factory section's own surfaces (Archon's ask card
+  draws its options as on dev). A person reads the option's `label` when it has one, else
   the id in sentence case with hyphens as spaces ("send-back-once-more" reads "Send back once
   more"). The one exception is the reserved `other` option (label "Other"), which reads
-  "Something else" (rule 9).
+  "Something else".
 - Plain words, never raw enum values: "returned", "needs you", "round 2 of 3".
 
-### 9. The ask card and the column header
+### 9. The ask and the column header
 
-**The ask card** (owner change 2), the one design wherever an ask is answered: the Needs you tab,
-the Overview, the item page and the board popover.
+**The ask** is Archon's own ask card and answer panel, exactly as on Archon dev, wherever the
+factory section answers an ask (the board popover, the item page, the Overview) (v2 direction).
+The factory section does not restyle, wrap, replace or parse it: its options, recommendation,
+confidence and cost come from what the ask's workflow declares (#6139), never from the ask's
+text. The factory's own surfaces that point at an ask follow the rules above:
 
-- Box: `--radius-console-16` (`rounded-console-16`), 1 px `--border`, `--surface` background,
-  20 px padding (`p-5`), 12 px between rows (`gap-3`). At most 760 px wide in a page; 480 px wide
-  in the board popover. On the Needs you tab (owner change 9) the card has no box or header row
-  of its own: it sits inside its item's panel, which names the item, and under an eyebrow naming
-  the stage; everything below the header is as here.
-- Header row in the Meta role: the item key in mono, in neutral text (`--text-secondary`,
-  `--text-primary` on hover; never the accent) and always on one line (a long title beside it
-  truncates instead), the stage, and the age on the right.
-- Question: `--text-console-17`, semibold, at most 2 lines.
-- Context: `--text-console-14`, `--text-secondary`, clamped to 3 lines with "More" (the
-  ClampedSummary pattern).
-- **What the stage offered.** When the context carries the pack's list of what a stage offered in
-  its own words (the one marker line "The stage offered these, in its own words; say which in your
-  answer:" and the `- id: does (cost: ...)` lines under it), the card takes that list out of the
-  clamp and shows it whole between the context and the tiles: a heading "What the stage offered"
-  in the Label role, then one plain row per option (not a button), `--radius-console-12`, 1 px
-  `--border` on `--surface-inset` (owner change 5: a box differs from what it sits on), holding its name (rule 8) at `--text-console-14` semibold, then what it does and
-  costs at `--text-console-13`, `--text-secondary`. The option a recommendation's `why` names
-  (`The stage recommends "<id>".`) wears the tiles' green mark and badge. While the list shows,
-  a pick's optional note asks which of those options is meant ("Something else" keeps its own
-  prompt). The console matches only that marker line and that prefix; any other wording, or any
-  line under the marker that is not an option line, leaves the card as above.
-- **No recommendation.** When a stage had no basis to choose, the pack leaves the ask's
-  `recommendation` empty and writes one paragraph of its context opening "No recommendation: "
-  and giving why (its delivery and landing scripts; owner decision 2026-11-23). On an ask a stage
-  left (`askedIn`), with tiles and no recommendation, the card takes that paragraph out of the
-  clamped context (the offered list is read on what is left) and shows "The stage could not
-  choose: <why>" where the recommendation's `why` sits, under the tiles, at `--text-console-13`,
-  `--text-secondary`; without the paragraph it shows "The stage could not choose.". The console
-  matches only a paragraph starting exactly with that marker, and only on an ask with no
-  recommendation, so a recommended ask that quotes it renders untouched. It is display only: it
-  gates nothing.
-- Option tiles: a wrapping row, 8 px apart (`gap-2`), one tile per option the ask carries, in
-  its declared order. Each tile is at least 176 px wide, `--radius-console-12`, 1 px `--border`,
-  `p-3`, holding the label (rule 8) at `--text-console-14` semibold, then, when the factory view
-  words the option (`answers`, by the asking run's workflow and the option id), what choosing it
-  starts ("Closes the PR without merging") at `--text-console-13` medium, `--text-primary`, after
-  an arrow in `--text-tertiary`, whole and never clamped; then what it does and costs (the
-  option's `does` and `cost`, when it has them) at `--text-console-13`, `--text-secondary`,
-  clamped to 2 lines.
-- An ask with a `recommendation` moves the recommended tile first and marks it **green**: a
-  `--success` border at 40% opacity, `--success-soft` background, and a
-  "Recommended" badge at `--text-console-12` in `--success`. The green mark never looks
-  selected. Under its text, one line at `--text-console-13`, `--text-secondary` gives the
-  recommendation's `why`, after its `confidence` when it has one ("High confidence. Review is ready."). An ask
-  without a recommendation keeps its declared order and marks no tile; one a stage left says
-  there why the stage could not choose (**No recommendation**, above).
-- **Selected** is its own state and depends only on the pick: a chosen tile gets a `--accent`
-  border and a check icon (`--accent`), on `--surface-elevated` (a chosen recommended tile keeps
-  its `--success-soft` background and its badge, and takes the accent border in place of the
-  green one). Before any pick no tile looks selected, and picking a tile the ask does not
-  recommend leaves exactly one tile looking chosen.
-- **Nothing leaves the card.** Every text field (question, context, option label, `does`, `cost`,
-  an offered option's name, `does` and `cost`, the recommendation's `why`, the confirm row's
-  "Answer:" line) wraps long unbroken strings such as
-  paths and URLs (`overflow-wrap: anywhere`), flex children that hold text have `min-width: 0`, a
-  tile is never wider than its row (`max-width: 100%`), and the card never grows past its
-  container.
-- "Something else" is the ask's reserved `other` option, not a tile the card adds: it is drawn
-  only when the ask carries that option (an ask declared `other: true`; the engine appends it
-  last). Its tile reads "Something else" with "Write your own answer" under it, with a dashed
-  `--border-bright` border. Choosing it opens a textarea in place (`--text-console-14`, 3 rows).
-- Choosing a tile does not send. A confirm row appears under the tiles: "Answer: <label>", a
-  Confirm button and a Cancel button. Confirm is the accent at reduced strength, never a
-  full-strength block: `--accent-soft` fill, 1 px `--accent-muted` border, semibold `--accent`
-  text, `--accent-muted` fill on hover. Cancel stays quiet (`--text-secondary`, no fill). Once
-  sent, the card reads "Answered: <label>" in place.
-- **The card draws an answer; it does not define one.** Which choices an ask offers, how many
-  may be chosen, which need text, and what is refused belong to the ask and its owners: for an
-  attention ask, its declared `form`, `options`, `other` and `recommendation`, checked by
-  `attentionAnswerProblem` (`packages/workflows/src/schemas/run-wait.ts`) and answered today by
-  `AttentionAnswerPanel`; for a paused gate (kind `awaiting_response`), the decisions the gate
-  declares and the flow `ApprovalPanel` gives them. The card sends and accepts what those owners
-  do, with one exception named below, and draws it in the anatomy above (every choice still goes
-  through the confirm row):
-  - a choice is a tile, labelled by rule 8 (or by the label its owner gives it, such as
-    `ApprovalPanel`'s "Continue" and "Accept & complete");
-  - a choice that takes several picks toggles its tiles: each chosen tile shows the selected
-    state above, and the confirm row lists the chosen labels ("Answer: <label>, <label>");
-  - an answer in words, or a choice whose owner takes text with it (required or optional, as
-    `ApprovalPanel`'s comment on approve and its reason on every other decision), opens the textarea in place
-    (`--text-console-14`, 3 rows) above the confirm row, and an ask answered only in words has no
-    tiles and opens with the textarea;
-  - Confirm is enabled when the owner would accept the answer, with one exception: an ask
-    answered only in words also needs a non-blank character in its text, although the engine
-    accepts blank text (Archon #5903), so a blank answer cannot be sent by mistake.
-- A paused run the console cannot answer here (kind `owner_lost` or `unreadable`) has no tiles:
-  the context says what happened, and the confirm row is replaced by a link to the run, where it
-  is resumed or abandoned.
-- Under 520 px wide (the popover, a 390 px phone) the tiles stack full width.
-- The Needs you tab's header band reads "N things need you" ("Nothing needs you" at none), in
-  the Page title role.
 - On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping, the
   question at `--text-console-13` cut to that line (the whole question on hover and in the
-  popover), and "N questions" when there are several; under it, the line Needs you shows for it
-  at `--text-console-12` ("Recommended: <label>" when the ask recommends one, on the recommended
-  tile's green mark), which wraps long unbroken text inside the card, as the Overview's compact
-  card does with its tile (from 520 px wide, where the tile sits beside the question, it takes
-  at most 45% of the row). The card's title then takes 2 lines, not 3.
-- Owner change 2026-11-19, points 1 and 2: the recommended green, the selected state, the toned
-  Confirm, the neutral item key and the wrapping above.
+  popover), and "N questions" when there are several; under it, at `--text-console-12`,
+  "Recommended: <label>" when the ask's declared recommendation names an option, in green
+  (`--success`), which wraps long unbroken text inside the card. The card's title then takes 2
+  lines, not 3.
+- The popover that holds Archon's ask card over the board is at most 480 px wide; under 520 px
+  (a 390 px phone) it is a sheet from the bottom.
 
 **The column header** (owner change 4), one per board column:
 
@@ -600,17 +497,7 @@ the Overview, the item page and the board popover.
 - Empty-column placeholder: dashed 1 px `--border`, `--radius-console-12`, 96 px tall, holding
   rule 6's empty state ("Nothing in <column label> now").
 
-### 10. Shadows
-
-Owner change 6: a shadow step says what it would do and does nothing, and reads that way.
-
-- It carries a "shadow" badge: `--text-console-12`, dashed 1 px `--node-opaque` border,
-  `--node-opaque` text, no fill.
-- Its line reads "Would <what it would have done>" at `--text-console-13`, `--text-tertiary`.
-- On a card the accent bar is `--node-opaque`, not the group colour. A shadow line is drawn in its
-  kind's dash (rule 4) in `--node-opaque`, with "shadow" on its label pill.
-- Never `--running`, `--success`, `--warning` or `--error` on anything a shadow did: it did
-  nothing.
+### 10. (Removed in the v2 direction: shadows are not drawn, counted or explained anywhere.)
 
 ### 11. References
 
@@ -618,10 +505,7 @@ Read-only, outside this repository. Take layout and anatomy from them, never siz
 text is under the type floor. Where they differ from the rules above, the rules win (12-drill-build
 puts a card's accent on its left edge; ours is the top bar of rule 2).
 
-- `C:\Users\colem\OpenSource\factory-mission-control\docs\design\v3\refs\01-attention.png`: the
-  "N things need you" heading; the option-tile row with the recommended tile first and marked;
-  "Something else / Write your own answer".
-- `...\v3\refs\20-board-pipeline.png`: the column header with label, subtitle, big count and
+- `C:\Users\colem\OpenSource\factory-mission-control\docs\design\v3\refs\20-board-pipeline.png`: the column header with label, subtitle, big count and
   state chips; "Merged, last 7 days"; the work order strip with "N of M merged" and its bar.
 - `...\v2\refs\01-home-map.png`: the one-line map with the inputs on the left, labelled loops in
   lanes off the line ("fixes", "unrelated problems become new work"), the controls bar and the
@@ -630,7 +514,7 @@ puts a card's accent on its left edge; ours is the top bar of rule 2).
   lines; a loop drawn as one labelled dashed line ("another round (max 2)"); a dotted line down to
   the card that asks you.
 
-**Layout.** At 1440x900 the Overview shows Needs you and the top of the map in the first screen.
+**Layout.** At 1440x900 the Overview shows its newest asks and the top of the map in the first screen.
 At 390x844 columns stack and the map pans.
 
 **No token yet.** Spacing, motion (duration, easing), skeleton colour and icon size have no
@@ -653,7 +537,7 @@ The section has **two separate things**, each with its own file:
    rises into its target, never crossing a card or each other (the schema refuses a file whose lines
    would; it does not measure labels, so the shipped file's test checks that its label pills meet
    nothing, and a pack author keeps a short line's label short); an answer to an ask is drawn
-   beside the ask's line; a line the pack only would act on is marked `shadow`; changed by the owner's
+   beside the ask's line; changed by the owner's
    audit of 2026-11-18, which asked for several labelled send-back lines). Interaction like Eric Tech's
    skill map (https://erictechpro.github.io/super-board/skill-map/): a sidebar listing every view with
    counts and its one line, a breadcrumb, click a card to open its drill-down, a legend, pan/zoom/fit, a
@@ -664,7 +548,7 @@ The section has **two separate things**, each with its own file:
    reviews, Ready to merge, Merged), resting a beat on each card while a faint halo in the card's
    kind colour shows round it. Where a send-back line returns to an input card, a second dot leaves
    at the same moment and travels it (CI and reviews, along "unrelated finds would become new
-   work", to Found by agents), in the shadow colour because that line is a shadow. The loop rests, then starts again. "On to Merged"
+   work", to Found by agents), in its line's colour. The loop rests, then starts again. "On to Merged"
    passes Ready to merge, because the dots follow the lines the page draws. Which cards and lines
    it follows is read from card and line kinds (`lib/overview-flow.ts`), never from ids; a view with
    no single input line has no flow. Drill-downs and the other send-back lines stay still. A
@@ -672,17 +556,18 @@ The section has **two separate things**, each with its own file:
    and views); under `prefers-reduced-motion` neither the dots nor the control are drawn. Each dot
   is 10 px across with a faint halo 20 px across, in the kind colour of the card it travels to ("Visual
   identity, 2026-11-19").
-2. **The live factory view** (what the Factory tab shows today: Overview numbers, Needs you, the live
+2. **The live factory view** (what the Factory tab shows: Overview numbers, the newest asks, the live
    map, Board, items, stages). Driven by the pack's **view file** (`factory-view.json`, below), which
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
-   card `covers` the real step ids it stands for) and display names for steps. A coverage check reads
-   the pack's real workflows and fails when a real step is covered by no card or by two. The live map
+   card `covers` the real step ids it stands for) and display names for steps. The check (The factory
+   view declaration) fails on a step a card names that the pack graph lacks and warns on a real step
+   no card covers. The live map
    is one row of stages with one feedback lane underneath; clicking a stage opens it.
 
 **Step names, everywhere a person reads:** never a raw engine id such as `build__build` or
 `rounds.review__review`. One function gives a step's display name: the view file's name when it has
 one, else a cleaned id (a doubled include name collapses, a loop prefix becomes "round N", separators
-become spaces). The raw id appears only on hover and on the step page.
+become spaces). The raw id appears only on hover.
 
 **Item keys, everywhere a person reads:** an item keyed `issue-N` (how the pack's `order-on-label`
 binding keys an issue) or plain `N` reads `#N`: on cards, rows, titles, link text, sentences, hover
@@ -705,7 +590,8 @@ and it ends as a landed change, a question for a person, or a clean stop. Today 
 see one is a run list. This section shows the factory itself:
 
 1. **What the factory is made of.** A map of its stages and how they hand an item on, that you
-   can click into: a stage, then the workflow behind it and its steps, then a step's prompt.
+   can click into: a stage, then the workflow behind it and its steps, then Archon's own workflow
+   page for a step's workflow.
 2. **Where every item stands.** A board with one column per stage. Each item is one card that
    moves left to right as stages work it, and back when a check returns it.
 3. **What needs a person.** The questions (asks) items are waiting on, answerable in place.
@@ -725,7 +611,10 @@ documents through Neon live queries.
 
 1. **Generic, driven by a declaration.** The console never names a pack's stages, workflows or
    nodes in code (`.archon/direction.md` §web-ui). What a factory looks like comes from a
-   *factory view* declaration (below). Code reads the declaration and the engine's records.
+   *factory view* declaration (below), and that declaration is presentation only: structure
+   (stages, steps, outcomes, asks, arrows) comes from the pack graph, live state from the
+   engine's generic item, run and attention reads. Code reads those three and nothing else, and
+   never parses an agent's prose (v2 direction).
 2. **The item is the unit; its position is derived.** Where an item stands is computed from its
    runs (the live run and its running step, else the last run's workflow and outcome), its open
    asks and whether its change landed. Nothing stores a column (`.archon/direction.md`
@@ -746,11 +635,9 @@ documents through Neon live queries.
 
 ## Where it lives
 
-- A project tab, **Needs you**, first, left of Runs, on every project (`ProjectViewTabs`, route
-  `/console/p/:projectId/needs-you`), with its count of what needs you (`needsYouCount`: the asks
-  and waits, and on a project with a factory view the items waiting on you with no ask open) as
-  a soft needs-you chip (rule 5; owner change 2). It is console core, not part of the Factory section: every page of a project sits
-  under one layout (`ProjectAttentionLayout`) holding the project's attention queue and stream.
+- Archon's own Console stays as on Archon dev (v2 direction): its project tabs and their order,
+  its answer panel and ask card, and where it answers asks. The factory adds a project tab, a
+  sidebar entry and their routes, nothing else.
 - A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a factory view
   applies to the project (below). Without one, nothing else changes.
 - A **Factory** entry in the console's sidebar (`ProjectRail`), directly above Settings, for what
@@ -759,10 +646,9 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them; counted, never named or linked, owner change 1 of 2026-11-23), and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
+  | `/console/factory` | Redirects (replace) to the How it works page of an installed pack with an overview file. There is no pack index page (v2 direction) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
-  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the same on the index's card; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header). `:pack` is the pack key (`owner.name` when installed). The page has no tabs and names no project (owner change 1 of 2026-11-23) |
-  | `/console/factory/:pack/settings` | Redirects (replace): with `?project=<codebase id>` to that project's `factory/settings`, the rest of the query and the hash kept; without one to `how-it-works`. Settings were this page's second tab until owner change 1 of 2026-11-23 |
+  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header). `:pack` is the pack key (`owner.name` when installed). The page has no tabs and names no project (owner change 1 of 2026-11-23) |
 
   Which file a pack page reads: the pack's own `.shared/factory-overview.json` (bundled, global
   or installed) when it ships one; else the first project, by name, whose own files give one
@@ -775,130 +661,45 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
+  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks (through Archon's ask card), then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
-  | `factory/settings` | Settings (read-only; a document page per owner changes 5 and 6 of 2026-11-21, a project page since owner change 2 of 2026-11-23): a header band, "How <project> has set up its factory", with chips for the settings the pack's `.pack/pack.yaml` declares, how many this project sets in its `.archon/packs/<pack key>.yaml`, how many fall back to the pack's default, and how many are shadows today, and a quiet line saying it reads the pack's declaration and this project's file. The pack is the one the project's view draws; the page reads only this project and names and links no other. When the settings read lists no entry for this project (the server reads only a project with a checkout), one error panel says so and the page shows the pack's defaults. Then the sections the overview file's `setting_sections` lists, in its order (each setting names one with `section`; one that names none is under "Other settings"), each a grid of setting panels two across, three from about 1800 px, one on a phone: the name in sentence case with the key as an id tag, the description clamped to one line, the project's value (a path with a file icon, a value in mono, or a "Pack default" pill), and the pack's declared default as meta when it is not empty. A project whose settings file cannot be read gets one error panel under the band, and its panels say "Not read". The overview's `settings` map marks shadows (rule 10's badge and bar, and its `when_live` line) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks as rows of name and command. Keys this project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
   | `factory/items/:key` | One item: its story (header band, journey strip, a panel per stage with its rounds grid and asks), links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
-  | `factory/steps/:workflow/:node` | One step, as a document page (owner change 7 of 2026-11-21): a header band with its name and id tag, the drill-down card's line for what it does (else its kind and workflow), and chips for its kind in its kind colour, the model in words ("Lander tier, else medium"), its workflow, the stage that works it (opening that stage's modal) and how many items are on it now. The main column: "What it does" (the covering drill-down card's title and line, which the header's sentence also is: the view file gives one line per step), its prompt as markdown with each `$INPUTS.x` and `$node.output` reference as a named chip (the server finds them with the engine's grammar; a code span that is exactly one reference is its chip too, the raw token on hover, while a longer code span or a code block stays code), folded after 30 lines, or a bash or script step's script on a numbered code panel (a named script read from its file); the items on it now as board cards, or an empty state linking the board; its YAML behind a closed "Show the YAML". The aside: a definition grid of its kind, model, condition, the inputs and step outputs its prompt reads, the outcomes the view file declares for it (`verdicts`, `returns`, `approves`), each in words with its outcome id as a tag, and what starts after it (the steps and loops that wait on it, and a step whose condition reads its result, "next round" when that step comes earlier in the same loop), each row left out when nothing says it; then its workflow down one line, inside its loops, this step marked and every other a link to its own page. A workflow no stage runs, or a step its workflow does not have, says so in plain words and links the step's stage, else the Overview; a read that failed says why, with a Retry |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
 - Inside the Factory tab a small sub-navigation, on the line of the view's title, switches
-  Overview, Board and Settings, each its own route; the tab has no other pages (owner change 3 of
-  2026-11-19, and owner change 2 of 2026-11-23 for Settings). Needs you is the project tab beside it and How it works the sidebar Factory page.
-  Item and step pages have a back link to where you came from.
+  Overview and Board, each its own route; the tab has no other pages (owner change 3 of
+  2026-11-19). There is no Settings page and no step page (v2 direction): a step links to
+  Archon's workflow page (`/console/builder/:name`) or is plain text. How it works is the
+  sidebar Factory page. Item pages have a back link to where you came from.
 
 ## The factory view declaration
 
 A JSON file that maps a pack onto this section. The pack's author writes it, so a pack can
-present itself without the console knowing it. Shape (validated with zod in
-`packages/workflows`; the schema is the owner, docs and examples derive from it):
+present itself without the console knowing it. It is **presentation only** (v2 direction): it
+gives the graph's workflows, steps and outcomes words, a group and a position, and never restates
+their structure. Validated with zod in `packages/workflows` against a presentation-only schema
+(no stage-group enum in the engine; the schema is the owner, docs and examples derive from it).
 
-```jsonc
-{
-  "version": 1,
-  "pack": "Wirasm/archon-software-factory",       // the pack this view draws
-  "title": "Software factory",
-  "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
-  "stages": [                                      // map cards and stages, left to right
-    { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
-      "short": "Turns orders into items",  // optional: the map card's one line, at
-      "group": "intake", "workflows": ["order"] },   // most 24 characters; else the blurb
-    {
-      "id": "build",
-      "label": "Build",
-      "blurb": "Writes the change and opens a draft pull request.",
-      "group": "build",                            // colour group: intake | build | check | land
-      "workflows": ["deliver"],                    // pack entrypoints whose runs count here
-      "nodes": ["build__build", "rounds.fix", "hostrounds.hostfix"]  // optional: only while one of
-                                                   // these steps runs (id or dotted prefix;
-                                                   // an included node is <include>__<node>)
-    }
-  ],
-  "columns": [                                     // the board's columns, left to right: each a
-    { "id": "plan-build", "label": "Plan & build", // group of stages, every stage in exactly
-      "blurb": "Plan, build", "stages": ["plan", "build"] },  // one, the landed stage alone;
-    { "id": "merged", "label": "Merged", "blurb": "Merged changes", "stages": ["landed"] }
-  ],                                               // absent: one column per stage
-  "placement": {                                    // where an idle item sits after a run ended
-    "order:ready": "triage",
-    "triage:build": "plan", "triage:narrow": "plan", "triage:park": "triage",
-    "plan:planned": "build", "plan:ask": "plan",
-    "deliver:ready": "ready", "deliver:waiting": "host", "deliver:returned": "build",
-    "deliver:replan": "plan", "deliver:ask": "build",
-    "landgate:*": "ready"                           // workflow:* takes every completed run no
-  },                                                // exact key does, one with no outcome too
-  "endings": { "triage:close": "Closed by triage", "triage:fold": "Folded into another item",
-               "triage:recipe": "Handled another way", "order:refused": "Refused at intake" },
-                                                   // outcomes that end an item without a change
-  "parked": { "triage:park": { "label": "Parked by triage", "why": "/why" } },
-                                                   // outcomes that keep an item open for later:
-                                                   // placed (placement must take each), never
-                                                   // ended, set aside on the board while no
-                                                   // start waits; `why` points at the run's reason
-  "awaits": { "triage:shape": { "label": "Needs shaping", "why": "/why",
-                                "questions": "/open_questions",
-                                "next": "Settle these questions, then order it again." } },
-                                                   // outcomes after which the item waits on a
-                                                   // person with no ask open: placed, never
-                                                   // ended, never also parked; `questions`
-                                                   // points at what they have to settle, `next`
-                                                   // says what moves the item on
-  "retired": ["deliver"],                          // workflows a stage still lists that the
-                                                   // pack no longer has: their runs still read;
-                                                   // the coverage check compares none of them
-  "landed": { "stage": "landed" },                 // the column for an item whose change merged
-  "rounds": [ { "workflow": "deliver", "loop": "rounds" },   // one source, or a list: a loop's
-              { "workflow": "stage-check",               // iterations, or each run of a
-                "round": "/round", "allowance": "/allowance" } ],  // workflow one round,
-                                                   // numbered and bounded by its result
-  "returns": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "return" },
-               { "workflow": "deliver", "node": "hostrounds.host__host", "outcome": "return" } ],
-  "approves": [ { "workflow": "deliver", "node": "rounds.verdict__verdict", "outcome": "approve" } ],
-                                                   // a round is approved only by a declared
-                                                   // approval; with neither, it needs a decision
-  "verdicts": { "deliver": { "rounds.tests__tests": { "sound": "approved", "return": "returned",
-                                                      "ask": "asked" } } },
-                                                   // what other steps' outcomes mean, for words
-                                                   // only (approved | returned | asked)
-  "asked": ["plan:ask", "deliver:ask"],            // outcomes that stop to ask you
-  "change": [ { "workflow": "deliver", "pointer": "/change" },
-              { "workflow": "stage-build", "pointer": "/change" } ],
-                                                   // where the PR URL is in a result: one
-                                                   // source or a list; the newest run with
-                                                   // a non-empty URL names the change
-  "partOf": { "workflow": "order", "pointer": "/part_of", "outcome": "ready" },
-                                                   // where a result names the item's work order:
-                                                   // only runs that completed with `outcome`;
-                                                   // read only without a part_of link
-  "itemTitle": { "input": "item" },                // item title = title line of this run input
-  "answers": { "stage-check:drop": { "starts": "Closes the PR without merging" } },
-                                                   // what choosing an ask's option starts, by
-                                                   // workflow:option, exact; words only, the
-                                                   // pack's bindings decide
-  "story": {                                       // the item page's one sentence per stage
-    "outcomes": { "triage:build": "Triage judged it worth building",
-                  "landgate:*": "The merge gate read the change",  // workflow:* takes a run
-                                                   // with no outcome too, as placement does
-                  "close:dropped": { "withChange": "You dropped it; the factory closed the PR",
-                                     "withoutChange": "You dropped it before a change was proposed" } },
-                                                   // or words chosen by whether the item has
-                                                   // a change
-    "steps": { "deliver": { "build__build": "Build wrote the change" } },  // an earlier stage
-                                                   // of a run that works several, by the step
-                                                   // that starts it
-    "said": ["/summary", "/why"]                   // where a result says what it did, for "More"
-  },
-  "map": {
-    "cards": [ { "stage": "build" } ],              // the stages the map shows, each in its
-                                                   // column's card, one row
-    "arrows": [ { "from": "build", "to": "checks", "label": "built" },  // every arrow the
-                { "from": "checks", "to": "build", "label": "returned" },  // map draws; leftward
-                { "from": "checks", "to": "plan", "label": "replan",  // ones send back;
-                  "person": true } ],                // a person's step, no hand-off backs it
-    "notes": [ { "text": "You answer asks here", "near": "needs-you" } ]
-  }
-}
-```
+What it carries, and nothing else:
+
+- the pack title and summary;
+- per board column and map stage: label, blurb, short name, which workflows (and, by name,
+  which steps) it groups, its colour group, and its order (`stages`, `columns`, `map.cards`);
+- map and How it works layout: positions, lanes, captions, edge labels, notes (`map.notes`);
+- story wording: how each outcome reads (`story.outcomes`, `story.steps`, `story.said`), what
+  choosing an ask's option starts (`answers`), and the words for a check round, a return, a
+  parked item and a work order;
+- optionally, which steps a stage modal highlights, by name.
+
+What it never carries: step lists, outcome lists, arrows or ask flags (all from the pack graph;
+`map.arrows` as the source of the map's arrows and `asked` go), shadow flags (`shadows` goes),
+settings, a title rule that reads a run input's markdown (`itemTitle` goes), or any other copy
+of a workflow's structure.
+
+Fields the plan has not settled yet (`placement`, `endings`, `parked`, `awaits`, `retired`,
+`landed`, `rounds`, `returns`, `approves`, `verdicts`, `change`, `partOf`, `discoveries`) stay as they are,
+read as presentation only: each may shrink or move to the graph, none may grow, and no new
+field of this kind is added.
 
 **Discovery.** For a project, the console looks for, in order: the project file
 `.archon/packs/<pack key>.factory-view.json` (a project may present an installed pack it cannot
@@ -909,54 +710,20 @@ of a workflow the view names, or the project file exists. That is the switch Ras
 enable the factory for a project and its view appears.
 
 This repository ships the declaration for `Wirasm/archon-software-factory` as the project file
-`.archon/packs/Wirasm.archon-software-factory.factory-view.json`. Proposing it upstream into the
-pack is later work. The pack's `discoveries` drain runs after delivery but moves no item, so the
-declaration names no stage for it: runs of a workflow no stage lists do not place an item. Its
-`discoveries` field names the workflow instead, and where each completed drain's result lists
-what it decided: the board's "Found by the factory" panel and the Overview's tile read it (#70).
-Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of the
-retired `deliver`, and the drain; not the land gate, which acts, and not `stage-check`, which no
-longer runs the project checks since pack 43bedfe) and how each one's value reads; the item
-page, stage modals, board and map show their decisions as shadows (#80). The map and a stage's
-drill-down show a shadow only through a card that covers it, and no card covers a step of a
-retired workflow, so since #154 the Checks stage carries no "Project checks" line; the item
-page's rounds grid still shows that row for the old runs that recorded it.
-Its `story` field gives the item page one plain sentence per outcome (#122). Its `retired` field
-names `deliver`, the one-workflow delivery the pack dropped on 2026-11-23 (pack d7f8c36): every
-item delivered before then ran under it and still reads as it did, while new items run the
-three-stage delivery. `close` (it carries out a drop or reshape answer) is a step of Ready to
-merge, and `report` runs only as the `report__report` step of `stage-check` and `stage-host`.
-Its `answers` field words what the pack's `drop` and `reshape` routes start, for the five
-workflows whose asks the pack binds them on (`stage-build`, `stage-check`, `stage-host`,
-`landgate`, `land`); the coverage check holds each key to those bindings (#144).
+`.archon/packs/Wirasm.archon-software-factory.factory-view.json`, until it moves into the owner's
+own copy of the pack (v2 direction). Its `story` field gives the item page one plain sentence per
+outcome (#122). Its `retired` field names `deliver`, the one-workflow delivery the pack dropped
+on 2026-11-23 (pack d7f8c36), kept only while old items need it to place; `deliver` is drawn
+nowhere. Its `answers` field words what the pack's `drop` and `reshape` routes start, for the
+workflows whose asks the pack binds them on.
 
-`map.arrows` declares every arrow the map draws, a hand-off from one workflow to another
-included; the map reads no other source (see The map). `bun run check:factory-view` keeps the
-two true to each other in this repository (#28). It reads the pack graph from the installed pack
-where a home is named (failing when the snapshot of `archon pack graph` committed beside
-the view file differs from it), and from that snapshot in CI. It fails on a hand-off between two
-stages that the pack declares (every binding, installed by a trigger file on this machine or
-not; owner ruling of 2026-11-17) that the view does not declare, and on a declared arrow no
-such hand-off backs, unless it is marked `person: true` (a replan, a landing), joins two
-different stages of one workflow (its steps), or runs into the Merged column (the `landed` stage). An arrow back into its own stage is a rerun only
-a hand-off starts, so it is never exempt. The same check fails on a real step no drill-down card
-covers or two cover, and on a step or workflow the view names that the pack does not have. It
-fails, too, on an outcome a listed workflow declares that neither `placement` nor `endings` takes
-(exactly or by `workflow:*`), so a completed run never leaves its item where no rule put it, and on
-an exact `placement`, `endings`, `parked`, `awaits` or `asked` key naming an outcome its workflow
-does not declare (#100). It fails, too, on an `answers` key whose workflow has no asks-settled
-hand-off on that option (`unbacked-answer`, #144): a binding with no option backs every option
-of its workflow, one on withdrawn asks none. It fails, too, on a `returns` or `approves` step
-the workflow does not have, a loop-form `rounds` source naming no loop group, and a `change` or
-stage-form `rounds` source on a workflow that returns no result. A `retired` workflow is not required of the pack and none of
-its steps, arrows or outcomes is compared with the graph (nothing in code names one); a stage's
-`nodes` entry for it is held to the steps the view itself names for it, so a misspelt one still
-fails, and a retired workflow the pack has again fails as `retired-present`. A drill-down card or
-loop may name only a workflow its stage lists and the pack runs now: one standing for a step of a
-retired workflow fails as `retired-covered`, and one on a workflow its stage does not list as
-`unknown-workflow` (#154), since a card opens its step's page and a retired workflow has none. The snapshot holds
-the pack alone: the `loaded` and `otherCopies` `archon pack graph` reports (where it found its
-copies, a throwaway path) are left out.
+**The check** (`bun run check:factory-view`, run in console CI; later shipped with the owner's
+pack copy) loads the view file and the pack graph. It FAILS on any workflow, step or outcome
+name the view uses that the graph lacks. It WARNS on graph workflows or outcomes the view leaves
+unplaced, which is how a new stage (such as `link`) gets noticed. It reads the graph from the
+installed pack where a home is named, and from a snapshot of `archon pack graph` committed
+beside the view file in CI (failing when the two differ). A `retired` workflow is not required
+of the pack.
 
 ## Data
 
@@ -973,61 +740,29 @@ The items and the stage graph are the engine's own reads, which any API client u
   The window pages by item id; the console sorts newest activity first (the latest of each
   item's runs' end, or start while one runs), since a board column keeps the order it is given.
 - `GET /api/packs/{pack}/graph?codebaseId=` (#5848, what `archon pack graph` prints) gives the
-  pack's stages, outcomes and the arrows between them, each active (a trigger file in this
-  install starts it) or only declared by the pack. `{pack}` is the pack's folder key
-  (`Wirasm.archon-software-factory`), not `owner/name`. The map does not read it: it draws
-  only the view file's arrows (owner ruling of 2026-11-17 on #30); comparing the view file with
-  the graph is the coverage check's job (#28).
+  pack's stages, their steps, outcomes, whether they leave asks, and the arrows between them,
+  each active (a trigger file in this install starts it) or only declared by the pack. `{pack}`
+  is the pack's folder key (`Wirasm.archon-software-factory`), not `owner/name`. It is the one
+  source of structure (v2 direction): the map's arrows, a stage's steps and outcomes and its
+  asks all come from it, never from the view file.
+- The existing item and attention reads give each item's runs and outcomes, its asks with the
+  options their workflow declares (#6139), its links (work orders and members), and its change.
+  The batched item-start read (`packages/core` `db/item-starts.ts`) stays.
 
-What those reads do not carry comes from **one read-only route file**,
-`packages/server/src/routes/api.factory.ts`:
+What those reads do not carry comes from **one small read-only route file**,
+`packages/server/src/routes/api.factory.ts`, kept to what the web cannot get from existing
+routes (v2 direction):
 
-- `GET /api/factory/views?codebaseId=` the factory views that apply to the project. Each carries
-  `packKey` (the graph's `{pack}`) and `runNames` (each workflow a stage lists, as its runs record
-  it and the graph names its stage), so the web never re-derives either.
-- `GET /api/factory/packs` every pack with a factory overview file across the install, by key:
-  the overview its page shows (the pack's own file, else the first project's by name, named in
-  `readFrom`), the projects a view of it applies to, and its files that failed; beside them, the
-  scope roots and projects that could not be read.
-- `GET /api/factory/pack-settings?pack=<key>` a project's Settings page (which picks its own
-  project out of the list): the settings its
-  `.pack/pack.yaml` declares (the install's, else a project's pack folder), as the overview's
-  `settings` map presents them, and for each project a view of the pack applies to, its value
-  of each from `.archon/packs/<key>.yaml`, the policy or checks file a value names looked up in
-  its checkout, and the keys the pack does not declare.
-- `GET /api/factory/workflow?codebaseId=&workflow=` one workflow a view names, for the stage and
-  step pages: its steps keyed as run events name them, the loop groups and included workflows
-  that frame them, and each step's kind, model, `when:`, prompt and authored YAML.
-- `GET /api/factory/progress?codebaseId=&keys=` (`keys` repeated, up to one window page) the
-  progress the board needs and `ItemRead` does not carry, by item key: the running run's id,
-  workflow and deepest running step, the current loop iteration of the declared `rounds` loop,
-  the returned count, the change URL from the declared pointer with its pull request number,
-  the title, each declared run's workflow as the view names it with the step it failed at, and
-  `partOf`: the work order the newest run of the declared `partOf` workflow that completed with
-  its declared outcome names (an empty value there means none; a refused run is never read), and
-  `shadows`: the newest decision of each shadow step the view declares, and `parked`: the
-  declared label and the reason at its `why` pointer when the item's last declared run completed
-  with a declared `parked` outcome, else null, and `awaits` likewise for a declared `awaits`
-  outcome, with the questions at its `questions` pointer (empty when none). Beside `progress`, `members` lists for each asked key the
-  items with an active `part_of` link to it, so a member with no run yet counts. A key may name
-  an item with no runs (a work order). The web joins each window page with it: one reader,
-  `factory/lib/factory-items-read.ts`. After the walk it reads every work order an item belongs
-  to that the window lacks (no run of its own, or no item row) in one more progress request per
-  100 keys, never one per item; a key that request leaves out has no item row.
-- `GET /api/factory/discoveries?codebaseId=` what the completed drains of the view's
-  `discoveries` workflow decided, read at its pointers: each finding they decided to file with
-  its kind, verified line, source item, time and the item whose title covers it (case-insensitive
-  exact, over every item on the project), and how many they held and dropped; 404 when the view
-  declares none.
-- `GET /api/factory/item?codebaseId=&key=` one item, its read and progress, plus what its
-  story needs per run and neither read carries: the workflow as the view names it (a
-  stage's, or the `discoveries` drain's, which places no item), the run's cause, its
-  cost, its running step, each round of the declared `rounds` loop with the steps that
-  recorded an outcome in it and the deciding step's summary, what each shadow step decided
-  on the run (one per round in a loop; a drain's run included), the pull request it named at
-  the declared `change` pointer, what it said in its own words at the `story.said` pointers,
-  the models its steps recorded, and when each of its steps started (the step id as the engine
-  records it; the web places each step, so placement stays in one place).
+- `GET /api/factory/views?codebaseId=` the factory views that apply to the project, found as
+  the factory view declaration's Discovery paragraph says (through the generic
+  `pack-declarations.ts` reader), validated against the presentation-only schema, with
+  `packKey` (the graph's `{pack}`).
+- `GET /api/factory/packs` every pack with a factory overview file across the install, for How
+  it works: the overview its page shows and its files that failed.
+- No route carries the pack's vocabulary: no rounds, returns, shadows, parked, discoveries or
+  item story read in `packages/workflows` or `packages/server`. The web composes those from the
+  generic reads and the view file's words. Placement and the board numbers are computed once, in
+  the web, with no parity test.
 - Whether a change merged comes first from the merge the engine recorded on the item (a land
   run records it, and `archon workflow merged` records one made by hand): a recorded item is
   merged at the recorded time from the first read, placed and counted without the change
@@ -1066,9 +801,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
 2. **Numbers strip:** items in flight (in a board column, not merged; the items set aside are
-   not, see The board, Set aside), need you (the
-   Needs you tab's count, `needsYouCount`: asks and waits, and the items waiting on you with no
-   ask open), merged today, merged in total ("N of
+   not, see The board, Set aside), need you (what Archon's attention queue counts for the project's items, and the items waiting on you
+   with no ask open), merged today, merged in total ("N of
    M merged", M every item in a board column: not the items set aside, whether an ending took
    them off the board, they are parked or they sat idle), median time from first run to merged
    ("median to merged"). Each tile is a
@@ -1084,52 +818,16 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    narrowed to those cards (`?show=unknown`). A first read that fails replaces the tiles with
    an alert saying so; a refresh that fails says so above the last values read (as the map and
    the board do).
-   When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
+   When the view declares `discoveries` and their data is generic (v2 direction), a sixth tile, "found by the factory", counts what the
    drains decided to file that no item carries yet; it has its own read, so it never holds up
    the other five. The tiles are plain figures, not links, with no hover or focus state (owner
    change 3 of 2026-11-23); each counts with the board's own show (`?show=`, one spec per show in
    `lib/board-show.ts`), so a number and the board agree. Only the unknown line under the tiles
    links (`?show=unknown`). The median tile's tooltip says what the figure means.
-3. **Needs you:** the newest three open asks and waits as compact ask cards (Visual standard rule
-   9): the item, the question, the recommended tile (or the first), and **Open**, which leads to
-   that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on
-   Needs you", the items waiting on you with no ask open among the N, so the line and the
-   number agree. Nothing shows when nothing waits.
-
-The Needs you tab (`/console/p/:projectId/needs-you`) is a document page (owner changes 5 and
-9). Its header band says "N things need you", on how many items and runs, with three stat
-chips: waiting now (needs-you while above zero), the oldest wait, and how many questions were
-answered today (asks, waits and gates answered on the local day; a skeleton while the items
-read is unread, "?" when it failed). Its band, the tab and the Overview's number all read one
-count, `needsYouCount`: the asks and waits, and, with a factory view, the items waiting on you
-with no ask open (`awaitingItems`: an `awaits` outcome left them so, and no ask of theirs is
-open, so an item is counted once). Those items are listed under **Waiting on you** in the main
-column, after Paused: one filled panel per item with the `--warning` left bar and no ping, its
-declared label as the eyebrow, its number and title linking to its item page, the reason its
-run gave, the view's `next` sentence under "What to do", and the questions to settle. Nothing
-there is answered in place, so the `next` sentence is what tells a person how the item moves
-on; the section's own words name no pack's outcome. Then a 2:1 grid, one column at 390 px. The main column holds **Open
-asks**: every open ask, gate and paused run on the project's items and runs, newest first, one
-filled panel per item with a 3 px `--warning` left bar and the ping, its heading the item's
-number and title, each ask under the stage that asked (an eyebrow in the stage's group colour;
-tertiary without a factory view) and drawn as the ask card without its own box, answered
-through `POST /api/attention/answer` (a paused gate through its run's respond route); an
-answered ask says so for 5 s before it folds away. A stage waiting past its deadline
-(`overdue_wait`) sits under **Paused** in its own section, with the bar and no ping. The aside,
-**Answered lately**, is one quiet panel of compact rows, the eight newest answers among the
-asks items settled: the item,
-the question on one line, the option chosen as a pill, who answered and when, and what settling
-its set started ("Plan started again", in the run's state colour with its state in words,
-linking to the run; the workflow in words on a project with no factory view), or "Nothing
-started". An answer whose option the view words (`answers`) reads that sentence in place of
-"<stage> started again" ("Closes the PR without merging"), linked to the run as above when
-settling its set started exactly one; with several, which is this answer's is not known, and
-before any has started the sentence still says what the answer starts, so in both it is plain
-`--text-secondary` text in place of "Nothing started". The item page does the same. It joins the item read's `asks_settled` answer to the run whose `cause` names the
-same asking run (engine #5834), so an answer given through the CLI or by an agent shows too.
-With no factory view it reads the engine's items window alone. With nothing open, the main
-column is rule 6's empty state on a panel: a check in a soft success tint, "Nothing needs you",
-when something was last asked, and links to the board (with a factory view) and the runs.
+3. **Needs you:** the newest three open asks and waits, each through Archon's own ask card or a
+   one-line link to where Archon answers it (the run page), never a second ask design (v2
+   direction); then "N more", the items waiting on you with no ask open among the N, so the line
+   and the number agree. Nothing shows when nothing waits.
 4. **The map.**
 
 ## The map
@@ -1163,9 +861,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   never "0 here", never "…"), and the chips fill in on the same cards when it does. If that
   first read fails, an alert above the map says so and the cards stay drawn with no chip, their
   details saying the items could not be read.
-- The arrows are the view file's `map.arrows` and no others: the map does not read the pack
-  graph, so the view file declares every hand-off, between workflows too, and every send-back.
-  Direction comes from card order: an arrow into an earlier card is a send-back, into a later
+- The arrows are the pack graph's (`GET /api/packs/{pack}/graph`): its bindings between
+  workflows and its outcomes (v2 direction). The view file may word an arrow and give it its
+  lane, never add or remove one. Direction comes from card order: an arrow into an earlier card is a send-back, into a later
   one a forward hand-off. Inside one card, an arrow to a later stage of the card is not drawn
   (the rows show that order); one into its own stage or an earlier one of the card is a
   send-back. An arrow's `back` flag is accepted, so an older view file loads, and ignored.
@@ -1177,7 +875,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   them too, under "Where items go from here". The gap between two cards is the pill's width plus 8 px each side,
   at least 48 px. A hand-off that would skip cards has no route of its own: its outcomes join
   the label of the hand-off from its source card to the next, as "<outcome> → <target card>",
-  and where no such hand-off is declared, one is drawn for it.
+  and where the graph has no such hand-off, one is drawn for it.
 - **One feedback lane** under the row carries every send-back, dashed `6 4` in
   `--node-approval` (rule 4). A card has one source leg, near its right edge, and one target leg
   per stage of it something returns to, spread over its left half in its stage order. Each
@@ -1204,9 +902,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   the Overview stays mounted under it, so the page keeps its scroll and the map its pan, zoom
   and open details panel. Focus moves to the close button, stays in the modal, and returns to
   the stage that opened it.
-  Under the stage's label and blurb, "Where items go from here": one chip per arrow the view
-  file declares out of the stage into another, "<label> → <stage>", in its words and order (none
-  when it declares none). Then three tabs, and between the tabs and the open tab one
+  Under the stage's label and blurb, "Where items go from here": one chip per arrow the pack
+  graph has out of the stage into another, "<label> → <stage>", in the view file's words where
+  it gives them (none when the graph has none). Then three tabs, and between the tabs and the open tab one
   notice about the items read, which every tab reads from: a failed first read says why with a
   Retry; a failed refresh says this stage shows the last items read, and why, with a Retry, so
   no tab passes old items off as here now and none glows a step from them; a slow read says it
@@ -1214,48 +912,32 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   - **What this stage does** (first when the view file gives the stage a drill-down), with the
     line "The factory's summary of this stage, from its view file.": numbered phase columns of
     plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
-    and naming the items on a step it covers now. A card is a link: a click opens the step page
-    of the step it stands for (the first its first cover names, when it stands for several),
-    whose back link returns to the stage; it shows a pointer and `.factory-card`'s hover with
-    the step graph's brighter `--text-tertiary` border (owner review of 2026-11-23, #154). A stage without one says it has no summary and that
-    the real workflow shows its steps.
+    and naming the items on a step it covers now. A card opens directly (owner, #154): Archon's
+    own workflow page for the workflow it stands for (`/console/builder/:name`) where that page
+    exists, else it is plain text; it shows a pointer and `.factory-card`'s hover when it links.
+    A stage without one says it has no summary and that the real workflow shows its steps.
   - **Items here now**: the items in the stage that the board does not set aside (owner change 4
     of 2026-11-23), from the same read as the card's chips, each
     linking to its item page with its state (needs you, the run line of the run working it, or
     the board's merged, failed, waiting-on-you label, parked or waiting); rule 6's empty state
     when there are none.
-  - **The real workflow** (first when the stage has no drill-down), with the line "Generated
-    from the pack's workflow files; shows every step.": each workflow's steps drawn as a graph
-    (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed group
-    labelled "up to N rounds"; included workflows as nested groups). It draws each workflow the
-    stage lists that the view has not retired: a retired workflow still places its old runs in
-    the stage, but the pack has no file to draw for it. A step that is running now
-    for any item glows, and above the graph each item running the workflow is named, linking to
-    its item page. Clicking a step opens the step page; a step shows a pointer, and on hover a
-    brighter border, the lifted card depth and the hover surface. The graph's read shows its skeleton,
-    tries once more after a second when the request got no answer at all (a server
-    restarting), and on failure says which workflow could not be read and why, with a Retry
-    button. The server keeps a project's discovered workflows for this graph: younger than 30 s
-    they are served as they are, older they are served once more while a refresh runs. So an
-    edited workflow file shows from the second read made 30 s or more after the last
-    discovery; runs never read this list.
+  - **The real workflow** (first when the stage has no drill-down), with the line "Read from
+    the pack's graph; shows every step.": the steps of each workflow the stage lists, from the
+    pack graph, drawn by the section's one graph renderer (Archon's existing one where it can, v2
+    direction) or as a plain list. A retired workflow still places its old runs in the stage,
+    but the graph has nothing to draw for it. A step that is running now for any item is marked,
+    and each item running the workflow is named, linking to its item page. A step links to
+    Archon's workflow page (`/console/builder/:name`) where one exists, else it is plain text;
+    there is no step page. A failed read says which workflow could not be read and why, with a
+    Retry button.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
-  its blurb, the notes the view file places by it, its shadow steps (below), the items in it
-  (linking to each item), and the workflows behind it that the view has not retired, with links
-  to their steps (each opens the stage on "The real workflow"). A step page's back link opens its stage over the Overview.
-- A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
-  rule 10's badge: on a card of several stages at the start of its row's second line, so the
-  stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
-  says which: its hover, and the stage's details under "Shadow steps", give one line per
-  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Would it start on its own · last 5: would ask you first ×5"), or
-  "nothing decided yet"; before the items are read, "…", and "could not be read" once that
-  read failed.
+  its blurb, the notes the view file places by it, the items in it (linking to each item), and
+  the workflows behind it that the view has not retired (each opens the stage on "The real
+  workflow").
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
   "Merged"), and draws each kind of line as the map does: solid, "Hands the item on"; dashed,
   "Sends it back, labelled where it returns to"; the running dot, "A dot moves along a line
-  while a run works an item there". When a stage holds a shadow step, it shows the badge: "A
-  step that decides what it would do and does nothing; hover it for which and what it
-  decided".
+  while a run works an item there".
 
 ## The board
 
@@ -1282,7 +964,7 @@ first rule that matches. The board, the map and the item page all place through 
    itself, never one wildcard over outcomes that mean different things (#100). A `parked` or
    `awaits` outcome is no ending: rule 3 places it (for this pack, triage's park and shape and
    close's reshape in Triage, in the Intake column; close's not_closed in Ready to merge), and the
-   item counts as open (its item page and Needs you treat it so; the board sets a parked one
+   item counts as open (its item page and the Overview's need-you number treat it so; the board sets a parked one
    aside). Close's `dropped` is the ending "Dropped by you". Close's `not_closed` (the
    forge would not close or draft the PR) is `parked`, not `awaits`: once a person closes or
    drafts it by hand nothing the console reads would see that, so it must not count in Need you
@@ -1300,8 +982,8 @@ title, why it was set aside and when its last run ended. An item is set aside wh
 
 - an ending took it off the board (rule 4): its ending label is the why;
 - otherwise, it is in a stage other than the landed one, its progress was read, and every run
-  of it has ended (none running, pending or paused), it has no open ask, it does not wait on you (an `awaits` outcome: Needs you counts
-  it, so the board shows it), and no start is queued or held for it; and then either
+  of it has ended (none running, pending or paused), it has no open ask, it does not wait on you (an `awaits` outcome: the Overview's
+  need-you number counts it, so the board shows it), and no start is queued or held for it; and then either
   - its last run ended in a declared `parked` outcome: its `parked` label is the why, the run's
     reason on hover; or
   - its last run ended strictly more than 3 days ago and it never proposed a change, or its
@@ -1330,9 +1012,11 @@ or fixed positioned, the board keeps its fill height and the page scrolls to rea
 md the board area is exactly the fill height (never under the Pipeline's floor with the
 toolbar and the line), so a short window grows the page instead of running the board under the
 opened strips. Switching Pipeline and Table leaves them open or closed as they were. `?show=found`
-opens them and scrolls their line into view once, on arrival, so both names, the shadow badge
-(rule 10) and the toggle sit above the findings: a view switch or a toggle afterwards does not
-move the page. A strip with nothing to say is left out; with neither, there is no line.
+opens them and scrolls their line into view once, on arrival, so both names and the toggle sit
+above the findings: a view switch or a toggle afterwards does not
+move the page. A strip with nothing to say is left out; with neither, there is no line. Both strips stay only
+while their data is generic (discoveries as items or links, set aside from outcomes the view
+names; v2 direction).
 
 A card, in this order:
 
@@ -1341,18 +1025,13 @@ A card, in this order:
    **Parked** (its last run kept it open for later: a declared `parked` outcome; it shows in a
    column only while a start waits for it, else it is set aside),
    **Waiting** (queued or idle between stages), **Merged**.
-2. Title (from the declared run input's title line: the first non-empty line after any `---`
-   front matter, without a leading `#<n> ` or heading marker; else the key), at most 3 lines;
-   2 on a card showing an ask's face (rule 7).
+2. Title (from the item record or the forge, never read out of a run input's markdown; else the
+   key), at most 3 lines; 2 on a card showing an ask's face (rule 7).
 3. The stage line, so a card names its stage inside a column that groups several. While a run
    works it: its stage, the running step's name and the round when the step is of the declared
    rounds loop, "Checks · Code review · round 2", linking to the run in the console
    (`/console/p/:projectId/r/:runId`); the step's engine id shows on hover. Otherwise the label
-   of the stage it waits in ("Plan", "CI and review"). Under it, on an item no run works, the
-   shadow line (rule 10): the badge and what the newest decision of a verdict shadow its stage's
-   workflows declare would do ("would ask you first"), its why on hover. For this pack it shows
-   in Triage on an item whose triage run failed after admit decided, from that decision (#80);
-   Ready to merge has none, since the land gate acts.
+   of the stage it waits in ("Plan", "CI and review").
 4. "part of <order>" when the item is a member of a work order (see Work orders).
 5. "round N of M" when a declared rounds source has a round on the item: the latest iteration
    of the deliver loop, or, on the three-stage delivery, the newest `stage-check` run's round
@@ -1374,13 +1053,13 @@ A card, in this order:
    stopped"), never the workflow id. The item page's story says the same sentence. For one waiting on you with
    no ask open: the first question its run recorded, cut to its line, and "N questions" when it
    recorded several (as the ask face does), else its reason. For one that needs you, the approval
-   card's face (owner change 3), from the project's attention queue Needs you reads
-   (`itemAsks`): on one line the ping, the first one's question cut to that line and "N
-   questions" when it holds several; then the line Needs you shows for it ("Recommended:
-   <label>"). Until that queue is read, one
+   card's face (owner change 3), from the project's attention queue (`itemAsks`): on one line
+   the ping, the first one's question cut to that line and "N questions" when it holds several;
+   then "Recommended: <label>" when the ask's declared recommendation names an option (data,
+   never parsed from the ask's text). Until that queue is read, one
    line saying what it asks. The face opens the item's asks in a popover over the board, 480 px
-   beside the card from md up and a sheet from the bottom under md: the ask cards Needs you
-   draws, answered in place, with an empty slot under them for a later preview of the change.
+   beside the card from md up and a sheet from the bottom under md: Archon's own ask card for
+   each, as on dev, answered in place, with an empty slot under them for a later preview of the change.
    Esc or a press outside closes it; focus returns to the card unless the press landed on
    another control. Answering one of several keeps it open on the rest; answering the last
    closes it, and the card reads "Answered: <label>", then "Answered · <stage> started again"
@@ -1443,7 +1122,9 @@ When an item changes column, the card moves there within 5 s; a brief highlight 
 ## The item page
 
 A document page (owner change 5 of 2026-11-21) that tells the story of one item (owner change
-8): a header band and the journey strip across the full width, then the story in the main
+8). It is the item's ONE history (v2 direction): the story panels, the rounds grid inside its
+Checks panel and the asks where they happened are one account, and no other page keeps a second
+history of the item. It has a header band and the journey strip across the full width, then the story in the main
 column and the item's records in the aside. At 390 px the strip scrolls sideways and the
 panels stack. Everything on it is derived in `factory/lib/` from the item read and the view
 declaration: where the item went (`item-visits.ts`), the strip (`item-journey.ts`), the panels
@@ -1469,7 +1150,7 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   while the ask is open). An item that was parked, waits on you, ended, failed or held ends where
   it stopped, saying so ("Stopped here: Parked by triage", "Stopped here: Needs shaping"), and its time ends with its last run.
   Held, as the page can see it: its last stage run asked, every ask is settled, none is open,
-  settling them started no run (the "Nothing started" Needs you shows), and no start waits for
+  settling them started no run, and no start waits for
   one either (none queued for a slot, none kept back by the install hold). The answer's route
   is not on the item read, so it reads what is known: "Nothing started after your answer". The
   band says the same ("Nothing started after your answer, in Build."). A merged change wins:
@@ -1521,7 +1202,7 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   `approves`, `verdicts`), named as the view names it, in the order the view's `steps` lists
   them; the builder's fixes (a loop's fix step, or a folded build run), in the column of the
   round they answered; the next check stage's runs (CI and the reviews), stacked in the last
-  round's column; and each shadow step's decision as a shadow row (rule 10). Each cell is an
+  round's column. Each cell is an
   icon and a word in its colour: "Sent back" in the send-back colour, "Approved" in success,
   "Asked you" in needs-you, "Fixed" neutral, "Not run" tertiary with a dash; an outcome the
   view does not word stays the pack's token in mono; the step's id and what it said are the
@@ -1538,17 +1219,15 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   question, "You said <option>" with the option's id as a tag and its own words, who answered
   and when, and what that started ("Build started again", the stage of the run whose cause
   names the settled asks, else "Nothing started"; the view's `answers` sentence for the option
-  when it words one, as "Leaves the PR as a draft until the item is shaped"). An open ask is the ask card Needs you
-  draws, answerable in place, in its run's panel; one no panel holds waits on a "Waiting on
+  when it words one, as "Leaves the PR as a draft until the item is shaped"). An open ask is
+  Archon's own ask card, as on dev, answerable in place, in its run's panel; one no panel holds waits on a "Waiting on
   you" panel at the top of the story, which also shows a skeleton while the asks are read. An
   item waiting on you with no ask open (its pill is an `awaits` label) opens its story with a
   panel of its own in the needs-you colour, without the ping: the label as its heading, the
   reason its run gave, the view's `next` sentence under "What to do", and "Questions to
   settle", one per row.
-- **Shadows** sit in the panel of the stage their step is on, in the shadow style (rule 10),
-  quieter than the real steps; a round's project checks are the grid's shadow row. A run of the
-  `discoveries` drain, on no stage, is a quiet panel of its own, "Found by the factory", in
-  start order.
+- A run of the `discoveries` drain, on no stage, is a quiet panel of its own, "Found by the
+  factory", in start order (only while discoveries come from generic data, v2 direction).
 - **Merged:** the Merged stage's panel gives when the change merged; when no run of that stage
   tells it (a person merged it), a last panel says only "The change merged <time>", never that
   the factory merged it. Only the view's sentence for a landing run says the factory did.
@@ -1562,6 +1241,12 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
 
 ## Testing
 
+- Tests assert behaviour a person sees and can do: where an item is placed, what a count says,
+  what a link opens, that an answer is sent. No test asserts a CSS class, a colour, a token, a
+  size or an exact sentence of copy; the Visual standard is checked in the browser, not pinned by
+  tests (v2 direction).
+- Test lines stay at most half of source lines across what the console adds. A fixture is kept
+  only while a test reads it, and is the smallest slice of a real run that shows the case.
 - Pure derivation (placement, card fields, map live chips, declaration parsing) has unit tests
   with `bun test`, with fixtures copied from real runs of the live factory.
 - Each route has a server test in the existing harness style.
@@ -1580,4 +1265,5 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
 3. **Pool of machines** (Rasmus's idea): one console observing several Archon daemons.
 4. **Manager:** a Claude Code session with the factory skill as the operator, local or over SSH;
    the console stays the observation pane.
-5. **Upstream:** propose the declaration format and this section to Archon dev with Rasmus.
+5. **Upstream:** a slim pull request to Archon dev (v2 direction), and the view file moved into
+   the owner's own copy of the pack, read from there.
