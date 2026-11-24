@@ -22,7 +22,8 @@ interface Later {
  * The map's items: the board's copy (`PAGE`) read again later on 2026-11-17, when #6 had
  * started deliver, #5 and #4 had each ended a deliver run on an ask and started another,
  * and #8's deliver had ended ready and merged. #3 and #7 had not moved; #1 and #2 are not on
- * the map's read.
+ * the map's read. Its rounds read as the API reads them now: that read's retired `ended`
+ * verdict is `approved` where the round approved and `undecided` where it asked.
  */
 const LATER: Record<string, Later | null> = {
   '6': {
@@ -194,7 +195,7 @@ function readLater(item: FactoryItem, later: Later | null): FactoryItem {
 const seeded = Object.entries(LATER).map(([key, later]) => {
   const item = PAGE.items.find(entry => entry.item.key === key);
   if (item === undefined) throw new Error(`the board's copy has no item ${key}`);
-  return readLater(item, later);
+  return readLater(structuredClone(item), later);
 });
 
 /** A real item from the seeded console home, by its key. */

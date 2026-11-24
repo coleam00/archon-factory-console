@@ -35,7 +35,8 @@ const item6 = onlyRun('6', '585ed621-5f63-4148-bb95-92cfb4c7f52a', {
 
 /**
  * #12 is not in the copy: it is #6 renamed, its one deliver run started by another run's end,
- * as item 12 was on 2026-11-17.
+ * as item 12 was on 2026-11-17. That run (5da88866) is in no capture, so the arrow id is
+ * assumed to be plan's, as every other deliver run's here.
  */
 const item12: FactoryItem = {
   ...item6,
