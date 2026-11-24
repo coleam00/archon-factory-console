@@ -49,21 +49,6 @@ async function* windowPages(
   } while (after !== null);
 }
 
-/**
- * Every item of a project as the engine reads it, with no factory view: the window alone,
- * never the factory progress read (which answers 404 where no view applies). Needs you reads
- * it for its Answered lately on such a project. Newest activity first, ties by item id.
- */
-export async function readEveryItem(
-  codebaseId: string,
-  listWindow: FactoryItemsReads['listWindow'],
-  within: WithinDeadline
-): Promise<ItemRead[]> {
-  const items: ItemRead[] = [];
-  for await (const page of windowPages(codebaseId, listWindow, within)) items.push(...page);
-  return items.sort((a, b) => activityOf(b) - activityOf(a) || a.item.id.localeCompare(b.item.id));
-}
-
 /** What `FK.factoryItems(projectId)` holds for every Factory page. */
 export interface FactoryItemsRead {
   /** Every item with a run, newest activity first, ties by item id. */

@@ -35,7 +35,6 @@ describe('the canvas identity', () => {
       '--card-glow',
       '--card-tint',
       '--canvas-texture',
-      '--running-fill',
       '--running-border',
       '--running-ring',
     ])

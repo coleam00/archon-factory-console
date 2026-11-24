@@ -321,7 +321,7 @@ live in two files: `packages/web/src/index.css` (`@theme inline`: `--text-consol
 status colours, `--node-script`, `--node-cancel`, `--node-opaque`); the canvases' identity is
 the factory's own, in `factory/factory.css` (ConsoleApp imports it after theme.css):
 `--tone-intake`, `--card-depth`, `--card-depth-hover`, `--canvas-texture`, the running mark
-(`--running-fill`, `--running-border`, `--running-ring`), and on `.factory-card`
+(`--running-border`, `--running-ring`), and on `.factory-card`
 `--card-glow` and `--card-tint`). Where no token exists yet, a
 rule names the Tailwind utility or the value instead; the list closing this section names those
 gaps.

@@ -58,7 +58,7 @@ function lastRunEnd(item: PlacedCard['item']): string | null {
  * Whether something is still to happen to an item in a stage: it sits in the landed stage,
  * its progress could not be read (so the console cannot tell), a run of it has not ended
  * (running, pending or paused: placement counts only a running one), it needs you, it waits
- * on a person with no ask open (`awaits`: Needs you counts it, so the board shows it), or a
+ * on a person with no ask open (`awaits`: the needs-you count holds it, so the board shows it), or a
  * start waits for it (queued, or held behind a project hold).
  */
 function live(view: FactoryDeclaration, { item, card, column }: PlacedCard): boolean {
@@ -91,7 +91,7 @@ function idle(placed: PlacedCard, since: string | null, now: Date): SetAsideReas
 /**
  * Whether the board sets `placed` aside, first that holds; null when it stays in its column.
  * An item an ending took off the board (`{ ended }`) is set aside whatever else holds: it has
- * no column to go back to (an open ask on it still shows in Needs you). One placement found no
+ * no column to go back to (an open ask on it still shows on the Overview). One placement found no
  * column for is not: it keeps its own "Position unknown" row. Otherwise a live item
  * (`live`) never is; a parked one is; an idle one is by the idle rule.
  */

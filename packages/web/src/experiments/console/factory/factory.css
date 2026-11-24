@@ -51,10 +51,8 @@
     inset 0 0 0 1px oklch(1 0 0 / 0.07), 0 1px 0 0 oklch(0 0 0 / 0.4),
     0 10px 24px -6px oklch(0 0 0 / 0.65);
 
-  /* The running mark, held still (the items read carries no owner liveness): one look for every
-     place that shows items on a step, the step graph (StepGraph's RUNNING_GLOW), the drill-down's
-     loop pill and its cards (.factory-card[data-running]). */
-  --running-fill: color-mix(in oklch, var(--running), transparent 90%);
+  /* The running mark, held still (the items read carries no owner liveness): a stage
+     drill-down's card with items on its steps (.factory-card[data-running]). */
   --running-border: color-mix(in oklch, var(--running), transparent 40%);
   --running-ring: 0 0 0 3px color-mix(in oklch, var(--running), transparent 85%);
 
@@ -102,31 +100,16 @@
   border-color: var(--border-bright);
 }
 
-/* A card that is a link (a stage drill-down's, which opens its step page) hovers as a step of
-   the step graph does, with the brighter border, so it reads as the link it is. */
-.console-root .factory-card[data-link]:hover {
-  border-color: var(--text-tertiary);
-}
-
 .console-root .factory-card[data-lit] {
   --card-light: var(--card-glow);
 }
 
-/* A stage drill-down card with items on its steps wears the step graph's running border and
-   ring; its tint stays its kind's colour, under its bar. Held against hover, as the inline
+/* A stage drill-down card with items on its steps wears the running border and ring; its tint stays its kind's colour, under its bar. Held against hover, as the inline
    style it replaces was. */
 .console-root .factory-card[data-running],
 .console-root .factory-card[data-running]:not([data-static]):hover {
   --card-light: var(--running-ring);
   border-color: var(--running-border);
-}
-
-/* A step of the step graph, hovered: a brighter border and the card's lifted depth, so it reads
-   as the link it is. A rule, not a `hover:border-*` utility, which the root's border colour
-   outranks. A running step's inline glow keeps its own border and ring. */
-.console-root [data-step-node]:hover {
-  border-color: var(--text-tertiary);
-  box-shadow: var(--card-depth-hover);
 }
 
 /* A selected card: a muted accent ring, never an accent border (owner change 1). On the

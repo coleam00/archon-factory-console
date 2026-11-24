@@ -427,7 +427,7 @@ const CHIP_PILLS: readonly ChipPill[] = ['running', 'needs-you', 'failed', 'park
 /**
  * A column header's state chips: how many of its cards run, need you, failed, are parked or wait, in
  * that order, each only while above 0. A card waiting on you with no ask (`awaits`) counts in
- * the needs-you chip, as Needs you counts it. Merged cards get none: the count says it.
+ * the needs-you chip, as the Overview's need-you number counts it. Merged cards get none: the count says it.
  */
 export function columnChips(cards: readonly PlacedCard[]): { pill: ChipPill; count: number }[] {
   const chipOf = (pill: Pill): Pill => (waitsOnYou(pill) ? 'needs-you' : pill);

@@ -2,7 +2,7 @@ import { expect, mock, test } from 'bun:test';
 import type { FactoryItem } from '../api';
 import type { ItemWindow } from '../api';
 import { deadlineOf, FACTORY_READ_DEADLINE_MS } from './deadline';
-import { readEveryFactoryItem, readEveryItem, type FactoryItemsReads } from './factory-items-read';
+import { readEveryFactoryItem, type FactoryItemsReads } from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
@@ -145,16 +145,4 @@ test('orders the window lacks are read after the walk, together, never one reque
   expect(read.members['48']).toEqual(['49', '50', '51']);
   // An order with no item row is absent from the members map.
   expect('60' in read.members).toBe(false);
-});
-
-test('with no factory view it walks the window alone, never the progress read, newest first', async () => {
-  const [first, second] = captured;
-  const older = at(first!, 'old', '2026-11-10T00:00:00.000Z');
-  const newer = at(second!, 'new', '2026-11-12T00:00:00.000Z');
-  const { deps, windowCalls, progressCalls } = reads([page([older], 'c1'), page([newer], null)]);
-  const items = await readEveryItem('cb-1', deps.listWindow, within);
-  expect(items.map(item => item.item.key)).toEqual(['new', 'old']);
-  expect(items[0]).not.toHaveProperty('progress');
-  expect(windowCalls).toHaveLength(2);
-  expect(progressCalls).toEqual([]);
 });
