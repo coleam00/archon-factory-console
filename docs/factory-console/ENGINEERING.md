@@ -81,6 +81,15 @@ On top of that, anything a person sees is checked in a browser (DESIGN.md, Testi
 request says what was seen, at which size, with which data. A screenshot path is welcome; a claim
 of "works" without having looked is not.
 
+## Stay on the run's branch
+
+Each stage runs in a worktree the engine created on its own branch (`archon/task-...`). The next
+stage reuses that checkout and refuses to start when the worktree sits on any other branch, so the
+item silently stops. Never `git checkout`, `git switch` or `git checkout -b` another branch in the
+worktree, and never rename it. To push the change under another name, push the run's branch to
+it (`git push origin HEAD:<name>`) and stay where you are. (2026-11-24: two check rounds never
+started because builders left their worktrees on `pr176` and `factory-console/console-matches-dev`.)
+
 ## Windows
 
 This machine is Windows. Use Git Bash syntax in bash steps; paths with forward slashes. Bun is
