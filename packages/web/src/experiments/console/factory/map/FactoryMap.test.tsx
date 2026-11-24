@@ -1,4 +1,4 @@
-import { afterAll, afterEach, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, expect, setSystemTime, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
@@ -9,6 +9,7 @@ import { K } from '../../store/keys';
 import type { FactoryItem } from '../../skills/factory';
 import { shippedListed } from '../item-detail.test-fixtures';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
+import { FIXTURE_NOW } from '../lib/board.test-fixtures';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { FIT_PAD, MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
@@ -28,6 +29,15 @@ for (const [key, value] of Object.entries(globals)) {
   Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 }
 const { createRoot } = await import('react-dom/client');
+
+// The map sets aside items as the board does, idle ones by the clock: read the fixtures at the
+// time they were copied, never at the day the test runs.
+beforeAll(() => {
+  setSystemTime(FIXTURE_NOW);
+});
+afterAll(() => {
+  setSystemTime();
+});
 
 afterAll(async () => {
   await dom.happyDOM.close();

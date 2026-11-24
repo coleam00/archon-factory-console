@@ -106,6 +106,7 @@ function LiveStage({
   const items = useFactoryItems(projectId);
   const live = useStageLive(
     view,
+    projectId,
     items.data,
     readFailed(items.error) === undefined ? 'loading' : 'failed',
     attention.data?.items
