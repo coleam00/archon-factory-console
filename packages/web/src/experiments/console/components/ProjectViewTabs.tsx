@@ -27,10 +27,10 @@ const FACTORY_TAB = { key: 'factory', label: 'Factory', suffix: '/factory' } as 
  * view applies to the project. Needs you carries how many things need a person (`needsYouCount`:
  * the asks and waits, and on a factory project the items waiting on you), in the needs-you
  * colour, while above zero. Each tab is a `TabLink` (brand-bar underline on the active one),
- * on one row, which scrolls sideways on a phone rather than wrap (no scrollbar drawn; the
- * bottom padding holds the active tab's brand bar, which a scrolling row would clip). Only
- * meaningful when a project is scoped, so it is rendered only under `ProjectAttentionLayout`, never on the
- * All-projects view.
+ * on one row, which scrolls sideways on a phone rather than wrap and keeps the active tab in
+ * view (no scrollbar drawn; the bottom padding holds the active tab's brand bar, which a
+ * scrolling row would clip). Only meaningful when a project is scoped, so it is rendered only
+ * under `ProjectAttentionLayout`, never on the All-projects view.
  */
 export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): ReactElement {
   const { data: factoryViews } = useFactoryViews(projectId);
@@ -38,21 +38,30 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
   const factory = factoryTabShown(factoryViews);
   const tabs = factory ? [...TABS, FACTORY_TAB] : TABS;
   const row = useRef<HTMLDivElement>(null);
-  // Bring the active tab into view, on the tab count too: Factory, last, joins once the views
-  // are read. Again once the web font has loaded, which widens every tab after a first paint.
-  // The row scrolls itself; scrollIntoView would scroll the page as well.
+  // Bring the active tab into view, and again whenever its place changes: the row's width (a
+  // phone turned), or the tab's left edge or width (the web font arriving, the Needs-you badge
+  // widening a tab before it). A change after it does not move it, so a person's own scroll is
+  // never undone. Re-run on the tab count to observe a tab that joins late (Factory). The row
+  // scrolls itself; scrollIntoView would scroll the page as well.
   useEffect(() => {
+    const el = row.current;
+    if (el === null) return;
+    let seen = '';
     const reveal = (): void => {
-      const tab = row.current?.querySelector<HTMLElement>('[aria-current="page"]');
-      if (row.current == null || tab == null) return;
-      const { scrollLeft, clientWidth } = row.current;
-      if (tab.offsetLeft < scrollLeft) row.current.scrollLeft = tab.offsetLeft;
-      else if (tab.offsetLeft + tab.offsetWidth > scrollLeft + clientWidth)
-        row.current.scrollLeft = tab.offsetLeft + tab.offsetWidth - clientWidth;
+      const tab = el.querySelector<HTMLElement>('[aria-current="page"]');
+      const place = [el.clientWidth, tab?.offsetLeft, tab?.offsetWidth].join(' ');
+      if (tab === null || place === seen) return;
+      seen = place;
+      if (tab.offsetLeft < el.scrollLeft) el.scrollLeft = tab.offsetLeft;
+      else if (tab.offsetLeft + tab.offsetWidth > el.scrollLeft + el.clientWidth)
+        el.scrollLeft = tab.offsetLeft + tab.offsetWidth - el.clientWidth;
     };
     reveal();
-    // happy-dom has no font loading.
-    void document.fonts?.ready.then(reveal);
+    // A test DOM has no ResizeObserver; there the reveal runs on mount alone.
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(reveal);
+    for (const watched of [el, ...el.children]) observer.observe(watched);
+    return (): void => observer.disconnect();
   }, [active, tabs.length]);
   return (
     <div
