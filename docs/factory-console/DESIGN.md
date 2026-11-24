@@ -850,9 +850,12 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 3. **Needs you:** at most three compact rows (#180), one per board item that asked last: its key
    and title, its stage and how long its newest ask has waited, the question in one line and the
    recommended option, drawn with the board card's own ask pieces. A row opens Archon's own ask
-   section for the item as the board card does (beside it from md up, a sheet from the bottom
-   under md), answered there, never a second ask design (v2 direction). Then "N more on the
-   board" (the board's `?show=needs-you`): what waits and is not in a row, asks on items off the
+   section for the item as the board card does, answered there: from md up a box over the page,
+   beside the row where the window has room for it and otherwise at the window's left edge, over
+   the left of the rows (a row is as wide as the text measure, so at 1440 it does not fit
+   beside one); under md a sheet from the bottom. The title takes its own line under md, so a
+   work order's long key never squeezes it out. Never a second ask design (v2 direction). Then
+   "N more on the board" (the board's `?show=needs-you`): what waits and is not in a row, asks on items off the
    board and the items waiting on you with no ask open among them, so the rows and N add up to
    the Need you number. Nothing shows when nothing waits, and the map follows right after.
 4. **The map.**

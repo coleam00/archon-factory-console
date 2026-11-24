@@ -162,11 +162,16 @@ function NeedsYouRow({
       }}
       className="flex w-full min-w-0 flex-col items-start gap-2 rounded-console-12 border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 ease-out hover:border-border-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <span className="flex w-full min-w-0 items-baseline gap-2 text-console-13">
-        <span className="shrink-0 font-mono text-text-secondary">
+      {/* Under md the title takes a line of its own, so a work order's long key never squeezes
+          it out; from md up key, title, stage and age share one line. */}
+      <span className="flex w-full min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-console-13 md:flex-nowrap">
+        <span className="min-w-0 truncate font-mono text-text-secondary md:shrink-0">
           {displayItemKey(item.item.key, card.order)}
         </span>
-        <span title={card.title} className="min-w-0 truncate font-medium text-text-primary">
+        <span
+          title={card.title}
+          className="min-w-0 basis-full truncate font-medium text-text-primary max-md:order-last md:basis-auto"
+        >
           {card.title}
         </span>
         {where.length === 0 ? null : (

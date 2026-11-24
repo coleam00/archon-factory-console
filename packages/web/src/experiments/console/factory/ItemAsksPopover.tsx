@@ -118,8 +118,8 @@ export interface AskedItem {
 /**
  * The ask view over the board (owner change 3), and over the Overview from its Needs you rows:
  * the item's asks as Archon's own ask section draws them (`ItemAsksBody`), answered in place.
- * From md up it sits beside the card or row that opened it; under md it is a sheet from the
- * bottom. Nothing when none is open or the item has left the board.
+ * From md up it sits beside the card or row that opened it, or at the window's left edge when
+ * there is no room beside it (`popoverPlace`); under md it is a sheet from the bottom. Nothing when none is open or the item has left the board.
  */
 export function ItemAsksPopover({
   projectId,
