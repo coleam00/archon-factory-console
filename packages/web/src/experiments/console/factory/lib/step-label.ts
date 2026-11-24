@@ -3,7 +3,7 @@
  * Every page that shows a step prints it through `stepLabel`; the raw engine id stays in
  * routes, keys and `title` attributes, and on the step page as the id tag beside its name.
  */
-import { stageOfStep, stageOfWorkflow } from './placement';
+import { stageOfStep, stageOfWorkflow, type PlacementRun } from './placement';
 import { stepInStage, type FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
 
@@ -121,4 +121,20 @@ export function runLine(
     ...(of === null ? [] : [`round ${of.toString()}`]),
   ];
   return { parts, text: parts.join(' · ') };
+}
+
+/**
+ * What stopped a run, its stage named by `label`, never its workflow (a run's workflow is the
+ * pack's full id, which a person does not read): "Build failed at Writes the change", "Build
+ * failed", or "Build was stopped". The board's stop line and the item's story both say it.
+ */
+export function stoppedLine(
+  view: Declaration,
+  run: Pick<PlacementRun, 'workflow' | 'status' | 'failedStep'>,
+  label: string
+): string {
+  if (run.status === 'cancelled') return `${label} was stopped`;
+  return run.workflow === null || run.failedStep === null
+    ? `${label} failed`
+    : `${label} failed at ${stepLabel(view, run.workflow, run.failedStep)}`;
 }

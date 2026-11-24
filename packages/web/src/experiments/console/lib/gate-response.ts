@@ -8,7 +8,7 @@ import * as skill from '../skills';
 import { invalidate } from '../store/cache';
 
 /** One decision a gate offers. */
-export interface GateChoice {
+interface GateChoice {
   id: string;
   label: string;
   /** `approve` takes an optional comment; every other decision requires its reason. */
@@ -16,7 +16,7 @@ export interface GateChoice {
 }
 
 /** A decision's words: its authored label, else its id capitalised. */
-export function decisionLabel(id: string, label: string | undefined): string {
+function decisionLabel(id: string, label: string | undefined): string {
   if (label !== undefined && label.length > 0) return label;
   return id.charAt(0).toUpperCase() + id.slice(1);
 }

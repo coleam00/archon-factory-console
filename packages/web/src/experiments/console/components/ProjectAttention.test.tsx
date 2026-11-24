@@ -99,7 +99,7 @@ test('a project keeps one attention stream across its pages and closes it on lea
   // The frame drew under a view, so the page reads the section's queue.
   expect(container.textContent).toContain(shippedListed.declaration.title);
 
-  for (const rest of ['/board', '/items/39', '/stages/plan', '/steps/plan/plan', '']) {
+  for (const rest of ['/board', '/items/39', '/steps/plan/plan', '']) {
     await act(async () => navigate?.(`/console/p/${ID}/factory${rest}`));
     await settle();
     expect(container.textContent).toContain(shippedListed.declaration.title);

@@ -21,7 +21,7 @@ import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
  * `owner/name` for an installed pack; a scope that could not be listed names its root
  * instead. `path` is the file's absolute path, or `bundled:<pack>/<file>` inside a binary.
  */
-export type PackDeclarationRead =
+type PackDeclarationRead =
   | { pack: string; source: WorkflowSource; path: string; content: string }
   | { pack: string; source: WorkflowSource; path: string; error: string };
 

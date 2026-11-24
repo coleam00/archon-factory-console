@@ -55,7 +55,7 @@ describe("a step's tag opening another stage", () => {
     });
   });
 
-  test('from the stage page it pushes the modal, as a map link does', () => {
+  test('from outside a modal it pushes the modal, as a map link does', () => {
     expect(stageSwitchLink('p1', 'checks', { search: '', state: null })).toEqual({
       to,
       replace: false,

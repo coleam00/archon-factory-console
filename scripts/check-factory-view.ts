@@ -165,7 +165,7 @@ function checkOne(
   return { findings, unlisted: unlistedWorkflows(parsed.data, graph) };
 }
 
-export interface CheckInput {
+interface CheckInput {
   /** The directory holding the view files and their snapshots. */
   packsDir: string;
   /** The named home's `plugins/`, or undefined to check against the snapshots only. */
@@ -174,7 +174,7 @@ export interface CheckInput {
 }
 
 /** What the check prints, `out` on stdout and `err` on stderr, and its exit code. */
-export interface CheckReport {
+interface CheckReport {
   code: 0 | 1;
   out: string[];
   err: string[];

@@ -695,7 +695,36 @@ function RunsHeader({
               demo mocks on
             </span>
           ) : null}
-          <RunsSearch query={query} onQueryChange={onQueryChange} searchRef={searchRef} />
+          <div
+            className="flex h-9.5 w-75 max-w-[34vw] shrink-0 items-center gap-2 rounded-lg border bg-surface-elevated px-3 text-text-tertiary transition-colors focus-within:text-text-secondary"
+            // Inline because the console scope's wildcard border-color rule
+            // repaints Tailwind border utilities (see theme.css).
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <span aria-hidden className="font-mono text-console-13 leading-none">
+              ⌕
+            </span>
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={e => {
+                onQueryChange(e.target.value);
+              }}
+              onKeyDown={e => {
+                // Esc unfocuses + clears so `/` → type → esc returns control
+                // to the global keymap without trapping the user in the box.
+                if (e.key === 'Escape') {
+                  e.currentTarget.blur();
+                  onQueryChange('');
+                }
+              }}
+              aria-label="Search runs"
+              placeholder="Search workflow, project, run id…"
+              spellCheck={false}
+              className="min-w-0 flex-1 bg-transparent font-mono text-console-13 text-text-primary outline-none placeholder:text-text-tertiary"
+            />
+          </div>
         </div>
       }
     >
@@ -707,45 +736,6 @@ function RunsHeader({
         <ProjectViewTabs projectId={scope} active="runs" />
       )}
     </ProjectHeader>
-  );
-}
-
-function RunsSearch({
-  query,
-  onQueryChange,
-  searchRef,
-}: Pick<RunsHeaderProps, 'query' | 'onQueryChange' | 'searchRef'>): ReactElement {
-  return (
-    <div
-      className="flex h-9.5 w-75 max-w-[34vw] shrink-0 items-center gap-2 rounded-lg border bg-surface-elevated px-3 text-text-tertiary transition-colors focus-within:text-text-secondary"
-      // Inline because the console scope's wildcard border-color rule
-      // repaints Tailwind border utilities (see theme.css).
-      style={{ borderColor: 'var(--border)' }}
-    >
-      <span aria-hidden className="font-mono text-console-13 leading-none">
-        ⌕
-      </span>
-      <input
-        ref={searchRef}
-        type="text"
-        value={query}
-        onChange={e => {
-          onQueryChange(e.target.value);
-        }}
-        onKeyDown={e => {
-          // Esc unfocuses + clears so `/` → type → esc returns control
-          // to the global keymap without trapping the user in the box.
-          if (e.key === 'Escape') {
-            e.currentTarget.blur();
-            onQueryChange('');
-          }
-        }}
-        aria-label="Search runs"
-        placeholder="Search workflow, project, run id…"
-        spellCheck={false}
-        className="min-w-0 flex-1 bg-transparent font-mono text-console-13 text-text-primary outline-none placeholder:text-text-tertiary"
-      />
-    </div>
   );
 }
 

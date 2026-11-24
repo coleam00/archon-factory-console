@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
+import { useProjectAttention } from '../components/ProjectAttention';
 import { needsYouCount } from '../lib/needs-you';
 import { FactoryFrame } from './FactoryFrame';
 import { FactoryNumbers } from './FactoryNumbers';
@@ -12,10 +13,11 @@ export function FactoryPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   // The items the numbers and the map read already: Need you counts those waiting on you too.
   const items = useFactoryItems(projectId);
+  const attention = useProjectAttention();
   return (
     // Wide: the map takes the page's whole width; the text above it keeps its own measure.
     <FactoryFrame section="overview" wide>
-      {(view, attention) => (
+      {view => (
         <>
           <FactoryNumbers
             projectId={projectId}
@@ -26,8 +28,8 @@ export function FactoryPage(): ReactElement {
                 : needsYouCount(attention.data, items.data)
             }
           />
-          <OverviewAsks projectId={projectId} view={view} attention={attention} />
-          <FactoryMap projectId={projectId} view={view} attention={attention} />
+          <OverviewAsks projectId={projectId} view={view} />
+          <FactoryMap projectId={projectId} view={view} />
         </>
       )}
     </FactoryFrame>

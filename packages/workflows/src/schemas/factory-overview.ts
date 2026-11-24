@@ -33,7 +33,6 @@ export const factoryOverviewKindSchema = z.enum([
   'gate',
   'outcome',
 ]);
-export type FactoryOverviewKind = z.infer<typeof factoryOverviewKindSchema>;
 
 /** The icons a card may show; a console maps each one, so the set is closed. */
 export const factoryOverviewIconSchema = z.enum([
@@ -55,10 +54,8 @@ export const factoryOverviewIconSchema = z.enum([
   'flag',
   'rotate',
 ]);
-export type FactoryOverviewIcon = z.infer<typeof factoryOverviewIconSchema>;
 
-export const factoryOverviewEdgeKindSchema = z.enum(['feeds', 'calls', 'loops-back']);
-export type FactoryOverviewEdgeKind = z.infer<typeof factoryOverviewEdgeKindSchema>;
+const factoryOverviewEdgeKindSchema = z.enum(['feeds', 'calls', 'loops-back']);
 
 const cardSchema = z.strictObject({
   /** Unique across the whole file, so a card names one place. */
@@ -103,7 +100,6 @@ const viewSchema = z.strictObject({
   cards: z.array(cardSchema).min(1),
   edges: z.array(edgeSchema),
 });
-export type FactoryOverviewView = z.infer<typeof viewSchema>;
 
 /** How one pack setting is presented: as a shadow, and what its value points to. */
 const factoryOverviewSettingSchema = z.strictObject({
@@ -303,7 +299,7 @@ export const factoryOverviewSchema = factoryOverviewShape.superRefine((overview,
 });
 export type FactoryOverview = z.infer<typeof factoryOverviewSchema>;
 
-export const factoryOverviewsListingSchema = z.object({
+const factoryOverviewsListingSchema = z.object({
   overviews: z.array(
     z.object({
       /** The overview's pack: `owner/name` when installed, else its folder name. */

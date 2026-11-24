@@ -26,7 +26,7 @@ function openers(overview: OverviewDeclaration): Map<string, { view: string; car
 }
 
 /** A view's name: the overview's title for the root, else the title of the card that opens it. */
-export function viewLabel(overview: OverviewDeclaration, viewId: string): string {
+function viewLabel(overview: OverviewDeclaration, viewId: string): string {
   if (viewId === overview.root) return overview.title;
   return openers(overview).get(viewId)?.card.title ?? viewId;
 }

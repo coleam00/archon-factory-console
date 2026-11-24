@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { WHEN_OPERATORS } from '../when-atom';
 
 /** What a step does, in the words the console shows: an agent, a shell command, a script... */
-export const factoryStepKindSchema = z.enum([
+const factoryStepKindSchema = z.enum([
   'agent',
   'bash',
   'script',
@@ -25,7 +25,7 @@ export type FactoryStepKind = z.infer<typeof factoryStepKindSchema>;
  * (`rounds.verdict__verdict`, the loop id `rounds`), so a console can print it by the name
  * it prints the step by; a reference the workflow has no step for keeps the id written.
  */
-export const factoryWhenAtomSchema = z.object({
+const factoryWhenAtomSchema = z.object({
   reads: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('step'), key: z.string() }),
     z.object({ kind: z.literal('input'), name: z.string() }),
@@ -43,7 +43,7 @@ const whenClausesSchema = z.array(z.array(factoryWhenAtomSchema)).nullable();
 export type FactoryWhenAtom = z.infer<typeof factoryWhenAtomSchema>;
 export type FactoryWhenClauses = z.infer<typeof whenClausesSchema>;
 
-export const factoryStepGroupSchema = z.object({
+const factoryStepGroupSchema = z.object({
   /** A step-key prefix: `rounds` for a loop group, `rounds.review` for an include in it. */
   id: z.string(),
   kind: z.enum(['loop', 'include']),
@@ -67,7 +67,7 @@ export type FactoryStepGroup = z.infer<typeof factoryStepGroupSchema>;
  * (`output-ref.ts`): `token` is the text as written, so a console can find it again without a
  * grammar of its own. An output reference names the step it reads by key, as `whenClauses` do.
  */
-export const factoryStepReferenceSchema = z.discriminatedUnion('kind', [
+const factoryStepReferenceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('input'), token: z.string(), name: z.string() }),
   z.object({
     /** `$node.output[.path]` this round, or `$LOOP_PREV.node.output[.path]` the round before. */
@@ -80,15 +80,14 @@ export const factoryStepReferenceSchema = z.discriminatedUnion('kind', [
 export type FactoryStepReference = z.infer<typeof factoryStepReferenceSchema>;
 
 /** The code a bash or script step runs: inline in its YAML, or the named script's file. */
-export const factoryStepScriptSchema = z.object({
+const factoryStepScriptSchema = z.object({
   runtime: z.enum(['sh', 'bun', 'uv']),
   /** The script's name when the step runs a named script file; null for an inline body. */
   name: z.string().nullable(),
   body: z.string(),
 });
-export type FactoryStepScript = z.infer<typeof factoryStepScriptSchema>;
 
-export const factoryStepSchema = z.object({
+const factoryStepSchema = z.object({
   /** The step's id as run events name it: `rounds.fix`, `rounds.review__review`, `exhausted`. */
   key: z.string(),
   /** The id its author wrote: `fix`, `review`. */

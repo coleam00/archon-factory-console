@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import { Routes, useLocation, useNavigate } from 'react-router';
+import { Navigate, Routes, Route, useLocation, useNavigate } from 'react-router';
 import { ProjectRail } from './components/ProjectRail';
 import { UpdateBanner } from './components/UpdateBanner';
 import { AddProjectDialog } from './components/AddProjectDialog';
 import { ProjectPalette } from './components/ProjectPalette';
 import { KeymapHelp } from './components/KeymapHelp';
-import { consoleRoutes } from './routes/console-routes';
+import { BuilderConnected } from './builder/BuilderConnected';
+import { RunsPage } from './routes/RunsPage';
+import { RunDetailPage } from './routes/RunDetailPage';
+import { MetricsPage } from './routes/metrics/MetricsPage';
+import { PreviewPage } from './routes/PreviewPage';
+import { SettingsPage } from './routes/SettingsPage';
+import { projectRoutes } from './routes/project-routes';
+import { factoryPackRoutes } from './factory/packs/routes';
 import { invalidate } from './store/cache';
 import { K } from './store/keys';
 import { useKeymap, type Binding } from './lib/keymap';
@@ -103,7 +110,19 @@ export function ConsoleApp(): ReactElement {
           />
         </div>
         <main className="flex min-w-0 flex-1 flex-col">
-          <Routes>{consoleRoutes()}</Routes>
+          <Routes>
+            <Route index element={<RunsPage />} />
+            <Route path="metrics" element={<MetricsPage />} />
+            <Route path="metrics/details" element={<MetricsPage view="details" />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="builder" element={<BuilderConnected />} />
+            <Route path="builder/:name" element={<BuilderConnected />} />
+            <Route path="_preview" element={<PreviewPage />} />
+            <Route path="r/:runId" element={<RunDetailPage />} />
+            <Route path="*" element={<Navigate to="/console" replace />} />
+            {projectRoutes('')}
+            {factoryPackRoutes('')}
+          </Routes>
         </main>
       </div>
 

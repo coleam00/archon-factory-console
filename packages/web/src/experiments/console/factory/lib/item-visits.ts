@@ -108,7 +108,7 @@ export function itemPositions(view: Declaration, detail: FactoryItemDetail): Pos
 }
 
 /** Consecutive positions on one stage, as visits. */
-export function stageVisits(view: Declaration, detail: FactoryItemDetail): Visit[] {
+function stageVisits(view: Declaration, detail: FactoryItemDetail): Visit[] {
   const visits: Visit[] = [];
   for (const position of itemPositions(view, detail)) {
     const last = visits.at(-1);

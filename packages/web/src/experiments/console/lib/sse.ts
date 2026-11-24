@@ -20,7 +20,7 @@ import { useEffect } from 'react';
 import { invalidate } from '../store/cache';
 import { K } from './../store/keys';
 import { SSE_BASE_URL } from './http';
-import { followWhilePageShown } from './page-stream';
+import { followWhilePageShown, useWhilePageShown } from './page-stream';
 import { ATTENTION_SSE_PATH, DASHBOARD_SSE_PATH } from './sse-endpoints';
 import { providerEventStore, type ProviderEventRecord } from './provider-events';
 
@@ -52,47 +52,43 @@ function parse(raw: string): ParsedEvent | null {
  *                       each ActiveRunCard
  */
 export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
-  useEffect(
-    () =>
-      followWhilePageShown(() => {
-        // Use SSE_BASE_URL so dev bypasses the Vite proxy (which buffers SSE).
-        const es = new EventSource(`${SSE_BASE_URL}${DASHBOARD_SSE_PATH}`);
+  useWhilePageShown(() => {
+    // Use SSE_BASE_URL so dev bypasses the Vite proxy (which buffers SSE).
+    const es = new EventSource(`${SSE_BASE_URL}${DASHBOARD_SSE_PATH}`);
 
-        es.onmessage = (e: MessageEvent<string>): void => {
-          const ev = parse(e.data);
-          if (ev?.type === undefined || ev.type === 'heartbeat') return;
-          if (ev.type === 'workflow_status' || ev.type === 'dag_node') {
-            // Refetch every runs:* key (runs:all, runs:project:<id>).
-            invalidate('runs');
-            // Node outputs record metrics, so every metrics:* report may have changed.
-            invalidate('metrics');
-            // A run starting, changing step or ending moves an item on the factory board.
-            invalidate('factory-items');
-            // Also refresh any open run-detail cache so the detail page picks
-            // up status / node-transition changes without its own SSE round-trip.
-            if (typeof ev.runId === 'string') {
-              invalidate(K.run(ev.runId));
-              onRunChanged(ev.runId);
-            }
-          }
-        };
+    es.onmessage = (e: MessageEvent<string>): void => {
+      const ev = parse(e.data);
+      if (ev?.type === undefined || ev.type === 'heartbeat') return;
+      if (ev.type === 'workflow_status' || ev.type === 'dag_node') {
+        // Refetch every runs:* key (runs:all, runs:project:<id>).
+        invalidate('runs');
+        // Node outputs record metrics, so every metrics:* report may have changed.
+        invalidate('metrics');
+        // A run starting, changing step or ending moves an item on the factory board.
+        invalidate('factory-items');
+        // Also refresh any open run-detail cache so the detail page picks
+        // up status / node-transition changes without its own SSE round-trip.
+        if (typeof ev.runId === 'string') {
+          invalidate(K.run(ev.runId));
+          onRunChanged(ev.runId);
+        }
+      }
+    };
 
-        // EventSource auto-reconnects on transient errors; we only surface a
-        // warn when the connection has permanently closed so dropped streams
-        // aren't completely silent (the 30s safety-net poll in RunDetailPage
-        // covers the actual recovery; this is purely an observability hook).
-        es.onerror = (): void => {
-          if (es.readyState === EventSource.CLOSED) {
-            console.warn('[console-sse] dashboard stream closed');
-          }
-        };
+    // EventSource auto-reconnects on transient errors; we only surface a
+    // warn when the connection has permanently closed so dropped streams
+    // aren't completely silent (the 30s safety-net poll in RunDetailPage
+    // covers the actual recovery; this is purely an observability hook).
+    es.onerror = (): void => {
+      if (es.readyState === EventSource.CLOSED) {
+        console.warn('[console-sse] dashboard stream closed');
+      }
+    };
 
-        return (): void => {
-          es.close();
-        };
-      }),
-    [onRunChanged]
-  );
+    return (): void => {
+      es.close();
+    };
+  }, [onRunChanged]);
 }
 
 /**
@@ -104,45 +100,40 @@ export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
  * same `Last-Event-ID`, so the stream is opened afresh instead.
  */
 export function useAttentionStreamSSE(): void {
-  useEffect(
-    () =>
-      // Closed on `pagehide` like the dashboard stream (#39).
-      followWhilePageShown(() => {
-        let es: EventSource;
-        let flushTimer: ReturnType<typeof setTimeout> | null = null;
-        // The open set arrives as a burst of `attention` lines; one refetch covers it.
-        const scheduleRefetch = (): void => {
-          if (flushTimer !== null) return;
-          flushTimer = setTimeout(() => {
-            flushTimer = null;
-            invalidate(K.runsAttention);
-          }, 100);
-        };
-        const open = (): void => {
-          es = new EventSource(`${SSE_BASE_URL}${ATTENTION_SSE_PATH}`);
-          es.onmessage = (e: MessageEvent<string>): void => {
-            const line = parse(e.data);
-            if (line?.type === 'attention' || line?.type === 'resolved') scheduleRefetch();
-            else if (line?.type === 'error') {
-              es.close();
-              scheduleRefetch();
-              open();
-            }
-          };
-          es.onerror = (): void => {
-            if (es.readyState === EventSource.CLOSED) {
-              console.warn('[console-sse] attention stream closed');
-            }
-          };
-        };
-        open();
-        return (): void => {
-          if (flushTimer !== null) clearTimeout(flushTimer);
+  useWhilePageShown(() => {
+    let es: EventSource;
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    // The open set arrives as a burst of `attention` lines; one refetch covers it.
+    const scheduleRefetch = (): void => {
+      if (flushTimer !== null) return;
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        invalidate(K.runsAttention);
+      }, 100);
+    };
+    const open = (): void => {
+      es = new EventSource(`${SSE_BASE_URL}${ATTENTION_SSE_PATH}`);
+      es.onmessage = (e: MessageEvent<string>): void => {
+        const line = parse(e.data);
+        if (line?.type === 'attention' || line?.type === 'resolved') scheduleRefetch();
+        else if (line?.type === 'error') {
           es.close();
-        };
-      }),
-    []
-  );
+          scheduleRefetch();
+          open();
+        }
+      };
+      es.onerror = (): void => {
+        if (es.readyState === EventSource.CLOSED) {
+          console.warn('[console-sse] attention stream closed');
+        }
+      };
+    };
+    open();
+    return (): void => {
+      if (flushTimer !== null) clearTimeout(flushTimer);
+      es.close();
+    };
+  }, []);
 }
 
 /**
@@ -272,61 +263,60 @@ export function useConversationSSE(
   onLockChange?: (locked: boolean) => void,
   onStreamClosed?: () => void
 ): void {
-  useEffect(() => {
+  useWhilePageShown(() => {
     if (conversationPlatformId === null) return;
-    return followWhilePageShown(() => {
-      const es = new EventSource(
-        `${SSE_BASE_URL}/api/stream/${encodeURIComponent(conversationPlatformId)}`
-      );
 
-      let messagesDirty = false;
-      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const es = new EventSource(
+      `${SSE_BASE_URL}/api/stream/${encodeURIComponent(conversationPlatformId)}`
+    );
 
-      const scheduleFlush = (): void => {
-        if (flushTimer !== null) return;
-        flushTimer = setTimeout(() => {
-          flushTimer = null;
-          if (messagesDirty) {
-            invalidate(K.messages(conversationPlatformId));
-            messagesDirty = false;
-          }
-        }, 100);
-      };
+    let messagesDirty = false;
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-      es.onmessage = (e: MessageEvent<string>): void => {
-        const ev = parse(e.data);
-        if (ev?.type === undefined || ev.type === 'heartbeat') return;
-
-        switch (ev.type) {
-          case 'text':
-          case 'tool_call':
-          case 'tool_result':
-            messagesDirty = true;
-            scheduleFlush();
-            break;
-          case 'conversation_lock':
-            // The server awaits its unlock flush; earlier text/tool events can
-            // trigger refetches before the buffered reply is persisted.
-            if (ev.locked === false) invalidate(K.messages(conversationPlatformId));
-            if (typeof ev.locked === 'boolean') onLockChange?.(ev.locked);
-            break;
-          // No run-detail cache here; ignore workflow_* and everything else.
-          default:
-            return;
+    const scheduleFlush = (): void => {
+      if (flushTimer !== null) return;
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        if (messagesDirty) {
+          invalidate(K.messages(conversationPlatformId));
+          messagesDirty = false;
         }
-      };
+      }, 100);
+    };
 
-      es.onerror = (): void => {
-        if (es.readyState === EventSource.CLOSED) {
-          console.warn('[console-sse] conversation stream closed', { conversationPlatformId });
-          onStreamClosed?.();
-        }
-      };
+    es.onmessage = (e: MessageEvent<string>): void => {
+      const ev = parse(e.data);
+      if (ev?.type === undefined || ev.type === 'heartbeat') return;
 
-      return (): void => {
-        if (flushTimer !== null) clearTimeout(flushTimer);
-        es.close();
-      };
-    });
+      switch (ev.type) {
+        case 'text':
+        case 'tool_call':
+        case 'tool_result':
+          messagesDirty = true;
+          scheduleFlush();
+          break;
+        case 'conversation_lock':
+          // The server awaits its unlock flush; earlier text/tool events can
+          // trigger refetches before the buffered reply is persisted.
+          if (ev.locked === false) invalidate(K.messages(conversationPlatformId));
+          if (typeof ev.locked === 'boolean') onLockChange?.(ev.locked);
+          break;
+        // No run-detail cache here; ignore workflow_* and everything else.
+        default:
+          return;
+      }
+    };
+
+    es.onerror = (): void => {
+      if (es.readyState === EventSource.CLOSED) {
+        console.warn('[console-sse] conversation stream closed', { conversationPlatformId });
+        onStreamClosed?.();
+      }
+    };
+
+    return (): void => {
+      if (flushTimer !== null) clearTimeout(flushTimer);
+      es.close();
+    };
   }, [conversationPlatformId, onLockChange, onStreamClosed]);
 }

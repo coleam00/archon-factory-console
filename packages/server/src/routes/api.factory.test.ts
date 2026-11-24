@@ -1144,7 +1144,7 @@ describe('GET /api/factory/workflow', () => {
     );
     expect(response.status).toBe(404);
     const { error } = (await response.json()) as { error: string };
-    // Read by a person on the stage page: it names the pack and the workflow.
+    // Read by a person on a stage: it names the pack and the workflow.
     expect(error).toContain('kit');
     expect(error).toContain('deliver');
   });

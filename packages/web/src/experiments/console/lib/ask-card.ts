@@ -15,10 +15,10 @@ export type AttentionWait = Pick<
   Extract<AttentionQueueItem, { kind: 'attention' }>,
   'form' | 'options' | 'other' | 'recommendation'
 >;
-export type WaitOption = AttentionWait['options'][number];
+type WaitOption = AttentionWait['options'][number];
 
 /** An answer as the answer routes take it. */
-export interface AnswerDraft {
+interface AnswerDraft {
   choose: readonly string[];
   text: string;
 }
@@ -125,7 +125,7 @@ export function takesText(wait: AttentionWait, picks: readonly string[]): boolea
 }
 
 /** The NeedsYou entries one item (or one item-less run) holds, newest ask first. */
-export interface AskSubjectGroup<T> {
+interface AskSubjectGroup<T> {
   /** `item:<id>` for an item's asks, `run:<id>` for a wait no item holds. */
   key: string;
   /** The group's newest ask, which names it. */

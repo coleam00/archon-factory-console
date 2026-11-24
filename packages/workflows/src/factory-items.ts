@@ -77,14 +77,14 @@ export type FactoryRoundVerdict = z.infer<typeof factoryRoundVerdictSchema>;
  * say, `pending` while the server is still asking it (read again shortly; the answer is
  * never cached).
  */
-export const factoryChangeMergedSchema = z.union([
+const factoryChangeMergedSchema = z.union([
   z.boolean(),
   z.literal('unknown'),
   z.literal('pending'),
 ]);
 export type FactoryChangeMerged = z.infer<typeof factoryChangeMergedSchema>;
 
-export const factoryItemProgressSchema = z.object({
+const factoryItemProgressSchema = z.object({
   /**
    * The declared run input's title line, after any front matter, without a leading `#<n> ` or
    * heading marker; null when no run carries one.
@@ -210,7 +210,7 @@ export const factoryRoundSchema = z.object({
 });
 export type FactoryRound = z.infer<typeof factoryRoundSchema>;
 
-export const factoryItemSchema = itemReadSchema.extend({
+const factoryItemSchema = itemReadSchema.extend({
   /** Null when this item's progress could not be derived; the rest of the read stands. */
   progress: factoryItemProgressSchema.nullable(),
 });
@@ -252,7 +252,7 @@ export interface FactoryRunFacts {
 }
 
 /** The event types `factoryRunFacts` reads. */
-export const FACTORY_RUN_FACT_EVENT_TYPES: readonly WorkflowEventType[] = [
+const FACTORY_RUN_FACT_EVENT_TYPES: readonly WorkflowEventType[] = [
   ...NODE_STATE_EVENT_TYPES,
   'loop_iteration_started',
   'loop_iteration_completed',
@@ -500,7 +500,7 @@ export class FactoryRunFactsMemo {
 }
 
 /** What reading items for a view needs, whether the progress of several or one item whole. */
-export interface ReadFactoryItemsInput {
+interface ReadFactoryItemsInput {
   view: FactoryView;
   pack: string;
   projectKey: string;
@@ -673,7 +673,7 @@ export const factoryItemRunSchema = z.object({
   change: z.string().nullable(),
   ...factoryRunStoryShape,
 });
-export type FactoryItemRun = z.infer<typeof factoryItemRunSchema>;
+type FactoryItemRun = z.infer<typeof factoryItemRunSchema>;
 
 export const factoryItemDetailSchema = z.object({
   /** The pack whose view the progress was derived with. */

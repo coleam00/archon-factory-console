@@ -1,9 +1,10 @@
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { Window } from 'happy-dom';
-import { act } from 'react';
+import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
+import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { Board } from './BoardPage';
 import type { FactoryItem } from '../skills/factory';
 import {
@@ -29,7 +30,21 @@ import { boardColumns } from './lib/board-columns';
 
 // Filtering, sorting and the move highlight follow a re-render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The project's attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -56,13 +71,11 @@ afterAll(async () => {
 });
 
 const ID = 'cb-1';
-// Nothing waits on a person: the ask face has its own tests (BoardAsks.test.tsx).
-const QUIET = {
-  data: { items: [], runs: [], degraded: [] },
-  error: undefined,
-  loading: false,
-  refetch: () => undefined,
-};
+/** `board` under a project queue where nothing waits on a person: the ask face has its own tests (BoardAsks.test.tsx). */
+function quiet(board: ReactElement): ReactElement {
+  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
+  return <ProjectAttentionProvider projectId={ID}>{board}</ProjectAttentionProvider>;
+}
 // The Merged column lists the last 7 local days; the fixtures merged on 2026-11-17.
 const NOW = new Date(2026, 10, 18, 12, 0);
 const DAY = 24 * 60 * 60 * 1000;
@@ -89,7 +102,7 @@ async function mount(
         <Routes>
           <Route
             path="/console/p/:projectId/factory/board"
-            element={<Board projectId={ID} view={VIEW} attention={QUIET} now={NOW} />}
+            element={quiet(<Board projectId={ID} view={VIEW} now={NOW} />)}
           />
         </Routes>
       </MemoryRouter>
@@ -133,7 +146,7 @@ describe('before the items are read', () => {
       await act(async () =>
         root.render(
           <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
-            <Board projectId={ID} view={VIEW} attention={QUIET} now={NOW} />
+            {quiet(<Board projectId={ID} view={VIEW} now={NOW} />)}
           </MemoryRouter>
         )
       );
@@ -277,7 +290,7 @@ describe('the strips under the board', () => {
   });
 
   test('one strip with something to say still gets the line and the toggle; none, no line', async () => {
-    const quiet = { ...VIEW, discoveries: undefined };
+    const noStrip = { ...VIEW, discoveries: undefined };
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
@@ -286,7 +299,7 @@ describe('the strips under the board', () => {
       await act(async () =>
         root.render(
           <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
-            <Board projectId={ID} view={quiet} attention={QUIET} now={NOW} />
+            {quiet(<Board projectId={ID} view={noStrip} now={NOW} />)}
           </MemoryRouter>
         )
       );

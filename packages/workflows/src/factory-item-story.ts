@@ -15,7 +15,7 @@ import type { WorkflowRun } from './schemas/workflow-run';
 import { parseDbTimestamp } from './utils/duration';
 
 /** The event types `factoryRunStory` reads. */
-export const FACTORY_RUN_STORY_EVENT_TYPES: readonly WorkflowEventType[] = [
+const FACTORY_RUN_STORY_EVENT_TYPES: readonly WorkflowEventType[] = [
   'node_started',
   'node_completed',
   'workflow_completed',
@@ -30,7 +30,7 @@ export const factoryRunStoryShape = {
   /** Each step start, in event order, as the engine records the step id, with its ISO time. */
   steps: z.array(z.object({ node: z.string(), startedAt: z.string().datetime() })),
 };
-export type FactoryRunStory = z.infer<z.ZodObject<typeof factoryRunStoryShape>>;
+type FactoryRunStory = z.infer<z.ZodObject<typeof factoryRunStoryShape>>;
 
 /** The story facts of one run, from its events of `FACTORY_RUN_STORY_EVENT_TYPES` in append order. */
 export function factoryRunStory(

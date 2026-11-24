@@ -17,7 +17,7 @@ export const SET_ASIDE_IDLE_MS = 3 * 24 * 60 * 60 * 1000;
 export const SET_ASIDE_LABEL = 'Set aside';
 
 /** Why an item is set aside: an ending took it off the board, it is parked, or it sat idle. */
-export type SetAsideKind = 'ended' | 'parked' | 'idle';
+type SetAsideKind = 'ended' | 'parked' | 'idle';
 
 export interface SetAsideReason {
   kind: SetAsideKind;

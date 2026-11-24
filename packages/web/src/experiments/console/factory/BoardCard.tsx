@@ -40,14 +40,6 @@ const VERDICT_DOT_CLASS: Record<RoundVerdict, string> = {
   stopped: 'bg-text-tertiary/60',
 };
 
-export const VERDICT_TEXT_CLASS: Record<RoundVerdict, string> = {
-  approved: 'text-success',
-  returned: 'text-error',
-  undecided: 'text-warning',
-  running: statusTextClass.running,
-  stopped: 'text-text-tertiary',
-};
-
 /** The state pill, in `label` when the item names its state (an `awaits` label), else `PILL_LABEL`. */
 export function PillBadge({ pill, label }: { pill: Pill; label?: string }): ReactElement {
   return (

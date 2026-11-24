@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'rea
 import type { FactoryPacksRead } from '../../skills/factory';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
-import { ConsoleNav } from '../../components/ConsoleNav';
+import { FactoryRailLink } from '../FactoryRailLink';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
 import type { FactoryPackListed } from '../lib/views';
 import { factoryPackRoutes } from './routes';
@@ -72,7 +72,7 @@ async function mount(at: string, packs: FactoryPacksRead): Promise<HTMLElement> 
         <LocationProbe />
         <Routes>
           {factoryPackRoutes('/console/')}
-          <Route path="/rail" element={<ConsoleNav />} />
+          <Route path="/rail" element={<FactoryRailLink />} />
         </Routes>
       </MemoryRouter>
     )
@@ -90,19 +90,13 @@ const hrefs = (within: ParentNode | null | undefined): string[] =>
   [...(within?.querySelectorAll('a') ?? [])].map(a => a.getAttribute('href') ?? '');
 
 describe('the sidebar Factory entry', () => {
-  // The rail's own navigation, as ProjectRail renders it.
-  test('sits just above Settings once a pack is listed, and is absent with none', async () => {
+  test('shows once a pack is listed, and is absent with none', async () => {
     const shown = await mount('/rail', listing([pack('acme.kit', 'Kit')]));
-    expect(hrefs(shown)).toEqual([
-      '/console/metrics',
-      '/console/builder',
-      '/console/factory',
-      '/console/settings',
-    ]);
+    expect(hrefs(shown)).toEqual(['/console/factory']);
     await unmount?.();
 
     const hidden = await mount('/rail', listing([]));
-    expect(hrefs(hidden)).toEqual(['/console/metrics', '/console/builder', '/console/settings']);
+    expect(hrefs(hidden)).toEqual([]);
   });
 });
 

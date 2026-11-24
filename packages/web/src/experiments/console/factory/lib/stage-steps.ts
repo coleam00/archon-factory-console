@@ -20,7 +20,7 @@ export function stepPagePath(projectId: string, workflow: string, stepKey: strin
   );
 }
 
-/** What the stage page hands the step page, so its back link returns to that stage. */
+/** What a stage hands the step page, so its back link returns to that stage. */
 export interface StepPageState {
   fromStage: string;
 }
@@ -52,7 +52,7 @@ export function stagesOfWorkflow(
 }
 
 /** A stage as a step's tag names it: its id to open it, its label, its group's colour. */
-export type StepStage = Pick<FactoryStage, 'id' | 'label' | 'group'>;
+type StepStage = Pick<FactoryStage, 'id' | 'label' | 'group'>;
 
 /**
  * Who works a step of the graph a stage draws: the open stage (`this`), another stage that

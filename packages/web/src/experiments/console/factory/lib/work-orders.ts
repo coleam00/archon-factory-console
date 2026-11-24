@@ -51,7 +51,7 @@ export function displayKeyOf(item: MemberSource): string {
   return displayItemKey(item.item.key, membershipOf(item)?.order ?? null);
 }
 
-export interface WorkOrderMember {
+interface WorkOrderMember {
   key: string;
   title: string;
   pill: Pill;

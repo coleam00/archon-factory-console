@@ -22,7 +22,7 @@ import {
   type FactoryView,
 } from './schemas/factory-view';
 
-export type CoverageFindingKind =
+type CoverageFindingKind =
   | 'uncovered'
   | 'covered-twice'
   | 'unknown-step'
@@ -38,7 +38,7 @@ export type CoverageFindingKind =
   | 'retired-covered'
   | 'graph-incomplete';
 
-export interface CoverageFinding {
+interface CoverageFinding {
   kind: CoverageFindingKind;
   /** Where in the view to act, as a zod issue path. */
   path: (string | number)[];

@@ -156,7 +156,7 @@ const STATE: Record<StatState, string> = {
   done: 'bg-[color:var(--success-soft)] text-success',
   shadow: 'border border-dashed border-[color:var(--node-opaque)] text-[color:var(--node-opaque)]',
 };
-export type StatState = 'running' | 'needs-you' | 'failed' | 'done' | 'shadow';
+type StatState = 'running' | 'needs-you' | 'failed' | 'done' | 'shadow';
 
 /**
  * One key fact: a figure and its label, neutral, in a state colour, or with a dot and figure in a

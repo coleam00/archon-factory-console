@@ -138,7 +138,8 @@ async function renderAt(
       )
     );
     await settle();
-    await check(container);
+    // The stage modal portals to the body, outside the root.
+    await check(document.body as unknown as HTMLElement);
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -153,17 +154,20 @@ function stepButton(container: HTMLElement, label: string): HTMLButtonElement {
   return button;
 }
 
+/** The item links on the page, or in the stage modal when it is open over the map's own. */
 const itemLinks = (container: HTMLElement): string[] =>
-  [...container.querySelectorAll('a[href*="/factory/items/"]')].map(
-    link => link.getAttribute('href') ?? ''
-  );
+  [
+    ...(container.querySelector('[role="dialog"]') ?? container).querySelectorAll(
+      'a[href*="/factory/items/"]'
+    ),
+  ].map(link => link.getAttribute('href') ?? '');
 
 // Newest activity first: #4's run started after #12's.
 const capturedLinks = ['4', '12', '6'].map(key => `/console/p/${ID}/factory/items/${key}`);
 
 test('clicking a step on the stage graph opens its step page, which leads back to the stage', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
-  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async container => {
     const fix = stepButton(container, '·fix');
     await act(async () => {
       fix.click();
@@ -177,16 +181,16 @@ test('clicking a step on the stage graph opens its step page, which leads back t
 
 test('a stage with no drill-down opens on its real workflow', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
-  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async container => {
     expect(stepButton(container, '·fix')).toBeDefined();
     const selected = container.querySelector('[role="tab"][aria-selected="true"]');
     expect(selected?.textContent).toBe('The real workflow');
   });
 });
 
-test('the stage page glows the step items are on now and links each item', async () => {
+test('the stage modal glows the step items are on now and links each item', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
-  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async container => {
     expect(container.textContent).toContain('Running now');
     expect(itemLinks(container)).toEqual(capturedLinks);
     // Another stage works build__build; a step an item is on glows whichever stage works it.
@@ -251,9 +255,9 @@ test('a dashboard event moves an item onto the step page it is now on', async ()
   });
 });
 
-test('a failed refresh says so on the stage page and stops the glow; the graph still draws', async () => {
+test('a failed refresh says so in the stage modal and stops the glow; the graph still draws', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
-  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async container => {
     expect(stepButton(container, '·build').hasAttribute('data-running')).toBe(true);
     itemsResponse = () => Response.json({ error: 'The items read failed.' }, { status: 500 });
     await act(async () => {
@@ -279,7 +283,7 @@ test('a run between loop bodies lights the loop frame', async () => {
     },
   });
   serve(itemsReadAnswer([between]));
-  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async container => {
     const lit = [...container.querySelectorAll('div[data-running]')];
     expect(lit.map(frame => frame.textContent)).toEqual([expect.stringContaining('rounds')]);
     expect(lit[0]?.getAttribute('title')).toBe('Running for #9');
@@ -289,7 +293,7 @@ test('a run between loop bodies lights the loop frame', async () => {
 
 test("a step's back link opens its stage over the Overview, where it came from", async () => {
   serve(itemsReadAnswer([]));
-  await renderAt(`/console/p/${ID}/factory/stages/checks`, async container => {
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async container => {
     await act(async () => {
       stepButton(container, '·fix').click();
       await new Promise(resolve => setTimeout(resolve, 0));

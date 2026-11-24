@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { askNaming, itemNames } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
-import type { AttentionQueue } from '../skills/runs';
-import type { EntityView } from '../store/cache';
+import { useProjectAttention } from '../components/ProjectAttention';
 import { BoardAskPopover } from './BoardAskPopover';
 import { BoardSkeleton } from './BoardSkeleton';
 import { BoardPipeline } from './BoardPipeline';
@@ -38,9 +37,7 @@ export function BoardPage(): ReactElement {
   const { projectId = '' } = useParams<{ projectId: string }>();
   return (
     <FactoryFrame section="board" wide fill>
-      {(view, attention) => (
-        <Board projectId={projectId} view={view.declaration} attention={attention} />
-      )}
+      {view => <Board projectId={projectId} view={view.declaration} />}
     </FactoryFrame>
   );
 }
@@ -79,13 +76,10 @@ function useMovedCards(
 export function Board({
   projectId,
   view,
-  attention,
   now,
 }: {
   projectId: string;
   view: FactoryDeclaration;
-  /** The project's attention queue, the one read Needs you draws: each card's asks come from it. */
-  attention: EntityView<AttentionQueue>;
   /**
    * The time the Merged column's window and the set-aside rule count back from; the minute
    * clock when absent.
@@ -93,6 +87,8 @@ export function Board({
   now?: Date;
 }): ReactElement {
   const read = useFactoryItemsRead(projectId);
+  // The project's attention queue, the one read Needs you draws: each card's asks come from it.
+  const attention = useProjectAttention();
   const items = read.data?.items;
   const [params] = useSearchParams();
   const { showParam, show, spec, table, setView, clearShow } = useBoardShow();

@@ -3,7 +3,7 @@ import { Window } from 'happy-dom';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import type { AttentionQueue } from '../../skills/runs';
-import type { EntityView } from '../../store/cache';
+import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import type { FactoryItem } from '../../skills/factory';
@@ -21,7 +21,21 @@ import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The project's attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -60,12 +74,6 @@ const queue: AttentionQueue = {
   runs: [],
   degraded: [],
 };
-const attention: EntityView<AttentionQueue> = {
-  data: queue,
-  error: undefined,
-  loading: false,
-  refetch: () => undefined,
-};
 
 /** The stage the URL opens over the map, for the tests to read. */
 function OpenStage(): React.ReactElement | null {
@@ -79,6 +87,7 @@ async function mount(
   listed: FactoryViewListed = shippedListed
 ): Promise<{ container: HTMLElement; unmount: () => Promise<void> }> {
   if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
+  set(K.projectAttention(ID), queue);
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -89,10 +98,10 @@ async function mount(
           <Route
             path="/console/p/:projectId/factory"
             element={
-              <>
-                <FactoryMap projectId={ID} view={listed} attention={attention} />
+              <ProjectAttentionProvider projectId={ID}>
+                <FactoryMap projectId={ID} view={listed} />
                 <OpenStage />
-              </>
+              </ProjectAttentionProvider>
             }
           />
         </Routes>

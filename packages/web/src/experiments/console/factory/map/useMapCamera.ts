@@ -26,7 +26,7 @@ import type { Box } from '../lib/map-layout';
 const DRAG_SLOP = 4;
 const BUTTON_ZOOM = 1.25;
 
-export interface MapCamera {
+interface MapCamera {
   frameRef: RefObject<HTMLDivElement | null>;
   camera: Camera;
   /** The frame's height: the map fitted to the width of the row the frame sits in. */

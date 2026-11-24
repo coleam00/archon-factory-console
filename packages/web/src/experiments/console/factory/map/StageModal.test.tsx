@@ -5,7 +5,7 @@ import { createMemoryRouter, NavigationType, RouterProvider } from 'react-router
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import type { FactoryItem } from '../../skills/factory';
 import type { AttentionQueue } from '../../skills/runs';
-import type { EntityView } from '../../store/cache';
+import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { shippedListed } from '../item-detail.test-fixtures';
@@ -20,7 +20,21 @@ import { FactoryMap } from './FactoryMap';
 
 // Opening, closing, keys, focus and Back are events, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The project's attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -86,15 +100,10 @@ const ID = 'cb-1';
 const OVERVIEW = `/console/p/${ID}/factory`;
 const asking = itemWith('9', [run('deliver', 'completed', 'ask')]);
 const items = [realItem('5'), realItem('4'), realItem('7'), asking];
-const attention: EntityView<AttentionQueue> = {
-  data: {
-    items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
-    runs: [],
-    degraded: [],
-  },
-  error: undefined,
-  loading: false,
-  refetch: () => undefined,
+const queue: AttentionQueue = {
+  items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
+  runs: [],
+  degraded: [],
 };
 
 type Listed = typeof shippedListed;
@@ -108,9 +117,8 @@ function withStage(id: string, change: (stage: ListedStage) => ListedStage): Lis
 }
 
 /**
- * Build listing stage-build alone: the read-retry and sizing rules below count one workflow's
- * reads and measure one graph (the deliver fixture's, which every read here answers with)
- * against phases narrower than it, whatever the shipped Build lists.
+ * Build listing stage-build alone: the read-retry rules below count one workflow's reads,
+ * whatever the shipped Build lists.
  */
 const oneBuildWorkflow = withStage('build', stage => ({ ...stage, workflows: ['stage-build'] }));
 
@@ -122,11 +130,16 @@ async function mount(
 ) {
   // null leaves the items cold, so they are read through `itemsAnswer`.
   if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
+  set(K.projectAttention(ID), queue);
   const router = createMemoryRouter(
     [
       {
         path: '/console/p/:projectId/factory',
-        element: <FactoryMap projectId={ID} view={view} attention={attention} />,
+        element: (
+          <ProjectAttentionProvider projectId={ID}>
+            <FactoryMap projectId={ID} view={view} />
+          </ProjectAttentionProvider>
+        ),
       },
     ],
     { initialEntries: [path] }
@@ -588,81 +601,8 @@ describe('the workflow read never dead-ends', () => {
   });
 });
 
-/** A workflow of one step, Plan's real shape: the fixture's first step, on its own. */
-const oneStep = {
-  ...deliverJson,
-  name: 'plan',
-  runName: `${shippedListed.declaration.pack}:plan`,
-  steps: [{ ...deliverJson.steps[0], key: 'plan', label: 'plan', group: null, includedFrom: null }],
-  groups: [],
-};
-/** The modal over the deliver fixture's graph: its laid-out canvas plus the padding and gutter. */
-const DELIVER_WIDTH = '931px';
-
-describe('the modal is sized by what it shows', () => {
-  const width = (): string | undefined => dialog()?.style.getPropertyValue('--stage-modal-w');
-  const desktop = async (): Promise<void> => {
-    await act(async () => dom.happyDOM.setViewport({ width: 1440, height: 900 }));
-  };
-  afterEach(async () => {
-    await act(async () => dom.happyDOM.setViewport({ width: 1024, height: 768 }));
-  });
-
-  test('a stage of many phases, like Checks, stops at 90% of the window', async () => {
-    await desktop();
-    const { container, unmount } = await mount();
-    try {
-      await click(stageLink(container, 'checks'));
-      expect(width()).toBe('1296px');
-    } finally {
-      await unmount();
-    }
-  });
-
-  test("Plan's real workflow, one step, keeps it compact", async () => {
-    workflowReads = [() => Response.json(oneStep)];
-    await desktop();
-    const { container, unmount } = await mount();
-    try {
-      await click(stageLink(container, 'plan'));
-      await click(inDialog('The real workflow'));
-      await settle();
-      expect(dialog()?.querySelector('button[title*="engine id: plan"]')).not.toBeNull();
-      expect(width()).toBe('640px');
-    } finally {
-      await unmount();
-    }
-  });
-
-  test('a wide graph widens it once it arrives, and going back narrows it again', async () => {
-    let answer: () => void = () => {};
-    workflowReads = [
-      () =>
-        new Promise<Response>(resolve => {
-          answer = () => resolve(steps());
-        }),
-    ];
-    await desktop();
-    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
-    try {
-      await click(stageLink(container, 'build'));
-      expect(width()).toBe('744px');
-      await click(inDialog('The real workflow'));
-      // While the steps load, the phases' width holds: nothing is drawn to size it by.
-      expect(width()).toBe('744px');
-      answer();
-      await settle();
-      expect(graphStep()).toBeDefined();
-      expect(width()).toBe(DELIVER_WIDTH);
-      await click(inDialog('What this stage does'));
-      expect(width()).toBe('744px');
-    } finally {
-      await unmount();
-    }
-  });
-
+describe('the modal layout', () => {
   test('the title and tabs stay outside the scrolling body', async () => {
-    await desktop();
     const { container, unmount } = await mount();
     try {
       await click(stageLink(container, 'checks'));

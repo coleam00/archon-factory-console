@@ -25,7 +25,7 @@ const tokenPx = (token: string): number => Number(token.slice('text-console-'.le
  * The smallest text the map draws (its chips and line pills; FactoryMap.test.tsx holds every
  * class on the map to it), and the Visual standard's type floor (rule 1).
  */
-export const MAP_SMALLEST_TEXT = 'text-console-12';
+const MAP_SMALLEST_TEXT = 'text-console-12';
 export const MAP_SMALLEST_PX = tokenPx(MAP_SMALLEST_TEXT);
 export const TYPE_FLOOR_PX = 12;
 /**

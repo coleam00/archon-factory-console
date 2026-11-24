@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, type ReactElement, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  type CSSProperties,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
@@ -7,8 +14,7 @@ import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed, StageModalLink, StageTab } from '../lib/views';
 import { StageView, useStageTab, type StageFrame } from '../stage/StageView';
 import type { FactoryDrilldown } from '../lib/drilldown-live';
-import { StepGraphWidths } from '../StepGraph';
-import { useStageModalSize } from './useStageModalSize';
+import { PHASE_COLUMN_REM, PHASE_GAP_REM } from '../stage/StageDrilldown';
 
 /**
  * The stage `?stage=<id>` names, opened as a modal over the Overview (owner change of
@@ -123,18 +129,23 @@ function OpenStage({
   );
 }
 
+// console-token-exception md:min-w-[max(40rem,min(calc(var(--phases-w,0rem)+6rem),90vw))] -- The stage modal's own rule (DESIGN.md, The map, Click): at least 40rem, else its phases, padding and scrollbar, at most 90vw.
+const PANEL_MIN_WIDTH = 'md:min-w-[max(40rem,min(calc(var(--phases-w,0rem)+6rem),90vw))]';
+
 /** What Tab can reach inside the panel. */
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * The dialog: a backdrop and a panel, portalled to the body (it carries `console-root` itself,
- * as the body is outside the console's theme). From md up the panel is centred and sized to
- * its content by `useStageModalSize` (on "The real workflow", to the graphs it draws), at most
- * 90% of the window each way, and a size change animates for 150 ms (snapping under reduced
- * motion); under md it is the whole screen. The head (title and tabs) stays put while the body scrolls on its own, and
- * `overscroll-contain` keeps a scroll that reaches its end from scrolling the Overview under it.
- * The panel draws its edge as a ring, which takes no width, so the size rule has no border in it.
+ * as the body is outside the console's theme). From md up the panel is centred and as big as
+ * its content, by CSS: at least 40rem wide, at most 90% of the window each way. The head and
+ * any prose are contained (`contain: inline-size`), so only the drill-down's phase columns
+ * (the summary and items tabs) or the graphs drawn ("The real workflow") set the width. A size
+ * change snaps: the panel's width is its content's, which CSS does not transition. Under md the
+ * panel is the whole screen. The head (title and tabs) stays put while the body scrolls on its
+ * own, and `overscroll-contain` keeps a scroll that reaches its end from scrolling the Overview
+ * under it.
  */
 function ModalShell({
   titleId,
@@ -149,13 +160,14 @@ function ModalShell({
   tab: StageTab;
   children: (frame: StageFrame) => ReactNode;
 }): ReactElement {
-  const {
-    panelStyle,
-    tellGraphWidth,
-    panelRef: panel,
-    scrollerRef,
-    contentRef,
-  } = useStageModalSize(drilldown, tab);
+  const panel = useRef<HTMLDivElement>(null);
+  const phases = tab === 'workflow' ? 0 : (drilldown?.phases.length ?? 0);
+  const phasesWidth: (CSSProperties & { '--phases-w': string }) | undefined =
+    phases === 0
+      ? undefined
+      : {
+          '--phases-w': `${String(phases * (PHASE_COLUMN_REM + PHASE_GAP_REM) - PHASE_GAP_REM)}rem`,
+        };
   const closeButton = useRef<HTMLButtonElement>(null);
   const closeRef = useRef(close);
   closeRef.current = close;
@@ -193,8 +205,11 @@ function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        style={panelStyle}
-        className="absolute inset-0 flex flex-col overflow-hidden bg-surface md:relative md:inset-auto md:h-(--stage-modal-h) md:w-(--stage-modal-w) md:rounded-console-12 md:shadow-2xl md:ring-1 md:ring-border motion-safe:transition-[width,height] motion-safe:duration-150 motion-safe:ease-out"
+        // The summary and the items keep the phases' width (the columns, the body's padding and
+        // close-button gutter, and 0.5rem for the scrollbar's), so moving between them does not
+        // resize the panel; nothing else in them widens it.
+        style={phasesWidth}
+        className={`absolute inset-0 flex flex-col overflow-hidden bg-surface md:relative md:inset-auto md:max-h-[90vh] md:w-fit ${PANEL_MIN_WIDTH} md:max-w-[90vw] md:rounded-console-12 md:shadow-2xl md:ring-1 md:ring-border`}
       >
         <button
           ref={closeButton}
@@ -205,18 +220,19 @@ function ModalShell({
         >
           <X aria-hidden="true" className="size-5" />
         </button>
-        <div className="flex min-h-0 flex-1 flex-col p-4 pr-14 md:p-(--modal-pad) md:pr-(--modal-gutter)">
+        <div className="flex min-h-0 flex-1 flex-col p-4 pr-14 md:p-6 md:pr-16">
           {children(({ head, body }) => (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-              {head}
+              <div className="flex flex-col gap-4 [contain:inline-size]">{head}</div>
               {/* Its content's padding gives a card's focus ring and glow room inside the clip. */}
               <div
-                ref={scrollerRef}
                 data-modal-body=""
                 className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
               >
-                <div ref={contentRef} className="flex flex-col gap-4 p-1">
-                  <StepGraphWidths.Provider value={tellGraphWidth}>{body}</StepGraphWidths.Provider>
+                <div
+                  className={`flex flex-col gap-4 p-1 ${tab === 'workflow' ? '' : '[contain:inline-size]'}`}
+                >
+                  {body}
                 </div>
               </div>
             </div>

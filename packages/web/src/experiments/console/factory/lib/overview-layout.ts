@@ -31,14 +31,14 @@ import type { OverviewView } from './overview-nav';
  */
 export const OVERVIEW_CARD_W = 176;
 export const OVERVIEW_CARD_H = 120;
-export const OVERVIEW_GAP_X = 48;
+const OVERVIEW_GAP_X = 48;
 /** Room between rows for a column edge and its label. */
-export const OVERVIEW_GAP_Y = 48;
+const OVERVIEW_GAP_Y = 48;
 /** How far a group's box reaches past its cards: under half of either gap, so it never touches a neighbour. */
 export const OVERVIEW_GROUP_PAD = 16;
 /** How far under the lowest box the lane's first track runs, and how far apart its tracks are: room for a pill above each. */
-export const OVERVIEW_LANE_BELOW = 32;
-export const OVERVIEW_TRACK = 32;
+const OVERVIEW_LANE_BELOW = 32;
+const OVERVIEW_TRACK = 32;
 /** How far a reply and the ask it answers each move off the line they would share. */
 export const OVERVIEW_REPLY_OFFSET = 24;
 

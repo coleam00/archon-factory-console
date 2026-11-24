@@ -7,7 +7,7 @@
 import { findAndReplace } from 'mdast-util-find-and-replace';
 import type { FactoryWorkflow } from '../../skills/factory';
 
-export type StepReference = FactoryWorkflow['steps'][number]['references'][number];
+type StepReference = FactoryWorkflow['steps'][number]['references'][number];
 
 /** An id or name in words: `_` and `-` become spaces. */
 const words = (name: string): string => name.replace(/[_-]+/g, ' ').trim();

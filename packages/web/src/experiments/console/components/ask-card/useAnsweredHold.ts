@@ -4,7 +4,7 @@ import type { NeedsYouItem } from '../../lib/needs-you';
 /** How long an answered card stays, saying what was answered, before it folds away. */
 export const ANSWERED_SHOWN_MS = 5_000;
 /** The fold's own length, at the end of that time; under reduced motion the card just goes. */
-export const ANSWERED_FOLD_MS = 300;
+const ANSWERED_FOLD_MS = 300;
 
 interface Held {
   ask: NeedsYouItem;

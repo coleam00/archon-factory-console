@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { boardModel, stageIdOf } from './board';
+import { boardModel } from './board';
 import { delivering, FIXTURE_NOW, idleInPlan, parkedByTriage, VIEW } from './board.test-fixtures';
 import { stageLive } from './map-live';
-import { stageOfWorkflow } from './placement';
+import { stageIdOf, stageOfWorkflow } from './placement';
 import type { FactoryViewListed } from './views';
 
 /**
@@ -43,9 +43,9 @@ test('the map counts what the board counts: a set-aside item is in no stage', ()
   ]);
   // Every stage lists exactly the cards the board's columns hold for it.
   const onBoard = board.columns.flatMap(column =>
-    column.cards.map(placed => [stageIdOf(placed), placed.item.item.key])
+    column.cards.map(placed => [stageIdOf(placed.column), placed.item.item.key])
   );
-  const onMap: (string | null)[][] = [...map.stages].flatMap(([stage, live]) =>
+  const onMap: (string | undefined)[][] = [...map.stages].flatMap(([stage, live]) =>
     live.items.map(item => [stage, item.item.key])
   );
   expect(onMap).toEqual(onBoard);

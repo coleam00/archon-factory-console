@@ -11,7 +11,7 @@ import type { BoardAsks } from './useBoardAsks';
  * first is cut to one line and the count stands beside it, as the ask face does, so the count
  * is never clamped away; the whole line is on hover.
  */
-export function StopText({
+function StopText({
   card,
   as: Tag = 'span',
   className = '',

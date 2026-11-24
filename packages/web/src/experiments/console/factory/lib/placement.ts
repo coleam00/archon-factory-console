@@ -127,8 +127,23 @@ export function placedStage(
   return id === undefined ? undefined : view.stages.find(stage => stage.id === id);
 }
 
-/** The statuses rule 5 places by: a run that stopped without completing. */
-const STOPPED: ReadonlySet<RunStatus> = new Set(['failed', 'cancelled']);
+/** Whether a run stopped without completing (failed or cancelled), which rule 5 places by. */
+export const isStopped = (status: RunStatus): boolean =>
+  status === 'failed' || status === 'cancelled';
+
+/**
+ * The stage rule 5 names for a stopped run of `workflow`: the stage whose `nodes` name the step
+ * it failed at, else the workflow's first stage. The board's stop line and the item's story
+ * name the same one.
+ */
+export function stoppedStage(
+  view: Declaration,
+  workflow: string,
+  failedStep: string | null
+): FactoryStage | undefined {
+  const atStep = failedStep === null ? undefined : stageOfStep(view, workflow, failedStep);
+  return atStep ?? stagesOfWorkflow(view.stages, workflow)[0];
+}
 
 type DeclaredRun = PlacementRun & { workflow: string };
 
@@ -220,13 +235,9 @@ export function itemColumn(
   // 4. The last run ended the item without a change.
   const ending = last === undefined ? undefined : endingOf(view, last);
   if (ending !== undefined) return { ended: ending };
-  // 5. The last run failed or was cancelled: the stage whose `nodes` name the step it failed
-  // at, else its workflow's first stage.
-  if (last !== undefined && STOPPED.has(last.status)) {
-    const atStep =
-      last.failedStep === null ? undefined : stageOfStep(view, last.workflow, last.failedStep);
-    return stageOf(atStep ?? stagesOfWorkflow(view.stages, last.workflow)[0]);
-  }
+  // 5. The last run failed or was cancelled.
+  if (last !== undefined && isStopped(last.status))
+    return stageOf(stoppedStage(view, last.workflow, last.failedStep));
   // 6. Otherwise the first stage.
   return stageOf(view.stages[0]);
 }
@@ -242,8 +253,12 @@ export function pageItemColumn(
   item: FactoryItem,
   previous?: string
 ): ItemColumn | null {
-  const facts: RunFacts = item.progress === null ? new Map() : pageRunFacts(item.progress);
-  return itemColumn(view, placementInput(item, facts), previous);
+  return itemColumn(view, pagePlacementInput(item), previous);
+}
+
+/** Placement's input for an entry of the items read, its facts from its own `progress`. */
+export function pagePlacementInput(item: FactoryItem): PlacementInput {
+  return placementInput(item, item.progress === null ? new Map() : pageRunFacts(item.progress));
 }
 
 /** The stage a placement put an item in; undefined when it is off the board or unplaced. */

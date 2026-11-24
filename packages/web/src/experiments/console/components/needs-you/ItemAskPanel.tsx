@@ -10,7 +10,7 @@ import { AskCard, SubjectName, type AskSubject } from '../ask-card/AskCard';
 import { Ping } from '../ask-card/Ping';
 import type { AnsweredHold } from '../ask-card/useAnsweredHold';
 
-export interface ItemAskPanelProps {
+interface ItemAskPanelProps {
   projectId: string;
   subject: AskSubject;
   asks: readonly NeedsYouItem[];

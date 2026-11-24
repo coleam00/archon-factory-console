@@ -6,8 +6,7 @@ import { SkeletonBlock, SkeletonGroup } from '../components/Skeleton';
 import { askNaming } from '../lib/ask-naming';
 import { errorDetail } from '../lib/http';
 import { askRunId, type NeedsYouItem } from '../lib/needs-you';
-import type { AttentionQueue } from '../skills/runs';
-import type { EntityView } from '../store/cache';
+import { useProjectAttention } from '../components/ProjectAttention';
 import { Panel, SectionHeading } from './document';
 import { FactoryLoading } from './FactoryLoading';
 import { ItemAwaitsPanel, type Awaits } from './ItemAwaits';
@@ -30,7 +29,6 @@ export function ItemStory({
   panels,
   asks,
   questions,
-  attention,
   awaits,
 }: {
   projectId: string;
@@ -39,12 +37,11 @@ export function ItemStory({
   asks: NeedsYouItem[];
   /** How many questions the item read says are open, so a queue still loading shows a skeleton. */
   questions: number;
-  attention: EntityView<AttentionQueue>;
   /** What the item waits on when its pill is `awaits`; null otherwise. */
   awaits: Awaits | null;
 }): ReactElement {
   const hold = useAnsweredHold(asks);
-  const queue = attention.data;
+  const queue = useProjectAttention().data;
   const naming = askNaming(projectId, view);
   const inPanel = new Set(panels.flatMap(panel => (panel.kind === 'stage' ? panel.runIds : [])));
   const loose = hold.asks.filter(ask => !inPanel.has(askRunId(ask) ?? ''));
@@ -74,7 +71,6 @@ export function ItemStory({
           )
         }
         questions={questions}
-        attention={attention}
       />
       {panels.length === 0 ? (
         <Panel className="p-5">
@@ -103,15 +99,8 @@ export function ItemStory({
  * The asks no stage panel holds, and the state of the queue the asks are read from: a skeleton
  * while it loads for an item with open questions, a line when it could not be read.
  */
-function Waiting({
-  loose,
-  questions,
-  attention,
-}: {
-  loose: ReactNode;
-  questions: number;
-  attention: EntityView<AttentionQueue>;
-}): ReactNode {
+function Waiting({ loose, questions }: { loose: ReactNode; questions: number }): ReactNode {
+  const attention = useProjectAttention();
   const failed = readFailed(attention.error);
   if (loose === null && (questions === 0 || attention.data !== undefined)) return null;
   return (

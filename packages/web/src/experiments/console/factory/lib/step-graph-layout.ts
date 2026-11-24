@@ -28,7 +28,7 @@ export interface Point {
   y: number;
 }
 
-export interface LaidOutEdge {
+interface LaidOutEdge {
   from: string;
   to: string;
   /** The path's corners, from the source's bottom to the target's top. */
@@ -37,7 +37,7 @@ export interface LaidOutEdge {
   d: string;
 }
 
-export interface StepGraphLayout {
+interface StepGraphLayout {
   steps: LaidOutStep[];
   /** Outer groups first, so inner frames draw over them. */
   groups: LaidOutGroup[];

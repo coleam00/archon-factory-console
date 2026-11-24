@@ -8,6 +8,7 @@ import type { FactoryItem } from '../skills/factory';
 import type { AttentionQueue, AttentionQueueItem } from '../skills/runs';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
+import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { Board } from './BoardPage';
 import { realItem, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
@@ -17,7 +18,21 @@ import { cancelMergeWatches } from './merge-watch';
 
 // The popover opens, closes and moves focus on events, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+/** The project's attention stream, which says nothing here. */
+class QuietEventSource {
+  onmessage: unknown = null;
+  onerror: unknown = null;
+  readyState = 0;
+  close(): void {
+    this.readyState = 2;
+  }
+}
+const globals = {
+  window: dom,
+  document: dom.document,
+  EventSource: QuietEventSource,
+  IS_REACT_ACT_ENVIRONMENT: true,
+};
 const descriptors = new Map(
   Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
 );
@@ -32,6 +47,8 @@ function serveAnswers(): string[] {
   globalThis.fetch = Object.assign(
     async (input: RequestInfo | URL): Promise<Response> => {
       const path = String(input);
+      // The queue comes from the cache; a cold one stays unread.
+      if (path.includes('/api/runs/attention')) return new Promise<Response>(() => undefined);
       if (path !== '/api/attention/answer') throw new Error(`the board test fetched ${path}`);
       sent.push(path);
       return Response.json({ success: true });
@@ -85,18 +102,18 @@ async function mount(items: FactoryItem[], queue: AttentionQueue | null, path = 
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
-  const attention = {
-    data: queue ?? undefined,
-    error: undefined,
-    loading: queue === null,
-    refetch: () => undefined,
-  };
+  if (queue === null) invalidate('runs');
+  else set(K.projectAttention(ID), queue);
   const board = (): ReactElement => (
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board${path}`]}>
       <Routes>
         <Route
           path="/console/p/:projectId/factory/board"
-          element={<Board projectId={ID} view={VIEW} attention={attention} now={NOW} />}
+          element={
+            <ProjectAttentionProvider projectId={ID}>
+              <Board projectId={ID} view={VIEW} now={NOW} />
+            </ProjectAttentionProvider>
+          }
         />
       </Routes>
     </MemoryRouter>
