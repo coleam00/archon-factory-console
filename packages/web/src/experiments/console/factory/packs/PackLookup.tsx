@@ -7,6 +7,8 @@ import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
 import { packDisplayName } from '../lib/pack-name';
 import type { FactoryPackListed } from '../lib/views';
+import type { FactoryPacksRead } from '../api';
+import { ListingProblems } from './ListingProblems';
 import { PackFrame, PacksFailed } from './PackFrame';
 import { PackSkeleton } from './PackSkeleton';
 
@@ -25,22 +27,27 @@ export function PackLookup({
   subtitle?: string;
   /** What the frame says once the list is read and `pick` found nothing. */
   missing: string;
-  render: (pack: FactoryPackListed) => ReactElement;
+  /** Draws the picked pack; `listing` carries the install-wide read problems to show too. */
+  render: (pack: FactoryPackListed, listing: FactoryPacksRead) => ReactElement;
 }): ReactElement {
   const read = useFactoryPacks();
   const failed = readFailed(read.error);
-  const pack = read.data === undefined ? undefined : pick(read.data.packs);
-  if (pack !== undefined) return render(pack);
+  const listing = read.data;
+  const pack = listing === undefined ? undefined : pick(listing.packs);
+  if (listing !== undefined && pack !== undefined) return render(pack, listing);
   return (
     <PackFrame title="Factory" subtitle={subtitle}>
       {failed !== undefined ? (
         <PacksFailed message={factoryErrorDetail(failed)} />
-      ) : read.data === undefined ? (
+      ) : listing === undefined ? (
         <FactoryLoading read={read}>
           <PackSkeleton />
         </FactoryLoading>
       ) : (
-        <EmptyNote icon={Factory} sentence={missing} />
+        <>
+          <ListingProblems listing={listing} />
+          <EmptyNote icon={Factory} sentence={missing} />
+        </>
       )}
     </PackFrame>
   );

@@ -661,7 +661,7 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `/console/factory` | Redirects (replace) to the How it works page of the first installed pack with an overview file, in the server's order (by overview title, else key). There is no pack index page (v2 direction) |
+  | `/console/factory` | Redirects (replace) to the How it works page of the first installed pack whose overview file reads, in the server's order (by overview title, else key); when every listed pack's file is broken, the first, whose page says what could not be read. The packs read's install-wide problems (unreadable files, unreadable projects) show on the page it lands on. There is no pack index page (v2 direction) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
   | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header). `:pack` is the pack key (`owner.name` when installed). The page has no tabs and names no project (owner change 1 of 2026-11-23) |
 

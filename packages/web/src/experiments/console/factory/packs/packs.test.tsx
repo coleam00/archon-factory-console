@@ -86,7 +86,9 @@ const two = listing([
 ]);
 // The server lists packs by name; the console opens the first it lists, whatever its key.
 const twoReversed = listing([...two.packs].reverse());
-// What the old index stopped to show: a file it could not read, a project it could not open.
+// A pack whose overview file is broken is listed by its key, so it can sort first.
+const broken = pack('acme.aaa', 'unused', { overview: null });
+// Install-wide read problems: a file no pack could be told from, a project it could not open.
 const withProblems: FactoryPacksRead = {
   ...listing([pack('acme.kit', 'Kit')]),
   errors: [{ pack: 'acme/other', source: 'installed', path: '/plugins/x.json', error: 'bad' }],
@@ -99,6 +101,18 @@ describe('/console/factory opens How it works directly', () => {
     ['several: the first listed', '/console/factory', two, 'acme.kit'],
     ['several, listed the other way', '/console/factory', twoReversed, 'acme.web'],
     ['a listing that also reports problems', '/console/factory', withProblems, 'acme.kit'],
+    [
+      'a broken pack listed first: the first readable',
+      '/console/factory',
+      listing([broken, pack('acme.web', 'Web')]),
+      'acme.web',
+    ],
+    [
+      'only broken packs: the first, to show its errors',
+      '/console/factory',
+      listing([broken]),
+      'acme.aaa',
+    ],
     ['a pack without its page', '/console/factory/acme.kit', two, 'acme.kit'],
   ] as const)('%s', async (_, from, packs, key) => {
     const page = await mount(from, packs);
@@ -112,6 +126,23 @@ describe('/console/factory opens How it works directly', () => {
     expect(page.querySelector('h1')).not.toBeNull();
     expect(page.querySelector('article')).toBeNull();
     expect(hrefs(page)).toEqual([]);
+    // The not-found note is there; its wording is not the test's business.
+    expect(page.querySelector('p')?.textContent).toBeTruthy();
+  });
+
+  // Each read problem shows where the route lands, so a missing pack is explained.
+  const problems = (page: HTMLElement): string[] =>
+    [...page.querySelectorAll('[role="alert"]')].map(alert => alert.textContent ?? '');
+  test.each([
+    ['after the redirect', withProblems, '/console/factory/acme.kit/how-it-works'],
+    ['with no pack', { ...withProblems, packs: [] }, '/console/factory'],
+  ])('read problems show %s', async (_, packs, lands) => {
+    const page = await mount('/console/factory', packs);
+    expect(at(page)).toBe(lands);
+    const shown = problems(page);
+    expect(shown).toHaveLength(2);
+    expect(shown.some(alert => alert.includes('/plugins/x.json'))).toBe(true);
+    expect(shown.some(alert => alert.includes('api') && alert.includes('gone'))).toBe(true);
   });
 });
 
