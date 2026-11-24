@@ -98,14 +98,23 @@ export function stageLive(
     }
     positions.set(item.item.key, stage);
     if (aside !== null) continue;
-    live.items.push(item);
-    // `progress.running` is the latest running run of a declared workflow.
-    if (item.progress?.running != null) live.working += 1;
-    if (needsYouHere(item, attention)) live.needYou.push(item);
+    countHere(live, item, attention);
     if (!carded.has(stage)) notOnMap.push({ item, why: { kind: 'no-card', stage } });
   }
   markPending(view.landed.stage, items, stages);
   return { stages, notOnMap, positions };
+}
+
+/** Counts `item` on the stage it sits in: here, worked by a run now, needing a person. */
+function countHere(
+  live: StageLive,
+  item: FactoryItem,
+  attention: readonly AttentionQueueItem[]
+): void {
+  live.items.push(item);
+  // `progress.running` is the latest running run of a declared workflow.
+  if (item.progress?.running != null) live.working += 1;
+  if (needsYouHere(item, attention)) live.needYou.push(item);
 }
 
 /**
