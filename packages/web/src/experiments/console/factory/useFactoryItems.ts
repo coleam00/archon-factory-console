@@ -17,8 +17,8 @@ import type { FactoryItem } from './api';
  * name, for every Factory page. Its key sits under `runs:`, which the dashboard SSE
  * invalidates when a run starts, changes step or ends; an answer given on a Factory page
  * refreshes it too (`useItemAsks`). While
- * any item's merge state is `pending` it reads again shortly, a failed read included, until
- * the server has the answer. While any item's change is not merged it asks about those items
+ * any item's merge state is `pending`, or an issue's title is still being asked, it reads
+ * again shortly, a failed read included, until the server has the answer. While any item's change is not merged it asks about those items
  * on an interval (`watchMerges`), because a merge on the forge is no run event.
  */
 export function useFactoryItemsRead(projectId: string): EntityView<FactoryItemsRead> {
@@ -29,7 +29,7 @@ export function useFactoryItemsRead(projectId: string): EntityView<FactoryItemsR
   // `error` is a dependency on purpose: a failed re-read keeps the same `data`, and must
   // still schedule the next one.
   useEffect(() => {
-    if (data !== undefined && anyMergePending(data.items))
+    if (data !== undefined && (anyMergePending(data.items) || data.titlesPending))
       scheduleReread(FK.factoryItems(projectId));
   }, [data, error, projectId]);
   // Keyed on the boolean, not `data`: a refresh that still waits keeps the watch's clock.

@@ -333,7 +333,12 @@ describe('work orders on the item page', () => {
       item: { ...three.item, key: 'issue-3' },
       progress: { ...three.progress!, title: null, partOf: '48' },
     };
-    set(FK.factoryItems(PROJECT), { items: [placed], members: { '48': ['issue-3', '10'] } });
+    set(FK.factoryItems(PROJECT), {
+      items: [placed],
+      members: { '48': ['issue-3', '10'] },
+      lookups: {},
+      titlesPending: false,
+    });
     const base = itemDetail('1');
     const html = render({
       ...base,
@@ -367,7 +372,12 @@ describe('work orders on the item page', () => {
   test('a member its order run placed, with no link: Part of the order it named', () => {
     const detail = itemDetail('3');
     const item = { ...detail.item, progress: { ...detail.item.progress!, partOf: '48' } };
-    set(FK.factoryItems(PROJECT), { items: [item], members: {} });
+    set(FK.factoryItems(PROJECT), {
+      items: [item],
+      members: {},
+      lookups: {},
+      titlesPending: false,
+    });
     const html = render({ ...detail, item });
     expect(text(html)).toContain('Part of #48 as its order run recorded');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/48"`);

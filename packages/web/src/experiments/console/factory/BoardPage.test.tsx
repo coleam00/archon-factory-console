@@ -18,7 +18,6 @@ import {
   realItem,
   VIEW,
 } from './lib/board.test-fixtures';
-import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { boardColumns } from './lib/board-columns';
 import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches } from './merge-watch';
@@ -52,9 +51,7 @@ async function mount(
   path = `/console/p/${ID}/factory/board`,
   members: Record<string, string[]> = {}
 ) {
-  set(FK.factoryItems(ID), { items, members });
-  // The view declares discoveries, so the board mounts the "Found by the factory" panel.
-  set(FK.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryItems(ID), { items, members, lookups: {}, titlesPending: false });
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -116,7 +113,6 @@ test('before the items are read: a skeleton column per declared column, no "Load
   globalThis.fetch = Object.assign(async (): Promise<Response> => new Promise(() => {}), {
     preconnect: answering.preconnect,
   });
-  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   const { container, unmount } = await render(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
       {quiet(<Board projectId={ID} view={VIEW} now={NOW} />)}
@@ -192,17 +188,13 @@ test('the Pipeline: columns, cards, work orders, the strips under the board, a f
     expect(container.textContent).not.toContain('highlighting');
     expect(container.querySelectorAll('article[data-dimmed="true"]')).toHaveLength(0);
 
-    // One line under the board, closed: Found by the factory and what was set aside.
-    expect(container.querySelector('#found-by-the-factory-heading')?.textContent).toBe(
-      'Found by the factory'
-    );
+    // One line under the board, closed: what was set aside.
     expect(container.querySelector('#set-aside-heading')?.textContent).toBe('3 set aside');
     expect(card(container, 'p')).toBeNull();
     expect(container.querySelector('#set-aside-list')).toBeNull();
-    // One toggle opens both, each set-aside row with why.
+    // One toggle opens it, each set-aside row with why.
     await act(async () => stripsToggle(container)?.click());
     expect(stripsToggle(container)?.textContent).toBe('hide them');
-    expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
     const reasons = container.querySelector('#set-aside-list')?.textContent ?? '';
     for (const why of ['Parked by triage', 'No change was proposed', 'Folded into another item'])
       expect(reasons).toContain(why);
@@ -408,33 +400,6 @@ describe('a board opened from a number', () => {
       }
     }
   );
-
-  test('?show=found: the whole board, both strips open, their line scrolled to once', async () => {
-    const scrolled: Element[] = [];
-    const proto = dom.HTMLElement.prototype as unknown as { scrollIntoView: () => void };
-    const original = proto.scrollIntoView;
-    proto.scrollIntoView = function (this: Element): void {
-      scrolled.push(this);
-    };
-    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
-    const rest = PAGE.items.filter(item => item.item.key !== '6');
-    const { container, unmount } = await mount(
-      [closed, ...rest],
-      `/console/p/${ID}/factory/board?show=found`
-    );
-    try {
-      expect(cardKeys(container)).toHaveLength(rest.length);
-      expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
-      expect(container.querySelector('#set-aside-list')).not.toBeNull();
-      // By identity: a failing toEqual on a happy-dom Element hangs bun while it formats the diff.
-      expect(
-        scrolled.length === 1 && scrolled[0] === container.querySelector('[data-board-strips]')
-      ).toBe(true);
-    } finally {
-      await unmount();
-      proto.scrollIntoView = original;
-    }
-  });
 
   test('an unknown ?show= says so and filters nothing', async () => {
     const { container, unmount } = await mount(

@@ -1,10 +1,10 @@
 /**
- * Discover factory overviews (`schemas/factory-overview.ts`) for a project, found as factory
+ * Find factory overviews (`schemas/factory-overview.ts`) for a project, found as factory
  * views are (`factory-pack-files.ts`): a project file `.archon/packs/<pack key>.factory-overview.json`,
  * then `<pack>/.shared/factory-overview.json` in every pack the project can run; and which
  * overview each pack's page shows across the install (`resolveFactoryPacks`).
  */
-import { discoverPackFiles, factoryPackKey } from './factory-pack-files';
+import { findPackFiles, factoryPackKey } from './factory-pack-files';
 import {
   FACTORY_OVERVIEW_FILE,
   FACTORY_OVERVIEW_PROJECT_SUFFIX,
@@ -15,10 +15,10 @@ import {
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 /** Every overview and error under `roots`. */
-export async function discoverFactoryOverviews(
+export async function findFactoryOverviews(
   roots: LiveWorkflowSourceRoots
 ): Promise<FactoryOverviewsListing> {
-  const { found, errors } = await discoverPackFiles(
+  const { found, errors } = await findPackFiles(
     {
       fileName: FACTORY_OVERVIEW_FILE,
       projectSuffix: FACTORY_OVERVIEW_PROJECT_SUFFIX,
@@ -52,7 +52,7 @@ const ownedByProject = (listed: { source: string }): boolean =>
  * by name then id, whose own files give one, named in `readFrom`. A broken pack file falls
  * back to a project's file and stays listed, so the page is useful and the break visible. A
  * pack with only broken files is listed with no overview. Factory views keep their own
- * precedence (`discoverPackFiles`): only the overview a pack page shows is resolved here.
+ * precedence (`findPackFiles`): only the overview a pack page shows is resolved here.
  */
 export function resolveFactoryPacks(input: {
   home: FactoryOverviewsListing;

@@ -11,17 +11,12 @@ describe('readFailure', () => {
   });
 
   test("an answer with the server's message says that message", () => {
-    const error = new HttpError(
-      500,
-      '/api/factory/item',
-      '{"error":"x"}',
-      'Failed to read the item'
-    );
+    const error = new HttpError(500, '/api/items', '{"error":"x"}', 'Failed to read the item');
     expect(readFailure(error)).toBe('Failed to read the item');
   });
 
   test('an answer with no message says its status, not the raw error text', () => {
-    expect(readFailure(new HttpError(502, '/api/factory/item', ''))).toBe('Request failed (502)');
+    expect(readFailure(new HttpError(502, '/api/items', ''))).toBe('Request failed (502)');
   });
 
   test('any other error says its own text', () => {

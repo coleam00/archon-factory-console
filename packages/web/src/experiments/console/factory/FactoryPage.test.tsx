@@ -107,7 +107,7 @@ function render(
     packs: [{ projects: [{ codebaseId: ID, name: 'acme' }] }],
   } as unknown as FactoryPacksRead);
   set(K.runsAttention, attention);
-  set(FK.factoryItems(ID), { items, members: {} });
+  set(FK.factoryItems(ID), { items, members: {}, lookups: {}, titlesPending: false });
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>{factoryRoutes('/console/')}</Routes>

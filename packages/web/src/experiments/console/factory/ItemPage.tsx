@@ -3,8 +3,10 @@ import { displayItemKey } from './lib/item-key';
 import { useParams } from 'react-router';
 import { BookOpen, Info } from 'lucide-react';
 import { SkeletonBlock, SkeletonGroup, SkeletonLine } from './ui/Skeleton';
-import { getFactoryItem } from './api';
 import type { FactoryItem, FactoryItemDetail } from './api';
+import { getRunDetail } from './api';
+import { FACTORY_ITEMS_READS } from './lib/factory-items-read';
+import { readFactoryItem } from './lib/factory-item-read';
 import type { EntityView } from '../store/cache';
 import { FK } from './keys';
 import { useFactoryRead } from './useFactoryRead';
@@ -44,13 +46,14 @@ function ItemBody({ view }: { view: FactoryViewListed }): ReactElement {
   // Under the factory's item prefix, which sits under `runs:`, so the dashboard SSE refreshes it
   // on every run event.
   const itemKey = FK.factoryItem(projectId, key);
-  const read = useFactoryRead<FactoryItemDetail>(itemKey, within =>
-    within(signal => getFactoryItem({ codebaseId: projectId, key }, { signal }))
+  const read = useFactoryRead<FactoryItemDetail & { titlesPending: boolean }>(itemKey, within =>
+    readFactoryItem(projectId, key, { ...FACTORY_ITEMS_READS, getRunDetail }, within)
   );
-  // As `useFactoryItems`: read again while the server is still asking whether it merged.
+  // As `useFactoryItems`: read again while the forge is still being asked.
   const { data, error } = read;
   useEffect(() => {
-    if (data !== undefined && mergePending(data.item)) scheduleReread(itemKey);
+    if (data !== undefined && (mergePending(data.item) || data.titlesPending))
+      scheduleReread(itemKey);
   }, [data, error, itemKey]);
   return (
     <div className="flex flex-col gap-6">

@@ -3,11 +3,11 @@ import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
-  discoverFactoryOverviews,
+  findFactoryOverviews,
   resolveFactoryPacks,
   type FactoryPackProject,
 } from './factory-overviews';
-import { discoverFactoryViews } from './factory-views';
+import { findFactoryViews } from './factory-views';
 import type { FactoryOverview, FactoryOverviewsListing } from './schemas/factory-overview';
 import type { FactoryViewSource } from './schemas/factory-view';
 import { scratchRoots, writeAt } from './factory-test.test-helpers';
@@ -52,12 +52,12 @@ const projectFile = (key: string): string =>
 const packFile = (pack: string): string =>
   join(project, '.archon', 'workflows', pack, '.shared', 'factory-overview.json');
 
-describe('discoverFactoryOverviews', () => {
+describe('findFactoryOverviews', () => {
   test("finds a project file and a pack's own file", async () => {
     await write(projectFile('acme.kit'), overview('acme/kit', 'From the project'));
     await write(packFile('folder'), overview('folder', 'From the pack'));
 
-    const listing = await discoverFactoryOverviews(roots);
+    const listing = await findFactoryOverviews(roots);
     expect(listing.errors).toEqual([]);
     expect(listing.overviews.map(o => [o.pack, o.source, o.declaration.title, o.path])).toEqual([
       ['acme/kit', 'project-file', 'From the project', projectFile('acme.kit')],
@@ -71,7 +71,7 @@ describe('discoverFactoryOverviews', () => {
     await write(projectFile('broken'), '{ "version": ');
     await write(packFile('broken'), overview('broken', 'From the pack'));
 
-    const listing = await discoverFactoryOverviews(roots);
+    const listing = await findFactoryOverviews(roots);
     expect(listing.overviews.map(o => [o.pack, o.declaration.title])).toEqual([
       ['wins', 'From the project'],
     ]);
@@ -88,10 +88,10 @@ describe('discoverFactoryOverviews', () => {
       overview('other', 'x')
     );
 
-    const overviews = await discoverFactoryOverviews(roots);
+    const overviews = await findFactoryOverviews(roots);
     expect(overviews.overviews.map(o => o.pack)).toEqual(['acme/kit']);
     expect(overviews.errors).toEqual([]);
-    const views = await discoverFactoryViews(roots);
+    const views = await findFactoryViews(roots);
     expect(views.views).toEqual([]);
     expect(views.errors.map(e => e.path)).toEqual([
       join(project, '.archon', 'packs', 'other.factory-view.json'),

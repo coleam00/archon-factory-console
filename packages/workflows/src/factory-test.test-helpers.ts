@@ -1,97 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { readRunFixture } from './__fixtures__/read-run-fixture';
 import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
-import { factoryViewSchema, type FactoryView } from './schemas/factory-view';
-import type { WorkflowEventRow } from './schemas/workflow-event';
-import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
-
-/** The pack the fixtures' runs come from. */
-export const PACK = 'Wirasm/archon-software-factory';
-
-/** The view file this repository ships for that pack. */
-const SHIPPED_VIEW_PATH = join(
-  import.meta.dir,
-  '../../../.archon/packs/Wirasm.archon-software-factory.factory-view.json'
-);
-
-/** The declaration this repository ships for the pack, parsed. */
-export function shippedView(): FactoryView {
-  return factoryViewSchema.parse(JSON.parse(readFileSync(SHIPPED_VIEW_PATH, 'utf8')));
-}
-
-/**
- * The shipped view with the loop-form rounds, returns, approvals and verdicts of `deliver`, the
- * retired one-workflow delivery the item fixtures' runs come from. The shipped file no longer
- * words deliver's rounds, but reading a loop's rounds is still the engine's to test.
- */
-export function deliverRoundsView(): FactoryView {
-  const view = shippedView();
-  const verdict = 'rounds.verdict__verdict';
-  return factoryViewSchema.parse({
-    ...view,
-    rounds: [{ workflow: 'deliver', loop: 'rounds' }, ...[view.rounds ?? []].flat()],
-    returns: [
-      { workflow: 'deliver', node: verdict, outcome: 'return' },
-      { workflow: 'deliver', node: 'hostrounds.host__host', outcome: 'return' },
-      ...(view.returns ?? []),
-    ],
-    approves: [
-      { workflow: 'deliver', node: verdict, outcome: 'approve' },
-      ...(view.approves ?? []),
-    ],
-    verdicts: {
-      ...view.verdicts,
-      deliver: {
-        'rounds.review__review': { approve: 'approved', return: 'returned', ask: 'asked' },
-        'rounds.tests__tests': { sound: 'approved', return: 'returned', ask: 'asked' },
-        'rounds.product__product': { approve: 'approved', return: 'returned', ask: 'asked' },
-        [verdict]: { ask: 'asked' },
-      },
-    },
-  });
-}
-
-export interface RunFixture {
-  run: WorkflowRun;
-  events: WorkflowEventRow[];
-}
-
-const date = (value: unknown): Date | null =>
-  value === null || value === undefined
-    ? null
-    : value instanceof Date
-      ? value
-      : new Date(String(value));
-
-/** A run row from its recorded fields, the fields a copy trimmed at their defaults. */
-export function hydrateRun(fields: Record<string, unknown>): WorkflowRun {
-  return workflowRunSchema.parse({
-    origin: null,
-    conversation_id: null,
-    parent_conversation_id: null,
-    codebase_id: null,
-    outcome: null,
-    completed_outcome: null,
-    user_message: '',
-    active_phase_started_at: null,
-    working_path: null,
-    user_id: null,
-    parent_run_id: null,
-    adopted_from_run_id: null,
-    output_root: null,
-    checkout_baseline: null,
-    item_id: null,
-    metadata: {},
-    ...fields,
-    started_at: date(fields.started_at),
-    completed_at: date(fields.completed_at),
-    last_activity_at: date(fields.last_activity_at),
-  });
-}
 
 /**
  * Fresh, empty live source roots in a new temp tree `track` removes: a home and, unless
@@ -121,10 +32,4 @@ export async function scratchRoots(
 export async function writeAt(path: string, content: unknown): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, typeof content === 'string' ? content : JSON.stringify(content));
-}
-
-/** A run copied from the live factory database: `__fixtures__/<dir>/<name>.jsonl` (its `note` says which). */
-export function runFixture(dir: string, name: string): RunFixture {
-  const raw = readRunFixture(join(import.meta.dir, '__fixtures__', dir, `${name}.jsonl`));
-  return { run: hydrateRun(raw.run), events: raw.events };
 }

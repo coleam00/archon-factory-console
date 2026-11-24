@@ -394,7 +394,7 @@ export function boardModel(
  * The board narrowed to the cards `query` finds by key, title or work order and, when given, to
  * the cards `show` picks (what one of the Overview's numbers counts). The set-aside items and
  * the Position unknown row narrow by the query too; while `show` narrows the board they are hidden: no number counts
- * them. A show that narrows nothing (Found opens a panel) leaves the board to the query.
+ * them. A show that narrows nothing leaves the board to the query.
  * `positions` keeps every item, so narrowing never reads as a card moving.
  */
 export function filterBoard(

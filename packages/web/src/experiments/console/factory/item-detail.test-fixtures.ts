@@ -5,7 +5,8 @@ import { mapArrows, type MapArrow, type PackGraph } from './lib/graph-structure'
 import type { FactoryViewListed } from './lib/views';
 
 /**
- * Real `GET /api/factory/item` responses (see each file's `note`): item 1 (one deliver run,
+ * Real item pages as the console derives them (see each file's `note`; captured from the
+ * server's read before the web derived them, the same shape): item 1 (one deliver run,
  * two rounds), item 2 (three rounds), item 3 (two deliver runs, each ending in an ask, with
  * the answers), item 6 (a deliver run running its build step). Captured with each run's story
  * facts (its step starts, models, change and words): item 111 (one deliver run, two rounds,
@@ -34,16 +35,18 @@ export const shippedView: FactoryViewListed['declaration'] = JSON.parse(
 ) as FactoryViewListed['declaration'];
 
 /**
- * The shipped declaration as `GET /api/factory/views` lists it: its pack key, and each
- * workflow's run name as runs record it and the pack graph's stages carry it.
+ * The shipped declaration as `GET /api/factory/views` lists it: its pack key, and the run name
+ * of each workflow it names, as runs record it and the pack graph's stages carry it.
  */
 export const shippedListed: FactoryViewListed = {
   pack: shippedView.pack,
   packKey: 'Wirasm.archon-software-factory',
+  // As the server lists them: each stage's workflows and the `discoveries` drain.
   runNames: Object.fromEntries(
-    shippedView.stages.flatMap(stage =>
-      stage.workflows.map(workflow => [workflow, `${shippedView.pack}:${workflow}`])
-    )
+    [
+      ...shippedView.stages.flatMap(stage => stage.workflows),
+      ...[shippedView.discoveries?.workflow ?? []].flat(),
+    ].map(workflow => [workflow, `${shippedView.pack}:${workflow}`])
   ),
   source: 'project-file',
   path: '/repo/.archon/packs/Wirasm.archon-software-factory.factory-view.json',

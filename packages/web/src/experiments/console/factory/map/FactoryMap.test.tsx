@@ -50,7 +50,8 @@ async function mount(
   read: FactoryItem[] | null = items,
   listed: FactoryViewListed = shippedListed
 ): ReturnType<typeof mountTree> {
-  if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
+  if (read !== null)
+    set(FK.factoryItems(ID), { items: read, members: {}, lookups: {}, titlesPending: false });
   set(packGraphKey(ID, listed.packKey), shippedGraph);
   return mountTree(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>

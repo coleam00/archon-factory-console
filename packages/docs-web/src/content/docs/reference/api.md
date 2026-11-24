@@ -326,6 +326,7 @@ Only user-defined workflows can be deleted. Bundled defaults cannot be removed.
 | POST | `/api/workflows/{name}/run` | Run a workflow (JSON or multipart). A start the engine refuses (a workflow that does not resolve, a missing required input, an undeclared input, an unmet `requires:`) returns **400** with the engine's reason, and nothing is written or queued; for the input refusals it is the text `archon workflow run` prints. A start that names `adopt_run_id`, whose conversation sits in a worktree, or that continues a paused run of the same workflow in the conversation, is judged on the definition it will run and is answered on the conversation after a **200** |
 | GET | `/api/workflows/runs` | List workflow runs |
 | GET | `/api/workflows/runs/{runId}` | Get run details with events (provider events are served by the route below). `run.nodes[]` is the engine's per-node state; a `workflow:` fan-out node also carries `fan_out_outcome`, its [per-slot record and tally](/reference/workflow-language/#a-completed-fan-out-node-is-not-completed-child-work). A loop body node in `nodes[]` holds its latest round; `run.loop_rounds[]` lists every round of each `loop_group` the run entered, with its body nodes' state, timing and output, and is absent for a run with no loop. See [node execution records](/reference/node-execution/) for event fields, reporting availability, and cost scope |
+| GET | `/api/workflows/runs/records` | The records of up to 100 runs without their events: `?runId=` repeated once per run. Each record has the run's `status`, `completed_at`, its terminal record's `returns` (absent without one), `node_outcomes` (every node invocation with a completed node's structured output, as `$NODE_OUTCOMES_FILE` lists them), `loop_iterations` (each loop iteration started, its `group`, bound and whether it completed) and `running` (the steps running now, in start order). `?outputKey=` and `?resultKey=`, each repeatable, keep only those top-level fields of each output and of the result. An unknown id is listed under `missing`, a run whose events do not fold under `unreadable`. More than 100 ids returns **400** |
 | GET | `/api/workflows/runs/{runId}/provider-events` | The run's provider events as `{events: ProviderEventRecord[]}`: each is `{runId, stepName, attemptId, seq, observedAt, event}`, grouped by node and in emission order within one. `?step=` limits it to one node. `?attemptId=&afterSeq=` (both, and with `step`) returns only the events after that one: the attempt's later events and every later attempt's. Rows written before the engine recorded envelopes come back translated, with `attemptId: null`. Returns **400** for a partial cursor |
 | GET | `/api/runs/{runId}/artifacts` | List artifact files produced by a run |
 | GET | `/api/artifacts/{runId}/{filename}` | Read an artifact's text content; encode the complete relative filename, including slashes, as one path value |
@@ -620,13 +621,11 @@ See the [metrics guide](/guides/metrics/).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/factory/views` | The factory views that apply to a project, as `FactoryViews` |
-| GET | `/api/factory/progress` | The board progress of a project's items, by key, as `FactoryProgress` |
-| GET | `/api/factory/workflow` | One workflow a factory view names, as its steps and groups (`FactoryWorkflow`) |
-| GET | `/api/factory/item` | One item with its progress and each run's timeline facts, as `FactoryItemDetail` |
-| GET | `/api/factory/discoveries` | What the discoveries drains the view's `discoveries` field names decided to file, held and dropped, as `FactoryDiscoveries` |
+| GET | `/api/factory/packs` | Every pack with a factory overview file across the install, and the projects a view of it applies to, as `FactoryPacks` |
+| GET | `/api/forge/subjects` | What the project's forge says of some issues and of the changes runs delivered, as `ForgeSubjects` |
 
 A factory view is a JSON declaration that presents a workflow pack as a software factory in
-the console: its stages, where a finished run leaves an item, and a map. A pack ships one as
+the console, as presentation only: words, grouping, order and layout. A pack ships one as
 `<pack>/.shared/factory-view.json`; a project can present a pack it cannot edit with
 `.archon/packs/<pack key>.factory-view.json` (the key is `owner.name` for an installed pack),
 which replaces the pack's own. The schema is `factoryViewSchema` in
@@ -635,82 +634,38 @@ which replaces the pack's own. The schema is `factoryViewSchema` in
 `codebaseId` is required. A view applies when the project ships its own file, or when the
 project has a run of a workflow the view names. `views[]` holds each with its pack, `packKey`
 (the pack's folder key, the `{pack}` of `GET /api/packs/{pack}/graph`), `runNames` (each workflow
-a stage lists, as its runs record it and the pack graph names its stage), source
-(`project-file` or the pack's scope) and file `path`; `errors[]` holds every declaration that
-could not be read or did not validate, with its `path`. An unknown `codebaseId` returns
+the view names, a stage's or its `discoveries` drain, as its runs record it and the pack graph
+names its stage), source (`project-file` or the pack's scope) and file `path`; `errors[]` holds
+every declaration that could not be read or did not validate, with its `path`. An unknown
+`codebaseId` returns **404**.
+
+The console composes everything else from Archon's generic reads: the items from
+`GET /api/items/window` and `GET /api/items`, each run's record from
+`GET /api/workflows/runs/records`, a run's events from `GET /api/workflows/runs/{runId}`, and
+the structure from `GET /api/packs/{pack}/graph`. No route reads a pack's rounds, returns or
+item stories; the console derives them from those reads and the view's words.
+
+`GET /api/forge/subjects?codebaseId=` asks the forge of the project's registered remote through
+Archon's forge seam, so the browser never calls it:
+
+- `issue=` (repeatable): an issue number. Each answers `{ number, title, state, url, pending }`;
+  the fields are null while the forge has not answered or could not.
+- `changeRun=` and `changeUrl=` (repeatable, paired by position): a run and the change URL it
+  delivered. `branchRun=` (repeatable): a run that delivered a change but named no URL; the
+  pull request is searched on the branches its item's runs recorded, newest first. Each answers
+  `{ run, url, merged, mergedAt, number }`. A change whose item recorded its merge (a land run,
+  or `archon workflow merged`) is merged at the recorded time without asking the forge whether.
+  Otherwise the forge's `pr.view` answers: by number for the pull request the run's forge
+  operations recorded, else by head on the item's run branches. A `branchRun` whose item
+  recorded no branch and no merge has no change and no entry.
+
+Answers are cached on the server: a change that has not merged for 60 seconds, a merge for
+good, an issue for 10 minutes, a stale answer served while it refreshes. A first lookup still
+running after 4 seconds answers `merged: "pending"` (a change) or `pending: true` (an issue) for
+that read only, so read again shortly; a lookup that failed answers `unknown` (a change) or
+null fields (an issue) and is cached like any other. A `changeRun` without its `changeUrl`, or a
+number that is not a positive whole number, returns **400**; an unknown `codebaseId` returns
 **404**.
-
-The console reads a project's items from `GET /api/items/window`. `GET
-/api/factory/progress?codebaseId=&keys=` returns what the board needs of them that the item
-read does not carry: `progress` by item key, derived through the first view that applies
-(`pack` names it). Repeat `keys` once per item, up to 100 (one window page):
-
-- `running`: the latest-started running run of a workflow the view names, with the workflow as
-  the view names it and its deepest running step; null when none runs.
-- `round`: the view's `rounds` loop on the latest run that entered it: the latest iteration,
-  the loop's bound, and each round's `verdict` and `outcome`. `verdict` is `returned` (a
-  `returns` point in the loop sent the item back that round), `approved` (an `approves` point
-  in the loop approved it), `undecided` (the round completed with neither: an ask, a replan,
-  or a view that declares no `approves`), `running`, or `stopped` (the run ended inside the
-  round). A round is never read as approved unless the view declares the outcome that
-  approves. `outcome` is what the loop's `returns` or `approves` step recorded that round, as
-  the workflow names it (`return`, `approve`, `ask`...), or null when it recorded none.
-- `returned`: how many times a `returns` point sent the item back, across its runs.
-- `change`: the URL at the view's `change` pointer in the latest run that has one, and
-  `merged` (`true`, `false` or `unknown`) with `mergedAt`, read from the change host with the
-  forge's `pr.view`: by number for the pull request that run's forge operations recorded, or,
-  when they name none (an earlier run opened it), by head in any state on each branch the
-  item's runs recorded, newest first, taking the pull request whose URL is the change. The
-  server caches each answer: a merge for good, anything else for 60 seconds. A first lookup
-  that takes longer than 4 seconds answers `unknown` and finishes into the cache. `number` is
-  the pull request's number as the forge named it, else as the run's forge operations
-  recorded it, or null.
-- `runs`: the item's runs of workflows the view names, in start order, each with the workflow
-  as the view names it (a run records `owner/name:workflow`) and `failedStep`, the first step
-  that failed, or null. Status, outcome and times are on the item read's `runs`, by id.
-- `title`: the title line of the view's `itemTitle` run input: its first non-empty line after
-  any `---` front matter, without a leading `#<n> ` or markdown heading marker; null when no
-  run carries one.
-
-An item's progress is null when its runs could not be read into it; the others stand. A
-key the project has no item under is left out. No `keys`, or more than 100, returns **400**. An
-unknown `codebaseId`, or a project no view applies to, returns **404**.
-
-`GET /api/factory/workflow?codebaseId=&workflow=` reads one workflow a stage of an applying
-view names (`workflow` as the view names it, such as `deliver`), from the definition runs
-execute. `steps[]` holds every step keyed as run events name it (a loop group's body step is
-`<loop>.<node>`, an included workflow's step `<include>__<node>`), with its kind, declared
-model, `when:` (and `whenClauses`, its comparisons through the engine's `when:` parser:
-any one clause holds when all its comparisons do, and each comparison names the step it
-reads by key, such as `rounds.verdict__verdict`, or the input, with the operator and value),
-the prompt it runs (inline, or its command file's text) and the YAML block
-its author wrote, read from the pack's file. `groups[]` holds the loop groups (with their
-most rounds) and included workflows that frame the steps, outer before inner. A missing
-prompt or YAML block is `null` with `promptError` or `yamlError` saying why. An unknown
-`codebaseId`, a workflow no applying view names, or one the project does not have returns
-**404**.
-
-`GET /api/factory/item?codebaseId=&key=` reads one item, its read as `GET /api/items` returns
-it with its `progress` as above (through the same view, with the same merge cache), plus `runs`: one entry
-per run in `item.runs`, in the same order, with what the item page's timeline needs:
-
-- `workflow`: the workflow as the view names it; null for a run of a workflow it does not.
-- `cause`: what started the run, the same value as `item.runs[].cause`; absent for a start
-  by hand.
-- `costUsd`: the run's total cost as it recorded it; null until it records one (a running
-  run records it at the end).
-- `step`: the deepest running step while the run runs; null between steps and once it ended.
-- `rounds`: on a run of the view's `rounds` workflow, its rounds with `max`, each round's
-  `verdict` and `outcome` as above, plus `summary`, the `summary` the step that decided the
-  round recorded, and `steps`: each step inside the loop that completed that round with a
-  structured `outcome`, as `{ node, outcome, summary }`, in recording order. `outcome` and
-  `summary` are read by those names from the step's structured output; a `summary` that is not
-  a string is null. `rounds` is null on any other run, or when the run's events could not be
-  read into it.
-
-`key` is a query parameter because item keys are free text. A missing `codebaseId` or `key`
-returns **400**; an unknown `codebaseId`, a project no view applies to, or no item with that
-key returns **404**.
 
 ---
 

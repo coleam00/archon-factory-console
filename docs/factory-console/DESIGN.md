@@ -771,9 +771,30 @@ The items and the stage graph are the engine's own reads, which any API client u
   options their workflow declares (#6139), its links (work orders and members), and its change.
   The batched item-start read (`packages/core` `db/item-starts.ts`) stays.
 
-What those reads do not carry comes from **one small read-only route file**,
-`packages/server/src/routes/api.factory.ts`, kept to what the web cannot get from existing
-routes (v2 direction):
+Two generic reads, with no pack words, carry what the item reads do not (v2-D, #183):
+
+- `GET /api/workflows/runs/records?runId=` (repeated, at most 100): each run's record without
+  its events: status, its terminal record's `returns`, its node outcomes (each completed node's
+  structured output), its loop iterations (bound, completed) and its running steps.
+  `outputKey=` and `resultKey=` keep only the named top-level fields. The run detail route
+  would send every run's every event; on a copy of the live project (91 items, 764 runs) this
+  sends about 2.7 MB on a cold board load and only the running runs' records after it.
+  The server keeps ended runs' records per process, and the web keeps them for the page's life.
+- `GET /api/forge/subjects?codebaseId=` (`packages/server/src/routes/api.forge.ts`): an issue's
+  title, state and URL (`workitem.view`), and a delivered change's URL, number and merge state
+  (`pr.view`), through Archon's forge seam (`packages/adapters/src/forge-host.ts`). Items have no
+  title column, and a merge on the forge is no run event. An item's title is its issue's, for a
+  key that names an issue (`issue-<n>` or `<n>`, `lib/item-key.ts`); any other key reads as the
+  key. No title is read from a run's input.
+
+From them, the item reads, the graph and the view file's words, the web computes every item's
+progress once (`factory/lib/run-facts.ts`, `item-progress.ts`, `factory-derive.ts`): its running
+step, check rounds, returns, change, work order, and whether its last run parked it or left it
+waiting on a person; the item page adds Archon's run detail for each run's models and step
+starts (`run-story.ts`).
+
+The view files come from **one small read-only route file**,
+`packages/server/src/routes/api.factory.ts`:
 
 - `GET /api/factory/views?codebaseId=` the factory views that apply to the project, found as
   the factory view declaration's Discovery paragraph says (through the generic
@@ -796,13 +817,9 @@ routes (v2 direction):
   from the change host through Archon's forge seam (the same `pull request view` operation
   the packs use), read by the server and cached for at least 60 s. The server discovers forge
   plugins once per process (a plugin added after it starts needs a restart to be used here).
-  Items merged before land runs recorded merges carry no record:
-  `scripts/console-merge-backfill.ts` prints the `archon workflow merged` lines for the ones a
-  run's own URL confirms, for the operator to run once. It lists every other item that looks
-  merged or whose state could not be read (its pull request found by branch, no merge time,
-  `unknown`, still pending) with why, and says what to do: confirm the pull request, then
-  record it by hand with `archon workflow merged`, or leave it when it never merged. A run
-  with nothing to record says so. The pull request is the one the
+  Items merged before land runs recorded merges carry no record; record one by hand with
+  `archon workflow merged` (the one-time backfill script of #141 went with the server read it
+  used, in v2-D). The pull request is the one the
   run's forge records name, else the one on a branch the item's runs recorded whose URL is
   the change (an earlier run may have opened it). An
   empty change URL is no URL: the item takes the latest earlier run that named one. When no
@@ -834,16 +851,15 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    (Visual standard, rule 6) in place of its figure. An item whose merge state is not known
    (pending, or unknown: the lookup failed or found no pull request, with no run working it)
    is in no number but M, never a count that may be wrong. While one is pending, every number
-   but needs you and found by the factory shows the count of what is known with the skeleton
+   but needs you shows the count of what is known with the skeleton
    bar beside it (rule 6: a skeleton is loading, and a pending state settles in seconds). An
    unknown one may never settle, so it gets no skeleton: a line under the tiles says how many
    in words ("1 merge state could not be read", `--text-console-13`), linking to the board
    narrowed to those cards (`?show=unknown`). A first read that fails replaces the tiles with
    an alert saying so; a refresh that fails says so above the last values read (as the map and
    the board do).
-   When the view declares `discoveries` and their data is generic (v2 direction), a sixth tile, "found by the factory", counts what the
-   drains decided to file that no item carries yet; it has its own read, so it never holds up
-   the other five. The tiles are plain figures, not links, with no hover or focus state (owner
+   There is no "found by the factory" tile (v2-D, #183): the drains name the items their findings
+   concern only in prose, so a finding cannot be joined to an item by id. The tiles are plain figures, not links, with no hover or focus state (owner
    change 3 of 2026-11-23); each counts with the board's own show (`?show=`, one spec per show in
    `lib/board-show.ts`), so a number and the board agree. Only the unknown line under the tiles
    links (`?show=unknown`). The median tile's tooltip says what the figure means.
@@ -1013,7 +1029,7 @@ and changes nothing. The check warns on such an outcome.
 
 **Set aside** (#145). The columns hold live work. An item with nothing left to happen leaves
 its column, counts in no column header, chip, In flight or M, and is no Table row; it folds
-into one line under the board, "N set aside", beside "Found by the factory", in both views.
+into one line under the board, "N set aside", in both views.
 Opened (see The strips under the board), it lists each item's key (linking to its page),
 title, why it was set aside and when its last run ended. An item is set aside when the first of these holds:
 
@@ -1041,19 +1057,16 @@ engine. An item placement found no column for (a view changed under cached items
 it) is not set aside: it keeps a folded "N position unknown" row at the end of the toolbar,
 opening a list over the board.
 
-**The strips under the board** (owner, 2026-11-23, #152). "Found by the factory" and "N set
-aside" share one line under the board, each a one-line card, with one toggle after them, "show
-them" / "hide them" (the card language's one-line form), that opens and closes both together.
-They open downward, in the page below the board or table, never over it: nothing is absolutely
+**The strips under the board** (owner, 2026-11-23, #152). "N set aside" is one line under the
+board, a one-line card, with a toggle after it, "show them" / "hide them" (the card language's
+one-line form). "Found by the factory" went in v2-D (#183): its findings name items only in
+prose, so they are not data the console can join (v2 direction). The list opens downward, in the page below the board or table, never over it: nothing is absolutely
 or fixed positioned, the board keeps its fill height and the page scrolls to reach them. Above
 md the board area is exactly the fill height (never under the Pipeline's floor with the
 toolbar and the line), so a short window grows the page instead of running the board under the
-opened strips. Switching Pipeline and Table leaves them open or closed as they were. `?show=found`
-opens them and scrolls their line into view once, on arrival, so both names and the toggle sit
-above the findings: a view switch or a toggle afterwards does not
-move the page. A strip with nothing to say is left out; with neither, there is no line. Both strips stay only
-while their data is generic (discoveries as items or links, set aside from outcomes the view
-names; v2 direction).
+opened strips. Switching Pipeline and Table leaves it open or closed as it was. With nothing set aside, there
+is no line. It stays only while its data is generic (set aside from outcomes the view names; v2
+direction).
 
 A card, in this order:
 

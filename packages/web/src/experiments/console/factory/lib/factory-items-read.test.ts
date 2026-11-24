@@ -1,148 +1,157 @@
-import { expect, mock, test } from 'bun:test';
-import type { FactoryItem } from '../api';
-import type { ItemWindow } from '../api';
+import { expect, test } from 'bun:test';
+import type { FactoryItem, ItemRead, ItemWindow } from '../api';
+import { HttpError } from '../../lib/http';
+import { shippedListed } from '../item-detail.test-fixtures';
 import { deadlineOf, FACTORY_READ_DEADLINE_MS } from './deadline';
 import { readEveryFactoryItem, type FactoryItemsReads } from './factory-items-read';
-import { capturedItemsPage } from './fixtures/factory-items-page';
+import { capturedItemsPage, itemsReadAnswer } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
 const within = deadlineOf(FACTORY_READ_DEADLINE_MS);
 
-const read = ({ progress: _progress, ...rest }: FactoryItem): ItemWindow['items'][number] => rest;
+const read = ({ progress: _progress, ...rest }: FactoryItem): ItemRead => rest;
 const page = (items: FactoryItem[], next: string | null): ItemWindow => ({
   window: { since: '1970-01-01T00:00:00.000Z', until: '2026-11-17T12:00:00.000Z' },
   items: items.map(read),
   next,
 });
-/** `item` renamed `key`, its runs ending at `at`. */
+/** `item` renamed `key`, its runs (given their own ids) ending at `end`. */
 const at = (item: FactoryItem, key: string, end: string): FactoryItem => ({
   ...item,
   item: { ...item.item, id: `id-${key}`, key },
-  runs: item.runs.map(run => ({ ...run, startedAt: end, completedAt: end })),
+  runs: item.runs.map(run => ({
+    ...run,
+    id: `${key}-${run.id}`,
+    startedAt: end,
+    completedAt: end,
+  })),
+  progress: null,
 });
 
 /**
- * The fakes the walk reads through. `rows` are the keys the project has an item row under
- * beyond the captured page's (a work order with no run); `links` the members linked to each.
+ * The reads the walk goes through, answered for `items` as the stubbed server answers them.
+ * `rows` are the items the project has beyond the window's (a work order with no run).
  */
-function reads(
-  pages: ItemWindow[],
-  failProgress = false,
-  rows: readonly string[] = [],
-  links: Record<string, string[]> = {}
-) {
+function reads(pages: ItemWindow[], items: FactoryItem[], rows: ItemRead[] = []) {
   const windowCalls: Parameters<FactoryItemsReads['listWindow']>[0][] = [];
-  const progressCalls: Parameters<FactoryItemsReads['getProgress']>[0][] = [];
-  const all = new Map(captured.map(item => [item.item.key, item.progress]));
+  const itemCalls: string[] = [];
+  const answer = itemsReadAnswer(items);
+  const json = async <T>(path: string, query: URLSearchParams): Promise<T> =>
+    (await answer(`${path}?${query.toString()}`).json()) as T;
   const deps: FactoryItemsReads = {
-    listWindow: mock(async opts => {
+    listWindow: async opts => {
       windowCalls.push(opts);
       return pages[windowCalls.length - 1] ?? page([], null);
-    }),
-    getProgress: mock(async opts => {
-      progressCalls.push(opts);
-      if (failProgress) throw new Error('progress failed');
-      const keys = typeof opts.keys === 'string' ? [opts.keys] : opts.keys;
-      const known = (key: string): boolean =>
-        all.has(key) ||
-        rows.includes(key) ||
-        pages.some(p => p.items.some(i => i.item.key === key));
-      return {
-        pack: 'p',
-        progress: Object.fromEntries(
-          keys.flatMap((k: string) => (all.has(k) ? [[k, all.get(k) ?? null]] : []))
-        ),
-        members: Object.fromEntries(keys.filter(known).map((k: string) => [k, links[k] ?? []])),
-      };
-    }),
+    },
+    view: async () => shippedListed,
+    getRunRecords: async ids =>
+      json('/api/workflows/runs/records', new URLSearchParams(ids.map(id => ['runId', id]))),
+    getForgeSubjects: async opts =>
+      json(
+        '/api/forge/subjects',
+        new URLSearchParams([
+          ...opts.issues.map(issue => ['issue', String(issue)]),
+          ...opts.changes.flatMap(c => [
+            ['changeRun', c.run],
+            ['changeUrl', c.url],
+          ]),
+        ])
+      ),
+    getItem: async ({ key }) => {
+      itemCalls.push(key);
+      const row = rows.find(entry => entry.item.key === key);
+      if (row === undefined) throw new HttpError(404, '/api/items', '');
+      return row;
+    },
   };
-  return { deps, windowCalls, progressCalls };
+  return { deps, windowCalls, itemCalls };
 }
 
-test('walks the window from far back, then by its cursor alone, joining each page with its progress', async () => {
+test('walks the window from far back, then by its cursor alone, and derives each item', async () => {
   const [first, second] = captured;
-  const { deps, windowCalls, progressCalls } = reads([page([first!], 'c1'), page([second!], null)]);
+  const { deps, windowCalls } = reads(
+    [page([first!], 'c1'), page([second!], null)],
+    [first!, second!]
+  );
   const { items } = await readEveryFactoryItem('cb-1', deps, within);
   expect(windowCalls).toEqual([
     { project: 'cb-1', since: '1970-01-01T00:00:00Z', limit: 100 },
     { project: 'cb-1', after: 'c1', limit: 100 },
   ]);
-  expect(progressCalls).toEqual([
-    { codebaseId: 'cb-1', keys: [first!.item.key] },
-    { codebaseId: 'cb-1', keys: [second!.item.key] },
-  ]);
-  expect(items.map(item => item.progress)).toEqual(
-    expect.arrayContaining([first!.progress, second!.progress])
+  // Each item lands on the step its running run is on.
+  expect(items.map(item => [item.item.key, item.progress?.running?.step])).toEqual(
+    expect.arrayContaining([
+      [first!.item.key, first!.progress?.running?.step],
+      [second!.item.key, second!.progress?.running?.step],
+    ])
   );
 });
 
 test('newest activity first, ties by item id, whatever order the window pages in', async () => {
   const base = captured[0]!;
-  const { deps } = reads([
-    page(
-      [at(base, 'old', '2026-11-10T00:00:00.000Z'), at(base, 'b', '2026-11-12T00:00:00.000Z')],
-      'c1'
-    ),
-    page(
-      [at(base, 'a', '2026-11-12T00:00:00.000Z'), at(base, 'new', '2026-11-15T00:00:00.000Z')],
-      null
-    ),
-  ]);
-  const { items } = await readEveryFactoryItem('cb-1', deps, within);
-  expect(items.map(item => item.item.key)).toEqual(['new', 'a', 'b', 'old']);
+  const items = [
+    at(base, 'old', '2026-11-10T00:00:00.000Z'),
+    at(base, 'b', '2026-11-12T00:00:00.000Z'),
+    at(base, 'a', '2026-11-12T00:00:00.000Z'),
+    at(base, 'new', '2026-11-15T00:00:00.000Z'),
+  ];
+  const { deps } = reads([page(items.slice(0, 2), 'c1'), page(items.slice(2), null)], items);
+  const read = await readEveryFactoryItem('cb-1', deps, within);
+  expect(read.items.map(item => item.item.key)).toEqual(['new', 'a', 'b', 'old']);
 });
 
-/** `item` renamed `key`, part of `order` by an active link, or by its order run's result. */
-const member = (key: string, order: string, by: 'link' | 'output'): FactoryItem => {
-  const base = at(captured[0]!, key, '2026-11-17T00:00:00.000Z');
-  const link = {
-    id: `link-${key}`,
-    kind: 'part_of' as const,
-    direction: 'outgoing' as const,
-    other: { id: `id-${order}`, projectKey: base.item.projectKey, key: order },
-    at: '2026-11-17T00:00:00.000Z',
-    via: 'cli' as const,
-    by: null,
-    fromRun: null,
-    ended: null,
-  };
-  return by === 'link' ? { ...base, links: [link] } : base;
-};
+/** A `part_of` link from or to the item `other` keys. */
+const link = (other: string, direction: 'outgoing' | 'incoming') => ({
+  id: `link-${other}-${direction}`,
+  kind: 'part_of' as const,
+  direction,
+  other: { id: `id-${other}`, projectKey: 'p', key: other },
+  at: '2026-11-17T00:00:00.000Z',
+  via: 'cli' as const,
+  by: null,
+  fromRun: null,
+  ended: null,
+});
 
-test('orders the window lacks are read after the walk, together, never one request each', async () => {
-  // 48 has an item row and no run; 60 is named only by a result and has no row at all.
-  const { deps, progressCalls } = reads(
-    [
-      page(
-        [member('49', '48', 'link'), member('50', '48', 'link'), member('52', '60', 'output')],
-        null
-      ),
-    ],
-    false,
-    ['48'],
-    { '48': ['49', '50', '51'] }
+test('members come from links; an order the window lacks is read by key, and one with no row is left out', async () => {
+  const base = captured[0]!;
+  const member = (key: string, order: string): FactoryItem => ({
+    ...at(base, key, '2026-11-17T00:00:00.000Z'),
+    links: [link(order, 'outgoing')],
+  });
+  const items = [member('49', '48'), member('50', '48'), member('52', '60')];
+  // 48 has an item row and no run; 60 has no row at all.
+  const order: ItemRead = {
+    ...read(at(base, '48', '2026-11-17T00:00:00.000Z')),
+    runs: [],
+    links: ['49', '50', '51'].map(key => link(key, 'incoming')),
+  };
+  const { deps, itemCalls } = reads([page(items, null)], items, [order]);
+  const result = await readEveryFactoryItem('cb-1', deps, within);
+  expect(itemCalls.sort()).toEqual(['48', '60']);
+  // 51 is linked and has no run: it is no item, and counts as 48's member.
+  expect(result.items.map(item => item.item.key).sort()).toEqual(['49', '50', '52']);
+  expect(result.members['48']).toEqual(['49', '50', '51']);
+  expect('60' in result.members).toBe(false);
+});
+
+test('a project with more runs than one records request holds is read a page at a time', async () => {
+  // Each item has one run; 150 of them is more than the server's 100 ids a request.
+  const items = Array.from({ length: 150 }, (_, i) =>
+    at(captured[0]!, `k${String(i)}`, '2026-11-17T00:00:00.000Z')
   );
-  const byOutput: FactoryItemsReads = {
+  const { deps } = reads([page(items, null)], items);
+  const asked: number[] = [];
+  const paged: FactoryItemsReads = {
     ...deps,
-    getProgress: async (opts, init) => {
-      const answer = await deps.getProgress(opts, init);
-      const keys = typeof opts.keys === 'string' ? [opts.keys] : opts.keys;
-      // 52's order run named 60; 50's named 61, which its link to 48 overrides.
-      const progress = { ...answer.progress };
-      const named = { '50': '61', '52': '60' } as const;
-      for (const [key, partOf] of Object.entries(named))
-        if (keys.includes(key)) progress[key] = { ...captured[0]!.progress!, partOf };
-      return { ...answer, progress };
+    getRunRecords: async (ids, fields, init) => {
+      asked.push(ids.length);
+      // As the server answers: more than 100 ids is a 400.
+      if (ids.length > 100) throw new HttpError(400, '/api/workflows/runs/records', '');
+      return deps.getRunRecords(ids, fields, init);
     },
   };
-  const read = await readEveryFactoryItem('cb-1', byOutput, within);
-  expect(progressCalls.map(call => call.keys)).toEqual([
-    ['49', '50', '52'],
-    ['48', '60'],
-  ]);
-  // 51 is linked and has no run: it is no item, and counts as 48's member.
-  expect(read.items.map(item => item.item.key).sort()).toEqual(['49', '50', '52']);
-  expect(read.members['48']).toEqual(['49', '50', '51']);
-  // An order with no item row is absent from the members map.
-  expect('60' in read.members).toBe(false);
+  const read = await readEveryFactoryItem('cb-1', paged, within);
+  expect(Math.max(...asked)).toBeLessThanOrEqual(100);
+  expect(read.items.every(item => item.progress !== null)).toBe(true);
 });

@@ -8,9 +8,9 @@ import type { SetAside } from './lib/set-aside';
 const HEADING_ID = 'set-aside-heading';
 
 /**
- * The items the board set aside, as one line under the board beside "Found by the factory":
- * "N set aside". The board's one toggle, beside it, opens {@link SetAsideList} below the board.
- * The board draws neither when none is set aside.
+ * The items the board set aside, as one line under the board: "N set aside". The board's
+ * toggle, beside it, opens {@link SetAsideList} below the board. The board draws neither when
+ * none is set aside.
  */
 export function SetAsideLine({ count }: { count: number }): ReactElement {
   return (

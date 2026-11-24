@@ -24,7 +24,6 @@ import type { BoardShowSpec } from './lib/board-show';
 import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { highlightedKeys, ORDER_PARAM, workOrders, type WorkOrder } from './lib/work-orders';
-import { itemNames } from './lib/item-names';
 import { useBoardAsks, type BoardAsks } from './useBoardAsks';
 import { useItemAsks } from './useItemAsks';
 import { useBoardShow } from './useBoardShow';
@@ -94,7 +93,7 @@ export function Board({
   const { showParam, show, spec, table, setView, clearShow } = useBoardShow();
   const [query, setQuery] = useState('');
   const [hint, setHint] = useState<string | null>(null);
-  const strips = useBoardStrips(spec?.panel === true);
+  const strips = useBoardStrips();
   const lit = params.get(ORDER_PARAM);
   // Where each item sat on the last read: placement keeps a run between named steps where
   // it was, and the highlight compares against it.
@@ -120,7 +119,6 @@ export function Board({
     [all, query, show, at]
   );
   const asks = useBoardAsks({ all, shown, asks: factoryAsks });
-  const names = useMemo(() => itemNames(items), [items]);
   const asked = useMemo(() => askedItems(all), [all]);
   const showView = (next: 'pipeline' | 'table'): void => {
     // Its trigger is in the view being left.
@@ -192,22 +190,13 @@ export function Board({
           itemOf={key => asked.get(key)}
         />
         <BoardStripsLine
-          projectId={projectId}
-          discoveries={view.discoveries !== undefined}
           setAside={shown?.setAside ?? []}
           open={strips.open}
           onToggle={strips.toggle}
-          // Once the columns are drawn: scrolling earlier would leave the line pushed down.
-          arriving={strips.arriving && shown !== undefined}
         />
       </div>
       {strips.open ? (
-        <BoardStripsOpened
-          projectId={projectId}
-          discoveries={view.discoveries !== undefined}
-          setAside={shown?.setAside ?? []}
-          names={names}
-        />
+        <BoardStripsOpened projectId={projectId} setAside={shown?.setAside ?? []} />
       ) : null}
     </div>
   );

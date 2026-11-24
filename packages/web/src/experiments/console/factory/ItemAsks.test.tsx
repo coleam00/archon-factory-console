@@ -9,7 +9,6 @@ import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures'
 import { FK } from './keys';
 import { attentionRead, refAsk } from './lib/attention.test-fixtures';
 import { realItem, VIEW } from './lib/board.test-fixtures';
-import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches } from './merge-watch';
 import { factoryRoutes } from './routes';
@@ -92,8 +91,12 @@ describe("an item's open ask", () => {
     const ask = { ...askOn(six), project: { ...project, codebaseId: 'cb-1' } };
     // A second ask the item read lists and Archon's read does not yet: counted once each.
     const later = { ...ask, ref: 'ask:2', message: 'And the title?' };
-    set(FK.factoryItems('cb-1'), { items: [{ ...six, questions: [ask, later] }], members: {} });
-    set(FK.factoryDiscoveries('cb-1'), DISCOVERIES);
+    set(FK.factoryItems('cb-1'), {
+      items: [{ ...six, questions: [ask, later] }],
+      members: {},
+      lookups: {},
+      titlesPending: false,
+    });
     set(K.runsAttention, attentionRead([ask]));
     const board = await mount(
       <MemoryRouter initialEntries={['/console/p/cb-1/factory/board']}>
@@ -127,7 +130,7 @@ describe("an item's open ask", () => {
     const ask = askOn(detail.item);
     set(FK.factoryViews(PROJECT), { views: [shippedListed], errors: [] });
     set(FK.factoryItem(PROJECT, '6'), { ...detail, item: { ...detail.item, questions: [ask] } });
-    set(FK.factoryItems(PROJECT), { items: [], members: {} });
+    set(FK.factoryItems(PROJECT), { items: [], members: {}, lookups: {}, titlesPending: false });
     set(K.runsAttention, attentionRead([ask]));
     const page = await mount(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/6`]}>
@@ -148,7 +151,12 @@ describe("an item's open ask", () => {
     const six = realItem('6');
     const ask = askOn(six);
     set(FK.factoryViews(PROJECT), { views: [shippedListed], errors: [] });
-    set(FK.factoryItems(PROJECT), { items: [{ ...six, questions: [ask] }], members: {} });
+    set(FK.factoryItems(PROJECT), {
+      items: [{ ...six, questions: [ask] }],
+      members: {},
+      lookups: {},
+      titlesPending: false,
+    });
     set(K.runsAttention, attentionRead([ask]));
     const page = await mount(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory`]}>

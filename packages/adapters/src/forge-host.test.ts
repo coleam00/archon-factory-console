@@ -6,7 +6,7 @@ import { PluginDiscoveryError, type PluginDiscovery } from '@archon/forge/discov
 import type { dispatchForge } from '@archon/forge/dispatch';
 import type { ForgeRequest } from '@archon/forge/operations';
 import { trackTempRoots } from '@archon/paths/test-utils';
-import { changeMergeState, forgeHostDiscoveryOnce, prRefFromAudits } from './forge-host';
+import { changeMergeState, forgePluginsOnce, prRefFromAudits, viewWorkItem } from './forge-host';
 
 const URL10 = 'https://github.com/coleam00/archon-factory-console/pull/10';
 const byUrl = (rows: unknown[]) => ({ kind: 'url' as const, url: URL10, audits: rows });
@@ -113,7 +113,7 @@ const viewed = (state: 'open' | 'closed' | 'merged', mergedAt: string | null) =>
   }) as unknown as Dispatched['response'];
 
 /** The options a lookup takes, with `dispatch` standing in for the forge. */
-const via = (dispatch: Dispatch, discovery = noPlugins) => ({ discovery, env: {}, dispatch });
+const via = (dispatch: Dispatch, plugins = noPlugins) => ({ plugins, env: {}, dispatch });
 
 describe('the merge state of a change', () => {
   test('finds the pull request in the audit rows that carry its record', () => {
@@ -260,7 +260,7 @@ describe('forge plugins for the merge lookups', () => {
       () => none,
     ];
     let discovered = 0;
-    const discovery = forgeHostDiscoveryOnce(await home(), {}, async () => {
+    const discovery = forgePluginsOnce(await home(), {}, async () => {
       const answer = answers[discovered] ?? (() => none);
       discovered += 1;
       return answer();
@@ -272,5 +272,56 @@ describe('forge plugins for the merge lookups', () => {
     await lookup();
     await lookup();
     expect(discovered).toBe(3);
+  });
+});
+
+describe('an issue as the forge shows it', () => {
+  const REMOTE = 'https://github.com/coleam00/archon-factory-console.git';
+  const issueUrl = 'https://github.com/coleam00/archon-factory-console/issues/111';
+  const dispatchFor = (issue: Dispatched['response']) => {
+    const asked: ForgeRequest[] = [];
+    const dispatch: Dispatch = async request => {
+      asked.push(request);
+      return {
+        response: request.op === 'resolve' ? resolved : issue,
+        plugin: null,
+        audit: {} as Dispatched['audit'],
+      };
+    };
+    return { dispatch, asked };
+  };
+
+  test("reads the issue's title in the project remote's repository", async () => {
+    const forge = dispatchFor({
+      operationId: 'op',
+      ok: true,
+      result: {
+        op: 'workitem.view',
+        value: {
+          ref: { repo, number: 111 },
+          kind: 'issue',
+          url: issueUrl,
+          state: 'closed',
+          title: 'Item pages tell a story',
+          body: '',
+        },
+      },
+    } as unknown as Dispatched['response']);
+    expect(await viewWorkItem(111, REMOTE, via(forge.dispatch))).toEqual({
+      number: 111,
+      title: 'Item pages tell a story',
+      state: 'closed',
+      url: issueUrl,
+    });
+    expect(forge.asked[1]).toMatchObject({ op: 'workitem.view', ref: { repo, number: 111 } });
+  });
+
+  test('a refusal, or a project with no remote, is unknown with why', async () => {
+    const forge = dispatchFor(refused);
+    expect(await viewWorkItem(111, REMOTE, via(forge.dispatch))).toEqual({
+      number: 111,
+      unknown: 'no_credential: none configured',
+    });
+    expect(await viewWorkItem(111, null, via(forge.dispatch))).toMatchObject({ number: 111 });
   });
 });

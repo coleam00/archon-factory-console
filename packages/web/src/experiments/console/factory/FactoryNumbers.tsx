@@ -5,7 +5,6 @@ import {
   GitMerge,
   type LucideIcon,
   MessageCircleQuestionMark,
-  Search,
   Timer,
 } from 'lucide-react';
 import { Link } from 'react-router';
@@ -20,8 +19,6 @@ import { FactoryLoading } from './FactoryLoading';
 import { readFailed } from './lib/deadline';
 import { SkeletonFigure } from './ui/Skeleton';
 import { StaleRead } from './StaleRead';
-import { openFindings } from './lib/discoveries';
-import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 import { useMinuteClock } from './useMinuteClock';
 
 /**
@@ -116,12 +113,7 @@ export function FactoryNumbers({
       {numbers === undefined ? null : <StaleRead error={items.error} />}
       {/* Before the first answer the tiles show skeletons; a read past its deadline says so. */}
       {numbers === undefined ? <FactoryLoading read={items} /> : null}
-      <ul
-        aria-label="Numbers"
-        className={`grid grid-cols-2 gap-3 ${
-          view.discoveries === undefined ? 'sm:grid-cols-5' : 'sm:grid-cols-3 lg:grid-cols-6'
-        }`}
-      >
+      <ul aria-label="Numbers" className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {tiles(numbers, waiting).map(tile => (
           <NumberTile key={tile.label} label={tile.label} icon={tile.icon} means={tile.means}>
             {tile.value === null ? (
@@ -132,7 +124,6 @@ export function FactoryNumbers({
             {tile.value !== null && tile.pending ? <BesideSkeleton /> : null}
           </NumberTile>
         ))}
-        {view.discoveries === undefined ? null : <FoundTile projectId={projectId} />}
       </ul>
       {numbers === undefined || numbers.unknown === 0 ? null : (
         <UnknownMerges projectId={projectId} count={numbers.unknown} />
@@ -215,26 +206,5 @@ function BesideSkeleton(): ReactElement {
     <span className="flex min-w-0 shrink overflow-hidden">
       <FigureSkeleton title="Checking which changes merged" />
     </span>
-  );
-}
-
-/**
- * "found by the factory": what the discoveries drains decided to file that no item carries
- * yet. Its own read, so it never holds up the other tiles; a
- * read that failed reads as a dash, and the panel says why.
- */
-function FoundTile({ projectId }: { projectId: string }): ReactElement {
-  const read = useFactoryDiscoveries(projectId);
-  const failed = read.data === undefined && readFailed(read.error) !== undefined;
-  return (
-    <NumberTile label="found by the factory" icon={Search}>
-      {read.data !== undefined ? (
-        openFindings(read.data).length
-      ) : failed ? (
-        <span title="Could not be read">–</span>
-      ) : (
-        <FigureSkeleton title="Loading" />
-      )}
-    </NumberTile>
   );
 }

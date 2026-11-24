@@ -46,10 +46,12 @@ function serve(answers: Answers): { fetches: Record<keyof Answers, number> } {
         fetches.views++;
         return answers.views();
       }
-      if (url.includes('/api/factory/item?')) {
+      if (url.includes('/api/items?')) {
         fetches.item++;
         return answers.item();
       }
+      if (url.includes('/api/workflows/runs/') && !url.includes('/records'))
+        return Response.json({ run: {}, events: [] });
       if (isItemsRead(url)) {
         fetches.items++;
         return answers.items(url);
@@ -64,7 +66,7 @@ function serve(answers: Answers): { fetches: Record<keyof Answers, number> } {
 
 const healthy: Answers = {
   views: () => Response.json({ views: [shippedListed], errors: [] }),
-  item: notFound('No such item in this project'),
+  item: notFound('No item under that key in the project'),
   items: itemsReadAnswer(ITEMS),
 };
 
@@ -136,7 +138,8 @@ describe('an item', () => {
       const alert = container.querySelector('[role="alert"]');
       expect(alert?.textContent).toContain('Item #3 could not be read: the server did not answer');
       expect(words(container)).not.toContain('There is no item');
-      answers.item = () => Response.json(itemDetail('3'));
+      const { progress: _progress, ...read } = itemDetail('3').item;
+      answers.item = () => Response.json(read);
       await click(container.querySelector<HTMLButtonElement>('[role="alert"] button'));
       expect(container.querySelector('[role="alert"]')).toBeNull();
       expect(words(container)).toContain(itemDetail('3').item.progress?.title ?? '');
