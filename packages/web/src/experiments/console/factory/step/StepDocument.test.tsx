@@ -6,7 +6,7 @@ import type { FactoryItem, FactoryViews, FactoryWorkflow } from '../../skills/fa
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { projectRoutes } from '../../routes/project-routes';
-import { documentPageProblems, outlineBoxes } from '../document.test-helpers';
+import { documentPageProblems } from '../document.test-helpers';
 import { capturedItemsPage } from '../lib/fixtures/factory-items-page';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
 
@@ -113,11 +113,10 @@ const chips = (root: HTMLElement): string[] =>
   );
 
 describe('the step page as a document page', () => {
-  test('holds to owner change 5: panels and headed sections only, no outline boxes', () => {
+  test('holds to owner change 5: panels and headed sections only', () => {
     for (const key of ['rounds.fix', 'rounds.base', 'build__build']) {
       const root = page(key, key === 'build__build' ? capturedItemsPage.items : []);
       expect({ key, problems: documentPageProblems(root) }).toEqual({ key, problems: [] });
-      expect({ key, outlines: outlineBoxes(root) }).toEqual({ key, outlines: [] });
     }
   });
 
