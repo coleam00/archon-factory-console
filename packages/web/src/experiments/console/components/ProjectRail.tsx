@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import { ChartLine, Settings, PenTool } from 'lucide-react';
 import { SessionMenu } from '@/components/auth/SessionMenu';
 import { ProjectRow } from './ProjectRow';
-import { ConsoleNav } from './ConsoleNav';
+import { RailNavLink } from './RailNavLink';
+import { FactoryRailLink } from '../factory/FactoryRailLink';
 import { EnvVarsDialog } from './EnvVarsDialog';
 import { useEntity, invalidate } from '../store/cache';
 import { K } from '../store/keys';
@@ -323,7 +325,24 @@ export function ProjectRail({ onAddProject }: ProjectRailProps): ReactElement {
         </button>
       </div>
 
-      <ConsoleNav />
+      {/* Console navigation */}
+      <div className="flex flex-col gap-0.5 border-t border-border px-2.5 py-2">
+        <RailNavLink to="/console/metrics" icon={ChartLine} label="Metrics" />
+        <RailNavLink
+          to="/console/builder"
+          icon={PenTool}
+          label="Workflow Builder"
+          title="Visual workflow builder (beta)"
+          badge="beta"
+        />
+        <FactoryRailLink />
+        <RailNavLink
+          to="/console/settings"
+          icon={Settings}
+          label="Settings"
+          title="Settings ( , )"
+        />
+      </div>
 
       <SessionMenu />
 
