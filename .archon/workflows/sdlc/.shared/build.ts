@@ -7,13 +7,14 @@
  * whether the item waits for a round.
  */
 
-import { state } from 'archon:script';
+import { input, state, trigger } from 'archon:script';
 import { type QualifiedPr, sameRepo } from './identity.ts';
 import type { NodeOutput } from './outputs.generated.ts';
 import { PR_CREATE_UNRESOLVED, prFromUrl } from './pr.ts';
-import { type Ask, clipped, type DecisionEntry, withDecision } from './queue.ts';
+import { clipped, type DecisionEntry, withDecision } from './queue.ts';
 import {
   type HistoryEntry,
+  itemKey,
   newest,
   parseWorkItem,
   readWorkItem,
@@ -22,18 +23,24 @@ import {
   type WorkItem,
 } from './workitem.ts';
 
-/**
- * What a build choice does when a person picks it; archon-build-queue.yaml declares the
- * same enum. `continue` launches the next round from the brief. `ready` hands the pull
- * request to the merge queue as it stands, such as after a maintainer finished it by
- * hand. `park` stops work until a re-triage.
- */
-export const BUILD_EFFECTS = ['continue', 'ready', 'park'] as const;
-export type BuildEffect = (typeof BUILD_EFFECTS)[number];
-export type BuildAsk = Ask<BuildEffect>;
+/** The question a deciding agent writes, as archon-build-queue.yaml declares it. */
+export type BuildAsk = NonNullable<NodeOutput<'archon-build-queue', 'route'>['ask']>;
 
-/** Which decision raised an ask: its `kind` label, which the YAML also declares. */
-export type AskedBy = 'route' | 'stop' | 'scope';
+/**
+ * What a build choice does when a person picks it. `continue` launches the next round
+ * from the brief. `ready` hands the pull request to the merge queue as it stands, such
+ * as after a maintainer finished it by hand. `park` stops work until a re-triage.
+ */
+export type BuildEffect = BuildAsk['options'][number]['effect'];
+
+/**
+ * What an asking run hands the run its answer starts, as archon-build-queue.yaml declares
+ * apply's `asked`: the brief, which decision asked, and each option's effect and ruling.
+ */
+export type BuildAsked = NonNullable<NodeOutput<'archon-build-queue', 'apply'>['asked']>;
+
+/** Which decision raised an ask. */
+export type AskedBy = BuildAsked['by'];
 
 /** The stages a triaged item can be launched from: a READY verdict's routes. */
 export const LAUNCH_STAGES = [
@@ -92,8 +99,8 @@ export interface BuildRound {
 
 /**
  * Who owns the item, as the build queue last recorded it. `next`: the build queue, for
- * its next launch from `brief`. `asking`: the build queue, paused on the item's
- * attention item. `ready`: handed to the merge queue, which owns its pull request from
+ * its next launch from `brief`. `asking`: the build queue, whose ask is open on the
+ * item; the answer starts the next run. `ready`: handed to the merge queue, which owns its pull request from
  * here. `parked`: no queue, until a re-triage.
  */
 export type BuildStatus = 'next' | 'asking' | 'ready' | 'parked';
@@ -192,6 +199,25 @@ export function dueBlocked(at: string, runId: string): BlockedItem[] {
     items.push(blockedItem(doc));
   }
   return items;
+}
+
+/**
+ * Start one intake pickup of `subject` from a build pick: a fire of the operator's
+ * intake binding (the pick's `intake_binding`) on the issue's item, under intake's
+ * resource, capacity and overlap policy. The delivery id names the run, so a retried
+ * node starts no second pickup. `action` is `retriage` for a run's re-triage request.
+ * Returns how the binding admitted it, for the run's summary.
+ */
+export function startIntake(subject: QualifiedPr, runId: string, action?: 'retriage'): string {
+  const binding = input('intake_binding').trim();
+  if (binding === '') throw new Error('intake_binding is empty; a pick starts intake only through that binding');
+  const { repo, number } = subject;
+  const fired = trigger.fire(
+    binding,
+    { repo_host: repo.host, repo_path: repo.path, number: String(number), ...(action === undefined ? {} : { action }) },
+    { deliveryId: `build-pick-intake:${repo.host}/${repo.path}#${String(number)}:${runId}`, item: itemKey(number) }
+  );
+  return fired.disposition?.status ?? 'not admitted';
 }
 
 /**

@@ -93,6 +93,7 @@ function source(unreadable: string[] = []): ItemWindowSource {
       listOpenItemWaits: async () => [],
       listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+      readItemStartLimits: async () => ({ limits: [], countedUnder: {} }),
       getInstallHold: async () => null,
       getRunLimit: async () => null,
       listHeldItemStarts: async () => [],
