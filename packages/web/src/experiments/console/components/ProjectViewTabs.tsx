@@ -57,7 +57,7 @@ export function ProjectViewTabs({ projectId, active }: ProjectViewTabsProps): Re
         el.scrollLeft = tab.offsetLeft + tab.offsetWidth - el.clientWidth;
     };
     reveal();
-    // A test DOM has no ResizeObserver; there the reveal runs on mount alone.
+    // Where no ResizeObserver is installed (a test DOM may set none), it reveals on mount alone.
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(reveal);
     for (const watched of [el, ...el.children]) observer.observe(watched);

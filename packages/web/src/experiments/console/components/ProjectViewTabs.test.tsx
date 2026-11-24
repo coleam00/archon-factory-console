@@ -19,18 +19,24 @@ class QuietEventSource {
     this.readyState = 2;
   }
 }
-/** A ResizeObserver the tests fire by hand (`resizeAll`), as a browser does when a tab widens. */
+/**
+ * A ResizeObserver the tests fire by hand (`resize`). As in a browser, only an observer watching
+ * the element whose size changed is called, so a test proves which elements are watched.
+ */
 class HandResizeObserver {
   static live = new Set<HandResizeObserver>();
+  readonly watched = new Set<Element>();
   constructor(private readonly callback: () => void) {}
-  observe(): void {
+  observe(el: Element): void {
+    this.watched.add(el);
     HandResizeObserver.live.add(this);
   }
   disconnect(): void {
     HandResizeObserver.live.delete(this);
   }
-  static resizeAll(): void {
-    for (const observer of HandResizeObserver.live) observer.callback();
+  static resize(el: Element): void {
+    for (const observer of HandResizeObserver.live)
+      if (observer.watched.has(el)) observer.callback();
   }
 }
 const globals = {
@@ -191,8 +197,10 @@ test('a Needs-you badge widening a tab before the active one keeps the active ta
     await act(async () =>
       set(K.projectAttention(ID), { items: [askItem()], runs: [], degraded: [] })
     );
-    expect(container.querySelector('[aria-label$="waiting"]')).not.toBeNull();
-    await act(async () => HandResizeObserver.resizeAll());
+    // Only the tab holding the badge changes size; the tabs after it move but keep theirs.
+    const widened = container.querySelector('[aria-label$="waiting"]')?.closest('a');
+    if (widened == null) throw new Error('No Needs-you badge');
+    await act(async () => HandResizeObserver.resize(widened));
     expect(row?.scrollLeft).toBe(130);
   } finally {
     await act(async () => root.unmount());
