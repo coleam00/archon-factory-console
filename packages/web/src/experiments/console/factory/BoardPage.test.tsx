@@ -794,7 +794,9 @@ describe('a board opened from a number', () => {
       expect(container.querySelector('#set-aside-list')).not.toBeNull();
       expect(container.textContent).toContain('Showing: found by the factory');
       // The line, not the findings: it holds both names, the shadow badge and the toggle.
-      expect(scrolled).toEqual([container.querySelector('[data-board-strips]')!]);
+      // By identity: a failing toEqual on a happy-dom Element hangs bun while it formats the diff.
+      expect(scrolled).toHaveLength(1);
+      expect(scrolled[0] === container.querySelector('[data-board-strips]')).toBe(true);
       expect(scrolled[0]?.querySelector('#found-by-the-factory-heading')).not.toBeNull();
       expect(scrolled[0]?.textContent).toContain('shadow');
       // A view switch rewrites the address; it must not scroll the page away from the board.
