@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readRunFixture } from './__fixtures__/read-run-fixture';
 import {
   factoryItemProgress,
   factoryProgressSchema,
@@ -36,23 +37,24 @@ const view = factoryViewSchema.parse(
   )
 );
 
+type RawRun = Record<string, unknown> & { started_at: string; completed_at: string | null };
+
 /**
  * Runs copied from the live factory database (see each file's `note`): the run row's
  * recorded fields and its events of the types the facts read, with data trimmed.
  */
-function fixture(name: string): { run: WorkflowRun; events: WorkflowEventRow[] } {
-  const raw = JSON.parse(
-    readFileSync(join(import.meta.dir, '__fixtures__', 'factory-items', `${name}.json`), 'utf8')
-  ) as { run: Record<string, unknown> & { started_at: string; completed_at: string | null } };
-  return {
-    run: hydrate(raw.run),
-    events: (raw as unknown as { events: WorkflowEventRow[] }).events,
-  };
+function rawFixture(name: string): { run: RawRun; events: WorkflowEventRow[] } {
+  return readRunFixture(
+    join(import.meta.dir, '__fixtures__', 'factory-items', `${name}.jsonl`)
+  ) as ReturnType<typeof readRunFixture> & { run: RawRun };
 }
 
-function hydrate(
-  fields: Record<string, unknown> & { started_at: string; completed_at: string | null }
-): WorkflowRun {
+function fixture(name: string): { run: WorkflowRun; events: WorkflowEventRow[] } {
+  const raw = rawFixture(name);
+  return { run: hydrate(raw.run), events: raw.events };
+}
+
+function hydrate(fields: RawRun): WorkflowRun {
   return workflowRunSchema.parse({
     origin: null,
     conversation_id: null,
@@ -80,20 +82,27 @@ function hydrate(
 const triage1 = fixture('item-1-triage-88640c6d');
 const plan1 = fixture('item-1-plan-147ff872');
 const deliver1 = fixture('item-1-deliver-c90ebf41');
-const deliver2 = fixture('item-2-deliver-934682d0');
-const deliver2Cut = fixture('item-2-deliver-934682d0-cut');
+const deliver2Raw = rawFixture('item-2-deliver-934682d0');
+const deliver2 = { run: hydrate(deliver2Raw.run), events: deliver2Raw.events };
+/**
+ * The same run as it stood mid-round: only its events up to order 1800, and the run set back
+ * to running with no outcome.
+ */
+const deliver2Cut = {
+  run: hydrate({
+    ...deliver2Raw.run,
+    status: 'running',
+    completed_outcome: null,
+    completed_at: null,
+  }),
+  events: deliver2Raw.events.filter(row => row.event_order <= 1800),
+};
 
 /** A discoveries drain of item #70, as the shadow reader's tests copy it. */
 function drainFixture(): { run: WorkflowRun; events: WorkflowEventRow[] } {
-  const raw = JSON.parse(
-    readFileSync(
-      join(import.meta.dir, '__fixtures__', 'factory-shadows', 'item-70-discoveries.json'),
-      'utf8'
-    )
-  ) as {
-    run: Record<string, unknown> & { started_at: string; completed_at: string | null };
-    events: WorkflowEventRow[];
-  };
+  const raw = readRunFixture(
+    join(import.meta.dir, '__fixtures__', 'factory-shadows', 'item-70-discoveries.jsonl')
+  ) as ReturnType<typeof readRunFixture> & { run: RawRun };
   // The shadow reader's copy trimmed each event's time; the item read's step starts need one.
   const events = raw.events.map(row => ({
     ...row,

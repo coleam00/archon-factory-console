@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readRunFixture } from './__fixtures__/read-run-fixture';
 import {
   factoryShadowDecisionSchema,
   latestShadowDecisions,
@@ -51,15 +52,14 @@ interface Fixture {
 
 /** Runs copied from the live factory database: each file's `note` says which. */
 function fixture(name: string): Fixture {
-  const raw = JSON.parse(
-    readFileSync(join(import.meta.dir, '__fixtures__', 'factory-shadows', `${name}.json`), 'utf8')
-  ) as {
+  const raw = readRunFixture(
+    join(import.meta.dir, '__fixtures__', 'factory-shadows', `${name}.jsonl`)
+  ) as ReturnType<typeof readRunFixture> & {
     run: Record<string, unknown> & {
       started_at: string;
       completed_at: string | null;
       last_activity_at: string | null;
     };
-    events: WorkflowEventRow[];
   };
   const date = (value: string | null): Date | null => (value === null ? null : new Date(value));
   const run = workflowRunSchema.parse({
