@@ -5,9 +5,19 @@
  */
 import type { FactoryDeclaration } from './board';
 
-type Group = FactoryDeclaration['stages'][number]['group'];
-/** A column's colour: a stage group's, or the merged column's own. */
-export type ColumnTone = Group | 'merged';
+/**
+ * The stage groups the console has a colour for. A group is a name the view file gives
+ * (`stages[].group`), not a closed set: a group the console has no colour for is drawn as
+ * `other`.
+ */
+const STAGE_TONES = ['intake', 'build', 'check', 'land'] as const;
+/** A column's colour: a stage group's, the merged column's own, or `other`. */
+export type ColumnTone = (typeof STAGE_TONES)[number] | 'merged' | 'other';
+
+/** The colour of a stage's `group`. */
+export function groupTone(group: string): ColumnTone {
+  return STAGE_TONES.find(tone => tone === group) ?? 'other';
+}
 
 export interface BoardColumnDecl {
   id: string;
@@ -27,7 +37,8 @@ function toneOf(view: FactoryDeclaration, stages: readonly string[]): ColumnTone
   if (stages.includes(view.landed.stage)) return 'merged';
   const last = stages.at(-1);
   // The schema rejects a column naming an undeclared stage, so the find always succeeds.
-  return view.stages.find(stage => stage.id === last)?.group ?? 'intake';
+  const group = view.stages.find(stage => stage.id === last)?.group;
+  return group === undefined ? 'intake' : groupTone(group);
 }
 
 export function boardColumns(view: FactoryDeclaration): BoardColumnDecl[] {

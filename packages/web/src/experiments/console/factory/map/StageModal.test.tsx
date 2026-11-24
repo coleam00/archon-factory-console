@@ -5,8 +5,8 @@ import { refAsk } from '../lib/attention.test-fixtures';
 import type { FactoryItem } from '../api';
 import { invalidate, set } from '../../store/cache';
 import { FK } from '../keys';
-import { shippedListed } from '../item-detail.test-fixtures';
-import deliverJson from '../lib/fixtures/deliver-workflow.json';
+import { shippedGraph, shippedListed } from '../item-detail.test-fixtures';
+import { packGraphKey } from '../usePackGraph';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { FIXTURE_NOW } from '../lib/board.test-fixtures';
 import { PILL_LABEL } from '../lib/board';
@@ -35,8 +35,7 @@ globalThis.fetch = Object.assign(
   async (input: RequestInfo | URL): Promise<Response> => {
     const url = String(input);
     if (isItemsRead(url)) return itemsAnswer(url);
-    if (!url.includes('/api/factory/workflow')) throw new Error(`the modal test fetched ${url}`);
-    return Response.json(deliverJson);
+    throw new Error(`the modal test fetched ${url}`);
   },
   { preconnect: originalFetch.preconnect }
 );
@@ -58,6 +57,7 @@ const asks = [refAsk({ item: { id: asking.item.id, projectKey: 'acme', key: '9' 
 async function mount(path = OVERVIEW, read: FactoryItem[] | null = items) {
   // null leaves the items cold, so they are read through `itemsAnswer`.
   if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
+  set(packGraphKey(ID, shippedListed.packKey), shippedGraph);
   const router = createMemoryRouter(
     [
       {
@@ -88,9 +88,11 @@ const inDialog = (text: string): HTMLButtonElement => {
 const click = async (target: HTMLElement): Promise<void> => {
   await act(async () => target.click());
 };
-/** A step of the drawn graph: each names its engine id on hover. */
-const graphStep = (): Element | undefined =>
-  dialog()?.querySelector('button[title*="engine id: rounds.fix"]') ?? undefined;
+/** The steps the real workflow lists for `workflow`, by engine id, from the pack graph. */
+const listedSteps = (workflow: string): (string | null)[] =>
+  [
+    ...(dialog()?.querySelectorAll(`[aria-label="The steps of ${workflow}"] [data-step]`) ?? []),
+  ].map(step => step.getAttribute('data-step'));
 
 describe('a stage opened over the Overview', () => {
   test('a stage row opens a dialog over the map; Esc and the backdrop close it, Close returns focus', async () => {
@@ -185,18 +187,25 @@ describe('a stage opened over the Overview', () => {
       await click(inDialog('Items here now'));
       expect(goes()).not.toBeNull();
       const rows = [...(dialog()?.querySelectorAll('li a') ?? [])];
-      // The card's chip says 2 here; the list is the same two, each with its state.
+      // The card's chip says 3 here; the list is the same three, each with its state.
       expect(rows.map(row => row.getAttribute('href'))).toEqual([
         `${OVERVIEW}/items/5`,
+        `${OVERVIEW}/items/4`,
         `${OVERVIEW}/items/9`,
       ]);
-      expect(rows[1]?.textContent).toContain('Needs you');
+      expect(rows[2]?.textContent).toContain('Needs you');
       expect(rows[0]?.textContent).not.toContain('Needs you');
-      expect(rows[0]?.textContent).toContain('Build · Writes the change');
+      expect(rows[0]?.textContent).toContain('Build · build');
 
       await click(inDialog('The real workflow'));
-      await settle();
-      expect(graphStep()).toBeDefined();
+      // Every step listed is a real step of the pack: the graph's nodes, in its order.
+      const graphNodes = shippedGraph.stages
+        .find(stage => stage.name.endsWith(':stage-build'))
+        ?.nodes.map(node => node.id);
+      expect(listedSteps('stage-build')).toEqual(graphNodes ?? []);
+      expect(listedSteps('stage-build').length).toBeGreaterThan(0);
+      // The retired deliver places old items here, but the modal never names it.
+      expect(dialog()?.textContent ?? '').not.toContain('deliver');
       await click(inDialog('Close'));
 
       // An item no run works says its state in the board card's word.

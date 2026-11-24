@@ -12,7 +12,6 @@ import {
 import { engineIdTitle } from './lib/step-label';
 import { orderSearch } from './lib/work-orders';
 import { CardAsk } from './BoardCardAsk';
-import { ShadowBadge } from './ShadowBadge';
 import type { BoardAsks } from './useBoardAsks';
 
 /**
@@ -152,7 +151,6 @@ export function BoardCard(props: CardProps & { asks: BoardAsks }): ReactElement 
           {card.stage}
         </span>
       )}
-      {card.shadow === null ? null : <ShadowLine shadow={card.shadow} />}
       {card.order === null ? null : <OrderChip order={card.order} />}
       {card.round === null ? null : <RoundDots round={card.round} />}
       <CardLinks card={card} />
@@ -196,23 +194,6 @@ function RunLink({ run }: { run: NonNullable<BoardCardFields['run']> }): ReactEl
         </span>
       ))}
     </Link>
-  );
-}
-
-/**
- * What a shadow step of the card's stage would have done (rule 10): the badge and its words,
- * tertiary, never a state colour; its why on hover.
- */
-function ShadowLine({ shadow }: { shadow: NonNullable<BoardCardFields['shadow']> }): ReactElement {
-  return (
-    <span
-      data-shadow-line="true"
-      title={shadow.detail ?? undefined}
-      className="flex min-w-0 items-baseline gap-1.5 text-console-13 text-text-tertiary"
-    >
-      <ShadowBadge />
-      <span className={`truncate ${shadow.mono ? 'font-mono' : ''}`}>{shadow.line}</span>
-    </span>
   );
 }
 

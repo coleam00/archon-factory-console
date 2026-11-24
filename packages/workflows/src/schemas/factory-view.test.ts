@@ -74,13 +74,12 @@ const merged = (stages = ['landed']): Columns[number] => ({
 
 const drain = {
   workflow: 'discoveries',
-  shadow: true,
   filed: '/filed',
   held: '/held',
   dropped: '/dropped',
   entry: { title: '/title' },
 };
-const discoveries = { ...drain, shadow: false, entry: { title: '/title', kind: '/kind' } };
+const discoveries = { ...drain, entry: { title: '/title', kind: '/kind' } };
 const loop = { workflow: 'build', loop: 'rounds' };
 const change = { workflow: 'build', pointer: '/change' };
 const point = { workflow: 'build', node: 'rounds.verdict', outcome: 'approve' };
@@ -160,9 +159,13 @@ describe('a declaration the schema rejects, at the path a pack author fixes', ()
     ],
     [['columns'], { columns: [work(['plan']), merged()] }],
     [['columns.1.stages'], { columns: [work(['plan']), merged(['build', 'landed'])] }],
-    [['discoveries.shadow'], { discoveries: drain }],
   ])('at %p', (paths, patch) => {
     expect(issuePaths(viewWith(patch))).toEqual(paths);
+  });
+
+  test.each(['asked', 'shadows'])('the structural field %p is rejected', field => {
+    const issues = factoryViewSchema.safeParse(viewWith({ [field]: [] })).error?.issues ?? [];
+    expect(issues.map(issue => issue.code)).toEqual(['unrecognized_keys']);
   });
 
   test('an unknown field is rejected, as unknown', () => {

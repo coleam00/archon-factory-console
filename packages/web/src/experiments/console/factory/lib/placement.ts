@@ -1,11 +1,11 @@
 /**
  * Where an item sits: the one placement the board, the map and the item page share (owner
- * ruling 2 on #5), and which declared stage a step of a workflow counts in. An item's state
- * pill is the board's (`itemPill` in `board.ts`).
+ * ruling 2 on #5), and which declared stage a workflow's runs count in. An item's state pill is
+ * the board's (`itemPill` in `board.ts`).
  */
 import type { FactoryItem } from '../api';
 import type { ChangeMerged } from './merge-pending';
-import { stagesOfWorkflow, stepInStage, type FactoryStage } from './stage-steps';
+import { stagesOfWorkflow, type FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -82,34 +82,11 @@ export type ItemColumn = { stage: FactoryStage } | { ended: string };
 export const UNPLACED_LABEL = 'Position unknown';
 
 /**
- * The stage of `workflow` that names `step` among its declared `nodes`; undefined when none
- * does. A stage without `nodes` holds every step of its workflow (`stepInStage`), so it is
- * not counted as naming one here: it is the fallback `stageOfWorkflow` picks.
+ * The stage a run of `workflow` counts in, running, stopped or between steps: the first stage
+ * that lists it. A stage holds every step of its workflows; the view names no steps of a stage.
  */
-export function stageOfStep(
-  view: Declaration,
-  workflow: string,
-  step: string
-): FactoryStage | undefined {
-  return stagesOfWorkflow(view.stages, workflow).find(
-    stage => stage.nodes !== undefined && stepInStage(stage, step)
-  );
-}
-
-/**
- * The stage a step or running run of `workflow` counts in: the stage whose `nodes` name the
- * step; else the first of the workflow's stages that declares no `nodes` (it holds every
- * step); else its first stage. A run between steps (`step` null) sits where the workflow starts.
- */
-export function stageOfWorkflow(
-  view: Declaration,
-  workflow: string,
-  step: string | null
-): FactoryStage | undefined {
-  const byStep = step === null ? undefined : stageOfStep(view, workflow, step);
-  if (byStep !== undefined) return byStep;
-  const stages = stagesOfWorkflow(view.stages, workflow);
-  return stages.find(stage => stage.nodes === undefined) ?? stages[0];
+export function stageOfWorkflow(view: Declaration, workflow: string): FactoryStage | undefined {
+  return stagesOfWorkflow(view.stages, workflow)[0];
 }
 
 /**
@@ -131,31 +108,32 @@ export function placedStage(
 export const isStopped = (status: RunStatus): boolean =>
   status === 'failed' || status === 'cancelled';
 
-/**
- * The stage rule 5 names for a stopped run of `workflow`: the stage whose `nodes` name the step
- * it failed at, else the workflow's first stage. The board's stop line and the item's story
- * name the same one.
- */
-export function stoppedStage(
-  view: Declaration,
-  workflow: string,
-  failedStep: string | null
-): FactoryStage | undefined {
-  const atStep = failedStep === null ? undefined : stageOfStep(view, workflow, failedStep);
-  return atStep ?? stagesOfWorkflow(view.stages, workflow)[0];
-}
-
 type DeclaredRun = PlacementRun & { workflow: string };
 
 /**
- * The runs placement reads: every run of a workflow the view names but its `discoveries`
- * drain, which places no item (the item page names it). Running beside the land gate, it must
- * not take the item off its column. A workflow no stage lists any more stays, so an item cached
- * under an older view reads as having no column rather than landing in the first stage.
+ * The runs placement reads: every run of a workflow the view names but two kinds that move no
+ * item. The `discoveries` drain places no item (the item page names it): running beside the
+ * land gate, it must not take the item off its column. A run that completed with an outcome
+ * the view neither places nor ends leaves the item where its earlier runs put it: the link
+ * stage starts again on every item that depends on one that ended, and on an item that was not
+ * waiting it ends `none` and changes nothing. A workflow no stage lists any more stays, so an
+ * item cached under an older view reads as having no column rather than landing in the first
+ * stage.
  */
 function declaredRuns(view: Declaration, runs: readonly PlacementRun[]): DeclaredRun[] {
   const drain = view.discoveries?.workflow;
-  return runs.filter((run): run is DeclaredRun => run.workflow !== null && run.workflow !== drain);
+  return runs.filter(
+    (run): run is DeclaredRun =>
+      run.workflow !== null && run.workflow !== drain && !passesThrough(view, run)
+  );
+}
+
+/** A run that completed with an outcome no `placement` or `endings` key takes. */
+function passesThrough(view: Declaration, run: PlacementRun): boolean {
+  if (run.workflow === null || run.status !== 'completed' || run.outcome === null) return false;
+  const taken = (keys: Record<string, unknown>): boolean =>
+    keys[`${run.workflow}:${run.outcome}`] !== undefined || keys[`${run.workflow}:*`] !== undefined;
+  return !taken(view.placement) && !taken(view.endings);
 }
 
 /** The ending label for a completed run, from `endings` (`workflow:outcome` or `workflow:*`). */
@@ -185,28 +163,6 @@ function staysLanded(
 }
 
 /**
- * The stage a running run puts its item in: the stage holding its step (`nodes` name it, or
- * a stage of the workflow declares no `nodes`). On a step no stage names (a loop group
- * between rounds, or none between steps) the item stays in `previous`, the stage it sat in
- * on the last read, when that stage lists the workflow, so a card does not hop; else it goes
- * where the workflow starts.
- */
-function runningStage(
-  view: Declaration,
-  run: DeclaredRun,
-  previous: string | undefined
-): FactoryStage | undefined {
-  const stages = stagesOfWorkflow(view.stages, run.workflow);
-  const named = run.step === null ? undefined : stageOfStep(view, run.workflow, run.step);
-  return (
-    named ??
-    stages.find(stage => stage.nodes === undefined) ??
-    stages.find(stage => stage.id === previous) ??
-    stages[0]
-  );
-}
-
-/**
  * Where an item sits: DESIGN's placement rules, first that matches. The board, the map and
  * the item page all place through here. `previous` is the stage the item sat in on the
  * caller's last read, if it keeps one (the board does).
@@ -221,7 +177,7 @@ export function itemColumn(
     stage === undefined ? null : { stage };
   // 1. A run works it: the stage its running step is in.
   const running = runs.filter(run => run.status === 'running').at(-1);
-  if (running !== undefined) return stageOf(runningStage(view, running, previous));
+  if (running !== undefined) return stageOf(stageOfWorkflow(view, running.workflow));
   // 2. Its change merged (or sat merged on the last read, its state not known now).
   if (staysLanded(view, input.merged, previous)) return stageOf(landedStage(view));
   // 3. The last completed run's `workflow:outcome` is placed, else its `workflow:*`.
@@ -235,9 +191,9 @@ export function itemColumn(
   // 4. The last run ended the item without a change.
   const ending = last === undefined ? undefined : endingOf(view, last);
   if (ending !== undefined) return { ended: ending };
-  // 5. The last run failed or was cancelled.
+  // 5. The last run failed or was cancelled: the stage its workflow counts in.
   if (last !== undefined && isStopped(last.status))
-    return stageOf(stoppedStage(view, last.workflow, last.failedStep));
+    return stageOf(stageOfWorkflow(view, last.workflow));
   // 6. Otherwise the first stage.
   return stageOf(view.stages[0]);
 }

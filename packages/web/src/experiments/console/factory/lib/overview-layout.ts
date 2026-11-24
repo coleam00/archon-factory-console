@@ -75,13 +75,11 @@ export const OVERVIEW_FULL_LEGEND_H = 96;
  */
 export const OVERVIEW_PAGE_MAX_H = 640;
 
-/** A label pill's height, and its shadow badge's width and the room it takes at the pill's end. */
+/** A label pill's height. */
 export const PILL_H = 20;
-export const PILL_BADGE_W = 52;
-export const PILL_BADGE_ROOM = PILL_BADGE_W + 8;
-/** A pill's width for `text`: 12 px text, 6 px padding, and the badge's room on a shadow line's. */
-export function pillWidth(text: string, shadow: boolean): number {
-  return Math.ceil(text.length * 7 + 14 + (shadow ? PILL_BADGE_ROOM : 0));
+/** A pill's width for `text`: 12 px text and 6 px padding. */
+export function pillWidth(text: string): number {
+  return Math.ceil(text.length * 7 + 14);
 }
 /** How far a pill sits off the line it labels. */
 const PILL_GAP = 6;
@@ -98,8 +96,6 @@ export interface OverviewEdgePath {
   to: string;
   kind: EdgeKind;
   label: string | undefined;
-  /** A line that says what the pack would do and does nothing yet. */
-  shadow: boolean;
   /** From the source to the target. */
   points: Point[];
   /** The label's pill, set off the line; undefined without a label. */
@@ -326,9 +322,8 @@ function edgePath(
   const from = ends.get(edge.from);
   const to = ends.get(edge.to);
   if (from === undefined || to === undefined) return undefined;
-  const shadow = edge.shadow === true;
-  const w = edge.label === undefined ? 0 : pillWidth(edge.label, shadow);
-  const base = { from: edge.from, to: edge.to, kind: edge.kind, label: edge.label, shadow };
+  const w = edge.label === undefined ? 0 : pillWidth(edge.label);
+  const base = { from: edge.from, to: edge.to, kind: edge.kind, label: edge.label };
   const lane = routing.lanes.get(index);
   if (lane !== undefined)
     return { ...base, points: lane.points, pill: w > 0 ? lanePill(lane.points, w) : undefined };

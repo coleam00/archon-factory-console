@@ -1,9 +1,9 @@
 /**
  * Holds a rendered document page to owner change 5 of 2026-11-21 (`document.tsx`): every
  * top-level box of the page body (`[data-doc-page]`) is a filled `Panel` or a section that
- * opens with a `SectionHeading` and holds only panels. The step page, the item page and Needs
- * you use this too. That no box is drawn as an outline alone is a look, checked in the browser
- * (DESIGN.md, Testing): the DOM here carries no styles to read it from.
+ * opens with a `SectionHeading` and holds only panels. The item page and Needs you use this
+ * too. That no box is drawn as an outline alone is a look, checked in the browser (DESIGN.md,
+ * Testing): the DOM here carries no styles to read it from.
  */
 
 const isPanel = (el: Element): boolean => el.getAttribute('data-doc-panel') === 'panel';

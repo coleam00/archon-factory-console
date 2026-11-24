@@ -89,12 +89,12 @@ describe('card fields, in order', () => {
   test('4: the running stage, step name and round, linking to the run', () => {
     const item = realItem('8');
     expect(card(item).run).toEqual({
-      parts: ['Checks', 'Product check', 'round 1'],
-      text: 'Checks · Product check · round 1',
+      parts: ['Build', 'product'],
+      text: 'Build · product',
       step: 'rounds.product__product',
       href: `/console/p/${PROJECT}/r/${progressOf(item).running!.runId}`,
     });
-    expect(card(delivering('build__build')).run?.text).toBe('Build · Writes the change');
+    expect(card(delivering('build__build')).run?.text).toBe('Build · build');
     expect(card(realItem('6')).run).toBeNull();
   });
 
@@ -129,15 +129,15 @@ describe('card fields, in order', () => {
   test('a card names the stage it waits in; a running one its stage and step; a merged one none', () => {
     expect(card(keepRuns(realItem('6'), 2)).stage).toBe('Build');
     const running = card(delivering('rounds.review__review'));
-    expect(running.stage).toBe('Checks');
-    expect(running.run?.text).toBe('Checks · Code review · round 2');
+    expect(running.stage).toBe('Build');
+    expect(running.run?.text).toBe('Build · review');
     expect(card(realItem('7'))).toMatchObject({ pill: 'landed', stage: null });
   });
 
   test('8: what an item that needs you asks, what stopped a failed one', () => {
     expect(card(asking(realItem('6'))).stopLine).toBe('Which base should the change target?');
     expect(card(endLastRun(realItem('5'), 'failed', null, 'build__build')).stopLine).toBe(
-      'Build failed at Writes the change'
+      'Build failed at build'
     );
     expect(card(endLastRun(realItem('5'), 'cancelled', null)).stopLine).toBe('Build was stopped');
     expect(card(realItem('8')).stopLine).toBeNull();
@@ -156,8 +156,8 @@ describe('the board', () => {
     );
     expect(model.columns.map(column => [column.label, column.cards.length])).toEqual([
       ['Intake', 0],
-      ['Plan & build', 3],
-      ['Checks & review', 1],
+      ['Plan & build', 4],
+      ['Checks & review', 0],
       ['Ready to merge', 0],
       ['Merged', 3],
     ]);

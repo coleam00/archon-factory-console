@@ -1,14 +1,22 @@
 /**
  * Each colour group's look and words, one record for every place that draws a group: the
  * board's column headers and columns, the item page's panels and journey strip, the map's
- * cards and its legend. Keyed by `ColumnTone`, the stage groups the schema declares plus the merged column's
- * own, so a group the schema gains fails type-check here until it has a colour. The colours are
+ * cards and its legend. Keyed by `ColumnTone`: the stage groups the console has a colour for,
+ * the merged column's own, and `other` for a group the view names that the console does not. The colours are
  * green, teal and warm, none purple or pink (owner change 1 of 2026-11-19), and keep clear of
  * the status colours the chips use (running, needs you); the merged column takes the done
  * colour (Visual standard, rule 5). `tones.test.ts` resolves each and holds both.
  */
 import type { CSSProperties } from 'react';
-import { GitMerge, GitPullRequest, Inbox, type LucideIcon, SearchCode, Wrench } from 'lucide-react';
+import {
+  Circle,
+  GitMerge,
+  GitPullRequest,
+  Inbox,
+  type LucideIcon,
+  SearchCode,
+  Wrench,
+} from 'lucide-react';
 import type { ToneColor } from './document';
 import type { ColumnTone } from './lib/board-columns';
 
@@ -32,6 +40,7 @@ export const TONES: Record<ColumnTone, Tone> = {
   },
   land: { color: 'var(--node-script)', kind: 'Merge', words: 'Merging it', Icon: GitPullRequest },
   merged: { color: 'var(--success)', kind: 'Merged', words: 'Merged', Icon: GitMerge },
+  other: { color: 'var(--node-opaque)', kind: 'Stage', words: 'Other stages', Icon: Circle },
 };
 
 /** A column's or card's colour (rule 5). */

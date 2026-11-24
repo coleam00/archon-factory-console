@@ -26,7 +26,10 @@ describe('the time of each column', () => {
     const first = Date.parse(detail.item.runs[0]?.startedAt ?? '');
     const merged = Date.parse(detail.item.progress?.change?.mergedAt ?? '');
     expect([of.totalMs, of.until]).toEqual([merged - first, 'merge']);
-    expect(of.segments.every(entry => entry.reached)).toBe(true);
+    // Its one deliver run counts in Build alone, so Checks & review was never reached.
+    expect(of.segments.filter(entry => !entry.reached).map(entry => entry.id)).toEqual([
+      'checks-review',
+    ]);
   });
 
   test('item 86, parked: its time ends where it stopped, not now', () => {

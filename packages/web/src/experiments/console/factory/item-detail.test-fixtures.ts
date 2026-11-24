@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItemDetail } from './api';
+import { mapArrows, type MapArrow, type PackGraph } from './lib/graph-structure';
 import type { FactoryViewListed } from './lib/views';
 
 /**
@@ -48,6 +49,22 @@ export const shippedListed: FactoryViewListed = {
   path: '/repo/.archon/packs/Wirasm.archon-software-factory.factory-view.json',
   declaration: shippedView,
 };
+
+/**
+ * The pack graph of Wirasm/archon-software-factory at ae98ef4, the commit the shipped view is
+ * pinned to (`.archon/packs/<pack key>.pack-pin.json`), as `archon pack graph --json` prints it. A
+ * fixture for these tests only: `bun run check:factory-view` reads the pack itself.
+ */
+export const shippedGraph: PackGraph = JSON.parse(
+  readFileSync(join(import.meta.dir, '__fixtures__', 'pack-graph-ae98ef4.json'), 'utf8')
+) as PackGraph;
+
+/** The arrows the map draws for the shipped view over that graph. */
+export const shippedArrows: MapArrow[] = mapArrows(
+  shippedView,
+  shippedGraph,
+  shippedListed.runNames
+);
 
 /** The project the fixtures' links name. */
 export const PROJECT = 'c9a89726701fe4be95346226c359a961';

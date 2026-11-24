@@ -135,7 +135,7 @@ function placePills(
   ordered.sort((p, q) => p.x - q.x);
   const placed: LanePill[] = [];
   for (const { stage, text, x } of ordered) {
-    const w = pillWidth(text, false);
+    const w = pillWidth(text);
     let band = 0;
     const at = (n: number): Box => ({
       x: Math.max(row.lo, Math.min(row.hi - w, x - w / 2)),

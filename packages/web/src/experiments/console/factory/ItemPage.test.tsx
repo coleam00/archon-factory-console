@@ -32,9 +32,51 @@ afterEach(() => {
 const listing: FactoryViews = { views: [shippedListed], errors: [] };
 const quiet = attentionRead();
 
-function render(detail: FactoryItemDetail, attention: RunsAttention = quiet): string {
+/**
+ * The shipped listing with the retired deliver workflow's rounds declared again, as a loop: the
+ * shipped view no longer declares them, so this keeps a loop-form grid on the page for the
+ * fixtures captured from deliver runs. Deliver counts in Build, so its grid is on Build.
+ */
+function deliverRoundsListing(): FactoryViews {
+  const verdict = 'rounds.verdict__verdict';
+  const view = shippedView;
+  const declaration: typeof shippedView = {
+    ...view,
+    rounds: [{ workflow: 'deliver', loop: 'rounds' }, ...[view.rounds ?? []].flat()],
+    returns: [{ workflow: 'deliver', node: verdict, outcome: 'return' }, ...(view.returns ?? [])],
+    approves: [
+      { workflow: 'deliver', node: verdict, outcome: 'approve' },
+      ...(view.approves ?? []),
+    ],
+    verdicts: {
+      ...view.verdicts,
+      deliver: {
+        'rounds.review__review': { approve: 'approved', return: 'returned', ask: 'asked' },
+        'rounds.tests__tests': { sound: 'approved', return: 'returned', ask: 'asked' },
+        'rounds.product__product': { approve: 'approved', return: 'returned', ask: 'asked' },
+        [verdict]: { ask: 'asked' },
+      },
+    },
+    steps: {
+      ...view.steps,
+      deliver: {
+        'rounds.review__review': 'Code review',
+        'rounds.tests__tests': 'Test check',
+        'rounds.product__product': 'Product check',
+        [verdict]: 'Verdict',
+      },
+    },
+  };
+  return { views: [{ ...shippedListed, declaration }], errors: [] };
+}
+
+function render(
+  detail: FactoryItemDetail,
+  attention: RunsAttention = quiet,
+  views: FactoryViews = listing
+): string {
   const key = detail.item.item.key;
-  set(FK.factoryViews(PROJECT), listing);
+  set(FK.factoryViews(PROJECT), views);
   set(K.runsAttention, attention);
   set(FK.factoryItem(PROJECT, key), detail);
   return renderToStaticMarkup(
@@ -105,10 +147,14 @@ const link = (
 });
 
 describe('the item page', () => {
-  test('item 111, merged: band, journey, one panel per stage, the checks grid and its links', () => {
+  test('item 111, merged: band, journey, one panel per stage, the rounds grid and its links', () => {
     const detail = itemDetail('111');
     const links = [link('4', 'depends_on', 'outgoing'), link('9', 'part_of', 'incoming', act)];
-    const html = render({ ...detail, item: { ...detail.item, links } });
+    const html = render(
+      { ...detail, item: { ...detail.item, links } },
+      quiet,
+      deliverRoundsListing()
+    );
     const band = text(section(html, 'Summary'));
     for (const words of ['Merged', '#111', 'PR #112', 'Its change merged.']) {
       expect(band).toContain(words);
@@ -130,8 +176,8 @@ describe('the item page', () => {
       ])
     ).toEqual([
       ['intake', 'Intake 1 min'],
-      ['plan-build', 'Plan & build 39 min'],
-      ['checks-review', 'Checks & review 22 min sent back 1x to Plan & build'],
+      ['plan-build', 'Plan & build 1 h 1 min'],
+      ['checks-review', 'Checks & review Not reached'],
       ['ready', 'Ready to merge 3 min'],
       ['merged', 'Merged Merged It is here now'],
     ]);
@@ -140,18 +186,13 @@ describe('the item page', () => {
       ['order', 'Order took the work order and made it an item.'],
       ['triage', 'Triage judged it worth building.'],
       ['plan', 'Plan wrote the approach.'],
-      ['build', 'Build wrote the change and opened PR #112.'],
-      ['checks', 'Checks sent it back once, then approved it.'],
-      ['host', 'The checks and CI passed; it is ready to merge.'],
+      // The deliver run is one panel, on Build, its rounds told there.
+      ['build', 'Build sent it back once, then approved it and opened PR #112.'],
       ['drain', 'The factory looked for other work it noticed.'],
       ['ready', 'The merge gate read the change.'],
       // Merged by a person: no run told it, so the console says only that it merged.
       ['merged', `The change merged ${formatDateTime('2026-11-20T21:29:51Z')}.`],
     ]);
-    // The deliver run's one cost, on each panel it worked, said to be the whole run's.
-    expect(text(panel(html, 'build'))).toContain(
-      'Cost $18.14 for the whole run, across its stages'
-    );
     expect(text(html)).toContain(
       'Sent back : a check found something to fix and returned the change to the builder. Approved : the check passed.'
     );
@@ -160,7 +201,6 @@ describe('the item page', () => {
       'Sent back',
       'Approved',
     ]);
-    expect(row(html, 'Build').map(cell => text(`<${cell}`).trim())).toEqual(['Fixed', 'Not run']);
     expect(text(html)).toContain('Depends on #4');
     expect(text(html)).toContain('Has part #9 ended');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/4"`);
@@ -249,10 +289,8 @@ describe('the item page', () => {
   test('item 6 runs; with asks open it needs you, listing only its own asks, answerable', () => {
     const running = render(itemDetail('6'));
     expect(text(section(running, 'Summary'))).toContain('Running');
-    expect(sentences(running)).toContainEqual([
-      'build',
-      'Build is working on it now: Writes the change.',
-    ]);
+    // The shipped view names none of the retired deliver workflow's steps: its step reads by id.
+    expect(sentences(running)).toContainEqual(['build', 'Build is working on it now: build.']);
     expect(text(running)).toContain('No change yet');
 
     const detail = itemDetail('6');

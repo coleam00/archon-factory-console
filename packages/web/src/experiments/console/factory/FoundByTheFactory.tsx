@@ -9,7 +9,6 @@ import { errorDetail } from '../lib/http';
 import type { FactoryDiscoveries } from './api';
 import { itemPath } from './lib/board';
 import { readFailed } from './lib/deadline';
-import { ShadowBadge } from './ShadowBadge';
 import {
   type FactoryFinding,
   FOUND_BY_THE_FACTORY,
@@ -23,16 +22,16 @@ import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
 const HEADING_ID = `${FOUND_BY_THE_FACTORY}-heading`;
 
-/** The shadow accent (Visual standard, rule 10): the drains did nothing. */
-function ShadowAccent(): ReactElement {
+/** A quiet accent: what the drains found is beside the work, not part of it. */
+function QuietAccent(): ReactElement {
   return (
     <span aria-hidden className="absolute inset-x-0 top-0 h-0.75 bg-[color:var(--node-opaque)]" />
   );
 }
 
 /**
- * "Found by the factory" as one line under the board: its name, the shadow badge, and "14 the
- * factory would file", or what its read says when there is nothing to show yet. The board's one
+ * "Found by the factory" as one line under the board: its name and "14 filed, not on the
+ * board yet", or what its read says when there is nothing to show yet. The board's one
  * toggle, beside it, opens the panel below the board. Mount it only when the view declares
  * `discoveries`.
  */
@@ -46,11 +45,10 @@ export function FoundByTheFactoryLine({ projectId }: { projectId: string }): Rea
       aria-labelledby={HEADING_ID}
       className="relative flex flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden rounded-console-12 border border-border bg-surface px-4 py-2"
     >
-      <ShadowAccent />
+      <QuietAccent />
       <h2 id={HEADING_ID} className="text-console-15 font-semibold text-text-primary">
         Found by the factory
       </h2>
-      {data?.shadow === true ? <ShadowBadge /> : null}
       {data === undefined ? (
         failed === undefined ? (
           <FoundSkeleton read={read} />
@@ -61,9 +59,7 @@ export function FoundByTheFactoryLine({ projectId }: { projectId: string }): Rea
         )
       ) : findings.length === 0 ? (
         <span className="text-console-13 text-text-secondary">
-          {data.shadow
-            ? 'Nothing the factory would file now'
-            : 'Nothing filed that is not on the board'}
+          Nothing filed that is not on the board
         </span>
       ) : (
         <span className="flex flex-wrap items-baseline gap-x-2">
@@ -73,9 +69,7 @@ export function FoundByTheFactoryLine({ projectId }: { projectId: string }): Rea
           >
             {findings.length}
           </span>
-          <span className="text-console-13 text-text-secondary">
-            {data.shadow ? 'the factory would file' : 'filed, not on the board yet'}
-          </span>
+          <span className="text-console-13 text-text-secondary">filed, not on the board yet</span>
         </span>
       )}
     </section>
@@ -85,9 +79,7 @@ export function FoundByTheFactoryLine({ projectId }: { projectId: string }): Rea
 /**
  * The board's "Found by the factory" panel, opened below the board by its one toggle: what the
  * discoveries drains decided to file from what agents noticed outside their scope, that no item
- * on the project carries yet, each finding listed. Read-only. While the drains are a shadow
- * (the view says so) it reads as one: they decide what they would file and file nothing. Its
- * heading is on the line ({@link FoundByTheFactoryLine}), as are the skeleton and a failed
+ * on the project carries yet, each finding listed. Read-only. Its heading is on the line ({@link FoundByTheFactoryLine}), as are the skeleton and a failed
  * read's error, so it draws nothing until the read has answered.
  */
 export function FoundByTheFactory({
@@ -107,13 +99,7 @@ export function FoundByTheFactory({
       aria-labelledby={HEADING_ID}
       className="relative flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-4"
     >
-      <ShadowAccent />
-      {data.shadow ? (
-        <p className="text-console-13 text-text-tertiary">
-          Would file what agents noticed outside their work: the factory decides what it would file,
-          and files nothing yet.
-        </p>
-      ) : null}
+      <QuietAccent />
       <StaleRead error={read.error} />
       <FoundPanel projectId={projectId} names={names} read={data} />
     </section>
@@ -152,9 +138,7 @@ function FoundPanel({
         >
           {findings.length}
         </span>
-        <span className="text-console-13 text-text-secondary">
-          {read.shadow ? 'the factory would file' : 'filed'}, not on the board yet
-        </span>
+        <span className="text-console-13 text-text-secondary">filed, not on the board yet</span>
       </p>
       <ul aria-label="What the drains decided" className="flex flex-wrap gap-2">
         {foundChips(read).map(chip => (
@@ -168,7 +152,7 @@ function FoundPanel({
       </ul>
       <MetaLines covered={covered} unreadable={read.unreadable} />
       {findings.length === 0 ? (
-        <NothingFound shadow={read.shadow} />
+        <NothingFound />
       ) : (
         <ul id={`${FOUND_BY_THE_FACTORY}-list`} className="flex flex-col gap-3">
           {findings.map(finding => (
@@ -201,15 +185,11 @@ function MetaLines({ covered, unreadable }: { covered: number; unreadable: numbe
   );
 }
 
-function NothingFound({ shadow }: { shadow: boolean }): ReactElement {
+function NothingFound(): ReactElement {
   return (
     <EmptyNote
       className="flex items-center gap-2"
-      sentence={
-        shadow
-          ? 'Nothing the factory would file now. What agents notice after a delivery shows here.'
-          : 'Nothing filed that is not on the board. What agents notice after a delivery shows here.'
-      }
+      sentence="Nothing filed that is not on the board. What agents notice after a delivery shows here."
     />
   );
 }

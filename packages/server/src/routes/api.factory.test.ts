@@ -4,8 +4,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import type { ChangeMergeState } from '@archon/adapters/forge-host';
-import { getHomeWorkflowsPath } from '@archon/paths';
-import { removeTempTree, trackTempRoots } from '@archon/paths/test-utils';
+import { trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
 import type { DiscoveriesSource } from '@archon/workflows/factory-discoveries';
 import type { ItemReadSource } from '@archon/workflows/item-read';
@@ -17,7 +16,6 @@ import { registerFactoryRoutes, type FactoryRouteDeps } from './api.factory';
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
-  factoryPackSettingsResponseSchema,
   factoryPacksResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
@@ -179,69 +177,6 @@ describe('GET /api/factory/packs', () => {
   });
 });
 
-describe('GET /api/factory/pack-settings', () => {
-  const settingsOverview = {
-    ...overview('kit', 'Kit'),
-    settings: {
-      land_policy: { points_to: 'policy', shadow: true, section: 'ahead', when_live: 'Would land' },
-    },
-    setting_sections: [
-      {
-        id: 'ahead',
-        eyebrow: 'Gates',
-        title: 'What may go ahead',
-        kind: 'gate' as const,
-        icon: 'gavel' as const,
-      },
-    ],
-  };
-
-  test("reads a home pack's declaration and each project's values", async () => {
-    // A global folder pack: the scratch home every test process starts with.
-    const pack = join(getHomeWorkflowsPath(), 'kit');
-    await mkdir(join(pack, '.pack'), { recursive: true });
-    await mkdir(join(pack, '.shared'), { recursive: true });
-    await writeFile(
-      join(pack, '.pack', 'pack.yaml'),
-      'inputs:\n  land_policy:\n    default: ""\n    description: Shadow only.\n  command: {}\n'
-    );
-    await writeFile(
-      join(pack, '.shared', 'factory-overview.json'),
-      JSON.stringify(settingsOverview)
-    );
-    try {
-      const { app } = await appFor(
-        {
-          '.archon/packs/kit.factory-view.json': declaration('kit', 'Kit factory'),
-          '.archon/packs/kit.yaml': 'settings:\n  land_policy: docs/land.md\n  colour: red\n',
-          'docs/land.md': '# Land',
-        },
-        cwd => ({ codebases: async () => [{ id: 'cb-1', name: 'web', cwd }] })
-      );
-      const { status, body } = await get(app, '/api/factory/pack-settings?pack=kit');
-      expect(status).toBe(200);
-      const settings = factoryPackSettingsResponseSchema.parse(body);
-      expect(settings.declaration).toEqual({ path: join(pack, '.pack', 'pack.yaml'), error: null });
-      expect(
-        settings.settings.map(s => [s.name, s.shadow, s.pointsTo, s.section, s.whenLive])
-      ).toEqual([
-        ['land_policy', true, 'policy', 'ahead', 'Would land'],
-        ['command', false, null, null, null],
-      ]);
-      const [project] = settings.projects;
-      expect(project?.name).toBe('web');
-      const land = project?.values.land_policy;
-      expect(land?.state === 'set' ? [land.file?.display, land.file?.status] : null).toEqual([
-        'docs/land.md',
-        'found',
-      ]);
-      expect(project?.undeclared).toEqual([{ name: 'colour', value: 'red' }]);
-    } finally {
-      await removeTempTree(pack);
-    }
-  });
-});
-
 /** The event a completed run records: its terminal record, `node` returning `value`. */
 const completed = (
   runId: string,
@@ -273,7 +208,6 @@ const completed = (
 
 const DISCOVERIES = {
   workflow: 'discoveries',
-  shadow: false,
   filed: '/filed',
   held: '/held',
   dropped: '/dropped',
@@ -316,7 +250,7 @@ describe('GET /api/factory/discoveries', () => {
     const { status, body } = await get(app, '/api/factory/discoveries?codebaseId=cb-1');
     expect(status).toBe(200);
     const read = factoryDiscoveriesResponseSchema.parse(body);
-    expect(read).toMatchObject({ pack: 'acme/kit', shadow: false, held: 1, dropped: 0 });
+    expect(read).toMatchObject({ pack: 'acme/kit', held: 1, dropped: 0 });
     expect(read.findings.map(f => [f.title, f.kind, f.from.key, f.coveredBy])).toEqual([
       ['A finding', 'defect', '1', null],
     ]);
@@ -548,7 +482,6 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
         returned: 0,
         change: null,
         runs: [{ runId: 'run-2', workflow: 'deliver', failedStep: null }],
-        shadows: [],
         parked: null,
         awaits: null,
       },
@@ -571,7 +504,6 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
         costUsd: null,
         step: 'build',
         rounds: null,
-        shadows: [],
         // Still running: no change named and nothing said yet; its one step start.
         change: null,
         said: null,
@@ -794,13 +726,6 @@ const RETIRED = {
 
 describe('what each route answers a request it cannot serve', () => {
   test.each<[string, string, Record<string, unknown>, number, string | null]>([
-    [
-      'pack-settings: a key no pack with an overview has',
-      '/api/factory/pack-settings?pack=nope',
-      {},
-      404,
-      null,
-    ],
     [
       'discoveries: a view that declares none',
       '/api/factory/discoveries?codebaseId=cb-1',

@@ -7,17 +7,22 @@ import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test }
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItem, FactoryItemDetail, FactoryViews, FactoryWorkflow } from './api';
+import type { FactoryItem, FactoryItemDetail, FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
 import { factoryTestRoutes } from './test-routes';
-import { itemDetail, shippedListed } from './item-detail.test-fixtures';
-import deliverJson from './lib/fixtures/deliver-workflow.json';
+import {
+  itemDetail,
+  shippedArrows,
+  shippedGraph,
+  shippedListed,
+} from './item-detail.test-fixtures';
 import { FIXTURE_NOW, delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { EMPTY_STAGE_LIVE } from './lib/map-live';
 import { StageView, useStageTab } from './stage/StageView';
 import { attentionRead } from './lib/attention.test-fixtures';
+import { packGraphKey, type MapStructure } from './usePackGraph';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs.
@@ -29,7 +34,6 @@ afterAll(() => {
 });
 
 const ID = 'cb-1';
-const DELIVER = deliverJson as FactoryWorkflow;
 const listing: FactoryViews = {
   views: [{ ...shippedListed, declaration: VIEW }],
   errors: [],
@@ -37,7 +41,13 @@ const listing: FactoryViews = {
 const quiet = attentionRead();
 
 afterEach(() => {
-  for (const kind of ['factory-views', 'factory-workflow', 'runs:factory-items', 'project', 'runs'])
+  for (const kind of [
+    'factory-views',
+    'factory-pack-graph',
+    'runs:factory-items',
+    'project',
+    'runs',
+  ])
     invalidate(kind);
 });
 
@@ -55,26 +65,35 @@ const ITEMS: FactoryItem[] = [
   endLastRun(realItem('3'), 'failed', null, 'rounds.tests__tests'),
 ];
 
-/**
- * The view as it was before the pack retired `deliver`, which these fixtures' items run, with no
- * drill-downs, so a stage draws deliver's step graph (a drill-down puts it behind a tab).
- */
-const graphsListing: FactoryViews = {
+/** The shipped view with no drill-downs, so a stage opens on its steps (a drill-down puts them behind a tab). */
+const stepsListing: FactoryViews = {
   ...listing,
-  views: listing.views.map(listed => ({
-    ...listed,
-    declaration: {
-      ...listed.declaration,
-      retired: undefined,
-      stages: listed.declaration.stages.map(({ drilldown: _drilldown, ...stage }) => stage),
+  views: [
+    {
+      ...shippedListed,
+      declaration: {
+        ...shippedListed.declaration,
+        stages: shippedListed.declaration.stages.map(
+          ({ drilldown: _drilldown, ...stage }) => stage
+        ),
+      },
     },
-  })),
+  ],
+};
+
+/** The shipped pack graph, read. */
+const structure: MapStructure = {
+  graph: { data: shippedGraph, error: undefined, loading: false, refetch: () => undefined },
+  runNames: shippedListed.runNames,
+  arrows: shippedArrows,
+  failed: undefined,
+  retry: () => undefined,
 };
 
 function seed(views: FactoryViews, detail?: FactoryItemDetail): void {
   set(FK.factoryViews(ID), views);
   set(K.runsAttention, quiet);
-  set(FK.factoryWorkflow(ID, 'deliver'), DELIVER);
+  set(packGraphKey(ID, shippedListed.packKey), shippedGraph);
   set(FK.factoryItems(ID), { items: ITEMS, members: {} });
   if (detail !== undefined) set(FK.factoryItem(ID, detail.item.item.key), detail);
 }
@@ -99,6 +118,7 @@ function renderStage(stageId: string, views = listing): string {
       <StageView
         projectId={ID}
         view={view}
+        structure={structure}
         stage={stage}
         live={EMPTY_STAGE_LIVE}
         tab={tab}
@@ -131,8 +151,8 @@ function readable(html: string): string {
     .replace(/&quot;/g, '"');
 }
 
-/** The loops of the pack's deliver workflow, from its own read, not from a list here. */
-const LOOPS = DELIVER.groups.filter(group => group.kind === 'loop').map(group => group.id);
+/** The loop groups the fixtures' deliver runs record their body steps under. */
+const LOOPS = ['rounds', 'hostrounds'];
 const ID_SHAPES = [/[A-Za-z0-9]__[A-Za-z0-9]/, new RegExp(`\\b(${LOOPS.join('|')})\\.[a-z]`)];
 
 function rawIds(html: string): string[] {
@@ -153,44 +173,23 @@ describe('no raw step id where a person reads', () => {
   test('the Overview, the board and its Table view name steps, their engine ids on hover', () => {
     expect(rawIds(render(`/console/p/${ID}/factory`))).toEqual([]);
     const html = render(`/console/p/${ID}/factory/board`);
-    expect(html).toContain('Checks · Code review · round 2');
-    expect(html).toContain('failed at Test check');
-    expect(titles(html)).toContain(
-      'Checks · Code review · round 2 (engine id: rounds.review__review)'
-    );
+    // The retired deliver's steps have no names in the view: they read as cleaned ids.
+    expect(html).toContain('Build · review');
+    expect(html).toContain('failed at tests');
+    expect(titles(html)).toContain('Build · review (engine id: rounds.review__review)');
     expect(rawIds(html)).toEqual([]);
     expect(rawIds(render(`/console/p/${ID}/factory/board?view=table`))).toEqual([]);
   });
 
   test('the item page and its rounds grid, the step id on hover', () => {
-    const html = render(`/console/p/${ID}/factory/items/111`, itemDetail('111'));
-    expect(titles(html).some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
+    const html = render(`/console/p/${ID}/factory/items/125`, itemDetail('125'));
+    expect(titles(html).some(title => title.startsWith('tests__tests'))).toBe(true);
     expect(rawIds(html)).toEqual([]);
   });
 
-  test("the stage modal's step graph, and its conditions by the names the graph prints", () => {
-    const html = renderStage('checks', graphsListing);
-    expect(html).toContain('title="Code review (engine id: rounds.review__review)');
-    expect(titles(html)).toContain('rounds');
+  test("the stage modal's steps, each by its name, the engine id on hover", () => {
+    const html = renderStage('checks', stepsListing);
+    expect(html).toContain('title="Code review (engine id: review__review)');
     expect(rawIds(html)).toEqual([]);
-    // A condition reads a step by its bare id ("if rounds = approve"), which neither id
-    // shape catches, so every condition's subject is checked against the declared names.
-    const subjects = [...readable(html).matchAll(/\bif (.+?) [=≠≤≥<>] /g)].map(match => match[1]);
-    expect(subjects.sort()).toEqual([
-      'Check rounds',
-      'Check rounds',
-      'Reads CI and PR reviews',
-      'Verdict',
-    ]);
-  });
-
-  test('the step page: the name with its id as a tag, and Runs when by step name', () => {
-    const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`);
-    expect(
-      /<h2[^>]*><span[^>]*>([^<]*)<span data-id-tag=""[^>]*>([^<]*)<\/span>/.exec(html)?.slice(1)
-    ).toEqual(['Code review', 'rounds.review__review']);
-    const fix = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`);
-    expect(readable(fix)).toMatch(/Runs when\s+if Verdict = return/);
-    expect(rawIds(/<dl[\s\S]*?<\/dl>/.exec(fix)?.[0] ?? '')).toEqual([]);
   });
 });

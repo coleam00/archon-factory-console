@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useMemo, useRef, type ReactElement } from 'react';
-import { rounded, SHADOW } from '../canvas-lines';
+import { LINE, rounded } from '../canvas-lines';
 import type { Box } from '../lib/map-layout';
 import { overviewFlow, type FlowMove, type OverviewFlow as Flow } from '../lib/overview-flow';
 import type { OverviewLayout } from '../lib/overview-layout';
@@ -150,7 +150,7 @@ export const OverviewFlow = memo(function OverviewFlow({
             move={move}
             period={flow.period}
             dur={dur}
-            colour={move.shadow || to === undefined ? SHADOW : KINDS[to].color}
+            colour={to === undefined ? LINE : KINDS[to].color}
           />
         );
       })}
@@ -168,7 +168,7 @@ function FlowDot({
   move: FlowMove;
   period: number;
   dur: string;
-  /** The kind colour of the card it travels to; a shadow's colour on a shadow line (rule 10). */
+  /** The kind colour of the card it travels to. */
   colour: string;
 }): ReactElement {
   const fade = opacityAnimation(move.start, move.end, 1, period, DOT_FADE);

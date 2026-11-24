@@ -1,8 +1,7 @@
 /**
  * Read-only routes for the console's Software Factory section. Nothing here writes: the
  * section reads the engine's own records, the factory view and overview files packs and
- * projects ship (`@archon/workflows/factory-views`, `factory-overviews`), a pack's declared
- * settings and each project's values for them (`factory-pack-settings`), and asks the change
+ * projects ship (`@archon/workflows/factory-views`, `factory-overviews`), and asks the change
  * host whether a change merged through the forge seam.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
@@ -38,11 +37,6 @@ import {
   factoryViewWorkflowNames,
   factoryViewsForProject,
 } from '@archon/workflows/factory-views';
-import {
-  findPackDeclaration,
-  readFactoryPackSettings,
-  type FactoryPackSettings,
-} from '@archon/workflows/factory-pack-settings';
 import { factoryWorkflowSteps } from '@archon/workflows/factory-steps';
 import type { WorkflowConfig } from '@archon/workflows/deps';
 import type { ItemReadSource } from '@archon/workflows/item-read';
@@ -60,7 +54,6 @@ import {
 import {
   factoryDiscoveriesResponseSchema,
   factoryItemDetailResponseSchema,
-  factoryPackSettingsResponseSchema,
   factoryPacksResponseSchema,
   factoryProgressResponseSchema,
   factoryViewsSchema,
@@ -108,31 +101,6 @@ const getFactoryPacksRoute = createRoute({
   },
 });
 
-const factoryPackSettingsQuerySchema = z.object({
-  pack: z
-    .string()
-    .min(1)
-    .openapi({ description: "The pack's key, as `GET /api/factory/packs` lists it." }),
-});
-
-const getFactoryPackSettingsRoute = createRoute({
-  method: 'get',
-  path: '/api/factory/pack-settings',
-  tags: ['Workflows'],
-  summary: "A pack's declared settings, and what each project that runs it sets",
-  description:
-    'Every setting the pack declares in its `.pack/pack.yaml` (`inputs:`), in its order, presented as the `settings` map of the overview `GET /api/factory/packs` shows for it says (shadow, and whether the value names a policy or the checks file). For each project a factory view of the pack applies to: its value of each setting from `.archon/packs/<pack key>.yaml`, the file a policy or checks setting names looked up in its checkout (a checks file listed), and the keys it sets that the pack does not declare. A map key the pack does not declare is listed under `mapErrors`. A project whose settings file cannot be read carries its `error`; the others still read. Nothing is written.',
-  request: { query: factoryPackSettingsQuerySchema },
-  responses: {
-    200: {
-      content: { 'application/json': { schema: factoryPackSettingsResponseSchema } },
-      description: 'OK',
-    },
-    404: jsonError('No pack with a factory overview has this key'),
-    500: jsonError('Server error'),
-  },
-});
-
 const factoryDiscoveriesQuerySchema = z.object({
   codebaseId: z
     .string()
@@ -146,7 +114,7 @@ const getFactoryDiscoveriesRoute = createRoute({
   tags: ['Workflows'],
   summary: "What a project's discoveries drains decided to file",
   description:
-    "Every finding the completed runs of the workflow the first applying factory view's `discoveries` field names decided to file, newest first, with how many they held and dropped, read at the pointers that field declares. `shadow` says the drains only decide what they would file. A finding's `coveredBy` names an item on the project with the same title (case-insensitive), null while none has it. A drain whose result has no decisions at those pointers counts under `unreadable`.",
+    "Every finding the completed runs of the workflow the first applying factory view's `discoveries` field names decided to file, newest first, with how many they held and dropped, read at the pointers that field declares. A finding's `coveredBy` names an item on the project with the same title (case-insensitive), null while none has it. A drain whose result has no decisions at those pointers counts under `unreadable`.",
   request: { query: factoryDiscoveriesQuerySchema },
   responses: {
     200: {
@@ -176,7 +144,7 @@ const getFactoryProgressRoute = createRoute({
   tags: ['Workflows'],
   summary: "The board progress of a project's items, by key",
   description:
-    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked whether it merged (only, once and in the background, for a pull request number no audit row of its runs names, which fills a later read); else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
+    'What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked whether it merged (only, once and in the background, for a pull request number no audit row of its runs names, which fills a later read); else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.',
   request: { query: factoryProgressQuerySchema },
   responses: {
     200: {
@@ -229,7 +197,7 @@ const getFactoryItemRoute = createRoute({
   tags: ['Workflows'],
   summary: 'One item with its progress and the story facts of each of its runs',
   description:
-    "The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, what each shadow step the view declares decided on that run (`shadows`, one per completed step and round, in recording order; a run of the discoveries workflow included), the pull request the run named at the view's `change` pointer (`change`), what it said in its own words at the view's `story.said` pointers (`said`), the models its steps ran on (`models`), and when each of its steps started (`steps`, as the engine records the step id).",
+    "The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, the pull request the run named at the view's `change` pointer (`change`), what it said in its own words at the view's `story.said` pointers (`said`), the models its steps ran on (`models`), and when each of its steps started (`steps`, as the engine records the step id).",
   request: { query: factoryItemQuerySchema },
   responses: {
     200: {
@@ -563,36 +531,6 @@ async function factoryPacks(deps: FactoryRouteDeps): Promise<FactoryPacks> {
   return resolveFactoryPacks({ home, projects });
 }
 
-/**
- * The Settings page of the pack keyed `key`, or null when no pack with an overview has that
- * key. The declaration is the install's (bundled, global or installed), else the first
- * project's, by name, whose checkout holds the pack as a folder.
- */
-async function packSettings(
-  deps: FactoryRouteDeps,
-  key: string
-): Promise<FactoryPackSettings | null> {
-  const pack = (await factoryPacks(deps)).packs.find(listed => listed.key === key);
-  if (pack === undefined) return null;
-  const cwds = new Map((await deps.codebases()).map(({ id, cwd }) => [id, cwd]));
-  const projects = pack.projects.flatMap(({ codebaseId, name }) => {
-    const cwd = cwds.get(codebaseId);
-    return cwd === undefined ? [] : [{ codebaseId, name, cwd }];
-  });
-  let declaration = await findPackDeclaration(liveSourceRoots(null), key);
-  for (const project of projects) {
-    if (declaration !== null) break;
-    declaration = await findPackDeclaration(await projectRoots(deps, project.cwd), key);
-  }
-  return readFactoryPackSettings({
-    packKey: key,
-    declaration,
-    map: pack.overview?.declaration.settings,
-    sections: pack.overview?.declaration.setting_sections,
-    projects,
-  });
-}
-
 export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps): void {
   const register = openApiRouteRegistrar(app);
   const changeStates = changeStateCache(deps);
@@ -625,26 +563,6 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
     } catch (error) {
       getLog().error({ err: error }, 'discover_factory_packs_failed');
       return apiError(c, 500, 'Failed to discover the factory packs');
-    }
-  });
-
-  register(getFactoryPackSettingsRoute, async c => {
-    const { pack } = getValidatedQuery(c, factoryPackSettingsQuerySchema);
-    try {
-      const read = await packSettings(deps, pack);
-      if (read === null) return apiError(c, 404, 'No factory pack has this key');
-      // The body lists these too; the log keeps them findable without a console open.
-      if (read.declaration?.error)
-        getLog().warn({ pack, path: read.declaration.path }, 'factory_pack_declaration_invalid');
-      for (const error of read.mapErrors)
-        getLog().warn({ pack, error }, 'factory_pack_settings_map_invalid');
-      for (const { codebaseId, error } of read.projects)
-        if (error !== null)
-          getLog().warn({ pack, codebaseId }, 'factory_pack_project_settings_invalid');
-      return c.json(read);
-    } catch (error) {
-      getLog().error({ err: error, pack }, 'factory_pack_settings_read_failed');
-      return apiError(c, 500, "Failed to read the pack's settings");
     }
   });
 

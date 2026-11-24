@@ -16,6 +16,9 @@ const rowWith = (at: number, patch: Partial<Run>, view = shippedView, workflow?:
   const facts = detail.runs.map((run, i) => (i === at && workflow ? { ...run, workflow } : run));
   return buildTimeline(view, { ...detail, item: { ...detail.item, runs }, runs: facts })[at];
 };
+/** Item 1's deliver run read as a completed run of `workflow` with `outcome`. */
+const runOf = (workflow: string, outcome: string | null) =>
+  rowWith(2, { workflow: `${shippedView.pack}:${workflow}`, outcome }, shippedView, workflow);
 
 describe("each run's outcome, as the declaration words it, and what it did to the item", () => {
   test('an item that landed: one row per run, in start order, each sending it on', () => {
@@ -23,7 +26,7 @@ describe("each run's outcome, as the declaration words it, and what it did to th
     const rows = timeline(detail);
     expect(rows.map(row => [row.workflow, row.outcome, row.kind])).toEqual([
       // Each outcome as the declaration's `placement` reads it: where it sent the item.
-      ['triage', said('sent to Plan'), 'sent-on'],
+      ['triage', said('sent to Link'), 'sent-on'],
       ['plan', said('sent to Build'), 'sent-on'],
       ['deliver', said('sent to Ready to merge'), 'sent-on'],
     ]);
@@ -47,32 +50,23 @@ describe("each run's outcome, as the declaration words it, and what it did to th
       said('Parked by triage'),
       'other',
     ],
-    // deliver works Build to Host: "returned" lands in Build, "replan" in Plan before it.
-    [
-      'sent back into Build',
-      rowWith(2, { outcome: 'returned' }),
-      said('sent to Build'),
-      'returned',
-    ],
+    // A check returns the item into Build, a stage before its own; deliver works Build only.
+    ['sent back into Build', runOf('stage-check', 'return'), said('sent to Build'), 'returned'],
     ['sent back to Plan', rowWith(2, { outcome: 'replan' }), said('sent to Plan'), 'returned'],
     [
+      'back into its own stage',
+      rowWith(2, { outcome: 'returned' }),
+      said('sent to Build'),
+      'sent-on',
+    ],
+    [
       'into a stage the run works',
-      rowWith(2, { outcome: 'waiting' }),
+      runOf('stage-host', 'waiting'),
       said('sent to CI and review'),
       'sent-on',
     ],
     // `landgate:*` places the item in Ready to merge, the stage the gate itself works.
-    [
-      'a gate with no outcome',
-      rowWith(
-        2,
-        { workflow: `${shippedView.pack}:landgate`, outcome: null },
-        shippedView,
-        'landgate'
-      ),
-      said('sent to Ready to merge'),
-      'sent-on',
-    ],
+    ['a gate with no outcome', runOf('landgate', null), said('sent to Ready to merge'), 'sent-on'],
     ['failed', rowWith(2, { status: 'failed' }), said('failed'), 'failed'],
     ['cancelled', rowWith(2, { status: 'cancelled' }), said('cancelled'), 'failed'],
   ];
@@ -100,19 +94,16 @@ describe('a run that asked', () => {
   const detail = itemDetail('3');
   const deliver = detail.item.runs.find(run => run.outcome === 'ask');
   if (deliver === undefined) throw new Error('item 3 has a deliver run that asked');
-  const rowOf = (changed: FactoryItemDetail, view = shippedView) =>
-    buildTimeline(view, changed).find(row => row.runId === deliver.id);
+  const rowOf = (changed: FactoryItemDetail) =>
+    buildTimeline(shippedView, changed).find(row => row.runId === deliver.id);
   const withItem = (item: Partial<FactoryItemDetail['item']>): FactoryItemDetail => ({
     ...detail,
     item: { ...detail.item, ...item },
   });
   const noAsks = withItem({ answers: [], questions: [] });
 
-  test('reads "asked you" from a declared `asked` outcome, with no asks recorded', () => {
-    expect([rowOf(noAsks)?.outcome, rowOf(noAsks)?.asked]).toEqual([said('asked you'), []]);
-    // Without the declaration it reads where `placement` sends it.
-    const { asked: _asked, ...undeclared } = shippedView;
-    expect(rowOf(noAsks, undeclared)?.outcome).toEqual(said('sent to Build'));
+  test('with no asks recorded it reads where `placement` sends it', () => {
+    expect([rowOf(noAsks)?.outcome, rowOf(noAsks)?.asked]).toEqual([said('sent to Build'), []]);
   });
 
   test('reads "asked you" over its placement when it left asks on the item', () => {
@@ -124,30 +115,5 @@ describe('a run that asked', () => {
     const row = rowOf(returned);
     expect(row?.outcome).toEqual(said('asked you'));
     expect(row?.asked).toHaveLength(1);
-  });
-});
-
-describe('shadow decisions on the timeline', () => {
-  test('each run lists what its shadow steps decided, worded, under that run only', () => {
-    const detail = itemDetail('1');
-    const [triage] = detail.runs;
-    if (triage === undefined) throw new Error('item 1 has runs');
-    triage.shadows = [
-      {
-        workflow: 'triage',
-        node: 'admit',
-        round: null,
-        runId: triage.runId,
-        decidedAt: '2026-11-17T01:00:00.000Z',
-        read: { reads: 'verdict', value: 'ask', why: 'No policy says it may start.' },
-      },
-    ];
-    const rows = timeline(detail);
-    expect(rows.map(row => row.shadows.map(entry => [entry.label, entry.words.line]))).toEqual([
-      [['Would it start on its own', 'would ask you first']],
-      [],
-      [],
-    ]);
-    expect(rows[0]?.shadows[0]?.words.detail).toBe('No policy says it may start.');
   });
 });

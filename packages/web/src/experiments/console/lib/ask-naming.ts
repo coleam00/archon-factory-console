@@ -3,6 +3,7 @@
  * applies, else to the run) and the stage or workflow it came from.
  */
 import type { AskSubject } from '../components/ask-card/AskCard';
+import { groupTone } from '../factory/lib/board-columns';
 import { stageOfWorkflow } from '../factory/lib/placement';
 import { TONES, type Tone } from '../factory/tones';
 import { membershipOf, type MemberSource } from '../factory/lib/work-orders';
@@ -65,13 +66,13 @@ export function askNaming(
       if (workflow === undefined) return undefined;
       const name = shortWorkflow(workflow);
       if (view === undefined) return name;
-      return stageOfWorkflow(view.declaration, name, null)?.label ?? name;
+      return stageOfWorkflow(view.declaration, name)?.label ?? name;
     },
     tone: ask => {
       const workflow = askWorkflow(ask);
       if (view === undefined || workflow === undefined) return undefined;
-      const stage = stageOfWorkflow(view.declaration, shortWorkflow(workflow), null);
-      return stage === undefined ? undefined : TONES[stage.group];
+      const stage = stageOfWorkflow(view.declaration, shortWorkflow(workflow));
+      return stage === undefined ? undefined : TONES[groupTone(stage.group)];
     },
     starts: (ask, optionId) => answerStarts(view?.declaration, askWorkflow(ask), optionId),
   };

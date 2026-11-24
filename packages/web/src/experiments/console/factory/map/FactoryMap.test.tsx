@@ -4,7 +4,8 @@ import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import { invalidate, set } from '../../store/cache';
 import { FK } from '../keys';
 import type { FactoryItem } from '../api';
-import { shippedListed } from '../item-detail.test-fixtures';
+import { shippedGraph, shippedListed } from '../item-detail.test-fixtures';
+import { packGraphKey } from '../usePackGraph';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { FIXTURE_NOW } from '../lib/board.test-fixtures';
 import { refAsk } from '../lib/attention.test-fixtures';
@@ -50,6 +51,7 @@ async function mount(
   listed: FactoryViewListed = shippedListed
 ): ReturnType<typeof mountTree> {
   if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
+  set(packGraphKey(ID, listed.packKey), shippedGraph);
   return mountTree(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
       <Routes>
@@ -79,9 +81,6 @@ const details = (container: HTMLElement, id: string): HTMLButtonElement => {
   if (button === null) throw new Error(`No details button for ${id}`);
   return button;
 };
-/** The hover text of the shadow badge by a stage's name on the map. */
-const shadowTitle = (container: HTMLElement, stage: string): string | null | undefined =>
-  container.querySelector(`[data-stage="${stage}"] [data-shadow-badge]`)?.getAttribute('title');
 const stagePage = (container: HTMLElement): string | null | undefined =>
   container.querySelector('[data-testid="stage-page"]')?.textContent;
 
@@ -103,25 +102,24 @@ test('the warm map: a card per column with its chips, rows, hand-offs and detail
       stageHref('build'),
     ]);
     expect(card(container, 'build').getAttribute('aria-label')).toBe(
-      'Build: 2 here, 1 being worked, 1 needs you'
+      'Build: 3 here, 2 being worked, 1 needs you'
     );
-    expect(card(container, 'checks').getAttribute('aria-label')).toBe(
-      'Checks: 1 here, 1 being worked'
-    );
+    // The retired deliver works only Build now: its run on a review step sits there.
+    expect(card(container, 'checks').getAttribute('aria-label')).toBe('Checks: 0 here');
     expect(card(container, 'landed').getAttribute('aria-label')).toBe('Merged: 1 here');
     const chip = (stage: string, kind: string): string | null | undefined =>
       container.querySelector(`[data-stage="${stage}"] [data-chip="${kind}"]`)?.textContent;
-    expect(chip('build', 'here')).toContain('2');
+    expect(chip('build', 'here')).toContain('3');
     expect(chip('build', 'need-you')).toContain('1');
     expect(chip('checks', 'need-you')).toBeUndefined();
     expect(chip('plan', 'here')).toBeUndefined();
     // A dot runs into each card where a run works an item.
     expect(
       [...container.querySelectorAll<HTMLElement>('[data-flow]')].map(el => el.dataset.flow)
-    ).toEqual(['plan-build', 'checks-review']);
+    ).toEqual(['plan-build']);
     // Hand-off pills between neighbours, and one send-back lane pill per target stage.
     expect([...container.querySelectorAll('g[data-arrow]')].map(g => g.textContent)).toEqual([
-      'build,narrow',
+      'placed,kept whole',
       'built +2',
       'ready,drop or reshape',
       'merged',
@@ -133,6 +131,7 @@ test('the warm map: a card per column with its chips, rows, hand-offs and detail
     ).toEqual([
       'order: pieces, broke the branch',
       'triage: split',
+      'link: answers',
       'plan: replan, answers',
       'build: returned, sent back, answers',
       'ready: land, drop or reshape',
@@ -145,11 +144,12 @@ test('the warm map: a card per column with its chips, rows, hand-offs and detail
     expect(hrefs(panel, 'li a')).toEqual([
       stageHref('plan'),
       `/console/p/${ID}/factory/items/5`,
+      `/console/p/${ID}/factory/items/4`,
       `/console/p/${ID}/factory/items/9`,
       stageHref('build'),
     ]);
     expect(panel?.textContent).toContain('Needs you');
-    expect(panel?.textContent).toContain('Build · Writes the change');
+    expect(panel?.textContent).toContain('Build · build');
     expect(details(container, 'plan-build').getAttribute('aria-pressed')).toBe('true');
     expect(stagePage(container)).toBeUndefined();
     await act(async () => details(container, 'plan-build').click());
@@ -291,23 +291,16 @@ test('before the items answer, every declared card and arrow is drawn with skele
     expect(panel()?.textContent).toContain('Items hereLoading the items here');
     expect(panel()?.querySelector('[data-skeleton="line"]')).not.toBeNull();
     expect(panel()?.textContent).not.toContain('Nothing here now.');
-    // A shadow step's line says "…" too, never that it decided nothing.
-    expect(shadowTitle(container, 'triage')).toContain('Would it start on its own · …');
-    expect(shadowTitle(container, 'triage')).not.toContain('nothing decided yet');
 
     // The answer fills the chips in on the same cards, and the open panel stays open.
     server.release();
     await settle(() => container.querySelector('[data-chip="here"]') !== null);
     expect(card(container, 'landed').getAttribute('aria-label')).toBe('Merged: 1 here');
     expect(card(container, 'build').getAttribute('aria-label')).toBe(
-      'Build: 2 here, 1 being worked, 1 needs you'
+      'Build: 3 here, 2 being worked, 1 needs you'
     );
     expect(container.querySelector('[data-chip="loading"]')).toBeNull();
-    expect(panel()?.textContent).toContain('Items here · 2');
-    // These items carry no shadow decision: now it is true that none was decided.
-    expect(shadowTitle(container, 'triage')).toContain(
-      'Would it start on its own · nothing decided yet'
-    );
+    expect(panel()?.textContent).toContain('Items here · 3');
     expect(details(container, 'plan-build').getAttribute('aria-pressed')).toBe('true');
   } finally {
     server.restore();
@@ -329,9 +322,6 @@ test('a first items read that fails says so over the map drawn from the declarat
     await act(async () => details(container, 'plan-build').click());
     const panel = container.querySelector('aside[aria-label="Plan & build details"]');
     expect(panel?.textContent).toContain('Could not be read.');
-    expect(shadowTitle(container, 'triage')).toContain(
-      'Would it start on its own · could not be read'
-    );
   } finally {
     await unmount();
   }

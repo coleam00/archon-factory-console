@@ -1,12 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryViews, FactoryWorkflow } from './api';
+import type { FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
 import { factoryTestRoutes } from './test-routes';
-import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from './api';
 import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
@@ -26,7 +25,6 @@ const ID = 'cb-1';
 
 afterEach(() => {
   invalidate('factory-views');
-  invalidate('factory-workflow');
   invalidate('project');
   invalidate('runs');
   invalidate('runs:factory-items');
@@ -54,7 +52,6 @@ const withView: FactoryViews = {
             blurb: 'Builds.',
             group: 'build',
             workflows: ['deliver'],
-            nodes: ['build__build', 'rounds.fix'],
           },
           {
             id: 'checks',
@@ -62,7 +59,6 @@ const withView: FactoryViews = {
             blurb: 'Checks the change.',
             group: 'check',
             workflows: ['deliver'],
-            nodes: ['rounds.review__review'],
           },
           { id: 'landed', label: 'Landed', blurb: 'Merged.', group: 'land', workflows: [] },
         ],
@@ -100,14 +96,13 @@ const currentLinks = (html: string): string[] =>
     });
 
 function render(
-  path: string | { pathname: string; state: unknown },
+  path: string,
   listing: FactoryViews,
   attention: RunsAttention = quiet,
   items: FactoryItem[] = []
 ): string {
   set(FK.factoryViews(ID), listing);
   set(K.runsAttention, attention);
-  set(FK.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
   set(FK.factoryItems(ID), { items, members: {} });
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
@@ -144,11 +139,7 @@ const subNav = (html: string): string[] => {
       .matchAll(/<a\s[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/g),
   ].map(([, href, body]) => `${href ?? ''} ${text(body ?? '')}`);
 };
-const SUB_NAV = [
-  `/console/p/${ID}/factory Overview`,
-  `/console/p/${ID}/factory/board Board`,
-  `/console/p/${ID}/factory/settings Settings`,
-];
+const SUB_NAV = [`/console/p/${ID}/factory Overview`, `/console/p/${ID}/factory/board Board`];
 
 describe('the Factory section', () => {
   test('a busy Overview: title, summary, one count of what waits, the newest three asks, then the map', () => {
@@ -203,22 +194,6 @@ describe('the Factory section', () => {
     expect(html).toContain('aria-label="Build"');
     expect(html).toContain('Kit factory');
     expect(html).not.toContain(SUMMARY);
-  });
-
-  test('a step page leads back to the stage it was opened from, else the stage that works it', () => {
-    const own = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, withView);
-    expect(own).toContain('From command fix');
-    expect(own).toContain(`href="/console/p/${ID}/factory?stage=build"`);
-    expect(own).not.toContain(SUMMARY);
-    const opened = render(
-      {
-        pathname: `/console/p/${ID}/factory/steps/deliver/rounds.fix`,
-        state: { fromStage: 'checks' },
-      },
-      withView
-    );
-    expect(opened).toContain(`href="/console/p/${ID}/factory?stage=checks"`);
-    expect(opened).toContain('Back to Checks');
   });
 
   test('a broken project file shows its path and error; a project no view applies to, an empty state', () => {

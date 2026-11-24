@@ -1,12 +1,10 @@
 /**
  * Where an item went, stage by stage: the item page's story panels and journey strip both read
- * it (DESIGN.md, The item page). A run of a workflow one stage lists works that stage; a run of
- * a workflow several stages list (a loop-form delivery) moves between them as its steps start,
- * each step placed by the stage whose `nodes` name it (`stageOfStep`), so placement stays the
- * board's. A step no stage names (a loop group between rounds) leaves the run where it was.
+ * it (DESIGN.md, The item page). A run works the stage its workflow counts in
+ * (`stageOfWorkflow`), so placement stays the board's.
  */
 import type { FactoryItemDetail } from '../api';
-import { placedStage, stageOfStep, stageOfWorkflow } from './placement';
+import { stageOfWorkflow } from './placement';
 import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
 
@@ -52,51 +50,16 @@ export function stageWorkflow(view: Declaration, facts: RunFacts | undefined): s
   return view.stages.some(stage => stage.workflows.includes(workflow)) ? workflow : null;
 }
 
-/**
- * Where one run took the item, in time order. A workflow one stage lists is one position at the
- * run's start. One several stages list starts where its first named step is (else where the
- * workflow starts), and moves at each step a stage's `nodes` name.
- */
+/** Where one run took the item: the stage its workflow counts in, from the run's start. */
 export function runPositions(
   view: Declaration,
   run: ItemRun,
   facts: RunFacts | undefined
 ): Position[] {
   const workflow = stageWorkflow(view, facts);
-  if (workflow === null) return [];
-  const listing = view.stages.filter(stage => stage.workflows.includes(workflow));
-  const steps = facts?.steps ?? [];
-  const named = steps.flatMap(step => {
-    const stage = listing.length === 1 ? undefined : stageOfStep(view, workflow, step.node);
-    return stage === undefined ? [] : [{ stage, at: Date.parse(step.startedAt), node: step.node }];
-  });
-  const first =
-    listing.length === 1 ? listing[0] : (named[0]?.stage ?? stageOfWorkflow(view, workflow, null));
-  if (first === undefined) return [];
-  const positions: Position[] = [
-    { stage: first, at: Date.parse(run.startedAt), runId: run.id, node: named[0]?.node ?? null },
-  ];
-  for (const step of named)
-    if (positions.at(-1)?.stage.id !== step.stage.id) positions.push({ ...step, runId: run.id });
-  return withoutClosingMove(view, workflow, run, positions);
-}
-
-/**
- * A run's closing steps may sit on another stage (a delivery's ending steps are declared on CI
- * and review) without the run having worked there: a build that stopped to ask still runs
- * them. When the completed run's outcome places the item back on the stage it worked before
- * that last move, the move was only its closing, and the story leaves the run where it worked.
- */
-function withoutClosingMove(
-  view: Declaration,
-  workflow: string,
-  run: ItemRun,
-  positions: Position[]
-): Position[] {
-  const before = positions.at(-2);
-  if (run.status !== 'completed' || before === undefined) return positions;
-  const placed = placedStage(view, workflow, run.outcome);
-  return placed?.id === before.stage.id ? positions.slice(0, -1) : positions;
+  const stage = workflow === null ? undefined : stageOfWorkflow(view, workflow);
+  if (stage === undefined) return [];
+  return [{ stage, at: Date.parse(run.startedAt), runId: run.id, node: null }];
 }
 
 /** Every position of the item's stage-working runs, in time order. */
