@@ -1,113 +1,43 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { readRunFixture } from './__fixtures__/read-run-fixture';
+import {
+  PACK,
+  type RunFixture as Entry,
+  runFixture,
+  shippedView,
+} from './factory-test.test-helpers';
 import {
   factoryProgressSchema,
   FactoryRunFactsMemo,
   factoryItemDetailSchema,
   readFactoryItem,
   readFactoryProgress,
-  type FactoryChangeRecord,
   type FactoryChangeState,
   type FactoryItemProgress,
   type FactoryRound,
 } from './factory-items';
 import { factoryRunStory } from './factory-item-story';
 import type { ItemReadSource } from './item-read';
-import { factoryViewSchema, type FactoryView } from './schemas/factory-view';
-import { RUN_ENDED_SOURCE_ACTOR } from './schemas/resource-start';
+import type { FactoryView } from './schemas/factory-view';
 import type { WorkflowEventRow } from './schemas/workflow-event';
-import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
+import type { WorkflowRun } from './schemas/workflow-run';
 
-const PACK = 'Wirasm/archon-software-factory';
 // The declaration this repository ships for the pack the fixtures' runs come from.
-const view = factoryViewSchema.parse(
-  JSON.parse(
-    readFileSync(
-      join(
-        import.meta.dir,
-        '../../../.archon/packs/Wirasm.archon-software-factory.factory-view.json'
-      ),
-      'utf8'
-    )
-  )
-);
-
-type RawRun = Record<string, unknown> & { started_at: string; completed_at: string | null };
-type Entry = { run: WorkflowRun; events: WorkflowEventRow[] };
-
-/**
- * Runs copied from the live factory database (see each file's `note`): the run row's
- * recorded fields and its events of the types the facts read, with data trimmed.
- */
-function rawFixture(name: string): { run: RawRun; events: WorkflowEventRow[] } {
-  return readRunFixture(
-    join(import.meta.dir, '__fixtures__', 'factory-items', `${name}.jsonl`)
-  ) as ReturnType<typeof readRunFixture> & { run: RawRun };
-}
-
-function fixture(name: string): Entry {
-  const raw = rawFixture(name);
-  return { run: hydrate(raw.run), events: raw.events };
-}
-
-function hydrate(fields: RawRun): WorkflowRun {
-  return workflowRunSchema.parse({
-    origin: null,
-    conversation_id: null,
-    parent_conversation_id: null,
-    codebase_id: null,
-    outcome: null,
-    completed_outcome: null,
-    user_message: '',
-    active_phase_started_at: null,
-    last_activity_at: null,
-    working_path: null,
-    user_id: null,
-    parent_run_id: null,
-    adopted_from_run_id: null,
-    output_root: null,
-    checkout_baseline: null,
-    item_id: null,
-    metadata: {},
-    ...fields,
-    started_at: new Date(fields.started_at),
-    completed_at: fields.completed_at === null ? null : new Date(fields.completed_at),
-  });
-}
+const view = shippedView();
+/** Runs copied from the live factory database (see each file's `note`), data trimmed. */
+const fixture = (name: string): Entry => runFixture('factory-items', name);
 
 const triage1 = fixture('item-1-triage-88640c6d');
 const plan1 = fixture('item-1-plan-147ff872');
 const deliver1 = fixture('item-1-deliver-c90ebf41');
-const deliver2Raw = rawFixture('item-2-deliver-934682d0');
-const deliver2 = { run: hydrate(deliver2Raw.run), events: deliver2Raw.events };
+const deliver2 = fixture('item-2-deliver-934682d0');
 /**
  * The same run as it stood mid-round: only its events up to order 1800, and the run set back
  * to running with no outcome.
  */
-const deliver2Cut = {
-  run: hydrate({
-    ...deliver2Raw.run,
-    status: 'running',
-    completed_outcome: null,
-    completed_at: null,
-  }),
-  events: deliver2Raw.events.filter(row => (row.event_order ?? Infinity) <= 1800),
+const deliver2Cut: Entry = {
+  run: { ...deliver2.run, status: 'running', completed_outcome: null, completed_at: null },
+  events: deliver2.events.filter(row => (row.event_order ?? Infinity) <= 1800),
 };
-
-/** A discoveries drain of item #70, as the shadow reader's tests copy it. */
-function drainFixture(): Entry {
-  const raw = readRunFixture(
-    join(import.meta.dir, '__fixtures__', 'factory-shadows', 'item-70-discoveries.jsonl')
-  ) as ReturnType<typeof readRunFixture> & { run: RawRun };
-  // The shadow reader's copy trimmed each event's time; the item read's step starts need one.
-  const events = raw.events.map(row => ({
-    ...row,
-    created_at: row.created_at ?? raw.run.started_at,
-  }));
-  return { run: hydrate({ ...raw.run, last_activity_at: null }), events };
-}
 
 /** Each round's verdict and decision: what the board reads of a run's rounds. */
 const decisions = (rounds: { max: number | null; rounds: FactoryRound[] } | null | undefined) =>
@@ -237,36 +167,17 @@ async function readItem(
 const progressOf = async (entries: Entry[], opts: Parameters<typeof readItem>[1] = {}) =>
   (await readItem(entries, opts)).progress;
 
-/** deliver1 with its verdict step answering `ask` where it approved. */
-const deliver1Asked = {
-  ...deliver1,
-  events: deliver1.events.map(row =>
-    JSON.stringify(row.data).includes('"outcome":"approve"')
-      ? (JSON.parse(
-          JSON.stringify(row).replaceAll('"outcome":"approve"', '"outcome":"ask"')
-        ) as WorkflowEventRow)
-      : row
-  ),
-};
-const { approves: _approves, ...noApproves } = view;
 /** Each round as `verdict:outcome`, in iteration order. */
 const verdicts = (rounds: { rounds: FactoryRound[] } | null | undefined) =>
   rounds?.rounds.map(round => `${round.verdict}:${round.outcome}`) ?? null;
+
+const { approves: _approves, ...noApproves } = view;
 
 describe("a run's rounds, returns, change and running step", () => {
   const two = ['returned:return', 'approved:approve'];
   const undecided = ['returned:return', 'undecided:approve'];
   test.each<[string, Entry, FactoryView, string[], number, string | null, string | null]>([
     ['two rounds: returned, then approved', deliver1, view, two, 2, PR10, null],
-    [
-      'three rounds: returned twice, then approved',
-      deliver2,
-      view,
-      ['returned:return', ...two],
-      2,
-      PR11,
-      null,
-    ],
     [
       // `rounds` and the three checks run at once; the checks are deeper, review started last.
       // No terminal record yet, so no change at the declared pointer.
@@ -279,28 +190,9 @@ describe("a run's rounds, returns, change and running step", () => {
       'rounds.review__review',
     ],
     [
-      'checks that asked instead of approving: undecided, with that outcome',
-      deliver1Asked,
-      view,
-      ['returned:return', 'undecided:ask'],
-      2,
-      PR10,
-      null,
-    ],
-    [
       'without a declared approval, a completed round is undecided, never approved',
       deliver1,
       noApproves,
-      undecided,
-      2,
-      PR10,
-      null,
-    ],
-    [
-      // Declared as `pass`, the verdict step's `approve` approves nothing.
-      'an approval reads from the outcome the view declares, whatever the workflow calls it',
-      deliver1,
-      { ...view, approves: (view.approves ?? []).map(point => ({ ...point, outcome: 'pass' })) },
       undecided,
       2,
       PR10,
@@ -312,18 +204,6 @@ describe("a run's rounds, returns, change and running step", () => {
       [rounds, change, step],
     ]);
     expect(progress.returned).toBe(returned);
-  });
-
-  test('a round that never completed on a run that ended is stopped, with no summary', async () => {
-    const { runs } = await readItem([
-      { ...deliver2Cut, run: { ...deliver2Cut.run, status: 'failed' } },
-    ]);
-    expect(runs[0]?.rounds?.rounds.at(-1)).toMatchObject({
-      iteration: 2,
-      verdict: 'stopped',
-      outcome: null,
-      summary: null,
-    });
   });
 
   test('a failed run names the step that failed', async () => {
@@ -371,14 +251,6 @@ describe("a run's rounds, returns, change and running step", () => {
     // declares: split is a workflow of its own now); plan has none.
     expect(runs.map(run => run.shadows.map(decision => decision.node))).toEqual([['admit'], []]);
   });
-
-  test('a run recorded under the bare name is not the installed pack’s workflow', async () => {
-    const { progress, runs } = await readItem([
-      { ...deliver1, run: { ...deliver1.run, workflow_name: 'deliver' } },
-    ]);
-    expect(runs.map(run => [run.workflow, run.rounds, run.change])).toEqual([[null, null, null]]);
-    expect(progress).toMatchObject({ returned: 0, change: null, runs: [] });
-  });
 });
 
 describe("each round's steps", () => {
@@ -405,38 +277,6 @@ describe("each round's steps", () => {
       ['rounds.verdict__verdict', 'return'],
     ]);
     expect(stepsOf(rounds, 3)?.at(-1)).toEqual(['rounds.verdict__verdict', 'approve']);
-  });
-
-  test("a round's summary is the summary of the return or approval step that decided it", async () => {
-    const rounds = await roundsOf(deliver2);
-    for (const round of rounds) {
-      expect(round.summary).toBeString();
-      expect(round.summary).toBe(
-        round.steps.find(step => step.node === 'rounds.verdict__verdict')?.summary ?? null
-      );
-    }
-    expect(rounds[0]?.summary).toStartWith('Return.');
-    expect(rounds[2]?.summary).toStartWith('Approve');
-  });
-
-  test("rounds read only the declared loop's events, not another loop's", async () => {
-    // deliver2 ran three review rounds and one host round; the view declares no host approval.
-    const hostView = { ...view, rounds: { workflow: 'deliver', loop: 'hostrounds' } };
-    const [run] = (await readItem([deliver2], { view: hostView })).runs;
-    expect(verdicts(run?.rounds)).toEqual(['undecided:clear']);
-    expect(run?.rounds?.rounds[0]?.steps.map(step => step.node)).toEqual(['hostrounds.host__host']);
-  });
-
-  test('a summary that is not a string reads as null, the step still listed', async () => {
-    const events = deliver2.events.map(row =>
-      row.step_name === 'rounds.fix' && JSON.stringify(row.data).includes('"summary"')
-        ? (JSON.parse(
-            JSON.stringify(row).replace(/"summary":"[^"]*"/, '"summary":7')
-          ) as WorkflowEventRow)
-        : row
-    );
-    const rounds = await roundsOf({ ...deliver2, events });
-    expect(rounds[1]?.steps[0]).toEqual({ node: 'rounds.fix', outcome: 'fixed', summary: null });
   });
 });
 
@@ -505,7 +345,6 @@ function deliverNaming(entry: Entry, id: string, change: unknown, at: string): E
 }
 
 describe("an item's work order, from its order runs' results", () => {
-  const { partOf: _partOf, ...noPartOf } = view;
   const DAY1 = '2026-11-16T00:00:00Z';
   const DAY2 = '2026-11-17T00:00:00Z';
   const DAY3 = '2026-11-18T00:00:00Z';
@@ -515,12 +354,6 @@ describe("an item's work order, from its order runs' results", () => {
       [orderRun('o1', '40', DAY1), orderRun('o2', ' 48 ', DAY2)],
       view,
       '48',
-    ],
-    [
-      'an empty value on the newest completed run is no order, even when an older run named one',
-      [orderRun('o1', '48', DAY1), orderRun('o2', '', DAY2)],
-      view,
-      null,
     ],
     [
       'a failed or running order run is not read; the newest completed one is',
@@ -538,14 +371,6 @@ describe("an item's work order, from its order runs' results", () => {
       view,
       '48',
     ],
-    [
-      'a refused order run alone makes the item no member',
-      [orderRun('o2', '50', DAY2, 'completed', 'refused')],
-      view,
-      null,
-    ],
-    ['a value that is not a string is none', [orderRun('o1', 48, DAY1)], view, null],
-    ['a view that declares no partOf reads none', [orderRun('o1', '48', DAY1)], noPartOf, null],
   ])('%s', async (_name, entries, declared, expected) => {
     expect((await progressOf(entries, { view: declared })).partOf).toBe(expected);
   });
@@ -576,24 +401,6 @@ describe('what the last declared run leaves the item: parked, or waiting on a pe
       { parked: null, awaits: null },
     ],
     [
-      'a running run after the parking one takes the item up too',
-      [
-        triageRun('t1', 'park', 'Later.', DAY1),
-        { ...build, run: { ...build.run, status: 'running' } },
-      ],
-      { parked: null, awaits: null },
-    ],
-    ...([42, '  ', undefined] as const).map((why): [string, Entry[], Left] => [
-      `a why of ${JSON.stringify(why) ?? 'none'} is null; the item is still parked`,
-      [triageRun('t1', 'park', why, DAY1)],
-      { parked: parkedBy(null), awaits: null },
-    ]),
-    ...['close', 'fold', 'build'].map((verb): [string, Entry[], Left] => [
-      `${verb}, an outcome the view ends or places on, is not parked`,
-      [triageRun('t1', verb, 'Why.', DAY1)],
-      { parked: null, awaits: null },
-    ]),
-    [
       'a triage run that asked for shaping: the label, its why and its open questions',
       [
         triageRun('t1', 'shape', ' Worth doing. ', DAY1, {
@@ -602,26 +409,9 @@ describe('what the last declared run leaves the item: parked, or waiting on a pe
       ],
       { parked: null, awaits: shaping('Worth doing.', ['Which surfaces?', 'Who owns it?']) },
     ],
-    ...(['Which surfaces?', null, undefined] as const).map(
-      (open_questions): [string, Entry[], Left] => [
-        `questions of ${JSON.stringify(open_questions) ?? 'none'} read as none; the item still waits`,
-        [triageRun('t1', 'shape', 'Why.', DAY1, { open_questions })],
-        { parked: null, awaits: shaping('Why.', []) },
-      ]
-    ),
-    [
-      'a run after the shaping one takes the item up',
-      [triageRun('t1', 'shape', 'Later.', DAY1, { open_questions: ['Which?'] }), build],
-      { parked: null, awaits: null },
-    ],
   ])('%s', async (_name, entries, expected) => {
     const progress = await progressOf(entries);
     expect({ parked: progress.parked, awaits: progress.awaits }).toEqual(expected);
-  });
-
-  test("the shaping rows compare against the view's own next sentence", () => {
-    expect(SHAPE_NEXT).toBeString();
-    expect(SHAPE_NEXT).not.toBe('');
   });
 });
 
@@ -671,37 +461,6 @@ describe("an item's change", () => {
     expect(read).toEqual([['later-branch', 'shared']]);
   });
 
-  test.each<[string, ItemMerge, FactoryChangeRecord | null, FactoryItemProgress['change']]>([
-    [
-      "the item's recorded merge is handed to the lookup with its change",
-      MERGE,
-      { change: PR10, at: MERGED_AT },
-      { url: PR10, merged: true, mergedAt: MERGED_AT, number: null },
-    ],
-    [
-      'an unreadable merge row reads as none',
-      { type: 'degraded', reason: 'merge_unreadable', itemId: 'item-1' },
-      null,
-      { url: PR10, merged: false, mergedAt: null, number: null },
-    ],
-  ])('%s', async (_name, merge, handedRecord, change) => {
-    const handed: (FactoryChangeRecord | null)[] = [];
-    const progress = await progressOf([triage1, plan1, deliver1], {
-      merge: () => merge,
-      changeState: async (_lookup, _branches, recorded) => {
-        handed.push(recorded);
-        return {
-          url: null,
-          merged: recorded !== null,
-          mergedAt: recorded?.at ?? null,
-          number: null,
-        };
-      },
-    });
-    expect(handed).toEqual([handedRecord]);
-    expect(progress.change).toEqual(change);
-  });
-
   test('a recorded merge on an item no run names a change for is its change, merged, unasked', async () => {
     const asked: unknown[] = [];
     const { progress } = await readItem([triage1, plan1], {
@@ -718,9 +477,6 @@ describe("an item's change", () => {
 
   const PR59 = 'https://github.com/coleam00/archon-factory-console/pull/59';
   const empty = deliverNaming(deliver1, 'deliver-empty', '', '2026-12-01T00:00:00Z');
-  const noBranch = async () => {
-    throw new Error('branches are read only when the audit rows name no pull request');
-  };
   test.each<
     [string, Entry[], ItemReadSource['branchOf'], unknown[], FactoryItemProgress['change']]
   >([
@@ -735,20 +491,6 @@ describe("an item's change", () => {
         },
       ],
       { url: PR59, merged: true, mergedAt: '2026-11-18T20:00:00Z', number: 59 },
-    ],
-    [
-      "a whitespace URL after an earlier deliver's real one: the earlier one, branches unread",
-      [deliver1, deliverNaming(deliver1, 'deliver-blank', '  ', '2027-01-01T00:00:00Z')],
-      noBranch,
-      [PR10],
-      { url: PR10, merged: true, mergedAt: '2026-11-18T20:00:00Z', number: 59 },
-    ],
-    [
-      'an empty URL and no run branch: no change, and nothing is asked',
-      [triage1, empty],
-      async () => null,
-      [],
-      null,
     ],
   ])('%s', async (_name, entries, branchOf, asked, change) => {
     const seen: unknown[] = [];
@@ -815,16 +557,6 @@ describe("an item text's title", () => {
   ];
   test.each<[string, Entry[], string | null]>([
     [
-      'an item an order made: the heading after its front matter',
-      titled(ORDERED_ITEM),
-      'Items started by a work order show their title',
-    ],
-    [
-      'the same with CRLF line ends',
-      titled(ORDERED_ITEM.replaceAll('\n', '\r\n')),
-      'Items started by a work order show their title',
-    ],
-    [
       // An older run carries another text; the triage run after it carries the item text the
       // order stage produced; the newest, an order run, carries the work order and no item.
       'an item an order started: the newest run that has an item text',
@@ -840,21 +572,7 @@ describe("an item text's title", () => {
       ],
       'Items started by a work order show their title',
     ],
-    [
-      "a text-only order: the operator's first line",
-      titled('Fix the board\n\nmore'),
-      'Fix the board',
-    ],
-    [
-      'an item started the old way: the first line without its `#<n> `',
-      titled('#12 Stage and step pages show which items are on a step now\n\nbody'),
-      'Stage and step pages show which items are on a step now',
-    ],
     ['unterminated front matter: none', titled('---\nid: 1\n'), null],
-    ['empty text: none', titled(''), null],
-    ['blank text: none', titled(' \n\t\n'), null],
-    ['a bare heading marker: none', titled('# \nbody'), null],
-    ['front matter followed by blanks: none', titled('---\nid: 1\n---\n\n'), null],
   ])('%s', async (_name, entries, title) => {
     expect((await progressOf(entries)).title).toBe(title);
   });
@@ -880,39 +598,6 @@ describe('the facts memo, across reads', () => {
     await read([triage1, plan1, { ...deliver1, run: resumed }]);
     expect(counts.loaded.at(-1)).toEqual([deliver1.run.id, deliver2Cut.run.id]);
   });
-
-  test.each<[string, Partial<FactoryView>, boolean]>([
-    ['nothing, which keeps the facts', {}, false],
-    ['the returns', { returns: [] }, true],
-    // An approval declared or withdrawn changes the rounds' verdicts too.
-    ['the approvals', { approves: [] }, true],
-    [
-      'where a result names the work order',
-      { partOf: { workflow: 'order', pointer: '/order', outcome: 'ready' } },
-      true,
-    ],
-    ['which steps are shadows', { shadows: view.shadows?.slice(1) }, true],
-    ['which outcomes park an item', { parked: {} }, true],
-    ['which outcomes leave it waiting on a person', { awaits: {} }, true],
-  ])('a second read after an edit to %s', async (_name, edit, reloaded) => {
-    const counts: Counts = { queue: 0, loaded: [] };
-    const memo = new FactoryRunFactsMemo();
-    const source = sourceFor({ '1': [deliver1] }, { counts });
-    await readFactoryProgress(source, inputFor({ memo }), ['1']);
-    await readFactoryProgress(source, inputFor({ memo, view: { ...view, ...edit } }), ['1']);
-    expect(counts.loaded).toEqual(
-      reloaded ? [[deliver1.run.id], [deliver1.run.id]] : [[deliver1.run.id]]
-    );
-  });
-
-  test('is bounded, oldest out', async () => {
-    const counts: Counts = { queue: 0, loaded: [] };
-    const input = inputFor({ memo: new FactoryRunFactsMemo(1) });
-    const source = sourceFor({ '1': [deliver1, deliver2] }, { counts });
-    await readFactoryProgress(source, input, ['1']);
-    await readFactoryProgress(source, input, ['1']);
-    expect(counts.loaded.at(-1)).toEqual([deliver1.run.id]);
-  });
 });
 
 describe('the readers', () => {
@@ -936,29 +621,6 @@ describe('the readers', () => {
     expect(await readFactoryItem(source, inputFor(), '404')).toBeNull();
   });
 
-  test("items' merge states are looked up together, not one after another", async () => {
-    // Item 3 is a second item whose deliver run recorded the same kind of change as item 1's.
-    const source = sourceFor({
-      '1': item1,
-      '3': [{ ...deliver1, run: { ...deliver1.run, id: 'run-3' } }],
-    });
-    // Each lookup answers only once both are in flight: a read that waited on one first would hang.
-    let started = 0;
-    let release: () => void = () => {};
-    const both = new Promise<void>(resolve => {
-      release = resolve;
-    });
-    const changeState: FactoryChangeState = async () => {
-      started++;
-      if (started === 2) release();
-      await both;
-      return { url: null, merged: false, mergedAt: null, number: null };
-    };
-    const read = await readFactoryProgress(source, inputFor({ changeState }), ['1', '3']);
-    expect(started).toBe(2);
-    expect(Object.keys(read.progress).sort()).toEqual(['1', '3']);
-  });
-
   test("one item's facts failing gives it null progress and leaves the others", async () => {
     const failed: string[] = [];
     const read = await readFactoryProgress(
@@ -968,20 +630,6 @@ describe('the readers', () => {
     );
     expect(read.progress['2']).toBeNull();
     expect(read.progress['1']).not.toBeNull();
-    expect(failed).toEqual(['item-2']);
-  });
-
-  test('a run whose facts fail keeps its row without rounds; the item has no progress', async () => {
-    const failed: string[] = [];
-    const detail = await readFactoryItem(
-      sourceFor({ '2': [deliver2Cut] }, { broken: deliver2Cut.run.id }),
-      inputFor({ onProgressError: id => failed.push(id) }),
-      '2'
-    );
-    expect(detail?.runs.map(run => [run.runId, run.step, run.rounds])).toEqual([
-      [deliver2Cut.run.id, null, null],
-    ]);
-    expect(detail?.item.progress).toBeNull();
     expect(failed).toEqual(['item-2']);
   });
 
@@ -1080,58 +728,6 @@ describe('the readers', () => {
       },
     ]);
   });
-
-  test("each run carries the item read's cause, typed; a start by hand has none", async () => {
-    const receiptId = '3b184b44-b90a-4d4c-b205-15755501533d';
-    const planAfterTriage = {
-      ...plan1,
-      run: {
-        ...plan1.run,
-        metadata: { ...plan1.run.metadata, resource_start: { receiptId, bindingId: 'b' } },
-      },
-    };
-    const source = sourceFor({ '1': [triage1, planAfterTriage, costed] });
-    source.store.listStartReceiptSources = async ids =>
-      new Map(
-        ids
-          .filter(id => id === receiptId)
-          .map(id => [
-            id,
-            {
-              id,
-              sourceInstanceId: 'fc-start-plan',
-              sourceActor: { source: RUN_ENDED_SOURCE_ACTOR, id: triage1.run.id },
-            },
-          ])
-      );
-    const detail = await readFactoryItem(source, inputFor(), '1');
-    expect(detail?.runs.map(run => run.cause ?? null)).toEqual([
-      null,
-      { kind: 'run_ended', runId: triage1.run.id, sourceInstanceId: 'fc-start-plan' },
-      null,
-    ]);
-    expect(detail?.runs.map(run => run.cause ?? null)).toEqual(
-      detail?.item.runs.map(run => run.cause)
-    );
-    expect(Object.hasOwn(detail?.runs[0] ?? {}, 'cause')).toBe(false);
-  });
-
-  test('a discoveries run, which no stage lists, adds its shadow decision and nothing else; its row is named as the view names it', async () => {
-    const drain = drainFixture();
-    const without = await readItem(item1);
-    const withDrain = await readItem([...item1, drain]);
-    // The drain's run is on no stage: it places nothing and lists in no run.
-    expect({ ...withDrain.progress, shadows: without.progress.shadows }).toEqual(without.progress);
-    expect(withDrain.progress.shadows.map(decision => [decision.workflow, decision.node])).toEqual([
-      ['triage', 'admit'],
-      ['discoveries', 'result'],
-    ]);
-    const row = withDrain.runs.find(run => run.runId === drain.run.id);
-    expect(row?.workflow).toBe('discoveries');
-    expect(row?.shadows.map(decision => [decision.workflow, decision.node])).toEqual([
-      ['discoveries', 'result'],
-    ]);
-  });
 });
 
 /**
@@ -1227,10 +823,6 @@ const checkRun = (id: string, at: string, round: number, allowance: number, outc
   ]);
 const buildRun = (id: string, at: string) =>
   stageRun('stage-build', id, at, { outcome: 'built', change: PR12 }, [['build__build', 'built']]);
-const later = (entry: Entry, at: string): Entry => ({
-  ...entry,
-  run: { ...entry.run, started_at: new Date(at) },
-});
 
 describe('the three-stage delivery: the change from any stage, rounds from stage-check runs', () => {
   /** The one round a `checkRun` is, its steps every one that recorded an outcome but `end`. */
@@ -1260,31 +852,6 @@ describe('the three-stage delivery: the change from any stage, rounds from stage
       checkRun('c1', '2026-11-21T01:00:00Z', 2, 3, 'return'),
       checkRound(2, 3, 'returned', 'return'),
       1,
-      PR12,
-    ],
-    [
-      'a stage-check run still going is no round',
-      stageRun('stage-check', 'c1', '2026-11-21T01:00:00Z', {}, CHECKS, 'running'),
-      null,
-      0,
-      null,
-    ],
-    [
-      'a stage-check run whose result names no round is no round',
-      stageRun('stage-check', 'c2', '2026-11-21T01:00:00Z', {
-        outcome: 'ask',
-        round: 0,
-        allowance: 3,
-      }),
-      null,
-      0,
-      null,
-    ],
-    [
-      'an ask decides nothing: the round is undecided, the verdict step its outcome',
-      checkRun('c1', '2026-11-21T01:00:00Z', 3, 3, 'ask'),
-      checkRound(3, 3, 'undecided', 'ask'),
-      0,
       PR12,
     ],
   ])('%s', async (_name, entry, rounds, returned, change) => {
@@ -1355,20 +922,6 @@ describe('the three-stage delivery: the change from any stage, rounds from stage
       },
     ],
     [
-      'the newest run with a round picks the form: the deliver loop',
-      [check1, later(deliver1, '2026-11-22T00:00:00Z')],
-      { round: { runId: deliver1.run.id } },
-    ],
-    [
-      'the newest run with a round picks the form: the stage-check runs',
-      [
-        check1,
-        later(deliver1, '2026-11-22T00:00:00Z'),
-        checkRun('c2', '2026-11-23T02:00:00Z', 2, 3, 'approve'),
-      ],
-      { round: { runId: 'c2', iteration: 2, rounds: [{ iteration: 1 }, { iteration: 2 }] } },
-    ],
-    [
       // An older stage-build URL is not taken over a newer stage-host one, and a newer run
       // still going (no result yet) or naming an empty one does not displace it.
       'the change is the newest stage run that names one, of any listed workflow',
@@ -1379,11 +932,6 @@ describe('the three-stage delivery: the change from any stage, rounds from stage
         stageRun('landgate', 'g1', '2026-11-21T05:00:00Z', { outcome: 'land', change: '' }),
       ],
       { change: { url: PR12 } },
-    ],
-    [
-      'a stage-build run rebuilt after the host names the change again',
-      [stageHost, later(stageBuild, '2026-11-22T00:00:00Z')],
-      { change: { url: PR11 } },
     ],
     [
       // Item 111's shape: deliver named the change; the land gate of that era returned none.

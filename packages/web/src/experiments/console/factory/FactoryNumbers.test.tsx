@@ -8,7 +8,7 @@ import { installDom } from '../test-dom.test-helpers';
 import { FactoryNumbers } from './FactoryNumbers';
 import { FIXTURE_NOW, PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
-import { cancelRereads } from './merge-reread';
+import { cancelRereads, MERGE_REREAD_MS } from './merge-reread';
 import { cancelMergeWatches, MERGE_WATCH_MS } from './merge-watch';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
@@ -142,6 +142,35 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
   expect(asked).toEqual(['8,3,w']);
   expect(tile('merged')).toBe('merged4 of 9');
   expect(tile('merged today')).toBe('merged today1');
+  await unmount();
+});
+
+test('while a merge is pending the items are read again on their own, and again after a failure', async () => {
+  let reads = 0;
+  globalThis.fetch = Object.assign(
+    async (input: string | URL | Request): Promise<Response> => {
+      if (String(input).includes('/api/items/window')) reads++;
+      throw new Error('the server is down');
+    },
+    { preconnect: failing.preconnect }
+  );
+  // Nothing invalidates the key: only the page's own re-read can read the items again.
+  jest.useFakeTimers();
+  setSystemTime(FIXTURE_NOW);
+  const { tile, unmount } = await mount('cb-reread', [
+    ...PAGE.items,
+    readyWithMerge('p', 'pending'),
+  ]);
+  expect(reads).toBe(0);
+  for (let round = 0; round < 2; round++) {
+    const before = reads;
+    await act(async () => {
+      jest.advanceTimersByTime(MERGE_REREAD_MS);
+      for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+    });
+    expect(reads).toBeGreaterThan(before);
+  }
+  expect(tile('merged')).toBe('merged3 of 9Checking which changes merged');
   await unmount();
 });
 

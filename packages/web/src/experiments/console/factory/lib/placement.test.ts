@@ -62,6 +62,7 @@ const RULES: Row[] = [
   ['2 merged', [ready], 'landed', { merged: true }],
   ['2 unknown is not merged', [ready], 'ready', { merged: 'unknown' }],
   ['2 pending keeps a landed card', [ready], 'landed', { merged: 'pending', previous: 'landed' }],
+  ['2 unknown keeps a landed card', [ready], 'landed', { merged: 'unknown', previous: 'landed' }],
   ['2 pending never moves a card on', [ready], 'ready', { merged: 'pending', previous: 'ready' }],
   ['2 known unmerged leaves landed', [ready], 'ready', { merged: false, previous: 'landed' }],
   ['3 the last completed run', [done('triage', 'build'), done('plan', 'planned')], 'build'],

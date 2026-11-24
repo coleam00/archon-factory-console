@@ -221,6 +221,21 @@ describe('the ask popover', () => {
       await unmount();
     }
   });
+
+  test("the Table's Answer button opens the same popover", async () => {
+    const { container, unmount } = await mount(items, queue, '?view=table');
+    try {
+      const answer = container.querySelector<HTMLButtonElement>(
+        'tr[data-card="3"] button[data-ask-trigger]'
+      );
+      expect(answer?.textContent).toBe('Answer');
+      await click(answer!);
+      expect(dialog()?.getAttribute('aria-label')).toBe('Asks on #3');
+      expect(dialog()?.textContent).toContain('Split the item?');
+    } finally {
+      await unmount();
+    }
+  });
 });
 
 describe('answering from the board', () => {

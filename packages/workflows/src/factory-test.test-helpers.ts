@@ -13,7 +13,7 @@ import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
 export const PACK = 'Wirasm/archon-software-factory';
 
 /** The view file this repository ships for that pack. */
-export const SHIPPED_VIEW_PATH = join(
+const SHIPPED_VIEW_PATH = join(
   import.meta.dir,
   '../../../.archon/packs/Wirasm.archon-software-factory.factory-view.json'
 );

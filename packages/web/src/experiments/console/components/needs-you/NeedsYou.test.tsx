@@ -6,7 +6,12 @@ import { documentPageProblems } from '../../factory/document.test-helpers';
 import { shippedListed } from '../../factory/item-detail.test-fixtures';
 import { needsShaping } from '../../factory/lib/board.test-fixtures';
 import { run, settledItem, type TestRun } from '../../factory/lib/map.test-fixtures';
-import { askItem, gateItem, usageLimitItem } from '../../lib/needs-you.test-fixtures';
+import {
+  askItem,
+  gateItem,
+  overdueWaitItem,
+  usageLimitItem,
+} from '../../lib/needs-you.test-fixtures';
 import { projectRoutes } from '../../routes/project-routes';
 import type { FactoryItem, FactoryViews } from '../../skills/factory';
 import type { ItemRead } from '../../skills/items';
@@ -111,6 +116,16 @@ test('a busy page counts what waits, groups asks by item, names gate runs, and h
     'One paused run could not be read, so what it waits on is not listed.'
   );
   expect(documentPageProblems(root)).toEqual([]);
+});
+
+test('a wait past its deadline has its own section: what it waits for and its run, no ping', () => {
+  const root = render(none, queueOf(askItem({ item: seven }), overdueWaitItem()));
+  const paused = root.querySelector('section[data-needs-you="paused"]');
+  expect(text(paused)).toContain('Waiting past their deadline');
+  expect(text(paused)).toContain('CI on the change');
+  expect(paused?.innerHTML).toContain(`href="/console/p/${ID}/r/run-wait"`);
+  expect(paused?.querySelector('[data-ping]')).toBeNull();
+  expect(chipWords(root, 'waiting now')).toBe('2 waiting now');
 });
 
 test('a wait on a run no item holds is counted and named as a run, its workflow named once', () => {

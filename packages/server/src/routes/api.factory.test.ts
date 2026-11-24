@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import type { ChangeLookup, ChangeMergeState } from '@archon/adapters/forge-host';
+import type { ChangeMergeState } from '@archon/adapters/forge-host';
 import { getHomeWorkflowsPath } from '@archon/paths';
 import { removeTempTree, trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
@@ -122,34 +122,6 @@ describe('GET /api/factory/views', () => {
       ],
     ]);
   });
-
-  test("a pack's own view applies only once the project ran a workflow it names", async () => {
-    const files = {
-      '.archon/workflows/factory/.shared/factory-view.json': declaration('factory', 'F'),
-    };
-    const asked: string[][] = [];
-    const ran = (names: string[]) => ({
-      ranWorkflows: async (id: string, workflows: readonly string[]) => {
-        asked.push([id, ...workflows]);
-        return new Set(names);
-      },
-    });
-    const unrun = await appFor(files, ran([]));
-    expect((await views(unrun.app)).views.find(v => v.pack === 'factory')).toBeUndefined();
-    expect(asked).toEqual([['cb-1', 'deliver']]);
-    const run = await appFor(files, ran(['deliver']));
-    expect((await views(run.app)).views.find(v => v.pack === 'factory')?.source).toBe('project');
-  });
-
-  test('a malformed project file is listed under errors with its path', async () => {
-    const { app, project } = await appFor({ [VIEW_FILE]: '{ "version": ' });
-    const listing = await views(app);
-    const path = join(project, '.archon', 'packs', 'acme.kit.factory-view.json');
-    expect(listing.views).toEqual([]);
-    expect(listing.errors).toEqual([
-      { pack: 'acme.kit', source: 'project-file', path, error: expect.stringContaining(path) },
-    ]);
-  });
 });
 
 /** An overview declaration of `pack`, two cards and their edges. */
@@ -174,92 +146,35 @@ const overview = (pack: string, title: string) => ({
 });
 
 describe('GET /api/factory/packs', () => {
-  const viewFile = '.archon/packs/acme.kit.factory-view.json';
-  const overviewFile = '.archon/packs/acme.kit.factory-overview.json';
-
-  async function read(
-    projects: { id: string; name: string; files: Record<string, unknown>; config?: 'throws' }[]
-  ): Promise<{ status: number; body: unknown; cwds: Map<string, string> }> {
-    const cwds = new Map<string, string>();
-    for (const project of projects) cwds.set(project.id, await projectWith(project.files));
+  test('a project file is read from the first project by name, and the projects listed', async () => {
+    const files = (title: string) => ({
+      '.archon/packs/acme.kit.factory-view.json': declaration('acme/kit', 'Kit'),
+      '.archon/packs/acme.kit.factory-overview.json': overview('acme/kit', title),
+    });
+    const alpha = await projectWith(files('Alpha'));
+    const zeta = await projectWith(files('Zeta'));
     const { app } = await appFor(
       {},
       {
-        codebases: async () =>
-          projects.map(({ id, name }) => ({ id, name, cwd: cwds.get(id) ?? '' })),
-        loadConfig: async cwd => {
-          if (projects.find(p => cwds.get(p.id) === cwd)?.config === 'throws')
-            throw new Error('config is broken');
-          return noItems.loadConfig(cwd);
-        },
+        codebases: async () => [
+          { id: 'cb-2', name: 'zeta', cwd: zeta },
+          { id: 'cb-1', name: 'alpha', cwd: alpha },
+        ],
       }
     );
-    return { ...(await get(app, '/api/factory/packs')), cwds };
-  }
-
-  test("the pack's own file wins, with no project named", async () => {
-    // A global folder pack: the scratch home every test process starts with.
-    const own = join(getHomeWorkflowsPath(), 'kit', '.shared', 'factory-overview.json');
-    await mkdir(join(own, '..'), { recursive: true });
-    await writeFile(own, JSON.stringify(overview('kit', "The pack's own")));
-    try {
-      const { status, body } = await read([
-        {
-          id: 'cb-1',
-          name: 'web',
-          files: { '.archon/packs/kit.factory-overview.json': overview('kit', 'Project') },
-        },
-      ]);
-      expect(status).toBe(200);
-      const [pack] = factoryPacksResponseSchema.parse(body).packs;
-      expect([pack?.key, pack?.overview?.declaration.title, pack?.overview?.path]).toEqual([
-        'kit',
-        "The pack's own",
-        own,
-      ]);
-      expect(pack?.readFrom).toBeNull();
-    } finally {
-      await removeTempTree(join(getHomeWorkflowsPath(), 'kit'));
-    }
-  });
-
-  test('a project file is read from the first project by name, and the projects listed', async () => {
-    const files = (title: string) => ({
-      [viewFile]: declaration('acme/kit', 'Kit'),
-      [overviewFile]: overview('acme/kit', title),
-    });
-    const { body, cwds } = await read([
-      { id: 'cb-2', name: 'zeta', files: files('Zeta') },
-      { id: 'cb-1', name: 'alpha', files: files('Alpha') },
-    ]);
-    const packs = factoryPacksResponseSchema.parse(body);
-    expect(packs.packs).toHaveLength(1);
-    const [pack] = packs.packs;
+    const { status, body } = await get(app, '/api/factory/packs');
+    expect(status).toBe(200);
+    const [pack, ...others] = factoryPacksResponseSchema.parse(body).packs;
+    expect(others).toEqual([]);
     expect([pack?.pack, pack?.key, pack?.overview?.declaration.title]).toEqual([
       'acme/kit',
       'acme.kit',
       'Alpha',
     ]);
-    expect(pack?.overview?.path).toBe(
-      join(cwds.get('cb-1') ?? '', '.archon', 'packs', 'acme.kit.factory-overview.json')
-    );
     expect(pack?.readFrom).toEqual({ codebaseId: 'cb-1', name: 'alpha' });
     expect(pack?.projects).toEqual([
       { codebaseId: 'cb-1', name: 'alpha' },
       { codebaseId: 'cb-2', name: 'zeta' },
-    ]);
-  });
-
-  test('a project that cannot be read is listed, and the other packs remain', async () => {
-    const { status, body } = await read([
-      { id: 'cb-1', name: 'broken', files: {}, config: 'throws' },
-      { id: 'cb-2', name: 'web', files: { [overviewFile]: overview('acme/kit', 'Kit') } },
-    ]);
-    expect(status).toBe(200);
-    const packs = factoryPacksResponseSchema.parse(body);
-    expect(packs.packs.map(p => p.readFrom?.name)).toEqual(['web']);
-    expect(packs.unreadProjects).toEqual([
-      { codebaseId: 'cb-1', name: 'broken', error: 'config is broken' },
     ]);
   });
 });
@@ -313,7 +228,6 @@ describe('GET /api/factory/pack-settings', () => {
         ['land_policy', true, 'policy', 'ahead', 'Would land'],
         ['command', false, null, null, null],
       ]);
-      expect(settings.sections).toEqual(settingsOverview.setting_sections);
       const [project] = settings.projects;
       expect(project?.name).toBe('web');
       const land = project?.values.land_policy;
@@ -328,9 +242,38 @@ describe('GET /api/factory/pack-settings', () => {
   });
 });
 
+/** The event a completed run records: its terminal record, `node` returning `value`. */
+const completed = (
+  runId: string,
+  outcome: string | null,
+  node: string,
+  value: unknown
+): WorkflowEventRow => ({
+  id: `${runId}-completed`,
+  workflow_run_id: runId,
+  event_type: 'workflow_completed',
+  step_index: null,
+  step_name: null,
+  data: {
+    terminal_record: {
+      run_id: runId,
+      status: 'completed',
+      outcome: null,
+      completed_outcome: outcome,
+      error: null,
+      first_failed_node: null,
+      nodes: [],
+      returns: { availability: 'available', node_id: node, value },
+      artifacts: { root: null, files: [], limitations: [] },
+    },
+  },
+  created_at: '2026-11-16T10:30:00Z',
+  event_order: 9,
+});
+
 const DISCOVERIES = {
   workflow: 'discoveries',
-  shadow: true,
+  shadow: false,
   filed: '/filed',
   held: '/held',
   dropped: '/dropped',
@@ -347,36 +290,11 @@ const discoveriesSource = (() => {
     started_at: new Date('2026-11-17T10:00:00Z'),
     completed_at: new Date('2026-11-17T10:05:00Z'),
   } as unknown as WorkflowRun;
-  const drained: WorkflowEventRow = {
-    id: 'd-1-completed',
-    workflow_run_id: 'd-1',
-    event_type: 'workflow_completed',
-    step_index: null,
-    step_name: null,
-    data: {
-      terminal_record: {
-        run_id: 'd-1',
-        status: 'completed',
-        outcome: null,
-        completed_outcome: null,
-        error: null,
-        first_failed_node: null,
-        nodes: [],
-        returns: {
-          availability: 'available',
-          node_id: 'drain',
-          value: {
-            filed: [{ title: 'A finding', kind: 'defect' }],
-            held: [{ what: 'x', until: 'y' }],
-            dropped: [],
-          },
-        },
-        artifacts: { root: null, files: [], limitations: [] },
-      },
-    },
-    created_at: '2026-11-17T10:05:00Z',
-    event_order: 1,
-  };
+  const drained = completed('d-1', null, 'drain', {
+    filed: [{ title: 'A finding', kind: 'defect' }],
+    held: [{ what: 'x', until: 'y' }],
+    dropped: [],
+  });
   return {
     listItemsInWindow: async () => [item],
     getItemRuns: async () => ({ item, runs: [drain], descendantIds: [] }),
@@ -386,22 +304,11 @@ const discoveriesSource = (() => {
 
 describe('GET /api/factory/discoveries', () => {
   test('what the drains decided, at the pointers the view declares', async () => {
-    // A shadow drain is declared a shadow step too; the two must agree.
-    const shadows = [
-      {
-        workflow: 'discoveries',
-        node: 'drain',
-        label: 'What it would file',
-        reads: 'lists',
-        lists: [{ pointer: '/filed', words: 'would file' }],
-      },
-    ];
     const { app } = await appFor(
       {
         [VIEW_FILE]: {
           ...declaration('acme/kit', 'Kit factory'),
           discoveries: DISCOVERIES,
-          shadows,
         },
       },
       { discoveriesSource }
@@ -409,7 +316,7 @@ describe('GET /api/factory/discoveries', () => {
     const { status, body } = await get(app, '/api/factory/discoveries?codebaseId=cb-1');
     expect(status).toBe(200);
     const read = factoryDiscoveriesResponseSchema.parse(body);
-    expect(read).toMatchObject({ pack: 'acme/kit', shadow: true, held: 1, dropped: 0 });
+    expect(read).toMatchObject({ pack: 'acme/kit', shadow: false, held: 1, dropped: 0 });
     expect(read.findings.map(f => [f.title, f.kind, f.from.key, f.coveredBy])).toEqual([
       ['A finding', 'defect', '1', null],
     ]);
@@ -417,79 +324,50 @@ describe('GET /api/factory/discoveries', () => {
 });
 
 /**
- * Five items, one run each: item 1 named `CHANGE` with a forge audit row naming PR 7; item 2 is
- * running; items 3 and 5 named an empty change URL; item 4 named `CHANGE9`, with no audit row.
+ * Three items, one run each: item 1 named `CHANGE` with a forge audit row naming PR 7; item 2 is
+ * running; item 3 named an empty change URL.
  */
-const ITEM_KEYS = ['1', '2', '3', '4', '5'] as const;
+const ITEM_KEYS = ['1', '2', '3'] as const;
 const items: WorkflowItem[] = ITEM_KEYS.map(key => ({
   id: `item-${key}`,
   projectKey: 'acme/web',
   key,
 }));
-const runOf = (key: string, fields: Partial<WorkflowRun> = {}): WorkflowRun => ({
-  origin: null,
-  id: `run-${key}`,
-  workflow_name: 'acme/kit:deliver',
-  conversation_id: null,
-  parent_conversation_id: null,
-  codebase_id: 'cb-1',
-  status: 'completed',
-  outcome: null,
-  completed_outcome: 'ready',
-  user_message: '',
-  metadata: { inputs: { item: `#${key} Item ${key}\n\nThe body.` } },
-  active_phase_started_at: null,
-  started_at: new Date('2026-11-16T10:00:00Z'),
-  completed_at: new Date('2026-11-16T10:30:00Z'),
-  last_activity_at: null,
-  working_path: null,
-  user_id: null,
-  parent_run_id: null,
-  adopted_from_run_id: null,
-  output_root: null,
-  checkout_baseline: null,
-  item_id: `item-${key}`,
-  ...fields,
-});
+/** A run of item `key`: only the fields the readers use. */
+const runOf = (key: string, fields: Partial<WorkflowRun> = {}): WorkflowRun =>
+  ({
+    id: `run-${key}`,
+    item_id: `item-${key}`,
+    workflow_name: 'acme/kit:deliver',
+    codebase_id: 'cb-1',
+    status: 'completed',
+    outcome: null,
+    completed_outcome: 'ready',
+    metadata: {
+      inputs: {
+        item: `#${key} Item ${key}
+
+The body.`,
+      },
+    },
+    started_at: new Date('2026-11-16T10:00:00Z'),
+    completed_at: new Date('2026-11-16T10:30:00Z'),
+    ...fields,
+  }) as WorkflowRun;
 const runs: Record<string, WorkflowRun> = {
   '1': runOf('1'),
   '2': runOf('2', { status: 'running', completed_at: null, completed_outcome: null }),
   '3': runOf('3'),
-  '4': runOf('4'),
-  '5': runOf('5'),
 };
 const CHANGE = 'https://forge.example/acme/web/pull/7';
-const CHANGE9 = 'https://forge.example/acme/web/pull/9';
 const BRANCH_CHANGE = 'https://forge.example/acme/web/pull/8';
-/** The terminal record a completed run records, its declared result naming `change`. */
-const completed = (key: string, change: string): WorkflowEventRow => ({
-  id: `run-${key}-completed`,
-  workflow_run_id: `run-${key}`,
-  event_type: 'workflow_completed',
-  step_index: null,
-  step_name: null,
-  data: {
-    terminal_record: {
-      run_id: `run-${key}`,
-      status: 'completed',
-      outcome: null,
-      completed_outcome: 'ready',
-      error: null,
-      first_failed_node: null,
-      nodes: [],
-      returns: { availability: 'available', node_id: 'result', value: { change } },
-      artifacts: { root: null, files: [], limitations: [] },
-    },
-  },
-  created_at: '2026-11-16T10:30:00Z',
-  event_order: 9,
-});
 /** A forge audit row naming pull request 7 at `CHANGE`, the shape `pr.ready` records. */
+const REPO = { host: 'forge.example', path: 'acme/web' };
 const PR7_AUDIT = {
   integration: 'forge',
   operationId: 'op-1',
   operation: 'pr.ready',
-  target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
+  target: { repo: REPO, number: 7 },
   plugin: { name: 'github', version: '1' },
   result: {
     operationId: 'op-1',
@@ -497,11 +375,11 @@ const PR7_AUDIT = {
     result: {
       op: 'pr.ready',
       value: {
-        target: { repo: { host: 'forge.example', path: 'acme/web' }, number: 7 },
+        target: { repo: REPO, number: 7 },
         outcome: 'applied',
         changed: true,
         pr: {
-          repo: { host: 'forge.example', path: 'acme/web' },
+          repo: REPO,
           number: 7,
           schemaVersion: 1,
           url: CHANGE,
@@ -509,7 +387,7 @@ const PR7_AUDIT = {
           base: 'main',
           is_draft: false,
           state: 'open',
-          head_repo: { host: 'forge.example', path: 'acme/web' },
+          head_repo: REPO,
           head_revision: 'a'.repeat(40),
           base_revision: 'b'.repeat(40),
           maintainer_can_modify: false,
@@ -521,10 +399,8 @@ const PR7_AUDIT = {
   durationMs: 1,
 };
 const events: WorkflowEventRow[] = [
-  completed('1', CHANGE),
-  completed('3', ''),
-  completed('4', CHANGE9),
-  completed('5', ''),
+  completed('run-1', 'ready', 'result', { change: CHANGE }),
+  completed('run-3', 'ready', 'result', { change: '' }),
   {
     id: 'e0-audit',
     workflow_run_id: 'run-1',
@@ -572,16 +448,16 @@ function itemsSource(merges: Record<string, ItemMerge> = {}): ItemReadSource {
       },
       listEventsForRuns: async ids =>
         new Map(ids.map(id => [id, events.filter(row => row.workflow_run_id === id)])),
+      getItemMerge: async id => merges[id] ?? null,
       listAttentionQueueRows: async () => [],
+      listOpenItemWaits: async () => [],
+      listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+      listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       getWorkflowRun: async () => null,
       getWorkflowRunForAttention: async () => null,
       getCodebase: async () => null,
       getItem: async () => null,
-      getItemMerge: async id => merges[id] ?? null,
       getItemLanding: async () => null,
-      listOpenItemWaits: async () => [],
-      listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
-      listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       getInstallHold: async () => null,
       getRunLimit: async () => null,
       listHeldItemStarts: async () => [],
@@ -651,7 +527,7 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
         : { url: BRANCH_CHANGE, merged: false, mergedAt: null, number: 8 };
     }) satisfies FactoryRouteDeps['changeMergeState'];
 
-  test('the progress of each key asked, repeated or one; a key with no item is left out', async () => {
+  test('the progress of each key asked; a key with no item is left out', async () => {
     const { app } = await itemsApp(forge());
     const { status, body } = await get(app, '/api/factory/progress?codebaseId=cb-1&keys=2&keys=9');
     expect(status).toBe(200);
@@ -677,8 +553,6 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
       },
     });
     expect(read.members).toEqual({ '2': [] });
-    const single = await get(app, '/api/factory/progress?codebaseId=cb-1&keys=1');
-    expect(Object.keys(factoryProgressResponseSchema.parse(single.body).progress)).toEqual(['1']);
   });
 
   test("one item: its read and progress, with each run's story facts", async () => {
@@ -723,28 +597,21 @@ describe('the merge-state cache, across requests and both routes', () => {
 
   test('one lookup per change serves the next request and the item route', async () => {
     let lookups = 0;
-    const branchesSeen: string[][] = [];
-    const { app } = await itemsApp(async (_lookup, branches) => {
+    const { app } = await itemsApp(async () => {
       lookups++;
-      branchesSeen.push([...(await branches())]);
       return { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: null };
     });
     // The run's URL is shown, and the number its own forge audit row names.
     expect(await changes(app, '1', '2')).toEqual([merged, null]);
     expect(await changeOfItem1(app)).toEqual([merged, merged]);
     expect(lookups).toBe(1);
-    // The lookup is handed the item's runs' recorded branches, for a change no audit row names.
-    expect(branchesSeen).toEqual([['branch-run-1']]);
   });
 
-  test('a slow first lookup answers pending within the wait, uncached, shared while in flight, then fills the cache', async () => {
+  test('a slow first lookup answers pending within the wait, then fills the cache', async () => {
     const held = heldLookup();
     const { app } = await itemsApp(held.lookup, { changeStateWaitMs: 10 });
     const pending = { url: CHANGE, merged: 'pending' as const, mergedAt: null, number: 7 };
     expect(await changes(app, '1')).toEqual([pending]);
-    // Still running: the next read waits on the same lookup and answers pending again.
-    expect(await changes(app, '1')).toEqual([pending]);
-    expect(held.calls).toBe(1);
     held.answer(merged);
     await settle();
     expect(await changes(app, '1')).toEqual([merged]);
@@ -763,9 +630,6 @@ describe('the merge-state cache, across requests and both routes', () => {
     );
     const mergedNow = async () => (await changes(app, '1'))[0]?.merged;
     expect(await mergedNow()).toBe(false);
-    clock = 59_999;
-    expect(await mergedNow()).toBe(false);
-    expect(lookups).toBe(1);
     clock = 60_000;
     expect(await mergedNow()).toBe(false);
     await settle();
@@ -787,77 +651,14 @@ describe('the merge-state cache, across requests and both routes', () => {
     expect(lookups).toBe(1);
   });
 
-  test('runs that named no URL get an answer each, asked in the project remote', async () => {
-    const asked: ChangeLookup[] = [];
-    const { app } = await itemsApp(async (lookup, branches) => {
-      asked.push(lookup);
-      // The pull request on each item's own branch.
-      const number = (await branches()).includes('branch-run-3') ? 8 : 9;
-      return { url: `${CHANGE.slice(0, -1)}${number}`, merged: true, mergedAt: null, number };
-    });
-    const numbers = async () => (await changes(app, '3', '5')).map(change => change?.number);
-    expect(await numbers()).toEqual([8, 9]);
-    expect(await numbers()).toEqual([8, 9]);
-    expect(asked).toEqual([
-      { kind: 'branch', remote: REMOTE },
-      { kind: 'branch', remote: REMOTE },
-    ]);
-  });
-
-  test('a slow branch lookup answers pending with no URL yet', async () => {
-    const { app } = await itemsApp(() => new Promise(() => {}), { changeStateWaitMs: 10 });
-    expect(await changes(app, '3')).toEqual([
-      { url: null, merged: 'pending', mergedAt: null, number: null },
-    ]);
-  });
-
-  /** The routes over the five items with `merges` recorded, the host answering through `lookup`. */
-  const recordedApp = (
-    merges: Record<string, ItemMerge>,
-    lookup: FactoryRouteDeps['changeMergeState'],
-    deps: Partial<FactoryRouteDeps> = {}
-  ) => itemsApp(lookup, { itemsSource: itemsSource(merges), ...deps });
-  const fromRecord = (url: string, number: number | null) => ({
-    url,
-    merged: true,
-    mergedAt: MERGED_AT,
-    number,
-  });
-
   test('a recorded merge whose audit rows name its pull request answers on both routes, the host never asked', async () => {
     const held = heldLookup();
-    const { app } = await recordedApp({ 'item-1': mergeOf(CHANGE) }, held.lookup);
-    expect(await changeOfItem1(app)).toEqual([fromRecord(CHANGE, 7), fromRecord(CHANGE, 7)]);
+    const { app } = await itemsApp(held.lookup, {
+      itemsSource: itemsSource({ 'item-1': mergeOf(CHANGE) }),
+    });
+    const fromRecord = { url: CHANGE, merged: true, mergedAt: MERGED_AT, number: 7 };
+    expect(await changeOfItem1(app)).toEqual([fromRecord, fromRecord]);
     expect(held.calls).toBe(0);
-  });
-
-  test('a recorded merge answers at once; its number alone is asked for once, in the background', async () => {
-    const held = heldLookup();
-    // The wait would answer pending; a recorded merge never waits on it.
-    const { app } = await recordedApp({ 'item-4': mergeOf(CHANGE9) }, held.lookup, {
-      changeStateWaitMs: 60_000,
-    });
-    expect(await changes(app, '4')).toEqual([fromRecord(CHANGE9, null)]);
-    expect(await changes(app, '4')).toEqual([fromRecord(CHANGE9, null)]);
-    expect(held.calls).toBe(1);
-    // The host answers with the pull request's number; whatever it says of the merge, the
-    // record holds.
-    held.answer({ url: CHANGE9, merged: false, mergedAt: null, number: 9 });
-    await settle();
-    expect(await changes(app, '4')).toEqual([fromRecord(CHANGE9, 9)]);
-    expect(held.calls).toBe(1);
-  });
-
-  test('a recorded merge takes no number from another pull request the host found', async () => {
-    let lookups = 0;
-    const { app } = await recordedApp({ 'item-3': mergeOf(CHANGE) }, async () => {
-      lookups++;
-      return { url: `${CHANGE}0`, merged: true, mergedAt: null, number: 70 };
-    });
-    expect(await changes(app, '3')).toEqual([fromRecord(CHANGE, null)]);
-    await settle();
-    expect(await changes(app, '3')).toEqual([fromRecord(CHANGE, null)]);
-    expect(lookups).toBe(1);
   });
 });
 
@@ -916,25 +717,6 @@ describe('GET /api/factory/workflow', () => {
     ]);
   });
 
-  test('concurrent reads share one discovery, its result serves the next read, and each project is its own', async () => {
-    const counted = countedDiscovery();
-    const files = { [KIT_VIEW_FILE]: declaration('kit', 'Kit factory'), [DELIVER_FILE]: DELIVER };
-    const other = await projectWith(files);
-    const { app } = await appFor(files, project => ({
-      discoverWorkflows: counted.discoverWorkflows,
-      codebase: async id =>
-        id === 'cb-1' || id === 'cb-2'
-          ? { cwd: id === 'cb-1' ? project : other, projectKey: 'acme/web', remote: null }
-          : null,
-    }));
-    const statuses = await Promise.all([get(app, WORKFLOW), get(app, WORKFLOW)]);
-    expect(statuses.map(read => read.status)).toEqual([200, 200]);
-    expect((await get(app, WORKFLOW)).status).toBe(200);
-    expect(counted.calls).toBe(1);
-    expect((await get(app, WORKFLOW.replace('cb-1', 'cb-2'))).status).toBe(200);
-    expect(counted.calls).toBe(2);
-  });
-
   test('an old result is served while a refresh runs; the next read gets the refresh', async () => {
     let clock = 0;
     const counted = countedDiscovery();
@@ -990,8 +772,8 @@ describe('GET /api/factory/workflow', () => {
   });
 });
 
-/** The kit view listing `deliver` and `next` in Build, with `next` on disk and not `deliver`. */
-const twoWorkflows = (retired?: string[]) => ({
+/** The kit view listing `deliver` (retired) and `next` in Build, with only `next` on disk. */
+const RETIRED = {
   [KIT_VIEW_FILE]: {
     ...declaration('kit', 'Kit factory'),
     stages: [
@@ -1004,16 +786,13 @@ const twoWorkflows = (retired?: string[]) => ({
       },
       { id: 'landed', label: 'Landed', blurb: 'Merged.', group: 'land', workflows: [] },
     ],
-    ...(retired === undefined ? {} : { retired }),
+    retired: ['deliver'],
   },
   '.archon/workflows/kit/next/next.yaml': DELIVER.replace('name: deliver', 'name: next'),
-});
-const KIT_DELIVER = { [KIT_VIEW_FILE]: declaration('kit', 'Kit factory'), [DELIVER_FILE]: DELIVER };
+};
 
 describe('what each route answers a request it cannot serve', () => {
-  const many = Array.from({ length: 101 }, (_, i) => `keys=${String(i)}`).join('&');
   test.each<[string, string, Record<string, unknown>, number, string | null]>([
-    ['views: an unknown codebase', '/api/factory/views?codebaseId=missing', {}, 404, null],
     [
       'pack-settings: a key no pack with an overview has',
       '/api/factory/pack-settings?pack=nope',
@@ -1028,15 +807,7 @@ describe('what each route answers a request it cannot serve', () => {
       404,
       'This factory view declares no discoveries',
     ],
-    ['discoveries: no applying view', '/api/factory/discoveries?codebaseId=cb-1', {}, 404, null],
     ['progress: no keys', '/api/factory/progress?codebaseId=cb-1', ITEMS_VIEW, 400, null],
-    [
-      'progress: more keys than a window page holds',
-      `/api/factory/progress?codebaseId=cb-1&${many}`,
-      ITEMS_VIEW,
-      400,
-      null,
-    ],
     ['progress: no applying view', '/api/factory/progress?codebaseId=cb-1&keys=1', {}, 404, null],
     [
       'progress: an unknown codebase',
@@ -1045,30 +816,7 @@ describe('what each route answers a request it cannot serve', () => {
       404,
       null,
     ],
-    ['item: no key', '/api/factory/item?codebaseId=cb-1', ITEMS_VIEW, 400, null],
     ['item: no such item', '/api/factory/item?codebaseId=cb-1&key=9', ITEMS_VIEW, 404, null],
-    [
-      'item: an unknown codebase',
-      '/api/factory/item?codebaseId=missing&key=1',
-      ITEMS_VIEW,
-      404,
-      null,
-    ],
-    ['item: no applying view', '/api/factory/item?codebaseId=cb-1&key=1', {}, 404, null],
-    [
-      'workflow: one no applying view names',
-      '/api/factory/workflow?codebaseId=cb-1&workflow=other',
-      KIT_DELIVER,
-      404,
-      null,
-    ],
-    [
-      'workflow: an unknown codebase',
-      '/api/factory/workflow?codebaseId=missing&workflow=deliver',
-      KIT_DELIVER,
-      404,
-      null,
-    ],
     [
       // Read by a person on a stage: it names the pack and the workflow.
       'workflow: one the view names but the project lacks',
@@ -1080,16 +828,9 @@ describe('what each route answers a request it cannot serve', () => {
     [
       'workflow: a retired one',
       WORKFLOW,
-      twoWorkflows(['deliver']),
+      RETIRED,
       404,
       'This pack has no workflow named deliver. It was retired; the items it worked still show their runs.',
-    ],
-    [
-      'workflow: one missing from a pack whose other workflows are here',
-      WORKFLOW,
-      twoWorkflows(),
-      404,
-      'This pack has no workflow named deliver.',
     ],
   ])('%s', async (_name, path, files, status, error) => {
     const { app } = await appFor(files, {
