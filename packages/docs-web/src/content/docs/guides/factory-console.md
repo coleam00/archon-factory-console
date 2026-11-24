@@ -85,12 +85,13 @@ page, keeping the query string. Inside the tab:
   A **work order** is an item other items are `part_of`. An item's order is its active `part_of`
   link (`archon workflow link --item <member> --kind part_of --to <order>`), else the order its
   latest run of the `partOf` workflow that completed with its declared outcome named (a refused
-  run never makes it a member); a link wins. The board's toolbar sums up the orders with a
-  member on the board in one line ("2 work orders · 1 open"; open means not every member
-  merged). Clicking it lists one row per order under the toolbar: its name (its own title, else
-  "Work order <key>"), how many of its members merged ("3 of 5 merged"), each member's state as
-  a dot, and a toggle that lights its members on the board; a member's "part of" chip does the
-  same. While an order is lit, the summary line says "highlighting <key>" with **Clear
+  run never makes it a member); a link wins. Above the Pipeline's columns, a **Work orders**
+  section lists the orders with a member on the board under a header that counts them ("2 work
+  orders · 1 open"; open means not every member merged) and folds the list. Each row shows the
+  order's name (its own title, else "Work order <key>"), how many of its members merged ("3 of 5
+  merged") and each member's state as a dot; clicking the row opens the order's page.
+  **Highlight members** lights its members on the board without leaving it; a member's "part of"
+  chip does the same. While an order is lit, the header says "highlighting <key>" with **Clear
   highlight**. An order is listed once one of its members has a run; until then the order and its
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never

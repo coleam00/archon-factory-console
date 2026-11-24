@@ -357,7 +357,7 @@ describe('the Pipeline view', () => {
         ? { ...item, progress: { ...item.progress!, partOf: named[item.item.key]! } }
         : item
     );
-  /** The work orders' summary button in the toolbar. */
+  /** The work orders section's header toggle. */
   const summary = (container: HTMLElement): HTMLButtonElement | undefined =>
     [...container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find(button =>
       button.textContent?.includes('work order')
@@ -367,17 +367,24 @@ describe('the Pipeline view', () => {
       article => article.getAttribute('data-card') === key
     );
 
-  test('the work orders fold to one summary line in the toolbar until it is clicked', async () => {
+  test('the work orders are a section above the columns, open, at the board text size', async () => {
     // 48's members 5 and 4 are running, so it is open; 8's only member, 2, merged, so it is not.
     const { container, unmount } = await mount(withOrders({ '5': '48', '4': '48', '2': '8' }));
     try {
       const button = summary(container);
       expect(button?.textContent).toBe('2 work orders · 1 open');
-      expect(button?.getAttribute('aria-expanded')).toBe('false');
-      expect(container.querySelector('li[data-order]')).toBeNull();
-      // It shares the filter's line rather than taking one of its own above the columns.
-      expect(button?.closest('div')?.querySelector('input[type="search"]')).not.toBeNull();
-      await act(async () => button?.click());
+      expect(button?.className).toContain('text-console-14');
+      expect(button?.className).not.toContain('text-console-12');
+      // Its own section, not a part of the filter's toolbar line, and before the columns.
+      const section = button?.closest('section') ?? null;
+      const toolbar = container.querySelector('input[type="search"]')?.parentElement;
+      expect(section).not.toBeNull();
+      expect(toolbar?.contains(section)).toBe(false);
+      // In document order, so the section comes before the first column.
+      expect(
+        container.querySelector('section[aria-label="Work orders section"], header[data-column]')
+      ).toBe(section);
+      // Listed without a click.
       expect(button?.getAttribute('aria-expanded')).toBe('true');
       const list = container.querySelector('ul[aria-label="Work orders"]');
       expect(list?.id).toBe(button?.getAttribute('aria-controls') ?? '');
@@ -386,6 +393,9 @@ describe('the Pipeline view', () => {
           row.getAttribute('data-order')
         )
       ).toEqual(['48', '8']);
+      await act(async () => button?.click());
+      expect(button?.getAttribute('aria-expanded')).toBe('false');
+      expect(container.querySelector('li[data-order]')).toBeNull();
     } finally {
       await unmount();
     }
@@ -394,13 +404,15 @@ describe('the Pipeline view', () => {
   test('a work order: its row, a chip on each member, members lit on demand', async () => {
     const { container, unmount } = await mount(withOrders(), undefined, { '48': ['9'] });
     try {
-      await act(async () => summary(container)?.click());
       const strip = container.querySelector('ul[aria-label="Work orders"]');
       const row = strip?.querySelector('li[data-order="48"]');
       expect(row?.textContent).toContain('1 of 3 merged');
-      // 48 has no title of its own: its key, then "Work order #48".
-      expect(row?.querySelector('a')?.textContent).toBe('#48');
-      expect(row?.textContent).toContain('Work order #48');
+      // The row is one link to the order's page, its key and title; 48 has no title of its own.
+      expect(row?.querySelectorAll('a')).toHaveLength(1);
+      expect(row?.querySelector('a')?.getAttribute('href')).toBe(
+        `/console/p/${ID}/factory/items/48`
+      );
+      expect(row?.querySelector('a')?.textContent).toBe('#48Work order #48');
       expect(
         [...(row?.querySelectorAll('[role="img"][title]') ?? [])].map(dot =>
           dot.getAttribute('title')
@@ -408,13 +420,17 @@ describe('the Pipeline view', () => {
       ).toEqual(['#5: Running', '#2: Merged', '#9: Waiting']);
       // A run-less order's row is its key; one with runs shows its key and its own title.
       const withRuns = strip?.querySelector('li[data-order="8"]');
-      expect(withRuns?.querySelector('a')?.textContent).toBe('#8');
-      expect(withRuns?.textContent).toContain(realItem('8').progress!.title!);
+      expect(withRuns?.querySelectorAll('a')).toHaveLength(1);
+      expect(withRuns?.querySelector('a')?.getAttribute('href')).toBe(
+        `/console/p/${ID}/factory/items/8`
+      );
+      expect(withRuns?.querySelector('a')?.textContent).toBe(`#8${realItem('8').progress!.title!}`);
       expect(card(container, '5')?.querySelector('a[href$="?order=48"]')?.textContent).toBe(
         'part of #48'
       );
       expect(card(container, '6')?.textContent).not.toContain('part of');
       const toggle = row?.querySelector('button[aria-pressed]') as HTMLButtonElement;
+      expect(toggle.closest('a')).toBeNull();
       await act(async () => toggle.click());
       const dimmed = [...container.querySelectorAll('article[data-dimmed="true"]')];
       expect(dimmed).toHaveLength(PAGE.items.length - 2);
@@ -425,7 +441,7 @@ describe('the Pipeline view', () => {
     }
   });
 
-  test('a lit work order is named on the folded summary line, and cleared from there', async () => {
+  test('a lit work order is named on the header line, and cleared from there', async () => {
     const { container, unmount } = await mount(
       withOrders(),
       `/console/p/${ID}/factory/board?order=48`,
@@ -435,7 +451,7 @@ describe('the Pipeline view', () => {
     );
     try {
       const line = summary(container)?.parentElement;
-      expect(summary(container)?.getAttribute('aria-expanded')).toBe('false');
+      expect(summary(container)?.getAttribute('aria-expanded')).toBe('true');
       expect(line?.textContent).toContain('highlighting #48');
       expect(container.querySelectorAll('article[data-dimmed="true"]')).toHaveLength(
         PAGE.items.length - 2

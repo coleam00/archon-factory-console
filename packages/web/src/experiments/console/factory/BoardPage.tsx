@@ -140,9 +140,9 @@ export function Board({
           below the board in the page, which scrolls to them: they never squeeze the board or sit
           over it. Its height is auto with the fill as its minimum, and the board body's 0 flex
           basis (BoardPipeline, BoardTable, BoardSkeleton) keeps the table's rows out of that auto
-          height: the area is the fill height, or in a short window the toolbar, the Pipeline's
-          own floor and the line, however they wrap. A fixed height would let a wrapped line run
-          under the opened strips. */}
+          height: the area is the fill height, or in a short window the toolbar, the work orders,
+          the Pipeline's own floor and the line, however they wrap. A fixed height would let a
+          wrapped line run under the opened strips. */}
       <div className="flex flex-col gap-3 md:min-h-full md:shrink-0">
         <BoardToolbar
           query={query}
@@ -154,27 +154,25 @@ export function Board({
           onClearShow={clearShow}
         >
           {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
-            height: the work orders' summary, the Position unknown row, the hidden-columns hint. */}
+            height: the Position unknown row, the hidden-columns hint. */}
           {table ? null : (
-            <>
-              <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
-              <span className="flex flex-wrap items-center gap-3 md:ml-auto">
-                {shown === undefined ? null : (
-                  <UnplacedRow projectId={projectId} cards={shown.unplaced} />
-                )}
-                {hint === null ? null : (
-                  // Only where the columns sit side by side: on a phone they stack and none is hidden.
-                  <span
-                    className="hidden text-console-12 text-text-tertiary md:inline"
-                    aria-live="polite"
-                  >
-                    {hint} →
-                  </span>
-                )}
-              </span>
-            </>
+            <span className="flex flex-wrap items-center gap-3 md:ml-auto">
+              {shown === undefined ? null : (
+                <UnplacedRow projectId={projectId} cards={shown.unplaced} />
+              )}
+              {hint === null ? null : (
+                // Only where the columns sit side by side: on a phone they stack and none is hidden.
+                <span
+                  className="hidden text-console-12 text-text-tertiary md:inline"
+                  aria-live="polite"
+                >
+                  {hint} →
+                </span>
+              )}
+            </span>
           )}
         </BoardToolbar>
+        {table ? null : <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />}
         <BoardBody
           projectId={projectId}
           view={view}
