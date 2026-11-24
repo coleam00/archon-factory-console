@@ -94,19 +94,22 @@ page, keeping the query string. Inside the tab:
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
-  When the view declares `discoveries`, **Found by the factory** sits under the columns, in
-  both views and whatever the filter, as one line ("14 the factory would file · show the
-  findings", with its shadow badge) so the columns keep their height; "show the findings", or
-  the Overview's tile (`?show=found`), opens the full panel in place: how many findings the discoveries drains decided to file
+  Under the board, in both views, sits one line holding **Found by the factory** and **Set
+  aside** with one toggle, **show them**, that opens both together below the board or table,
+  never over it: the board keeps its height and the page scrolls to them. Switching Pipeline and
+  Table leaves them open or closed.
+  When the view declares `discoveries`, **Found by the factory** is on that line whatever the
+  filter ("14 the factory would file", with its shadow badge); the toggle, or the Overview's
+  tile (`?show=found`, which also scrolls to it), opens the full panel: how many findings the discoveries drains decided to file
   that no item on the project carries yet (an item carries one when its title is the finding's,
   ignoring case), with chips counting every finding they decided to file, held and dropped,
-  and how many are already on the board. **Show the findings** lists each: its kind, its title,
+  and how many are already on the board, then each finding: its kind, its title,
   the item whose drain decided it and when, and how the drain verified it, on hover. While the
   view marks the drains `shadow`, the panel carries a "shadow" badge and says the factory
   decides what it would file and files nothing yet. The panel only reads: it files, starts
   and dismisses nothing.
-  Beside it, the columns' items with nothing left to happen fold into one **Set aside** line
-  ("3 set aside · show them"), which lists each item's key, title, why it was set aside and
+  Beside it, the columns' items with nothing left to happen fold into **Set aside** ("3 set
+  aside"), which the toggle opens to list each item's key, title, why it was set aside and
   when its last run ended. An item is set aside when an `endings` outcome took it off the
   board, when its last run ended in a `parked` outcome, or when its last run ended more than 3
   days ago and it never proposed a change (or its change's merge state could not be read);

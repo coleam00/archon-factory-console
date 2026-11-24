@@ -13,8 +13,7 @@ import { StaleRead } from './StaleRead';
 import { useFactoryItemsRead } from './useFactoryItems';
 import { WorkOrdersStrip } from './WorkOrdersStrip';
 import { FactoryFrame } from './FactoryFrame';
-import { FoundByTheFactory } from './FoundByTheFactory';
-import { SetAsideStrip } from './SetAsideStrip';
+import { BoardStripsLine, BoardStripsOpened, useBoardStrips } from './BoardStrips';
 import { UnplacedRow } from './UnplacedRow';
 import { useMinuteClock } from './useMinuteClock';
 import {
@@ -99,6 +98,7 @@ export function Board({
   const { showParam, show, spec, table, setView, clearShow } = useBoardShow();
   const [query, setQuery] = useState('');
   const [hint, setHint] = useState<string | null>(null);
+  const strips = useBoardStrips(spec?.panel === true);
   const lit = params.get(ORDER_PARAM);
   // Where each item sat on the last read: placement keeps a run between named steps where
   // it was, and the highlight compares against it.
@@ -136,76 +136,86 @@ export function Board({
   };
   return (
     <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
-      <BoardToolbar
-        query={query}
-        onQuery={setQuery}
-        table={table}
-        onView={showView}
-        showParam={showParam}
-        show={show}
-        onClearShow={clearShow}
-      >
-        {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
+      {/* The board area is exactly the fill height, so the strips opened after it run on below
+          the board in the page, which scrolls to them: they never squeeze the board or sit over
+          it. Its floor is the Pipeline's own floor (md:min-h-80) with the toolbar and the strips'
+          line, so in a short window the area grows rather than letting its content run under the
+          opened strips. */}
+      <div className="flex flex-col gap-3 md:h-full md:min-h-112 md:shrink-0">
+        <BoardToolbar
+          query={query}
+          onQuery={setQuery}
+          table={table}
+          onView={showView}
+          showParam={showParam}
+          show={show}
+          onClearShow={clearShow}
+        >
+          {/* What the Pipeline alone draws shares the toolbar's line, so the columns keep the
             height: the work orders' summary, the Position unknown row, the hidden-columns hint. */}
-        {table ? null : (
-          <>
-            <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
-            <span className="flex flex-wrap items-center gap-3 md:ml-auto">
-              {shown === undefined ? null : (
-                <UnplacedRow projectId={projectId} cards={shown.unplaced} />
-              )}
-              {hint === null ? null : (
-                // Only where the columns sit side by side: on a phone they stack and none is hidden.
-                <span
-                  className="hidden text-console-12 text-text-tertiary md:inline"
-                  aria-live="polite"
-                >
-                  {hint} →
-                </span>
-              )}
-            </span>
-          </>
-        )}
-      </BoardToolbar>
-      <BoardBody
-        projectId={projectId}
-        view={view}
-        read={read}
-        model={shown}
-        table={table}
-        // A new show opens the Table on its own sort.
-        showKey={showParam}
-        spec={spec}
-        moved={moved}
-        orders={orders}
-        lit={lit}
-        onHint={setHint}
-        now={at}
-        // filterBoard returns its input unchanged when nothing narrows it, so this is its own
-        // answer to "is the board narrowed", not a second copy of that condition.
-        filtered={shown !== all}
-        asks={asks}
-      />
-      <BoardAskPopover projectId={projectId} board={asks} queue={attention.data} naming={naming} />
-      {/* Never shrunk by the board's fill height: the panels' own lines and links stay whole. */}
-      <div className="flex shrink-0 flex-col gap-2 md:flex-row md:items-start md:gap-3">
-        {view.discoveries === undefined ? null : (
-          <div className="min-w-0 md:flex-1">
-            <FoundByTheFactory
-              projectId={projectId}
-              names={names}
-              above={shown !== undefined}
-              oneLine
-              opened={spec?.panel === true}
-            />
-          </div>
-        )}
-        {shown === undefined || shown.setAside.length === 0 ? null : (
-          <div className="min-w-0 md:flex-1">
-            <SetAsideStrip projectId={projectId} entries={shown.setAside} />
-          </div>
-        )}
+          {table ? null : (
+            <>
+              <WorkOrdersStrip projectId={projectId} orders={orders} lit={lit} />
+              <span className="flex flex-wrap items-center gap-3 md:ml-auto">
+                {shown === undefined ? null : (
+                  <UnplacedRow projectId={projectId} cards={shown.unplaced} />
+                )}
+                {hint === null ? null : (
+                  // Only where the columns sit side by side: on a phone they stack and none is hidden.
+                  <span
+                    className="hidden text-console-12 text-text-tertiary md:inline"
+                    aria-live="polite"
+                  >
+                    {hint} →
+                  </span>
+                )}
+              </span>
+            </>
+          )}
+        </BoardToolbar>
+        <BoardBody
+          projectId={projectId}
+          view={view}
+          read={read}
+          model={shown}
+          table={table}
+          // A new show opens the Table on its own sort.
+          showKey={showParam}
+          spec={spec}
+          moved={moved}
+          orders={orders}
+          lit={lit}
+          onHint={setHint}
+          now={at}
+          // filterBoard returns its input unchanged when nothing narrows it, so this is its own
+          // answer to "is the board narrowed", not a second copy of that condition.
+          filtered={shown !== all}
+          asks={asks}
+        />
+        <BoardAskPopover
+          projectId={projectId}
+          board={asks}
+          queue={attention.data}
+          naming={naming}
+        />
+        <BoardStripsLine
+          projectId={projectId}
+          discoveries={view.discoveries !== undefined}
+          setAside={shown?.setAside ?? []}
+          open={strips.open}
+          onToggle={strips.toggle}
+        />
       </div>
+      {strips.open ? (
+        <BoardStripsOpened
+          projectId={projectId}
+          discoveries={view.discoveries !== undefined}
+          setAside={shown?.setAside ?? []}
+          names={names}
+          // Once the columns are drawn: scrolling earlier would leave the findings pushed down.
+          arriving={strips.arriving && shown !== undefined}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1252,12 +1252,9 @@ first rule that matches. The board, the map and the item page all place through 
 
 **Set aside** (#145). The columns hold live work. An item with nothing left to happen leaves
 its column, counts in no column header, chip, In flight or M, and is no Table row; it folds
-into one line under the board, beside "Found by the factory", in both views: "N set aside ·
-show them" (the card language's one-line form, as Found's), and "show them" opens a short
-list over the board, above the line, scrolling in its own height so the columns keep theirs
-(as the toolbar's Position unknown row opens over them): each item's key
-(linking to its page), title, why it was set aside and when its last run ended. An item is set
-aside when the first of these holds:
+into one line under the board, "N set aside", beside "Found by the factory", in both views,
+and opens in its list: each item's key (linking to its page), title, why it was set aside and
+when its last run ended. An item is set aside when the first of these holds:
 
 - an ending took it off the board (rule 4): its ending label is the why;
 - otherwise, it is in a stage other than the landed one, its progress was read, and every run
@@ -1280,6 +1277,17 @@ light as moved. The words are "Set aside", never archived or deleted: nothing is
 engine. An item placement found no column for (a view changed under cached items can cause
 it) is not set aside: it keeps a folded "N position unknown" row at the end of the toolbar,
 opening a list over the board.
+
+**The strips under the board** (owner, 2026-11-23, #152). "Found by the factory" and "N set
+aside" share one line under the board, each a one-line card, with one toggle after them, "show
+them" / "hide them" (the card language's one-line form), that opens and closes both together.
+They open downward, in the page below the board or table, never over it: nothing is absolutely
+or fixed positioned, the board keeps its fill height and the page scrolls to reach them. Above
+md the board area is exactly the fill height (never under the Pipeline's floor with the
+toolbar and the line), so a short window grows the page instead of running the board under the
+opened strips. Switching Pipeline and Table leaves them open or closed as they were. `?show=found`
+opens them and scrolls to the findings once, on arrival: a view switch or a toggle afterwards
+does not move the page. A strip with nothing to say is left out; with neither, there is no line.
 
 A card, in this order:
 
