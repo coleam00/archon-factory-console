@@ -215,8 +215,8 @@ describe('a stage opened over the Overview', () => {
         ?.nodes.map(node => node.id);
       expect(listedSteps('stage-build')).toEqual(graphNodes ?? []);
       expect(listedSteps('stage-build').length).toBeGreaterThan(0);
-      // The retired deliver places old items here but lists no steps.
-      expect(listedSteps('deliver')).toEqual([]);
+      // The retired deliver places old items here, but the modal never names it.
+      expect(dialog()?.textContent ?? '').not.toContain('deliver');
       await click(inDialog('Close'));
 
       // An item no run works says its state in the board card's word.
