@@ -1191,13 +1191,12 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   it, has none. Off under reduced motion.
 - Pan by drag, zoom by scroll or buttons, Fit button; opens fitted.
 - **Click** a card or a stage's row: the stage opens as a modal over the Overview (owner
-  change of 2026-11-19, point 5). From md up it is centred and sized to its content: as wide as
-  its phases (at least about 640 px), The real workflow as wide as the graph it draws (so a
-  one-step workflow stays compact; until the graph arrives it keeps the phases' width, then
-  resizes once), as tall as what it shows, each at most 90% of the window
-  (`lib/stage-modal-size.ts` owns the rule). Its title and tabs stay put while the body scrolls
-  under them. A size change animates for 150 ms ease-out (rule 7; it snaps under reduced
-  motion). Under md it is the whole screen. The URL says which (`?stage=<id>`, pushed,
+  change of 2026-11-19, point 5). From md up it is centred and sized to its content by CSS: as
+  wide as its phases (at least 640 px), The real workflow as wide as the graph it draws (so a
+  one-step workflow stays compact; while the graph loads it is at its narrowest, then resizes
+  once), as tall as what it shows, each at most 90% of the window. Its title and tabs stay put
+  while the body scrolls under them. A size change snaps: CSS does not animate a size that
+  follows the content. Under md it is the whole screen. The URL says which (`?stage=<id>`, pushed,
   so it can be linked and Back closes it). Esc, the close button and a press on the backdrop close it too;
   the Overview stays mounted under it, so the page keeps its scroll and the map its pan, zoom
   and open details panel. Focus moves to the close button, stays in the modal, and returns to

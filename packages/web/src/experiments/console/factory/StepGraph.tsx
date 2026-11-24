@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useLayoutEffect,
-  useMemo,
-  type CSSProperties,
-  type ReactElement,
-} from 'react';
+import { useMemo, type CSSProperties, type ReactElement } from 'react';
 import { useNavigate } from 'react-router';
 import { displayKeyOf } from './lib/work-orders';
 import type { StepGraph as StepGraphData, StepGraphNode } from './lib/step-graph';
@@ -39,15 +32,6 @@ const NOT_RUNNING: readonly ItemOnStep[] = [];
 /** The canvas's padding and border around the laid-out graph, in px. */
 const CANVAS_PAD_PX = 16;
 const CANVAS_BORDER_PX = 1;
-
-/**
- * Told the full width of each graph drawn under it (the laid-out graph and its canvas), keyed
- * by workflow, and `undefined` when that graph goes. The stage modal provides it to size "The
- * real workflow" by what it draws; elsewhere there is nobody to tell.
- */
-export const StepGraphWidths = createContext<
-  ((workflow: string, width: number | undefined) => void) | null
->(null);
 
 /**
  * RunGraphPanel's running tint, held still: the items read carries no owner liveness, so a
@@ -85,13 +69,6 @@ export function StepGraph({
     width: Math.max(laid.width, STEP_W + STEP_GRAPH_PADDING * 2),
     height: Math.max(laid.height, STEP_H + STEP_GRAPH_PADDING * 2),
   };
-  const tellWidth = useContext(StepGraphWidths);
-  const canvasWidth = size.width + 2 * (CANVAS_PAD_PX + CANVAS_BORDER_PX);
-  // Before paint, so the modal takes its width in the same frame the graph first shows.
-  useLayoutEffect(() => {
-    tellWidth?.(workflow, canvasWidth);
-    return (): void => tellWidth?.(workflow, undefined);
-  }, [tellWidth, workflow, canvasWidth]);
   return (
     <div
       // Not justify-center: a graph wider than the box would overflow to the left, out of

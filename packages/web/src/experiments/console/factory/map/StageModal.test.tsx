@@ -117,9 +117,8 @@ function withStage(id: string, change: (stage: ListedStage) => ListedStage): Lis
 }
 
 /**
- * Build listing stage-build alone: the read-retry and sizing rules below count one workflow's
- * reads and measure one graph (the deliver fixture's, which every read here answers with)
- * against phases narrower than it, whatever the shipped Build lists.
+ * Build listing stage-build alone: the read-retry rules below count one workflow's reads,
+ * whatever the shipped Build lists.
  */
 const oneBuildWorkflow = withStage('build', stage => ({ ...stage, workflows: ['stage-build'] }));
 
@@ -602,81 +601,8 @@ describe('the workflow read never dead-ends', () => {
   });
 });
 
-/** A workflow of one step, Plan's real shape: the fixture's first step, on its own. */
-const oneStep = {
-  ...deliverJson,
-  name: 'plan',
-  runName: `${shippedListed.declaration.pack}:plan`,
-  steps: [{ ...deliverJson.steps[0], key: 'plan', label: 'plan', group: null, includedFrom: null }],
-  groups: [],
-};
-/** The modal over the deliver fixture's graph: its laid-out canvas plus the padding and gutter. */
-const DELIVER_WIDTH = '931px';
-
-describe('the modal is sized by what it shows', () => {
-  const width = (): string | undefined => dialog()?.style.getPropertyValue('--stage-modal-w');
-  const desktop = async (): Promise<void> => {
-    await act(async () => dom.happyDOM.setViewport({ width: 1440, height: 900 }));
-  };
-  afterEach(async () => {
-    await act(async () => dom.happyDOM.setViewport({ width: 1024, height: 768 }));
-  });
-
-  test('a stage of many phases, like Checks, stops at 90% of the window', async () => {
-    await desktop();
-    const { container, unmount } = await mount();
-    try {
-      await click(stageLink(container, 'checks'));
-      expect(width()).toBe('1296px');
-    } finally {
-      await unmount();
-    }
-  });
-
-  test("Plan's real workflow, one step, keeps it compact", async () => {
-    workflowReads = [() => Response.json(oneStep)];
-    await desktop();
-    const { container, unmount } = await mount();
-    try {
-      await click(stageLink(container, 'plan'));
-      await click(inDialog('The real workflow'));
-      await settle();
-      expect(dialog()?.querySelector('button[title*="engine id: plan"]')).not.toBeNull();
-      expect(width()).toBe('640px');
-    } finally {
-      await unmount();
-    }
-  });
-
-  test('a wide graph widens it once it arrives, and going back narrows it again', async () => {
-    let answer: () => void = () => {};
-    workflowReads = [
-      () =>
-        new Promise<Response>(resolve => {
-          answer = () => resolve(steps());
-        }),
-    ];
-    await desktop();
-    const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
-    try {
-      await click(stageLink(container, 'build'));
-      expect(width()).toBe('744px');
-      await click(inDialog('The real workflow'));
-      // While the steps load, the phases' width holds: nothing is drawn to size it by.
-      expect(width()).toBe('744px');
-      answer();
-      await settle();
-      expect(graphStep()).toBeDefined();
-      expect(width()).toBe(DELIVER_WIDTH);
-      await click(inDialog('What this stage does'));
-      expect(width()).toBe('744px');
-    } finally {
-      await unmount();
-    }
-  });
-
+describe('the modal layout', () => {
   test('the title and tabs stay outside the scrolling body', async () => {
-    await desktop();
     const { container, unmount } = await mount();
     try {
       await click(stageLink(container, 'checks'));

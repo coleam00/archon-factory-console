@@ -51,14 +51,17 @@ export function StageWorkflow({
   );
   return (
     <section className="flex flex-col gap-2">
-      <h4 className="font-mono text-console-15 font-semibold text-text-primary">{workflow}</h4>
-      {stage.nodes === undefined ? null : (
-        <p className="text-console-13 text-text-tertiary">
-          Every step of this workflow is drawn. This stage's own steps carry a ring and a "This
-          stage" tag; another step's tag names the stage that works it and opens that stage.
-        </p>
-      )}
-      <RunningNow projectId={projectId} view={view} workflow={workflow} items={items} />
+      {/* Contained, as is a failure: in the stage modal only the graph sets the width. */}
+      <div className="flex flex-col gap-2 [contain:inline-size]">
+        <h4 className="font-mono text-console-15 font-semibold text-text-primary">{workflow}</h4>
+        {stage.nodes === undefined ? null : (
+          <p className="text-console-13 text-text-tertiary">
+            Every step of this workflow is drawn. This stage's own steps carry a ring and a "This
+            stage" tag; another step's tag names the stage that works it and opens that stage.
+          </p>
+        )}
+        <RunningNow projectId={projectId} view={view} workflow={workflow} items={items} />
+      </div>
       {graph !== undefined ? (
         <StepGraph
           projectId={projectId}
@@ -68,7 +71,9 @@ export function StageWorkflow({
           running={running}
         />
       ) : failed !== undefined ? (
-        <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />
+        <div className="[contain:inline-size]">
+          <WorkflowReadFailure workflow={workflow} error={failed} retry={retry} />
+        </div>
       ) : (
         <FactoryLoading read={read}>
           <GraphSkeleton label="Loading the steps" />

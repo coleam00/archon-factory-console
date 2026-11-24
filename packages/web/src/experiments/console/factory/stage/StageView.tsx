@@ -25,8 +25,11 @@ const TABS: readonly { key: StageTab; label: string }[] = [
   { key: 'workflow', label: 'The real workflow' },
 ];
 
-/** The line under a tab saying where what it shows comes from. */
-const SOURCE = 'text-console-13 text-text-tertiary';
+/**
+ * The line under a tab saying where what it shows comes from. Contained, so in the modal it
+ * never widens the panel past what the tab draws.
+ */
+const SOURCE = 'text-console-13 text-text-tertiary [contain:inline-size]';
 
 /** How a caller lays out the stage's parts: its title and tabs, then the open tab's body. */
 export type StageFrame = (parts: { head: ReactNode; body: ReactNode }) => ReactElement;
@@ -131,6 +134,7 @@ function TabBody({
           <EmptyNote
             icon={GitMerge}
             sentence="No workflow runs in this stage. An item arrives here when its change merges."
+            className="flex flex-col items-start gap-2 [contain:inline-size]"
           />
         ) : (
           workflows.map(workflow => (

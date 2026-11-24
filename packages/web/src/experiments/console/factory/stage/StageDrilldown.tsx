@@ -8,7 +8,6 @@ import type { ItemOnStep } from '../lib/items-on-step';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed } from '../lib/views';
 import { cardShadows, recentTally } from '../lib/shadows';
-import { PHASE_COLUMN_REM, PHASE_GAP_REM } from '../lib/stage-modal-size';
 import { RUNNING_GLOW } from '../StepGraph';
 import { DrilldownCard } from './DrilldownCard';
 
@@ -17,13 +16,16 @@ type Declaration = FactoryViewListed['declaration'];
 const NOTHING: readonly ItemOnStep[] = [];
 const NO_ITEMS: readonly FactoryItem[] = [];
 
+/** A phase column's widest, so a one-phase stage does not stretch a card across the page. */
+export const PHASE_COLUMN_REM = 20;
+/** The gap between phase columns. */
+export const PHASE_GAP_REM = 1;
+
 /*
  * Laid out in CSS, not on a canvas: at most a handful of phases fit the page at full size,
  * which a projected screen needs. From `md` up the phases are equal grid columns (each at most
- * `PHASE_COLUMN_REM`, so a one-phase stage does not stretch a card across the page), and the
- * loop frame is a subgrid spanning its phases, so they keep the same columns as the rest. Below
- * `md` they stack. The column and the gap come from lib/stage-modal-size.ts, which sizes the
- * stage modal by them.
+ * `PHASE_COLUMN_REM`), and the loop frame is a subgrid spanning its phases, so they keep the
+ * same columns as the rest. Below `md` they stack. The stage modal is as wide as these columns.
  */
 
 /**
