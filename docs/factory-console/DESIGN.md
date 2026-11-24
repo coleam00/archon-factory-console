@@ -9,10 +9,12 @@ changes this page.
 From the owner's review on 2026-11-23 (#151).
 
 1. **The sidebar Factory is How it works only.** It is the Archon software factory that ships
-   with Archon: a general view of how the pack works, not one project's factory. It has no tabs
-   and no Settings, and nothing on it names a project (where the overview file was read from
-   says "a project's copy", not which project). An old `/console/factory/:pack/settings` link
-   still lands: with `?project=` on that project's Settings, else on How it works.
+   with Archon: a general view of how the pack works, not one project's factory. A pack's page
+   has no tabs and no Settings, and nothing on it names a project: where the overview file was
+   read from says "a project's copy", not which project. The index (`/console/factory`, shown
+   when there is more than one pack or something it could not read) still lists which projects run each pack, as a way into their
+   Factory tabs. An old `/console/factory/:pack/settings` link still lands: with `?project=` on
+   that project's Settings, else on How it works.
 2. **Settings belong to each project's Factory.** The project's Factory tab has three pages:
    Overview, Board and Settings. Settings is the page owner changes 5 and 6 of 2026-11-21
    describe, headed for this project and reading only this project's values; it names no other
