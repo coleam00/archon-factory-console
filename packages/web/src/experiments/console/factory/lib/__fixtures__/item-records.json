@@ -1,0 +1,1861 @@
+{
+  "86": {
+    "read": {
+      "item": {
+        "id": "204a2066c35406d9f75a882e4cfc29ea",
+        "projectKey": "coleam00/archon-factory-console",
+        "key": "86"
+      },
+      "runs": [
+        {
+          "id": "dae1ad50-8013-4777-b898-e36ffb815a0f",
+          "workflow": "Wirasm/archon-software-factory:order",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ready",
+          "startedAt": "2026-11-19T04:35:42.000Z",
+          "completedAt": "2026-11-19T04:35:58.000Z",
+          "cause": {
+            "kind": "receipt",
+            "receiptId": "e4148436-fde1-42f2-98f1-45f5e696c8a6",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": null
+        },
+        {
+          "id": "8c908de7-fe2e-4079-a72b-d01c81a33077",
+          "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
+          "status": "completed",
+          "outcome": "park",
+          "startedAt": "2026-11-19T04:36:02.000Z",
+          "completedAt": "2026-11-19T04:37:24.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "dae1ad50-8013-4777-b898-e36ffb815a0f",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.25867320000000005,
+            "inputTokens": 346167,
+            "outputTokens": 4225
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": null
+        }
+      ],
+      "links": [],
+      "merged": null,
+      "questions": [],
+      "answers": [],
+      "degraded": [],
+      "queued": [],
+      "skipped": [],
+      "held": [],
+      "hold": null,
+      "runLimit": null,
+      "startLimits": [],
+      "waits": [],
+      "landing": null
+    },
+    "records": [
+      {
+        "id": "dae1ad50-8013-4777-b898-e36ffb815a0f",
+        "status": "completed",
+        "completed_at": "2026-11-19T04:35:58.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "order",
+          "value": {
+            "part_of": "",
+            "why": ""
+          }
+        },
+        "node_outcomes": {
+          "run_id": "dae1ad50-8013-4777-b898-e36ffb815a0f",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "order",
+              "state": "completed",
+              "output": {
+                "outcome": "ready"
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "8c908de7-fe2e-4079-a72b-d01c81a33077",
+        "status": "completed",
+        "completed_at": "2026-11-19T04:37:24.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "judge__judge",
+          "value": {
+            "why": "The cause is unproven: discovery in forge-host.ts looks c...",
+            "summary": "Issue #86 reports that the first factory read after a ser..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "8c908de7-fe2e-4079-a72b-d01c81a33077",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "judge__judge",
+              "state": "completed",
+              "output": {
+                "summary": "Issue #86 reports that the first factory read after a ser..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      }
+    ],
+    "expected": {
+      "title": "Cold first read after a server start takes ~4.4 s: forge ...",
+      "running": null,
+      "round": null,
+      "partOf": null,
+      "returned": 0,
+      "change": null,
+      "runs": [
+        {
+          "runId": "dae1ad50-8013-4777-b898-e36ffb815a0f",
+          "workflow": "order",
+          "failedStep": null
+        },
+        {
+          "runId": "8c908de7-fe2e-4079-a72b-d01c81a33077",
+          "workflow": "triage",
+          "failedStep": null
+        }
+      ],
+      "parked": {
+        "label": "Parked by triage",
+        "why": "The cause is unproven: discovery in forge-host.ts looks c..."
+      },
+      "awaits": null
+    }
+  },
+  "125": {
+    "read": {
+      "item": {
+        "id": "bff9c26bb8c6ab38e43d8fb5fd2ec4ec",
+        "projectKey": "coleam00/archon-factory-console",
+        "key": "125"
+      },
+      "runs": [
+        {
+          "id": "bd5ea7d5-3ae0-4d6e-b676-db1c61c09841",
+          "workflow": "Wirasm/archon-software-factory:order",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ready",
+          "startedAt": "2026-11-22T02:40:54.000Z",
+          "completedAt": "2026-11-22T02:41:43.000Z",
+          "cause": {
+            "kind": "receipt",
+            "receiptId": "92e7f91d-8572-4050-83a2-ee1c874b51ec",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "34bb4461af41054747004b4d0baaf45df9948598"
+        },
+        {
+          "id": "337f403e-b1f5-4176-be9f-4d28765b8fb4",
+          "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
+          "status": "completed",
+          "outcome": "build",
+          "startedAt": "2026-11-22T02:41:50.000Z",
+          "completedAt": "2026-11-22T02:44:33.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "bd5ea7d5-3ae0-4d6e-b676-db1c61c09841",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.3390402,
+            "inputTokens": 430363,
+            "outputTokens": 7909
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "34bb4461af41054747004b4d0baaf45df9948598"
+        },
+        {
+          "id": "28d7be31-b6d8-4bf8-b59c-d29b39b6f173",
+          "workflow": "Wirasm/archon-software-factory:plan",
+          "pack": null,
+          "status": "cancelled",
+          "outcome": null,
+          "startedAt": "2026-11-22T02:44:39.000Z",
+          "completedAt": "2026-11-22T02:50:22.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "337f403e-b1f5-4176-be9f-4d28765b8fb4",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": false,
+          "resultCommit": null
+        },
+        {
+          "id": "f327dd85-8c55-4deb-85da-562a2a83fbbd",
+          "workflow": "Wirasm/archon-software-factory:order",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ready",
+          "startedAt": "2026-11-22T02:50:30.000Z",
+          "completedAt": "2026-11-22T02:51:36.000Z",
+          "cause": {
+            "kind": "receipt",
+            "receiptId": "bbfe9e1c-49d6-49d0-8832-86233fbc8968",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e9269ce416f936f5398ca8aec69d57feb56bd7ff"
+        },
+        {
+          "id": "aaed7cbb-7d0f-4052-b5df-1d1adc3fdadf",
+          "workflow": "Wirasm/archon-software-factory:triage",
+          "pack": null,
+          "status": "completed",
+          "outcome": "split",
+          "startedAt": "2026-11-22T02:51:42.000Z",
+          "completedAt": "2026-11-22T02:54:41.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "f327dd85-8c55-4deb-85da-562a2a83fbbd",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.1318547,
+            "inputTokens": 171707,
+            "outputTokens": 4155
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e9269ce416f936f5398ca8aec69d57feb56bd7ff"
+        },
+        {
+          "id": "40ecd9bf-d2bc-48c1-bd96-5dea359f75fc",
+          "workflow": "Wirasm/archon-software-factory:split",
+          "pack": null,
+          "status": "completed",
+          "outcome": "whole",
+          "startedAt": "2026-11-22T02:54:45.000Z",
+          "completedAt": "2026-11-22T02:56:16.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "aaed7cbb-7d0f-4052-b5df-1d1adc3fdadf",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.5655515999999999,
+            "inputTokens": 396711,
+            "outputTokens": 3238
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e9269ce416f936f5398ca8aec69d57feb56bd7ff"
+        },
+        {
+          "id": "d6816af4-e71b-4c3c-a1b8-05df295c9661",
+          "workflow": "Wirasm/archon-software-factory:plan",
+          "pack": null,
+          "status": "completed",
+          "outcome": "planned",
+          "startedAt": "2026-11-22T02:56:29.000Z",
+          "completedAt": "2026-11-22T03:17:41.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "40ecd9bf-d2bc-48c1-bd96-5dea359f75fc",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 6.068247600000001,
+            "inputTokens": 5790416,
+            "outputTokens": 71357
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e9269ce416f936f5398ca8aec69d57feb56bd7ff"
+        },
+        {
+          "id": "6766bfc4-ca1e-42f6-b28b-b81747822c43",
+          "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
+          "status": "completed",
+          "outcome": "built",
+          "startedAt": "2026-11-22T03:17:47.000Z",
+          "completedAt": "2026-11-22T04:51:46.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "d6816af4-e71b-4c3c-a1b8-05df295c9661",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 16.976460100000004,
+            "inputTokens": 41363300,
+            "outputTokens": 133473
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "a7b61a2be8ff33f55464773f6c5a090a2bf42a2c"
+        },
+        {
+          "id": "20e1db24-c3da-4525-b76f-f362dba2dd2e",
+          "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
+          "status": "completed",
+          "outcome": "return",
+          "startedAt": "2026-11-22T04:51:52.000Z",
+          "completedAt": "2026-11-22T05:22:39.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "6766bfc4-ca1e-42f6-b28b-b81747822c43",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 8.67466436,
+            "inputTokens": 15694091,
+            "outputTokens": 99578
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "a7b61a2be8ff33f55464773f6c5a090a2bf42a2c"
+        },
+        {
+          "id": "8d95ba65-ffc7-4b90-b3c7-9152c8043356",
+          "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
+          "status": "completed",
+          "outcome": "built",
+          "startedAt": "2026-11-22T05:22:43.000Z",
+          "completedAt": "2026-11-22T05:30:31.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "20e1db24-c3da-4525-b76f-f362dba2dd2e",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 1.4956362000000034,
+            "inputTokens": 5121914,
+            "outputTokens": 10038
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "779ca5f47e38f0c83ae7e3407d02a85ca250ae66"
+        },
+        {
+          "id": "bb11ef33-963a-4a1a-8bf5-3f50e84a711e",
+          "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
+          "status": "completed",
+          "outcome": "return",
+          "startedAt": "2026-11-22T05:30:35.000Z",
+          "completedAt": "2026-11-22T06:19:34.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "8d95ba65-ffc7-4b90-b3c7-9152c8043356",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 5.95540014,
+            "inputTokens": 9161565,
+            "outputTokens": 79364
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "779ca5f47e38f0c83ae7e3407d02a85ca250ae66"
+        },
+        {
+          "id": "f734fcaa-2f48-44c0-9b08-8539303f633c",
+          "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ask",
+          "startedAt": "2026-11-22T06:19:39.000Z",
+          "completedAt": "2026-11-22T06:29:12.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "bb11ef33-963a-4a1a-8bf5-3f50e84a711e",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 1.468912000000003,
+            "inputTokens": 4763517,
+            "outputTokens": 13703
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "c28a1ede61dff625dda44e03891c25a9c5c698f8"
+        },
+        {
+          "id": "5380dbc6-db5f-4070-934f-672620717bcf",
+          "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
+          "status": "completed",
+          "outcome": "built",
+          "startedAt": "2026-11-22T06:31:13.000Z",
+          "completedAt": "2026-11-22T06:34:44.000Z",
+          "cause": {
+            "kind": "asks_settled",
+            "runId": "f734fcaa-2f48-44c0-9b08-8539303f633c"
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.5388583999999987,
+            "inputTokens": 1682284,
+            "outputTokens": 2980
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "c28a1ede61dff625dda44e03891c25a9c5c698f8"
+        },
+        {
+          "id": "9ffaf8a1-da68-42ae-a43e-cbb167a7213c",
+          "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ask",
+          "startedAt": "2026-11-22T06:34:52.000Z",
+          "completedAt": "2026-11-22T06:54:30.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "5380dbc6-db5f-4070-934f-672620717bcf",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 3.8379480900000007,
+            "inputTokens": 6698208,
+            "outputTokens": 49585
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "c28a1ede61dff625dda44e03891c25a9c5c698f8"
+        },
+        {
+          "id": "9aafcbaa-5d54-4a2f-8be7-ca4172609002",
+          "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
+          "status": "completed",
+          "outcome": "built",
+          "startedAt": "2026-11-22T06:59:05.000Z",
+          "completedAt": "2026-11-22T07:05:50.000Z",
+          "cause": {
+            "kind": "asks_settled",
+            "runId": "9ffaf8a1-da68-42ae-a43e-cbb167a7213c"
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 1.1021935999999997,
+            "inputTokens": 3966571,
+            "outputTokens": 6625
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e80bd912853c74064f81206711f3e3e028907a0f"
+        },
+        {
+          "id": "02e5f706-fb01-4039-8867-940e65e59c09",
+          "workflow": "Wirasm/archon-software-factory:stage-check",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ask",
+          "startedAt": "2026-11-22T07:05:55.000Z",
+          "completedAt": "2026-11-22T07:19:27.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "9aafcbaa-5d54-4a2f-8be7-ca4172609002",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 2.49933066,
+            "inputTokens": 4116723,
+            "outputTokens": 38593
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e80bd912853c74064f81206711f3e3e028907a0f"
+        },
+        {
+          "id": "52f46ea3-f4d0-4455-85b5-f7c8e0e8b316",
+          "workflow": "Wirasm/archon-software-factory:stage-host",
+          "pack": null,
+          "status": "completed",
+          "outcome": "return",
+          "startedAt": "2026-11-22T07:23:29.000Z",
+          "completedAt": "2026-11-22T07:28:24.000Z",
+          "cause": {
+            "kind": "asks_settled",
+            "runId": "02e5f706-fb01-4039-8867-940e65e59c09"
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.20942770000000002,
+            "inputTokens": 444500,
+            "outputTokens": 2524
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "e80bd912853c74064f81206711f3e3e028907a0f"
+        },
+        {
+          "id": "5063913b-7863-4f5e-a444-0c7e417fb1c3",
+          "workflow": "Wirasm/archon-software-factory:stage-build",
+          "pack": null,
+          "status": "completed",
+          "outcome": "built_for_host",
+          "startedAt": "2026-11-22T07:28:30.000Z",
+          "completedAt": "2026-11-22T07:42:46.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "52f46ea3-f4d0-4455-85b5-f7c8e0e8b316",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 2.2433321999999905,
+            "inputTokens": 8811761,
+            "outputTokens": 11967
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "372bbbee8c9d0dfea0edc499003acea036480bd3"
+        },
+        {
+          "id": "d2faac1f-6d47-47f5-b30e-f441b6d83b52",
+          "workflow": "Wirasm/archon-software-factory:stage-host",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ready",
+          "startedAt": "2026-11-22T07:42:59.000Z",
+          "completedAt": "2026-11-22T07:51:10.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "5063913b-7863-4f5e-a444-0c7e417fb1c3",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.178895,
+            "inputTokens": 400147,
+            "outputTokens": 2847
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "372bbbee8c9d0dfea0edc499003acea036480bd3"
+        },
+        {
+          "id": "de4b08d3-152a-42c3-9268-0de9f83fd398",
+          "workflow": "Wirasm/archon-software-factory:landgate",
+          "pack": null,
+          "status": "completed",
+          "outcome": "ask",
+          "startedAt": "2026-11-22T07:51:35.000Z",
+          "completedAt": "2026-11-22T07:53:53.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "d2faac1f-6d47-47f5-b30e-f441b6d83b52",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.11914119999999999,
+            "inputTokens": 182288,
+            "outputTokens": 1898
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "372bbbee8c9d0dfea0edc499003acea036480bd3"
+        },
+        {
+          "id": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+          "workflow": "Wirasm/archon-software-factory:land",
+          "pack": null,
+          "status": "completed",
+          "outcome": "landed",
+          "startedAt": "2026-11-22T07:55:13.000Z",
+          "completedAt": "2026-11-22T07:59:43.000Z",
+          "cause": {
+            "kind": "asks_settled",
+            "runId": "de4b08d3-152a-42c3-9268-0de9f83fd398"
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.2515517,
+            "inputTokens": 873997,
+            "outputTokens": 3530
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "372bbbee8c9d0dfea0edc499003acea036480bd3"
+        },
+        {
+          "id": "77baacc9-492b-4d08-bb86-5f419cff1a9b",
+          "workflow": "Wirasm/archon-software-factory:discoveries",
+          "pack": null,
+          "status": "completed",
+          "outcome": null,
+          "startedAt": "2026-11-22T07:59:48.000Z",
+          "completedAt": "2026-11-22T08:00:45.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": null,
+            "inputTokens": null,
+            "outputTokens": null
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "1ad8b4b5f98bf0d66b4d9fcb4363a2200114e776"
+        },
+        {
+          "id": "621679a2-a90a-4fae-91c0-9f9d8ef29812",
+          "workflow": "Wirasm/archon-software-factory:landed",
+          "pack": null,
+          "status": "completed",
+          "outcome": "waiting",
+          "startedAt": "2026-11-22T07:59:55.000Z",
+          "completedAt": "2026-11-22T08:02:00.000Z",
+          "cause": {
+            "kind": "run_ended",
+            "runId": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+            "sourceInstanceId": "Wirasm.archon-software-factory-coleam00-archon-factory-co..."
+          },
+          "awaitingExecution": null,
+          "startLimit": null,
+          "spend": {
+            "usd": 0.1292244,
+            "inputTokens": 305302,
+            "outputTokens": 2168
+          },
+          "heldBehind": null,
+          "operatorPause": null,
+          "hasResult": true,
+          "resultCommit": "1ad8b4b5f98bf0d66b4d9fcb4363a2200114e776"
+        }
+      ],
+      "links": [],
+      "merged": {
+        "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+        "commit": "1ad8b4b5f98bf0d66b4d9fcb4363a2200114e776",
+        "at": "2026-11-22T07:58:04.000Z",
+        "recordedAt": "2026-11-22T07:59:34.819Z",
+        "via": "cli",
+        "fromRun": {
+          "runId": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+          "nodePath": "end"
+        }
+      },
+      "questions": [],
+      "answers": [],
+      "degraded": [],
+      "queued": [],
+      "skipped": [],
+      "held": [],
+      "hold": null,
+      "runLimit": null,
+      "startLimits": [],
+      "waits": [],
+      "landing": null
+    },
+    "records": [
+      {
+        "id": "bd5ea7d5-3ae0-4d6e-b676-db1c61c09841",
+        "status": "completed",
+        "completed_at": "2026-11-22T02:41:43.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "order",
+          "value": {
+            "part_of": "",
+            "why": ""
+          }
+        },
+        "node_outcomes": {
+          "run_id": "bd5ea7d5-3ae0-4d6e-b676-db1c61c09841",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "order",
+              "state": "completed",
+              "output": {
+                "outcome": "ready"
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "337f403e-b1f5-4176-be9f-4d28765b8fb4",
+        "status": "completed",
+        "completed_at": "2026-11-22T02:44:33.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "judge__judge",
+          "value": {
+            "why": "The two halves (PR link and round counter) share one sche...",
+            "summary": "The console's view-file schema reads the pull request add..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "337f403e-b1f5-4176-be9f-4d28765b8fb4",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "judge__judge",
+              "state": "completed",
+              "output": {
+                "summary": "The console's view-file schema reads the pull request add..."
+              }
+            },
+            {
+              "node_id": "link__link",
+              "state": "completed",
+              "output": {
+                "outcome": "place",
+                "summary": "Stands as its own piece of work. No other open items are ..."
+              }
+            },
+            {
+              "node_id": "admit",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "admitted",
+              "state": "completed",
+              "output": {}
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "28d7be31-b6d8-4bf8-b59c-d29b39b6f173",
+        "status": "cancelled",
+        "completed_at": "2026-11-22T02:50:22.000Z",
+        "returns": {
+          "availability": "unavailable",
+          "node_id": "plan",
+          "reason": "node_not_completed"
+        },
+        "node_outcomes": {
+          "run_id": "28d7be31-b6d8-4bf8-b59c-d29b39b6f173",
+          "first_failed_node": null,
+          "nodes": []
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "f327dd85-8c55-4deb-85da-562a2a83fbbd",
+        "status": "completed",
+        "completed_at": "2026-11-22T02:51:36.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "order",
+          "value": {
+            "part_of": "",
+            "why": ""
+          }
+        },
+        "node_outcomes": {
+          "run_id": "f327dd85-8c55-4deb-85da-562a2a83fbbd",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "order",
+              "state": "completed",
+              "output": {
+                "outcome": "ready"
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "aaed7cbb-7d0f-4052-b5df-1d1adc3fdadf",
+        "status": "completed",
+        "completed_at": "2026-11-22T02:54:41.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "judge__judge",
+          "value": {
+            "why": "The schema-and-readers half is independent and low-risk, ...",
+            "summary": "Issue 125 asks the factory console to read the three-stag..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "aaed7cbb-7d0f-4052-b5df-1d1adc3fdadf",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "judge__judge",
+              "state": "completed",
+              "output": {
+                "summary": "Issue 125 asks the factory console to read the three-stag..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "40ecd9bf-d2bc-48c1-bd96-5dea359f75fc",
+        "status": "completed",
+        "completed_at": "2026-11-22T02:56:16.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "members",
+          "value": {
+            "why": "Triage's reason to split does not hold in this code. `wor..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "40ecd9bf-d2bc-48c1-bd96-5dea359f75fc",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "cut",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "members",
+              "state": "completed",
+              "output": {
+                "outcome": "whole"
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "d6816af4-e71b-4c3c-a1b8-05df295c9661",
+        "status": "completed",
+        "completed_at": "2026-11-22T03:17:41.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "plan",
+          "value": {
+            "why": "It does everything the item asks with the engine's own re..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "d6816af4-e71b-4c3c-a1b8-05df295c9661",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "plan",
+              "state": "completed",
+              "output": {
+                "outcome": "planned"
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "6766bfc4-ca1e-42f6-b28b-b81747822c43",
+        "status": "completed",
+        "completed_at": "2026-11-22T04:51:46.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Built and opened as draft PR #128 against main. On this W..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "6766bfc4-ca1e-42f6-b28b-b81747822c43",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "build__build",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "Built and opened as draft PR #128 against main. On this W..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "Built and opened as draft PR #128 against main. On this W..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "20e1db24-c3da-4525-b76f-f362dba2dd2e",
+        "status": "completed",
+        "completed_at": "2026-11-22T05:22:39.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Return: two test-quality findings remain. The board test ...",
+            "round": 1,
+            "allowance": 3
+          }
+        },
+        "node_outcomes": {
+          "run_id": "20e1db24-c3da-4525-b76f-f362dba2dd2e",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "review__review",
+              "state": "completed",
+              "output": {
+                "outcome": "approve",
+                "summary": "Approve: the change meets #125. Both forms of `change` an..."
+              }
+            },
+            {
+              "node_id": "tests__tests",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "The tests this change adds are mostly real: I broke 30 be..."
+              }
+            },
+            {
+              "node_id": "product__product",
+              "state": "completed",
+              "output": {
+                "outcome": "approve",
+                "summary": "Approve. A three-stage item now shows its PR and its chec..."
+              }
+            },
+            {
+              "node_id": "verdict__verdict",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: two test-quality findings remain. The board test ..."
+              }
+            },
+            {
+              "node_id": "rounds",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: two test-quality findings remain. The board test ..."
+              }
+            },
+            {
+              "node_id": "allowance",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: two test-quality findings remain. The board test ..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "8d95ba65-ffc7-4b90-b3c7-9152c8043356",
+        "status": "completed",
+        "completed_at": "2026-11-22T05:30:31.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "I fixed both findings from the test check on PR #128 and ..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "8d95ba65-ffc7-4b90-b3c7-9152c8043356",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "build__build",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "I fixed both findings from the test check on PR #128 and ..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "I fixed both findings from the test check on PR #128 and ..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "bb11ef33-963a-4a1a-8bf5-3f50e84a711e",
+        "status": "completed",
+        "completed_at": "2026-11-22T06:19:34.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Return: one finding, a schema error message that does not...",
+            "round": 2,
+            "allowance": 3
+          }
+        },
+        "node_outcomes": {
+          "run_id": "bb11ef33-963a-4a1a-8bf5-3f50e84a711e",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "review__review",
+              "state": "completed",
+              "output": {
+                "outcome": "approve",
+                "summary": "I'd land it. Both findings from the last round are fixed,..."
+              }
+            },
+            {
+              "node_id": "tests__tests",
+              "state": "completed",
+              "output": {
+                "outcome": "sound",
+                "summary": "Sound. Both test findings from the last round are fixed, ..."
+              }
+            },
+            {
+              "node_id": "product__product",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "The console reads the three-stage delivery on real data. ..."
+              }
+            },
+            {
+              "node_id": "verdict__verdict",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: one finding, a schema error message that does not..."
+              }
+            },
+            {
+              "node_id": "rounds",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: one finding, a schema error message that does not..."
+              }
+            },
+            {
+              "node_id": "allowance",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: one finding, a schema error message that does not..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "f734fcaa-2f48-44c0-9b08-8539303f633c",
+        "status": "completed",
+        "completed_at": "2026-11-22T06:29:12.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "I fixed the one returned finding, committed it as c28a1ed..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "f734fcaa-2f48-44c0-9b08-8539303f633c",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "build__build",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "I fixed the one returned finding, committed it as c28a1ed..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "I fixed the one returned finding, committed it as c28a1ed..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "5380dbc6-db5f-4070-934f-672620717bcf",
+        "status": "completed",
+        "completed_at": "2026-11-22T06:34:44.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Built. Draft PR #128 is at c28a1ede6, and nothing new nee..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "5380dbc6-db5f-4070-934f-672620717bcf",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "build__build",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "Built. Draft PR #128 is at c28a1ede6, and nothing new nee..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "Built. Draft PR #128 is at c28a1ede6, and nothing new nee..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "9ffaf8a1-da68-42ae-a43e-cbb167a7213c",
+        "status": "completed",
+        "completed_at": "2026-11-22T06:54:30.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Return: two findings. The stage-check Checks card says th...",
+            "round": 3,
+            "allowance": 3
+          }
+        },
+        "node_outcomes": {
+          "run_id": "9ffaf8a1-da68-42ae-a43e-cbb167a7213c",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "review__review",
+              "state": "completed",
+              "output": {
+                "outcome": "approve",
+                "summary": "Approve: I'd land it. The one returned finding is fixed. ..."
+              }
+            },
+            {
+              "node_id": "tests__tests",
+              "state": "completed",
+              "output": {
+                "outcome": "sound",
+                "summary": "Sound. The one thing returned last round, schema errors t..."
+              }
+            },
+            {
+              "node_id": "product__product",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "The item mostly works for its users, but I'm returning it..."
+              }
+            },
+            {
+              "node_id": "verdict__verdict",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: two findings. The stage-check Checks card says th..."
+              }
+            },
+            {
+              "node_id": "rounds",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "Return: two findings. The stage-check Checks card says th..."
+              }
+            },
+            {
+              "node_id": "allowance",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "exhausted",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "Return: two findings. The stage-check Checks card says th..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "9aafcbaa-5d54-4a2f-8be7-ca4172609002",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:05:50.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Both findings the owner named for this last round are fix..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "9aafcbaa-5d54-4a2f-8be7-ca4172609002",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "build__build",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "Both findings the owner named for this last round are fix..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "Both findings the owner named for this last round are fix..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "02e5f706-fb01-4039-8867-940e65e59c09",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:19:27.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "Ask. Both returned findings are fixed, and every check th...",
+            "round": 4,
+            "allowance": 4
+          }
+        },
+        "node_outcomes": {
+          "run_id": "02e5f706-fb01-4039-8867-940e65e59c09",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "review__review",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "Ask: both returned findings are fixed and the change meet..."
+              }
+            },
+            {
+              "node_id": "tests__tests",
+              "state": "completed",
+              "output": {
+                "outcome": "sound",
+                "summary": "Sound. The fix commit e80bd9128 adds and edits no tests. ..."
+              }
+            },
+            {
+              "node_id": "product__product",
+              "state": "completed",
+              "output": {
+                "outcome": "approve",
+                "summary": "Approve. I used the change on a scratch copy of the live ..."
+              }
+            },
+            {
+              "node_id": "verdict__verdict",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "Ask. Both returned findings are fixed, and every check th..."
+              }
+            },
+            {
+              "node_id": "rounds",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "Ask. Both returned findings are fixed, and every check th..."
+              }
+            },
+            {
+              "node_id": "allowance",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "Ask. Both returned findings are fixed, and every check th..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "52f46ea3-f4d0-4455-85b5-f7c8e0e8b316",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:28:24.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "PR #128 no longer merges with main (conflict, 1 commit be...",
+            "round": 1,
+            "allowance": 3
+          }
+        },
+        "node_outcomes": {
+          "run_id": "52f46ea3-f4d0-4455-85b5-f7c8e0e8b316",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "rounds__host",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "PR #128 no longer merges with main (conflict, 1 commit be..."
+              }
+            },
+            {
+              "node_id": "allowance",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "return",
+                "summary": "PR #128 no longer merges with main (conflict, 1 commit be..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "5063913b-7863-4f5e-a444-0c7e417fb1c3",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:42:46.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "PR #128 merges with main again: GitHub reports it MERGEAB..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "5063913b-7863-4f5e-a444-0c7e417fb1c3",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "build__build",
+              "state": "completed",
+              "output": {
+                "outcome": "built",
+                "summary": "PR #128 merges with main again: GitHub reports it MERGEAB..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "built_for_host",
+                "summary": "PR #128 merges with main again: GitHub reports it MERGEAB..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "d2faac1f-6d47-47f5-b30e-f441b6d83b52",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:51:10.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "PR #128 at 372bbbee8 is clear. All 10 host checks are gre...",
+            "round": 2,
+            "allowance": 3
+          }
+        },
+        "node_outcomes": {
+          "run_id": "d2faac1f-6d47-47f5-b30e-f441b6d83b52",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "rounds__host",
+              "state": "completed",
+              "output": {
+                "outcome": "clear",
+                "summary": "PR #128 at 372bbbee8 is clear. All 10 host checks are gre..."
+              }
+            },
+            {
+              "node_id": "allowance",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "ready",
+                "summary": "PR #128 at 372bbbee8 is clear. All 10 host checks are gre..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "de4b08d3-152a-42c3-9268-0de9f83fd398",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:53:53.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "why": "CI is green and the branch merges cleanly, but the change...",
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128",
+            "summary": "CI is green and the branch merges cleanly, but the change..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "de4b08d3-152a-42c3-9268-0de9f83fd398",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "gate",
+              "state": "completed",
+              "output": {}
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "ask",
+                "summary": "CI is green and the branch merges cleanly, but the change..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+        "status": "completed",
+        "completed_at": "2026-11-22T07:59:43.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "end",
+          "value": {
+            "summary": "PR #128 is merged into main as one squashed commit, 1ad8b...",
+            "change": "https://github.com/coleam00/archon-factory-console/pull/128"
+          }
+        },
+        "node_outcomes": {
+          "run_id": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "land",
+              "state": "completed",
+              "output": {
+                "outcome": "landed",
+                "summary": "PR #128 is merged into main as one squashed commit, 1ad8b..."
+              }
+            },
+            {
+              "node_id": "end",
+              "state": "completed",
+              "output": {
+                "outcome": "landed",
+                "summary": "PR #128 is merged into main as one squashed commit, 1ad8b..."
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "77baacc9-492b-4d08-bb86-5f419cff1a9b",
+        "status": "completed",
+        "completed_at": "2026-11-22T08:00:45.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "result",
+          "value": "{\"summary\":\"Nothing was noticed, so there was nothing to ..."
+        },
+        "node_outcomes": {
+          "run_id": "77baacc9-492b-4d08-bb86-5f419cff1a9b",
+          "first_failed_node": null,
+          "nodes": []
+        },
+        "loop_iterations": [],
+        "running": []
+      },
+      {
+        "id": "621679a2-a90a-4fae-91c0-9f9d8ef29812",
+        "status": "completed",
+        "completed_at": "2026-11-22T08:02:00.000Z",
+        "returns": {
+          "availability": "available",
+          "node_id": "landed",
+          "value": {
+            "why": "PR #128 is merged into main as 1ad8b4b5f, but five test j..."
+          }
+        },
+        "node_outcomes": {
+          "run_id": "621679a2-a90a-4fae-91c0-9f9d8ef29812",
+          "first_failed_node": null,
+          "nodes": [
+            {
+              "node_id": "landed",
+              "state": "completed",
+              "output": {
+                "outcome": "waiting"
+              }
+            }
+          ]
+        },
+        "loop_iterations": [],
+        "running": []
+      }
+    ],
+    "expected": {
+      "title": "The console reads the three-stage delivery: PR link, roun...",
+      "running": null,
+      "round": {
+        "runId": "02e5f706-fb01-4039-8867-940e65e59c09",
+        "iteration": 4,
+        "max": 4,
+        "rounds": [
+          {
+            "iteration": 1,
+            "verdict": "returned",
+            "outcome": "return"
+          },
+          {
+            "iteration": 2,
+            "verdict": "returned",
+            "outcome": "return"
+          },
+          {
+            "iteration": 3,
+            "verdict": "returned",
+            "outcome": "return"
+          },
+          {
+            "iteration": 4,
+            "verdict": "undecided",
+            "outcome": "ask"
+          }
+        ]
+      },
+      "partOf": null,
+      "returned": 4,
+      "change": {
+        "url": "https://github.com/coleam00/archon-factory-console/pull/128",
+        "merged": true,
+        "mergedAt": "2026-11-22T07:58:04.000Z",
+        "number": 128
+      },
+      "runs": [
+        {
+          "runId": "bd5ea7d5-3ae0-4d6e-b676-db1c61c09841",
+          "workflow": "order",
+          "failedStep": null
+        },
+        {
+          "runId": "337f403e-b1f5-4176-be9f-4d28765b8fb4",
+          "workflow": "triage",
+          "failedStep": null
+        },
+        {
+          "runId": "28d7be31-b6d8-4bf8-b59c-d29b39b6f173",
+          "workflow": "plan",
+          "failedStep": null
+        },
+        {
+          "runId": "f327dd85-8c55-4deb-85da-562a2a83fbbd",
+          "workflow": "order",
+          "failedStep": null
+        },
+        {
+          "runId": "aaed7cbb-7d0f-4052-b5df-1d1adc3fdadf",
+          "workflow": "triage",
+          "failedStep": null
+        },
+        {
+          "runId": "40ecd9bf-d2bc-48c1-bd96-5dea359f75fc",
+          "workflow": "split",
+          "failedStep": null
+        },
+        {
+          "runId": "d6816af4-e71b-4c3c-a1b8-05df295c9661",
+          "workflow": "plan",
+          "failedStep": null
+        },
+        {
+          "runId": "6766bfc4-ca1e-42f6-b28b-b81747822c43",
+          "workflow": "stage-build",
+          "failedStep": null
+        },
+        {
+          "runId": "20e1db24-c3da-4525-b76f-f362dba2dd2e",
+          "workflow": "stage-check",
+          "failedStep": null
+        },
+        {
+          "runId": "8d95ba65-ffc7-4b90-b3c7-9152c8043356",
+          "workflow": "stage-build",
+          "failedStep": null
+        },
+        {
+          "runId": "bb11ef33-963a-4a1a-8bf5-3f50e84a711e",
+          "workflow": "stage-check",
+          "failedStep": null
+        },
+        {
+          "runId": "f734fcaa-2f48-44c0-9b08-8539303f633c",
+          "workflow": "stage-build",
+          "failedStep": null
+        },
+        {
+          "runId": "5380dbc6-db5f-4070-934f-672620717bcf",
+          "workflow": "stage-build",
+          "failedStep": null
+        },
+        {
+          "runId": "9ffaf8a1-da68-42ae-a43e-cbb167a7213c",
+          "workflow": "stage-check",
+          "failedStep": null
+        },
+        {
+          "runId": "9aafcbaa-5d54-4a2f-8be7-ca4172609002",
+          "workflow": "stage-build",
+          "failedStep": null
+        },
+        {
+          "runId": "02e5f706-fb01-4039-8867-940e65e59c09",
+          "workflow": "stage-check",
+          "failedStep": null
+        },
+        {
+          "runId": "52f46ea3-f4d0-4455-85b5-f7c8e0e8b316",
+          "workflow": "stage-host",
+          "failedStep": null
+        },
+        {
+          "runId": "5063913b-7863-4f5e-a444-0c7e417fb1c3",
+          "workflow": "stage-build",
+          "failedStep": null
+        },
+        {
+          "runId": "d2faac1f-6d47-47f5-b30e-f441b6d83b52",
+          "workflow": "stage-host",
+          "failedStep": null
+        },
+        {
+          "runId": "de4b08d3-152a-42c3-9268-0de9f83fd398",
+          "workflow": "landgate",
+          "failedStep": null
+        },
+        {
+          "runId": "00acfd73-2453-49ad-9fec-784ae29b4e6d",
+          "workflow": "land",
+          "failedStep": null
+        },
+        {
+          "runId": "621679a2-a90a-4fae-91c0-9f9d8ef29812",
+          "workflow": "landed",
+          "failedStep": null
+        }
+      ],
+      "parked": null,
+      "awaits": null
+    }
+  },
+  "note": "Items 86 (parked by triage) and 125 (the three-stage delivery: four check rounds, four returns, merged) as GET /api/items/window read them, their runs as GET /api/workflows/runs/records returned them (outputKey outcome and summary; the result keys the shipped view points at), and the progress the server derived before v2-D, copied 2026-11-24 from dev:console on a read-only copy of the live factory database. Long strings cut to 60 characters; node entries with no output and no loop frame left out."
+}

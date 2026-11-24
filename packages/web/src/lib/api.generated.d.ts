@@ -3745,13 +3745,17 @@ export interface paths {
     };
     /**
      * The records of several runs, without their events
-     * @description For each run asked (`runId`, repeated, at most 100): its status, the terminal record's `returns`, every node invocation with a completed node's structured output (as `$NODE_OUTCOMES_FILE` lists them), each loop iteration it started with its bound and whether it completed, and the steps running now. An id no run has is listed under `missing`; a run whose events do not fold is listed under `unreadable` and the others still read.
+     * @description For each run asked (`runId`, repeated, at most 100): its status, the terminal record's `returns`, every node invocation with a completed node's structured output (as `$NODE_OUTCOMES_FILE` lists them), each loop iteration it started with its bound and whether it completed, and the steps running now. `outputKey` and `resultKey` keep only the named top-level fields of each output and of the result. An id no run has is listed under `missing`; a run whose events do not fold is listed under `unreadable` and the others still read.
      */
     get: {
       parameters: {
         query: {
           /** @description A run id; repeat `runId` once per run, at most 100. */
           runId: string | string[];
+          /** @description Keep only this top-level field of each node's structured output; repeat once per field. Absent: outputs whole. */
+          outputKey?: string | string[];
+          /** @description Keep only this top-level field of the run's result; repeat once per field. Absent: the result whole. */
+          resultKey?: string | string[];
         };
         header?: never;
         path?: never;

@@ -1,9 +1,12 @@
-import { getFactoryProgress, type FactoryItemDetail, type FactoryProgress } from './api';
+import { getForgeSubjects, type FactoryItem, type FactoryItemDetail } from './api';
 import { get, patch } from '../store/cache';
 import { FK } from './keys';
-import { FACTORY_READ_DEADLINE_MS, withDeadline } from './lib/deadline';
-import { PAGE_LIMIT, withProgress, type FactoryItemsRead } from './lib/factory-items-read';
+import { deadlineOf, FACTORY_READ_DEADLINE_MS } from './lib/deadline';
+import { forgeRead } from './lib/factory-derive';
+import type { FactoryItemsRead } from './lib/factory-items-read';
+import { changeOf, type ChangeLookup } from './lib/item-progress';
 import { awaitingMergeKeys } from './lib/merge-pending';
+import type { FactoryChange } from './lib/progress-types';
 
 /**
  * How often the page asks again about changes the forge has not reported merged. A merge on
@@ -15,13 +18,13 @@ import { awaitingMergeKeys } from './lib/merge-pending';
 export const MERGE_WATCH_MS = 30_000;
 
 export interface MergeWatchDeps {
-  getProgress: typeof getFactoryProgress;
+  getForgeSubjects: typeof getForgeSubjects;
   delayMs: number;
   /** The page's document, for its visibility; `globalThis.document` when absent. */
   doc?: Pick<Document, 'visibilityState' | 'addEventListener' | 'removeEventListener'>;
 }
 
-const DEFAULT_DEPS: MergeWatchDeps = { getProgress: getFactoryProgress, delayMs: MERGE_WATCH_MS };
+const DEFAULT_DEPS: MergeWatchDeps = { getForgeSubjects, delayMs: MERGE_WATCH_MS };
 
 interface Watch {
   readers: number;
@@ -36,8 +39,8 @@ const watches = new Map<string, Watch>();
 
 /**
  * Watches the merge state of `FK.factoryItems(projectId)` while the caller holds it: every
- * `deps.delayMs` it asks `GET /api/factory/progress` about the items whose change is not
- * merged (`awaitingMerge`), only those keys, and patches the answers into the items, so the
+ * `deps.delayMs` it asks the forge (`GET /api/forge/subjects`) about the changes of the items
+ * whose change is not merged (`awaitingMerge`), only those, and patches the answers into the items, so the
  * board, the Merged column and the Overview's numbers place them from the same value. It
  * asks nothing while the tab is hidden and asks at once when it shows again. Returns the
  * release; the last release stops the watch. The first watcher's `deps` hold for the watch.
@@ -126,44 +129,49 @@ function waitUntilVisible(
   };
 }
 
+/** `item` with its change as `answers` give it; an item with no lookup stays as it was. */
+function withChange(
+  item: FactoryItem,
+  lookup: NonNullable<ChangeLookup> | undefined,
+  answers: ReadonlyMap<string, FactoryChange>
+): FactoryItem {
+  if (lookup === undefined || item.progress === null || !answers.has(lookup.run)) return item;
+  return { ...item, progress: { ...item.progress, change: changeOf(item, lookup, answers) } };
+}
+
 /**
- * Asks about the waiting keys, a page of them per request, and patches every answer in at
- * once: into the items every Factory page reads, and into each waiting item's own read that
- * is cached (the item page's header), so the two never disagree on a merge. A read that
- * landed meanwhile is newer than this ask, so the answer is dropped for that value.
+ * Asks about the waiting items' changes and patches every answer in at once: into the items
+ * every Factory page reads, and into each waiting item's own read that is cached (the item
+ * page's header), so the two never disagree on a merge. A read that landed meanwhile is
+ * newer than this ask, so the answer is dropped for that value.
  */
 async function readWaiting(projectId: string, watch: Watch): Promise<void> {
   const key = FK.factoryItems(projectId);
   const before = get(key) as FactoryItemsRead | undefined;
   if (before === undefined) return;
   const keys = awaitingMergeKeys(before.items);
+  const lookups = keys.flatMap(itemKey => before.lookups[itemKey] ?? []);
+  if (lookups.length === 0) return;
   const details = keys.map(itemKey => {
     const detailKey = FK.factoryItem(projectId, itemKey);
     return { itemKey, detailKey, detail: get(detailKey) as FactoryItemDetail | undefined };
   });
-  const answers: FactoryProgress[] = [];
-  for (let start = 0; start < keys.length; start += PAGE_LIMIT) {
-    const page = keys.slice(start, start + PAGE_LIMIT);
-    answers.push(
-      await withDeadline(FACTORY_READ_DEADLINE_MS, signal =>
-        watch.deps.getProgress({ codebaseId: projectId, keys: page }, { signal })
-      )
-    );
-  }
-  if (answers.length === 0 || !live(projectId, watch)) return;
-  if (get(key) === before) patch(key, () => answers.reduce(withProgress, before));
-  patchDetails(details, answers);
-}
-
-/** Each cached item read, as it was before the ask, takes the progress the answers give it. */
-function patchDetails(
-  details: { itemKey: string; detailKey: string; detail: FactoryItemDetail | undefined }[],
-  answers: readonly FactoryProgress[]
-): void {
+  const { changes } = await forgeRead(
+    projectId,
+    [],
+    lookups,
+    { getForgeSubjects: watch.deps.getForgeSubjects },
+    deadlineOf(FACTORY_READ_DEADLINE_MS)
+  );
+  if (!live(projectId, watch)) return;
+  if (get(key) === before)
+    patch(key, () => ({
+      ...before,
+      items: before.items.map(item => withChange(item, before.lookups[item.item.key], changes)),
+    }));
   for (const { itemKey, detailKey, detail } of details) {
-    const answer = answers.find(page => Object.hasOwn(page.progress, itemKey));
-    if (detail === undefined || answer === undefined || get(detailKey) !== detail) continue;
-    const progress = answer.progress[itemKey] ?? null;
-    patch(detailKey, () => ({ ...detail, item: { ...detail.item, progress } }));
+    if (detail === undefined || get(detailKey) !== detail) continue;
+    const item = withChange(detail.item, before.lookups[itemKey], changes);
+    if (item !== detail.item) patch(detailKey, () => ({ ...detail, item }));
   }
 }

@@ -94,7 +94,7 @@ function seed(views: FactoryViews, detail?: FactoryItemDetail): void {
   set(FK.factoryViews(ID), views);
   set(K.runsAttention, quiet);
   set(packGraphKey(ID, shippedListed.packKey), shippedGraph);
-  set(FK.factoryItems(ID), { items: ITEMS, members: {} });
+  set(FK.factoryItems(ID), { items: ITEMS, members: {}, lookups: {}, titlesPending: false });
   if (detail !== undefined) set(FK.factoryItem(ID, detail.item.item.key), detail);
 }
 

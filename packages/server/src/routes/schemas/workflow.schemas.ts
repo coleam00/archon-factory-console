@@ -241,6 +241,20 @@ export const runRecordsQuerySchema = z.object({
   runId: z
     .union([z.string().min(1), z.array(z.string().min(1)).min(1).max(RUN_RECORDS_MAX)])
     .openapi({ description: 'A run id; repeat `runId` once per run, at most 100.' }),
+  outputKey: z
+    .union([z.string().min(1), z.array(z.string().min(1))])
+    .optional()
+    .openapi({
+      description:
+        "Keep only this top-level field of each node's structured output; repeat once per field. Absent: outputs whole.",
+    }),
+  resultKey: z
+    .union([z.string().min(1), z.array(z.string().min(1))])
+    .optional()
+    .openapi({
+      description:
+        "Keep only this top-level field of the run's result; repeat once per field. Absent: the result whole.",
+    }),
 });
 
 /** GET /api/workflows/runs/records response. */

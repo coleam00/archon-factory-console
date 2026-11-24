@@ -7,7 +7,6 @@ import { FK } from './keys';
 import { installDom } from './test-dom.test-helpers';
 import { FactoryNumbers } from './FactoryNumbers';
 import { FIXTURE_NOW, PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
-import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads, MERGE_REREAD_MS } from './merge-reread';
 import { cancelMergeWatches, MERGE_WATCH_MS } from './merge-watch';
 
@@ -41,9 +40,22 @@ afterEach(() => {
   invalidate('runs:factory-items');
 });
 
+/** The change lookup the items read records for an item with a change: its last run's URL. */
+function lookupOf(item: FactoryItem): [string, { run: string; url: string }][] {
+  const url = item.progress?.change?.url;
+  const run = item.runs.at(-1)?.id;
+  return url == null || run === undefined ? [] : [[item.item.key, { run, url }]];
+}
+
 /** The strip over `items` (warm from the cache, as the Overview reads it after the board), or cold. */
 async function mount(projectId: string, items?: FactoryItem[], waiting: number | null = 2) {
-  if (items !== undefined) set(FK.factoryItems(projectId), { items, members: {} });
+  if (items !== undefined)
+    set(FK.factoryItems(projectId), {
+      items,
+      members: {},
+      lookups: Object.fromEntries(items.flatMap(item => lookupOf(item))),
+      titlesPending: false,
+    });
   const mounted = await mountTree(
     <MemoryRouter>
       <FactoryNumbers projectId={projectId} view={VIEW} waiting={waiting ?? undefined} />
@@ -76,7 +88,6 @@ test('before the reads answer, every tile shows a skeleton figure, never a count
     'merged todayLoading',
     'mergedLoading',
     'median to mergedLoading',
-    'found by the factoryLoading',
   ]);
   expect(tiles.every(li => li.querySelector('[data-skeleton="figure"]') !== null)).toBe(true);
   expect(container.textContent).not.toContain('…');
@@ -99,7 +110,14 @@ test('while a merge state is pending, the counts it decides show what is known a
   expect(tile('need you')).toBe('need you2');
   // The answer arrives. Item 3's merge state could not be read: it stays out of the counts,
   // said in words and linking to the board narrowed to it, never as loading.
-  await act(async () => set(FK.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
+  await act(async () =>
+    set(FK.factoryItems('cb-pending'), {
+      items: PAGE.items,
+      members: {},
+      lookups: {},
+      titlesPending: false,
+    })
+  );
   expect(tile('merged')).toBe('merged3 of 8');
   expect(container.textContent).not.toContain('Checking');
   const unknown = [...container.querySelectorAll('a')].find(link =>
@@ -112,22 +130,29 @@ test('while a merge state is pending, the counts it decides show what is known a
 
 test('a merge on the forge reaches the numbers on the watch interval, with no run event', async () => {
   const mergedAt = new Date().toISOString();
+  // Its own run ids: the copy it is made from shares them with another item.
+  const own = (item: FactoryItem): FactoryItem => ({
+    ...item,
+    runs: item.runs.map(run => ({ ...run, id: `w-${run.id}` })),
+  });
+  const watched = [...PAGE.items, own(readyWithMerge('w', false))];
   const asked: string[] = [];
   globalThis.fetch = Object.assign(
     async (input: string | URL | Request): Promise<Response> => {
       const url = new URL(String(input), 'http://localhost');
-      if (url.pathname !== '/api/factory/progress') throw new Error('the server is down');
-      asked.push(url.searchParams.getAll('keys').join(','));
-      const answer = readyWithMerge('w', true).progress;
-      if (answer?.change) answer.change.mergedAt = mergedAt;
-      return Response.json({ pack: 'p', progress: { w: answer }, members: {} });
+      if (url.pathname !== '/api/forge/subjects') throw new Error('the server is down');
+      // The URLs asked: one per change the board has not seen merged.
+      asked.push(url.searchParams.getAll('changeUrl').length.toString());
+      const merged = own(readyWithMerge('w', true));
+      const change = { ...merged.progress!.change!, mergedAt };
+      return Response.json({ issues: [], changes: [{ run: merged.runs.at(-1)!.id, ...change }] });
     },
     { preconnect: failing.preconnect }
   );
   // The watch's interval is the only clock here: nothing invalidates the key.
   jest.useFakeTimers();
   setSystemTime(FIXTURE_NOW);
-  const { tile, unmount } = await mount('cb-watch', [...PAGE.items, readyWithMerge('w', false)]);
+  const { tile, unmount } = await mount('cb-watch', watched);
   expect(tile('merged')).toBe('merged3 of 9');
   expect(tile('merged today')).toBe('merged today0');
   jest.advanceTimersByTime(MERGE_WATCH_MS - 1);
@@ -138,8 +163,8 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
   });
   for (let turn = 0; turn < 5 && tile('merged')?.startsWith('merged4 of 9') !== true; turn++)
     await act(async () => Promise.resolve());
-  // Only the keys whose change is not merged were asked about, not the whole board.
-  expect(asked).toEqual(['8,3,w']);
+  // Only the three changes not merged were asked about, not the whole board.
+  expect(asked).toEqual(['3']);
   expect(tile('merged')).toBe('merged4 of 9');
   expect(tile('merged today')).toBe('merged today1');
   await unmount();
@@ -185,17 +210,12 @@ test('a failed refresh says so and keeps the last numbers', async () => {
   await unmount();
 });
 
-test('a view that declares discoveries adds a tile; the tiles are plain figures, nothing to open', async () => {
-  set(FK.factoryDiscoveries('cb-found'), DISCOVERIES);
-  const declared = await mount('cb-found', PAGE.items);
+test('the tiles are plain figures, nothing to open', async () => {
+  const declared = await mount('cb-plain', PAGE.items);
   const strip = declared.container.querySelector('ul[aria-label="Numbers"]');
   if (strip === null) throw new Error('the strip renders');
-  expect(strip.querySelectorAll('li')).toHaveLength(6);
-  // Two of the three findings: an item carries the third.
-  expect(declared.tile('found by the factory')).toBe('found by the factory2');
+  expect(strip.querySelectorAll('li')).toHaveLength(5);
   expect(strip.querySelectorAll('a, button, [tabindex], [href]')).toHaveLength(0);
   expect(strip.textContent).not.toContain('Open');
   await declared.unmount();
-
-  invalidate(FK.factoryDiscoveries('cb-found'));
 });

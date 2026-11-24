@@ -3,8 +3,7 @@
  * counts the cards the board shows under the same show, so a number and the board cannot
  * disagree. The tiles are plain figures; only the strip's unknown-merge line links to its show,
  * and a show's address still opens the board as it says. A show names the set; its spec says
- * how the board shows it: in which view, sorted how, with which rows marked, with which panel
- * open.
+ * how the board shows it: in which view, sorted how, with which rows marked.
  */
 import { ensureUtc } from '../../lib/format';
 import type { Pill, PlacedCard } from './board';
@@ -24,7 +23,6 @@ export const BOARD_SHOWS = [
   'landed',
   'landed-of-all',
   'median-to-land',
-  'found',
   'unknown',
 ] as const;
 export type BoardShow = (typeof BOARD_SHOWS)[number];
@@ -42,8 +40,6 @@ export interface BoardShowSpec {
   /** The sort the Table opens on; the Table's own default when absent. */
   sort?: TableSort;
   mark?: TableMark;
-  /** Whether it opens the board's "Found by the factory" panel with its findings listed. */
-  panel?: true;
 }
 
 export const BOARD_SHOW: Record<BoardShow, BoardShowSpec> = {
@@ -84,12 +80,6 @@ export const BOARD_SHOW: Record<BoardShow, BoardShowSpec> = {
     label: 'merge state could not be read',
     narrows: true,
     table: false,
-  },
-  found: {
-    label: 'found by the factory',
-    narrows: false,
-    table: false,
-    panel: true,
   },
 };
 
@@ -150,7 +140,6 @@ export function showsCard(
     case 'median-to-land':
       return landed;
     case 'landed-of-all':
-    case 'found':
       return true;
     case 'unknown':
       return mergeUnknown(item);

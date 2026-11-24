@@ -32,7 +32,8 @@ const graph = {
   otherCopies: [],
   stages: [
     {
-      name: 'acme/kit:deliver',
+      // The run name the fixtures' runs record.
+      name: 'Wirasm/archon-software-factory:deliver',
       returns: 'rounds',
       outcome: null,
       asks: false,
@@ -55,7 +56,7 @@ const views: FactoryViews = {
     {
       pack: 'acme/kit',
       packKey: 'acme.kit',
-      runNames: { deliver: 'acme/kit:deliver' },
+      runNames: { deliver: 'Wirasm/archon-software-factory:deliver' },
       source: 'project-file',
       path: '/repo/.archon/packs/acme.kit.factory-view.json',
       declaration: {

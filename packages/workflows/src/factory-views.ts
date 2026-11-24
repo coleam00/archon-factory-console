@@ -50,9 +50,10 @@ export async function discoverFactoryViews(
     ...view,
     packKey: factoryPackKey(view.pack),
     runNames: Object.fromEntries(
-      view.declaration.stages.flatMap(stage =>
-        stage.workflows.map(workflow => [workflow, factoryRunWorkflowName(view.pack, workflow)])
-      )
+      [
+        ...view.declaration.stages.flatMap(stage => stage.workflows),
+        ...[view.declaration.discoveries?.workflow ?? []].flat(),
+      ].map(workflow => [workflow, factoryRunWorkflowName(view.pack, workflow)])
     ),
   }));
   return { views, errors };

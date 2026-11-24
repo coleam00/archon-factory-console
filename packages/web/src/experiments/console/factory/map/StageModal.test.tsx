@@ -56,7 +56,8 @@ const asks = [refAsk({ item: { id: asking.item.id, projectKey: 'acme', key: '9' 
 /** The map at `path`, in a router whose history a test can walk. */
 async function mount(path = OVERVIEW, read: FactoryItem[] | null = items) {
   // null leaves the items cold, so they are read through `itemsAnswer`.
-  if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
+  if (read !== null)
+    set(FK.factoryItems(ID), { items: read, members: {}, lookups: {}, titlesPending: false });
   set(packGraphKey(ID, shippedListed.packKey), shippedGraph);
   const router = createMemoryRouter(
     [

@@ -7,7 +7,12 @@
 import { type OpenAPIHono, createRoute } from '@hono/zod-openapi';
 import * as workflowDb from '@archon/core/db/workflows';
 import * as workflowEventDb from '@archon/core/db/workflow-events';
-import { RUN_RECORD_EVENT_TYPES, runRecord, type RunRecord } from '@archon/workflows/run-records';
+import {
+  projectRunRecord,
+  RUN_RECORD_EVENT_TYPES,
+  runRecord,
+  type RunRecord,
+} from '@archon/workflows/run-records';
 import { isTerminalRunStatus } from '@archon/workflows/schemas/run-status';
 import type { WorkflowEventRow } from '@archon/workflows/schemas/workflow-event';
 import type { WorkflowRun } from '@archon/workflows/schemas/workflow-run';
@@ -26,7 +31,7 @@ const getRunRecordsRoute = createRoute({
   tags: ['Workflows'],
   summary: 'The records of several runs, without their events',
   description:
-    "For each run asked (`runId`, repeated, at most 100): its status, the terminal record's `returns`, every node invocation with a completed node's structured output (as `$NODE_OUTCOMES_FILE` lists them), each loop iteration it started with its bound and whether it completed, and the steps running now. An id no run has is listed under `missing`; a run whose events do not fold is listed under `unreadable` and the others still read.",
+    "For each run asked (`runId`, repeated, at most 100): its status, the terminal record's `returns`, every node invocation with a completed node's structured output (as `$NODE_OUTCOMES_FILE` lists them), each loop iteration it started with its bound and whether it completed, and the steps running now. `outputKey` and `resultKey` keep only the named top-level fields of each output and of the result. An id no run has is listed under `missing`; a run whose events do not fold is listed under `unreadable` and the others still read.",
   request: { query: runRecordsQuerySchema },
   responses: {
     200: {
@@ -93,8 +98,12 @@ export function registerRunRecordsRoute(
   const memo = new EndedRunMemo();
 
   register(getRunRecordsRoute, async c => {
-    const { runId } = getValidatedQuery(c, runRecordsQuerySchema);
-    const ids = [...new Set(typeof runId === 'string' ? [runId] : runId)];
+    const query = getValidatedQuery(c, runRecordsQuerySchema);
+    const listOf = (value: string | string[] | undefined): string[] | undefined =>
+      value === undefined ? undefined : typeof value === 'string' ? [value] : value;
+    const ids = [...new Set(listOf(query.runId))];
+    const project = (record: RunRecord): RunRecord =>
+      projectRunRecord(record, listOf(query.outputKey), listOf(query.resultKey));
     try {
       const runs = new Map((await deps.runsByIds(ids)).map(run => [run.id, run]));
       const load = [...runs.values()].filter(run => memo.get(run) === undefined);
@@ -110,7 +119,7 @@ export function registerRunRecordsRoute(
         }
         const kept = memo.get(run);
         if (kept !== undefined) {
-          records.push(kept);
+          records.push(project(kept));
           continue;
         }
         // bun:sqlite answers synchronously and a fold is CPU work: give other requests a
@@ -119,7 +128,7 @@ export function registerRunRecordsRoute(
         try {
           const record = runRecord(run, events.get(id) ?? []);
           memo.set(run, record);
-          records.push(record);
+          records.push(project(record));
         } catch (error) {
           getLog().warn({ err: error, runId: id }, 'run_record_unreadable');
           unreadable.push({ id, error: (error as Error).message });

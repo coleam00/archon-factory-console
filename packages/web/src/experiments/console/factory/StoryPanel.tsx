@@ -4,7 +4,6 @@ import { Telescope, Wrench } from 'lucide-react';
 import { formatCost, formatDateTime } from '../lib/format';
 import { DefinitionGrid, Panel, SectionHeading } from './document';
 import { boardColumns, type ColumnTone } from './lib/board-columns';
-import { FOUND_BY_THE_FACTORY_LABEL } from './lib/discoveries';
 import { durationWords } from './lib/duration';
 import type {
   DrainPanel,
@@ -233,20 +232,23 @@ function RunLinks({ runs }: { runs: PanelDetails['runs'] }): ReactElement {
 }
 
 /** A drain's run, on no stage: told quietly. */
+/** What a drain run on the item is called, as its panel heads it. */
+const DRAIN_LABEL = 'Found by the factory';
+
 export function DrainStoryPanel({ panel }: { panel: DrainPanel }): ReactElement {
   return (
     <Panel
       as="section"
       tone="var(--node-opaque)"
       bar="left"
-      aria-label={FOUND_BY_THE_FACTORY_LABEL}
+      aria-label={DRAIN_LABEL}
       data-story-panel="drain"
       className="flex flex-col gap-3 py-4 pl-6 pr-5"
     >
       <SectionHeading
         icon={Telescope}
         eyebrow="Beside the work"
-        title={FOUND_BY_THE_FACTORY_LABEL}
+        title={DRAIN_LABEL}
         tone="var(--node-opaque)"
       />
       <p data-story-sentence="" className="text-console-14 text-text-secondary">

@@ -112,3 +112,42 @@ export function runRecord(run: WorkflowRun, events: readonly WorkflowEventRow[])
     running: run.status === 'running' ? runningSteps(events) : [],
   };
 }
+
+/** `value` with only the top-level fields `keys` names, when it is an object; else as it is. */
+function keepFields(value: unknown, keys: ReadonlySet<string>): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return value;
+  return Object.fromEntries(Object.entries(value).filter(([key]) => keys.has(key)));
+}
+
+/**
+ * `record` with each node's structured output kept to the top-level fields `outputKeys` names,
+ * and its result to those `resultKeys` names; a list left undefined keeps that part whole. A
+ * reader that needs a few fields of many runs asks for them and reads a fraction of the bytes.
+ */
+export function projectRunRecord(
+  record: RunRecord,
+  outputKeys: readonly string[] | undefined,
+  resultKeys: readonly string[] | undefined
+): RunRecord {
+  const outputs = outputKeys === undefined ? null : new Set(outputKeys);
+  const results = resultKeys === undefined ? null : new Set(resultKeys);
+  const returns =
+    results !== null && record.returns?.availability === 'available'
+      ? { ...record.returns, value: keepFields(record.returns.value, results) }
+      : record.returns;
+  return {
+    ...record,
+    ...(returns === undefined ? {} : { returns }),
+    node_outcomes:
+      outputs === null
+        ? record.node_outcomes
+        : {
+            ...record.node_outcomes,
+            nodes: record.node_outcomes.nodes.map(node =>
+              node.output === undefined
+                ? node
+                : { ...node, output: keepFields(node.output, outputs) }
+            ),
+          },
+  };
+}
