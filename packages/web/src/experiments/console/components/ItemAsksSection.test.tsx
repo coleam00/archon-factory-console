@@ -103,20 +103,13 @@ test('two asks on an item show their question, context, options with cost, and t
       'Rename the column?',
       'Keeps the flag.',
       'Cost: Old configs break.',
-      'Recommended',
+      'Recommended: keep',
       'Nothing needs it gone.',
     ])
       expect(text).toContain(expected);
     expect(view.container.querySelectorAll('[data-item-asks]')).toHaveLength(1);
-    // Each ask draws its own tiles: the recommended one first, marked green.
-    const tiles = buttons(view.container).map(button => button.getAttribute('data-recommended'));
-    expect(tiles).toEqual(['true', null, 'true', null]);
-    expect(buttons(view.container).map(button => button.textContent?.startsWith('Keep'))).toEqual([
-      true,
-      false,
-      true,
-      false,
-    ]);
+    const labels = buttons(view.container).map(button => button.textContent);
+    expect(labels).toEqual(['keep (recommended)', 'drop', 'keep (recommended)', 'drop']);
   } finally {
     await view.unmount();
   }
@@ -137,17 +130,8 @@ test('answering posts by ref, shows the answer, and the item stops waiting once 
     await view.render(<Harness listed={[first, second]} />);
     const keep = view.container.querySelector<HTMLButtonElement>('[data-ask-ref="ask:a1"] button');
     if (keep === null) throw new Error('No answer button for ask:a1');
-    // A tile only picks; Confirm sends.
     await act(async () => {
       keep.click();
-    });
-    expect(requests).toEqual([]);
-    const confirm = buttons(view.container.querySelector('[data-ask-ref="ask:a1"]')!).find(
-      button => button.textContent === 'Confirm'
-    );
-    if (confirm === undefined) throw new Error('No Confirm button for ask:a1');
-    await act(async () => {
-      confirm.click();
       await new Promise(resolve => setTimeout(resolve, 0));
     });
     expect(requests).toEqual([
@@ -177,9 +161,7 @@ test('an ask the caller may not answer shows the reason and no answer controls',
       "You can't answer this: Only the user who started it."
     );
     expect(view.container.textContent).toContain('Keeps the flag.');
-    // The options show, but none can be chosen and there is no Confirm.
-    expect(buttons(view.container).every(button => button.disabled)).toBe(true);
-    expect(buttons(view.container).map(button => button.textContent)).not.toContain('Confirm');
+    expect(buttons(view.container)).toHaveLength(0);
     expect(view.container.querySelector('textarea')).toBeNull();
   } finally {
     await view.unmount();
@@ -193,11 +175,7 @@ test('an ask with no recommendation says so and marks no option recommended', as
     await view.render(<Harness listed={[unrecommended]} />);
     expect(view.container.textContent).toContain('No recommendation. Choose an option.');
     expect(view.container.textContent).not.toContain('Recommended:');
-    // The fork's tiles carry each option's description and cost after its label.
-    const tiles = buttons(view.container);
-    expect(tiles.map(button => button.textContent?.startsWith('Keep'))).toEqual([true, false]);
-    expect(tiles.map(button => button.textContent?.startsWith('Drop'))).toEqual([false, true]);
-    expect(tiles.map(button => button.getAttribute('data-recommended'))).toEqual([null, null]);
+    expect(buttons(view.container).map(button => button.textContent)).toEqual(['keep', 'drop']);
   } finally {
     await view.unmount();
   }
