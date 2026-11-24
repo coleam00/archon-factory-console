@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { useParams, useSearchParams } from 'react-router';
-import { errorDetail } from '../lib/http';
+import { factoryErrorDetail } from './lib/read-failure';
 import { ItemAsksPopover, type AskedItem } from './ItemAsksPopover';
 import { BoardSkeleton } from './BoardSkeleton';
 import { BoardPipeline } from './BoardPipeline';
@@ -263,7 +263,7 @@ function BoardBody({
     if (failed !== undefined)
       return (
         <p role="alert" className="text-console-14 text-error">
-          The board could not be loaded: {errorDetail(failed)}
+          The board could not be loaded: {factoryErrorDetail(failed)}
         </p>
       );
     return (

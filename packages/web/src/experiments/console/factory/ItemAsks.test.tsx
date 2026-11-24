@@ -12,7 +12,7 @@ import { realItem, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches } from './merge-watch';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import { installDom } from './test-dom.test-helpers';
 
 // Opening an ask and answering it happen on events, which static markup cannot reach.
@@ -131,7 +131,7 @@ describe("an item's open ask", () => {
     set(K.runsAttention, attentionRead([ask]));
     const page = await mount(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/6`]}>
-        <Routes>{factoryTestRoutes()}</Routes>
+        <Routes>{factoryRoutes('/console/')}</Routes>
       </MemoryRouter>
     );
     try {

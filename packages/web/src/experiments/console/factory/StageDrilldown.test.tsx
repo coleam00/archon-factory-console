@@ -4,7 +4,7 @@ import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from './api';
 import { invalidate, set } from '../store/cache';
 import { FK } from './keys';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import { installDom } from './test-dom.test-helpers';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
@@ -83,7 +83,7 @@ function serve(items: (url: string) => Response): void {
 async function renderAt(path: string, check: (body: HTMLElement) => Promise<void>): Promise<void> {
   const mounted = await mount(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
   try {

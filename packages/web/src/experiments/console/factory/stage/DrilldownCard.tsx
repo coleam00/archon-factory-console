@@ -16,7 +16,7 @@ import { ICONS, KINDS } from './drilldown-kinds';
  * its first cover names, which leads back to this stage; the items on it now are named under
  * it, outside the link, since each is a link too. While items are on it, it wears the step
  * graph's running border and ring (`data-running`, the same tokens as RUNNING_GLOW), held still:
- * the items read carries no owner liveness. Its box is `.factory-card`'s (theme.css), tinted in
+ * the items read carries no owner liveness. Its box is `.factory-card`'s (factory.css), tinted in
  * its kind's colour. A card standing for a shadow step (rule 10) carries the shadow badge and a
  * `--node-opaque` bar and tint, and says what it decided lately.
  */
@@ -55,7 +55,7 @@ export function DrilldownCard({
     <article
       data-live={live ? 'true' : undefined}
       data-running={live ? '' : undefined}
-      // Its hover border is theme.css's `.factory-card[data-link]:hover`.
+      // Its hover border is factory.css's `.factory-card[data-link]:hover`.
       data-link=""
       className="factory-card relative flex flex-col overflow-hidden rounded-console-12 border"
       style={cardTone(tone)}

@@ -5,15 +5,11 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { invalidate, set } from './console/store/cache';
 import { K } from './console/store/keys';
 import { toMessage } from './console/primitives/message';
-import { ProjectAttentionLayout } from './console/components/ProjectAttention';
 import { ChatPage } from './console/routes/ChatPage';
 
 const dom = new Window({ url: 'http://localhost' });
 
-/**
- * The conversation stream the page opens; the test plays the server's events into it. The
- * project's attention stream, which the layout above the page opens, is not tracked.
- */
+/** The one conversation stream the page opens; the test plays the server's events into it. */
 class FakeEventSource {
   static last: FakeEventSource | undefined;
   static readonly CLOSED = 2;
@@ -21,7 +17,7 @@ class FakeEventSource {
   onmessage: ((e: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
   constructor(readonly url: string) {
-    if (url.includes(`/api/stream/${CONV}`)) FakeEventSource.last = this;
+    FakeEventSource.last = this;
   }
   close(): void {
     this.readyState = FakeEventSource.CLOSED;
@@ -98,8 +94,6 @@ beforeEach(() => {
         cancelBodies.push(JSON.parse(String(init?.body)));
         return Response.json({ cancelled: true });
       }
-      // The project tabs read the project's factory views; it has none.
-      if (url.includes('/factory')) return Response.json({ views: [], errors: [] });
       return Response.json([]);
     },
     { preconnect: originalFetch.preconnect }
@@ -135,16 +129,9 @@ function stopButton(): HTMLButtonElement | undefined {
 
 async function openChat(): Promise<void> {
   jest.useFakeTimers();
-  router = createMemoryRouter(
-    [
-      {
-        path: '/console/p/:projectId',
-        element: <ProjectAttentionLayout />,
-        children: [{ path: 'chat', element: <ChatPage /> }],
-      },
-    ],
-    { initialEntries: ['/console/p/project-1/chat'] }
-  );
+  router = createMemoryRouter([{ path: '/console/p/:projectId/chat', element: <ChatPage /> }], {
+    initialEntries: ['/console/p/project-1/chat'],
+  });
   root = createRoot(container);
   await act(async () => root?.render(<RouterProvider router={router} />));
   expect(FakeEventSource.last?.url).toContain(`/api/stream/${CONV}`);

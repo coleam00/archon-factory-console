@@ -17,9 +17,6 @@ export const K = {
     `workflow:${encodeURIComponent(cwd)}:${encodeURIComponent(name)}`,
   worktrees: (projectId: string): string => `worktrees:${projectId}`,
   runsAttention: 'runs:attention' as const,
-  // Under `runs:` on purpose: the dashboard SSE and every answer panel invalidate `runs`,
-  // so a run moving on or an answer given refreshes a project's queue too.
-  projectAttention: (projectId: string): string => `runs:attention:project:${projectId}`,
   runs: (scope: Scope): string => `runs:${scopeKey(scope)}`,
   run: (id: string): string => `run:${id}`,
   metrics: (scope: Scope, since: string): string => `metrics:${scopeKey(scope)}:${since}`,

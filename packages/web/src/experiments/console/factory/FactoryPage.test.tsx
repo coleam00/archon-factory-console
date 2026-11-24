@@ -1,11 +1,11 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryViews, FactoryWorkflow } from './api';
+import type { FactoryPacksRead, FactoryViews, FactoryWorkflow } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import type { FactoryItem } from './api';
 import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
@@ -106,12 +106,16 @@ function render(
   items: FactoryItem[] = []
 ): string {
   set(FK.factoryViews(ID), listing);
+  // The project tabs show Factory for a project a pack lists.
+  set(FK.factoryPacks, {
+    packs: [{ projects: [{ codebaseId: ID, name: 'acme' }] }],
+  } as unknown as FactoryPacksRead);
   set(K.runsAttention, attention);
   set(FK.factoryWorkflow(ID, 'deliver'), deliverJson as FactoryWorkflow);
   set(FK.factoryItems(ID), { items, members: {} });
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }

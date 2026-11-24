@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
 import { Factory } from 'lucide-react';
 import { EmptyNote } from '../ui/EmptyNote';
-import { errorDetail } from '../../lib/http';
+import { factoryErrorDetail } from '../lib/read-failure';
 import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
@@ -28,7 +28,7 @@ export function PackLookup({
   return (
     <PackFrame title="Factory" subtitle={packKey}>
       {failed !== undefined ? (
-        <PacksFailed message={errorDetail(failed)} />
+        <PacksFailed message={factoryErrorDetail(failed)} />
       ) : read.data === undefined ? (
         <FactoryLoading read={read}>
           <PackSkeleton />

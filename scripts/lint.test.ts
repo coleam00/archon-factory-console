@@ -16,6 +16,7 @@ describe('lintSteps', () => {
       'bun run scripts/check-sdk-type-drift.ts',
       'bun run scripts/check-web-api-types.ts',
       'bun run scripts/check-console-tokens.ts',
+      'bun run scripts/check-factory-imports.ts',
       'bun x biome lint --error-on-warnings .',
     ]);
   });

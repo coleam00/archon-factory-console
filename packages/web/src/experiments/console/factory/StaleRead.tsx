@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { errorDetail } from '../lib/http';
+import { factoryErrorDetail } from './lib/read-failure';
 
 /**
  * Said above values kept from an earlier read when the latest read failed (the cache keeps
@@ -9,7 +9,7 @@ export function StaleRead({ error }: { error: Error | undefined }): ReactElement
   if (error === undefined) return null;
   return (
     <p role="status" className="text-console-12 text-warning">
-      Could not refresh: {errorDetail(error)}. Showing the last values read.
+      Could not refresh: {factoryErrorDetail(error)}. Showing the last values read.
     </p>
   );
 }

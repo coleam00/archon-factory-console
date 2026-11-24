@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
-import { errorDetail } from '../../lib/http';
+import { factoryErrorDetail } from '../lib/read-failure';
 import type { FactoryPackSettings } from '../api';
 import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../ui/Skeleton';
 import { Panel } from '../document';
@@ -52,7 +52,7 @@ function ProjectSettings({
     return (
       <Panel role="alert" tone="var(--error)" bar="top" className="px-5 pt-5 pb-4">
         <p className="text-console-14 text-error">
-          The pack&apos;s settings could not be read: {errorDetail(failed)}
+          The pack&apos;s settings could not be read: {factoryErrorDetail(failed)}
         </p>
       </Panel>
     );

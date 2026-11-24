@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 import { EmptyNote } from './ui/EmptyNote';
 import { SkeletonFigure, SkeletonGroup, SkeletonLine } from './ui/Skeleton';
 import { formatDateTime } from '../lib/format';
-import { errorDetail } from '../lib/http';
+import { factoryErrorDetail } from './lib/read-failure';
 import type { FactoryDiscoveries } from './api';
 import { itemPath } from './lib/board';
 import { readFailed } from './lib/deadline';
@@ -56,7 +56,7 @@ export function FoundByTheFactoryLine({ projectId }: { projectId: string }): Rea
           <FoundSkeleton read={read} />
         ) : (
           <p role="alert" className="text-console-13 text-error">
-            What the factory found could not be read: {errorDetail(failed)}
+            What the factory found could not be read: {factoryErrorDetail(failed)}
           </p>
         )
       ) : findings.length === 0 ? (

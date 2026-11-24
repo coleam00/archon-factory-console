@@ -35,7 +35,7 @@ const CANVAS_BORDER_PX = 1;
 
 /**
  * RunGraphPanel's running tint, held still: the items read carries no owner liveness, so a
- * pulse would claim more than it knows. Its values are theme.css's running-mark tokens, which
+ * pulse would claim more than it knows. Its values are factory.css's running-mark tokens, which
  * the stage drill-down's cards wear too.
  */
 export const RUNNING_GLOW: CSSProperties = {
@@ -223,7 +223,7 @@ function StepButton({
       type="button"
       onClick={onOpen}
       data-running={glows ? '' : undefined}
-      // Its hover border and lift are theme.css's `[data-step-node]:hover`.
+      // Its hover border and lift are factory.css's `[data-step-node]:hover`.
       data-step-node=""
       title={title}
       data-worker={worker.kind}

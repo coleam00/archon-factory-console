@@ -55,7 +55,7 @@ export function OverviewCard({
       </span>
     </>
   );
-  // Fill, depth, border and hover are `.factory-card`'s (theme.css), tinted in the kind's colour.
+  // Fill, depth, border and hover are `.factory-card`'s (factory.css), tinted in the kind's colour.
   const frame =
     'factory-card absolute flex flex-col gap-2 overflow-hidden rounded-console-12 border p-3 text-left';
   const style = {

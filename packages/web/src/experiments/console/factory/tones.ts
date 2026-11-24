@@ -38,7 +38,7 @@ export const TONES: Record<ColumnTone, Tone> = {
 export const toneColor = (tone: ColumnTone): ToneColor => TONES[tone].color;
 
 /**
- * A `.factory-card`'s colour (theme.css): its tint under the accent bar and, when lit, its
+ * A `.factory-card`'s colour (factory.css): its tint under the accent bar and, when lit, its
  * light. Any card on the canvases takes one, a group's or a kind's.
  */
 export const cardTone = (color: string): CSSProperties =>

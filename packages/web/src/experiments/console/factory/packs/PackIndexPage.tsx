@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { Factory } from 'lucide-react';
 import { Link, Navigate } from 'react-router';
 import { EmptyState } from '../../components/EmptyState';
-import { errorDetail } from '../../lib/http';
+import { factoryErrorDetail } from '../lib/read-failure';
 import type { FactoryPacksRead } from '../api';
 import { FactoryErrors } from '../FactoryFrame';
 import { FactoryLoading } from '../FactoryLoading';
@@ -26,7 +26,7 @@ export function PackIndexPage(): ReactElement {
   return (
     <PackFrame title="Factory" subtitle="The factory packs installed here">
       {failed !== undefined ? (
-        <PacksFailed message={errorDetail(failed)} />
+        <PacksFailed message={factoryErrorDetail(failed)} />
       ) : listing === undefined ? (
         <FactoryLoading read={read}>
           <PackSkeleton />

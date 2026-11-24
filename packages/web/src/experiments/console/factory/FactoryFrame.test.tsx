@@ -32,8 +32,6 @@ test('a stalled first views read, on a cold page load, says so and is retried', 
     },
     { preconnect: originalFetch.preconnect }
   );
-  // The frame renders the project tabs, which read the same views key: whichever mounts
-  // first starts the read, and it must be under the deadline either way.
   const { container, unmount } = await mount(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
       <Routes>

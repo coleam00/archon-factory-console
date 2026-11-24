@@ -9,7 +9,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { formatProjectLocator } from '../lib/format';
-import { errorDetail } from '../lib/http';
+import { HttpError, errorDetail } from '../lib/http';
 import type { Project } from '../primitives/project';
 
 interface ProjectRowProps {
@@ -460,7 +460,12 @@ export function ProjectRow({
     try {
       await onRename(name);
     } catch (renameFailure: unknown) {
-      setRenameError(errorDetail(renameFailure));
+      // serverError carries the full refusal; errorDetail only sees a capped snippet.
+      setRenameError(
+        renameFailure instanceof HttpError && renameFailure.serverError !== undefined
+          ? renameFailure.serverError
+          : errorDetail(renameFailure)
+      );
     } finally {
       setRenaming(false);
     }

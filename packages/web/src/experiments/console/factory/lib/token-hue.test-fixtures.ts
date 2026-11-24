@@ -15,10 +15,13 @@ export const MIN_CHROMA = 0.1;
  */
 export const MIN_HUE_GAP = 25;
 
-/** Every `--name: value;` the console sees: index.css's :root, then theme.css's, which wins. */
+/**
+ * Every `--name: value;` the console sees: index.css's :root, then theme.css's, then the
+ * factory's own factory.css; a later file wins.
+ */
 export function tokens(): Map<string, string> {
   const map = new Map<string, string>();
-  for (const file of ['../../../../index.css', '../../theme.css']) {
+  for (const file of ['../../../../index.css', '../../theme.css', '../factory.css']) {
     const css = readFileSync(new URL(file, import.meta.url), 'utf8');
     for (const [, name, value] of css.matchAll(/(--[\w-]+):\s*([^;]+);/g))
       map.set(name as string, (value as string).trim());

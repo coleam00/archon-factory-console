@@ -11,7 +11,7 @@ import type { FactoryItem, FactoryItemDetail, FactoryViews, FactoryWorkflow } fr
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import { itemDetail, shippedListed } from './item-detail.test-fixtures';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import { FIXTURE_NOW, delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
@@ -83,7 +83,7 @@ function render(path: string, detail?: FactoryItemDetail, views = listing): stri
   seed(views, detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }

@@ -8,7 +8,7 @@ import type { FactoryPackSettings, FactoryViews } from '../api';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { FK } from '../keys';
-import { factoryTestRoutes } from '../test-routes';
+import { factoryRoutes } from '../routes';
 import { installDom } from '../test-dom.test-helpers';
 import { documentPageProblems } from '../document.test-helpers';
 import { attentionRead } from '../lib/attention.test-fixtures';
@@ -128,7 +128,7 @@ async function settingsPage(settings: FactoryPackSettings = SETTINGS): Promise<H
   set(FK.factoryPackSettings('acme.kit'), settings);
   const page = await mount(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/settings`]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
   unmount = page.unmount;

@@ -5,7 +5,7 @@ import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryItem, FactoryViews, FactoryWorkflow } from '../api';
 import { invalidate, set } from '../../store/cache';
 import { FK } from '../keys';
-import { factoryTestRoutes } from '../test-routes';
+import { factoryRoutes } from '../routes';
 import { documentPageProblems } from '../document.test-helpers';
 import { capturedItemsPage } from '../lib/fixtures/factory-items-page';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
@@ -101,7 +101,7 @@ function page(stepKey: string, items: FactoryItem[] = []): HTMLElement {
   const root = dom.document.createElement('div');
   root.innerHTML = renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/steps/deliver/${stepKey}`]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
   return root as unknown as HTMLElement;
