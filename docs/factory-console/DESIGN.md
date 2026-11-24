@@ -26,6 +26,12 @@ From the owner's review on 2026-11-23 (#151).
 4. **The map counts what the board counts.** An item the board sets aside (The board, Set
    aside) is counted and listed in no map stage: not in a card's "N here", not in a stage's
    "Items here now". Board and map make that decision in one place.
+5. **Work orders are a visible part of the board** (#153). They are a section of the board
+   above the Pipeline's columns at the board's text size, not a toggle in the toolbar: a header
+   with the count of orders and open orders, and the list of orders under it, open by default
+   and foldable from the header. Each order's row opens its item page. Highlight members stays a
+   separate button that lights the members and never navigates. Nothing shows when no order has
+   a started member.
 
 ## Owner changes of 2026-11-21 (bind every later change; win over everything below, 2026-11-19 included)
 
@@ -1390,10 +1396,11 @@ matches only older merges), else rule 9's "Nothing in <column> now".
 A card is as wide as its column, and columns follow the Visual standard (rules 3 and 9); where
 the columns do not fit the width, the board scrolls sideways with a hint naming the hidden
 columns, at the end of the toolbar. The Pipeline's toolbar (the filter box, Pipeline/Table, a
-`?show=` chip, the work orders' summary, the Position unknown row, the hint) is one line at 1440x900.
-At 1280x720 it is one line on a board with no lit work order and no `?show=` chip; a lit work
-order or a `?show=` chip can push its last parts (the Position unknown row, the hint) to a second
-line, and the columns still hold one full card. On a phone it wraps. The
+`?show=` chip, the Position unknown row, the hint) is one line at 1440x900.
+At 1280x720 it is one line on a board with no `?show=` chip; a `?show=` chip can push its last
+parts (the Position unknown row, the hint) to a second line. On a phone it wraps. The work
+orders' section sits between the toolbar and the columns (see Work orders); in a short window
+the columns keep their floor and the page scrolls. The
 columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
 row per item in a column (the items set aside are no rows) with the same fields as columns, a Work order, a Column and a Stage column among
 them (a running item's step and round under its stage, as the card's stage line reads; a merged
@@ -1413,13 +1420,15 @@ newest run of the declared `partOf` workflow that completed with its declared ou
 refused order run never makes an item a member): a link wins over a result that
 disagrees (`factory/lib/work-orders.ts`). An order with no run of its own is no card in any
 column and counts in no number; its members count as the items they are. Above the Pipeline's
-columns, in the toolbar, one line summarises the work orders with a member on the board (one
-that has a run): "N work orders · M open" (open: not every member merged), and, while an order
-is lit, "highlighting <key>" with Clear highlight, so a card's "part of" link lights something
-visible without opening the list. Clicking the line lists, under the toolbar, one row per order: its key (to its item
-page) and title (its own when it has one, else "Work order <key>"), "N of M merged" with a small bar, one
-dot per member in its pill's colour, and a toggle that lights its members on the board and dims
-the rest (`?order=<key>`). An order whose members have not started has no row yet: the order
+columns, under the toolbar, a section of the board lists the work orders with a member on the
+board (one that has a run), at the board's text size. Its header reads "N work orders · M open"
+(open: not every member merged) and folds the list; while an order is lit it adds "highlighting
+<key>" with Clear highlight, so a card's "part of" link lights something visible even with the
+list folded. The list is open by default and holds about three rows before it scrolls, one row
+per order: its key and title (its own when it has one, else "Work order <key>"), "N of M merged"
+with a small bar, one dot per member in its pill's colour, and Highlight members, which lights
+its members on the board and dims the rest (`?order=<key>`) without leaving the board. The rest
+of the row opens the order's item page, with a hover state that shows it. An order whose members have not started has no row yet: the order
 and its members show on its item page (`factory/items/<order key>`). A member's card says
 "part of <order>", which lights its order. An
 order's own column, stages and landing target are not built (owner ruling of 2026-11-17).
