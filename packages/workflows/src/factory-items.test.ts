@@ -113,6 +113,7 @@ function sourceFor(
       listOpenItemWaits: async () => [],
       listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+      readItemStartLimits: async () => ({ limits: [], countedUnder: {} }),
       getInstallHold: async () => null,
       getRunLimit: async () => null,
       listHeldItemStarts: async () => [],

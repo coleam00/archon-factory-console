@@ -453,6 +453,7 @@ function itemsSource(merges: Record<string, ItemMerge> = {}): ItemReadSource {
       listOpenItemWaits: async () => [],
       listSkippedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
       listQueuedItemStarts: async itemIds => new Map(itemIds.map(id => [id, []])),
+      readItemStartLimits: async () => ({ limits: [], countedUnder: {} }),
       getWorkflowRun: async () => null,
       getWorkflowRunForAttention: async () => null,
       getCodebase: async () => null,

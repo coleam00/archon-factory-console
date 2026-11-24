@@ -484,6 +484,7 @@ mock.module('@archon/core/db/item-starts', () => ({
   ...realItemStarts,
   listQueuedItemStarts: mockListQueuedItemStarts,
   listSkippedItemStarts: mockListSkippedItemStarts,
+  readItemStartLimits: async () => ({ limits: [], countedUnder: {} }),
 }));
 // The item read reads the install hold; no hold is set here.
 const realInstallHold = { ...(await import('@archon/core/db/install-hold')) };
@@ -745,7 +746,7 @@ export function makeApp(lockManager?: ConversationLockManager): {
   const mockLockManager = {
     acquireLock: mock(async (_id: string, fn: () => Promise<void>) => {
       await fn();
-      return { status: 'started' };
+      return { status: 'started', turnId: 'turn-1' };
     }),
     getStats: mock(makeIdleLockStats),
   } as unknown as ConversationLockManager;

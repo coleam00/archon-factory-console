@@ -326,12 +326,17 @@ archon workflow respond <run-id> <choice> "why"                       # a paused
 archon workflow answer --ref ask:<id> --choose <option> --text "why"   # an ask a finished run left on its item
 ```
 
-The build queue pauses its run on a question. The merge stage ends its run and leaves
-the question on the issue's item, and the answer starts the stage again through the
-`merge-after-answer` binding (step 10). Its ask always has three options: `merge`
+The build queue and the merge stage end their run and leave the question on the issue's
+item, so no run waits for you. A build answer starts the issue's next build run through
+the `build-after-answer` binding (step 10). Its options are the agent's, each one either
+continuing the work with a ruling, handing the pull request to the merge stage as it
+stands, or parking the item; an answer with text and no option continues with the text
+as the ruling. A merge answer starts the stage again through the `merge-after-answer`
+binding. Its ask always has three options: `merge`
 approves the pull request at the head that was asked about, `return` sends it back to
 the build queue with the answer's text as what to change, and `park` stops work on it.
-An answer with text and no option starts nothing. A parked pull request comes back when
+A merge answer with text and no option starts nothing. A withdrawn ask starts nothing
+either, and leaves the item asking. A parked pull request comes back when
 you start the merge stage on its item by hand: `archon trigger fire --config <the
 merge-queue binding file> --item issue-42`.
 
@@ -350,12 +355,11 @@ recommends under `bindings:` in `.pack/pack.yaml`:
 - `split-queue` and `discoveries` start those queues on a schedule.
 - The merge stage runs once per issue, on the issue's item, and holds nothing while it
   waits. `merge-after-build` starts it when a build round ends ready.
-  `merge-after-checks` and `merge-after-base-checks` start it again when a check
-  completes at the commit it ended waiting on: the pull request's head while its checks
-  run, the default branch's head while that branch is red. `merge-after-answer` starts
-  it when its question is answered. `merge-queue` starts it for one issue and has no
-  schedule: `merge-pick` fires it every 30 minutes for each waiting item no event will
-  start, which is how a resolved review thread, a draft marked ready or a lost event
+  `merge-after-checks` starts it again when a check completes at the pull request's
+  head while its checks run. `merge-after-answer` starts it when its question is
+  answered. `merge-queue` starts it for one issue and has no schedule: `merge-pick`
+  fires it every 30 minutes for each waiting item no event will start, which is how a
+  resolved review thread, a draft marked ready, a fixed base branch or a lost event
   gets read.
 - What follows a merge run is a binding on how it ended. `build-after-merge-return`
   starts the issue's next build round when the stage returns its pull request.
@@ -366,9 +370,15 @@ recommends under `bindings:` in `.pack/pack.yaml`:
 - `build-queue` starts one build run for one issue. Nothing schedules it: the next three
   bindings fire it or start the same workflow.
 - `build-after-intake` starts an issue's first build round when its intake run ends.
+- `build-after-answer` starts the issue's next build run when the build queue's
+  question is answered. That run writes the ruling into the issue body and records the
+  answer before any agent reads the issue, then runs the round on a continue.
 - `build-pick` starts a build for every waiting issue on a schedule, and
   `build-pick-after-build` does when a build run ends, so a freed slot and a next round
   do not wait for the schedule.
+- `intake` starts intake for one issue and has no schedule: a pick fires it for new
+  work its message files, a work order's untriaged members and a blocked item it sends
+  back to re-triage.
 - `metrics-prs` and `metrics-test-value` refresh the pack's metrics.
 
 An install that runs no server also needs the merged-worktree sweep a server runs by
@@ -385,7 +395,7 @@ archon pack bindings sdlc \
   --run-as <the id whoami printed> \
   --cwd /path/to/the/clone \
   --out /path/for/binding/files \
-  --only build-queue,build-after-intake,build-pick,build-pick-after-build,merge-queue,merge-after-build,merge-after-checks,merge-after-base-checks,merge-after-answer,build-after-merge-return,merge-pick,discoveries
+  --only intake,build-queue,build-after-intake,build-after-answer,build-pick,build-pick-after-build,merge-queue,merge-after-build,merge-after-checks,merge-after-answer,build-after-merge-return,merge-pick,discoveries
 ```
 
 `--host` is the id of the execution host that starts the runs: a name you choose for
@@ -417,8 +427,8 @@ Registering a file starts runs, so ask first:
 - **An event binding** is one entry for the GitHub source plugin's `bindings` array on
   a running server with a webhook. See
   [Configure GitHub event starts](https://archon.diy/guides/workflow-triggers/#configure-github-event-starts).
-  Until then, run intake by hand for each new issue. The merge stage's two check
-  bindings need the webhook subscribed to check runs and commit statuses; without them a
+  Until then, run intake by hand for each new issue. The merge stage's check
+  binding needs the webhook subscribed to check runs and commit statuses; without them a
   pull request whose checks were running is read again only once its wait is an hour old
   and the next `merge-pick` pass starts it. An install with no webhook can
   [observe the waits instead](https://archon.diy/guides/workflow-triggers/#without-a-webhook)
@@ -573,13 +583,14 @@ remote's name ([`.shared/remote.ts`](.shared/remote.ts)).
 ### Deterministic scripts
 
 Every `script:` node here is TypeScript on Bun, under its own component's
-`scripts/` directory. Logic more than one of them needs lives once in
+`scripts/` directory, or under `.shared/scripts/` when several workflows run the same
+script. Logic more than one of them needs lives once in
 [`.shared/`](.shared), imported by relative path with the extension written
 (`../../.shared/report.ts`). That directory is reserved for modules, for the
-pack's default policy documents under `.shared/policy/`, and for `metric-views.json`, the
-overview cards the console metrics page shows (see the
+pack's default policy documents under `.shared/policy/`, for those shared scripts, and
+for `metric-views.json`, the overview cards the console metrics page shows (see the
 [metrics guide](https://archon.diy/guides/metrics/#overview-cards-a-pack-declares)): nothing
-in it is a workflow or a named script target, and a node that names one fails at load.
+in it is a workflow.
 
 The repository validates them where they live. `.archon/workflows/tsconfig.json`
 is the owning configuration: `bun run type-check` compiles that project. Lint
@@ -685,8 +696,8 @@ whose decision names no policy carries none of it.
 Each stage a person runs is one workflow, and a workflow that composes a stage includes
 that same file. A stage ends with its typed outcome as the run's result: whether it got
 there, and the report says why not. A stage that fails fails the run at the failed
-node. The composer owns what follows a stage's ending and asks through its own
-attention item when it needs a person, as the build queue does. A workflow that
+node. The composer owns what follows a stage's ending and, when it needs a person,
+ends with an ask on its item, as the build queue does. A workflow that
 includes `archon-deliver` keeps running after a failed delivery, because the report
 node completes either way, so it gates what follows on `$deliver.output.ready`.
 
