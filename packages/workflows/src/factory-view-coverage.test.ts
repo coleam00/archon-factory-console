@@ -302,6 +302,19 @@ describe('factoryViewCoverage', () => {
     expect(found[0]?.message).toContain('"plan" to "plan" (asks answered)');
   });
 
+  test('a card standing for a step of a workflow its stage does not list is reported', () => {
+    const view = clean();
+    // plan/plan is covered on the Plan stage, and now on Build too, which does not list plan.
+    drilldownOf(view, 1).phases[0]!.cards.push(card('plan', 'plan'));
+    const found = factoryViewCoverage(view, graph());
+    expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
+      ['unknown-workflow', 'stages.1.drilldown.phases.0.cards.1.covers.0.steps.0'],
+    ]);
+    expect(found[0]?.message).toBe(
+      'a card stands for a step of workflow "plan", which its stage does not list'
+    );
+  });
+
   test('a declared arrow between workflows that no hand-off backs is reported', () => {
     const view = clean();
     view.map.arrows.push({ from: 'ship', to: 'plan', label: 'replan', back: true });
@@ -404,13 +417,18 @@ const withoutDeliver = (): PackGraph => {
 /**
  * `clean()` with `deliver` retired, still worded everywhere for its old runs: placed, ended,
  * told, its steps named and a step of it a shadow. The plan -> build arrow only deliver backed
- * is gone, as the view's author would drop it.
+ * is gone, as the view's author would drop it, and so are the drill-downs that covered its
+ * steps: no card may stand for a step of a retired workflow.
  */
 const retiredView = (): FactoryView => {
   const view = clean();
   return factoryViewSchema.parse({
     ...view,
+    stages: view.stages.map(stage =>
+      stage.workflows.includes('deliver') ? { ...stage, drilldown: undefined } : stage
+    ),
     retired: ['deliver'],
+    steps: { deliver: { build__build: 'Writes the change', result: 'Decides the ending' } },
     placement: { 'deliver:ready': 'ship', 'deliver:returned': 'build' },
     endings: { 'deliver:stop': 'Stopped' },
     asked: ['deliver:ask'],
@@ -460,6 +478,20 @@ describe('retired workflows: kept for their old runs, compared with nothing', ()
     const view = retiredView();
     view.stages[1]!.nodes = ['build__build', 'rounds', 'rounds.fixx'];
     expect(findings(view, withoutDeliver())).toEqual([['unknown-step', 'stages.1.nodes.2']]);
+  });
+
+  test('a card or loop standing for a step of a retired workflow is reported at its path', () => {
+    const view = retiredView();
+    view.stages[1]!.drilldown = drilldownOf(clean(), 1);
+    const found = factoryViewCoverage(view, withoutDeliver());
+    expect(found.map(entry => [entry.kind, entry.path.join('.')])).toEqual([
+      ['retired-covered', 'stages.1.drilldown.phases.0.cards.0.covers.0.steps.0'],
+      ['retired-covered', 'stages.1.drilldown.phases.1.cards.0.covers.0.steps.0'],
+      ['retired-covered', 'stages.1.drilldown.loop.step'],
+    ]);
+    expect(found[2]?.message).toBe(
+      `a loop stands for step "deliver/rounds" of retired workflow "deliver"; a card or loop names only workflows the pack runs now (a retired workflow's old runs still place through stages[].workflows)`
+    );
   });
 
   test('a retired workflow the pack still has is reported, and nothing of it is compared', () => {

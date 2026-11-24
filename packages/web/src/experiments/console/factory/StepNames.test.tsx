@@ -21,6 +21,7 @@ import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import { MapDetails } from './map/MapDetails';
 import { itemDetail, shippedListed } from './item-detail.test-fixtures';
+import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import { FIXTURE_NOW, delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { stageLive } from './lib/map-live';
@@ -87,12 +88,31 @@ function runningDetail(): FactoryItemDetail {
 }
 
 /**
- * The same view with no drill-downs, so a stage page draws its step graphs (which a drill-down
- * puts behind a toggle static markup cannot press).
+ * The view as it was before the pack retired `deliver`, which these fixtures' items run: the
+ * stage page draws deliver's graph and the Checks drill-down covers its steps, so the names
+ * of the steps those items sit on are read where a person reads them.
  */
-const graphsListing: FactoryViews = {
+const deliverListing: FactoryViews = {
   ...listing,
   views: listing.views.map(listed => ({
+    ...listed,
+    declaration: {
+      ...listed.declaration,
+      retired: undefined,
+      stages: listed.declaration.stages.map(stage =>
+        stage.id === 'checks' ? { ...stage, drilldown: checksDrilldown } : stage
+      ),
+    },
+  })),
+};
+
+/**
+ * That view with no drill-downs, so a stage page draws its step graphs (which a drill-down
+ * puts behind a tab static markup cannot press).
+ */
+const graphsListing: FactoryViews = {
+  ...deliverListing,
+  views: deliverListing.views.map(listed => ({
     ...listed,
     declaration: {
       ...listed.declaration,
@@ -209,7 +229,7 @@ describe('no raw step id where a person reads', () => {
   });
 
   test("the stage page's drill-down", () => {
-    const html = render(`/console/p/${ID}/factory/stages/checks`);
+    const html = render(`/console/p/${ID}/factory/stages/checks`, undefined, deliverListing);
     // The card reads its own title; the item on it reads its step by name, its id on hover.
     expect(readable(html)).toContain('Code review');
     expect(readable(html)).toContain('on Code review');

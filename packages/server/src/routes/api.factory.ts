@@ -477,6 +477,32 @@ async function applyingViews(
   return factoryViewsForProject(listing, ran);
 }
 
+type ApplyingView = FactoryViewsListing['views'][number];
+
+/**
+ * Why `workflow`, which a stage of `view` lists, cannot be drawn, for the person reading the
+ * stage or step page. The pack is known to be here when `found` holds another workflow of it
+ * that the view lists and has not retired; then only this workflow is missing.
+ */
+function missingWorkflowMessage(
+  view: ApplyingView,
+  workflow: string,
+  found: WorkflowLoadResult
+): string {
+  const { pack, declaration } = view;
+  const retired = declaration.retired ?? [];
+  if (retired.includes(workflow))
+    return `This pack has no workflow named ${workflow}. It was retired; the items it worked still show their runs.`;
+  const names = new Set(found.workflows.map(entry => entry.workflow.name));
+  const packHere = declaration.stages
+    .flatMap(stage => stage.workflows)
+    .some(listed => !retired.includes(listed) && names.has(factoryRunWorkflowName(pack, listed)));
+  if (packHere) return `This pack has no workflow named ${workflow}.`;
+  return factoryPackIsInstalled(pack)
+    ? `The pack ${pack} is not installed here, so its workflow ${workflow} cannot be drawn. Install it with the command archon plugin add, then reload this page.`
+    : `The pack ${pack} has no workflow ${workflow} in this project, so it cannot be drawn.`;
+}
+
 /** The discoveries of the first applying view, as the Factory tab draws its pack. */
 async function discoveriesResponse(
   c: Context,
@@ -699,20 +725,16 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
         found: WorkflowLoadResult
       ): WorkflowLoadResult['workflows'][number] | undefined =>
         found.workflows.find(candidate => candidate.workflow.name === runName);
-      // A kept discovery may predate installing the pack, and the 404 below tells the person to
-      // install it and reload: discover again before saying it is missing.
-      const entry =
-        named(await stageWorkflows(project.cwd)) ??
-        named(await stageWorkflows(project.cwd, { fresh: true }));
+      // A kept discovery may predate installing the pack, and the 404 below may tell the person
+      // to install it and reload: discover again before saying it is missing, unless the view
+      // retired the workflow, which no reinstall brings back.
+      let found = await stageWorkflows(project.cwd);
+      if (named(found) === undefined && view.declaration.retired?.includes(workflow) !== true)
+        found = await stageWorkflows(project.cwd, { fresh: true });
+      const entry = named(found);
       // Said for the person reading the stage page, who can act on it.
       if (entry === undefined)
-        return apiError(
-          c,
-          404,
-          factoryPackIsInstalled(view.pack)
-            ? `The pack ${view.pack} is not installed here, so its workflow ${workflow} cannot be drawn. Install it with the command archon plugin add, then reload this page.`
-            : `The pack ${view.pack} has no workflow ${workflow} in this project, so it cannot be drawn.`
-        );
+        return apiError(c, 404, missingWorkflowMessage(view, workflow, found));
       return c.json(
         await factoryWorkflowSteps(workflow, entry.workflow, { cwd: project.cwd, deps, roots })
       );

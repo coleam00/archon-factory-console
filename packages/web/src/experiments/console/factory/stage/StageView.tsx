@@ -5,7 +5,7 @@ import { EmptyNote } from '../../components/EmptyNote';
 import type { FactoryItem } from '../../skills/factory';
 import type { EntityView } from '../../store/cache';
 import type { StageRead } from '../lib/map-live';
-import type { FactoryStage } from '../lib/stage-steps';
+import { liveWorkflows, type FactoryStage } from '../lib/stage-steps';
 import { factoryPath, type FactoryViewListed, type StageTab } from '../lib/views';
 import { FactoryLoading } from '../FactoryLoading';
 import { readFailed } from '../lib/deadline';
@@ -112,7 +112,7 @@ export function StageView({
   });
 }
 
-/** The open tab: the summary, the items, or the step graph of each workflow. */
+/** The open tab: the summary, the items, or the step graph of each workflow the pack runs now. */
 function TabBody({
   projectId,
   view,
@@ -130,17 +130,18 @@ function TabBody({
 }): ReactElement {
   if (tab === 'items')
     return <StageItemsTab projectId={projectId} view={view} stage={stage} live={live} />;
+  const workflows = liveWorkflows(view, stage);
   if (tab === 'workflow')
     return (
       <>
         <p className={SOURCE}>Generated from the pack's workflow files; shows every step.</p>
-        {stage.workflows.length === 0 ? (
+        {workflows.length === 0 ? (
           <EmptyNote
             icon={GitMerge}
             sentence="No workflow runs in this stage. An item arrives here when its change merges."
           />
         ) : (
-          stage.workflows.map(workflow => (
+          workflows.map(workflow => (
             <StageWorkflow
               key={workflow}
               projectId={projectId}
@@ -161,7 +162,7 @@ function TabBody({
           icon={BookOpen}
           sentence={
             // Point at the real workflow only when there is one to read.
-            stage.workflows.length === 0
+            workflows.length === 0
               ? 'This stage has no summary and no workflow runs in it. An item arrives here when its change merges.'
               : 'This stage has no summary. The real workflow shows its steps.'
           }

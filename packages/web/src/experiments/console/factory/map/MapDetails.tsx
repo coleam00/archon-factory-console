@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Link } from 'react-router';
-import type { FactoryStage } from '../lib/stage-steps';
+import { liveWorkflows, type FactoryStage } from '../lib/stage-steps';
 import type { StageRead } from '../lib/map-live';
 import { SHADOW_MEANS } from '../lib/shadows';
 import { ShadowBadge } from '../ShadowBadge';
@@ -90,6 +90,7 @@ function StageSection({
   const open = stageModalLink(projectId, stage.id);
   // A workflow's name opens the stage on that workflow's steps.
   const steps = stageModalLink(projectId, stage.id, 'workflow');
+  const workflows = liveWorkflows(view, stage);
   return (
     <section aria-label={stage.label} className="flex flex-col gap-3">
       <div className="flex items-baseline gap-2">
@@ -121,11 +122,11 @@ function StageSection({
       />
       <section className="flex flex-col gap-1.5">
         <h6 className={HEADING}>Workflows</h6>
-        {stage.workflows.length === 0 ? (
+        {workflows.length === 0 ? (
           <p className="text-console-13 text-text-tertiary">No workflow runs here.</p>
         ) : (
           <ul className="flex flex-wrap gap-1.5">
-            {stage.workflows.map(workflow => (
+            {workflows.map(workflow => (
               <li key={workflow}>
                 <Link
                   to={steps.to}

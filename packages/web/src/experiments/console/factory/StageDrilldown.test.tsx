@@ -12,7 +12,7 @@ import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import { capturedItemAs, isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
 
-// Selecting a card and the toggle are clicks, and static markup cannot click.
+// Opening a card and the tabs are clicks, and static markup cannot click.
 const dom = new Window({ url: 'http://localhost' });
 // The frame keeps the Needs-you count live over SSE; nothing streams in this test.
 class QuietEventSource {
@@ -149,14 +149,15 @@ const phaseLabels = (root: Element): string[] =>
   [...root.querySelectorAll('[data-phase]')].map(phase => phase.getAttribute('aria-label') ?? '');
 const liveCards = (container: HTMLElement): string[] =>
   [...container.querySelectorAll('article[data-live]')].map(
-    card => card.querySelector('button')?.textContent ?? ''
+    card => card.querySelector('a')?.textContent ?? ''
   );
-const button = (container: HTMLElement, text: string): HTMLButtonElement => {
-  const found = [...container.querySelectorAll('button')].find(candidate =>
+/** A drill-down card's link: the first link of the card whose text reads `text`. */
+const cardLink = (container: HTMLElement, text: string): HTMLAnchorElement => {
+  const found = [...container.querySelectorAll('article > a')].find(candidate =>
     candidate.textContent.includes(text)
   );
-  if (!found) throw new Error(`No button reads ${text}`);
-  return found;
+  if (!(found instanceof dom.HTMLAnchorElement)) throw new Error(`No card reads ${text}`);
+  return found as unknown as HTMLAnchorElement;
 };
 const click = async (target: HTMLElement): Promise<void> => {
   await act(async () => {
@@ -174,7 +175,7 @@ test('the stage page tells its drill-down: numbered phases of cards, one loop ar
       'Phase 3: Verdict',
       'Phase 4: Out of rounds',
     ]);
-    const review = button(container, 'Code review');
+    const review = cardLink(container, 'Code review');
     expect(review.textContent).toContain("Reads the change for bugs and the project's rules");
     expect(review.textContent).toContain('Check');
     expect(container.querySelectorAll('article')).toHaveLength(7);
@@ -201,9 +202,11 @@ test('a card glows and names the items on a step it covers; a run between rounds
     expect((lit as HTMLElement | null)?.style.getPropertyValue('--card-tone')).not.toBe(
       'var(--running)'
     );
-    expect([...(lit?.querySelectorAll('a') ?? [])].map(link => link.getAttribute('href'))).toEqual([
-      `/console/p/${ID}/factory/items/7`,
-    ]);
+    // The items on it are links of their own, beside the card's link, never inside it.
+    expect(
+      [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(link => link.getAttribute('href'))
+    ).toEqual([`/console/p/${ID}/factory/items/7`]);
+    expect(lit?.querySelector('a a')).toBeNull();
     expect(container.querySelector('[data-loop] > [data-live]')).toBeNull();
 
     itemsResponse = itemsReadAnswer([on('9', 'rounds')]);
@@ -244,18 +247,21 @@ test('a failed items read says so and lights no card', async () => {
   });
 });
 
-test('clicking a card lists its real steps by name, each opening its step page back to the stage', async () => {
+test('a card is a link that looks it, and clicking it opens its step page back to the stage', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
-    const review = button(container, 'Code review');
-    expect(review.getAttribute('aria-expanded')).toBe('false');
+    const review = cardLink(container, 'Code review');
+    expect(review.getAttribute('href')).toBe(
+      `/console/p/${ID}/factory/steps/deliver/rounds.review__review`
+    );
+    // Its hover is `.factory-card`'s (theme.css) on the box, and a background on the link.
+    expect(review.parentElement?.className).toContain('factory-card');
+    expect(review.className).toContain('cursor-pointer');
+    expect(review.className).toContain('hover:bg-surface-elevated');
+    expect(review.getAttribute('title')).toContain('rounds.review__review');
+    // No panel of the card's steps opens below the phases: the card goes straight to its step.
+    expect(container.textContent).not.toContain('The real steps');
     await click(review);
-    expect(review.getAttribute('aria-expanded')).toBe('true');
-    const panel = container.querySelector('section[aria-label="The real steps of Code review"]');
-    const links = [...(panel?.querySelectorAll('a') ?? [])];
-    expect(links.map(link => link.textContent)).toEqual(['Reviews the change']);
-    expect(links[0]?.getAttribute('title')).toContain('rounds.review__review');
-    await click(links[0]!);
     expect(container.querySelector('[data-id-tag]')?.textContent).toBe('rounds.review__review');
     expect(container.textContent).toContain('Back to Checks');
   });

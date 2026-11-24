@@ -42,6 +42,8 @@ const originalFetch = globalThis.fetch;
 /** What each workflow read gets, in turn; the last answer repeats. */
 let workflowReads: (() => Response | Promise<Response>)[] = [];
 let workflowFetches = 0;
+/** The workflow each read asked for, in order. */
+let workflowsAsked: string[] = [];
 /** What the items read gets, for a test that leaves the items cold. */
 let itemsAnswer: (url: string) => Response = itemsReadAnswer([]);
 globalThis.fetch = Object.assign(
@@ -49,6 +51,7 @@ globalThis.fetch = Object.assign(
     const url = String(input);
     if (isItemsRead(url)) return itemsAnswer(url);
     if (!url.includes('/api/factory/workflow')) throw new Error(`the modal test fetched ${url}`);
+    workflowsAsked.push(new URL(url, 'http://localhost').searchParams.get('workflow') ?? '');
     const answer = workflowReads[Math.min(workflowFetches, workflowReads.length - 1)];
     workflowFetches++;
     if (answer === undefined) throw new Error('no workflow answer set');
@@ -76,6 +79,7 @@ afterEach(() => {
   invalidate('factory-workflow');
   workflowReads = [steps];
   workflowFetches = 0;
+  workflowsAsked = [];
 });
 
 const ID = 'cb-1';
@@ -104,28 +108,11 @@ function withStage(id: string, change: (stage: ListedStage) => ListedStage): Lis
 }
 
 /**
- * Build listing deliver alone, its drill-down only deliver's cards: the read-retry and sizing
- * rules below count one workflow's reads and measure one graph against phases narrower than
- * it, whatever the shipped Build lists.
+ * Build listing stage-build alone: the read-retry and sizing rules below count one workflow's
+ * reads and measure one graph (the deliver fixture's, which every read here answers with)
+ * against phases narrower than it, whatever the shipped Build lists.
  */
-const oneBuildWorkflow = withStage('build', stage => ({
-  ...stage,
-  workflows: ['deliver'],
-  drilldown:
-    stage.drilldown === undefined
-      ? undefined
-      : {
-          ...stage.drilldown,
-          phases: stage.drilldown.phases
-            .map(phase => ({
-              ...phase,
-              cards: phase.cards.filter(card =>
-                card.covers.every(cover => cover.workflow === 'deliver')
-              ),
-            }))
-            .filter(phase => phase.cards.length > 0),
-        },
-}));
+const oneBuildWorkflow = withStage('build', stage => ({ ...stage, workflows: ['stage-build'] }));
 
 /** The map at `path`, in a router whose history a test can walk. */
 async function mount(
@@ -339,6 +326,15 @@ describe('a stage opened over the Overview', () => {
       await settle();
       expect(graphStep()).toBeDefined();
       expect(dialog()?.textContent).not.toMatch(/Drill-down|Real steps/);
+      // Every step is a link to its page and looks it: a pointer, a hover background, and the
+      // hover border theme.css keys on `data-step-node`.
+      const drawn = [...(dialog()?.querySelectorAll('button[data-step-node]') ?? [])];
+      expect(drawn.length).toBeGreaterThan(0);
+      for (const step of drawn) {
+        expect(step.className).toContain('cursor-pointer');
+        expect(step.className).toContain('hover:bg-surface-hover');
+        expect(step.className).not.toContain('brightness');
+      }
     } finally {
       await unmount();
     }
@@ -385,12 +381,31 @@ describe('a stage opened over the Overview', () => {
         ...container.querySelectorAll<HTMLAnchorElement>(
           'aside[aria-label="Plan & build details"] li a'
         ),
-      ].find(link => link.textContent === 'deliver');
+      ].find(link => link.textContent === 'stage-build');
       await click(chip!);
       expect(title()).toBe('Build');
       expect(dialog()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
         'The real workflow'
       );
+    } finally {
+      await unmount();
+    }
+  });
+
+  test('a stage draws and reads only the workflows the pack runs now, never the retired deliver', async () => {
+    expect(shippedListed.declaration.retired).toEqual(['deliver']);
+    const { container, unmount } = await mount();
+    try {
+      for (const stage of ['build', 'checks', 'host']) {
+        await click(stageLink(container, stage));
+        await click(inDialog('The real workflow'));
+        await settle();
+        expect(dialog()?.textContent).not.toContain('deliver');
+        await click(inDialog('Close'));
+      }
+      // Each stage's one current workflow, read once; deliver, which still places their old
+      // items, is never asked for.
+      expect(workflowsAsked).toEqual(['stage-build', 'stage-check', 'stage-host']);
     } finally {
       await unmount();
     }
@@ -514,7 +529,7 @@ describe('the workflow read never dead-ends', () => {
       await settle(1_100);
       const alert = dialog()?.querySelector('[role="alert"]');
       expect(alert?.textContent).toContain(
-        'Could not read the workflow deliver: the server did not answer'
+        'Could not read the workflow stage-build: the server did not answer'
       );
       await click(inDialog('Retry'));
       expect(dialog()?.querySelector('[role="alert"]')).toBeNull();
@@ -529,10 +544,7 @@ describe('the workflow read never dead-ends', () => {
   test("the server's own refusal is not retried and shows its message", async () => {
     workflowReads = [
       () =>
-        Response.json(
-          { error: 'The pack is not installed here, so its workflow deliver cannot be drawn.' },
-          { status: 404 }
-        ),
+        Response.json({ error: 'This pack has no workflow named stage-build.' }, { status: 404 }),
     ];
     const { container, unmount } = await mount(OVERVIEW, items, oneBuildWorkflow);
     try {
@@ -540,7 +552,7 @@ describe('the workflow read never dead-ends', () => {
       await settle();
       expect(workflowFetches).toBe(1);
       expect(dialog()?.querySelector('[role="alert"]')?.textContent).toContain(
-        'The pack is not installed here'
+        'Could not read the workflow stage-build: This pack has no workflow named stage-build.'
       );
     } finally {
       await unmount();

@@ -301,6 +301,14 @@
   border-color: var(--running-border);
 }
 
+/* A step of the step graph, hovered: a brighter border and the card's lifted depth, so it reads
+   as the link it is. A rule, not a `hover:border-*` utility, which the root's border colour
+   outranks. A running step's inline glow keeps its own border and ring. */
+.console-root [data-step-node]:hover {
+  border-color: var(--text-tertiary);
+  box-shadow: var(--card-depth-hover);
+}
+
 /* A selected card: a muted accent ring, never an accent border (owner change 1). On the
    canvases it is the one use of the accent. */
 .console-root .factory-card[data-selected] {
