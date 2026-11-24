@@ -244,51 +244,56 @@ describe('answering from the board', () => {
   const asked = waiting.runs[0]?.id ?? '';
   const ask = askOn(waiting, { ref: 'ask:last', askedIn: { runId: asked, workflow: 'plan' } });
 
-  test('the last ask: the popover closes, the card says what was answered, then what started again', async () => {
-    const sent = serveAnswers();
-    const { container, unmount } = await mount([asking(waiting, [ask])], queueOf([ask]));
-    try {
-      await click(face(container, '6'));
-      await click(dialogButton('Use dev'));
-      await click(dialogButton('Confirm'));
-      expect(sent).toEqual(['/api/attention/answer']);
-      expect(dialog()).toBeNull();
-      expect(card(container, '6').textContent).toContain('Answered: Use dev');
-      expect(card(container, '6').querySelector('button[data-ask-trigger]')).toBeNull();
+  // The Pipeline card and the Table row each draw the answered line (RowAsk in the Table).
+  test.each(['', '?view=table'])(
+    'the last ask: the popover closes, the item says what was answered, then what started again (%s)',
+    async view => {
+      const sent = serveAnswers();
+      const { container, unmount } = await mount([asking(waiting, [ask])], queueOf([ask]), view);
+      const held = (): HTMLElement => container.querySelector<HTMLElement>('[data-card="6"]')!;
+      try {
+        await click(held().querySelector<HTMLButtonElement>('button[data-ask-trigger]')!);
+        await click(dialogButton('Use dev'));
+        await click(dialogButton('Confirm'));
+        expect(sent).toEqual(['/api/attention/answer']);
+        expect(dialog()).toBeNull();
+        expect(held().textContent).toContain('Answered: Use dev');
+        expect(held().querySelector('button[data-ask-trigger]')).toBeNull();
 
-      // The next items read records the settled set and the plan run it started.
-      const settled = settledItem(
-        '6',
-        run('plan', 'completed', 'ask'),
-        '2026-11-18T11:00:00.000Z',
-        run('plan', 'running', null, 'plan')
-      );
-      await act(async () => set(K.factoryItems(ID), { items: [settled], members: {} }));
-      expect(card(container, '6').textContent).toContain('Answered · Plan started again');
+        // The next items read records the settled set and the plan run it started.
+        const settled = settledItem(
+          '6',
+          run('plan', 'completed', 'ask'),
+          '2026-11-18T11:00:00.000Z',
+          run('plan', 'running', null, 'plan')
+        );
+        await act(async () => set(K.factoryItems(ID), { items: [settled], members: {} }));
+        expect(held().textContent).toContain('Answered · Plan started again');
 
-      // The restarted run fails in the same stage: the card says so, not what was answered.
-      const failed = settledItem(
-        '6',
-        run('plan', 'completed', 'ask'),
-        '2026-11-18T11:00:00.000Z',
-        run('plan', 'failed', null, 'plan')
-      );
-      await act(async () => set(K.factoryItems(ID), { items: [failed], members: {} }));
-      expect(card(container, '6').textContent).toContain('Failed');
-      expect(card(container, '6').textContent).not.toContain('Answered');
+        // The restarted run fails in the same stage: the card says so, not what was answered.
+        const failed = settledItem(
+          '6',
+          run('plan', 'completed', 'ask'),
+          '2026-11-18T11:00:00.000Z',
+          run('plan', 'failed', null, 'plan')
+        );
+        await act(async () => set(K.factoryItems(ID), { items: [failed], members: {} }));
+        expect(held().textContent).toContain('Failed');
+        expect(held().textContent).not.toContain('Answered');
 
-      // A read that moves the card ends it.
-      const moved = itemWith('6', [
-        run('plan', 'completed', 'ask'),
-        run('deliver', 'running', null, 'implement'),
-      ]);
-      await act(async () => set(K.factoryItems(ID), { items: [moved], members: {} }));
-      expect(card(container, '6').textContent).not.toContain('Answered');
-    } finally {
-      serveAnswers();
-      await unmount();
+        // A read that moves the card ends it.
+        const moved = itemWith('6', [
+          run('plan', 'completed', 'ask'),
+          run('deliver', 'running', null, 'implement'),
+        ]);
+        await act(async () => set(K.factoryItems(ID), { items: [moved], members: {} }));
+        expect(held().textContent).not.toContain('Answered');
+      } finally {
+        serveAnswers();
+        await unmount();
+      }
     }
-  });
+  );
 
   test('one of several: the popover stays open with the rest, and the card is not held', async () => {
     serveAnswers();
