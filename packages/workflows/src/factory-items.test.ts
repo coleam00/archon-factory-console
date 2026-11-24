@@ -95,7 +95,7 @@ const deliver2Cut = {
     completed_outcome: null,
     completed_at: null,
   }),
-  events: deliver2Raw.events.filter(row => row.event_order <= 1800),
+  events: deliver2Raw.events.filter(row => (row.event_order ?? Infinity) <= 1800),
 };
 
 /** A discoveries drain of item #70, as the shadow reader's tests copy it. */

@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { readRunFixture } from './__fixtures__/read-run-fixture';
 import { factoryRunStory } from './factory-item-story';
 import { factoryViewSchema } from './schemas/factory-view';
-import type { WorkflowEventRow } from './schemas/workflow-event';
 import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
 
 const view = factoryViewSchema.parse(
