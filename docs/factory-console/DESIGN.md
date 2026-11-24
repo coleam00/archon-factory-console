@@ -203,9 +203,8 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    agent, is the attention queue. It needs to be front and center." It becomes a **project tab,
    "Needs you", left of Runs, on every project** (factory or not): every open ask and paused wait
    on the project's items, from any workflow, answerable in place, its count on the tab. The
-   Factory sub-navigation links to it with the same count; `factory/needs-you` redirects there.
-   *Superseded by owner change 3 of 2026-11-19: the sub-navigation no longer links to it; the
-   redirect stays.*
+   Factory sub-navigation links to it with the same count.
+   *Superseded by owner change 3 of 2026-11-19: the sub-navigation no longer links to it.*
    The ask card is the one design used everywhere an ask is answered: question, context, option
    tiles with what each does and costs, the recommended option first and marked, "Something else"
    (free text), confirm in place.
@@ -219,13 +218,12 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    per group, not per stage. For this pack: **Intake** (order, triage) | **Plan & build** |
    **Checks & review** (the check rounds, CI and PR reviews) | **Ready to merge** | **Merged**.
    Each column scrolls on its own; the page never grows with the longest column. A card still
-   names its stage and step ("Checks · Code review · round 2"). Stage pages keep every stage.
+   names its stage and step ("Checks · Code review · round 2"). The map still opens every stage on its own.
 5. **Where the factory lives.** Factory-wide things (How it works, and later the pack's settings)
    move to a **Factory** entry in the console's sidebar, next to Settings, one page per installed
    pack. The project's Factory tab keeps the live parts: Overview, Board, item, stage and step
    pages; its How it works link opens the sidebar page for its pack. *Superseded by owner change
-   3 of 2026-11-19: the tab has no How it works link; `factory/how-it-works` redirects to the
-   sidebar page.* *The pack's settings did not stay there: owner change 2 of 2026-11-23 puts
+   3 of 2026-11-19: the tab has no How it works link.* *The pack's settings did not stay there: owner change 2 of 2026-11-23 puts
    them in each project's Factory tab; the sidebar Factory is How it works only.*
 6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
    would do and do nothing (admit, split, discoveries filing, the project's declared checks,
@@ -780,18 +778,14 @@ documents through Neon live queries.
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/settings` | Settings (read-only; a document page per owner changes 5 and 6 of 2026-11-21, a project page since owner change 2 of 2026-11-23): a header band, "How <project> has set up its factory", with chips for the settings the pack's `.pack/pack.yaml` declares, how many this project sets in its `.archon/packs/<pack key>.yaml`, how many fall back to the pack's default, and how many are shadows today, and a quiet line saying it reads the pack's declaration and this project's file. The pack is the one the project's view draws; the page reads only this project and names and links no other. When the settings read lists no entry for this project (the server reads only a project with a checkout), one error panel says so and the page shows the pack's defaults. Then the sections the overview file's `setting_sections` lists, in its order (each setting names one with `section`; one that names none is under "Other settings"), each a grid of setting panels two across, three from about 1800 px, one on a phone: the name in sentence case with the key as an id tag, the description clamped to one line, the project's value (a path with a file icon, a value in mono, or a "Pack default" pill), and the pack's declared default as meta when it is not empty. A project whose settings file cannot be read gets one error panel under the band, and its panels say "Not read". The overview's `settings` map marks shadows (rule 10's badge and bar, and its `when_live` line) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks as rows of name and command. Keys this project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
-  | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
-  | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
-  | `factory/overview` | The same redirect, in one hop |
   | `factory/items/:key` | One item: its story (header band, journey strip, a panel per stage with its rounds grid and asks), links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
   | `factory/steps/:workflow/:node` | One step, as a document page (owner change 7 of 2026-11-21): a header band with its name and id tag, the drill-down card's line for what it does (else its kind and workflow), and chips for its kind in its kind colour, the model in words ("Lander tier, else medium"), its workflow, the stage that works it (opening that stage's modal) and how many items are on it now. The main column: "What it does" (the covering drill-down card's title and line, which the header's sentence also is: the view file gives one line per step), its prompt as markdown with each `$INPUTS.x` and `$node.output` reference as a named chip (the server finds them with the engine's grammar; a code span that is exactly one reference is its chip too, the raw token on hover, while a longer code span or a code block stays code), folded after 30 lines, or a bash or script step's script on a numbered code panel (a named script read from its file); the items on it now as board cards, or an empty state linking the board; its YAML behind a closed "Show the YAML". The aside: a definition grid of its kind, model, condition, the inputs and step outputs its prompt reads, the outcomes the view file declares for it (`verdicts`, `returns`, `approves`), each in words with its outcome id as a tag, and what starts after it (the steps and loops that wait on it, and a step whose condition reads its result, "next round" when that step comes earlier in the same loop), each row left out when nothing says it; then its workflow down one line, inside its loops, this step marked and every other a link to its own page. A workflow no stage runs, or a step its workflow does not have, says so in plain words and links the step's stage, else the Overview; a read that failed says why, with a Retry |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
 - Inside the Factory tab a small sub-navigation, on the line of the view's title, switches
   Overview, Board and Settings, each its own route; the tab has no other pages (owner change 3 of
-  2026-11-19, and owner change 2 of 2026-11-23 for Settings). Needs you is the project tab beside it and How it works the sidebar Factory page;
-  the old `factory/needs-you`, `factory/how-it-works` and `factory/overview` addresses redirect
-  there. Item, stage and step pages have a back link to where you came from.
+  2026-11-19, and owner change 2 of 2026-11-23 for Settings). Needs you is the project tab beside it and How it works the sidebar Factory page.
+  Item and step pages have a back link to where you came from.
 
 ## The factory view declaration
 
