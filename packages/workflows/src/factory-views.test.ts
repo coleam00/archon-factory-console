@@ -3,7 +3,7 @@ import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
-  discoverFactoryViews,
+  findFactoryViews,
   factoryViewWorkflowNames,
   factoryViewsForProject,
 } from './factory-views';
@@ -45,7 +45,7 @@ const projectFile = (key: string): string =>
 const packFile = (pack: string): string =>
   join(project, '.archon', 'workflows', pack, '.shared', 'factory-view.json');
 
-describe('discoverFactoryViews', () => {
+describe('findFactoryViews', () => {
   test("a project file replaces the same pack's own view, beside other packs' views", async () => {
     await write(packFile('factory'), view('factory', 'From the pack'));
     await write(projectFile('factory'), view('factory', 'From the project'));
@@ -53,7 +53,7 @@ describe('discoverFactoryViews', () => {
     // Pack settings share the folder and are not views.
     await write(join(project, '.archon', 'packs', 'factory.yaml'), 'settings: {}\n');
 
-    const listing = await discoverFactoryViews(roots);
+    const listing = await findFactoryViews(roots);
     expect(listing.errors).toEqual([]);
     expect(listing.views.map(v => [v.pack, v.source, v.declaration.title, v.path])).toEqual([
       ['factory', 'project-file', 'From the project', projectFile('factory')],
@@ -65,7 +65,7 @@ describe('discoverFactoryViews', () => {
     await write(projectFile('acme.kit'), view('acme/kit', 'Installed'));
     await write(packFile('folder'), view('folder', 'Folder'));
 
-    const listing = await discoverFactoryViews(roots);
+    const listing = await findFactoryViews(roots);
     expect(listing.views.map(v => [v.pack, v.packKey, v.runNames])).toEqual([
       ['acme/kit', 'acme.kit', { deliver: 'acme/kit:deliver' }],
       ['folder', 'folder', { deliver: 'deliver' }],
@@ -80,7 +80,7 @@ describe('discoverFactoryViews', () => {
     await write(packFile('bad-json'), '{ "version": ');
     await write(packFile('good'), view('good', 'Good'));
 
-    const listing = await discoverFactoryViews(roots);
+    const listing = await findFactoryViews(roots);
     // A broken project file still replaces the pack's own view; its error shows instead.
     expect(listing.views.map(v => v.pack)).toEqual(['good']);
     expect(listing.errors.map(({ pack, source, path }) => [pack, source, path])).toEqual([
@@ -97,7 +97,7 @@ describe('discoverFactoryViews', () => {
     await write(projectFile('acme.kit'), view('acme/other', 'Mislabelled'));
     await write(packFile('folder'), view('elsewhere', 'Mislabelled'));
 
-    const listing = await discoverFactoryViews(roots);
+    const listing = await findFactoryViews(roots);
     expect(listing.views).toEqual([]);
     expect(listing.errors.map(({ pack, source }) => [pack, source])).toEqual([
       ['acme.kit', 'project-file'],

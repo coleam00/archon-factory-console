@@ -11,10 +11,9 @@ import { createWorkflowStore } from '@archon/core/workflows/store-adapter';
 import * as codebaseDb from '@archon/core/db/codebases';
 import * as factoryDb from '@archon/core/db/factory-reads';
 import { providerRegistry } from '@archon/providers';
-import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
 import { attentionQueueSource } from '@archon/core/operations/attention-queue';
 import { changeMergeState, forgePluginsOnce, viewWorkItem } from '@archon/adapters/forge-host';
-import { getArchonHome, projectKeyForCodebase } from '@archon/paths/archon-paths';
+import { getArchonHome } from '@archon/paths/archon-paths';
 import {
   registeredProjectForPath,
   registeredProjectKeyForPath,
@@ -158,13 +157,7 @@ export function registerApiRoutes(
   registerFactoryRoutes(app, {
     codebase: async id => {
       const codebase = await codebaseDb.getCodebase(id);
-      return codebase === null
-        ? null
-        : {
-            cwd: codebase.default_cwd,
-            projectKey: projectKeyForCodebase(codebase, codebase.default_cwd),
-            remote: codebase.repository_url,
-          };
+      return codebase === null ? null : { cwd: codebase.default_cwd };
     },
     // Every registration as stored: the read lists one whose checkout path is invalid as
     // unreadable rather than failing every pack.
@@ -176,10 +169,6 @@ export function registerApiRoutes(
       })),
     loadConfig,
     ranWorkflows: async (id, names) => new Set(await factoryDb.listRunWorkflowNames(id, names)),
-    itemsSource: queueSource,
-    discoveriesSource: createWorkflowStore(),
-    changeMergeState: (lookup, branches) => changeMergeState(lookup, branches, forgeOptions),
-    discoverWorkflows: cwd => discoverWorkflowsWithConfig(cwd, loadConfig, providerRegistry),
   });
   registerForgeRoutes(app, {
     remote: async id => {

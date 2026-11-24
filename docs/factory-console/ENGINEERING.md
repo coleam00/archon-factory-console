@@ -45,10 +45,14 @@ The factory building this repository runs Archon from another checkout, on the h
   (`scripts/check-factory-imports.ts`). Every other file under `packages/web/src` (the answer
   panel, the ask card, the project tabs apart from that one tab, every generic page and
   component, `theme.css`) stays as it is on Archon dev.
-- Server code is `packages/server/src/routes/api.factory.ts`, kept to the view-file read and
-  what the web cannot get from existing routes. The server asks the change host through
-  `packages/adapters/src/forge-host.ts`, which finds plugins through
-  `@archon/forge/host-plugins` as the CLI's `archon forge` does.
+- Server code is `packages/server/src/routes/api.factory.ts`, kept to the view-file reads, and
+  two generic reads with no pack words that the web cannot get from older routes:
+  `GET /api/workflows/runs/records` (`api.run-records.ts`, run records without events) and
+  `GET /api/forge/subjects` (`api.forge.ts`, issue titles and change merge state). The server
+  asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins
+  through `@archon/forge/host-plugins` as the CLI's `archon forge` does. Everything a pack's
+  words name (rounds, returns, parked, stories, placement) is computed in
+  `factory/lib/`.
 - A new or changed server route regenerates the web API types: `bun run --cwd packages/server generate:api-types`
   (`check:api-types` fails CI otherwise). Two open changes that both add routes conflict in
   `api.generated.d.ts`; regenerate after rebasing rather than hand-merging it.

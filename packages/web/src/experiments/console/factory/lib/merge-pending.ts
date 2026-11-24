@@ -1,7 +1,7 @@
 /**
- * Whether an item's place waits on the change host. The server answers merged for an item
+ * Whether an item's place waits on the change host. The forge read answers merged for an item
  * whose merge the engine recorded without asking the host; otherwise it answers a change's
- * merge state `pending` while its first lookup still runs (`GET /api/factory/progress`), and
+ * merge state `pending` while its first lookup still runs (`GET /api/forge/subjects`), and
  * the console re-reads until it settles. A pending or `unknown` item is placed by its runs
  * (it never moves back from the landed column, `itemColumn`), and the board's columns show a
  * pending one as loading. The Overview's numbers count only items whose state is known

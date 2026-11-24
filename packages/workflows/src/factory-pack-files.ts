@@ -55,7 +55,7 @@ export function factoryPackKey(pack: string): string {
 }
 
 /** Every file of `kind` under `roots`, and every one that failed. */
-export async function discoverPackFiles<T extends { pack: string }>(
+export async function findPackFiles<T extends { pack: string }>(
   kind: PackFileKind<T>,
   roots: LiveWorkflowSourceRoots
 ): Promise<{ found: PackFileFound<T>[]; errors: PackFileError[] }> {

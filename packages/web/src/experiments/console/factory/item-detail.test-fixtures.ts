@@ -5,7 +5,8 @@ import { mapArrows, type MapArrow, type PackGraph } from './lib/graph-structure'
 import type { FactoryViewListed } from './lib/views';
 
 /**
- * Real `GET /api/factory/item` responses (see each file's `note`): item 1 (one deliver run,
+ * Real item pages as the console derives them (see each file's `note`; captured from the
+ * server's read before the web derived them, the same shape): item 1 (one deliver run,
  * two rounds), item 2 (three rounds), item 3 (two deliver runs, each ending in an ask, with
  * the answers), item 6 (a deliver run running its build step). Captured with each run's story
  * facts (its step starts, models, change and words): item 111 (one deliver run, two rounds,

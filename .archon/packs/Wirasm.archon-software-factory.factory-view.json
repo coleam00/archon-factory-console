@@ -903,9 +903,6 @@
       "verified": "/verified"
     }
   },
-  "itemTitle": {
-    "input": "item"
-  },
   "steps": {
     "triage": {
       "judge__judge": "Decides whether to build",

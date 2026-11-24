@@ -66,7 +66,9 @@ shape until the graph is read, which can take a while the first time. A
   stage lists the items merged in the last 7 days (local time), newest first, with "N earlier
   · show all" opening the Table filtered to every merged item; its cards are compact (key,
   title, pull request, when it merged). On a phone the columns stack and each shows its first
-  three cards, with "show all N" for the rest.
+  three cards, with "show all N" for the rest. An item's title is its issue's, as the project's
+  forge names it, for a key that names an issue (`issue-<n>` or `<n>`); any other key, or one
+  the forge has not answered for yet, reads as the key.
   A **Table** view lists the same fields as sortable columns, the stage and the board column
   among them. The filter box finds an item by
   key, title or the key of its work order.
@@ -84,22 +86,11 @@ shape until the graph is read, which can take a while the first time. A
   members, each "Not started", show on the order's item page (`/factory/items/<order key>`). An order with no
   run of its own is not a card and counts in no number. The console shows links; it never
   records or ends one.
-  Under the board, in both views, sits one line holding **Found by the factory** and **Set
-  aside** with one toggle, **show them**, that opens both together below the board or table,
-  never over it: the board keeps its height and the page scrolls to them. Switching Pipeline and
-  Table leaves them open or closed.
-  When the view declares `discoveries`, **Found by the factory** is on that line whatever the
-  filter ("14 filed, not on the board yet"); the toggle, or a board
-  address with `?show=found` (which also scrolls the line into view), opens the full panel: how many findings the discoveries drains decided to file
-  that no item on the project carries yet (an item carries one when its title is the finding's,
-  ignoring case), with chips counting every finding they decided to file, held and dropped,
-  and how many are already on the board, then each finding: its kind, its title,
-  the item whose drain decided it and when, and how the drain verified it, on hover. The panel
-  only reads: it files, starts
-  and dismisses nothing.
-  Beside it, the columns' items with nothing left to happen fold into **Set aside** ("3 set
-  aside"), which the toggle opens to list each item's key, title, why it was set aside and
-  when its last run ended. An item is set aside when an `endings` outcome took it off the
+  Under the board, in both views, the columns' items with nothing left to happen fold into
+  **Set aside** ("3 set aside"), one line with a toggle, **show them**, that opens the list below
+  the board or table, never over it: the board keeps its height and the page scrolls to it.
+  Switching Pipeline and Table leaves it open or closed. The list gives each item's key, title,
+  why it was set aside and when its last run ended. An item is set aside when an `endings` outcome took it off the
   board, when its last run ended in a `parked` outcome, or when its last run ended more than 3
   days ago and it never proposed a change (or its change's merge state could not be read);
   never while a run works it, it has an open question, an `awaits` outcome leaves it waiting on
@@ -155,7 +146,6 @@ question opening or closing.
 | merged today | Items whose change merged today, in the browser's local time |
 | N of M merged | N items merged out of M in the board's columns, however long ago. Items set aside (ended, parked or idle) are not in M |
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
-| found by the factory | Findings the discoveries drains decided to file that no item carries yet; shown only when the view declares `discoveries` |
 
 The numbers are plain figures, not links. Each counts with the same filter the board applies
 for it (`?show=`), so a number and the board agree. When some items' merge state could not be
@@ -220,8 +210,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `retired` | no | Workflows a stage still lists that the installed pack no longer has, so items they delivered before still place, render and count: `["deliver"]`. `bun run check:factory-view` neither requires the pack to have them nor compares their names with the pack, and fails when the pack has one again. Each must be listed by a stage, once. |
 | `change` | no | Where the pull request URL is in a workflow's result: one `{ "workflow", "pointer" }`, or a list naming each workflow once. The newest run of any listed workflow with a non-empty URL at its pointer gives the item's change. |
 | `partOf` | no | `{ "workflow", "pointer", "outcome" }`: the JSON pointer to the item's work order (an item key) in that workflow's result, read only from runs that completed with `outcome` (the one that accepts the item), so a refused run never makes an item a member. Read only for an item with no active `part_of` link; the newest such run decides, and an empty value there means none. |
-| `discoveries` | no | `{ "workflow", "filed", "held", "dropped", "entry": { "title", "kind", "verified" } }`: the workflow that drains what agents noticed outside their work, and where each of its completed runs' result lists what it decided, as JSON pointers: `filed`, `held` and `dropped` into the result (each a list), `entry` into each entry of `filed` (`title` required, `kind` and `verified` optional). Its runs place no item, so no stage need list it. A result recorded as text holding JSON (a script's output) is read as that JSON. A run whose result has no list at a declared pointer, or a filed entry with no title, counts as a drain that could not be read. |
-| `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
+| `discoveries` | no | `{ "workflow", "filed", "held", "dropped", "entry": { "title", "kind", "verified" } }`: the workflow that drains what agents noticed outside their work, and where each of its completed runs' result lists what it decided, as JSON pointers: `filed`, `held` and `dropped` into the result (each a list), `entry` into each entry of `filed` (`title` required, `kind` and `verified` optional). Its runs place no item, so no stage need list it; the item page tells a drain run on an item as its own panel. The console reads only `workflow` today: the findings name the items they concern only in their words, so they are not joined to items or counted. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover. `bun run check:factory-view` fails a key that names no real step. |
 | `story` | no | How the item page tells what each run did, one plain sentence per stage: `{ "outcomes", "steps", "said" }`. `outcomes` maps `workflow:outcome` to a sentence, or to `{ "withChange", "withoutChange" }` when the outcome reads differently with and without a change on the item (a drop answered before any pull request), the page picking by whether the item has one ("Triage judged it worth building"), or `workflow:*` for every completed run of the workflow no exact key takes, a run that recorded no outcome included (as in `placement`); a key may name the `discoveries` workflow. `steps`, optional, words the earlier stages of a run that works several, by the step that starts each part: `{ "<workflow>": { "<step id>": "Build wrote the change" } }`. `said`, optional, lists JSON pointers into a run's result, tried in order, for what the run said in its own words: the page shows it as the reason a panel sent the item back, cut to a sentence with the rest behind "More", when a run sent the item back and no check round gave a reason (a CI send-back, say): on that panel's sentence while it is the panel's last run, else listed under the sentence with the fix that followed. It is not shown otherwise. A sentence is plain text of at most 160 characters with no placeholders; the page adds its own clauses after it (the pull request a run opened, why the checks sent it back, what you answered). With a `story`, `bun run check:factory-view` fails a key or step the workflow does not have, and warns on an outcome a listed workflow declares that no key takes. Without one, the page words each run from `placement`, `endings` and `parked` ("Triage finished: sent to Plan"). |
 | `answers` | no | What choosing an option of an ask starts, in plain words: `{ "<workflow>:<option id>": { "starts": "Closes the PR without merging" } }`, keyed exactly (no `*`) by a workflow a stage lists and the option id an ask its runs leave offers. The item page's story shows it in place of "<stage> started again" for an answer that chose it. It decides nothing: the pack's own bindings decide what an answer starts. A sentence is plain text of at most 160 characters. |
@@ -356,7 +345,6 @@ overview files and commit them with the pin.
     "dropped": "/dropped",
     "entry": { "title": "/title", "kind": "/kind", "verified": "/verified" }
   },
-  "itemTitle": { "input": "item" },
   "map": {
     "cards": [
       { "stage": "plan" },

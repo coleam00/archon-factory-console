@@ -1,12 +1,12 @@
 /**
- * Discover factory views (`schemas/factory-view.ts`) for a project, and decide which apply.
+ * Find factory views (`schemas/factory-view.ts`) for a project, and decide which apply.
  *
  * A project file `.archon/packs/<pack key>.factory-view.json` comes first, so a project may
  * present an installed pack it cannot edit; then `<pack>/.shared/factory-view.json` in every
  * pack the project can run (`factory-pack-files.ts`). A file that cannot be read or does not
  * validate is listed under `errors` with its path; it never hides the others.
  */
-import { discoverPackFiles, factoryPackKey, installedIdentity } from './factory-pack-files';
+import { findPackFiles, factoryPackKey, installedIdentity } from './factory-pack-files';
 import {
   FACTORY_VIEW_FILE,
   FACTORY_VIEW_PROJECT_SUFFIX,
@@ -17,11 +17,6 @@ import { installedWorkflowName } from './workflow-source/installed-packs';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 export { factoryPackKey } from './factory-pack-files';
-
-/** Whether a view's `pack` names an installed pack (`owner/name`) rather than a folder pack. */
-export function factoryPackIsInstalled(pack: string): boolean {
-  return installedIdentity(pack) !== undefined;
-}
 
 /**
  * The name a run of `workflow` from `pack` records: `owner/name:workflow` for an installed
@@ -34,10 +29,10 @@ export function factoryRunWorkflowName(pack: string, workflow: string): string {
 }
 
 /** Every view and error under `roots` (`factory-pack-files.ts` says where it looks, in what order). */
-export async function discoverFactoryViews(
+export async function findFactoryViews(
   roots: LiveWorkflowSourceRoots
 ): Promise<FactoryViewsListing> {
-  const { found, errors } = await discoverPackFiles(
+  const { found, errors } = await findPackFiles(
     {
       fileName: FACTORY_VIEW_FILE,
       projectSuffix: FACTORY_VIEW_PROJECT_SUFFIX,
