@@ -4,15 +4,14 @@ import { relativeTime } from '../lib/format';
 import type { FactoryItem } from './api';
 import { AskQuestionLine, OpenAsksChip, openAsksWords, RecommendedChip } from './BoardCardAsk';
 import { ItemAsksPopover, type AskedItem } from './ItemAsksPopover';
+import { askQuestion, newestFirst, recommendedLabel, type OpenEntry } from './lib/attention';
 import {
-  askQuestion,
-  awaitingItems,
-  newestFirst,
-  recommendedLabel,
-  waitingRefs,
-  type OpenEntry,
-} from './lib/attention';
-import { boardModel, type BoardModel, type FactoryDeclaration, type PlacedCard } from './lib/board';
+  boardModel,
+  filterBoard,
+  type BoardModel,
+  type FactoryDeclaration,
+  type PlacedCard,
+} from './lib/board';
 import { boardShowSearch } from './lib/board-show';
 import { displayItemKey } from './lib/item-key';
 import { factoryPath } from './lib/views';
@@ -43,17 +42,18 @@ function askedCards(model: BoardModel, asks: FactoryAsks): AskedCard[] {
 }
 
 /**
- * How many more wait than the rows show: what waits by ref and is not answered here, less what
- * the rows hold, and the items waiting on you with no ask open. So the rows and this line add
- * up to the Need you number; an ask whose item is not on the board is counted here.
+ * How many more the board's "needs you" show lists than the rows hold: the open asks of its
+ * cards that are not rows, and one for each card waiting on you with no ask open (`awaits`). So
+ * the link's "on the board" is true. What waits on an item the board does not show there (set
+ * aside, with no position, merged, or not a factory item) is counted only by the Need you tile.
  */
-function moreCount(items: readonly FactoryItem[], asks: FactoryAsks, rows: AskedCard[]): number {
-  const answered = new Set(asks.section.answered.map(record => record.ask.ref));
-  const shown = new Set(rows.flatMap(row => row.entries.map(entry => entry.ref)));
-  const rest = [...waitingRefs(items, asks.asks)].filter(
-    ref => !answered.has(ref) && !shown.has(ref)
-  );
-  return rest.length + awaitingItems(items).length;
+function moreCount(model: BoardModel, asks: FactoryAsks, rows: AskedCard[], now: Date): number {
+  const inRows = new Set(rows.map(row => row.placed.card.key));
+  let more = 0;
+  for (const column of filterBoard(model, '', 'needs-you', now).columns)
+    for (const { item, card } of column.cards)
+      if (!inRows.has(card.key)) more += card.pill === 'awaits' ? 1 : asks.entriesOf(item).length;
+  return more;
 }
 
 /** Each item on the board's columns, by key, as the ask view names it. */
@@ -72,9 +72,8 @@ function askedItems(model: BoardModel | undefined): Map<string, AskedItem> {
  * The Overview's Needs you, as compact rows: the newest three items with an ask open, each
  * naming the item, its stage and how long its newest ask has waited, the question in one line
  * and the option its workflow recommends. A row opens Archon's own ask section for the item
- * over the page, as a board card does, and it is answered there. Then how many more wait, the
- * items waiting on you with no ask open (`awaitingItems`) among them, linking to the board's
- * "needs you" show. Nothing shows when nothing waits.
+ * over the page, as a board card does, and it is answered there. Then how many more the board's
+ * "needs you" show lists (`moreCount`), linking to it. Nothing shows when nothing waits there.
  */
 export function OverviewAsks({
   projectId,
@@ -96,7 +95,7 @@ export function OverviewAsks({
   const board = useBoardAsks({ all: model, shown: model, asks });
   const asked = useMemo(() => askedItems(model), [model]);
   const rows = model === undefined ? [] : askedCards(model, asks).slice(0, OVERVIEW_ROWS_SHOWN);
-  const more = items === undefined ? 0 : moreCount(items, asks, rows);
+  const more = model === undefined ? 0 : moreCount(model, asks, rows, now);
   return (
     <>
       {rows.length === 0 && more === 0 ? null : (
@@ -160,22 +159,25 @@ function NeedsYouRow({
       onClick={event => {
         board.openFor(card.key, event.currentTarget);
       }}
-      className="flex w-full min-w-0 flex-col items-start gap-2 rounded-console-12 border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 ease-out hover:border-border-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="@container flex w-full min-w-0 flex-col items-start gap-2 rounded-console-12 border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 ease-out hover:border-border-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      {/* Under md the title takes a line of its own, so a work order's long key never squeezes
-          it out; from md up key, title, stage and age share one line. */}
-      <span className="flex w-full min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-console-13 md:flex-nowrap">
-        <span className="min-w-0 truncate font-mono text-text-secondary md:shrink-0">
+      {/* By the row's own width, not the window's: a row narrower than @2xl (the md band beside
+          the sidebar, a phone) gives the title a line of its own, so a work order's long key
+          never squeezes it out. The key never breaks inside itself; stage and age give way. */}
+      <span className="flex w-full min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-console-13 @2xl:flex-nowrap">
+        <span className="max-w-full shrink-0 truncate font-mono text-text-secondary">
           {displayItemKey(item.item.key, card.order)}
         </span>
         <span
           title={card.title}
-          className="min-w-0 basis-full truncate font-medium text-text-primary max-md:order-last md:basis-auto"
+          className="order-last min-w-0 basis-full truncate font-medium text-text-primary @2xl:order-none @2xl:basis-auto"
         >
           {card.title}
         </span>
         {where.length === 0 ? null : (
-          <span className="shrink-0 text-text-tertiary">· {where.join(' · ')}</span>
+          <span className="min-w-0 truncate text-text-tertiary @2xl:shrink-0">
+            · {where.join(' · ')}
+          </span>
         )}
       </span>
       <AskQuestionLine question={question} />

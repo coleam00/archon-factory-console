@@ -853,11 +853,14 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    section for the item as the board card does, answered there: from md up a box over the page,
    beside the row where the window has room for it and otherwise at the window's left edge, over
    the left of the rows (a row is as wide as the text measure, so at 1440 it does not fit
-   beside one); under md a sheet from the bottom. The title takes its own line under md, so a
-   work order's long key never squeezes it out. Never a second ask design (v2 direction). Then
-   "N more on the board" (the board's `?show=needs-you`): what waits and is not in a row, asks on items off the
-   board and the items waiting on you with no ask open among them, so the rows and N add up to
-   the Need you number. Nothing shows when nothing waits, and the map follows right after.
+   beside one); under md a sheet from the bottom. A row narrower than its one-line layout needs
+   (a phone, the md band beside the sidebar) gives the title a line of its own, so a work
+   order's long key never squeezes it out; the key never breaks inside itself. Never a second
+   ask design (v2 direction). Then "N more on the board" (the board's `?show=needs-you`): the
+   open asks of the cards that show lists and are not rows, and one per card waiting on you with
+   no ask open, so the link finds every one of them. An ask on an item that show does not list
+   (set aside, with no position, merged, or not a factory item) is counted by the Need you tile
+   only. Nothing shows when nothing waits, and the map follows right after.
 4. **The map.**
 
 ## The map

@@ -63,26 +63,18 @@ export function awaitingItems<T extends Pick<FactoryItem, 'questions' | 'progres
   );
 }
 
-/** The refs of what waits on a person in the factory: every item's open entries and the project's asks, each once. */
-export function waitingRefs(
-  items: readonly Pick<FactoryItem, 'questions'>[],
-  asks: readonly ItemAsk[]
-): Set<string> {
-  const refs = new Set(asks.map(ask => ask.ref));
-  for (const item of items) for (const entry of openEntries(item.questions)) refs.add(entry.ref);
-  return refs;
-}
-
 /**
- * How many things in the factory need a person: what waits by ref (`waitingRefs`), and the
- * items waiting on a person with no ask open. The Overview's number reads this, and its Needs
- * you counts what it does not show from the same refs.
+ * How many things in the factory need a person: every item's open entries and the project's
+ * asks, each once by ref, and the items waiting on a person with no ask open. The Overview's
+ * number reads this.
  */
 export function factoryWaitingCount(
   items: readonly Pick<FactoryItem, 'item' | 'questions' | 'progress'>[],
   asks: readonly ItemAsk[]
 ): number {
-  return waitingRefs(items, asks).size + awaitingItems(items).length;
+  const refs = new Set(asks.map(ask => ask.ref));
+  for (const item of items) for (const entry of openEntries(item.questions)) refs.add(entry.ref);
+  return refs.size + awaitingItems(items).length;
 }
 
 /**

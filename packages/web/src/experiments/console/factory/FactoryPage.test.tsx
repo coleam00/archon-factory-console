@@ -115,19 +115,29 @@ function render(
   );
 }
 
-/** Six open asks, newest last, on six of the board's real items: more than the Overview shows. */
-const askedKeys = ['1', '2', '3', '4', '5', '6'];
-const askedItems = askedKeys.map(realItem);
-const sixAsks = attentionRead(
-  askedItems.map(({ item }, i) =>
-    refAsk({
-      ref: `ask:${i.toString()}`,
-      item: { ...item },
-      message: `Question ${i.toString()}?`,
-      pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
-    })
-  )
-);
+/**
+ * Six open asks, newest last, on six of the board's real items, each item's read listing its
+ * own: more than the Overview shows. Then an ask on an item the board does not hold, which the
+ * Need you number counts and the board's "needs you" show cannot list.
+ */
+const asksOnItems = ['1', '2', '3', '4', '5', '6'].map((key, i) => {
+  const item = realItem(key);
+  const ask = refAsk({
+    ref: `ask:${i.toString()}`,
+    item: { ...item.item },
+    message: `Question ${i.toString()}?`,
+    pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
+  });
+  return { item: { ...item, questions: [ask] }, ask };
+});
+const askedItems = asksOnItems.map(entry => entry.item);
+const offBoard = refAsk({
+  ref: 'ask:off-board',
+  item: { id: 'item-gone', projectKey: 'acme', key: '#99' },
+  message: 'Off the board?',
+  pausedAt: '2026-11-17T09:00:00.000Z',
+});
+const sixAsks = attentionRead([...asksOnItems.map(entry => entry.ask), offBoard]);
 /** An item waiting on you with no ask open, its own item and not item 6 it is made from. */
 const shaping = needsShaping('9s', ['Which?']);
 const awaitingOnly: FactoryItem = { ...shaping, item: { ...shaping.item, id: 'item-9s' } };
@@ -168,26 +178,28 @@ describe('the Factory section', () => {
       `/console/p/${ID}/factory Overview`,
     ]);
     expect(subNav(html)).toEqual(SUB_NAV);
-    // Six asks and an item waiting on you.
+    // Seven asks and an item waiting on you.
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
-    expect(text(strip)).toContain('need you7');
+    expect(text(strip)).toContain('need you8');
     // The newest three, one row each, and none of Archon's ask section drawn in the page.
     expect(rowKeys(html)).toEqual(['6', '5', '4']);
     for (const i of [5, 4, 3]) expect(needsYouOf(html)).toContain(`Question ${i.toString()}?`);
     expect(html).not.toContain('data-ask-ref=');
-    // The rest wait on the board: three asks and the item waiting on you.
-    expect(text(moreLink(html))).toContain('4');
+    // The rest the board's "needs you" show lists: item 3's ask and the item waiting on you.
+    // Items 1 and 2 merged, so that show leaves them out; the ask off the board, the newest of
+    // all, is neither a row nor counted there. The Need you number counts all of them.
+    expect(needsYouOf(html)).not.toContain('Off the board?');
+    expect(text(moreLink(html))).toContain('2 more');
     const needsYou = html.indexOf('aria-label="Needs you"');
     expect(needsYou).toBeGreaterThan(-1);
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
   });
 
   test('a quiet Overview says an item waits on you, and its numbers count the board', () => {
-    const waiting = render(`/console/p/${ID}/factory`, withView, quiet, [
-      needsShaping('9s', ['Which?']),
-    ]);
-    expect(waiting).toContain('Kit factory');
-    expect(waiting).toContain(SUMMARY);
+    const titled = render(`/console/p/${ID}/factory`, withView, quiet);
+    expect(titled).toContain('Kit factory');
+    expect(titled).toContain(SUMMARY);
+    const waiting = render(`/console/p/${ID}/factory`, shipped, quiet, [awaitingOnly]);
     expect(text(moreLink(waiting))).toContain('1');
     expect(rowKeys(waiting)).toEqual([]);
 
