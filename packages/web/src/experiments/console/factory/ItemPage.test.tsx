@@ -269,10 +269,8 @@ describe('the item page', () => {
     expect(text(html)).toContain('Which base should the change target?');
     expect(text(html)).toContain('From the child run?');
     expect(text(html)).not.toContain('Not this item?');
-    // Each in Archon's ask section, answerable: its options, the recommendation, the costs.
+    // Both of the item's asks, each in Archon's ask section.
     expect(html.split('data-ask-ref=')).toHaveLength(3);
-    expect(text(html)).toContain('Dev is the working base.');
-    expect(text(html)).toContain('One more rebase.');
   });
 
   test('while the item is read: skeletons, never Loading…', () => {

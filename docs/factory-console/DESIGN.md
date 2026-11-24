@@ -216,8 +216,8 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    many asks are open, with its newest question and a visible ping. Clicking it opens Archon's own
    ask section (v2 direction) in a popover over the board, answered in place, without leaving the
    board. *Amended by the owner on 2026-11-19 (#91), so the board fits its cards: such a card is
-   short. Its title takes 2 lines; the question takes 1 line, with the ping and the count on it.
-   The popover holds the rest.*
+   short. Its title takes 2 lines; the question takes 1 line, with the ping on it, and under it
+   a bordered chip says how many asks are open. The popover holds the rest.*
 4. **Fewer board columns.** The view file groups stages into columns; the board draws one column
    per group, not per stage. For this pack: **Intake** (order, triage) | **Plan & build** |
    **Checks & review** (the check rounds, CI and PR reviews) | **Ready to merge** | **Merged**.
@@ -479,10 +479,10 @@ The factory section does not restyle, wrap, replace or parse it: its options, re
 confidence and cost come from what the ask's workflow declares (#6139), never from the ask's
 text. The factory's own surfaces that point at an ask follow the rules above:
 
-- On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping, the
+- On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping and the
   newest question at `--text-console-13` cut to that line (the whole question on hover and in
-  the popover), and "N open asks" in the needs-you colours. The card's title then takes 2 lines,
-  not 3.
+  the popover); under it, a neutral bordered chip (`--border`, `--text-primary`,
+  `--text-console-12`) reading "N open asks". The card's title then takes 2 lines, not 3.
 - The popover that holds Archon's ask section over the board is at most 480 px wide; under
   520 px (a 390 px phone) it is a sheet from the bottom.
 
@@ -1055,7 +1055,8 @@ A card, in this order:
    no ask open: the first question its run recorded, cut to its line, and "N questions" when it
    recorded several, else its reason. For one with open asks (the item read's questions and the
    asks Archon's attention read names on the item, each once by ref, `itemOpenEntries`): one
-   control on one line, the ping, the newest question cut to that line, and "N open asks". It
+   control, the ping and the newest question cut to one line, and under it a neutral bordered
+   chip reading "N open asks". It
    opens the item's asks in a popover over the board, 480 px beside the card from md up and a
    sheet from the bottom under md: Archon's own `ItemAsksSection` for the asks answered by ref,
    and a paused run's wait in Archon's `AttentionAnswerPanel` or `ApprovalPanel`, as dev's
