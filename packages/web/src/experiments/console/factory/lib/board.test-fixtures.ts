@@ -1,9 +1,9 @@
 /**
  * The board's fixtures: the items `dev:console` served from a copy of the live factory
- * database, each read joined with its progress (`__fixtures__/items-page.json`), and the
- * declaration this repository ships. Edge
- * cases the copy does not hold (a failed run, an open ask, a triage ending) are made by
- * editing a real item, never from nothing.
+ * database, each read joined with its progress (`__fixtures__/items-page.json`, the one items
+ * capture: the map's and the step pages' fixtures are made from it too), and the declaration
+ * this repository ships. Edge cases the copy does not hold (a failed run, an open ask, a
+ * triage ending) are made by editing a real item, never from nothing.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,9 +12,12 @@ import type { FactoryDeclaration } from './board';
 
 const read = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
 
-export const PAGE = read(join(import.meta.dir, '__fixtures__', 'items-page.json')) as {
+const CAPTURE = read(join(import.meta.dir, '__fixtures__', 'items-page.json')) as {
   items: FactoryItem[];
+  item114: { item: FactoryItem };
 };
+
+export const PAGE = { items: CAPTURE.items };
 
 export const VIEW = read(
   join(
@@ -27,13 +30,12 @@ export const VIEW = read(
 ) as FactoryDeclaration;
 
 /**
- * Item 114 exactly as the board read it on 2026-11-23 from a copy of the live database: its
- * deliver run ended `ask` at 2026-11-20 21:38:49 UTC, the ask was answered take-as-is and
- * started nothing, and it never opened a pull request (its change reads `unknown`, no URL).
+ * Item 114 exactly as the board read it on 2026-11-23 from a copy of the live database, kept
+ * in the capture beside its page (`item114`, not one of `items`): its deliver run ended `ask`
+ * at 2026-11-20 21:38:49 UTC, the ask was answered take-as-is and started nothing, and it
+ * never opened a pull request (its change reads `unknown`, no URL).
  */
-export const ITEM_114 = (
-  read(join(import.meta.dir, '__fixtures__', 'item-114.json')) as { item: FactoryItem }
-).item;
+export const ITEM_114 = CAPTURE.item114.item;
 
 /**
  * The time a test reads the fixture board at: the day after the copy's last run ended, so the
