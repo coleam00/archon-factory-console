@@ -67,8 +67,9 @@ exact sentence of copy. Test lines stay at most half of source lines.
 **Carried over** (owner-approved, keep them working): the strips under the board with one
 toggle (#152); work orders as a board section, each row opening its order (#153); a step card
 opening directly (#154) is gone with the step pages: steps are a plain list; plain number tiles, map counts that match
-the board, and How it works naming no project (#151); the phone tab row revealing the active
-tab (#155); #111's story still tells; 390 px works everywhere. "Found by the factory" and "Set
+the board, and How it works naming no project (#151); the factory's own sub-navigation (Overview |
+Board) revealing the active tab at phone width (#155; the project tab row itself is Archon's, as
+on dev plus a Factory entry, with all four tabs reachable at 390 px); #111's story still tells; 390 px works everywhere. "Found by the factory" and "Set
 aside" stay only while their data is generic (discoveries as items or links, parked as an
 outcome the view names); otherwise they go.
 
