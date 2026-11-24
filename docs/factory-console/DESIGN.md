@@ -548,7 +548,7 @@ The section has **two separate things**, each with its own file:
    full-screen mode over the whole screen with the legend docked bottom-left. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
    **The flow loop** (owner change 6 of 2026-11-19), on the root view only: dots leave every input
    card together (An issue, A work order, Found by agents) and reach the first stage (Triage) at the
-   same moment; one dot then carries on along the forward line (Plan, Build, Checks, CI and
+   same moment; one dot then carries on along the forward line (Link, Plan, Build, Checks, CI and
    reviews, Ready to merge, Merged), resting a beat on each card while a faint halo in the card's
    kind colour shows round it. Where a send-back line returns to an input card, a second dot leaves
    at the same moment and travels it (CI and reviews, along "unrelated finds would become new
@@ -727,9 +727,14 @@ pack copy) loads the view file and the pack graph. It FAILS on any workflow, ste
 option name the view uses that the graph lacks, on a drill-down step two cards cover, and on a
 `map.arrows` label for a pair of stages the graph does not connect. It WARNS on graph workflows
 or outcomes the view leaves unplaced, which is how a new stage (such as `link`) gets noticed,
-on a real step no drill-down card covers, and on a drawn arrow with no label. It reads the graph from the
-installed pack where a home is named, and from a snapshot of `archon pack graph` committed
-beside the view file in CI (failing when the two differ). A `retired` workflow is not required
+on a real step no drill-down card covers, and on a drawn arrow with no label. It holds How it
+works to the graph where the picture draws the pack's stages, without making it read the graph
+or name a project: an overview edge between two cards that open a view stage must join two
+stages the graph connects (FAIL), and a view stage between two the picture draws that no card
+opens WARNS. It reads the graph from the pack itself, never from a committed capture: the pack's
+repo and commit are pinned once, in `<pack key>.pack-pin.json` beside the view. Where a home is
+named it reads the pack installed there and fails when that is at another commit than the pin;
+in CI it fetches the pinned commit into a throwaway home. A `retired` workflow is not required
 of the pack.
 
 ## Data

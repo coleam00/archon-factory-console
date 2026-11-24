@@ -90,9 +90,7 @@
         {
           "id": "drain",
           "kind": "agent",
-          "dependsOn": [
-            "intake"
-          ],
+          "dependsOn": ["intake"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -100,9 +98,7 @@
         {
           "id": "result",
           "kind": "exec",
-          "dependsOn": [
-            "drain"
-          ],
+          "dependsOn": ["drain"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -188,9 +184,7 @@
         {
           "id": "base",
           "kind": "exec",
-          "dependsOn": [
-            "read"
-          ],
+          "dependsOn": ["read"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -198,9 +192,7 @@
         {
           "id": "review__review",
           "kind": "agent",
-          "dependsOn": [
-            "base"
-          ],
+          "dependsOn": ["base"],
           "loopGroup": null,
           "blocks": [
             {
@@ -213,9 +205,7 @@
         {
           "id": "tests__tests",
           "kind": "agent",
-          "dependsOn": [
-            "base"
-          ],
+          "dependsOn": ["base"],
           "loopGroup": null,
           "blocks": [
             {
@@ -228,10 +218,7 @@
         {
           "id": "verdict__verdict",
           "kind": "agent",
-          "dependsOn": [
-            "review__review",
-            "tests__tests"
-          ],
+          "dependsOn": ["review__review", "tests__tests"],
           "loopGroup": null,
           "blocks": [
             {
@@ -244,9 +231,7 @@
         {
           "id": "report__report",
           "kind": "agent",
-          "dependsOn": [
-            "verdict__verdict"
-          ],
+          "dependsOn": ["verdict__verdict"],
           "loopGroup": null,
           "blocks": [
             {
@@ -349,9 +334,7 @@
         {
           "id": "end",
           "kind": "exec",
-          "dependsOn": [
-            "land"
-          ],
+          "dependsOn": ["land"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -437,9 +420,7 @@
         {
           "id": "end",
           "kind": "exec",
-          "dependsOn": [
-            "gate"
-          ],
+          "dependsOn": ["gate"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -488,9 +469,7 @@
         {
           "id": "link",
           "kind": "agent",
-          "dependsOn": [
-            "given"
-          ],
+          "dependsOn": ["given"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -498,9 +477,7 @@
         {
           "id": "end",
           "kind": "exec",
-          "dependsOn": [
-            "link"
-          ],
+          "dependsOn": ["link"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -693,9 +670,7 @@
         {
           "id": "members",
           "kind": "exec",
-          "dependsOn": [
-            "cut"
-          ],
+          "dependsOn": ["cut"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -740,9 +715,7 @@
         {
           "id": "end",
           "kind": "exec",
-          "dependsOn": [
-            "build__build"
-          ],
+          "dependsOn": ["build__build"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -787,9 +760,7 @@
         {
           "id": "review__review",
           "kind": "agent",
-          "dependsOn": [
-            "base"
-          ],
+          "dependsOn": ["base"],
           "loopGroup": null,
           "blocks": [
             {
@@ -802,9 +773,7 @@
         {
           "id": "tests__tests",
           "kind": "agent",
-          "dependsOn": [
-            "base"
-          ],
+          "dependsOn": ["base"],
           "loopGroup": null,
           "blocks": [
             {
@@ -817,9 +786,7 @@
         {
           "id": "product__product",
           "kind": "agent",
-          "dependsOn": [
-            "base"
-          ],
+          "dependsOn": ["base"],
           "loopGroup": null,
           "blocks": [
             {
@@ -832,11 +799,7 @@
         {
           "id": "verdict__verdict",
           "kind": "agent",
-          "dependsOn": [
-            "review__review",
-            "tests__tests",
-            "product__product"
-          ],
+          "dependsOn": ["review__review", "tests__tests", "product__product"],
           "loopGroup": null,
           "blocks": [
             {
@@ -849,9 +812,7 @@
         {
           "id": "allowance",
           "kind": "exec",
-          "dependsOn": [
-            "verdict__verdict"
-          ],
+          "dependsOn": ["verdict__verdict"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -859,9 +820,7 @@
         {
           "id": "exhausted",
           "kind": "agent",
-          "dependsOn": [
-            "allowance"
-          ],
+          "dependsOn": ["allowance"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -869,10 +828,7 @@
         {
           "id": "end",
           "kind": "exec",
-          "dependsOn": [
-            "allowance",
-            "exhausted"
-          ],
+          "dependsOn": ["allowance", "exhausted"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -880,9 +836,7 @@
         {
           "id": "report__report",
           "kind": "agent",
-          "dependsOn": [
-            "end"
-          ],
+          "dependsOn": ["end"],
           "loopGroup": null,
           "blocks": [
             {
@@ -932,9 +886,7 @@
         {
           "id": "allowance",
           "kind": "exec",
-          "dependsOn": [
-            "rounds__host"
-          ],
+          "dependsOn": ["rounds__host"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -942,9 +894,7 @@
         {
           "id": "exhausted",
           "kind": "agent",
-          "dependsOn": [
-            "allowance"
-          ],
+          "dependsOn": ["allowance"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -952,10 +902,7 @@
         {
           "id": "end",
           "kind": "exec",
-          "dependsOn": [
-            "allowance",
-            "exhausted"
-          ],
+          "dependsOn": ["allowance", "exhausted"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -963,9 +910,7 @@
         {
           "id": "report__report",
           "kind": "agent",
-          "dependsOn": [
-            "end"
-          ],
+          "dependsOn": ["end"],
           "loopGroup": null,
           "blocks": [
             {
@@ -1076,9 +1021,7 @@
         {
           "id": "admit",
           "kind": "agent",
-          "dependsOn": [
-            "judge__judge"
-          ],
+          "dependsOn": ["judge__judge"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -1086,9 +1029,7 @@
         {
           "id": "admitted",
           "kind": "exec",
-          "dependsOn": [
-            "admit"
-          ],
+          "dependsOn": ["admit"],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null

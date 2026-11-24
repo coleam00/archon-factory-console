@@ -253,28 +253,27 @@ A drill-down card and loop must name a workflow their own stage lists.
 
 The view is presentation only: it gives the pack's workflows, steps, outcomes and options
 words, a stage and a position. The schema cannot see the pack, so a separate check compares a
-view file with the pack graph. It is a script of an Archon checkout, `bun run check:factory-view`,
-and it checks only the project files in that checkout's own `.archon/packs/`
-(`<pack key>.factory-view.json`), not another project's files or a pack's
-`.shared/factory-view.json`. It reads each pack's graph (what `archon pack graph <pack key> --json`
-prints, from the same read `GET /api/packs/{pack}/graph` answers from, less its `loaded` and
-`otherCopies`, which say where the copies were found on this machine, not what the pack is)
-from two places:
+view file, and the overview file beside it, with the pack graph. It is a script of an Archon
+checkout, `bun run check:factory-view`, and it checks only the project files in that checkout's
+own `.archon/packs/` (`<pack key>.factory-view.json` and `<pack key>.factory-overview.json`),
+not another project's files or a pack's `.shared/` files. It reads each pack's graph (what
+`archon pack graph <pack key> --json` prints, from the same read `GET /api/packs/{pack}/graph`
+answers from) from the pack itself, never from a committed capture. The pack's repo and commit
+are pinned in one place, `<pack key>.pack-pin.json` beside the view file
+(`{ "repo": "<owner>/<name>", "commit": "<sha>" }`):
 
-- the snapshot `<pack key>.pack-graph.json` committed beside the view file, which CI checks
-  against since it has no installed pack; a missing snapshot fails the check;
-- the installed pack, when a home is named: the `plugins/` directory of the home
-  `ARCHON_FACTORY_LIVE_HOME` names, else of `ARCHON_HOME`. The view is then checked against the
-  installed pack, and a snapshot that differs from it fails the check, so a reinstall that
-  changes the pack is caught where it is installed. With neither variable set, the check says
-  it used the snapshots only. When `archon pack graph` cannot find the pack in the named home
-  (including when it has no `plugins/`), the check fails with that reason rather than falling
-  back to the snapshot: install the pack there, or unset both variables to check against the
-  snapshot.
+- with no home named (as in CI), the check fetches the pinned commit from GitHub at depth 1
+  into a throwaway home, laid out as `archon plugin add` lays out an install;
+- when a home is named (the home `ARCHON_FACTORY_LIVE_HOME` names, else `ARCHON_HOME`), it
+  reads the pack installed in that home's `plugins/`, and fails when the install is at another
+  commit than the pin, so a reinstall is caught where it is installed. When `archon pack graph`
+  cannot find the pack there (including when the home has no `plugins/`), the check fails with
+  that reason rather than falling back to the pin: install the pack there, or unset both
+  variables to check the pinned commit.
 
-It reads the installed pack on a throwaway home holding a copy of that `plugins/` directory and
-nothing else, so the install is only read, and with no trigger files every arrow is one the
-pack declares. Each finding names its path in the view file.
+Either way it reads the pack on a throwaway home holding only those plugins, so an install is
+only read, and with no trigger files every arrow is one the pack declares. Each finding names
+its path in the view or overview file.
 
 It **fails** (exits 1) on:
 
@@ -290,7 +289,9 @@ It **fails** (exits 1) on:
 - an option an `answers` key names that no asks-settled hand-off of its workflow leaves on;
 - a drill-down card or loop on a workflow its stage does not list or the view retired, and a
   step two cards cover;
-- a `map.arrows` entry for a pair of stages the map does not draw.
+- a `map.arrows` entry for a pair of stages the map does not draw;
+- an overview edge between two cards whose `opens` names a stage of the view, where the graph
+  does not connect those two stages.
 
 It **warns**, and still passes, on what the graph has that the view leaves out:
 
@@ -299,14 +300,16 @@ It **warns**, and still passes, on what the graph has that the view leaves out:
 - an outcome of a listed workflow that neither `placement` nor `endings` takes (a run that ends
   so leaves its item where its earlier runs put it), and, with a `story`, one no sentence tells;
 - a step of a listed workflow no drill-down card covers;
-- an arrow the map draws with no `map.arrows` label.
+- an arrow the map draws with no `map.arrows` label;
+- a stage of the view that sits, in `stages` order, between two stages the overview's cards
+  open, and that no card opens: a stage the pack added that How it works skips.
 
 A `retired` workflow is not required of the pack, and none of its names is compared, so its
 entries in `placement`, `story` and the rest stay to word its old runs.
 
-After reinstalling the pack, refresh the snapshot from the installed pack with
-`bun run check:factory-view --write <pack key>`, then fix what the check reports in the view
-file and commit both.
+After reinstalling the pack, move the pin to the installed commit with
+`bun run check:factory-view --pin <pack key>`, then fix what the check reports in the view and
+overview files and commit them with the pin.
 
 ## Example
 

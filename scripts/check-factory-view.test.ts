@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getPluginsPath } from '@archon/paths';
@@ -7,11 +7,11 @@ import { trackTempRoots } from '@archon/paths/test-utils';
 import type { PackGraph } from '../packages/workflows/src/pack-graph';
 import { FACTORY_VIEW_PROJECT_SUFFIX } from '../packages/workflows/src/schemas/factory-view';
 import {
-  type InstalledRead,
+  type GraphRead,
+  type GraphSource,
   installedGraph,
-  packShape,
   namedPlugins,
-  type ReadInstalled,
+  type PackPin,
   runCheck,
 } from './check-factory-view';
 
@@ -88,48 +88,65 @@ const view = {
 
 const VIEW_FILE = `o.p${FACTORY_VIEW_PROJECT_SUFFIX}`;
 const PLUGINS = join('home', 'plugins');
+const COMMIT = 'a'.repeat(40);
+const PIN: PackPin = { repo: 'o/p', commit: COMMIT };
 
-/** A packs directory holding the view and its snapshot of `graph()`. */
+/** A packs directory holding the view and its pin. */
 function packsDir(): string {
   const dir = tempDir('packs');
   writeFileSync(join(dir, VIEW_FILE), JSON.stringify(view));
-  writeFileSync(join(dir, 'o.p.pack-graph.json'), JSON.stringify(graph()));
+  writeFileSync(join(dir, 'o.p.pack-pin.json'), JSON.stringify(PIN));
   return dir;
 }
 
-/** A stand-in for `installedGraph` that answers `read` and records its calls. */
-function reader(read: InstalledRead): { readInstalled: ReadInstalled; calls: string[][] } {
+/** A source answering `installed` and `pinned`, recording which was asked, and with what. */
+function source(reads: { installed?: GraphRead; pinned?: GraphRead }): {
+  source: GraphSource;
+  calls: string[][];
+} {
   const calls: string[][] = [];
+  const answer = (read: GraphRead | undefined, kind: string): GraphRead => {
+    if (read === undefined) throw new Error(`the check should not read the ${kind} pack here`);
+    return read;
+  };
   return {
     calls,
-    readInstalled: (plugins, packKey) => {
-      calls.push([plugins, packKey]);
-      return read;
+    source: {
+      installed: (plugins, packKey, pin) => {
+        calls.push(['installed', plugins, packKey, pin.commit]);
+        return answer(reads.installed, 'installed');
+      },
+      pinned: (packKey, pin) => {
+        calls.push(['pinned', packKey, pin.commit]);
+        return answer(reads.pinned, 'pinned');
+      },
     },
   };
 }
 
+const atPin: GraphRead = { graph: graph(), commit: COMMIT };
+
 describe('runCheck', () => {
-  test('with no home named, checks the snapshot and passes a clean view', () => {
-    const report = runCheck({
-      packsDir: packsDir(),
-      plugins: undefined,
-      readInstalled: () => {
-        throw new Error('no home is named, so nothing is installed to read');
-      },
-    });
+  test('with no home named, reads the pack at its pinned commit and passes a clean view', () => {
+    const { source: read, calls } = source({ pinned: atPin });
+    const report = runCheck({ packsDir: packsDir(), plugins: undefined, source: read });
     expect(report.err).toEqual([]);
     expect(report.code).toBe(0);
+    expect(calls).toEqual([['pinned', 'o.p', COMMIT]]);
+  });
+
+  test('fails without a pin, since nothing else says which pack to read', () => {
+    const dir = packsDir();
+    rmSync(join(dir, 'o.p.pack-pin.json'));
+    const report = runCheck({ packsDir: dir, plugins: undefined, source: source({}).source });
+    expect(report.code).toBe(1);
+    expect(report.err.some(line => line.includes('[pin]'))).toBe(true);
   });
 
   test('fails on an overview file its schema refuses', () => {
     const dir = packsDir();
     writeFileSync(join(dir, 'o.p.factory-overview.json'), JSON.stringify({ version: 1 }));
-    const report = runCheck({
-      packsDir: dir,
-      plugins: undefined,
-      readInstalled: () => ({ error: '' }),
-    });
+    const report = runCheck({ packsDir: dir, plugins: undefined, ...source({ pinned: atPin }) });
     expect(report.code).toBe(1);
     expect(report.err.some(line => line.includes('o.p.factory-overview.json'))).toBe(true);
   });
@@ -140,44 +157,49 @@ describe('runCheck', () => {
       join(dir, VIEW_FILE),
       JSON.stringify({ ...view, steps: { plan: { nope: 'Does nothing' } } })
     );
-    const report = runCheck({
-      packsDir: dir,
-      plugins: undefined,
-      readInstalled: () => ({ error: '' }),
-    });
+    const report = runCheck({ packsDir: dir, plugins: undefined, ...source({ pinned: atPin }) });
     expect(report.code).toBe(1);
     expect(report.err.some(line => line.includes('"nope"'))).toBe(true);
+  });
+
+  test("fails with the reader's reason when the pinned commit cannot be read", () => {
+    const report = runCheck({
+      packsDir: packsDir(),
+      plugins: undefined,
+      ...source({ pinned: { error: 'stub reason' } }),
+    });
+    expect(report.code).toBe(1);
+    expect(report.err.find(line => line.includes('[pin]'))).toContain('stub reason');
   });
 
   test("fails with the reader's reason when the named home cannot give the pack", () => {
     const report = runCheck({
       packsDir: packsDir(),
       plugins: PLUGINS,
-      ...reader({ error: 'stub reason' }),
+      ...source({ installed: { error: 'stub reason' } }),
     });
     expect(report.code).toBe(1);
-    const install = report.err.find(line => line.includes('[install]'));
-    expect(install).toContain('stub reason');
+    expect(report.err.find(line => line.includes('[install]'))).toContain('stub reason');
   });
 
-  test('fails when the installed pack differs from the snapshot', () => {
-    const installed = graph();
-    installed.stages[1]?.nodes.push(node('extra'));
+  test('fails when the pack installed in the named home is at another commit than the pin', () => {
     const report = runCheck({
       packsDir: packsDir(),
       plugins: PLUGINS,
-      ...reader({ graph: installed }),
+      ...source({ installed: { graph: graph(), commit: 'b'.repeat(40) } }),
     });
     expect(report.code).toBe(1);
-    expect(report.err.some(line => line.includes('[snapshot]'))).toBe(true);
+    expect(report.err.some(line => line.includes('[pin]') && line.includes('--pin o.p'))).toBe(
+      true
+    );
   });
 
-  test('reads the pack from the named plugins and passes when it equals the snapshot', () => {
-    const { readInstalled, calls } = reader({ graph: graph() });
-    const report = runCheck({ packsDir: packsDir(), plugins: PLUGINS, readInstalled });
+  test('reads the pack from the named plugins, not the pin, and passes when it is at the pin', () => {
+    const { source: read, calls } = source({ installed: atPin });
+    const report = runCheck({ packsDir: packsDir(), plugins: PLUGINS, source: read });
     expect(report.err).toEqual([]);
     expect(report.code).toBe(0);
-    expect(calls).toEqual([[PLUGINS, 'o.p']]);
+    expect(calls).toEqual([['installed', PLUGINS, 'o.p', COMMIT]]);
   });
 });
 
@@ -198,23 +220,10 @@ describe('namedPlugins', () => {
   });
 });
 
-describe('packShape', () => {
-  test('drops where the copies were read from, so two reads of one pack are equal', () => {
-    const copy = (dir: string) => ({ source: 'installed' as const, key: 'o.p', dir });
-    const read = (dir: string): PackGraph => ({
-      ...graph(),
-      loaded: [copy(dir)],
-      otherCopies: [copy(`${dir}-other`)],
-    });
-    expect(Bun.deepEquals(read('/tmp/a'), read('/tmp/b'))).toBe(false);
-    expect(packShape(read('/tmp/a'))).toEqual(packShape(read('/tmp/b')));
-  });
-});
-
 describe('installedGraph against the real CLI', () => {
   // Pins the `{ ok: false, error }` shape `cliError` reads: the reason is the CLI's own words.
   const PACK = 'Wirasm.archon-software-factory';
-  const expectCliReason = (read: InstalledRead): void => {
+  const expectCliReason = (read: GraphRead): void => {
     if (!('error' in read)) throw new Error('expected the CLI to find no pack');
     expect(read.error.startsWith('{')).toBe(false);
     expect(read.error).not.toMatch(/^exited \d+ with no output$/);
@@ -226,8 +235,8 @@ describe('installedGraph against the real CLI', () => {
     () => {
       const empty = tempDir('home');
       mkdirSync(getPluginsPath(empty));
-      expectCliReason(installedGraph(getPluginsPath(empty), PACK));
-      expectCliReason(installedGraph(getPluginsPath(tempDir('bare-home')), PACK));
+      expectCliReason(installedGraph(getPluginsPath(empty), PACK, PIN));
+      expectCliReason(installedGraph(getPluginsPath(tempDir('bare-home')), PACK, PIN));
     },
     { timeout: 120_000 }
   );

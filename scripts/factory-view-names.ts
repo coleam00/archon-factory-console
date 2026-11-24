@@ -14,6 +14,7 @@ import {
   isLoopRounds,
   roundsSources,
 } from '../packages/workflows/src/schemas/factory-view';
+import type { FactoryOverview } from '../packages/workflows/src/schemas/factory-overview';
 import {
   mapArrows,
   type RunNames,
@@ -372,4 +373,53 @@ function warnings(view: FactoryView, graph: PackGraph, runNames: RunNames): Name
 export function checkViewNames(view: FactoryView, graph: PackGraph): NameCheck {
   const runNames = viewRunNames(view, graph);
   return { fails: failures(view, graph, runNames), warns: warnings(view, graph, runNames) };
+}
+
+/**
+ * How it works stays a hand-drawn picture, but where it draws the pack's stages it may not
+ * disagree with the pack. A card stands for a stage when the view it `opens` is named as a stage
+ * of `view`. An edge between two such cards (feeds or loops back) must join a pair of stages the
+ * pack graph connects (`mapArrows`), or the check FAILS. A stage of `view` that sits between two
+ * stages the picture draws, in `view.stages` order, and that no card stands for WARNS: the pack
+ * added a stage to the flow the picture skips. Stages before the first or after the last one the
+ * picture draws are not compared, since it draws its inputs and outcomes as cards of their own.
+ */
+export function checkOverviewEdges(
+  overview: FactoryOverview,
+  view: FactoryView,
+  graph: PackGraph
+): NameCheck {
+  const stageIds = view.stages.map(stage => stage.id);
+  const drawn = new Set(
+    mapArrows(view, graph, viewRunNames(view, graph)).map(a => JSON.stringify([a.from, a.to]))
+  );
+  const fails: NameFinding[] = [];
+  const shown = new Set<string>();
+  for (const [viewId, picture] of Object.entries(overview.views)) {
+    const stageOf = new Map<string, string>();
+    for (const card of picture.cards)
+      if (card.opens !== undefined && stageIds.includes(card.opens)) {
+        stageOf.set(card.id, card.opens);
+        shown.add(card.opens);
+      }
+    picture.edges.forEach((edge, index) => {
+      const from = stageOf.get(edge.from);
+      const to = stageOf.get(edge.to);
+      if (from === undefined || to === undefined || drawn.has(JSON.stringify([from, to]))) return;
+      fails.push({
+        path: ['views', viewId, 'edges', index],
+        message: `draws an edge from stage "${from}" to stage "${to}", which the pack graph does not connect`,
+      });
+    });
+  }
+  const at = stageIds.map((id, i) => (shown.has(id) ? i : -1)).filter(i => i >= 0);
+  const first = Math.min(...at);
+  const last = Math.max(...at);
+  const warns = stageIds
+    .filter((id, i) => i > first && i < last && !shown.has(id))
+    .map(id => ({
+      path: ['views'],
+      message: `stage "${id}" sits between stages the picture draws, and no card opens it`,
+    }));
+  return { fails, warns };
 }

@@ -51,17 +51,12 @@ export const shippedListed: FactoryViewListed = {
 };
 
 /**
- * The pack graph `bun run check:factory-view` checks the shipped view against: the snapshot of
- * the installed pack committed beside the view file.
+ * The pack graph of Wirasm/archon-software-factory at ae98ef4, the commit the shipped view is
+ * pinned to (`.archon/packs/<pack key>.pack-pin.json`), as `archon pack graph --json` prints it. A
+ * fixture for these tests only: `bun run check:factory-view` reads the pack itself.
  */
 export const shippedGraph: PackGraph = JSON.parse(
-  readFileSync(
-    join(
-      import.meta.dir,
-      '../../../../../../.archon/packs/Wirasm.archon-software-factory.pack-graph.json'
-    ),
-    'utf8'
-  )
+  readFileSync(join(import.meta.dir, '__fixtures__', 'pack-graph-ae98ef4.json'), 'utf8')
 ) as PackGraph;
 
 /** The arrows the map draws for the shipped view over that graph. */

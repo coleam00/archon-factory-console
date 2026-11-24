@@ -4,7 +4,8 @@ import {
   type FactoryView,
   factoryViewSchema,
 } from '../packages/workflows/src/schemas/factory-view';
-import { checkViewNames } from './factory-view-names';
+import type { FactoryOverview } from '../packages/workflows/src/schemas/factory-overview';
+import { checkOverviewEdges, checkViewNames } from './factory-view-names';
 
 const node = (id: string): PackGraph['stages'][number]['nodes'][number] => ({
   id,
@@ -167,5 +168,57 @@ describe('checkViewNames', () => {
       },
     }));
     expect(messages(fails)).toContain('"build" to "plan"');
+  });
+});
+
+/** A one-view overview: a card per id, opening the stage of the same name, joined by `edges`. */
+const picture = (ids: string[], edges: [string, string][]): FactoryOverview => ({
+  version: 1,
+  pack: 'o/p',
+  title: 'How it works',
+  caption: 'How it works.',
+  root: 'top',
+  views: {
+    top: {
+      cards: ids.map((id, i) => ({
+        id,
+        title: id,
+        text: id,
+        icon: 'list',
+        kind: 'stage',
+        col: i + 1,
+        row: 1,
+        opens: id,
+      })),
+      edges: edges.map(([from, to]) => ({ from, to, kind: 'feeds' })),
+    },
+  },
+});
+
+describe('checkOverviewEdges', () => {
+  const view = factoryViewSchema.parse(clean);
+
+  test('an edge between two stages the graph connects passes', () => {
+    expect(
+      checkOverviewEdges(picture(['plan', 'build'], [['plan', 'build']]), view, graph)
+    ).toEqual({
+      fails: [],
+      warns: [],
+    });
+  });
+
+  test('an edge between two stages the graph does not connect fails', () => {
+    const { fails } = checkOverviewEdges(
+      picture(['plan', 'build'], [['build', 'plan']]),
+      view,
+      graph
+    );
+    expect(messages(fails)).toContain('"build" to stage "plan"');
+  });
+
+  test('a stage between two the picture draws that no card opens warns', () => {
+    const { fails, warns } = checkOverviewEdges(picture(['plan', 'landed'], []), view, graph);
+    expect(fails).toEqual([]);
+    expect(messages(warns)).toContain('"build"');
   });
 });
