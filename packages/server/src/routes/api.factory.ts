@@ -272,6 +272,36 @@ export interface FactoryRouteDeps {
   now?: () => number;
 }
 
+/**
+ * One load in flight per key, the last success kept with the time it settled. The caller owns
+ * freshness. A load that rejects stores nothing and rejects its callers.
+ */
+function keyedOnce<T, A extends unknown[]>(
+  load: (key: string, ...args: A) => Promise<T>,
+  now: () => number
+): {
+  known: (key: string) => { value: T; at: number } | undefined;
+  refresh: (key: string, ...args: A) => Promise<T>;
+} {
+  const kept = new Map<string, { value: T; at: number }>();
+  const running = new Map<string, Promise<T>>();
+  return {
+    known: key => kept.get(key),
+    refresh: (key, ...args) => {
+      const inFlight = running.get(key);
+      if (inFlight !== undefined) return inFlight;
+      const started = load(key, ...args)
+        .then(value => {
+          kept.set(key, { value, at: now() });
+          return value;
+        })
+        .finally(() => running.delete(key));
+      running.set(key, started);
+      return started;
+    },
+  };
+}
+
 /** How long a change that has not merged keeps its answer. A merge does not come undone. */
 const CHANGE_STATE_TTL_MS = 60_000;
 /**
@@ -312,40 +342,40 @@ export function changeStateCache(
 ): ProjectChangeState {
   const now = deps.now ?? Date.now;
   const waitMs = deps.changeStateWaitMs ?? CHANGE_STATE_WAIT_MS;
-  const answers = new Map<string, { answer: ChangeAnswer; at: number }>();
-  const pending = new Map<string, Promise<ChangeAnswer>>();
   const keyOf = (change: FactoryChangeLookup): string =>
     change.kind === 'url' ? change.url : `run:${change.run}`;
+  const answers = keyedOnce(
+    (
+      key: string,
+      change: FactoryChangeLookup,
+      branches: () => Promise<readonly string[]>,
+      remote: string | null
+    ): Promise<ChangeAnswer> => {
+      const asked: ChangeLookup = change.kind === 'url' ? change : { kind: 'branch', remote };
+      return deps
+        .changeMergeState(asked, branches)
+        .catch(
+          (error: unknown): ChangeAnswer => ({
+            url: null,
+            merged: 'unknown',
+            mergedAt: null,
+            number: null,
+            reason: (error as Error).message,
+          })
+        )
+        .then(answer => {
+          if (answer.merged === 'unknown')
+            getLog().warn({ change: key, reason: answer.reason }, 'factory_change_state_unknown');
+          return answer;
+        });
+    },
+    now
+  );
   const lookup = (
     change: FactoryChangeLookup,
     branches: () => Promise<readonly string[]>,
     remote: string | null
-  ): Promise<ChangeAnswer> => {
-    const key = keyOf(change);
-    const running = pending.get(key);
-    if (running !== undefined) return running;
-    const asked: ChangeLookup = change.kind === 'url' ? change : { kind: 'branch', remote };
-    const started = deps
-      .changeMergeState(asked, branches)
-      .catch(
-        (error: unknown): ChangeAnswer => ({
-          url: null,
-          merged: 'unknown',
-          mergedAt: null,
-          number: null,
-          reason: (error as Error).message,
-        })
-      )
-      .then(answer => {
-        if (answer.merged === 'unknown')
-          getLog().warn({ change: key, reason: answer.reason }, 'factory_change_state_unknown');
-        answers.set(key, { answer, at: now() });
-        pending.delete(key);
-        return answer;
-      });
-    pending.set(key, started);
-    return started;
-  };
+  ): Promise<ChangeAnswer> => answers.refresh(keyOf(change), change, branches, remote);
   const shown = (answer: ShownAnswer, change: FactoryChangeLookup): ShownAnswer =>
     change.kind === 'url'
       ? {
@@ -377,23 +407,23 @@ export function changeStateCache(
       change
     );
     if (answer.number !== null) return answer;
-    const known = answers.get(keyOf(change));
+    const known = answers.known(keyOf(change));
     if (known === undefined) {
       void lookup(change, branches, remote);
       return answer;
     }
-    return known.answer.url === answer.url ? { ...answer, number: known.answer.number } : answer;
+    return known.value.url === answer.url ? { ...answer, number: known.value.number } : answer;
   };
   return async (change, branches, remote, recorded) => {
     if (recorded !== null) return recordedAnswer(change, branches, remote, recorded);
-    const known = answers.get(keyOf(change));
+    const known = answers.known(keyOf(change));
     if (known !== undefined) {
-      if (known.answer.merged !== true && now() - known.at >= CHANGE_STATE_TTL_MS)
+      if (known.value.merged !== true && now() - known.at >= CHANGE_STATE_TTL_MS)
         void lookup(change, branches, remote);
-      return shown(known.answer, change);
+      return shown(known.value, change);
     }
     let timer: ReturnType<typeof setTimeout> | undefined;
-    // Only `lookup` writes `answers`, so this answer never outlives the request.
+    // Only `answers.refresh` writes the cache, so this answer never outlives the request.
     const waited = new Promise<ShownAnswer>(resolve => {
       timer = setTimeout(() => {
         resolve({ url: null, merged: 'pending', mergedAt: null, number: null });
@@ -415,7 +445,7 @@ export type StageDiscovery = (
 ) => Promise<WorkflowLoadResult>;
 
 /**
- * Workflow discovery for the stage page's step graph, kept per project checkout. A discovery
+ * Workflow discovery for a stage's step graph, kept per project checkout. A discovery
  * parses every workflow the project can see, about a second on the live factory, and the
  * graph only displays what it finds. So one discovery runs per checkout at a time, shared by
  * every read; a result younger than `DISCOVERY_FRESH_MS` is served as it is, and an older one
@@ -430,29 +460,16 @@ export function discoveryCache(
   deps: Pick<FactoryRouteDeps, 'discoverWorkflows' | 'now'>
 ): StageDiscovery {
   const now = deps.now ?? Date.now;
-  const known = new Map<string, { result: WorkflowLoadResult; at: number }>();
-  const running = new Map<string, Promise<WorkflowLoadResult>>();
-  const discover = (cwd: string): Promise<WorkflowLoadResult> => {
-    const inFlight = running.get(cwd);
-    if (inFlight !== undefined) return inFlight;
-    const started = deps
-      .discoverWorkflows(cwd)
-      .then(result => {
-        known.set(cwd, { result, at: now() });
-        return result;
-      })
-      .finally(() => running.delete(cwd));
-    running.set(cwd, started);
-    return started;
-  };
+  const found = keyedOnce((cwd: string) => deps.discoverWorkflows(cwd), now);
+  const discover = (cwd: string): Promise<WorkflowLoadResult> => found.refresh(cwd);
   return async (cwd, { fresh = false } = {}) => {
-    const entry = known.get(cwd);
+    const entry = found.known(cwd);
     if (entry === undefined || fresh) return discover(cwd);
     if (now() - entry.at >= DISCOVERY_FRESH_MS)
       discover(cwd).catch((error: unknown) => {
         getLog().warn({ err: error, cwd }, 'factory_workflow_discovery_refresh_failed');
       });
-    return entry.result;
+    return entry.value;
   };
 }
 
@@ -730,7 +747,7 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
       let found = await stageWorkflows(project.cwd);
       if (named(found) === undefined) found = await stageWorkflows(project.cwd, { fresh: true });
       const entry = named(found);
-      // Said for the person reading the stage page, who can act on it.
+      // Said for the person reading the stage, who can act on it.
       if (entry === undefined)
         return apiError(c, 404, missingWorkflowMessage(view, workflow, found));
       return c.json(

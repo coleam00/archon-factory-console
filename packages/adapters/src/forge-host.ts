@@ -1,15 +1,15 @@
 /**
- * A host's own reach into the forge seam: where it finds forge plugins and config, and the
- * one read the console needs, whether a change merged. The CLI's `archon forge` and the
- * server both resolve plugins through here, so they never answer from different plugins.
+ * The server's reach into the forge seam: where it finds forge plugins and config, and the one
+ * read the console needs, whether a change merged. The CLI does not come through here; it
+ * builds its own `discoveryOptions` (packages/cli/src/commands/forge.ts).
  *
- * Imports only `@archon/forge` and `@archon/paths`, never this package's index, so the CLI
+ * Imports only `@archon/forge` and `@archon/paths`, never this package's index, so a host
  * can load it without the chat adapters.
  */
 import { randomUUID } from 'node:crypto';
 import { getPluginsPath } from '@archon/paths';
 import { getArchonConfigPath } from '@archon/paths/archon-paths';
-import { discoverPlugins, type PluginDiscovery, type SourcePlugin } from '@archon/forge/discovery';
+import { discoverPlugins, type PluginDiscovery } from '@archon/forge/discovery';
 import { dispatchForge } from '@archon/forge/dispatch';
 import { readForgeConfig, sourceForgePlugins } from '@archon/forge/host-plugins';
 import {
@@ -18,31 +18,8 @@ import {
   forgeOperationAuditSchema,
   forgePrRecordSchema,
 } from '@archon/forge/operations';
-import { type ForgePluginConfig, forgePluginConfigSchema } from '@archon/forge/plugin-config';
+import { forgePluginConfigSchema } from '@archon/forge/plugin-config';
 import type { PrRef } from '@archon/forge';
-
-export interface ForgeHostDiscovery {
-  config: ForgePluginConfig;
-  env: NodeJS.ProcessEnv;
-  pluginsDir: string;
-  sourcePlugins: readonly SourcePlugin[];
-}
-
-/**
- * Where a host under `archonHome` finds plugins: its config's `forge:` section, the
- * trusted plugin directory `archon plugin add` writes, and the source plugins.
- */
-export async function forgeHostDiscovery(
-  archonHome: string,
-  env: NodeJS.ProcessEnv
-): Promise<ForgeHostDiscovery> {
-  return {
-    config: forgePluginConfigSchema.parse(await readForgeConfig(getArchonConfigPath(archonHome))),
-    env,
-    pluginsDir: getPluginsPath(archonHome),
-    sourcePlugins: sourceForgePlugins(),
-  };
-}
 
 /**
  * The pull request a forge audit row recorded for `url`: the latest successful operation
@@ -204,7 +181,14 @@ export function forgeHostDiscoveryOnce(
   };
   return () => {
     if (held !== null) return held;
-    const started = forgeHostDiscovery(archonHome, env).then(found => discover(found));
+    const started = readForgeConfig(getArchonConfigPath(archonHome)).then(config =>
+      discover({
+        config: forgePluginConfigSchema.parse(config),
+        env,
+        pluginsDir: getPluginsPath(archonHome),
+        sourcePlugins: sourceForgePlugins(),
+      })
+    );
     held = started;
     started.then(
       found => {
