@@ -69,7 +69,7 @@ async function mount(opened = false, names: ReadonlyMap<string, ItemName> = new 
   };
 }
 
-test('the line: its name, the shadow badge and the count, with no control of its own', async () => {
+test('the line: its name, the shadow badge and the count', async () => {
   set(K.factoryDiscoveries(ID), DISCOVERIES);
   const { line, unmount } = await mount();
   try {
@@ -77,10 +77,9 @@ test('the line: its name, the shadow badge and the count, with no control of its
     expect(line.textContent).toContain('shadow');
     expect(line.querySelector('[data-found-count]')?.textContent).toBe('2');
     expect(line.textContent).toContain('the factory would file');
-    // One line: no chips, no shadow sentence, no list, and no button: the board's one toggle opens it.
+    // One line: no chips, no shadow sentence, no list.
     expect(line.querySelector('ul')).toBeNull();
     expect(line.textContent).not.toContain('files nothing yet');
-    expect(line.querySelector('button')).toBeNull();
   } finally {
     await unmount();
   }

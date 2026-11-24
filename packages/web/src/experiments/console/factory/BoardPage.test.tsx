@@ -222,7 +222,11 @@ describe('the strips under the board', () => {
     const { container, unmount } = await mount([...setAsideItems(), realItem('7')]);
     try {
       const positioned = (): string[] =>
-        [...container.querySelectorAll('[data-board-strips] *, [data-board-strips-open] *')]
+        [
+          ...container.querySelectorAll(
+            '[data-board-strips], [data-board-strips] *, [data-board-strips-open], [data-board-strips-open] *'
+          ),
+        ]
           // The shadow accent bar is decoration drawn inside its own card.
           .filter(element => !element.hasAttribute('aria-hidden'))
           .filter(element =>
