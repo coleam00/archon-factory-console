@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactElement, type ReactNode, type RefObject } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { displayItemKey } from './lib/item-key';
 import type { ItemName } from '../lib/ask-naming';
 import { Link } from 'react-router';
@@ -22,22 +22,6 @@ import { StaleRead } from './StaleRead';
 import { useFactoryDiscoveries } from './useFactoryDiscoveries';
 
 const HEADING_ID = `${FOUND_BY_THE_FACTORY}-heading`;
-
-/**
- * Scroll the panel into view once, when the board was opened on it (the Overview's tile links
- * to the board's `?show=found`) and its read has answered. Once per mount, not per address: a
- * Pipeline/Table switch rewrites the address and must leave the page where the person has it.
- */
-function useScrollWhenOpened(ready: boolean): RefObject<HTMLElement | null> {
-  const ref = useRef<HTMLElement>(null);
-  const scrolled = useRef(false);
-  useEffect(() => {
-    if (!ready || scrolled.current) return;
-    scrolled.current = true;
-    ref.current?.scrollIntoView({ block: 'start' });
-  }, [ready]);
-  return ref;
-}
 
 /** The shadow accent (Visual standard, rule 10): the drains did nothing. */
 function ShadowAccent(): ReactElement {
@@ -109,27 +93,19 @@ export function FoundByTheFactoryLine({ projectId }: { projectId: string }): Rea
 export function FoundByTheFactory({
   projectId,
   names,
-  opened = false,
 }: {
   projectId: string;
   /** The board's items by key, so a finding's item reads as the board reads it (a split member under its order). */
   names: ReadonlyMap<string, ItemName>;
-  /**
-   * The board was opened on the panel (`?show=found`) and has drawn its columns, so what is
-   * above it has its final height: scroll it into view once its read answers.
-   */
-  opened?: boolean;
 }): ReactElement | null {
   const read = useFactoryDiscoveries(projectId);
   const { data } = read;
-  const ref = useScrollWhenOpened(opened && data !== undefined);
   if (data === undefined) return null;
   return (
     <section
-      ref={ref}
       id={FOUND_BY_THE_FACTORY}
       aria-labelledby={HEADING_ID}
-      className="relative flex scroll-mt-6 flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-4"
+      className="relative flex flex-col gap-2 overflow-hidden rounded-console-12 border border-border bg-surface p-4"
     >
       <ShadowAccent />
       {data.shadow ? (

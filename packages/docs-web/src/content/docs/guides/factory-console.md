@@ -100,13 +100,13 @@ page, keeping the query string. Inside the tab:
   Table leaves them open or closed.
   When the view declares `discoveries`, **Found by the factory** is on that line whatever the
   filter ("14 the factory would file", with its shadow badge); the toggle, or the Overview's
-  tile (`?show=found`, which also scrolls to it), opens the full panel: how many findings the discoveries drains decided to file
+  tile (`?show=found`, which also scrolls the line into view), opens the full panel: how many findings the discoveries drains decided to file
   that no item on the project carries yet (an item carries one when its title is the finding's,
   ignoring case), with chips counting every finding they decided to file, held and dropped,
   and how many are already on the board, then each finding: its kind, its title,
   the item whose drain decided it and when, and how the drain verified it, on hover. While the
-  view marks the drains `shadow`, the panel carries a "shadow" badge and says the factory
-  decides what it would file and files nothing yet. The panel only reads: it files, starts
+  view marks the drains `shadow`, its line carries a "shadow" badge and the panel says the
+  factory decides what it would file and files nothing yet. The panel only reads: it files, starts
   and dismisses nothing.
   Beside it, the columns' items with nothing left to happen fold into **Set aside** ("3 set
   aside"), which the toggle opens to list each item's key, title, why it was set aside and

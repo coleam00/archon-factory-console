@@ -9,7 +9,7 @@ import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import type { ItemName } from '../lib/ask-naming';
 
-// The scroll and a failed read follow a render, which static markup cannot reach.
+// A failed read follows a render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
 const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
 const descriptors = new Map(
@@ -42,7 +42,7 @@ afterAll(async () => {
 });
 
 /** The line and the opened panel, as the board draws them with its strips open. */
-async function mount(opened = false, names: ReadonlyMap<string, ItemName> = new Map()) {
+async function mount(names: ReadonlyMap<string, ItemName> = new Map()) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -53,7 +53,7 @@ async function mount(opened = false, names: ReadonlyMap<string, ItemName> = new 
           <FoundByTheFactoryLine projectId={ID} />
         </div>
         <div data-body>
-          <FoundByTheFactory projectId={ID} names={names} opened={opened} />
+          <FoundByTheFactory projectId={ID} names={names} />
         </div>
       </MemoryRouter>
     )
@@ -160,27 +160,6 @@ test('a read that fails says so once, on the line; the opened panel draws nothin
   }
 });
 
-test('opened on it, the panel scrolls into view once its read answers; otherwise not', async () => {
-  const scrolled: unknown[] = [];
-  const proto = dom.HTMLElement.prototype as unknown as {
-    scrollIntoView: (options?: unknown) => void;
-  };
-  const original = proto.scrollIntoView;
-  proto.scrollIntoView = (options?: unknown): void => {
-    scrolled.push(options);
-  };
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
-  const linked = await mount(true);
-  const plain = await mount();
-  try {
-    expect(scrolled).toEqual([{ block: 'start' }]);
-  } finally {
-    await linked.unmount();
-    await plain.unmount();
-    proto.scrollIntoView = original;
-  }
-});
-
 test('a finding from a split member names it under its order; its link keeps the key', async () => {
   const KEY = 'issue-136-item-keys';
   set(K.factoryDiscoveries(ID), {
@@ -188,7 +167,7 @@ test('a finding from a split member names it under its order; its link keeps the
     findings: [{ ...DISCOVERIES.findings[0]!, from: { key: KEY, title: null } }],
   });
   const names = new Map([[KEY, { title: null, partOf: 'issue-136' }]]);
-  const { container, unmount } = await mount(false, names);
+  const { container, unmount } = await mount(names);
   try {
     const link = container.querySelector(`#found-by-the-factory-list a[href$="/items/${KEY}"]`);
     expect(link?.textContent).toBe('#136 · item keys');

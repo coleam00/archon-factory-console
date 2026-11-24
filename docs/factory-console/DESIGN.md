@@ -1286,8 +1286,9 @@ or fixed positioned, the board keeps its fill height and the page scrolls to rea
 md the board area is exactly the fill height (never under the Pipeline's floor with the
 toolbar and the line), so a short window grows the page instead of running the board under the
 opened strips. Switching Pipeline and Table leaves them open or closed as they were. `?show=found`
-opens them and scrolls to the findings once, on arrival: a view switch or a toggle afterwards
-does not move the page. A strip with nothing to say is left out; with neither, there is no line.
+opens them and scrolls their line into view once, on arrival, so both names, the shadow badge
+(rule 10) and the toggle sit above the findings: a view switch or a toggle afterwards does not
+move the page. A strip with nothing to say is left out; with neither, there is no line.
 
 A card, in this order:
 

@@ -206,6 +206,8 @@ export function Board({
           setAside={shown?.setAside ?? []}
           open={strips.open}
           onToggle={strips.toggle}
+          // Once the columns are drawn: scrolling earlier would leave the line pushed down.
+          arriving={strips.arriving && shown !== undefined}
         />
       </div>
       {strips.open ? (
@@ -214,8 +216,6 @@ export function Board({
           discoveries={view.discoveries !== undefined}
           setAside={shown?.setAside ?? []}
           names={names}
-          // Once the columns are drawn: scrolling earlier would leave the findings pushed down.
-          arriving={strips.arriving && shown !== undefined}
         />
       ) : null}
     </div>

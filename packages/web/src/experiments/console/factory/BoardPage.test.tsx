@@ -770,14 +770,14 @@ describe('a board opened from a number', () => {
     }
   });
 
-  test('found by the factory: the whole board, the strips open, scrolled to once', async () => {
-    const scrolled: unknown[] = [];
+  test('found by the factory: the whole board, the strips open, their line scrolled to once', async () => {
+    const scrolled: Element[] = [];
     const proto = dom.HTMLElement.prototype as unknown as {
-      scrollIntoView: (options?: unknown) => void;
+      scrollIntoView: (this: Element, options?: unknown) => void;
     };
     const original = proto.scrollIntoView;
-    proto.scrollIntoView = (options?: unknown): void => {
-      scrolled.push(options);
+    proto.scrollIntoView = function (this: Element): void {
+      scrolled.push(this);
     };
     const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
     const { container, unmount } = await mount(
@@ -793,7 +793,10 @@ describe('a board opened from a number', () => {
       expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
       expect(container.querySelector('#set-aside-list')).not.toBeNull();
       expect(container.textContent).toContain('Showing: found by the factory');
-      expect(scrolled).toHaveLength(1);
+      // The line, not the findings: it holds both names, the shadow badge and the toggle.
+      expect(scrolled).toEqual([container.querySelector('[data-board-strips]')!]);
+      expect(scrolled[0]?.querySelector('#found-by-the-factory-heading')).not.toBeNull();
+      expect(scrolled[0]?.textContent).toContain('shadow');
       // A view switch rewrites the address; it must not scroll the page away from the board.
       await act(async () => viewButton(container, 'Table').click());
       await act(async () => viewButton(container, 'Pipeline').click());

@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
 import type { ItemName } from '../lib/ask-naming';
 import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import type { SetAside } from './lib/set-aside';
@@ -8,13 +8,13 @@ const OPENED_ID = 'board-strips-open';
 
 /**
  * Whether the strips under the board are open. `arrived` (the board was opened on
- * `?show=found`) opens them and asks the findings to scroll into view; the first toggle ends
+ * `?show=found`) opens them and asks their line to scroll into view; the first toggle ends
  * that, so a person closing and reopening them is not scrolled away from the board. It lives
  * above the Pipeline/Table switch, so a switch leaves the strips as they were.
  */
 export function useBoardStrips(arrived: boolean): {
   open: boolean;
-  /** Scroll the findings into view when they draw: the board was opened on them. */
+  /** Scroll the strips' line into view: the board was opened on the findings. */
   arriving: boolean;
   toggle: () => void;
 } {
@@ -26,6 +26,23 @@ export function useBoardStrips(arrived: boolean): {
       setState(current => (current === 'closed' ? 'open' : 'closed'));
     },
   };
+}
+
+/**
+ * Scroll the element into view the first time `ready` holds, once per mount. The line, not the
+ * findings, is the target: it carries both strips' names, the shadow badge (Visual standard,
+ * rule 10) and the toggle, and the opened strips follow it. Not per address: a Pipeline/Table
+ * switch rewrites the address and must leave the page where the person has it.
+ */
+function useScrollOnce(ready: boolean): RefObject<HTMLDivElement | null> {
+  const ref = useRef<HTMLDivElement>(null);
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (!ready || scrolled.current || ref.current === null) return;
+    scrolled.current = true;
+    ref.current.scrollIntoView({ block: 'start' });
+  }, [ready]);
+  return ref;
 }
 
 interface StripsProps {
@@ -46,12 +63,23 @@ export function BoardStripsLine({
   projectId,
   open,
   onToggle,
-}: StripsProps & { open: boolean; onToggle: () => void }): ReactElement | null {
+  arriving,
+}: StripsProps & {
+  open: boolean;
+  onToggle: () => void;
+  /**
+   * The board was opened on the findings (`?show=found`) and has drawn its columns, so the line
+   * sits where it stays: scroll it into view once.
+   */
+  arriving: boolean;
+}): ReactElement | null {
+  const ref = useScrollOnce(arriving);
   if (!discoveries && setAside.length === 0) return null;
   return (
     <div
+      ref={ref}
       data-board-strips
-      className="flex shrink-0 flex-col gap-2 md:flex-row md:items-center md:gap-3"
+      className="flex shrink-0 scroll-mt-6 flex-col gap-2 md:flex-row md:items-center md:gap-3"
     >
       {discoveries ? (
         <div className="min-w-0 md:flex-1">
@@ -85,11 +113,8 @@ export function BoardStripsOpened({
   discoveries,
   setAside,
   names,
-  arriving,
 }: StripsProps & {
   names: ReadonlyMap<string, ItemName>;
-  /** Scroll the findings into view: the board was opened on them and has drawn its columns. */
-  arriving: boolean;
 }): ReactElement | null {
   if (!discoveries && setAside.length === 0) return null;
   return (
@@ -100,7 +125,7 @@ export function BoardStripsOpened({
     >
       {discoveries ? (
         <div className="min-w-0 md:flex-1">
-          <FoundByTheFactory projectId={projectId} names={names} opened={arriving} />
+          <FoundByTheFactory projectId={projectId} names={names} />
         </div>
       ) : null}
       {setAside.length === 0 ? null : (
