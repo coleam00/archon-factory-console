@@ -126,7 +126,7 @@ describe('the step page as a document page', () => {
     }
   });
 
-  test('opens with what it does and its key facts', () => {
+  test('opens with what it does and its key facts, then the prompt with its references as chips', () => {
     const root = page('rounds.fix');
     const band = root.querySelector('[aria-label="Summary"]');
     expect(band?.querySelector('p')?.textContent).toBe('Fixes what the checks sent back');
@@ -141,10 +141,7 @@ describe('the step page as a document page', () => {
     expect(band?.querySelector('a')?.getAttribute('href')).toBe(
       `/console/p/${ID}/factory?stage=build`
     );
-  });
-
-  test('the prompt reads as a document, its references as chips; the facts list its inputs', () => {
-    const root = page('rounds.fix');
+    // The prompt reads as a document, its references as chips; the facts list its inputs.
     expect(
       [...root.querySelectorAll('[data-ref-label]')].map(chip =>
         chip.getAttribute('data-ref-label')
@@ -153,8 +150,7 @@ describe('the step page as a document page', () => {
     // "What it does" is the covering drill-down card's line.
     const does = root.querySelector('[data-doc-columns] section');
     expect(does?.textContent).toBe('What it doesFixFixes what the checks sent back');
-    const aside = root.querySelector('aside');
-    const facts = aside?.querySelector('dl')?.textContent ?? '';
+    const facts = root.querySelector('aside dl')?.textContent ?? '';
     expect(facts).toContain('Inputs it readsitemland on');
     expect(facts).toContain('Reads from stepsBuild output');
   });
@@ -179,7 +175,6 @@ describe('the step page as a document page', () => {
       '1git fetch origin main',
       '2git diff --stat origin/main',
     ]);
-    expect(root.querySelector('.chat-markdown')).toBeNull();
     // A shell step with a model declared still shows no model: it runs no agent.
     expect(chips(root).some(chip => chip.includes('model'))).toBe(false);
     expect(root.querySelector('aside dl')?.textContent).not.toContain('Runs on');

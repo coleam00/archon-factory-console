@@ -1,50 +1,20 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryItem } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
+import { installDom } from '../test-dom.test-helpers';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
+import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
 
 // A read that answers 404 and one that gets no answer differ only once a read is mounted and
 // fails, and only a click can press Retry.
-const dom = new Window({ url: 'http://localhost' });
-// The frame keeps the Needs-you count live over SSE; nothing streams in this test.
-class QuietEventSource {
-  onmessage: unknown = null;
-  onerror: unknown = null;
-  readyState = 0;
-  close(): void {
-    this.readyState = 2;
-  }
-}
-const globals = {
-  window: dom,
-  document: dom.document,
-  EventSource: QuietEventSource,
-  IS_REACT_ACT_ENVIRONMENT: true,
-};
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
+const { dom, mount } = await installDom();
 const originalFetch = globalThis.fetch;
-
-afterAll(async () => {
-  globalThis.fetch = originalFetch;
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
-});
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -117,23 +87,17 @@ async function renderAt(
   check: (container: HTMLElement) => Promise<void>
 ): Promise<void> {
   set(K.projectAttention(PROJECT), { items: [], runs: [], degraded: [] });
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
+  const { container, unmount } = await mount(
+    <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/${path}`]}>
+      <Routes>{projectRoutes('/console/')}</Routes>
+    </MemoryRouter>
+  );
   try {
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/${path}`]}>
-          <Routes>{projectRoutes('/console/')}</Routes>
-        </MemoryRouter>
-      )
-    );
     await settle();
     await settle();
     await check(container);
   } finally {
-    await act(async () => root.unmount());
-    container.remove();
+    await unmount();
   }
 }
 
@@ -174,6 +138,18 @@ describe('an item', () => {
       );
       expect(board?.getAttribute('href')).toBe(`/console/p/${PROJECT}/factory/board`);
       expect(container.querySelector('input[type="search"]')).not.toBeNull();
+    });
+  });
+
+  test("an order no item row holds, named by a member's order run: its page from the items read", async () => {
+    const { item } = itemDetail('3');
+    const member = { ...item, progress: { ...item.progress!, partOf: '48' } };
+    serve({ ...healthy, items: itemsReadAnswer([member]) });
+    await renderAt('items/48', async container => {
+      expect(words(container)).toContain(WORK_ORDER_WORDS);
+      expect(words(container)).toContain('Back to the overview#48Work order #48');
+      expect(words(container)).toContain('Members: 0 of 1 merged');
+      expect(words(container)).not.toContain('could not be read');
     });
   });
 
@@ -279,20 +255,6 @@ describe('a step', () => {
     await renderAt('steps/deliver/x', async container => {
       expect(container.querySelector('[role="alert"]')?.textContent).toContain(missing);
       expect(words(container)).not.toContain('There is no workflow');
-    });
-  });
-
-  test('whose workflow read got no answer says why with a Retry', async () => {
-    serve({ ...healthy, workflow: offline });
-    await renderAt('steps/deliver/nope', async container => {
-      // The workflow read tries once more after a second (`NETWORK_RETRY_MS`).
-      await settle(1_100);
-      const alert = container.querySelector('[role="alert"]');
-      expect(alert?.textContent).toContain(
-        'Could not read the workflow deliver: the server did not answer'
-      );
-      expect(alert?.querySelector('button')?.textContent).toBe('Retry');
-      expect(words(container)).not.toContain('There is no step');
     });
   });
 });

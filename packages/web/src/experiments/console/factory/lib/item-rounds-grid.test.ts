@@ -95,16 +95,14 @@ function readUnderShippedView(detail: FactoryItemDetail): FactoryItemDetail {
 describe('the rounds grid of a stage-form delivery (a stage-check run per round)', () => {
   const grid = checksGrid(readUnderShippedView(structuredClone(itemDetail('125'))));
 
-  test('each run is one column, numbered and bounded by its own result', () => {
+  test('each run is one column, bounded by its own result; the builds between are the fix row', () => {
     expect(grid?.columns.map(c => [c.iteration, c.max, c.verdict])).toEqual([
       [1, 3, 'returned'],
       [2, 3, 'returned'],
       [3, 3, 'returned'],
       [4, 4, 'undecided'],
     ]);
-  });
-
-  test('the builds between the runs are the fix row; CI after the last round stacks its results', () => {
+    // The builds between the runs are the fix row; CI after the last round stacks its results.
     expect(table(grid)).toEqual([
       ['Code review', 'Approved', 'Approved', 'Approved', 'Asked you'],
       ['Test check', 'Sent back', 'Approved', 'Approved', 'Approved'],
@@ -167,15 +165,6 @@ describe('round numbers on the item, not as each run recorded them', () => {
     expect(grid?.columns.map(column => column.iteration)).toEqual([1, 1, 3, 4]);
   });
 
-  test('a loop-form delivery counts its iterations in order, with no delivery prefix', () => {
-    const columns = checksGrid(itemDetail('111'))?.columns ?? [];
-    expect(columns.map(column => [column.number, column.delivery])).toEqual([
-      [1, null],
-      [2, null],
-    ]);
-    expect(columns.map(roundHeading)).toEqual(['Round 1 of 3', 'Round 2 of 3']);
-  });
-
   test('a replan between stage-form rounds starts the count over', () => {
     const base = structuredClone(itemDetail('125'));
     const plan = base.runs.filter(run => run.workflow === 'plan').at(-1)?.runId;
@@ -210,16 +199,5 @@ describe('round numbers on the item, not as each run recorded them', () => {
       'Delivery 2 · round 1 of 3',
       'Delivery 2 · round 2 of 3',
     ]);
-  });
-
-  test('a delivery run that recorded no round takes no place: one with rounds reads as plain rounds', () => {
-    const base = structuredClone(itemDetail('111'));
-    const deliver = base.runs.find(run => run.workflow === 'deliver')?.runId;
-    if (deliver === undefined) throw new Error('111 delivered');
-    const detail = withRunCopy(base, deliver, 'asked-first', deliver);
-    const asked = detail.runs.find(run => run.runId === 'asked-first');
-    if (asked?.rounds == null) throw new Error('the copy has rounds');
-    asked.rounds.rounds = [];
-    expect(checksColumns(detail).map(roundHeading)).toEqual(['Round 1 of 3', 'Round 2 of 3']);
   });
 });

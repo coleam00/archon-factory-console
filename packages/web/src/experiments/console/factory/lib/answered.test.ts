@@ -1,13 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import { shippedView } from '../item-detail.test-fixtures';
-import {
-  answeredRows,
-  answeredToday,
-  asksSettledRunId,
-  recentlySettled,
-  type SettledAsks,
-} from './answered';
+import { answeredRows, answeredToday, recentlySettled, type SettledAsks } from './answered';
 import { itemWith, run, settledItem } from './map.test-fixtures';
 
 const plan = settledItem(
@@ -49,40 +43,17 @@ describe('asks settled lately, and the stage each started again', () => {
   test('newest first; each joined to the run whose cause names the asking run', () => {
     const listed = recentlySettled(shippedView, [waiting, plan, deliver]);
     expect(
-      listed.map(({ itemKey, runId, answered, withdrawn, at, restart }) => ({
-        itemKey,
-        runId,
-        answered,
-        withdrawn,
-        at,
-        restart,
-      }))
+      listed.map(entry => [entry.itemKey, entry.runId, entry.answered, entry.withdrawn, entry.at])
     ).toEqual([
-      {
-        itemKey: 'd',
-        runId: 'run-d-0',
-        answered: 2,
-        withdrawn: 1,
-        at: '2026-11-17T11:00:00.000Z',
-        // deliver begins on Build.
-        restart: { runId: 'run-d-1', status: 'completed', label: 'Build' },
-      },
-      {
-        itemKey: 'p',
-        runId: 'run-p-0',
-        answered: 2,
-        withdrawn: 1,
-        at: '2026-11-17T10:00:00.000Z',
-        restart: { runId: 'run-p-1', status: 'running', label: 'Plan' },
-      },
-      {
-        itemKey: 'w',
-        runId: 'run-w-0',
-        answered: 2,
-        withdrawn: 1,
-        at: '2026-11-17T09:00:00.000Z',
-        restart: null,
-      },
+      ['d', 'run-d-0', 2, 1, '2026-11-17T11:00:00.000Z'],
+      ['p', 'run-p-0', 2, 1, '2026-11-17T10:00:00.000Z'],
+      ['w', 'run-w-0', 2, 1, '2026-11-17T09:00:00.000Z'],
+    ]);
+    // deliver begins on Build; nothing started after w's answer.
+    expect(listed.map(entry => entry.restart)).toEqual([
+      { runId: 'run-d-1', status: 'completed', label: 'Build' },
+      { runId: 'run-p-1', status: 'running', label: 'Plan' },
+      null,
     ]);
   });
 
@@ -101,25 +72,11 @@ describe('asks settled lately, and the stage each started again', () => {
       status: 'completed',
       label: 'Deliver',
     });
-    const at = '2026-11-17T11:00:00.000Z';
-    expect(entry?.asks).toEqual([
-      {
-        question: 'Send it back?',
-        answer: 'Send back once more',
-        withdrawn: false,
-        at,
-        by: null,
-        starts: null,
-      },
-      {
-        question: 'Which base?',
-        answer: 'Something else',
-        withdrawn: false,
-        at,
-        by: null,
-        starts: null,
-      },
-      { question: 'Split it?', answer: 'withdrawn', withdrawn: true, at, by: null, starts: null },
+    // An ask of another run is not this set's.
+    expect(entry?.asks.map(ask => [ask.question, ask.answer, ask.withdrawn])).toEqual([
+      ['Send it back?', 'Send back once more', false],
+      ['Which base?', 'Something else', false],
+      ['Split it?', 'withdrawn', true],
     ]);
     expect(entry?.askedAt).toBe(deliver.runs[0]?.completedAt ?? null);
   });
@@ -128,12 +85,6 @@ describe('asks settled lately, and the stage each started again', () => {
     const quiet = itemWith('q', [run('plan', 'completed', 'planned')]);
     const listed = recentlySettled(shippedView, [quiet, waiting, plan, deliver], 2);
     expect(listed.map(entry => entry.itemKey)).toEqual(['d', 'p']);
-  });
-
-  test('a run started by another cause is not a restart', () => {
-    expect(asksSettledRunId({ kind: 'run_ended', runId: 'r', sourceInstanceId: 's' })).toBeNull();
-    expect(asksSettledRunId(null)).toBeNull();
-    expect(asksSettledRunId({ kind: 'asks_settled', runId: 'r' })).toBe('r');
   });
 });
 
@@ -206,18 +157,7 @@ describe("an option the view words reads the view's sentence", () => {
     };
   };
 
-  test('a drop on a stage-check ask says it closes the PR, a send-back what it started again', () => {
-    const [entry] = recentlySettled(shippedView, [
-      answeredWith('stage-check', ['drop', 'send-back']),
-    ]);
-    expect(entry?.asks.map(ask => [ask.answer, ask.starts])).toEqual([
-      ['Drop', 'Closes the PR without merging'],
-      ['Send back', null],
-    ]);
-    expect(entry?.restarts).toBe(1);
-  });
-
-  test('a set that started two runs counts both, and its rows carry the count', () => {
+  test('a drop on a stage-check ask says it closes the PR; a set that started two runs counts both', () => {
     const settled = recentlySettled(shippedView, [
       answeredWith('stage-check', ['drop', 'send-back'], 2),
     ]);

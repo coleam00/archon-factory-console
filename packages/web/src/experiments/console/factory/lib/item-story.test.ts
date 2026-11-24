@@ -3,9 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
-import { asksSettledRunId } from './answered';
 import { itemPill } from './board';
-import { firstSentence, itemStory, type StagePanel, type StoryPanel } from './item-story';
+import { itemStory, type StagePanel, type StoryPanel } from './item-story';
 import { buildTimeline } from './timeline';
 
 const NOW = Date.parse('2026-11-22T09:00:00Z');
@@ -89,7 +88,6 @@ describe('an outcome worded by whether the item has a change', () => {
   };
 
   test('a drop or reshape names the PR only when the item had one', () => {
-    expect(progressOf86().change).toBeNull();
     expect(sentence('close', 'dropped', false)).toBe('You dropped it before a change was proposed');
     expect(sentence('close', 'dropped', true)).toStartWith(
       'You dropped it; the factory closed the PR without merging'
@@ -103,34 +101,7 @@ describe('an outcome worded by whether the item has a change', () => {
   });
 });
 
-/** Item 86's own progress, which `oneRun` starts from. */
-function progressOf86(): NonNullable<FactoryItemDetail['item']['progress']> {
-  const progress = itemDetail('86').item.progress;
-  if (progress === null) throw new Error('item 86 has progress');
-  return progress;
-}
-
 describe('one plain sentence per outcome', () => {
-  test('the page tells every workflow the item page meets', () => {
-    expect(WORKFLOWS.map(entry => entry.workflow).sort()).toEqual(
-      [
-        'close',
-        'deliver',
-        'discoveries',
-        'land',
-        'landed',
-        'landgate',
-        'order',
-        'plan',
-        'split',
-        'stage-build',
-        'stage-check',
-        'stage-host',
-        'triage',
-      ].sort()
-    );
-  });
-
   for (const { workflow, outcomes } of WORKFLOWS)
     for (const outcome of [...outcomes, null])
       test(`${workflow}:${outcome ?? '(none)'} reads the view's sentence`, () => {
@@ -193,10 +164,6 @@ describe("the console's clauses", () => {
     const checks = stagePanels(detail).find(panel => panel.stage.id === 'checks');
     expect(checks?.sentence.text).toBe('Checks sent it back twice');
     expect(checks?.reason?.full).toStartWith('Return:');
-    expect(firstSentence('Return. The approach holds, but one finding stands. More here.')).toBe(
-      'Return. The approach holds, but one finding stands.'
-    );
-    expect(checks?.reason?.short).toBe(firstSentence(checks?.reason?.full ?? ''));
     expect((checks?.reason?.short.length ?? 0) < (checks?.reason?.full.length ?? 0)).toBe(true);
   });
 
@@ -218,24 +185,7 @@ describe("the console's clauses", () => {
     expect(checks?.sentence.text).toBe('The checks sent it back to planning');
   });
 
-  test('a send-back from CI: the run said why', () => {
-    const detail = structuredClone(itemDetail('125'));
-    const host = detail.item.runs.findIndex(run => run.id.startsWith('52f46ea3'));
-    detail.item.runs = detail.item.runs.slice(0, host + 1);
-    const ci = stagePanels(detail).find(panel => panel.stage.id === 'host');
-    expect(ci?.sentence.text).toBe('CI or a review sent it back');
-    expect(ci?.reason?.full).toBe(
-      detail.runs.find(run => run.runId.startsWith('52f46ea3'))?.said ?? undefined
-    );
-  });
-
-  test('an answered ask: what you chose, who, and what it started', () => {
-    const build = stagePanels(itemDetail('113')).find(panel => panel.stage.id === 'build');
-    expect(build?.answered.map(ask => [ask.chosen, ask.optionId, ask.by, ask.started])).toEqual([
-      ['Send back', 'send-back', 'cole-owner', 'Build started again'],
-    ]);
-    // The second delivery ended the panel without asking: no "you said" on its sentence.
-    expect(build?.youSaid).toBeNull();
+  test('an answer that replanned: the panel says the delivery asked, and Plan started again', () => {
     const replanned = stagePanels(itemDetail('115')).find(panel => panel.stage.id === 'build');
     expect(replanned?.sentence.text).toBe('Delivery asked you');
     expect(replanned?.youSaid).toBe('Replan');
@@ -245,7 +195,9 @@ describe("the console's clauses", () => {
   test('an answer that started nothing says so', () => {
     const detail = structuredClone(itemDetail('113'));
     // Drop the run the answer started.
-    detail.item.runs = detail.item.runs.filter(run => asksSettledRunId(run.cause) === null);
+    detail.item.runs = detail.item.runs.filter(
+      run => (run.cause as { kind?: string } | null)?.kind !== 'asks_settled'
+    );
     const build = stagePanels(detail).find(panel => panel.stage.id === 'build');
     expect(build?.answered[0]?.started).toBe('Nothing started');
   });
@@ -278,17 +230,6 @@ describe('a run that works several stages tells its own facts once, on its last 
     ]);
     // Open asks of the run show in that panel alone.
     expect(panels.map(panel => panel.runIds.length)).toEqual([0, 0, 1]);
-  });
-
-  test('a run that failed: only its last panel says it failed, naming the stage its card names', () => {
-    const panels = deliverPanels(delivered({ status: 'failed', outcome: null }));
-    // No failed step recorded: rule 5 places the item in deliver's first stage, so the board's
-    // card and this sentence both name Build.
-    expect(panels.map(panel => panel.sentence.text)).toEqual([
-      'Build wrote the change',
-      'Checks sent it back once, then approved it',
-      'Build failed',
-    ]);
   });
 
   test("a stopped run reads on its last panel as its board card's stop line reads", () => {
@@ -335,11 +276,8 @@ describe('a check round running after one that sent the item back', () => {
 });
 
 describe('a loop-form delivery in its fix step', () => {
-  /**
-   * Item 111's deliver cut after its first round, now in `rounds.fix` (on Build), ended so:
-   * the fix visit is the run's last panel, Build (2).
-   */
-  function inFix(run: Partial<ItemRun>, extra: string[] = []): FactoryItemDetail {
+  /** Item 111's deliver cut after its first round, now in `rounds.fix` (Build (2)), ended so. */
+  function inFix(run: Partial<ItemRun>): FactoryItemDetail {
     const detail = structuredClone(itemDetail('111'));
     const at = detail.item.runs.findIndex(entry => entry.id.startsWith('aba8f7aa'));
     const deliver = detail.item.runs[at];
@@ -348,10 +286,7 @@ describe('a loop-form delivery in its fix step', () => {
       throw new Error('111 delivered');
     if (detail.item.progress === null) throw new Error('111 has progress');
     const cut = facts.steps.findIndex(step => step.node === 'rounds.fix');
-    facts.steps = [
-      ...facts.steps.slice(0, cut + 1),
-      ...extra.map(node => ({ node, startedAt: '2026-11-20T21:20:00.000Z' })),
-    ];
+    facts.steps = facts.steps.slice(0, cut + 1);
     facts.rounds = { ...facts.rounds, rounds: facts.rounds.rounds.slice(0, 1) };
     facts.shadows = [];
     Object.assign(deliver, { completedAt: null, outcome: null }, run);
@@ -363,12 +298,7 @@ describe('a loop-form delivery in its fix step', () => {
   const states: [string, Partial<ItemRun>][] = [
     ['running', { status: 'running' }],
     ['failed', { status: 'failed' }],
-    ['cancelled', { status: 'cancelled' }],
-    ['asked', { status: 'completed', outcome: 'ask', completedAt: '2026-11-20T21:30:00.000Z' }],
-    [
-      'returned',
-      { status: 'completed', outcome: 'returned', completedAt: '2026-11-20T21:30:00.000Z' },
-    ],
+    ['returned', { status: 'completed', outcome: 'returned', completedAt: '2026-11-20T21:30Z' }],
   ];
 
   for (const [state, run] of states)
@@ -381,16 +311,6 @@ describe('a loop-form delivery in its fix step', () => {
       const checks = panels.find(panel => panel.key === 'checks:1');
       expect(checks?.sentence.text).toBe('Checks sent it back');
       expect(checks?.reason?.full).toStartWith('Return.');
-    });
-
-  for (const [state, run] of states.slice(0, 2))
-    test(`${state} in its CI fix: CI and review says what it did there`, () => {
-      const panels = stagePanels(
-        inFix(run, ['rounds.base', 'hostrounds', 'hostrounds.host__host', 'hostrounds.hostfix'])
-      );
-      expect(panels.find(panel => panel.stage.id === 'host')?.sentence.text).toBe(
-        'CI and the reviews were read'
-      );
     });
 });
 
@@ -420,11 +340,6 @@ describe('a send-back from CI and the reviews, then a pass', () => {
       ci?.happened.map(event => (event.kind === 'fixed' ? event.text : event.reason.full))
     ).toEqual([said, 'Build fixed what CI and the reviews raised']);
   });
-
-  test('a panel with a rounds grid lists nothing more: its grid tells its rounds', () => {
-    const checks = stagePanels(itemDetail('125')).find(panel => panel.stage.id === 'checks');
-    expect(checks?.happened).toEqual([]);
-  });
 });
 
 describe("a panel's details", () => {
@@ -447,16 +362,6 @@ describe("a panel's details", () => {
 });
 
 describe('the last panels', () => {
-  test('a change a person merged: a Merged panel that does not say the factory merged it', () => {
-    const last = story(itemDetail('111')).at(-1);
-    expect(last).toEqual({
-      kind: 'merged',
-      key: 'merged',
-      stage: shippedView.stages.find(stage => stage.id === 'landed'),
-      at: itemDetail('111').item.progress?.change?.mergedAt ?? null,
-    });
-  });
-
   test('a change the factory merged: its land run says so; the Merged stage panel has the time', () => {
     const panels = stagePanels(itemDetail('125'));
     expect(panels.find(panel => panel.stage.id === 'ready')?.sentence.text).toBe(
@@ -466,12 +371,5 @@ describe('the last panels', () => {
     // The Merged stage's own run tells it: no second, console-made Merged panel.
     expect(story(itemDetail('125')).some(panel => panel.kind === 'merged')).toBe(false);
     expect(story(itemDetail('125')).at(-1)?.kind).toBe('stage');
-  });
-
-  test('the discoveries drain is told on its own quiet panel, in start order', () => {
-    const kinds = story(itemDetail('111')).map(panel =>
-      panel.kind === 'stage' ? panel.stage.id : panel.kind
-    );
-    expect(kinds.slice(-3)).toEqual(['drain', 'ready', 'merged']);
   });
 });

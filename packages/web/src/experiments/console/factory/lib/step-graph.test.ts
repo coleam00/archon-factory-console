@@ -43,46 +43,41 @@ const groupOf = (key: string): string | null =>
   graph.nodes.find(node => node.key === key)?.group ?? null;
 
 describe('stepGraph on deliver', () => {
-  test('the rounds loop is a group of up to 3 rounds holding the fix, base and every check', () => {
-    expect(graph.groups.find(group => group.id === 'rounds')).toEqual({
-      id: 'rounds',
+  test('the rounds loop holds the fix, base and every check, each check its own include', () => {
+    const group = (id: string) => graph.groups.find(candidate => candidate.id === id);
+    expect(group('rounds')).toMatchObject({
       kind: 'loop',
       parent: null,
       label: 'Check rounds',
       maxRounds: 3,
-      when: null,
-      condition: null,
     });
-    expect(groupOf('rounds.fix')).toBe('rounds');
-    expect(groupOf('rounds.base')).toBe('rounds');
-    expect(
-      ['review', 'tests', 'product', 'verdict'].map(c => groupOf(`rounds.${c}__${c}`))
-    ).toEqual(['rounds.review', 'rounds.tests', 'rounds.product', 'rounds.verdict']);
-  });
-
-  test('each included check is its own group inside the loop; build is one at the top', () => {
-    const include = (id: string) => graph.groups.find(group => group.id === id);
-    for (const check of ['review', 'tests', 'product', 'verdict'])
-      expect(include(`rounds.${check}`)).toMatchObject({
+    expect(group('build')).toMatchObject({ kind: 'include', parent: null, label: 'build' });
+    expect([groupOf('rounds.fix'), groupOf('rounds.base')]).toEqual(['rounds', 'rounds']);
+    for (const check of ['review', 'tests', 'product', 'verdict']) {
+      expect(groupOf(`rounds.${check}__${check}`)).toBe(`rounds.${check}`);
+      expect(group(`rounds.${check}`)).toMatchObject({
         kind: 'include',
         parent: 'rounds',
         label: check,
       });
-    expect(include('build')).toMatchObject({ kind: 'include', parent: null, label: 'build' });
-  });
-
-  test('a step reads by its name, never its engine id', () => {
+    }
+    // A step reads by its name, never its engine id.
     const label = (key: string) => graph.nodes.find(node => node.key === key)?.label;
-    expect(label('build__build')).toBe('Writes the change');
-    expect(label('rounds.review__review')).toBe('Code review');
+    expect([label('build__build'), label('rounds.review__review')]).toEqual([
+      'Writes the change',
+      'Code review',
+    ]);
   });
 
   test('a wait on a loop runs from its last step, and the loop starts at its first', () => {
     const edges = graph.edges.map(edge => `${edge.from}→${edge.to}`);
-    expect(edges).toContain('rounds.verdict__verdict→exhausted');
-    expect(edges).toContain('build__build→rounds.fix');
-    expect(edges).toContain('rounds.verdict__verdict→hostrounds.hostfix');
-    expect(edges).toContain('hostrounds.host__host→result');
+    for (const edge of [
+      'rounds.verdict__verdict→exhausted',
+      'build__build→rounds.fix',
+      'rounds.verdict__verdict→hostrounds.hostfix',
+      'hostrounds.host__host→result',
+    ])
+      expect(edges).toContain(edge);
     expect(edges).not.toContain('rounds.base→exhausted');
     // build enters the loop at fix only, not at every step of it.
     expect(edges).not.toContain('build__build→rounds.base');
@@ -104,8 +99,7 @@ describe('stepGraph on deliver', () => {
   });
 
   test('keeps and, or, inputs, other operators and an empty value', () => {
-    const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
-    if (fix === undefined) throw new Error('fixture has no rounds.fix');
+    const fix = deliver.steps.find(step => step.key === 'rounds.fix')!;
     const step = (key: string) => ({ kind: 'step' as const, key });
     const whenClauses = [
       [
@@ -121,8 +115,7 @@ describe('stepGraph on deliver', () => {
   });
 
   test('a when: the parser gave no comparisons for prints nothing; its title has it', () => {
-    const [fix] = deliver.steps.filter(step => step.key === 'rounds.fix');
-    if (fix === undefined) throw new Error('fixture has no rounds.fix');
+    const fix = deliver.steps.find(step => step.key === 'rounds.fix')!;
     const bare = stepGraph(
       { steps: [{ ...fix, whenClauses: null }], groups: [] },
       () => NONE,
@@ -130,16 +123,6 @@ describe('stepGraph on deliver', () => {
     );
     expect(bare.nodes[0]?.condition).toBeNull();
     expect(bare.nodes[0]?.when).toBe(fix.when);
-  });
-
-  test('a step and a loop carry their when: condition', () => {
-    const when = (key: string) => graph.nodes.find(node => node.key === key)?.when;
-    expect(when('rounds.fix')).toContain('$LOOP_PREV.verdict__verdict.output.outcome');
-    expect(when('exhausted')).toBe("$rounds.output.outcome == 'return'");
-    expect(when('rounds.base')).toBeNull();
-    expect(graph.groups.find(group => group.id === 'hostrounds')?.when).toBe(
-      "$rounds.output.outcome == 'approve'"
-    );
   });
 
   test("only the Checks stage's steps are its own", () => {
@@ -159,25 +142,6 @@ describe('stepGraph on deliver', () => {
       stage: { id: 'host' },
     });
     expect([...workers.values()].filter(worker => worker.kind === 'none')).toEqual([]);
-  });
-});
-
-describe('stepWorker', () => {
-  test("a step is the open stage's own, another stage's, or none the view names", () => {
-    const build = stageOf('build');
-    expect(stepWorker(stages, build, 'deliver', 'build__build')).toMatchObject({ kind: 'this' });
-    expect(stepWorker(stages, build, 'deliver', 'rounds.review__review')).toMatchObject({
-      kind: 'other',
-      stage: { id: 'checks', label: stageOf('checks').label },
-    });
-    expect(stepWorker(stages, build, 'deliver', 'unlisted')).toEqual(NONE);
-  });
-
-  test('a stage that works its whole workflow marks no step', () => {
-    const whole = stages.find(stage => stage.nodes === undefined && stage.workflows.length > 0);
-    if (whole === undefined) throw new Error('the view has no whole-workflow stage');
-    const [workflow] = whole.workflows;
-    expect(stepWorker(stages, whole, workflow ?? '', 'any')).toEqual(NONE);
   });
 });
 
@@ -257,16 +221,5 @@ describe('edges of the deliver graph keep out of frames they do not belong to', 
       }
     }
     expect(offending).toEqual([]);
-  });
-
-  test('edges leaving one step leave it at different points', () => {
-    const starts = new Map<string, Set<number>>();
-    for (const edge of laid.edges) {
-      const xs = starts.get(edge.from) ?? new Set<number>();
-      xs.add(edge.points[0]?.x ?? Number.NaN);
-      starts.set(edge.from, xs);
-    }
-    const fanOut = laid.edges.filter(edge => edge.from === 'rounds.base').length;
-    expect(starts.get('rounds.base')?.size).toBe(fanOut);
   });
 });

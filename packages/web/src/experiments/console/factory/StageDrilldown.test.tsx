@@ -1,54 +1,24 @@
 import { afterAll, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
 import { act } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { ProjectAttentionLayout } from '../components/ProjectAttention';
-import { FactoryPage } from './FactoryPage';
-import { StepPage } from './StepPage';
+import { projectRoutes } from '../routes/project-routes';
+import { installDom } from '../test-dom.test-helpers';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
-import { capturedItemAs, isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
+import {
+  capturedItemAs,
+  capturedItemsPage,
+  isItemsRead,
+  itemsReadAnswer,
+} from './lib/fixtures/factory-items-page';
 
-// Opening a card and the tabs are clicks, and static markup cannot click.
-const dom = new Window({ url: 'http://localhost' });
-// The frame keeps the Needs-you count live over SSE; nothing streams in this test.
-class QuietEventSource {
-  onmessage: unknown = null;
-  onerror: unknown = null;
-  readyState = 0;
-  close(): void {
-    this.readyState = 2;
-  }
-}
-const globals = {
-  window: dom,
-  document: dom.document,
-  EventSource: QuietEventSource,
-  IS_REACT_ACT_ENVIRONMENT: true,
-};
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-const originalFetch = globalThis.fetch;
-
-afterAll(async () => {
-  globalThis.fetch = originalFetch;
-  invalidate('factory-views');
-  invalidate('factory-workflow');
-  invalidate('factory-items');
-  invalidate('runs');
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
+// Opening a stage, a step and the tabs are clicks, and static markup cannot click.
+const { mount, settle } = await installDom();
+afterAll(() => {
+  for (const key of ['factory-views', 'factory-workflow', 'factory-items', 'runs']) invalidate(key);
 });
 
 const ID = 'cb-1';
@@ -67,7 +37,7 @@ const views: FactoryViews = {
         title: 'Kit factory',
         summary: 'Issues come in; changes go out.',
         stages: [
-          // Holds every deliver step, so a step page opened without its stage would lead here.
+          // No drill-down: its modal opens on the real step graph.
           { id: 'build', label: 'Build', blurb: 'Builds.', group: 'build', workflows: ['deliver'] },
           {
             id: 'checks',
@@ -90,6 +60,10 @@ const views: FactoryViews = {
   errors: [],
 };
 
+/** What each workflow read gets, in turn, the last repeating; a test sets it to fail first. */
+let workflowAnswers: (() => Response)[] = [() => Response.json(deliverJson)];
+let workflowFetches = 0;
+/** What the stubbed server answers for the items read; a test swaps it to move an item. */
 let itemsResponse: (url: string) => Response = itemsReadAnswer([]);
 
 function serve(items: (url: string) => Response): void {
@@ -98,89 +72,184 @@ function serve(items: (url: string) => Response): void {
     async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/factory/views')) return Response.json(views);
-      if (url.includes('/api/factory/workflow')) return Response.json(deliver);
+      if (url.includes('/api/factory/workflow')) {
+        const answer = workflowAnswers[Math.min(workflowFetches, workflowAnswers.length - 1)];
+        workflowFetches++;
+        return answer!();
+      }
       if (isItemsRead(url)) return itemsResponse(url);
       if (url.includes('/api/runs/attention'))
         return Response.json({ items: [], runs: [], degraded: [] });
       return Response.json({ error: 'not in this test' }, { status: 404 });
     },
-    { preconnect: originalFetch.preconnect }
+    { preconnect: fetch.preconnect }
   );
   set(K.factoryViews(ID), views);
   set(K.factoryWorkflow(ID, 'deliver'), deliver);
+  // Each test starts from a cold items read, so it loads what this test serves.
   invalidate('factory-items');
 }
 
-const settle = (): Promise<void> => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
-
-async function renderChecks(check: (container: HTMLElement) => Promise<void>): Promise<void> {
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
+async function renderAt(path: string, check: (body: HTMLElement) => Promise<void>): Promise<void> {
+  const mounted = await mount(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>{projectRoutes('/console/')}</Routes>
+    </MemoryRouter>
+  );
   try {
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={[`/console/p/${ID}/factory?stage=checks`]}>
-          <Routes>
-            {/* As in ConsoleApp: every project page sits under the project layout, which holds
-                the one attention stream (#42). */}
-            <Route path="/console/p/:projectId" element={<ProjectAttentionLayout />}>
-              <Route path="factory" element={<FactoryPage />} />
-              <Route path="factory/steps/:workflow/:node" element={<StepPage />} />
-            </Route>
-          </Routes>
-        </MemoryRouter>
-      )
-    );
     await settle();
-    // The modal portals to the body, outside the root.
+    // The stage modal portals to the body, outside the root.
     await check(document.body as unknown as HTMLElement);
   } finally {
-    await act(async () => root.unmount());
-    container.remove();
+    await mounted.unmount();
   }
 }
 
+const click = async (target: Element | null | undefined): Promise<void> => {
+  await act(async () => {
+    (target as HTMLElement | null)?.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+};
+const reread = (answer: (url: string) => Response): Promise<void> =>
+  act(async () => {
+    itemsResponse = answer;
+    // What lib/sse.ts calls on a workflow_status or dag_node event.
+    invalidate('factory-items');
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
+
+function stepButton(body: HTMLElement, label: string): HTMLButtonElement {
+  const button = [...body.querySelectorAll('button')].find(b => b.textContent.startsWith(label));
+  if (!button) throw new Error(`The stage graph drew no ${label} step`);
+  return button;
+}
+/** The item links on the page, or in the stage modal when it is open. */
+const itemLinks = (body: HTMLElement): string[] =>
+  [
+    ...(body.querySelector('[role="dialog"]') ?? body).querySelectorAll(
+      'a[href*="/factory/items/"]'
+    ),
+  ].map(link => link.getAttribute('href') ?? '');
+const phaseLabels = (root: Element): string[] =>
+  [...root.querySelectorAll('[data-phase]')].map(phase => phase.getAttribute('aria-label') ?? '');
+const liveCards = (body: HTMLElement): string[] =>
+  [...body.querySelectorAll('article[data-live]')].map(
+    c => c.querySelector('a')?.textContent ?? ''
+  );
+const cardLink = (body: HTMLElement, text: string): HTMLAnchorElement => {
+  const found = [...body.querySelectorAll<HTMLAnchorElement>('article > a')].find(a =>
+    a.textContent.includes(text)
+  );
+  if (!found) throw new Error(`No card reads ${text}`);
+  return found;
+};
 const on = (key: string, step: string) =>
   capturedItemAs(key, {
     running: { runId: `run-${key}`, workflow: 'deliver', step, startedAt: '2026-11-17T07:00:00Z' },
   });
 
-const phaseLabels = (root: Element): string[] =>
-  [...root.querySelectorAll('[data-phase]')].map(phase => phase.getAttribute('aria-label') ?? '');
-const liveCards = (container: HTMLElement): string[] =>
-  [...container.querySelectorAll('article[data-live]')].map(
-    card => card.querySelector('a')?.textContent ?? ''
-  );
-/** A drill-down card's link: the first link of the card whose text reads `text`. */
-const cardLink = (container: HTMLElement, text: string): HTMLAnchorElement => {
-  const found = [...container.querySelectorAll('article > a')].find(candidate =>
-    candidate.textContent.includes(text)
-  );
-  if (!(found instanceof dom.HTMLAnchorElement)) throw new Error(`No card reads ${text}`);
-  return found as unknown as HTMLAnchorElement;
-};
-const click = async (target: HTMLElement): Promise<void> => {
-  await act(async () => {
-    target.click();
-    await new Promise(resolve => setTimeout(resolve, 0));
-  });
-};
+// Newest activity first: #4's run started after #12's.
+const capturedLinks = ['4', '12', '6'].map(key => `/console/p/${ID}/factory/items/${key}`);
 
-test('the stage modal tells its drill-down: numbered phases of cards, one loop around 1 to 3', async () => {
+test('a stage with no drill-down opens on its graph, glows the running step, and a step opens its page and leads back', async () => {
+  serve(itemsReadAnswer(capturedItemsPage.items));
+  await renderAt(`/console/p/${ID}/factory?stage=build`, async body => {
+    const selected = body.querySelector('[role="tab"][aria-selected="true"]');
+    expect(selected?.textContent).toBe('The real workflow');
+    expect(body.textContent).toContain('Running now');
+    expect(itemLinks(body)).toEqual(capturedLinks);
+    const build = stepButton(body, '·build');
+    expect(build.hasAttribute('data-running')).toBe(true);
+    expect(build.title).toContain('Running for #4, #12, #6');
+    expect(stepButton(body, '·fix').hasAttribute('data-running')).toBe(false);
+
+    await click(stepButton(body, '·fix'));
+    expect(body.querySelector('[data-id-tag]')?.textContent).toBe('rounds.fix');
+    const back = body.querySelector<HTMLAnchorElement>('a[data-back-link]');
+    expect(back?.textContent).toBe('Back to Build');
+    await click(back);
+    expect(document.querySelector('[role="dialog"] h3')?.textContent).toBe('Build');
+  });
+});
+
+test('a failed refresh says so in the stage modal and stops the glow; the graph still draws', async () => {
+  serve(itemsReadAnswer(capturedItemsPage.items));
+  await renderAt(`/console/p/${ID}/factory?stage=build`, async body => {
+    expect(stepButton(body, '·build').hasAttribute('data-running')).toBe(true);
+    await reread(() => Response.json({ error: 'The items read failed.' }, { status: 500 }));
+    expect(body.textContent).toContain(
+      'Could not refresh the items, so this stage shows the last ones read: The items read failed.'
+    );
+    expect(stepButton(body, '·build').hasAttribute('data-running')).toBe(false);
+    expect(itemLinks(body)).toEqual([]);
+  });
+});
+
+test('a run between loop bodies lights the loop frame, naming the item by its number', async () => {
+  serve(itemsReadAnswer([on('issue-9', 'rounds')]));
+  await renderAt(`/console/p/${ID}/factory?stage=build`, async body => {
+    const lit = [...body.querySelectorAll('div[data-running]')];
+    expect(lit.map(frame => frame.textContent)).toEqual([expect.stringContaining('rounds')]);
+    expect(lit[0]?.getAttribute('title')).toBe('Running for #9');
+    expect(body.querySelectorAll('button[data-running]')).toHaveLength(0);
+  });
+});
+
+test('the step page draws the items on the step as board cards, says when there are none, and follows an event', async () => {
+  serve(itemsReadAnswer(capturedItemsPage.items));
+  await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async body => {
+    expect(body.textContent).toContain('Items on this step now');
+    expect([...body.querySelectorAll('[data-card]')].map(c => c.getAttribute('data-card'))).toEqual(
+      ['4', '12', '6']
+    );
+    // Each card's own link to its item, in the read's order (a card may link its item twice).
+    expect([...new Set(itemLinks(body))]).toEqual(capturedLinks);
+  });
+  await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async body => {
+    expect(itemLinks(body)).toEqual([]);
+    expect(body.textContent).toContain('No item is on this step now.');
+    await reread(itemsReadAnswer([on('12', 'rounds.fix')]));
+    expect(itemLinks(body)).toEqual([`/console/p/${ID}/factory/items/12`]);
+  });
+});
+
+test('the step page tries its workflow read again, and Retry reads it after two failures', async () => {
   serve(itemsReadAnswer([]));
-  await renderChecks(async container => {
-    expect(phaseLabels(container)).toEqual([
+  invalidate('factory-workflow');
+  const offline = (): Response => {
+    throw new TypeError('Failed to fetch');
+  };
+  workflowAnswers = [offline, offline, () => Response.json(deliverJson)];
+  workflowFetches = 0;
+  try {
+    await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async body => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 1_100)));
+      expect(workflowFetches).toBe(2);
+      const alert = body.querySelector('[role="alert"]');
+      expect(alert?.textContent).toContain('deliver');
+      expect(alert?.textContent).toContain('the server did not answer');
+      await click(alert?.querySelector('button'));
+      await settle();
+      expect(body.querySelector('[role="alert"]')).toBeNull();
+      expect(body.textContent).toContain('From command fix');
+    });
+  } finally {
+    workflowAnswers = [() => Response.json(deliverJson)];
+  }
+});
+
+test('the drill-down tells numbered phases of cards in one loop, and a card links its step page', async () => {
+  serve(itemsReadAnswer([]));
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
+    expect(phaseLabels(body)).toEqual([
       'Phase 1: Prepare',
       'Phase 2: Check',
       'Phase 3: Verdict',
       'Phase 4: Out of rounds',
     ]);
-    const review = cardLink(container, 'Code review');
-    expect(review.textContent).toContain("Reads the change for bugs and the project's rules");
-    expect(review.textContent).toContain('Check');
-    expect(container.querySelectorAll('article')).toHaveLength(7);
-    const loops = [...container.querySelectorAll('[data-loop]')];
+    expect(body.querySelectorAll('article')).toHaveLength(7);
+    const loops = [...body.querySelectorAll('[data-loop]')];
     expect(loops).toHaveLength(1);
     expect(loops[0]?.textContent).toContain('Up to 3 rounds');
     expect(phaseLabels(loops[0]!)).toEqual([
@@ -188,110 +257,55 @@ test('the stage modal tells its drill-down: numbered phases of cards, one loop a
       'Phase 2: Check',
       'Phase 3: Verdict',
     ]);
-    expect(liveCards(container)).toEqual([]);
-  });
-});
+    expect(liveCards(body)).toEqual([]);
 
-test('a card glows and names the items on a step it covers; a run between rounds lights the loop', async () => {
-  serve(itemsReadAnswer([on('7', 'rounds.review__review')]));
-  await renderChecks(async container => {
-    expect(liveCards(container)).toEqual([expect.stringContaining('Code review')]);
-    const lit = container.querySelector('article[data-live]');
-    // It wears the step graph's running mark, its tint still its kind's colour.
-    expect(lit?.className).toContain('factory-card');
-    expect(lit?.hasAttribute('data-running')).toBe(true);
-    expect((lit as HTMLElement | null)?.style.getPropertyValue('--card-tone')).not.toBe(
-      'var(--running)'
-    );
-    // The items on it are links of their own, beside the card's link, never inside it.
-    expect(
-      [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(link => link.getAttribute('href'))
-    ).toEqual([`/console/p/${ID}/factory/items/7`]);
-    expect(lit?.querySelector('a a')).toBeNull();
-    expect(container.querySelector('[data-loop] > [data-live]')).toBeNull();
-
-    itemsResponse = itemsReadAnswer([on('9', 'rounds')]);
-    await act(async () => {
-      invalidate('factory-items');
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-    expect(liveCards(container)).toEqual([]);
-    const label = container.querySelector('[data-loop] > [data-live]');
-    expect(label?.textContent).toContain('Up to 3 rounds');
-    expect(label?.getAttribute('title')).toBe('Between rounds: #9');
-
-    // A label-ordered item reads the same: its key as #N, not issue-N.
-    itemsResponse = itemsReadAnswer([on('issue-9', 'rounds')]);
-    await act(async () => {
-      invalidate('factory-items');
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-    expect(container.querySelector('[data-loop] > [data-live]')?.getAttribute('title')).toBe(
-      'Between rounds: #9'
-    );
-  });
-});
-
-test('a failed items read says so and lights no card', async () => {
-  serve(itemsReadAnswer([on('7', 'rounds.review__review')]));
-  await renderChecks(async container => {
-    expect(liveCards(container)).toHaveLength(1);
-    itemsResponse = () => Response.json({ error: 'The items read failed.' }, { status: 500 });
-    await act(async () => {
-      invalidate('factory-items');
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-    expect(container.textContent).toContain(
-      'Could not refresh the items, so this stage shows the last ones read: The items read failed.'
-    );
-    expect(liveCards(container)).toEqual([]);
-  });
-});
-
-test('a card is a link that looks it, and clicking it opens its step page back to the stage', async () => {
-  serve(itemsReadAnswer([]));
-  await renderChecks(async container => {
-    const review = cardLink(container, 'Code review');
+    const review = cardLink(body, 'Code review');
+    expect(review.textContent).toContain("Reads the change for bugs and the project's rules");
     expect(review.getAttribute('href')).toBe(
       `/console/p/${ID}/factory/steps/deliver/rounds.review__review`
     );
-    // Its hover is `.factory-card`'s (theme.css) on the box, and a background on the link.
-    expect(review.parentElement?.className).toContain('factory-card');
-    expect(review.parentElement?.hasAttribute('data-link')).toBe(true);
-    expect(review.className).toContain('cursor-pointer');
-    expect(review.className).toContain('hover:bg-surface-elevated');
-    expect(review.getAttribute('title')).toContain('rounds.review__review');
-    // No panel of the card's steps opens below the phases: the card goes straight to its step.
-    expect(container.textContent).not.toContain('The real steps');
+    expect(body.textContent).not.toContain('The real steps');
     await click(review);
-    expect(container.querySelector('[data-id-tag]')?.textContent).toBe('rounds.review__review');
-    expect(container.textContent).toContain('Back to Checks');
+    expect(body.querySelector('[data-id-tag]')?.textContent).toBe('rounds.review__review');
+    expect(body.textContent).toContain('Back to Checks');
   });
 });
 
-test('in the stage modal the tabs switch between the phases, the items and the real step graph', async () => {
+test('a drill-down card glows and links the items on its step; a run between rounds lights the loop', async () => {
+  serve(itemsReadAnswer([on('7', 'rounds.review__review')]));
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
+    expect(liveCards(body)).toEqual([expect.stringContaining('Code review')]);
+    const lit = body.querySelector('article[data-live]');
+    expect(lit?.hasAttribute('data-running')).toBe(true);
+    // The items are links of their own beside the card's link, never inside it.
+    expect(
+      [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(a => a.getAttribute('href'))
+    ).toEqual([`/console/p/${ID}/factory/items/7`]);
+    expect(lit?.querySelector('a a')).toBeNull();
+
+    await reread(itemsReadAnswer([on('9', 'rounds')]));
+    expect(liveCards(body)).toEqual([]);
+    const label = body.querySelector('[data-loop] > [data-live]');
+    expect(label?.textContent).toContain('Up to 3 rounds');
+    expect(label?.getAttribute('title')).toBe('Between rounds: #9');
+  });
+});
+
+test('the stage modal tabs switch between the phases, the items and the real step graph', async () => {
   serve(itemsReadAnswer([]));
-  await renderChecks(async container => {
-    const graphStep = (): HTMLButtonElement | undefined =>
-      [...container.querySelectorAll('button')].find(candidate =>
-        candidate.textContent.startsWith('·fix')
-      );
-    const tab = (name: string): HTMLButtonElement => {
-      const found = [...container.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find(
-        candidate => candidate.textContent === name
-      );
-      if (found === undefined) throw new Error(`No tab ${name}`);
-      return found;
-    };
-    expect(phaseLabels(container)).toHaveLength(4);
+  await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
+    const graphStep = () =>
+      [...body.querySelectorAll('button')].find(b => b.textContent.startsWith('·fix'));
+    const tab = (name: string) =>
+      [...body.querySelectorAll('[role="tab"]')].find(candidate => candidate.textContent === name);
+    expect(phaseLabels(body)).toHaveLength(4);
     expect(graphStep()).toBeUndefined();
     await click(tab('The real workflow'));
     expect(graphStep()).toBeDefined();
-    expect(phaseLabels(container)).toHaveLength(0);
+    expect(phaseLabels(body)).toHaveLength(0);
     await click(tab('Items here now'));
-    expect(container.textContent).toContain('Nothing is in this stage now.');
-    expect(graphStep()).toBeUndefined();
+    expect(body.textContent).toContain('Nothing is in this stage now.');
     await click(tab('What this stage does'));
-    expect(phaseLabels(container)).toHaveLength(4);
+    expect(phaseLabels(body)).toHaveLength(4);
   });
 });

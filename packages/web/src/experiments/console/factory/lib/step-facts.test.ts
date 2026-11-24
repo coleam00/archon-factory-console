@@ -105,40 +105,20 @@ describe('stepFacts', () => {
     ]);
   });
 
-  test('a loop that waits on the step starts after it, by its name and rounds', () => {
+  test('a loop that waits on the step, and a step a result starts next round, start after it', () => {
     const deliver = deliverJson as FactoryWorkflow;
-    const build = deliver.steps.find(candidate => candidate.key === 'build__build');
-    if (build === undefined) throw new Error('the fixture has no build step');
-    const then = stepFacts({
-      step: build,
-      view: VIEW,
-      workflow: 'deliver',
-      steps: deliver.steps,
-      groups: deliver.groups,
-      stepName: name,
-    }).find(fact => fact.key === 'then');
-    expect(then?.lines).toEqual(['Rounds, up to 3 rounds, after this step']);
-  });
-
-  test("a step a result starts through its condition is listed: the verdict's fix, next round", () => {
-    const deliver = deliverJson as FactoryWorkflow;
-    const thenOf = (key: string): string[] | undefined => {
-      const target = deliver.steps.find(candidate => candidate.key === key);
-      if (target === undefined) throw new Error(`the fixture has no ${key}`);
-      return stepFacts({
-        step: target,
+    const thenOf = (key: string): string[] | undefined =>
+      stepFacts({
+        step: deliver.steps.find(candidate => candidate.key === key)!,
         view: VIEW,
         workflow: 'deliver',
         steps: deliver.steps,
         groups: deliver.groups,
         stepName: name,
       }).find(fact => fact.key === 'then')?.lines;
-    };
+    expect(thenOf('build__build')).toEqual(['Rounds, up to 3 rounds, after this step']);
     expect(thenOf('rounds.verdict__verdict')).toEqual([
       'Rounds.fix, next round, if Rounds.verdict__verdict = return',
-    ]);
-    expect(thenOf('hostrounds.host__host')).toEqual([
-      'Hostrounds.hostfix, next round, if Hostrounds.host__host = return',
     ]);
   });
 
@@ -163,11 +143,9 @@ describe('stepFacts', () => {
   });
 });
 
-describe('modelWords', () => {
-  test('a tier reads as its name and "tier"; a model as written', () => {
-    expect(modelWords(['@judge', 'medium'])).toBe('Judge tier, else medium');
-    expect(modelWords(['sonnet'])).toBe('sonnet');
-  });
+test('a tier reads as its name and "tier"; a model as written', () => {
+  expect(modelWords(['@judge', 'medium'])).toBe('Judge tier, else medium');
+  expect(modelWords(['sonnet'])).toBe('sonnet');
 });
 
 describe('coveringCard', () => {

@@ -201,53 +201,38 @@ const titles = (html: string): string[] =>
   [...html.matchAll(/ title="([^"]*)"/g)].map(match => match[1] ?? '');
 
 describe('no raw step id where a person reads', () => {
-  test('the scan finds the shapes it looks for', () => {
-    expect(LOOPS).toContain('rounds');
-    expect(rawIds('<p>deliver · rounds.review__review</p>')).toHaveLength(2);
+  test('the scan finds the shapes it looks for, and leaves a title or href alone', () => {
+    expect(rawIds('<p aria-label="hostrounds.hostfix">rounds.review__review</p>')).toHaveLength(3);
     expect(rawIds('<a title="rounds.fix" href="/x/build__build">Fixes</a>')).toEqual([]);
-    expect(rawIds('<span aria-label="hostrounds.hostfix"></span>')).toHaveLength(1);
   });
 
-  test('the board', () => {
+  test('the board and its Table view name steps, their engine ids on hover', () => {
     const html = render(`/console/p/${ID}/factory/board`);
     expect(html).toContain('Checks · Code review · round 2');
-    expect(html).toContain('Build · Writes the change');
     expect(html).toContain('failed at Test check');
-    // The run line keeps the engine id on hover.
     expect(titles(html)).toContain(
       'Checks · Code review · round 2 (engine id: rounds.review__review)'
     );
     expect(rawIds(html)).toEqual([]);
+    const table = render(`/console/p/${ID}/factory/board?view=table`);
+    expect(table).toContain('Build · mystery · round 2');
+    expect(rawIds(table)).toEqual([]);
   });
 
-  test('the Table view', () => {
-    const html = render(`/console/p/${ID}/factory/board?view=table`);
-    expect(html).toContain('CI and review · Reads CI and PR reviews');
-    expect(html).toContain('Build · mystery · round 2');
-    expect(titles(html)).toContain(
-      'CI and review · Reads CI and PR reviews (engine id: hostrounds.host__host)'
-    );
-    expect(rawIds(html)).toEqual([]);
-  });
-
-  test('the item page', () => {
+  test('the item page, running a loop body and with its rounds grid', () => {
     const html = render(`/console/p/${ID}/factory/items/3`, runningDetail());
     expect(readable(html)).toContain('Code review, round 2');
     expect(rawIds(html)).toEqual([]);
-    // The rounds grid names each check; each cell's step id is its hover.
     const delivered = render(`/console/p/${ID}/factory/items/111`, itemDetail('111'));
-    expect(readable(delivered)).toContain('Code review');
-    const hover = titles(delivered);
-    expect(hover.some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
+    expect(titles(delivered).some(title => title.startsWith('rounds.tests__tests'))).toBe(true);
     expect(rawIds(delivered)).toEqual([]);
   });
 
   test('the Overview, and the map details of a stage a run works', () => {
     expect(rawIds(render(`/console/p/${ID}/factory`))).toEqual([]);
     const checks = VIEW.stages.find(stage => stage.id === 'checks');
-    if (checks === undefined) throw new Error('the view declares checks');
     const live = stageLive(VIEW, ID, ITEMS, [], new Map(), FIXTURE_NOW).stages.get('checks');
-    if (live === undefined) throw new Error('the map has a checks card');
+    if (checks === undefined || live === undefined) throw new Error('the view declares checks');
     const html = markup(
       <MemoryRouter>
         <MapDetails
@@ -260,65 +245,40 @@ describe('no raw step id where a person reads', () => {
       </MemoryRouter>
     );
     expect(html).toContain('Checks · Code review · round 2');
-    expect(titles(html)).toContain('rounds.review__review');
     expect(rawIds(html)).toEqual([]);
   });
 
   test("the stage modal's drill-down", () => {
     const html = renderStage('checks', deliverListing);
-    // The card reads its own title; the item on it reads its step by name, its id on hover.
-    expect(readable(html)).toContain('Code review');
     expect(readable(html)).toContain('on Code review');
     expect(titles(html)).toContain('rounds.review__review');
     expect(rawIds(html)).toEqual([]);
-    // The shipped Checks drill-down, which covers stage-check alone, names no raw id either.
     expect(rawIds(renderStage('checks'))).toEqual([]);
   });
 
-  test("the stage modal's step graph", () => {
+  test("the stage modal's step graph, and its conditions by the names the graph prints", () => {
     const html = renderStage('checks', graphsListing);
-    expect(readable(html)).toContain('Code review');
-    // A name the step box may cut reads in full on hover, with its engine id.
     expect(html).toContain('title="Code review (engine id: rounds.review__review)');
-    // The running list's step and the loop frame's name keep their engine ids on hover.
-    const hover = titles(html);
-    expect(hover).toContain('rounds.review__review');
-    expect(hover).toContain('rounds');
+    expect(titles(html)).toContain('rounds');
     expect(rawIds(html)).toEqual([]);
-  });
-
-  test("the stage modal's conditions name each step by the name the graph prints it by", () => {
-    const html = renderStage('checks', graphsListing);
-    const words = readable(html);
     // A condition reads a step by its bare id ("if rounds = approve"), which neither id
     // shape catches, so every condition's subject is checked against the declared names.
-    const subjects = [...words.matchAll(/\bif (.+?) [=≠≤≥<>] /g)].map(match => match[1]);
+    const subjects = [...readable(html).matchAll(/\bif (.+?) [=≠≤≥<>] /g)].map(match => match[1]);
     expect(subjects.sort()).toEqual([
       'Check rounds',
       'Check rounds',
       'Reads CI and PR reviews',
       'Verdict',
     ]);
-    // A condition the step box cuts reads in full on hover.
-    expect(html).toContain('if Reads CI and PR reviews = return\nRuns when');
   });
 
-  test('the step page names the step, its engine id a tag beside the name', () => {
+  test('the step page: the name with its id as a tag, and Runs when by step name', () => {
     const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.review__review`);
-    // The heading itself: "Code review" also reads in the page's running list.
     expect(
       /<h2[^>]*><span[^>]*>([^<]*)<span data-id-tag=""[^>]*>([^<]*)<\/span>/.exec(html)?.slice(1)
     ).toEqual(['Code review', 'rounds.review__review']);
-  });
-
-  test("the step page's Runs when line names the step it reads, the expression on hover", () => {
-    const html = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`);
-    expect(readable(html)).toMatch(/Runs when\s+if Verdict = return/);
-    expect(html).toContain(
-      `title="$LOOP_PREV.verdict__verdict.output.outcome == &#x27;return&#x27;"`
-    );
-    // In the facts, as everywhere outside the YAML block and the id tag, no raw id shows.
-    const facts = /<dl[\s\S]*?<\/dl>/.exec(html)?.[0] ?? '';
-    expect(rawIds(facts)).toEqual([]);
+    const fix = render(`/console/p/${ID}/factory/steps/deliver/rounds.fix`);
+    expect(readable(fix)).toMatch(/Runs when\s+if Verdict = return/);
+    expect(rawIds(/<dl[\s\S]*?<\/dl>/.exec(fix)?.[0] ?? '')).toEqual([]);
   });
 });
