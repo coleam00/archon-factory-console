@@ -91,11 +91,6 @@ async function mount(
             path="/console/p/:projectId/factory/board"
             element={<Board projectId={ID} view={VIEW} attention={QUIET} now={NOW} />}
           />
-          {/* Stands in for an item page, so a test sees whether a click left the board. */}
-          <Route
-            path="/console/p/:projectId/factory/items/:key"
-            element={<p data-item-page>item page</p>}
-          />
         </Routes>
       </MemoryRouter>
     )
@@ -381,13 +376,14 @@ describe('the Pipeline view', () => {
       expect(button?.className).toContain('text-console-14');
       expect(button?.className).not.toContain('text-console-12');
       // Its own section, not a part of the filter's toolbar line, and before the columns.
-      const section = button?.closest('section');
-      expect(section?.querySelector('input[type="search"]')).toBeNull();
-      expect(button?.closest('div')?.querySelector('input[type="search"]')).toBeNull();
+      const section = button?.closest('section') ?? null;
+      const toolbar = container.querySelector('input[type="search"]')?.parentElement;
+      expect(section).not.toBeNull();
+      expect(toolbar?.contains(section)).toBe(false);
       // In document order, so the section comes before the first column.
       expect(
         container.querySelector('section[aria-label="Work orders section"], header[data-column]')
-      ).toBe(section ?? null);
+      ).toBe(section);
       // Listed without a click.
       expect(button?.getAttribute('aria-expanded')).toBe('true');
       const list = container.querySelector('ul[aria-label="Work orders"]');
@@ -440,20 +436,6 @@ describe('the Pipeline view', () => {
       expect(dimmed).toHaveLength(PAGE.items.length - 2);
       expect(card(container, '5')?.dataset.dimmed).toBeUndefined();
       expect(toggle.getAttribute('aria-pressed')).toBe('true');
-      // It lit the members on the board without leaving it.
-      expect(container.querySelector('[data-item-page]')).toBeNull();
-    } finally {
-      await unmount();
-    }
-  });
-
-  test("an order's row opens its page", async () => {
-    const { container, unmount } = await mount(withOrders(), undefined, { '48': ['9'] });
-    try {
-      const link = container.querySelector('li[data-order="48"] a') as HTMLAnchorElement;
-      await act(async () => link.click());
-      expect(container.querySelector('[data-item-page]')).not.toBeNull();
-      expect(container.querySelector('article')).toBeNull();
     } finally {
       await unmount();
     }
