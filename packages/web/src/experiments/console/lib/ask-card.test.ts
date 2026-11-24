@@ -24,12 +24,9 @@ const withOther: AttentionWait = {
 };
 
 describe('option labels: never a raw id', () => {
-  test('an id alone reads in sentence case, hyphens as spaces', () => {
+  test('an id alone reads in sentence case, hyphens as spaces; a label wins over it', () => {
     expect(optionLabel(withOther, { id: 'send-back-once-more' })).toBe('Send back once more');
     expect(humaniseId('land_it')).toBe('Land it');
-  });
-
-  test('a label wins over the id', () => {
     expect(
       optionLabel(withOther, { id: 'lower-concurrency', label: 'Lower the concurrency' })
     ).toBe('Lower the concurrency');
@@ -52,14 +49,11 @@ describe('option labels: never a raw id', () => {
     expect(recommendedLabel(withOther)).toBeUndefined();
   });
 
-  test('the why reads after its confidence', () => {
+  test('the why reads after its confidence; a pack workflow by its own name', () => {
     expect(recommendationWhy({ option: 'a', why: 'Review is ready.', confidence: 'high' })).toBe(
       'High confidence. Review is ready.'
     );
     expect(recommendationWhy({ option: 'a', why: 'Review is ready.' })).toBe('Review is ready.');
-  });
-
-  test('a pack workflow reads by its own name', () => {
     expect(shortWorkflow('Wirasm/archon-software-factory:deliver')).toBe('deliver');
     expect(shortWorkflow('deliver')).toBe('deliver');
   });

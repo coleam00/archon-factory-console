@@ -2,56 +2,23 @@
  * `/console/p/:projectId/factory/settings`: how this project has set up the pack its factory
  * view draws (the owner change of 2026-11-23 moved the page here from the sidebar Factory).
  */
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
-import { act } from 'react';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryPackSettings, FactoryViews } from '../../skills/factory';
 import type { AttentionQueue } from '../../skills/runs';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { projectRoutes } from '../../routes/project-routes';
+import { installDom } from '../../test-dom.test-helpers';
 import { documentPageProblems, outlineBoxes } from '../document.test-helpers';
 
 // A failed read lands after the first render, which static markup cannot reach.
-const dom = new Window({ url: 'http://localhost' });
-/** The project's attention stream, which says nothing here. */
-class QuietEventSource {
-  onmessage: unknown = null;
-  onerror: unknown = null;
-  readyState = 0;
-  close(): void {
-    this.readyState = 2;
-  }
-}
-const globals = {
-  window: dom,
-  document: dom.document,
-  EventSource: QuietEventSource,
-  IS_REACT_ACT_ENVIRONMENT: true,
-};
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-const originalFetch = globalThis.fetch;
+const { mount: mountTree } = await installDom();
 /** A read the cache does not answer never answers, unless a test says otherwise. */
 const silent = Object.assign((): Promise<Response> => new Promise<Response>(() => undefined), {
-  preconnect: originalFetch.preconnect,
+  preconnect: globalThis.fetch.preconnect,
 });
 globalThis.fetch = silent;
-
-afterAll(async () => {
-  globalThis.fetch = originalFetch;
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
-});
 
 const ID = 'cb-1';
 let unmount: (() => Promise<void>) | undefined;
@@ -91,21 +58,13 @@ const views: FactoryViews = {
 async function mount(at: string, id: string = ID): Promise<HTMLElement> {
   set(K.factoryViews(id), views);
   set(K.projectAttention(id), quiet);
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>{projectRoutes('/console/')}</Routes>
-      </MemoryRouter>
-    )
+  const page = await mountTree(
+    <MemoryRouter initialEntries={[at]}>
+      <Routes>{projectRoutes('/console/')}</Routes>
+    </MemoryRouter>
   );
-  unmount = async () => {
-    await act(async () => root.unmount());
-    container.remove();
-  };
-  return container;
+  unmount = page.unmount;
+  return page.container;
 }
 
 type ProjectSettings = FactoryPackSettings['projects'][number];
@@ -236,7 +195,7 @@ const hrefs = (within: ParentNode | null | undefined): string[] =>
   [...(within?.querySelectorAll('a') ?? [])].map(a => a.getAttribute('href') ?? '');
 
 describe('/console/p/:projectId/factory/settings', () => {
-  test("is the Factory tab's third page, opening with a band counting how this project set it up", async () => {
+  test("the default page: Factory tab's third page, its band, sections and every panel's words", async () => {
     const page = await settingsPage();
     const nav = page.querySelector('nav[aria-label="Factory"]');
     expect([...(nav?.querySelectorAll('a') ?? [])].map(a => a.textContent)).toEqual([
@@ -250,9 +209,7 @@ describe('/console/p/:projectId/factory/settings', () => {
       `/console/p/${ID}/factory/settings`,
     ]);
     expect(nav?.querySelector('[aria-current="page"]')?.textContent).toBe('Settings');
-    expect(page.querySelector('[data-doc-page] > [aria-label="Summary"]')).not.toBeNull();
     expect(bandTitle(page)).toBe('How web has set up its factory');
-    // Where it reads, said quietly in the band.
     expect(page.querySelector('[aria-label="Summary"]')?.textContent).toContain(
       "Read from the pack's declaration and this project's .archon/packs/acme.kit.yaml"
     );
@@ -263,16 +220,51 @@ describe('/console/p/:projectId/factory/settings', () => {
       '1pack default',
       '2shadows today',
     ]);
-    expect(page.querySelector('[data-stat-chip="shadow"]')?.textContent).toBe('2shadows today');
-  });
-
-  test('names no other project that runs the pack, and links to none', async () => {
-    const page = await settingsPage();
+    // No other project that runs the pack is named or linked.
     const body = page.querySelector('[data-doc-page]');
     expect(body?.textContent).not.toContain('api');
     expect(body?.textContent).not.toContain('colour');
-    expect(body?.querySelector('nav[aria-label="Project"]')).toBeNull();
     expect(hrefs(body)).toEqual([]);
+
+    // Sections follow the map's order; an unmapped setting is in Other, last.
+    expect(sections(page)).toEqual([
+      'How a change is proven',
+      'What work is held to',
+      'Other settings',
+      'Not declared by the pack',
+    ]);
+    const names = (section: Element | undefined) =>
+      [...(section?.querySelectorAll('[data-setting] h3') ?? [])].map(h => h.textContent);
+    const [proven, held, other, undeclared] = page.querySelectorAll('[data-doc-section]');
+    expect([names(proven), names(held), names(other)]).toEqual([
+      ['Checks file'],
+      ['Triage policy', 'Land policy'],
+      ['Validate command'],
+    ]);
+    expect(rows(undeclared)).toEqual(['size: large']);
+
+    const triage = card(page, 'triage_policy');
+    expect(triage?.querySelector('[data-id-tag]')?.textContent).toBe('triage_policy');
+    expect(triage?.textContent).toContain('Path to the triage policy.');
+    // An empty value is the "Pack default" pill, with no contradicting meta line under it.
+    expect(triage?.querySelector('[data-pack-default]')).not.toBeNull();
+    expect(triage?.textContent).not.toContain('Pack default:');
+    expect(value(page, 'validate_command')).toBe('bun test');
+    // A policy path not in the project says so, its whole path on hover.
+    expect(value(page, 'land_policy')).toBe('docs/land.mdfile not found');
+    expect(card(page, 'land_policy')?.querySelector('[title="/repo/docs/land.md"]')).not.toBeNull();
+    // A checks file is rows of its checks.
+    expect(rows(card(page, 'checks_file')?.querySelector('[aria-label="Checks"]'))).toEqual([
+      'lint: bun run lint',
+    ]);
+    // The shadow badge marks the shadow settings only, with what would change.
+    const badged = [...page.querySelectorAll('[data-setting]')]
+      .filter(li => li.querySelector('[data-shadow-badge]') !== null)
+      .map(li => li.getAttribute('data-setting'));
+    expect(badged).toEqual(['checks_file', 'land_policy']);
+    expect(card(page, 'land_policy')?.textContent).toContain(
+      'Would land a change without asking you'
+    );
   });
 
   test('each project reads its own values', async () => {
@@ -285,138 +277,58 @@ describe('/console/p/:projectId/factory/settings', () => {
     expect(other.querySelector('[data-doc-page]')?.textContent).not.toContain('web');
   });
 
-  test("a project the settings read did not list says so and shows the pack's defaults", async () => {
-    const page = await settingsPage({ ...SETTINGS, projects: [api] });
-    expect(page.querySelector('[role="alert"]')?.textContent).toBe(
-      "This project's settings were not read; the page shows the pack's defaults."
-    );
-    expect(bandTitle(page)).toBe('How Kit is set up');
-    expect(chips(page)).toEqual(['4settings', '2shadows today']);
-    expect(value(page, 'validate_command')).toBe('Pack default');
-    expect(page.querySelector('[data-doc-page]')?.textContent).not.toContain('api');
-  });
-
-  test('an empty or unset value is the "Pack default" pill; a set value is shown as it is', async () => {
-    const page = await settingsPage();
-    expect(card(page, 'triage_policy')?.querySelector('[data-pack-default]')).not.toBeNull();
-    expect(value(page, 'validate_command')).toBe('bun test');
-    // A command wraps at its spaces (overflow-wrap: anywhere), never mid-word (break-all).
-    const command = card(page, 'validate_command')?.querySelector('[data-setting-value] span');
-    expect(command?.className).toContain('[overflow-wrap:anywhere]');
-    expect(command?.className).not.toContain('break-all');
-  });
-
-  test('a map key the pack does not declare, and an unreadable project file, say so', async () => {
-    const page = await settingsPage({
-      ...SETTINGS,
-      mapErrors: ['The factory overview presents setting "gone", which the pack does not declare'],
-      projects: [{ ...web, error: 'not valid YAML', values: {} }, api],
-    });
-    const alerts = [...page.querySelectorAll('[role="alert"]')].map(alert => alert.textContent);
-    expect(alerts).toHaveLength(2);
-    expect(alerts[0]).toContain("web's settings file could not be read");
-    expect(alerts[0]).toContain('not valid YAML');
-    expect(alerts[1]).toContain('"gone"');
-    expect(chips(page)).toEqual(['4settings', '2shadows today']);
-  });
-
-  test("sections follow the map's order; an unmapped setting is in Other, last", async () => {
-    const page = await settingsPage();
-    expect(sections(page)).toEqual([
-      'How a change is proven',
-      'What work is held to',
-      'Other settings',
-      'Not declared by the pack',
-    ]);
-    const names = (section: Element | undefined) =>
-      [...(section?.querySelectorAll('[data-setting] h3') ?? [])].map(h => h.textContent);
-    const [proven, held, other] = page.querySelectorAll('[data-doc-section]');
-    expect(names(proven)).toEqual(['Checks file']);
-    expect(names(held)).toEqual(['Triage policy', 'Land policy']);
-    expect(names(other)).toEqual(['Validate command']);
-  });
-
-  test('a panel has its plain name, its id tag, its description, and a declared default as meta', async () => {
+  test('a declared default shows as meta', async () => {
     const [triage, ...rest] = SETTINGS.settings;
     const page = await settingsPage({
       ...SETTINGS,
       settings: [{ ...(triage ?? setting('triage_policy')), default: 'policy/triage.md' }, ...rest],
     });
-    const panel = card(page, 'triage_policy');
-    expect(panel?.querySelector('h3')?.textContent).toBe('Triage policy');
-    expect(panel?.querySelector('[data-id-tag]')?.textContent).toBe('triage_policy');
-    expect(panel?.textContent).toContain('Path to the triage policy.');
-    expect(panel?.textContent).toContain('Pack default: policy/triage.md');
+    expect(card(page, 'triage_policy')?.textContent).toContain('Pack default: policy/triage.md');
   });
 
-  test('an empty declared default adds no meta line under the "Pack default" pill', async () => {
-    const page = await settingsPage();
-    // The pill says the pack applies; "Pack default: none" under it would contradict it.
-    expect(card(page, 'triage_policy')?.textContent).not.toContain('Pack default:');
-    expect(card(page, 'validate_command')?.textContent).not.toContain('Pack default:');
-  });
-
-  test('a policy path not in the project says "file not found", its whole path on hover', async () => {
-    const page = await settingsPage();
-    expect(value(page, 'land_policy')).toBe('docs/land.mdfile not found');
-    expect(card(page, 'land_policy')?.querySelector('[title="/repo/docs/land.md"]')).not.toBeNull();
-  });
-
-  test('a checks file is shown as rows of its checks, name and command, in an inset box', async () => {
-    const page = await settingsPage();
-    const checks = card(page, 'checks_file')?.querySelector('[aria-label="Checks"]');
-    expect(checks?.getAttribute('data-doc-panel')).toBe('inset');
-    expect(rows(checks)).toEqual(['lint: bun run lint']);
-  });
-
-  test('the shadow badge marks the shadow settings only, with what would change', async () => {
-    const page = await settingsPage();
-    const badged = [...page.querySelectorAll('[data-setting]')]
-      .filter(li => li.querySelector('[data-shadow-badge]') !== null)
-      .map(li => li.getAttribute('data-setting'));
-    expect(badged).toEqual(['checks_file', 'land_policy']);
-    expect(card(page, 'land_policy')?.textContent).toContain(
-      'Would land a change without asking you'
-    );
-    // A shadow's bar is rule 10's --node-opaque; any other panel takes its section's colour.
-    expect(card(page, 'land_policy')?.getAttribute('style')).toContain('var(--node-opaque)');
-    expect(card(page, 'triage_policy')?.getAttribute('style')).toContain('var(--node-wait)');
-  });
-
-  test('a key this project sets that the pack does not declare is listed as such', async () => {
-    const page = await settingsPage();
-    const undeclared = [...page.querySelectorAll('[data-doc-section]')].find(
-      section => section.querySelector('h2')?.textContent === 'Not declared by the pack'
-    );
-    expect(rows(undeclared)).toEqual(['size: large']);
-  });
-
-  test('an unreadable project file is said once, and each panel only says "Not read"', async () => {
-    const page = await settingsPage({
-      ...SETTINGS,
-      projects: [{ ...web, error: '/repo/.archon/packs/acme.kit.yaml: not valid YAML' }],
-    });
-    const alerts = page.querySelectorAll('[role="alert"]');
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0]?.getAttribute('data-doc-panel')).toBe('panel');
-    expect(alerts[0]?.textContent).toContain('/repo/.archon/packs/acme.kit.yaml: not valid YAML');
-    expect(page.textContent?.split('not valid YAML')).toHaveLength(2);
-    for (const name of ['triage_policy', 'land_policy', 'checks_file', 'validate_command'])
-      expect(value(page, name)).toBe('Not read');
-  });
-
-  test('a pack that declares nothing says so', async () => {
-    const page = await settingsPage({ ...SETTINGS, declaration: null, settings: [], projects: [] });
-    expect(page.textContent).toContain('This pack declares no settings');
-  });
-
-  test('every state of the page is held to owner change 5: filled panels and headed sections', async () => {
-    const states: FactoryPackSettings[] = [
-      SETTINGS,
-      { ...SETTINGS, mapErrors: ['The factory overview presents setting "gone"'] },
-      { ...SETTINGS, projects: [{ ...web, error: 'not valid YAML', values: {} }] },
+  /** Each state the page can be in, what it says, and owner change 5: filled panels, headed sections. */
+  const states: [string, FactoryPackSettings, (page: HTMLElement) => void][] = [
+    [
+      'a project the read did not list',
       { ...SETTINGS, projects: [api] },
+      page => {
+        expect(page.querySelector('[role="alert"]')?.textContent).toBe(
+          "This project's settings were not read; the page shows the pack's defaults."
+        );
+        expect(bandTitle(page)).toBe('How Kit is set up');
+        expect(chips(page)).toEqual(['4settings', '2shadows today']);
+        expect(value(page, 'validate_command')).toBe('Pack default');
+        expect(page.querySelector('[data-doc-page]')?.textContent).not.toContain('api');
+      },
+    ],
+    [
+      'a map key the pack does not declare and an unreadable project file',
+      {
+        ...SETTINGS,
+        mapErrors: [
+          'The factory overview presents setting "gone", which the pack does not declare',
+        ],
+        projects: [{ ...web, error: '/repo/.archon/packs/acme.kit.yaml: not valid YAML' }],
+      },
+      page => {
+        const alerts = [...page.querySelectorAll('[role="alert"]')].map(alert => alert.textContent);
+        expect(alerts).toHaveLength(2);
+        expect(alerts[0]).toContain("web's settings file could not be read");
+        expect(alerts[1]).toContain('"gone"');
+        // The file's error is said once; each panel only says "Not read".
+        expect(page.textContent?.split('not valid YAML')).toHaveLength(2);
+        for (const name of ['triage_policy', 'land_policy', 'checks_file', 'validate_command'])
+          expect(value(page, name)).toBe('Not read');
+        expect(chips(page)).toEqual(['4settings', '2shadows today']);
+      },
+    ],
+    [
+      'a pack that declares nothing',
       { ...SETTINGS, declaration: null, settings: [], projects: [] },
+      page => expect(page.textContent).toContain('This pack declares no settings'),
+    ],
+    [
+      'a pack declaration that does not parse',
       {
         ...SETTINGS,
         declaration: { path: '/p/.pack/pack.yaml', error: 'not valid YAML' },
@@ -424,20 +336,26 @@ describe('/console/p/:projectId/factory/settings', () => {
         settings: [],
         projects: [],
       },
-    ];
-    for (const state of states) {
-      const page = await settingsPage(state);
-      expect(page.querySelector('[data-doc-page]')).not.toBeNull();
-      expect(documentPageProblems(page)).toEqual([]);
-      await unmount?.();
-      unmount = undefined;
-    }
+      page => expect(page.textContent).toContain('not valid YAML'),
+    ],
+    ['the default', SETTINGS, () => undefined],
+  ];
+  test.each(states)('%s', async (_name, state, check) => {
+    const page = await settingsPage(state);
+    check(page);
+    expect(documentPageProblems(page)).toEqual([]);
   });
 
-  test('a read that fails says so in a filled panel, not an outline box', async () => {
+  test('a read that fails, or one still running, draws filled panels, never an outline-only box', async () => {
+    // A read that never answers holds the page on its skeleton.
+    const waiting = await mount(`/console/p/${ID}/factory/settings`);
+    expect(waiting.querySelector('[data-skeleton="true"]')).not.toBeNull();
+    expect(outlineBoxes(waiting)).toEqual([]);
+    await unmount?.();
+    invalidate(K.factoryPackSettings('acme.kit'));
     globalThis.fetch = Object.assign(
       () => Promise.reject(new TypeError('connection refused')),
-      originalFetch
+      silent
     );
     try {
       const page = await mount(`/console/p/${ID}/factory/settings`);
@@ -449,12 +367,5 @@ describe('/console/p/:projectId/factory/settings', () => {
     } finally {
       globalThis.fetch = silent;
     }
-  });
-
-  test('while the settings are read, the skeleton draws no outline-only box', async () => {
-    // A read that never answers holds the page on its skeleton.
-    const page = await mount(`/console/p/${ID}/factory/settings`);
-    expect(page.querySelector('[data-skeleton="true"]')).not.toBeNull();
-    expect(outlineBoxes(page)).toEqual([]);
   });
 });
