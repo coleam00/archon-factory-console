@@ -44,8 +44,8 @@ With nothing open, the tab says so, when something was last asked, and links to 
 on a project with a factory, to the board).
 
 A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
-it. Its sub-navigation, on the line of the view's title, has two pages: **Overview** and
-**Board**. Needs you is the project tab beside it, and How it works is the pack's page under
+it. Its sub-navigation, on the line of the view's title, has three pages: **Overview**,
+**Board** and **Settings**. Needs you is the project tab beside it, and How it works is the pack's page under
 **Factory** in the console's sidebar. The old `factory/needs-you` address redirects to the
 Needs you tab, and `factory/how-it-works` and `factory/overview` to the pack's How it works
 page, keeping the query string. Inside the tab:
@@ -57,7 +57,8 @@ page, keeping the query string. Inside the tab:
   when the view declares no `columns`), in one row, always. A card of several stages lists each
   as a row. A card shows its group's colour, icon and kind, each stage's label and `short` line,
   and chips for how many items are there now ("2 here", its dot pulsing while a run works one)
-  and how many need a person. The arrows are the ones `map.arrows` declares and no others. A
+  and how many need a person. The map counts what the board counts: an item the board sets
+  aside is in no card's count and in no stage's "Items here now". The arrows are the ones `map.arrows` declares and no others. A
   forward hand-off is a short line between neighbouring cards, labelled on a pill. Every
   send-back (an arrow into an earlier card, or into its own stage or an earlier one of its card:
   a return, a replan) runs dashed in one feedback lane under the row, with one pill per stage it
@@ -97,7 +98,7 @@ page, keeping the query string. Inside the tab:
   When the view declares `discoveries`, **Found by the factory** sits under the columns, in
   both views and whatever the filter, as one line ("14 the factory would file · show the
   findings", with its shadow badge) so the columns keep their height; "show the findings", or
-  the Overview's tile (`?show=found`), opens the full panel in place: how many findings the discoveries drains decided to file
+  a board address with `?show=found`, opens the full panel in place: how many findings the discoveries drains decided to file
   that no item on the project carries yet (an item carries one when its title is the finding's,
   ignoring case), with chips counting every finding they decided to file, held and dropped,
   and how many are already on the board. **Show the findings** lists each: its kind, its title,
@@ -150,6 +151,8 @@ page, keeping the query string. Inside the tab:
 - **Step page**: the step by its name, with its engine id under it, the items on it now, when
   it runs (its `when:` in words, such as "if Verdict = return", the expression on hover), its
   prompt, its YAML and the model it runs on.
+- **Settings**: how this project has set up the pack its view draws, read-only (see
+  [The factory overview](#the-factory-overview)).
 
 **How it works**, the pack's [factory overview](#the-factory-overview) when it has one, is a
 hand-written picture of how the factory runs, for explaining it to someone who has never seen
@@ -170,13 +173,11 @@ question opening or closing.
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
 | found by the factory | Findings the discoveries drains decided to file that no item carries yet; shown only when the view declares `discoveries` |
 
-Each number opens what it counts, and says where on hover and to a screen reader: in flight and
-merged today open the board showing only those items; items need you opens Needs you; N of M
-merged opens the board's Table with every item and the merged ones marked; the median opens the
-Table of merged items sorted by time to merge, the median row marked; **found by the factory**
-opens the board with its panel open. The board's address carries the filter (`?show=`), so the
-view can be shared and survives a reload; the board names the filter on screen, with
-**Show all** to clear it.
+The numbers are plain figures, not links. Each counts with the same filter the board applies
+for it (`?show=`), so a number and the board agree. When some items' merge state could not be
+read, a line under the numbers says how many and links to the board showing only those items.
+A board address that carries a filter can be shared and survives a reload; the board names the
+filter on screen, with **Show all** to clear it.
 
 ### Where an item sits
 
@@ -417,13 +418,15 @@ file and commit both.
 A factory overview explains how a factory runs, for presenting it. It is written by hand: it
 is not live, not exhaustive, and never generated from the pack's workflows. The same pack runs
 on many projects, so the overview lives in the console's sidebar: **Factory** (shown once a pack
-has an overview file) lists every such pack with the projects that run it, and each pack's
+has an overview file) lists every such pack with how many projects run it, and each pack's
 **How it works** page (`/console/factory/<pack key>/how-it-works`) draws its overview. With one
 pack, **Factory** opens its page directly. A project's old `factory/how-it-works` and
 `factory/overview` addresses land on the page for its pack.
 
-Beside How it works, the pack's **Settings** tab (`/console/factory/<pack key>/settings`) shows
-how one project has set up the pack, read-only. A header band counts the settings the pack
+The pack's page is How it works only: it has no tabs and names no project. How a project has
+set up the pack is that project's **Settings** page, in its Factory tab
+(`/console/p/<project>/factory/settings`); an old `/console/factory/<pack key>/settings?project=<id>`
+link lands there. It reads only this project and names no other. A header band counts the settings the pack
 declares in its `.pack/pack.yaml`, how many the project sets in its
 `.archon/packs/<pack key>.yaml`, how many fall back to the pack's default, and how many are
 shadows today. Below it the settings are grouped into sections by what they govern, as the
@@ -436,8 +439,8 @@ band says why, and each setting says "Not read". A
 setting the overview's `settings` map marks as a policy or the checks file shows the path, says
 "file not found" when the project has no such file, and lists a checks file's checks by name and
 command. A shadow setting carries the shadow badge and, when the map gives one, the line saying
-what changes once it is no longer a shadow. With several projects running the pack, the band
-links to each (`?project=<codebase id>`); with none, the page shows the pack's defaults. A key
+what changes once it is no longer a shadow. When the console could not read the project's
+values at all, the page says so and shows the pack's defaults. A key
 the project sets that the pack does not declare is listed under "Not declared by the pack". To
 change a value, edit the project's file.
 
@@ -484,8 +487,8 @@ names, is drawn as parallel: a line into or out of the group branches to each ca
 | `caption` | yes | One paragraph in plain words, shown under the root view's map on the page. Full screen does not show it: whoever presents says it. |
 | `root` | yes | The id of the view the page opens on. |
 | `views` | yes | Every view by id (a lowercase slug). A view has `cards`, `edges`, and optionally `groups`. A drill-down view may also have its own `caption`, shown under its map as the root's is; the root view takes none, since its line is the top-level `caption`. A card has an `id` (unique across the file), a `title`, one line of `text`, an `icon`, a `kind` (`input`, `stage`, `check`, `person`, `gate` or `outcome`, which sets its colour and legend entry), its grid cell `col` and `row` (from 1), and optionally the `group` it sits in and the view it `opens`. A group has an `id` and a `label`; its box wraps its cards and may hold no other card. An edge has `from` and `to` (a card or group of the same view), a `kind` (`feeds`, `calls` or `loops-back`), an optional `label`, and optionally `shadow: true` for a line the pack would act on but does nothing about yet, which is drawn in the shadow style with "shadow" on its label. Every view but the root is opened by exactly one card. |
-| `settings` | no | How the Settings tab presents the pack's settings, by setting name: `shadow: true` for a setting whose stage runs as a shadow (it carries the shadow badge); `points_to`: `policy` for a path to a document in the project, or `checks` for the path to the project's checks file (at most one setting); `section`, the id of the `setting_sections` entry it is shown under; and, on a shadow only, `when_live`, one line (at most 160 characters) saying what changes once it stops being a shadow. Every key must be a setting the pack's `.pack/pack.yaml` declares; the Settings tab lists any other as an error. |
-| `setting_sections` | no | The Settings tab's sections, in page order. Each has an `id` (a lowercase slug, unique), an `eyebrow` (at most 24 characters), a `title` (at most 60), a `kind` and an `icon` as a card has them, which set its colour and icon. A declared setting whose `section` is not given is shown in a trailing "Other settings" section. |
+| `settings` | no | How a project's Settings page presents the pack's settings, by setting name: `shadow: true` for a setting whose stage runs as a shadow (it carries the shadow badge); `points_to`: `policy` for a path to a document in the project, or `checks` for the path to the project's checks file (at most one setting); `section`, the id of the `setting_sections` entry it is shown under; and, on a shadow only, `when_live`, one line (at most 160 characters) saying what changes once it stops being a shadow. Every key must be a setting the pack's `.pack/pack.yaml` declares; the Settings page lists any other as an error. |
+| `setting_sections` | no | The Settings page's sections, in page order. Each has an `id` (a lowercase slug, unique), an `eyebrow` (at most 24 characters), a `title` (at most 60), a `kind` and an `icon` as a card has them, which set its colour and icon. A declared setting whose `section` is not given is shown in a trailing "Other settings" section. |
 
 The icons are `inbox`, `issue`, `order`, `search`, `scale`, `map`, `list`, `hammer`,
 `git-pull-request`, `check`, `flask`, `eye`, `sparkles`, `gavel`, `users`, `flag` and `rotate`.

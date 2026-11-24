@@ -12,9 +12,8 @@ import { AllPacksLink, PackFrame, PacksFailed } from './PackFrame';
 import { PackSkeleton } from './PackSkeleton';
 
 /**
- * The pack a tab's URL names (`:pack`, its key), from the packs list every sidebar Factory
- * page reads; until it is found, the frame says why (loading, failed, or no such pack), so
- * every tab of a pack agrees on which packs have a page.
+ * The pack the page's URL names (`:pack`, its key), from the packs list every sidebar Factory
+ * page reads; until it is found, the frame says why (loading, failed, or no such pack).
  */
 export function PackLookup({
   render,
@@ -48,9 +47,8 @@ export function PackLookup({
 }
 
 /**
- * A pack page's header, on every tab: the pack's name as a person reads it, its id on hover.
- * The overview's own title heads How it works (its breadcrumb's root), so neither tab repeats
- * it and Settings never sits under it.
+ * A pack page's header: the pack's name as a person reads it, its id on hover. The overview's
+ * own title heads How it works (its breadcrumb's root), so the header does not repeat it.
  */
 export const packHeading = (pack: FactoryPackListed): { title: string; titleHint: string } => ({
   title: packDisplayName(pack.pack),

@@ -190,7 +190,7 @@ describe('no raw step id where a person reads', () => {
     expect(rawIds(render(`/console/p/${ID}/factory`))).toEqual([]);
     const checks = VIEW.stages.find(stage => stage.id === 'checks');
     if (checks === undefined) throw new Error('the view declares checks');
-    const live = stageLive(VIEW, ITEMS, []).stages.get('checks');
+    const live = stageLive(VIEW, ID, ITEMS, [], new Map(), FIXTURE_NOW).stages.get('checks');
     if (live === undefined) throw new Error('the map has a checks card');
     const html = markup(
       <MemoryRouter>

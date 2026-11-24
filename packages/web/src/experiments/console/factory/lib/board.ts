@@ -16,7 +16,7 @@ import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
 import { pageItemColumn, stageOfWorkflow, UNPLACED_LABEL, type ItemColumn } from './placement';
 import { boardShadowLine, type ShadowWords } from './shadows';
-import { bySinceNewest, setAsideOf, type SetAside } from './set-aside';
+import { bySinceNewest, setAsideOf, type SetAside, type SetAsideReason } from './set-aside';
 import { roundsSources, runLine, stepLabel, type RunLine } from './step-label';
 import { factoryPath, type FactoryViewListed } from './views';
 import { membershipOf } from './work-orders';
@@ -348,6 +348,22 @@ export function cardMatches(card: BoardCard, query: string): boolean {
 }
 
 /**
+ * Where an item sits and whether the board sets it aside as of `now`: the one decision the
+ * board and the map (`map-live.ts`) both make, so a stage's count and its column never disagree.
+ */
+export function placeItem(
+  view: FactoryDeclaration,
+  projectId: string,
+  item: FactoryItem,
+  previous: string | undefined,
+  now: Date
+): { placed: PlacedCard; aside: SetAsideReason | null } {
+  const column = pageItemColumn(view, item, previous);
+  const placed = { item, column, card: cardFields(view, projectId, item, column) };
+  return { placed, aside: setAsideOf(view, placed, now) };
+}
+
+/**
  * The board for these items. Columns are the declared columns in order (one per stage when
  * the view declares none), the landed stage's among them; a card goes to the column holding
  * its stage, unless the board sets it aside as of `now` (`setAsideOf`). `previous` holds each
@@ -372,10 +388,8 @@ export function boardModel(
   const unplaced: PlacedCard[] = [];
   const positions = new Map<string, string>();
   for (const item of items) {
-    const column = pageItemColumn(view, item, previous.get(item.item.key));
-    positions.set(item.item.key, positionOf(column));
-    const placed = { item, column, card: cardFields(view, projectId, item, column) };
-    const aside = setAsideOf(view, placed, now);
+    const { placed, aside } = placeItem(view, projectId, item, previous.get(item.item.key), now);
+    positions.set(item.item.key, positionOf(placed.column));
     const stage = stageIdOf(placed);
     const holder = stage === null ? undefined : byStage.get(stage);
     if (aside !== null) setAside.push({ ...aside, placed });
@@ -404,9 +418,9 @@ export function boardModel(
 }
 
 /**
- * The board narrowed to the cards `query` finds by key, title or work order and, when given, to the
- * cards `show` picks (the numbers strip's links). The set-aside items and the Position unknown
- * row narrow by the query too; while `show` narrows the board they are hidden: no number counts
+ * The board narrowed to the cards `query` finds by key, title or work order and, when given, to
+ * the cards `show` picks (what one of the Overview's numbers counts). The set-aside items and
+ * the Position unknown row narrow by the query too; while `show` narrows the board they are hidden: no number counts
  * them. A show that narrows nothing (Found opens a panel) leaves the board to the query.
  * `positions` keeps every item, so narrowing never reads as a card moving.
  */

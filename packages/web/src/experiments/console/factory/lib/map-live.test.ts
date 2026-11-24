@@ -1,13 +1,22 @@
 import { describe, expect, test } from 'bun:test';
 import type { AttentionQueueItem } from '../../skills/runs';
 import { askItem, usageLimitItem } from '../../lib/needs-you.test-fixtures';
-import { stageLive } from './map-live';
+import { stageLive as stageLiveAt } from './map-live';
 import { itemWith, itemWithoutProgress, realItem, run } from './map.test-fixtures';
 import { shippedView } from '../item-detail.test-fixtures';
 import { boardModel } from './board';
 import { FIXTURE_NOW, needsShaping } from './board.test-fixtures';
 
 const view = shippedView;
+
+/** `stageLive` for project `cb-1` at the fixtures' clock, with no last read unless given. */
+const stageLive = (
+  declaration: Parameters<typeof stageLiveAt>[0],
+  items: Parameters<typeof stageLiveAt>[2],
+  attention: Parameters<typeof stageLiveAt>[3],
+  previous: ReadonlyMap<string, string> = new Map()
+): ReturnType<typeof stageLiveAt> =>
+  stageLiveAt(declaration, 'cb-1', items, attention, previous, FIXTURE_NOW);
 
 /** Per stage: [keys here, working, keys needing you]. */
 function chips(live: ReturnType<typeof stageLive>): Record<string, [string[], number, string[]]> {

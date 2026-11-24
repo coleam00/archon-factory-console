@@ -4,6 +4,29 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## Owner changes of 2026-11-23 (bind every later change; win over everything below, 2026-11-21 included)
+
+From the owner's review on 2026-11-23 (#151).
+
+1. **The sidebar Factory is How it works only.** It is the Archon software factory that ships
+   with Archon: a general view of how the pack works, not one project's factory. A pack's page
+   has no tabs and no Settings, and nothing on it names a project: where the overview file was
+   read from says "a project's copy", not which project. The index (`/console/factory`) lists
+   packs only, each with how many projects run it, and names and links no project. The one
+   exception is its warning about projects that could not be read, which names them so the
+   failure can be found (owner decision on #151). An old `/console/factory/:pack/settings` link still lands: with `?project=` on
+   that project's Settings, else on How it works.
+2. **Settings belong to each project's Factory.** The project's Factory tab has three pages:
+   Overview, Board and Settings. Settings is the page owner changes 5 and 6 of 2026-11-21
+   describe, headed for this project and reading only this project's values; it names no other
+   project.
+3. **Overview number tiles are plain numbers.** They are not links: no hover or focus state, no
+   "Open the board..." words. They still count with the board's shows, so a number and the
+   board agree.
+4. **The map counts what the board counts.** An item the board sets aside (The board, Set
+   aside) is counted and listed in no map stage: not in a card's "N here", not in a stage's
+   "Items here now". Board and map make that decision in one place.
+
 ## Owner changes of 2026-11-21 (bind every later change; win over everything below, 2026-11-19 included)
 
 From the owner's review of the whole section on 2026-11-21, before the 2026-12-02 bootcamp. The
@@ -32,13 +55,15 @@ not polish: reshape a page when restyling it would not make it read well.
    - **Found by the factory**: the board with the "Found by the factory" panel open.
    A board address carries its filter (a query parameter), so these views are links a person can
    share and reload.
+   *Superseded by owner change 3 of 2026-11-23 (#151): the tiles are plain figures, not links.
+   The board's `?show=` addresses still work, and the strip still counts through them.*
 4. **"The real workflow" dims nothing.** Every step of the generated graph is drawn at full
    strength. The steps the open stage works are marked as its own (a ring in the stage's group
    colour and a "This stage" tag); each other step carries a small tag naming the stage that works
    it ("Checks"), which opens that stage. The sentence above the graph says this, instead of
    "Other stages work the dimmed steps".
 5. **Document pages get a design of their own.** Every page in the section that is not a canvas
-   (the pack's Settings page, a step page, an item page, the Needs you tab, a stage's "Items here
+   (a project's Settings page, a step page, an item page, the Needs you tab, a stage's "Items here
    now") follows these rules, which win over rules 2, 3 and 5 of the Visual standard where they
    differ:
    - **Content sits on filled panels, never outlines on the page colour.** A panel is
@@ -69,8 +94,9 @@ not polish: reshape a page when restyling it would not make it read well.
    The shared pieces (panel, section heading, header band, stat chip, definition grid) are built
    once, in one module of the factory section, and every document page uses them. A test holds
    the pages to them (no outline-only box on the page background, no section without a heading row).
-6. **The pack's Settings page is rebuilt on those rules.** It reads as "how this project has set
-   up its factory", not a list of fields:
+6. **A project's Settings page is rebuilt on those rules.** It reads as "how this project has set
+   up its factory", not a list of fields (the page is a project's Factory page since owner change
+   2 of 2026-11-23):
    - The header band says how many settings there are, how many this project sets, how many fall
      back to the pack's default, and how many are shadows today.
    - Settings are grouped into sections with their own colour, by what they govern, for example:
@@ -145,7 +171,7 @@ From the owner's review of the finished work order #64. The section is close; th
    - the Confirm button stays the accent pink but **toned down** (a softer fill, for example the accent at reduced strength or `--accent-soft` with accent text), never the full-strength magenta block;
    - elsewhere, purple and pink are for one thing each (the running state, the active tab), not for card borders, headings or chips.
 2. **Text never leaves its box.** Every card, tile, chip and heading in the section wraps long unbroken text (paths, URLs, ids: `overflow-wrap: anywhere`, `min-width: 0` on flex and grid children) and clamps where the standard says. A test renders a long unbroken path in an ask card and asserts nothing overflows.
-3. **The Factory tab has two pages: Overview and Board.** Its sub-navigation drops Needs you (the project tab "Needs you" is that page) and How it works (the sidebar Factory entry is that page). Old links keep redirecting.
+3. **The Factory tab has two pages: Overview and Board.** Its sub-navigation drops Needs you (the project tab "Needs you" is that page) and How it works (the sidebar Factory entry is that page). Old links keep redirecting. *Owner change 2 of 2026-11-23 adds a third, Settings.*
 4. **The board is tall enough to use.** At 1440x900 every column shows at least two full cards without scrolling the page; the work-order strip collapses to one line (expand on click) and the found-by panel stays one line.
 5. **A stage opens in place, not on its own page.** Clicking a stage on the Overview map opens a large modal over the Overview (Esc and the backdrop close it; the map keeps its position and zoom). The modal says plainly what it shows:
    - "What this stage does": the view file's curated drill-down;
@@ -192,7 +218,8 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    pack. The project's Factory tab keeps the live parts: Overview, Board, item, stage and step
    pages; its How it works link opens the sidebar page for its pack. *Superseded by owner change
    3 of 2026-11-19: the tab has no How it works link; `factory/how-it-works` redirects to the
-   sidebar page.*
+   sidebar page.* *The pack's settings did not stay there: owner change 2 of 2026-11-23 puts
+   them in each project's Factory tab; the sidebar Factory is How it works only.*
 6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
    would do and do nothing (admit, split, discoveries filing, the project's declared checks,
    order linking). The land gate is not one: it acts, and the factory merges on its "land"
@@ -205,8 +232,9 @@ file, no pack names in code) and reads well to someone who has never seen Archon
    decides what it would file.
 8. **Later, not now:** a read-only page of the pack's settings and policies (under the sidebar
    Factory entry); reading engine-reported rounds and limits per item when the engine reports them
-   instead of deriving rounds from events. *The read-only settings page is built (#74): the
-   Settings tab of the pack's sidebar page.*
+   instead of deriving rounds from events. *The read-only settings page is built (#74), first as
+   the Settings tab of the pack's sidebar page. Superseded by owner change 2 of 2026-11-23
+   (#151): it is a project's Factory Settings page, and the sidebar Factory has no Settings.*
 
 Not ours to build: forge views of issues and PRs (Thomas works on those in the existing UI), and a
 YAML-to-graph generator for the detailed authoring view (Rasmus has one). Our view and overview files
@@ -726,15 +754,16 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
+  | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them; counted, never named or linked, owner change 1 of 2026-11-23), and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
-  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the same on every tab and on the index's card; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header), and with the pack's tabs (underlined, as the project tabs). `:pack` is the pack key (`owner.name` when installed). The pack's tabs are How it works and Settings |
-  | `/console/factory/:pack/settings` | Settings (owner change 8, read-only; a document page per owner changes 5 and 6 of 2026-11-21): a header band, "How <project> has set up its factory", with chips for the settings the pack's `.pack/pack.yaml` declares, how many the project sets in its `.archon/packs/<pack key>.yaml`, how many fall back to the pack's default, and how many are shadows today. The project is `?project=<codebase id>`, else the first by name; with several, the band links to each; an unknown id says so and the page shows the pack's defaults. Then the sections the overview file's `setting_sections` lists, in its order (each setting names one with `section`; one that names none is under "Other settings"), each a grid of setting panels two across, three from about 1800 px, one on a phone: the name in sentence case with the key as an id tag, the description clamped to one line, the project's value (a path with a file icon, a value in mono, or a "Pack default" pill), and the pack's declared default as meta when it is not empty. A project whose settings file cannot be read gets one error panel under the band, and its panels say "Not read". The overview's `settings` map marks shadows (rule 10's badge and bar, and its `when_live` line) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks as rows of name and command. Keys the project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
+  | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the same on the index's card; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header). `:pack` is the pack key (`owner.name` when installed). The page has no tabs and names no project (owner change 1 of 2026-11-23) |
+  | `/console/factory/:pack/settings` | Redirects (replace): with `?project=<codebase id>` to that project's `factory/settings`, the rest of the query and the hash kept; without one to `how-it-works`. Settings were this page's second tab until owner change 1 of 2026-11-23 |
 
   Which file a pack page reads: the pack's own `.shared/factory-overview.json` (bundled, global
   or installed) when it ships one; else the first project, by name, whose own files give one
-  (`.archon/packs/<pack key>.factory-overview.json`, or a pack folder in its checkout), named on
-  the page as "Read from <project>" behind the header's Source toggle. A broken pack file falls back to a project's file and its
+  (`.archon/packs/<pack key>.factory-overview.json`, or a pack folder in its checkout), said on
+  the page as "Read from a project's copy of the overview file" behind the header's Source
+  toggle, the file's name shown and its path on hover; the project is not named. A broken pack file falls back to a project's file and its
   error stays listed on the page; a pack whose files are all broken shows only their errors.
   One read-only route lists all of this (`GET /api/factory/packs`).
 - Routes, all under `/console/p/:projectId/factory`:
@@ -743,6 +772,7 @@ documents through Neon live queries.
   |---|---|
   | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks as compact cards, then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
+  | `factory/settings` | Settings (read-only; a document page per owner changes 5 and 6 of 2026-11-21, a project page since owner change 2 of 2026-11-23): a header band, "How <project> has set up its factory", with chips for the settings the pack's `.pack/pack.yaml` declares, how many this project sets in its `.archon/packs/<pack key>.yaml`, how many fall back to the pack's default, and how many are shadows today, and a quiet line saying it reads the pack's declaration and this project's file. The pack is the one the project's view draws; the page reads only this project and names and links no other. When the settings read lists no entry for this project (the server reads only a project with a checkout), one error panel says so and the page shows the pack's defaults. Then the sections the overview file's `setting_sections` lists, in its order (each setting names one with `section`; one that names none is under "Other settings"), each a grid of setting panels two across, three from about 1800 px, one on a phone: the name in sentence case with the key as an id tag, the description clamped to one line, the project's value (a path with a file icon, a value in mono, or a "Pack default" pill), and the pack's declared default as meta when it is not empty. A project whose settings file cannot be read gets one error panel under the band, and its panels say "Not read". The overview's `settings` map marks shadows (rule 10's badge and bar, and its `when_live` line) and which values are a policy or the checks file: a path shows as it is written (no forge link), "file not found" when the project has no such file, and a checks file lists its checks as rows of name and command. Keys this project sets that the pack does not declare are listed as "Not declared by the pack"; a map key the pack does not declare is an error on the page |
   | `factory/needs-you` | Redirects (replace) to the project tab `needs-you`, keeping the query string, so old links land |
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
@@ -752,8 +782,8 @@ documents through Neon live queries.
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
 - Inside the Factory tab a small sub-navigation, on the line of the view's title, switches
-  Overview and Board, each its own route; the tab has no other pages (owner change 3 of
-  2026-11-19). Needs you is the project tab beside it and How it works the sidebar Factory page;
+  Overview, Board and Settings, each its own route; the tab has no other pages (owner change 3 of
+  2026-11-19, and owner change 2 of 2026-11-23 for Settings). Needs you is the project tab beside it and How it works the sidebar Factory page;
   the old `factory/needs-you`, `factory/how-it-works` and `factory/overview` addresses redirect
   there. Item, stage and step pages have a back link to where you came from.
 
@@ -953,7 +983,8 @@ What those reads do not carry comes from **one read-only route file**,
   the overview its page shows (the pack's own file, else the first project's by name, named in
   `readFrom`), the projects a view of it applies to, and its files that failed; beside them, the
   scope roots and projects that could not be read.
-- `GET /api/factory/pack-settings?pack=<key>` the pack's Settings tab: the settings its
+- `GET /api/factory/pack-settings?pack=<key>` a project's Settings page (which picks its own
+  project out of the list): the settings its
   `.pack/pack.yaml` declares (the install's, else a project's pack folder), as the overview's
   `settings` map presents them, and for each project a view of the pack applies to, its value
   of each from `.archon/packs/<key>.yaml`, the policy or checks file a value names looked up in
@@ -1031,7 +1062,7 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 2. **Numbers strip:** items in flight (in a board column, not merged; the items set aside are
    not, see The board, Set aside), need you (the
    Needs you tab's count, `needsYouCount`: asks and waits, and the items waiting on you with no
-   ask open; linking there), merged today, merged in total ("N of
+   ask open), merged today, merged in total ("N of
    M merged", M every item in a board column: not the items set aside, whether an ending took
    them off the board, they are parked or they sat idle), median time from first run to merged
    ("median to merged"). Each tile is a
@@ -1048,11 +1079,11 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    an alert saying so; a refresh that fails says so above the last values read (as the map and
    the board do).
    When the view declares `discoveries`, a sixth tile, "found by the factory", counts what the
-   drains decided to file that no item carries yet and opens the board with that panel open; it
-   has its own read, so it never holds up the other five. Each tile opens what it counts (owner
-   change 3 of 2026-11-21), through the board's `?show=` (one spec per show in
-   `lib/board-show.ts`, which the tile's count reads too), and its tooltip and accessible name
-   say where it goes.
+   drains decided to file that no item carries yet; it has its own read, so it never holds up
+   the other five. The tiles are plain figures, not links, with no hover or focus state (owner
+   change 3 of 2026-11-23); each counts with the board's own show (`?show=`, one spec per show in
+   `lib/board-show.ts`), so a number and the board agree. Only the unknown line under the tiles
+   links (`?show=unknown`). The median tile's tooltip says what the figure means.
 3. **Needs you:** the newest three open asks and waits as compact ask cards (Visual standard rule
    9): the item, the question, the recommended tile (or the first), and **Open**, which leads to
    that card on the project's Needs you tab (`?ask=<ref>`), where it is answered; then "N more on
@@ -1181,7 +1212,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     and naming the items on a step it covers now, and a click on a card listing the real steps
     it stands for, each linking to its step page. A stage without one says it has no summary
     and that the real workflow shows its steps.
-  - **Items here now**: the items in the stage, from the same read as the card's chips, each
+  - **Items here now**: the items in the stage that the board does not set aside (owner change 4
+    of 2026-11-23), from the same read as the card's chips, each
     linking to its item page with its state (needs you, the run line of the run working it, or
     the board's merged, failed, waiting-on-you label, parked or waiting); rule 6's empty state
     when there are none.
@@ -1274,8 +1306,10 @@ aside when the first of these holds:
 none and is never set aside by the idle rule. The board reads the 3-day line on a clock that
 ticks once a minute, so an item crosses it without a reload. It is computed from the current
 read every time, nothing stored: a new run, an answer that starts one or a new order brings
-the item back to its column at once. Placement is unchanged (the item page and the map still
-say where it sits), and an item set aside keeps its position, so one that comes back does not
+the item back to its column at once. Placement is unchanged (the item page still says where it
+sits), but the map, like the board, counts and lists it in no stage (owner change 4 of
+2026-11-23; board and map decide it in one place, `placeItem`). An item set aside keeps its
+position, so one that comes back does not
 light as moved. The words are "Set aside", never archived or deleted: nothing is written to the
 engine. An item placement found no column for (a view changed under cached items can cause
 it) is not set aside: it keeps a folded "N position unknown" row at the end of the toolbar,

@@ -3,7 +3,6 @@ import { SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import type { FactoryPackSettings } from '../../skills/factory';
 import { EmptyNote } from '../../components/EmptyNote';
 import { DefinitionGrid, Panel, SectionHeading } from '../document';
-import { ProjectSwitch } from './SettingsHeader';
 
 type ProjectSettings = FactoryPackSettings['projects'][number];
 
@@ -44,7 +43,7 @@ export function SettingsErrors({ settings }: { settings: FactoryPackSettings }):
 }
 
 /**
- * The project in focus whose settings file could not be read: said once, under the band, with
+ * The project whose settings file could not be read: said once, under the band, with
  * the reader's message, which names the file and the reason. Its setting panels then only say "Not read".
  */
 export function ProjectUnreadable({ project }: { project: ProjectSettings }): ReactNode {
@@ -66,55 +65,14 @@ export function ProjectUnreadable({ project }: { project: ProjectSettings }): Re
   );
 }
 
-/** A `?project=` no project that runs the pack has: say so, and link to each that does. */
-export function UnknownProject({
-  id,
-  projects,
-}: {
-  id: string;
-  projects: readonly ProjectSettings[];
-}): ReactElement {
-  return (
-    <Panel
-      role="alert"
-      tone="var(--error)"
-      bar="top"
-      className="flex flex-col gap-2 px-5 pt-5 pb-4"
-    >
-      <p className="text-console-14 text-error [overflow-wrap:anywhere]">
-        No project that runs this pack has the id &quot;{id}&quot;. The page shows the pack&apos;s
-        own defaults.
-      </p>
-      {projects.length === 0 ? null : <ProjectSwitch projects={projects} focus={undefined} />}
-    </Panel>
-  );
-}
-
-/**
- * Keys a project's file sets that the pack does not declare; absent when there are none. Only
- * the project in focus, or with none in focus every project, named.
- */
-export function Undeclared({
-  projects,
-  focus,
-}: {
-  projects: readonly ProjectSettings[];
-  focus: ProjectSettings | undefined;
-}): ReactNode {
+/** Keys this project's file sets that the pack does not declare; absent when there are none. */
+export function Undeclared({ project }: { project: ProjectSettings }): ReactNode {
   const headingId = useId();
-  const shown = focus === undefined ? projects : [focus];
-  const rows = shown.flatMap(project =>
-    project.undeclared.map(setting => ({
-      key: `${project.codebaseId}:${setting.name}`,
-      label: (
-        <span className="font-mono text-text-primary">
-          {focus === undefined ? `${project.name}: ` : null}
-          {setting.name}
-        </span>
-      ),
-      value: <span className="font-mono [overflow-wrap:anywhere]">{setting.value}</span>,
-    }))
-  );
+  const rows = project.undeclared.map(setting => ({
+    key: setting.name,
+    label: <span className="font-mono text-text-primary">{setting.name}</span>,
+    value: <span className="font-mono [overflow-wrap:anywhere]">{setting.value}</span>,
+  }));
   if (rows.length === 0) return null;
   return (
     <section data-doc-section="" aria-labelledby={headingId} className="flex flex-col gap-3">
