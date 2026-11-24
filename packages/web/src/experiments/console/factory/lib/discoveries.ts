@@ -8,7 +8,7 @@ import type { FactoryDiscoveries } from '../../skills/factory';
 /** One finding a drain decided to file. */
 export type FactoryFinding = FactoryDiscoveries['findings'][number];
 
-/** The panel's id: the Overview's tile links to it. */
+/** The panel's id: the board's `?show=found` address opens on it. */
 export const FOUND_BY_THE_FACTORY = 'found-by-the-factory';
 
 /** The panel's name, and the heading of a discoveries run's panel in an item's story. */

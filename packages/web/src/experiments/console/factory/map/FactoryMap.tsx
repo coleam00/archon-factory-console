@@ -97,7 +97,7 @@ function MapLiveCanvas({
   attention,
   ...inputs
 }: MapInputs & { items: FactoryItem[] | undefined; unread: Unread }): ReactElement {
-  const live = useStageLive(inputs.view, items, unread, attention.data?.items);
+  const live = useStageLive(inputs.view, inputs.projectId, items, unread, attention.data?.items);
   return (
     <>
       <MapCanvas {...inputs} live={live} items={items ?? unread} />

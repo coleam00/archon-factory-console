@@ -8,6 +8,7 @@ import { FactoryPage } from './FactoryPage';
 import { ItemPage } from './ItemPage';
 import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
+import { ProjectSettingsPage } from './settings/ProjectSettingsPage';
 import { factoryPackPath } from './lib/views';
 
 /**
@@ -20,6 +21,7 @@ export function factoryRoutes(): ReactElement {
     <Route path="factory">
       <Route index element={<FactoryPage />} />
       <Route path="board" element={<BoardPage />} />
+      <Route path="settings" element={<ProjectSettingsPage />} />
       <Route path="needs-you" element={<NeedsYouMoved />} />
       <Route path="how-it-works" element={<HowItWorksMoved />} />
       <Route path="overview" element={<HowItWorksMoved />} />

@@ -61,20 +61,3 @@ export function settingCounts(
   const set = settings.filter(setting => project.values[setting.name]?.state === 'set').length;
   return { total, set, packDefault: total - set, shadows };
 }
-
-/**
- * The project the Settings page shows (`?project=<codebase id>`), else the first by name; with
- * none, the page shows the pack alone. `unknown` is a requested id no project has: the page
- * says so and shows the pack alone.
- */
-export function projectInFocus(
-  projects: readonly ProjectSettings[],
-  requested: string | null
-): { project: ProjectSettings | undefined; unknown: string | null } {
-  if (requested !== null) {
-    const project = projects.find(candidate => candidate.codebaseId === requested);
-    return project === undefined ? { project, unknown: requested } : { project, unknown: null };
-  }
-  const [first] = [...projects].sort((a, b) => a.name.localeCompare(b.name));
-  return { project: first, unknown: null };
-}

@@ -1,8 +1,10 @@
 /**
  * What each number of the Overview's strip counts, as a board show (`?show=`): the strip
- * counts the cards the board shows under the same show, so a number and the board it links to
- * cannot disagree. A show names the set; its spec says how the board shows it: in which view,
- * sorted how, with which rows marked, with which panel open.
+ * counts the cards the board shows under the same show, so a number and the board cannot
+ * disagree. The tiles are plain figures; only the strip's unknown-merge line links to its show,
+ * and a show's address still opens the board as it says. A show names the set; its spec says
+ * how the board shows it: in which view, sorted how, with which rows marked, with which panel
+ * open.
  */
 import { ensureUtc } from '../../lib/format';
 import type { Pill, PlacedCard } from './board';
@@ -33,8 +35,6 @@ export type TableMark = 'landed' | 'median';
 export interface BoardShowSpec {
   /** The show in plain words, as the board's chip says it ("Showing: in flight"). */
   label: string;
-  /** Where a link to it goes, as a tile's tooltip and accessible name say. */
-  opens: string;
   /** Whether it narrows the board to the cards `showsCard` keeps; else the board is whole. */
   narrows: boolean;
   /** Whether it opens the Table view rather than the Pipeline. */
@@ -49,38 +49,32 @@ export interface BoardShowSpec {
 export const BOARD_SHOW: Record<BoardShow, BoardShowSpec> = {
   'in-flight': {
     label: 'in flight',
-    opens: 'Open the board, in flight only',
     narrows: true,
     table: false,
   },
   'needs-you': {
     label: 'needs you',
-    opens: 'Open the board, only what needs you',
     narrows: true,
     table: false,
   },
   'landed-today': {
     label: 'merged today',
-    opens: 'Open the board, merged today only',
     narrows: true,
     table: false,
   },
   landed: {
     label: 'merged',
-    opens: 'Open the board, merged only',
     narrows: true,
     table: false,
   },
   'landed-of-all': {
     label: 'every item, merged ones marked',
-    opens: 'Open the table: every item, merged ones marked',
     narrows: true,
     table: true,
     mark: 'landed',
   },
   'median-to-land': {
     label: 'merged, by time to merge, median marked',
-    opens: 'Open the table of merged items sorted by time to merge, the median marked',
     narrows: true,
     table: true,
     sort: { by: 'toLand', descending: false },
@@ -88,13 +82,11 @@ export const BOARD_SHOW: Record<BoardShow, BoardShowSpec> = {
   },
   unknown: {
     label: 'merge state could not be read',
-    opens: 'Open the board, only the items whose merge state could not be read',
     narrows: true,
     table: false,
   },
   found: {
     label: 'found by the factory',
-    opens: 'Open the board with Found by the factory open',
     narrows: false,
     table: false,
     panel: true,

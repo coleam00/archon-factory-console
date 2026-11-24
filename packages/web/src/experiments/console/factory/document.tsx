@@ -1,6 +1,6 @@
 /**
  * The document pages' pieces (DESIGN.md, owner change 5 of 2026-11-21). Every page of the
- * factory section that is not a canvas (the pack's Settings page, a step page, an item page,
+ * factory section that is not a canvas (a project's Settings page, a step page, an item page,
  * Needs you, a stage's "Items here now") is built from these, so the pages read alike and
  * `document.test-helpers.ts` can hold each one to the rule.
  *

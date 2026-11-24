@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
+import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { Window } from 'happy-dom';
 import { act } from 'react';
 import { createMemoryRouter, NavigationType, RouterProvider } from 'react-router';
@@ -11,6 +11,7 @@ import { K } from '../../store/keys';
 import { shippedListed } from '../item-detail.test-fixtures';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
+import { FIXTURE_NOW } from '../lib/board.test-fixtures';
 import { PILL_LABEL } from '../lib/board';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import { cancelRereads } from '../merge-reread';
@@ -27,6 +28,15 @@ for (const [key, value] of Object.entries(globals)) {
   Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
 }
 const { createRoot } = await import('react-dom/client');
+
+// The map sets aside items as the board does, idle ones by the clock: read the fixtures at the
+// time they were copied, never at the day the test runs.
+beforeAll(() => {
+  setSystemTime(FIXTURE_NOW);
+});
+afterAll(() => {
+  setSystemTime();
+});
 const originalFetch = globalThis.fetch;
 
 /** What each workflow read gets, in turn; the last answer repeats. */
