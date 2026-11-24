@@ -1,9 +1,9 @@
 /** The board's Table view: one row per item with the card's fields, sortable by any of them. */
 import { ensureUtc } from '../../lib/format';
 import { displayItemKey } from './item-key';
-import { PILL_LABEL, stageIdOf, type BoardModel, type Pill, type PlacedCard } from './board';
+import { PILL_LABEL, type BoardModel, type Pill, type PlacedCard } from './board';
 import type { TableMark } from './board-show';
-import { UNPLACED_LABEL } from './placement';
+import { stageIdOf, UNPLACED_LABEL } from './placement';
 
 export const TABLE_COLUMNS = [
   { id: 'key', label: 'Item' },
@@ -150,7 +150,7 @@ export function markedKeys(
   landedStage: string
 ): ReadonlySet<string> {
   if (mark === 'landed')
-    return new Set(rows.filter(row => stageIdOf(row.placed) === landedStage).map(keyOf));
+    return new Set(rows.filter(row => stageIdOf(row.placed.column) === landedStage).map(keyOf));
   const timed = rows
     .map(row => ({ key: keyOf(row), time: timeToLand(row.placed) }))
     .filter((row): row is { key: string; time: number } => row.time !== null)

@@ -12,8 +12,8 @@ import { answerWords, restartOf } from './answered';
 import { answererName } from './item-answers';
 import { gridShadowKeys, roundsGrid, type RoundsGrid } from './item-rounds-grid';
 import { storyVisits, type RunFacts, type StoryVisit } from './item-visits';
-import { stageOfWorkflow } from './placement';
-import { stepLabel } from './step-label';
+import { isStopped, stageOfWorkflow, stoppedStage } from './placement';
+import { stoppedLine } from './step-label';
 import { runHref, type TimelineRow, type TimelineShadow } from './timeline';
 import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
@@ -177,8 +177,17 @@ export function toldOutcome(
 /** Whether the item has a change, which an outcome's sentence may be worded by. */
 const hasChange = (ctx: StoryContext): boolean => ctx.detail.item.progress?.change != null;
 
-/** A run that has not finished: what it is doing, in the stage's name. */
-function statusSentence(ctx: StoryContext, label: string, run: ItemRun): string | null {
+/**
+ * A run that has not finished: what it is doing, in the stage's name. On a stage's panel
+ * (`byStage`) a stopped run is named by the stage rule 5 places it in, as its board card names
+ * it, so the two never name different stages.
+ */
+function statusSentence(
+  ctx: StoryContext,
+  label: string,
+  run: ItemRun,
+  byStage = false
+): string | null {
   const row = ctx.rows.get(run.id);
   if (run.awaitingExecution !== null || run.status === 'pending')
     return `${label} is waiting to start`;
@@ -188,13 +197,13 @@ function statusSentence(ctx: StoryContext, label: string, run: ItemRun): string 
       ? `${label} is working on it now`
       : `${label} is working on it now: ${step}`;
   }
-  if (run.status === 'cancelled') return `${label} was stopped`;
-  if (run.status !== 'failed') return null;
-  const failed = ctx.detail.item.progress?.runs.find(entry => entry.runId === run.id)?.failedStep;
-  const workflow = ctx.facts.get(run.id)?.workflow;
-  return failed == null || workflow == null
-    ? `${label} failed`
-    : `${label} failed at ${stepLabel(ctx.view, workflow, failed)}`;
+  if (!isStopped(run.status)) return null;
+  const failedStep =
+    ctx.detail.item.progress?.runs.find(entry => entry.runId === run.id)?.failedStep ?? null;
+  const workflow = ctx.facts.get(run.id)?.workflow ?? null;
+  const stage =
+    byStage && workflow !== null ? stoppedStage(ctx.view, workflow, failedStep) : undefined;
+  return stoppedLine(ctx.view, { workflow, status: run.status, failedStep }, stage?.label ?? label);
 }
 
 /**
@@ -203,7 +212,7 @@ function statusSentence(ctx: StoryContext, label: string, run: ItemRun): string 
  * the merge itself: "The change merged; then the factory failed at <step>".
  */
 function stageStatus(ctx: StoryContext, stage: FactoryStage, run: ItemRun): string | null {
-  if (stage.id !== ctx.view.landed.stage) return statusSentence(ctx, stage.label, run);
+  if (stage.id !== ctx.view.landed.stage) return statusSentence(ctx, stage.label, run, true);
   const status = statusSentence(ctx, 'the factory', run);
   if (status === null) return null;
   const merged = ctx.detail.item.progress?.change?.merged === true;

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
 import { asksSettledRunId } from './answered';
+import { itemPill } from './board';
 import { firstSentence, itemStory, type StagePanel, type StoryPanel } from './item-story';
 import { buildTimeline } from './timeline';
 
@@ -279,13 +280,23 @@ describe('a run that works several stages tells its own facts once, on its last 
     expect(panels.map(panel => panel.runIds.length)).toEqual([0, 0, 1]);
   });
 
-  test('a run that failed: only its last panel says it failed', () => {
+  test('a run that failed: only its last panel says it failed, naming the stage its card names', () => {
     const panels = deliverPanels(delivered({ status: 'failed', outcome: null }));
+    // No failed step recorded: rule 5 places the item in deliver's first stage, so the board's
+    // card and this sentence both name Build.
     expect(panels.map(panel => panel.sentence.text)).toEqual([
       'Build wrote the change',
       'Checks sent it back once, then approved it',
-      'CI and review failed',
+      'Build failed',
     ]);
+  });
+
+  test("a stopped run reads on its last panel as its board card's stop line reads", () => {
+    for (const status of ['failed', 'cancelled'] as const) {
+      const detail = delivered({ status, outcome: null });
+      const { stopLine } = itemPill(shippedView, detail.item, false);
+      expect(deliverPanels(detail).at(-1)?.sentence.text).toBe(stopLine ?? undefined);
+    }
   });
 
   test('a run that sent the item back: the reason on its last panel, not on Build', () => {

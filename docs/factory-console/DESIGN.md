@@ -1366,8 +1366,9 @@ A card, in this order:
    and no state chips; an empty column in that state shows skeleton cards, not its empty
    placeholder. Either way the card sits where its runs put it, except that a card already in
    Merged stays there: it never moves back to a stage it left because an answer is missing.
-7. For a failed item: one line saying what stopped it, naming its stage and the step it failed
-   at ("Build failed at Writes the change"), never the workflow id. For one waiting on you with
+7. For a failed item: one line saying what stopped it, naming the stage rule 5 places it in and
+   the step it failed at ("Build failed at Writes the change"; a cancelled run "Build was
+   stopped"), never the workflow id. The item page's story says the same sentence. For one waiting on you with
    no ask open: the first question its run recorded, cut to its line, and "N questions" when it
    recorded several (as the ask face does), else its reason. For one that needs you, the approval
    card's face (owner change 3), from the project's attention queue Needs you reads

@@ -14,36 +14,25 @@ import { awaitingItems, needsYou } from '../../lib/needs-you';
 import { BOARD_SHOW, showsCard, waitsOnYou, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
-import { pageItemColumn, stageOfWorkflow, UNPLACED_LABEL, type ItemColumn } from './placement';
+import {
+  isStopped,
+  pageItemColumn,
+  pagePlacementInput,
+  stageIdOf,
+  stoppedStage,
+  UNPLACED_LABEL,
+  type ItemColumn,
+} from './placement';
 import { boardShadowLine, type ShadowWords } from './shadows';
 import { bySinceNewest, setAsideOf, type SetAside, type SetAsideReason } from './set-aside';
-import { roundsSources, runLine, stepLabel, type RunLine } from './step-label';
+import { roundsSources, runLine, stoppedLine, type RunLine } from './step-label';
+import type { FactoryStage } from './stage-steps';
 import { factoryPath, type FactoryViewListed } from './views';
 import { membershipOf } from './work-orders';
 
 export type FactoryDeclaration = FactoryViewListed['declaration'];
 type Progress = NonNullable<FactoryItem['progress']>;
 export type RoundVerdict = NonNullable<Progress['round']>['rounds'][number]['verdict'];
-
-/** One of an item's declared runs: the declared workflow joined with the run's own read. */
-interface DeclaredRun {
-  runId: string;
-  workflow: string;
-  failedStep: string | null;
-  status: FactoryItem['runs'][number]['status'];
-  outcome: string | null;
-}
-
-/** The item's declared runs in start order; a run the item read lacks is left out. */
-function declaredRuns(item: FactoryItem): DeclaredRun[] {
-  const reads = new Map(item.runs.map(run => [run.id, run]));
-  return (item.progress?.runs ?? []).flatMap(run => {
-    const read = reads.get(run.runId);
-    return read === undefined ? [] : [{ ...run, status: read.status, outcome: read.outcome }];
-  });
-}
-
-const ENDED_STATUSES: ReadonlySet<DeclaredRun['status']> = new Set(['failed', 'cancelled']);
 
 export type Pill = 'running' | 'needs-you' | 'failed' | 'awaits' | 'parked' | 'waiting' | 'landed';
 
@@ -171,13 +160,12 @@ function runField(
   view: FactoryDeclaration,
   projectId: string,
   progress: Progress | null,
-  column: ItemColumn | null
+  stage: FactoryStage | null
 ): BoardCard['run'] {
   const running = progress?.running;
   if (running == null) return null;
-  const placed = column !== null && 'stage' in column ? column.stage : undefined;
   return {
-    ...runLine(view, running, progress?.round, placed),
+    ...runLine(view, running, progress?.round, stage ?? undefined),
     step: running.step,
     href: `/console/p/${projectId}/r/${running.runId}`,
   };
@@ -193,18 +181,6 @@ function changeField(progress: Progress | null): BoardCard['change'] {
   };
 }
 
-/**
- * What stopped a failed run, naming its stage ("Build failed at Writes the change"), never the
- * workflow: a run's workflow is the pack's full id, which a person does not read.
- */
-function failedLine(view: FactoryDeclaration, run: DeclaredRun, placed: string | null): string {
-  const stage = stageOfWorkflow(view, run.workflow, run.failedStep)?.label ?? placed ?? 'The run';
-  if (run.status === 'cancelled') return `${stage} was cancelled`;
-  return run.failedStep === null
-    ? `${stage} failed`
-    : `${stage} failed at ${stepLabel(view, run.workflow, run.failedStep)}`;
-}
-
 /** An item's card, given where it was placed (`itemColumn`). */
 export function cardFields(
   view: FactoryDeclaration,
@@ -214,9 +190,9 @@ export function cardFields(
 ): BoardCard {
   const { key } = item.item;
   const progress = item.progress;
-  const landed = column !== null && 'stage' in column && column.stage.id === view.landed.stage;
-  const placed = column !== null && 'stage' in column ? column.stage.label : null;
-  const { pill, pillLabel, stopLine, stopCount } = itemPill(view, item, landed, placed);
+  const stage = column !== null && 'stage' in column ? column.stage : null;
+  const landed = stage?.id === view.landed.stage;
+  const { pill, pillLabel, stopLine, stopCount } = itemPill(view, item, landed, stage?.label);
   const mergedAt = progress?.change?.mergedAt ?? null;
   const order = membershipOf(item)?.order ?? null;
   return {
@@ -226,8 +202,8 @@ export function cardFields(
     pillLabel,
     stopCount,
     round: roundField(view, progress),
-    run: runField(view, projectId, progress, column),
-    stage: !landed && column !== null && 'stage' in column ? column.stage.label : null,
+    run: runField(view, projectId, progress, stage),
+    stage: !landed && stage !== null ? stage.label : null,
     returned:
       progress !== null && progress.returned > 0
         ? { count: progress.returned, href: itemPath(projectId, key) }
@@ -236,7 +212,7 @@ export function cardFields(
     mergedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
     stopLine,
     order,
-    shadow: boardShadowLine(item, column !== null && 'stage' in column ? column.stage : null, view),
+    shadow: boardShadowLine(item, stage, view),
   };
 }
 
@@ -266,7 +242,7 @@ export function itemPill(
   view: FactoryDeclaration,
   item: FactoryItem,
   landed: boolean,
-  /** The label of the stage the item is placed in, named when a failed run's stage is not known. */
+  /** The label of the stage the item is placed in, named when a stopped run's stage is not known. */
   placed: string | null = null
 ): Pick<BoardCard, 'pill' | 'pillLabel' | 'stopLine' | 'stopCount'> {
   const of = (pill: Pill, stopLine: string | null) => ({
@@ -280,9 +256,14 @@ export function itemPill(
   const [ask] = needsYou(item.questions);
   if (ask !== undefined) return of('needs-you', unread ?? askQuestion(ask));
   if (item.progress?.running != null) return of('running', null);
-  const last = declaredRuns(item).at(-1);
-  if (last !== undefined && ENDED_STATUSES.has(last.status))
-    return of('failed', failedLine(view, last, placed));
+  // The item's last run of a declared workflow, its discoveries drain included.
+  const last = pagePlacementInput(item)
+    .runs.filter(run => run.workflow !== null)
+    .at(-1);
+  if (last?.workflow != null && isStopped(last.status)) {
+    const label = stoppedStage(view, last.workflow, last.failedStep)?.label ?? placed ?? 'The run';
+    return of('failed', stoppedLine(view, last, label));
+  }
   const awaits = item.progress?.awaits;
   // `awaitingItems` takes the same items, so Needs you counts what this pill shows.
   if (awaits != null && awaitingItems([item]).length === 1)
@@ -390,8 +371,8 @@ export function boardModel(
   for (const item of items) {
     const { placed, aside } = placeItem(view, projectId, item, previous.get(item.item.key), now);
     positions.set(item.item.key, positionOf(placed.column));
-    const stage = stageIdOf(placed);
-    const holder = stage === null ? undefined : byStage.get(stage);
+    const stage = stageIdOf(placed.column);
+    const holder = stage === undefined ? undefined : byStage.get(stage);
     if (aside !== null) setAside.push({ ...aside, placed });
     // The schema puts every stage in one column; a stage in none still shows, never drops.
     else if (holder !== undefined) holder.cards.push(placed);
@@ -403,7 +384,7 @@ export function boardModel(
       stageCountPending(
         stage,
         view.landed.stage,
-        column.cards.flatMap(placed => (stageIdOf(placed) === stage ? [placed.item] : [])),
+        column.cards.flatMap(placed => (stageIdOf(placed.column) === stage ? [placed.item] : [])),
         anyPending
       )
     );
@@ -446,12 +427,6 @@ export function filterBoard(
     setAside: folded ? model.setAside.filter(entry => cardMatches(entry.placed.card, query)) : [],
     unplaced: folded ? keep(model.unplaced) : [],
   };
-}
-
-/** The stage a placed card sits in; null for one an ending took off the board or none holds. */
-export function stageIdOf(placed: Pick<PlacedCard, 'column'>): string | null {
-  const { column } = placed;
-  return column !== null && 'stage' in column ? column.stage.id : null;
 }
 
 export type ChipPill = Exclude<Pill, 'landed' | 'awaits'>;

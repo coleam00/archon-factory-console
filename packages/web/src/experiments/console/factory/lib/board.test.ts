@@ -277,7 +277,7 @@ describe('card fields, in order', () => {
     const asking = { ...realItem('6'), questions: [askItem()] };
     expect(card(asking).stopLine).toBe('Which base should the change target?');
     const cancelled = endLastRun(realItem('5'), 'cancelled', null);
-    expect(card(cancelled).stopLine).toBe('Build was cancelled');
+    expect(card(cancelled).stopLine).toBe('Build was stopped');
     expect(card(realItem('8')).stopLine).toBeNull();
   });
 });
