@@ -63,8 +63,8 @@ const item12: FactoryItem = {
 /**
  * Items as the console reads them (each read joined with its progress), from the map's copy
  * (`map.test-fixtures.ts`): three deliver runs on `build__build` and one idle item, each cut
- * to one run. #4 carries the round its previous run ended in (returned, then an ask), #5 its
- * run that ended on that ask, before the next one started.
+ * to one run. #4 carries the round its previous run ended in (returned, then an ask); #5 is
+ * cut to its run that ended on an ask, before its next one started.
  */
 export const capturedItemsPage: { items: FactoryItem[] } = {
   items: [
