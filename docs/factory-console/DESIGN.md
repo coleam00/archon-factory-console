@@ -25,8 +25,9 @@ Visual standard below still bind everything a person sees):
 
 **What goes.**
 
-- **Step pages.** A step links to Archon's own workflow page (`/console/builder/:name`) where
-  one exists, else it is plain text.
+- **Step pages.** A step is plain text in its stage's list. Archon has no page that shows an
+  installed pack's workflow (the builder opens a pack workflow read-only and draws nothing), so
+  nothing links to one.
 - **The Settings page** (sidebar and project tab) and the pack-settings read. Archon issue
   #5317 owns pack settings.
 - **The pack index page.** `/console/factory` opens How it works.
@@ -62,7 +63,7 @@ exact sentence of copy. Test lines stay at most half of source lines.
 
 **Carried over** (owner-approved, keep them working): the strips under the board with one
 toggle (#152); work orders as a board section, each row opening its order (#153); a step card
-opening directly, now Archon's workflow page (#154); plain number tiles, map counts that match
+opening directly (#154) is gone with the step pages: steps are a plain list; plain number tiles, map counts that match
 the board, and How it works naming no project (#151); the phone tab row revealing the active
 tab (#155); #111's story still tells; 390 px works everywhere. "Found by the factory" and "Set
 aside" stay only while their data is generic (discoveries as items or links, parked as an
@@ -118,7 +119,7 @@ not polish: reshape a page when restyling it would not make it read well.
 3. *(Superseded by owner change 3 of 2026-11-23: the number tiles are plain figures, not links.
    The board's `?show=` addresses still work, and the strip still counts through them.)*
 4. *(Removed in the v2 direction: "The real workflow" no longer draws its own step graph. It
-   lists the stage's steps from the pack graph, each linking to Archon's workflow page or plain
+   lists the stage's steps from the pack graph, each as plain
    text; see The map, Click.)*
 5. **Document pages get a design of their own.** Every page in the section that is not a canvas
    (an item page, a stage's "Items here now") follows these rules, which win over rules 2, 3 and 5 of the Visual standard where they
@@ -153,8 +154,7 @@ not polish: reshape a page when restyling it would not make it read well.
    top-level box is a panel or a section with a heading row, and no box is an outline alone on
    the page background, is checked in the browser, not by a test.
 6. *(Removed in the v2 direction: the Settings page.)*
-7. *(Removed in the v2 direction: step pages. A step links to Archon's workflow page,
-   `/console/builder/:name`, or is plain text.)*
+7. *(Removed in the v2 direction: step pages. A step is plain text in its stage's list.)*
 8. **The item page tells the story of the item.** Today it is a list of runs and a wall of red and
    green chips nobody can read. It becomes a story a person follows top to bottom:
    - **A journey strip** across the top: the item's path through the groups (Intake, Plan & build,
@@ -668,8 +668,8 @@ documents through Neon live queries.
 
 - Inside the Factory tab a small sub-navigation, on the line of the view's title, switches
   Overview and Board, each its own route; the tab has no other pages (owner change 3 of
-  2026-11-19). There is no Settings page and no step page (v2 direction): a step links to
-  Archon's workflow page (`/console/builder/:name`) or is plain text. How it works is the
+  2026-11-19). There is no Settings page and no step page (v2 direction): a step is
+  plain text in its stage's list. How it works is the
   sidebar Factory page. Item pages have a back link to where you came from.
 
 ## The factory view declaration
@@ -912,9 +912,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   - **What this stage does** (first when the view file gives the stage a drill-down), with the
     line "The factory's summary of this stage, from its view file.": numbered phase columns of
     plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
-    and naming the items on a step it covers now. A card opens directly (owner, #154): Archon's
-    own workflow page for the workflow it stands for (`/console/builder/:name`) where that page
-    exists, else it is plain text; it shows a pointer and `.factory-card`'s hover when it links.
+    and naming the items on a step it covers now. A card is plain text: it links nowhere (there
+    is no step page, and Archon's builder does not show pack workflows).
     A stage without one says it has no summary and that the real workflow shows its steps.
   - **Items here now**: the items in the stage that the board does not set aside (owner change 4
     of 2026-11-23), from the same read as the card's chips, each
@@ -926,8 +925,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     pack graph, drawn by the section's one graph renderer (Archon's existing one where it can, v2
     direction) or as a plain list. A retired workflow still places its old runs in the stage,
     but the graph has nothing to draw for it. A step that is running now for any item is marked,
-    and each item running the workflow is named, linking to its item page. A step links to
-    Archon's workflow page (`/console/builder/:name`) where one exists, else it is plain text;
+    and each item running the workflow is named, linking to its item page. A step is plain text;
     there is no step page. A failed read says which workflow could not be read and why, with a
     Retry button.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
