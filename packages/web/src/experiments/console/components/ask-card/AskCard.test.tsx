@@ -388,7 +388,7 @@ test('a long unbroken path in every text field shows whole inside its tile or th
   }
 });
 
-test("the Overview's compact card shows a long question and label whole, and marks the tile green", async () => {
+test("the Overview's compact card shows a long question and label whole, and marks the tile recommended", async () => {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
