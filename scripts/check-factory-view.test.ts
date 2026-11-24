@@ -83,7 +83,7 @@ const view = {
   placement: {},
   endings: {},
   landed: { stage: 'landed' },
-  map: { cards: [], arrows: [{ from: 'plan', to: 'landed' }] },
+  map: { cards: [], arrows: [] },
 };
 
 const VIEW_FILE = `o.p${FACTORY_VIEW_PROJECT_SUFFIX}`;
@@ -110,7 +110,7 @@ function reader(read: InstalledRead): { readInstalled: ReadInstalled; calls: str
 }
 
 describe('runCheck', () => {
-  test('with no home named, checks the snapshot and names the workflows it does not compare', () => {
+  test('with no home named, checks the snapshot and passes a clean view', () => {
     const report = runCheck({
       packsDir: packsDir(),
       plugins: undefined,
@@ -120,8 +120,33 @@ describe('runCheck', () => {
     });
     expect(report.err).toEqual([]);
     expect(report.code).toBe(0);
-    // Informational, so on stdout with a clean exit; the wording is free to change.
-    expect(report.out.some(line => line.includes('o/p:discoveries'))).toBe(true);
+  });
+
+  test('fails on an overview file its schema refuses', () => {
+    const dir = packsDir();
+    writeFileSync(join(dir, 'o.p.factory-overview.json'), JSON.stringify({ version: 1 }));
+    const report = runCheck({
+      packsDir: dir,
+      plugins: undefined,
+      readInstalled: () => ({ error: '' }),
+    });
+    expect(report.code).toBe(1);
+    expect(report.err.some(line => line.includes('o.p.factory-overview.json'))).toBe(true);
+  });
+
+  test('fails on a step name the pack lacks, naming it', () => {
+    const dir = packsDir();
+    writeFileSync(
+      join(dir, VIEW_FILE),
+      JSON.stringify({ ...view, steps: { plan: { nope: 'Does nothing' } } })
+    );
+    const report = runCheck({
+      packsDir: dir,
+      plugins: undefined,
+      readInstalled: () => ({ error: '' }),
+    });
+    expect(report.code).toBe(1);
+    expect(report.err.some(line => line.includes('"nope"'))).toBe(true);
   });
 
   test("fails with the reader's reason when the named home cannot give the pack", () => {

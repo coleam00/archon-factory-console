@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { fitCamera, fittedHeight, MIN_ZOOM, READABLE_K, reveal, zoomAt } from './map-camera';
 import { layoutMap } from './map-layout';
-import { shippedView } from '../item-detail.test-fixtures';
+import { shippedArrows, shippedView } from '../item-detail.test-fixtures';
 
 const world = { x: 0, y: -10, w: 1000, h: 200 };
 
@@ -22,7 +22,7 @@ describe('the map camera', () => {
   });
 
   test('the shipped map opens at the readable scale at every frame width', () => {
-    const { bounds } = layoutMap(shippedView);
+    const { bounds } = layoutMap(shippedView, shippedArrows);
     for (const width of [320, 390, 768, 1100, 1280, 1600]) {
       const camera = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
       expect(camera.k).toBe(READABLE_K);

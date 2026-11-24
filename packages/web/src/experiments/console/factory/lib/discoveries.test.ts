@@ -7,13 +7,12 @@ describe('the words of what the factory found', () => {
     expect(openFindings(DISCOVERIES).map(f => f.from.key)).toEqual(['58', '31']);
   });
 
-  test('chips count every decision; a shadow drain would file', () => {
+  test('chips count every decision', () => {
     expect(foundChips(DISCOVERIES)).toEqual([
-      { label: 'would file', count: 3 },
+      { label: 'filed', count: 3 },
       { label: 'held', count: 10 },
       { label: 'dropped', count: 16 },
     ]);
-    expect(foundChips({ ...DISCOVERIES, shadow: false })[0]?.label).toBe('filed');
   });
 
   test('a kind reads in sentence case, and no kind reads nothing', () => {

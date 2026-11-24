@@ -46,8 +46,6 @@ export type FactoryFinding = z.infer<typeof factoryFindingSchema>;
 
 export const factoryDiscoveriesSchema = z.object({
   pack: z.string(),
-  /** The drains decide what they would file and file nothing. */
-  shadow: z.boolean(),
   /** Drains whose result had no decisions at the declared pointers; their findings are missing. */
   unreadable: z.number().int().nonnegative(),
   held: z.number().int().nonnegative(),
@@ -194,7 +192,6 @@ export async function readFactoryDiscoveries(
   );
   const result: FactoryDiscoveries = {
     pack: input.pack,
-    shadow: declaration.shadow,
     unreadable: 0,
     held: 0,
     dropped: 0,

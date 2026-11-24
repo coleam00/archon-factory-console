@@ -28,8 +28,6 @@ export const K = {
   // Under `projects:` on purpose: adding, removing or renaming a project invalidates
   // `projects`, and the packs list which projects run each pack.
   factoryPacks: 'projects:factory-packs' as const,
-  // Under `projects:` for the same reason: the page lists what each project of the pack sets.
-  factoryPackSettings: (packKey: string): string => `projects:factory-pack-settings:${packKey}`,
   factoryWorkflow: (projectId: string, workflow: string): string =>
     `factory-workflow:${projectId}:${workflow}`,
   // Every page of one project's items; the dashboard SSE invalidates the `factory-items` prefix.

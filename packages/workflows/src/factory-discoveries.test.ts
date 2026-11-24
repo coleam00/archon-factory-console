@@ -177,7 +177,6 @@ describe('reading every drain on the project', () => {
     expect(factoryDiscoveriesSchema.parse(read)).toEqual(read);
     expect(read).toMatchObject({
       pack: PACK,
-      shadow: true,
       unreadable: 0,
       held: 2,
       dropped: 2,

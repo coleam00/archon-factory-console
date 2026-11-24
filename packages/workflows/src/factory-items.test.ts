@@ -3,7 +3,7 @@ import {
   PACK,
   type RunFixture as Entry,
   runFixture,
-  shippedView,
+  deliverRoundsView,
 } from './factory-test.test-helpers';
 import {
   factoryProgressSchema,
@@ -22,7 +22,7 @@ import type { WorkflowEventRow } from './schemas/workflow-event';
 import type { WorkflowRun } from './schemas/workflow-run';
 
 // The declaration this repository ships for the pack the fixtures' runs come from.
-const view = shippedView();
+const view = deliverRoundsView();
 /** Runs copied from the live factory database (see each file's `note`), data trimmed. */
 const fixture = (name: string): Entry => runFixture('factory-items', name);
 
@@ -248,9 +248,6 @@ describe("a run's rounds, returns, change and running step", () => {
       [null, null, null],
       [null, null, null],
     ]);
-    // Triage's one declared shadow step decided (its old split step is no shadow the view
-    // declares: split is a workflow of its own now); plan has none.
-    expect(runs.map(run => run.shadows.map(decision => decision.node))).toEqual([['admit'], []]);
   });
 });
 
@@ -677,7 +674,6 @@ describe('the readers', () => {
         { runId: plan1.run.id, workflow: 'plan', failedStep: null },
         { runId: deliver1.run.id, workflow: 'deliver', failedStep: null },
       ],
-      shadows: detail.runs[0]?.shadows,
       parked: null,
       awaits: null,
     });
@@ -720,7 +716,6 @@ describe('the readers', () => {
         costUsd: null,
         step: 'rounds.review__review',
         rounds: expect.objectContaining({ max: 3 }),
-        shadows: [],
         // Still running: it has named no change and returned nothing to say yet.
         change: null,
         said: null,

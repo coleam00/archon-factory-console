@@ -1,19 +1,17 @@
 /**
  * What each run on an item did to it, in words and as a kind (sent on, returned, asked you,
- * failed, running, stopped), with its running step and its shadow steps' decisions. The item
+ * failed, running, stopped), with its running step. The item
  * page's story (`item-story.ts`) and its rounds grid read these rows; placement stays
  * `placement.ts`'s.
  */
 import type { FactoryItemDetail } from '../../skills/factory';
 import { placedStage } from './placement';
-import { shadowOf, shadowWords, type ShadowWords } from './shadows';
 import { stepLabel } from './step-label';
 import { boardSeats, isSendBack, type Seat } from './stage-direction';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
 type ItemRun = FactoryItemDetail['item']['runs'][number];
-type RunFacts = FactoryItemDetail['runs'][number];
 
 /**
  * An outcome as a person reads it. Where the declaration says what an outcome means, its
@@ -23,17 +21,6 @@ type RunFacts = FactoryItemDetail['runs'][number];
 interface OutcomeWords {
   text: string;
   mono: boolean;
-}
-
-/** One decision a shadow step recorded on a run: what it would have done. */
-export interface TimelineShadow {
-  /** The run, step and round, unique on the run. */
-  key: string;
-  /** The shadow's declared label, else the step's engine id. */
-  label: string;
-  /** The loop round it decided in; null outside a loop. */
-  round: number | null;
-  words: ShadowWords;
 }
 
 /**
@@ -59,8 +46,6 @@ export interface TimelineRow {
   liveStep: string | null;
   /** The running step's name, with its round when it is of the rounds loop. */
   liveStepName: string | null;
-  /** What the shadow steps the view declares decided on this run, in recording order. */
-  shadows: TimelineShadow[];
 }
 
 export const runHref = (projectId: string, runId: string): string =>
@@ -92,16 +77,8 @@ function askedQuestions(detail: FactoryItemDetail, runId: string): string[] {
 }
 
 /**
- * Whether `asked` declares this completed outcome, exactly or by `workflow:*`. As in
- * `endings`, `*` takes every outcome, not a run that recorded none.
- */
-const declaredAsked = (view: Declaration, workflow: string, outcome: string | null): boolean =>
-  outcome !== null &&
-  (view.asked ?? []).some(key => key === `${workflow}:*` || key === `${workflow}:${outcome}`);
-
-/**
  * The label of the `awaits` or `parked` entry a completed outcome takes, exactly or by
- * `workflow:*`; as in `asked`, `*` takes every outcome, not a run that recorded none.
+ * `workflow:*`; as in `endings`, `*` takes every outcome, not a run that recorded none.
  */
 function declaredHeld(
   view: Declaration,
@@ -115,8 +92,7 @@ function declaredHeld(
 }
 
 /**
- * A completed run's outcome: "asked you" when it stopped to ask (a declared `asked` outcome,
- * or asks it left on the item), else the `awaits` or `parked` label when it kept the item open
+ * A completed run's outcome: "asked you" when it left asks on the item, else the `awaits` or `parked` label when it kept the item open
  * ("Needs shaping", "Parked by triage", not the stage it sits in), else where `placement` sent the item ("sent to
  * Plan"), the label of the `endings` entry that closed it, else the pack's token as an identifier.
  */
@@ -126,8 +102,7 @@ function completedOutcome(
   result: string | null,
   asked: readonly string[]
 ): Outcome {
-  if (asked.length > 0 || (workflow !== null && declaredAsked(view, workflow, result)))
-    return outcome(ASKED_YOU, 'asked');
+  if (asked.length > 0) return outcome(ASKED_YOU, 'asked');
   const held = workflow === null ? undefined : declaredHeld(view, workflow, result);
   if (held !== undefined) return outcome(held, 'other');
   const stage = workflow === null ? undefined : placedStage(view, workflow, result);
@@ -141,10 +116,10 @@ function completedOutcome(
 
 /**
  * Whether placing the item in `stage` after a run of `workflow` sent it back or on, by the
- * board's order (`isSendBack`, the map's rule). A run is judged from the furthest stage its
- * workflow works, since it may have reached any of them: `deliver:returned` lands in Build
- * from Checks, `deliver:replan` in Plan. A placement into that furthest stage itself is no
- * send-back: the land gate places the item in Ready to merge, the stage it works.
+ * board's order (`isSendBack`, the map's rule). A run is judged from the furthest stage that
+ * lists its workflow: `stage-check:return` lands in Build from Checks. A placement into that
+ * furthest stage itself is no send-back: the land gate places the item in Ready to merge, the
+ * stage it works.
  */
 function placedKind(view: Declaration, workflow: string, stage: string): RunKind {
   const seats = boardSeats(view);
@@ -186,21 +161,9 @@ function runOutcome(
   }
 }
 
-function timelineShadows(view: Declaration, fact: RunFacts | undefined): TimelineShadow[] {
-  return (fact?.shadows ?? []).map(decision => {
-    const shadow = shadowOf(view, decision.workflow, decision.node);
-    return {
-      key: `${decision.runId}|${decision.node}|${String(decision.round)}`,
-      label: shadow?.label ?? decision.node,
-      round: decision.round,
-      words: shadowWords(shadow, decision),
-    };
-  });
-}
-
 /**
- * One row per run in the item read's order (start order): what it did to the item, its running
- * step, and what its shadow steps decided.
+ * One row per run in the item read's order (start order): what it did to the item, and its
+ * running step.
  */
 export function buildTimeline(view: Declaration, detail: FactoryItemDetail): TimelineRow[] {
   const facts = new Map(detail.runs.map(run => [run.runId, run]));
@@ -221,8 +184,6 @@ export function buildTimeline(view: Declaration, detail: FactoryItemDetail): Tim
       liveStep,
       liveStepName:
         liveStep === null ? null : stepLabel(view, workflow ?? run.workflow, liveStep, iteration),
-      // Not gated on a declared workflow: the discoveries workflow is on no stage.
-      shadows: timelineShadows(view, fact),
     };
   });
 }

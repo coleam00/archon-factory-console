@@ -33,32 +33,29 @@ async function mount(names: ReadonlyMap<string, ItemName> = new Map()) {
   return { container, line, body, unmount };
 }
 
-test('the line: its name, the shadow badge and the count', async () => {
+test('the line: its name and the count', async () => {
   set(K.factoryDiscoveries(ID), DISCOVERIES);
   const { line, unmount } = await mount();
   try {
     expect(line.querySelector('h2')?.textContent).toBe('Found by the factory');
-    expect(line.textContent).toContain('shadow');
     expect(line.querySelector('[data-found-count]')?.textContent).toBe('2');
-    expect(line.textContent).toContain('the factory would file');
-    // One line: no chips, no shadow sentence, no list.
+    expect(line.textContent).toContain('filed, not on the board yet');
+    // One line: no chips, no list.
     expect(line.querySelector('ul')).toBeNull();
-    expect(line.textContent).not.toContain('files nothing yet');
   } finally {
     await unmount();
   }
 });
 
-test('opened: the count no item covers, the chips, the shadow line and the findings listed', async () => {
+test('opened: the count no item covers, the chips and the findings listed', async () => {
   set(K.factoryDiscoveries(ID), DISCOVERIES);
   const { body, unmount } = await mount();
   try {
     // The heading is the line's, once on the page.
     expect(body.querySelector('h2')).toBeNull();
-    expect(body.textContent).toContain('files nothing yet');
     expect(body.querySelector('[data-found-count]')?.textContent).toBe('2');
     const chips = [...body.querySelectorAll('[aria-label="What the drains decided"] li')];
-    expect(chips.map(li => li.textContent)).toEqual(['would file 3', 'held 10', 'dropped 16']);
+    expect(chips.map(li => li.textContent)).toEqual(['filed 3', 'held 10', 'dropped 16']);
     // One finding an item covers, and one drain that could not be read.
     expect(body.textContent).toMatch(/1 already on the board/);
     expect(body.textContent).toMatch(/1 drain could not be read/);
@@ -87,27 +84,13 @@ test('opened: the count no item covers, the chips, the shadow line and the findi
   }
 });
 
-test.each([
-  [
-    'not a shadow: no badge, its filed count',
-    { shadow: false },
-    'filed, not on the board yet',
-    'filed 3',
-  ],
-  [
-    'nothing open: an empty state, not a zero list',
-    { findings: [], unreadable: 0 },
-    'Nothing the factory would file now',
-    'Nothing the factory would file now.',
-  ],
-] as const)('%s', async (_name, change, onLine, inBody) => {
-  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, ...change });
-  const { container, line, body, unmount } = await mount();
+test('nothing open: an empty state, not a zero list', async () => {
+  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, findings: [], unreadable: 0 });
+  const { line, body, unmount } = await mount();
   try {
-    expect(line.textContent).toContain(onLine);
-    expect(body.textContent).toContain(inBody);
-    if ('shadow' in change) expect(container.textContent).not.toContain('shadow');
-    else expect(body.querySelector('#found-by-the-factory-list')).toBeNull();
+    expect(line.textContent).toContain('Nothing filed that is not on the board');
+    expect(body.textContent).toContain('Nothing filed that is not on the board.');
+    expect(body.querySelector('#found-by-the-factory-list')).toBeNull();
   } finally {
     await unmount();
   }

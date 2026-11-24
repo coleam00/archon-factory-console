@@ -4047,66 +4047,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/factory/pack-settings': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * A pack's declared settings, and what each project that runs it sets
-     * @description Every setting the pack declares in its `.pack/pack.yaml` (`inputs:`), in its order, presented as the `settings` map of the overview `GET /api/factory/packs` shows for it says (shadow, and whether the value names a policy or the checks file). For each project a factory view of the pack applies to: its value of each setting from `.archon/packs/<pack key>.yaml`, the file a policy or checks setting names looked up in its checkout (a checks file listed), and the keys it sets that the pack does not declare. A map key the pack does not declare is listed under `mapErrors`. A project whose settings file cannot be read carries its `error`; the others still read. Nothing is written.
-     */
-    get: {
-      parameters: {
-        query: {
-          /** @description The pack's key, as `GET /api/factory/packs` lists it. */
-          pack: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['FactoryPackSettings'];
-          };
-        };
-        /** @description No pack with a factory overview has this key */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-        /** @description Server error */
-        500: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['Error'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/factory/discoveries': {
     parameters: {
       query?: never;
@@ -4116,7 +4056,7 @@ export interface paths {
     };
     /**
      * What a project's discoveries drains decided to file
-     * @description Every finding the completed runs of the workflow the first applying factory view's `discoveries` field names decided to file, newest first, with how many they held and dropped, read at the pointers that field declares. `shadow` says the drains only decide what they would file. A finding's `coveredBy` names an item on the project with the same title (case-insensitive), null while none has it. A drain whose result has no decisions at those pointers counts under `unreadable`.
+     * @description Every finding the completed runs of the workflow the first applying factory view's `discoveries` field names decided to file, newest first, with how many they held and dropped, read at the pointers that field declares. A finding's `coveredBy` names an item on the project with the same title (case-insensitive), null while none has it. A drain whose result has no decisions at those pointers counts under `unreadable`.
      */
     get: {
       parameters: {
@@ -4176,7 +4116,7 @@ export interface paths {
     };
     /**
      * One item with its progress and the story facts of each of its runs
-     * @description The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, what each shadow step the view declares decided on that run (`shadows`, one per completed step and round, in recording order; a run of the discoveries workflow included), the pull request the run named at the view's `change` pointer (`change`), what it said in its own words at the view's `story.said` pointers (`said`), the models its steps ran on (`models`), and when each of its steps started (`steps`, as the engine records the step id).
+     * @description The item's read, as `GET /api/items` returns it, with its `progress` as `GET /api/factory/progress` reads it, plus `runs`: for each of the item's runs, in the item read's order, the workflow as the view declares it, the run's cost, its running step while it runs, its check rounds (a declared loop's iterations, or the run's one round when its workflow is a stage-form rounds source) with the steps that recorded an outcome in each, the pull request the run named at the view's `change` pointer (`change`), what it said in its own words at the view's `story.said` pointers (`said`), the models its steps ran on (`models`), and when each of its steps started (`steps`, as the engine records the step id).
      */
     get: {
       parameters: {
@@ -4247,7 +4187,7 @@ export interface paths {
     };
     /**
      * The board progress of a project's items, by key
-     * @description What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, the newest decision of each shadow step the view declares (`shadows`: what it would have done; nothing acted on it), and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked whether it merged (only, once and in the background, for a pull request number no audit row of its runs names, which fills a later read); else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.
+     * @description What the board needs of each item that its read (`GET /api/items/window`) does not carry, derived through the first factory view that applies to the project (`pack` names it): the running step, its check rounds (the iterations of a declared loop, or one round per run of a declared stage-form workflow, numbered by its result), how often a return point sent it back, its title, the work order the declared `partOf` result names, and its change, with whether that merged: merged as the engine recorded it when the item carries a merge record (`archon workflow merged`, or a land run), and the change host is then not asked whether it merged (only, once and in the background, for a pull request number no audit row of its runs names, which fills a later read); else as the change host reports it (cached on the server; `pending` when the server is still asking it, so read again shortly). `members` lists, for each asked item, the items with an active `part_of` link to it. A key may name an item with no runs (a work order); a key the project has no item under is left out; an item whose progress could not be derived reads null.
      */
     get: {
       parameters: {
@@ -11771,10 +11711,8 @@ export interface components {
             label: string;
             blurb: string;
             short?: string;
-            /** @enum {string} */
-            group: 'intake' | 'build' | 'check' | 'land';
+            group: string;
             workflows: string[];
-            nodes?: string[];
             drilldown?: {
               phases: {
                 label: string;
@@ -11874,7 +11812,6 @@ export interface components {
               };
             };
           };
-          asked?: string[];
           parked?: {
             [key: string]: {
               label: string;
@@ -11906,7 +11843,6 @@ export interface components {
           };
           discoveries?: {
             workflow: string;
-            shadow: boolean;
             filed: string;
             held: string;
             dropped: string;
@@ -11916,46 +11852,6 @@ export interface components {
               verified?: string;
             };
           };
-          shadows?: (
-            | {
-                workflow: string;
-                node: string;
-                label: string;
-                /** @enum {string} */
-                reads: 'verdict';
-                pointer: string;
-                words: {
-                  [key: string]: string;
-                };
-                why?: string;
-              }
-            | {
-                workflow: string;
-                node: string;
-                label: string;
-                /** @enum {string} */
-                reads: 'checks';
-                results: string;
-                entry: {
-                  name: string;
-                  passed: string;
-                  seconds?: string;
-                  tail?: string;
-                };
-              }
-            | {
-                workflow: string;
-                node: string;
-                label: string;
-                /** @enum {string} */
-                reads: 'lists';
-                lists: {
-                  pointer: string;
-                  words: string;
-                }[];
-                why?: string;
-              }
-          )[];
           itemTitle?: {
             input: string;
           };
@@ -11994,9 +11890,7 @@ export interface components {
             arrows: {
               from: string;
               to: string;
-              label?: string;
-              back?: boolean;
-              person?: boolean;
+              label: string;
             }[];
             notes?: {
               text: string;
@@ -12072,45 +11966,9 @@ export interface components {
                   /** @enum {string} */
                   kind: 'feeds' | 'calls' | 'loops-back';
                   label?: string;
-                  shadow?: boolean;
                 }[];
               };
             };
-            settings?: {
-              [key: string]: {
-                shadow?: boolean;
-                /** @enum {string} */
-                points_to?: 'policy' | 'checks';
-                section?: string;
-                when_live?: string;
-              };
-            };
-            setting_sections?: {
-              id: string;
-              eyebrow: string;
-              title: string;
-              /** @enum {string} */
-              kind: 'input' | 'stage' | 'check' | 'person' | 'gate' | 'outcome';
-              /** @enum {string} */
-              icon:
-                | 'inbox'
-                | 'issue'
-                | 'order'
-                | 'search'
-                | 'scale'
-                | 'map'
-                | 'list'
-                | 'hammer'
-                | 'git-pull-request'
-                | 'check'
-                | 'flask'
-                | 'eye'
-                | 'sparkles'
-                | 'gavel'
-                | 'users'
-                | 'flag'
-                | 'rotate';
-            }[];
           };
         } | null;
         readFrom: {
@@ -12142,95 +12000,8 @@ export interface components {
         error: string;
       }[];
     };
-    FactoryPackSettings: {
-      pack: string;
-      declaration: {
-        path: string;
-        error: string | null;
-      } | null;
-      settingsFile: string;
-      sections: {
-        id: string;
-        eyebrow: string;
-        title: string;
-        /** @enum {string} */
-        kind: 'input' | 'stage' | 'check' | 'person' | 'gate' | 'outcome';
-        /** @enum {string} */
-        icon:
-          | 'inbox'
-          | 'issue'
-          | 'order'
-          | 'search'
-          | 'scale'
-          | 'map'
-          | 'list'
-          | 'hammer'
-          | 'git-pull-request'
-          | 'check'
-          | 'flask'
-          | 'eye'
-          | 'sparkles'
-          | 'gavel'
-          | 'users'
-          | 'flag'
-          | 'rotate';
-      }[];
-      settings: {
-        name: string;
-        description: string | null;
-        default: string | null;
-        /** @enum {string} */
-        type: 'string' | 'bool' | 'list' | 'enum';
-        shadow: boolean;
-        /** @enum {string|null} */
-        pointsTo: 'policy' | 'checks' | null;
-        section: string | null;
-        whenLive: string | null;
-      }[];
-      mapErrors: string[];
-      projects: {
-        codebaseId: string;
-        name: string;
-        error: string | null;
-        values: {
-          [key: string]:
-            | {
-                /** @enum {string} */
-                state: 'unset';
-              }
-            | {
-                /** @enum {string} */
-                state: 'empty';
-              }
-            | {
-                /** @enum {string} */
-                state: 'set';
-                value: string;
-                problem: string | null;
-                file: {
-                  display: string;
-                  full: string;
-                  /** @enum {string} */
-                  status: 'found' | 'missing' | 'unreadable';
-                  error: string | null;
-                  checks:
-                    | {
-                        name: string;
-                        run: string;
-                      }[]
-                    | null;
-                } | null;
-              };
-        };
-        undeclared: {
-          name: string;
-          value: string;
-        }[];
-      }[];
-    };
     FactoryDiscoveries: {
       pack: string;
-      shadow: boolean;
       unreadable: number;
       held: number;
       dropped: number;
@@ -12967,41 +12738,6 @@ export interface components {
             workflow: string;
             failedStep: string | null;
           }[];
-          shadows: {
-            workflow: string;
-            node: string;
-            round: number | null;
-            runId: string;
-            /** Format: date-time */
-            decidedAt: string;
-            read:
-              | {
-                  /** @enum {string} */
-                  reads: 'verdict';
-                  value: string;
-                  why: string | null;
-                }
-              | {
-                  /** @enum {string} */
-                  reads: 'checks';
-                  results: {
-                    name: string;
-                    passed: boolean;
-                    seconds: number | null;
-                    tail: string | null;
-                  }[];
-                }
-              | {
-                  /** @enum {string} */
-                  reads: 'lists';
-                  counts: number[];
-                  why: string | null;
-                }
-              | {
-                  /** @enum {string} */
-                  reads: 'unreadable';
-                };
-          }[];
           parked: {
             label: string;
             why: string | null;
@@ -13043,41 +12779,6 @@ export interface components {
             };
         costUsd: number | null;
         step: string | null;
-        shadows: {
-          workflow: string;
-          node: string;
-          round: number | null;
-          runId: string;
-          /** Format: date-time */
-          decidedAt: string;
-          read:
-            | {
-                /** @enum {string} */
-                reads: 'verdict';
-                value: string;
-                why: string | null;
-              }
-            | {
-                /** @enum {string} */
-                reads: 'checks';
-                results: {
-                  name: string;
-                  passed: boolean;
-                  seconds: number | null;
-                  tail: string | null;
-                }[];
-              }
-            | {
-                /** @enum {string} */
-                reads: 'lists';
-                counts: number[];
-                why: string | null;
-              }
-            | {
-                /** @enum {string} */
-                reads: 'unreadable';
-              };
-        }[];
         rounds: {
           max: number | null;
           rounds: {
@@ -13138,41 +12839,6 @@ export interface components {
             runId: string;
             workflow: string;
             failedStep: string | null;
-          }[];
-          shadows: {
-            workflow: string;
-            node: string;
-            round: number | null;
-            runId: string;
-            /** Format: date-time */
-            decidedAt: string;
-            read:
-              | {
-                  /** @enum {string} */
-                  reads: 'verdict';
-                  value: string;
-                  why: string | null;
-                }
-              | {
-                  /** @enum {string} */
-                  reads: 'checks';
-                  results: {
-                    name: string;
-                    passed: boolean;
-                    seconds: number | null;
-                    tail: string | null;
-                  }[];
-                }
-              | {
-                  /** @enum {string} */
-                  reads: 'lists';
-                  counts: number[];
-                  why: string | null;
-                }
-              | {
-                  /** @enum {string} */
-                  reads: 'unreadable';
-                };
           }[];
           parked: {
             label: string;

@@ -25,12 +25,12 @@ interface FoundChip {
 }
 
 /**
- * "would file N · held N · dropped N": every decision the drains made, a finding an item
- * covers since included. A shadow drain files nothing, so it would file.
+ * "filed N · held N · dropped N": every decision the drains made, a finding an item covers
+ * since included.
  */
 export function foundChips(read: FactoryDiscoveries): FoundChip[] {
   return [
-    { label: read.shadow ? 'would file' : 'filed', count: read.findings.length },
+    { label: 'filed', count: read.findings.length },
     { label: 'held', count: read.held },
     { label: 'dropped', count: read.dropped },
   ];

@@ -23,6 +23,38 @@ export function shippedView(): FactoryView {
   return factoryViewSchema.parse(JSON.parse(readFileSync(SHIPPED_VIEW_PATH, 'utf8')));
 }
 
+/**
+ * The shipped view with the loop-form rounds, returns, approvals and verdicts of `deliver`, the
+ * retired one-workflow delivery the item fixtures' runs come from. The shipped file no longer
+ * words deliver's rounds, but reading a loop's rounds is still the engine's to test.
+ */
+export function deliverRoundsView(): FactoryView {
+  const view = shippedView();
+  const verdict = 'rounds.verdict__verdict';
+  return factoryViewSchema.parse({
+    ...view,
+    rounds: [{ workflow: 'deliver', loop: 'rounds' }, ...[view.rounds ?? []].flat()],
+    returns: [
+      { workflow: 'deliver', node: verdict, outcome: 'return' },
+      { workflow: 'deliver', node: 'hostrounds.host__host', outcome: 'return' },
+      ...(view.returns ?? []),
+    ],
+    approves: [
+      { workflow: 'deliver', node: verdict, outcome: 'approve' },
+      ...(view.approves ?? []),
+    ],
+    verdicts: {
+      ...view.verdicts,
+      deliver: {
+        'rounds.review__review': { approve: 'approved', return: 'returned', ask: 'asked' },
+        'rounds.tests__tests': { sound: 'approved', return: 'returned', ask: 'asked' },
+        'rounds.product__product': { approve: 'approved', return: 'returned', ask: 'asked' },
+        [verdict]: { ask: 'asked' },
+      },
+    },
+  });
+}
+
 export interface RunFixture {
   run: WorkflowRun;
   events: WorkflowEventRow[];

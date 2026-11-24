@@ -19,11 +19,10 @@
  * The width holds a chip row of "2 here" and "1 needs you" (about 150 px) inside the padding,
  * so no chip row wraps. A card grows wider with its height, so it stays wider than tall.
  *
- * Fit width: the shipped map is five cards of 184 and four gaps sized to their pills
- * (72 "build, narrow" stacked, 65 "built", 65 "ready", 72 "merged"), 920 + 274 = 1194, plus
- * twice `FIT_PAD`: 1226 px. The Overview's frame at 1440x900 is narrower, so there the map
- * pans a little at zoom 1, opening at the row's start (Intake whole, Merged partly off the
- * right); at 1280x720 and on a phone it pans more.
+ * Fit width: the shipped map is five cards of 216 (Intake holds three stages: 72 + 3 x 48)
+ * and four gaps sized to their pills, about 1470 px. The Overview's frame at 1440x900 is
+ * narrower, so there the map pans at zoom 1, opening at the row's start (Intake whole, Merged
+ * off the right); at 1280x720 and on a phone it pans more.
  */
 export const CARD_W = 184;
 /** A card of one stage, and of two. */

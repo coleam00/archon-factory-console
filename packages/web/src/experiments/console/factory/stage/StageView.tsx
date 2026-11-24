@@ -15,7 +15,8 @@ import { useFactoryItems } from '../useFactoryItems';
 import { ItemsHere } from './StageItems';
 import { StageDrilldown } from './StageDrilldown';
 import { StageHandOffs } from './StageHandOffs';
-import { StageWorkflow } from './StageWorkflow';
+import type { MapStructure } from '../usePackGraph';
+import { StageSteps } from './StageSteps';
 
 type Declaration = FactoryViewListed['declaration'];
 
@@ -52,13 +53,14 @@ export function useStageTab(
 /**
  * One stage opened, as the Overview's modal shows it: its label and blurb, where items go from
  * it, then three tabs. "What this stage does" is the view file's summary, "Items here now" what
- * sits in it, and "The real workflow" the step graph of each workflow behind it. The
+ * sits in it, and "The real workflow" the steps of each workflow behind it, from the pack graph. The
  * caller holds the tab (`useStageTab`). `frame` lays out the head and the body; the modal
  * passes one that scrolls the body alone under a fixed head.
  */
 export function StageView({
   projectId,
   view,
+  structure,
   stage,
   live,
   titleId,
@@ -68,6 +70,8 @@ export function StageView({
 }: {
   projectId: string;
   view: Declaration;
+  /** The pack graph: the stage's steps and where items go from it. */
+  structure: MapStructure;
   stage: FactoryStage;
   /** The stage's items, as the map's chips read them. */
   live: StageRead;
@@ -88,7 +92,7 @@ export function StageView({
           <p className="max-w-3xl text-console-14 leading-relaxed text-text-secondary">
             {stage.blurb}
           </p>
-          <StageHandOffs view={view} stage={stage.id} />
+          <StageHandOffs view={view} arrows={structure.arrows} stage={stage.id} />
         </div>
         <StageTabs active={tab} onSelect={onTab} />
         <ItemsReadNotice items={items} />
@@ -98,6 +102,7 @@ export function StageView({
       <TabBody
         projectId={projectId}
         view={view}
+        structure={structure}
         stage={stage}
         live={live}
         tab={tab}
@@ -107,10 +112,11 @@ export function StageView({
   });
 }
 
-/** The open tab: the summary, the items, or the step graph of each workflow the pack runs now. */
+/** The open tab: the summary, the items, or the steps of each workflow the pack runs now. */
 function TabBody({
   projectId,
   view,
+  structure,
   stage,
   live,
   tab,
@@ -118,6 +124,7 @@ function TabBody({
 }: {
   projectId: string;
   view: Declaration;
+  structure: MapStructure;
   stage: FactoryStage;
   live: StageRead;
   tab: StageTab;
@@ -129,7 +136,7 @@ function TabBody({
   if (tab === 'workflow')
     return (
       <>
-        <p className={SOURCE}>Generated from the pack's workflow files; shows every step.</p>
+        <p className={SOURCE}>Read from the pack's graph; shows every step.</p>
         {workflows.length === 0 ? (
           <EmptyNote
             icon={GitMerge}
@@ -137,16 +144,13 @@ function TabBody({
             className="flex flex-col items-start gap-2 [contain:inline-size]"
           />
         ) : (
-          workflows.map(workflow => (
-            <StageWorkflow
-              key={workflow}
-              projectId={projectId}
-              view={view}
-              stage={stage}
-              workflow={workflow}
-              items={items}
-            />
-          ))
+          <StageSteps
+            projectId={projectId}
+            view={view}
+            stage={stage}
+            structure={structure}
+            items={items}
+          />
         )}
       </>
     );
@@ -167,7 +171,6 @@ function TabBody({
         <StageDrilldown
           projectId={projectId}
           view={view}
-          stage={stage}
           drilldown={stage.drilldown}
           items={items}
         />

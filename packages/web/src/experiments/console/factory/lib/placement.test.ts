@@ -29,12 +29,11 @@ const failed = (wf: string, step: string | null = null) => run(wf, 'failed', nul
 const ready = done('deliver', 'ready');
 const closed = done('triage', 'close');
 const testing = going('deliver', 'rounds.tests__tests');
-const between = going('deliver', 'rounds');
 type At = { merged?: PlacementInput['merged']; previous?: string };
 type Row = [rule: string, runs: PlacementRun[], expected: string, at?: At];
 const TRIAGE_VERBS = [
-  ['build', 'plan'],
-  ['narrow', 'plan'],
+  ['build', 'link'],
+  ['narrow', 'link'],
   ['park', 'triage'],
   ['close', 'ended: Closed by triage'],
   ['decline', 'ended: Closed by triage'],
@@ -46,17 +45,15 @@ const TRIAGE_VERBS = [
 // Rules 1-6 of DESIGN.md's placement, first that matches, over the shipped view.
 const RULES: Row[] = [
   [
-    '1 the stage of the running step',
+    '1 the first stage listing the workflow',
     [done('plan', 'planned'), testing],
-    'checks',
+    'build',
     { merged: true },
   ],
-  ['1 an unnamed step keeps a column listing it', [between], 'checks', { previous: 'checks' }],
-  ['1 an unnamed step, column not listing it', [between], 'build', { previous: 'triage' }],
   [
     '1 a running run beats a pending merge',
     [ready, testing],
-    'checks',
+    'build',
     { merged: 'pending', previous: 'landed' },
   ],
   ['2 merged', [ready], 'landed', { merged: true }],
@@ -70,6 +67,11 @@ const RULES: Row[] = [
   ['3 a running drain stays ready', [ready, going('discoveries'), done('landgate')], 'ready'],
   ['3 an order running', [going('order', 'order')], 'order'],
   ['3 an order ready', [done('order', 'ready')], 'triage'],
+  [
+    '3 an outcome nothing takes keeps the item',
+    [done('stage-build', 'built'), done('link', 'none')],
+    'checks',
+  ],
   ['4 an order refused', [done('order', 'refused')], 'ended: Refused at intake'],
   ['4 an exact ending key', [done('plan', 'stop')], 'ended: Stopped at planning'],
   ...TRIAGE_VERBS.map(([verb, place]): Row => [`4 triage ${verb}`, [done('triage', verb)], place]),
@@ -79,8 +81,7 @@ const RULES: Row[] = [
   ['4 exact ending, newer pending run', [done('plan', 'stop'), run('plan', 'pending')], 'order'],
   ['3 before 5: deliver waiting', [done('deliver', 'waiting'), failed('deliver')], 'host'],
   ['3 before 5: plan planned', [done('plan', 'planned'), failed('triage')], 'build'],
-  ['5 the stage naming the failed step', [failed('deliver', 'rounds.review__review')], 'checks'],
-  ['5 an unnamed failed step', [failed('deliver', 'rounds')], 'build'],
+  ['5 the first stage listing the workflow', [failed('deliver', 'rounds.review__review')], 'build'],
   ['5 cancelled', [run('triage', 'cancelled')], 'triage'],
   ['6 no runs', [], 'order'],
   ['6 undeclared runs do not count', [going(null, 'build__build')], 'order'],
@@ -115,7 +116,7 @@ describe('placing real items', () => {
 
   test('every item of the items read sits in its column', () => {
     expect(PAGE.items.map(item => [item.item.key, where(pageItemColumn(VIEW, item))])).toEqual([
-      ['8', 'checks'],
+      ['8', 'build'],
       ['5', 'build'],
       ['4', 'build'],
       ['6', 'build'],
@@ -144,7 +145,7 @@ describe('placing real items', () => {
       return item;
     };
     expect(at(unmerged('shipit'))).toBe('ready');
-    // The old name places nothing now: the first stage.
-    expect(at(unmerged('ready'))).toBe('order');
+    // The old name places nothing now: the item stays where its earlier runs put it.
+    expect(at(unmerged('ready'))).toBe('build');
   });
 });

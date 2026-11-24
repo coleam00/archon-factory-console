@@ -6,7 +6,6 @@ import type { FactoryDiscoveries } from '../../skills/factory';
  */
 export const DISCOVERIES: FactoryDiscoveries = {
   pack: 'Wirasm/archon-software-factory',
-  shadow: true,
   unreadable: 1,
   held: 10,
   dropped: 16,

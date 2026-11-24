@@ -19,11 +19,10 @@ import {
   pageItemColumn,
   pagePlacementInput,
   stageIdOf,
-  stoppedStage,
+  stageOfWorkflow,
   UNPLACED_LABEL,
   type ItemColumn,
 } from './placement';
-import { boardShadowLine, type ShadowWords } from './shadows';
 import { bySinceNewest, setAsideOf, type SetAside, type SetAsideReason } from './set-aside';
 import { roundsSources, runLine, stoppedLine, type RunLine } from './step-label';
 import type { FactoryStage } from './stage-steps';
@@ -103,11 +102,6 @@ export interface BoardCard {
   stopCount: string | null;
   /** The key of the work order the item is part of (`membershipOf`); null when none. */
   order: string | null;
-  /**
-   * What a shadow step of the item's stage would have done, as `boardShadowLine` picks it
-   * ("would ask you first"); null when none decided, and on a card a run works now.
-   */
-  shadow: ShadowWords | null;
 }
 
 /** The item page's path. */
@@ -212,7 +206,6 @@ export function cardFields(
     mergedAt: landed && mergedAt !== null ? formatDateTime(mergedAt) : null,
     stopLine,
     order,
-    shadow: boardShadowLine(item, stage, view),
   };
 }
 
@@ -261,7 +254,7 @@ export function itemPill(
     .runs.filter(run => run.workflow !== null)
     .at(-1);
   if (last?.workflow != null && isStopped(last.status)) {
-    const label = stoppedStage(view, last.workflow, last.failedStep)?.label ?? placed ?? 'The run';
+    const label = stageOfWorkflow(view, last.workflow)?.label ?? placed ?? 'The run';
     return of('failed', stoppedLine(view, last, label));
   }
   const awaits = item.progress?.awaits;

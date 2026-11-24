@@ -41,11 +41,13 @@ jobs:
       # The reopen test guards `dev:console --reopen-asks`, which rewrites the scratch copy's asks.
       - name: Ask card answer-rule parity and console reopen-asks
         run: bun test ./scripts/attention-answer-parity.test.ts ./scripts/console-reopen-asks.test.ts
-      # The factory view's schema and coverage check. The coverage test shares the step-stage
-      # fixture with the web placement test, which keeps their two placement rules in agreement.
-      - name: Factory view schema and coverage
-        run: bun test src/schemas/factory-view src/factory-view-coverage.test.ts
+      # The factory view's schemas, and `bun run check:factory-view`'s own tests (the check itself
+      # runs in validate's generated-files group).
+      - name: Factory view schemas
+        run: bun test src/schemas/factory-view src/schemas/factory-overview
         working-directory: packages/workflows
+      - name: Factory view check
+        run: bun test ./scripts/check-factory-view.test.ts ./scripts/factory-view-names.test.ts
       - name: Web build
         run: bun run build:web
 

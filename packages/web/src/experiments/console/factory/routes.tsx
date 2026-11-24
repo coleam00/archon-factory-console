@@ -4,8 +4,6 @@ import { BoardPage } from './BoardPage';
 import { FactoryNotFound } from './FactoryNotFound';
 import { FactoryPage } from './FactoryPage';
 import { ItemPage } from './ItemPage';
-import { StepPage } from './StepPage';
-import { ProjectSettingsPage } from './settings/ProjectSettingsPage';
 
 /**
  * The Factory section's routes, a child of the project's route (`projectRoutes`), whose
@@ -17,9 +15,7 @@ export function factoryRoutes(): ReactElement {
     <Route path="factory">
       <Route index element={<FactoryPage />} />
       <Route path="board" element={<BoardPage />} />
-      <Route path="settings" element={<ProjectSettingsPage />} />
       <Route path="items/:key" element={<ItemPage />} />
-      <Route path="steps/:workflow/:node" element={<StepPage />} />
       <Route path="*" element={<FactoryNotFound />} />
     </Route>
   );

@@ -12,14 +12,12 @@ const panels = (detail: FactoryItemDetail): string[] =>
   );
 
 describe('storyVisits', () => {
-  test('item 111: one deliver run splits into Build, Checks (its fix folded in), CI and review; the drain is on none', () => {
+  test('item 111: its one deliver run is one Build panel; the drain is on none', () => {
     expect(panels(itemDetail('111'))).toEqual([
       'Order 1+0',
       'Triage 1+0',
       'Plan 1+0',
       'Build 1+0',
-      'Checks 1+1',
-      'CI and review 1+0',
       'Ready to merge 1+0',
     ]);
   });
@@ -40,20 +38,6 @@ describe('storyVisits', () => {
       'CI and review 2+1',
       'Ready to merge 2+0',
       'Merged 1+0',
-    ]);
-  });
-
-  test("item 113: a run's closing steps do not move it out of the stage it worked", () => {
-    // The first delivery built, then ran its closing steps (declared on CI and review) to ask:
-    // it stays on Build, beside the delivery the answer started.
-    expect(panels(itemDetail('113'))).toEqual([
-      'Order 1+0',
-      'Triage 1+0',
-      'Plan 1+0',
-      'Build 2+0',
-      'Checks 1+0',
-      'CI and review 1+0',
-      'Ready to merge 1+0',
     ]);
   });
 });

@@ -5,16 +5,12 @@ import { displayKeyOf } from '../lib/work-orders';
 import type { EntityView } from '../../store/cache';
 import { drilldownLive, type DrilldownLive, type FactoryDrilldown } from '../lib/drilldown-live';
 import type { ItemOnStep } from '../lib/items-on-step';
-import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed } from '../lib/views';
-import { cardShadows, recentTally } from '../lib/shadows';
-import { RUNNING_GLOW } from '../StepGraph';
 import { DrilldownCard } from './DrilldownCard';
 
 type Declaration = FactoryViewListed['declaration'];
 
 const NOTHING: readonly ItemOnStep[] = [];
-const NO_ITEMS: readonly FactoryItem[] = [];
 
 /** A phase column's widest, so a one-phase stage does not stretch a card across the page. */
 export const PHASE_COLUMN_REM = 20;
@@ -31,18 +27,16 @@ export const PHASE_GAP_REM = 1;
 /**
  * A stage told as its drill-down: numbered phases of plain cards, left to right, with the
  * loop drawn as one labelled frame around the phases it repeats. A card glows and names the
- * items on a step it covers now; clicking it opens the step page of the step it stands for.
+ * items on a step it covers now. A card is plain text: there is no step page.
  */
 export function StageDrilldown({
   projectId,
   view,
-  stage,
   drilldown,
   items,
 }: {
   projectId: string;
   view: Declaration;
-  stage: FactoryStage;
   drilldown: FactoryDrilldown;
   items: EntityView<FactoryItem[]>;
 }): ReactElement {
@@ -60,10 +54,8 @@ export function StageDrilldown({
       index={p}
       view={view}
       projectId={projectId}
-      stageId={stage.id}
       drilldown={drilldown}
       live={live}
-      items={items.data ?? NO_ITEMS}
       besideLoop={besideLoop}
     />
   );
@@ -97,20 +89,15 @@ function Phase({
   index,
   view,
   projectId,
-  stageId,
   drilldown,
   live,
-  items,
   besideLoop,
 }: {
   index: number;
   view: Declaration;
   projectId: string;
-  stageId: string;
   drilldown: FactoryDrilldown;
   live: DrilldownLive | undefined;
-  /** Every item read, for what a shadow step decided lately; empty before the first read. */
-  items: readonly FactoryItem[];
   /**
    * Beside a loop frame: in its own column of the row, its header padded level with the
    * framed phases' headers, which sit inside the frame's border and padding.
@@ -141,30 +128,12 @@ function Phase({
           key={c}
           view={view}
           projectId={projectId}
-          stageId={stageId}
           card={card}
           onCard={live?.cards[index]?.[c] ?? NOTHING}
-          shadow={shadowOfCard(card, view, items)}
         />
       ))}
     </section>
   );
-}
-
-/** A card's shadow marking and its recent decisions; null when it covers no shadow step. */
-function shadowOfCard(
-  card: FactoryDrilldown['phases'][number]['cards'][number],
-  view: Declaration,
-  items: readonly FactoryItem[]
-): { lately: string[] } | null {
-  const shadows = cardShadows(card, view);
-  if (shadows.length === 0) return null;
-  return {
-    lately: shadows.flatMap(shadow => {
-      const tally = recentTally(items, [shadow]);
-      return tally === null ? [] : [tally];
-    }),
-  };
 }
 
 /**
@@ -205,7 +174,7 @@ function LoopFrame({
           borderColor: 'color-mix(in oklch, var(--node-loop), transparent 30%)',
           // The glow's ring and border only: the label keeps its solid backing over the line.
           ...(glows
-            ? { borderColor: RUNNING_GLOW.borderColor, boxShadow: RUNNING_GLOW.boxShadow }
+            ? { borderColor: 'var(--running-border)', boxShadow: 'var(--running-ring)' }
             : {}),
         }}
       >

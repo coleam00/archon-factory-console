@@ -72,22 +72,8 @@
             "label": "Follow up",
             "cards": [
               {
-                "title": "Link",
-                "text": "Links the item to related items",
-                "icon": "link",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "triage",
-                    "steps": [
-                      "link__link"
-                    ]
-                  }
-                ]
-              },
-              {
                 "title": "Would it start on its own",
-                "text": "Decides whether it would start without you; nothing acts on it",
+                "text": "Decides whether it would start without you",
                 "icon": "ruler",
                 "kind": "agent",
                 "covers": [
@@ -152,6 +138,77 @@
       }
     },
     {
+      "id": "link",
+      "label": "Link",
+      "blurb": "Finds how the item relates to the project's other work, and holds it until what it depends on has landed.",
+      "short": "What does it wait on?",
+      "group": "intake",
+      "workflows": [
+        "link"
+      ],
+      "drilldown": {
+        "phases": [
+          {
+            "label": "Read the order",
+            "cards": [
+              {
+                "title": "Read the order",
+                "text": "Reads what the order says about the item and its work order",
+                "icon": "clipboard-list",
+                "kind": "script",
+                "covers": [
+                  {
+                    "workflow": "link",
+                    "steps": [
+                      "given"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "label": "Link",
+            "cards": [
+              {
+                "title": "Link",
+                "text": "Links the item to related items, and decides whether it can be built now or waits",
+                "icon": "link",
+                "kind": "agent",
+                "covers": [
+                  {
+                    "workflow": "link",
+                    "steps": [
+                      "link"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "label": "Hand on",
+            "cards": [
+              {
+                "title": "Hand on",
+                "text": "Hands the item to planning, or leaves it waiting",
+                "icon": "send",
+                "kind": "script",
+                "covers": [
+                  {
+                    "workflow": "link",
+                    "steps": [
+                      "end"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "plan",
       "label": "Plan",
       "blurb": "Works out how to build the item and writes the plan down.",
@@ -193,11 +250,6 @@
       "workflows": [
         "deliver",
         "stage-build"
-      ],
-      "nodes": [
-        "build__build",
-        "rounds.fix",
-        "hostrounds.hostfix"
       ],
       "drilldown": {
         "phases": [
@@ -249,18 +301,7 @@
       "short": "Review, tests, product",
       "group": "check",
       "workflows": [
-        "deliver",
         "stage-check"
-      ],
-      "nodes": [
-        "rounds.base",
-        "rounds.review__review",
-        "rounds.tests__tests",
-        "rounds.product__product",
-        "rounds.checks",
-        "rounds.verdict__verdict",
-        "rounds.shown",
-        "exhausted"
       ],
       "drilldown": {
         "phases": [
@@ -420,13 +461,7 @@
       "short": "Reads CI and PR reviews",
       "group": "check",
       "workflows": [
-        "deliver",
         "stage-host"
-      ],
-      "nodes": [
-        "hostrounds.host__host",
-        "result",
-        "reported"
       ],
       "drilldown": {
         "phases": [
@@ -652,10 +687,11 @@
     {
       "id": "intake",
       "label": "Intake",
-      "blurb": "Order, triage",
+      "blurb": "Order, triage, link",
       "stages": [
         "order",
-        "triage"
+        "triage",
+        "link"
       ]
     },
     {
@@ -698,8 +734,8 @@
   ],
   "placement": {
     "order:ready": "triage",
-    "triage:build": "plan",
-    "triage:narrow": "plan",
+    "triage:build": "link",
+    "triage:narrow": "link",
     "triage:park": "triage",
     "plan:planned": "build",
     "plan:ask": "plan",
@@ -731,7 +767,9 @@
     "triage:shape": "triage",
     "close:reshape": "triage",
     "close:not_closed": "ready",
-    "close:none": "ready"
+    "close:none": "ready",
+    "link:place": "plan",
+    "link:waiting": "link"
   },
   "endings": {
     "order:refused": "Refused at intake",
@@ -744,16 +782,15 @@
     "plan:stop": "Stopped at planning",
     "land:stop": "Stopped before merging",
     "split:split": "Split into pieces",
-    "close:dropped": "Dropped by you"
+    "close:dropped": "Dropped by you",
+    "link:fold": "Folded into another item",
+    "link:dropped": "Dropped by link",
+    "order:work_order": "Ordered as a work order"
   },
   "landed": {
     "stage": "landed"
   },
   "rounds": [
-    {
-      "workflow": "deliver",
-      "loop": "rounds"
-    },
     {
       "workflow": "stage-check",
       "round": "/round",
@@ -761,16 +798,6 @@
     }
   ],
   "returns": [
-    {
-      "workflow": "deliver",
-      "node": "rounds.verdict__verdict",
-      "outcome": "return"
-    },
-    {
-      "workflow": "deliver",
-      "node": "hostrounds.host__host",
-      "outcome": "return"
-    },
     {
       "workflow": "stage-check",
       "node": "verdict__verdict",
@@ -784,37 +811,12 @@
   ],
   "approves": [
     {
-      "workflow": "deliver",
-      "node": "rounds.verdict__verdict",
-      "outcome": "approve"
-    },
-    {
       "workflow": "stage-check",
       "node": "verdict__verdict",
       "outcome": "approve"
     }
   ],
   "verdicts": {
-    "deliver": {
-      "rounds.review__review": {
-        "approve": "approved",
-        "return": "returned",
-        "ask": "asked"
-      },
-      "rounds.tests__tests": {
-        "sound": "approved",
-        "return": "returned",
-        "ask": "asked"
-      },
-      "rounds.product__product": {
-        "approve": "approved",
-        "return": "returned",
-        "ask": "asked"
-      },
-      "rounds.verdict__verdict": {
-        "ask": "asked"
-      }
-    },
     "stage-check": {
       "review__review": {
         "approve": "approved",
@@ -836,16 +838,6 @@
       }
     }
   },
-  "asked": [
-    "plan:ask",
-    "deliver:ask",
-    "land:ask",
-    "stage-build:ask",
-    "stage-check:ask",
-    "stage-host:ask",
-    "landgate:ask",
-    "split:waiting"
-  ],
   "parked": {
     "triage:park": {
       "label": "Parked by triage",
@@ -902,7 +894,6 @@
   },
   "discoveries": {
     "workflow": "discoveries",
-    "shadow": true,
     "filed": "/filed",
     "held": "/held",
     "dropped": "/dropped",
@@ -912,88 +903,17 @@
       "verified": "/verified"
     }
   },
-  "shadows": [
-    {
-      "workflow": "triage",
-      "node": "admit",
-      "label": "Would it start on its own",
-      "reads": "verdict",
-      "pointer": "/admit",
-      "why": "/why",
-      "words": {
-        "auto": "would start on its own",
-        "ask": "would ask you first"
-      }
-    },
-    {
-      "workflow": "deliver",
-      "node": "rounds.checks",
-      "label": "Project checks",
-      "reads": "checks",
-      "results": "/results",
-      "entry": {
-        "name": "/name",
-        "passed": "/passed",
-        "seconds": "/seconds",
-        "tail": "/tail"
-      }
-    },
-    {
-      "workflow": "discoveries",
-      "node": "result",
-      "label": "What it would file",
-      "reads": "lists",
-      "lists": [
-        {
-          "pointer": "/filed",
-          "words": "would file"
-        },
-        {
-          "pointer": "/folded",
-          "words": "would fold into open items"
-        },
-        {
-          "pointer": "/held",
-          "words": "would hold"
-        },
-        {
-          "pointer": "/dropped",
-          "words": "would drop"
-        }
-      ],
-      "why": "/summary"
-    }
-  ],
   "itemTitle": {
     "input": "item"
   },
   "steps": {
     "triage": {
       "judge__judge": "Decides whether to build",
-      "link__link": "Links related items",
       "admit": "Would it start on its own",
       "admitted": "Records the admit measurement"
     },
     "plan": {
       "plan": "Writes the plan"
-    },
-    "deliver": {
-      "build__build": "Writes the change",
-      "rounds": "Check rounds",
-      "rounds.fix": "Fixes what came back",
-      "rounds.base": "Reads the base commit",
-      "rounds.review__review": "Code review",
-      "rounds.tests__tests": "Test check",
-      "rounds.product__product": "Product check",
-      "rounds.checks": "Project checks",
-      "rounds.verdict__verdict": "Verdict",
-      "rounds.shown": "Posts the review",
-      "exhausted": "Rounds ran out",
-      "hostrounds": "CI and review rounds",
-      "hostrounds.hostfix": "Fixes what CI and reviews raised",
-      "hostrounds.host__host": "Reads CI and PR reviews",
-      "result": "Decides how delivery ends",
-      "reported": "Reports the ending"
     },
     "split": {
       "cut": "Decides how to split it",
@@ -1032,6 +952,11 @@
     },
     "close": {
       "close": "Carries out drop or reshape"
+    },
+    "link": {
+      "given": "Reads the order",
+      "link": "Links related items",
+      "end": "Hands the item on"
     }
   },
   "story": {
@@ -1090,13 +1015,13 @@
         "withoutChange": "You sent it back to shaping before a change was proposed"
       },
       "close:not_closed": "The factory could not carry out your drop or reshape on the change; do it by hand",
-      "close:none": "Drop or reshape found no drop or reshape answer and did nothing"
-    },
-    "steps": {
-      "deliver": {
-        "build__build": "Build wrote the change",
-        "hostrounds.host__host": "CI and the reviews were read"
-      }
+      "close:none": "Drop or reshape found no drop or reshape answer and did nothing",
+      "link:place": "Link found what it relates to and sent it on to planning",
+      "link:waiting": "Link is holding it until what it depends on has landed",
+      "link:fold": "Link folded it into another item",
+      "link:dropped": "Link dropped it",
+      "link:none": "Link found it was not waiting, and changed nothing",
+      "order:work_order": "Order took the work order and ordered its pieces"
     },
     "said": [
       "/summary",
@@ -1144,6 +1069,9 @@
         "stage": "triage"
       },
       {
+        "stage": "link"
+      },
+      {
         "stage": "plan"
       },
       {
@@ -1170,8 +1098,18 @@
       },
       {
         "from": "triage",
-        "to": "plan",
+        "to": "link",
         "label": "build, narrow"
+      },
+      {
+        "from": "link",
+        "to": "plan",
+        "label": "placed"
+      },
+      {
+        "from": "triage",
+        "to": "plan",
+        "label": "kept whole"
       },
       {
         "from": "plan",
@@ -1211,8 +1149,7 @@
       {
         "from": "host",
         "to": "plan",
-        "label": "replan",
-        "person": true
+        "label": "replan"
       },
       {
         "from": "plan",
@@ -1222,8 +1159,7 @@
       {
         "from": "ready",
         "to": "ready",
-        "label": "land, drop or reshape",
-        "person": true
+        "label": "land, drop or reshape"
       },
       {
         "from": "triage",
@@ -1232,6 +1168,11 @@
       },
       {
         "from": "triage",
+        "to": "order",
+        "label": "pieces"
+      },
+      {
+        "from": "order",
         "to": "order",
         "label": "pieces"
       },
@@ -1253,20 +1194,17 @@
       {
         "from": "build",
         "to": "build",
-        "label": "answers",
-        "person": true
+        "label": "answers"
       },
       {
         "from": "build",
         "to": "plan",
-        "label": "replan",
-        "person": true
+        "label": "replan"
       },
       {
         "from": "checks",
         "to": "plan",
-        "label": "replan",
-        "person": true
+        "label": "replan"
       },
       {
         "from": "build",
@@ -1277,6 +1215,11 @@
         "from": "checks",
         "to": "ready",
         "label": "drop or reshape"
+      },
+      {
+        "from": "link",
+        "to": "link",
+        "label": "answers"
       }
     ],
     "notes": [

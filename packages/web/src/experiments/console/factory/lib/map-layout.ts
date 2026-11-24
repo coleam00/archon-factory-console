@@ -5,7 +5,8 @@
  * order; a column left with none is not drawn. They sit in one row, left to right, always:
  * where the row does not fit its frame, the map pans (`map-camera.ts`).
  *
- * The arrows are the view file's `map.arrows` and no others, drawn between cards:
+ * The arrows are the pack graph's, projected onto the view's stages (`mapArrows`) with the view
+ * file's words, drawn between cards:
  *
  * - An arrow between two cards takes its direction from card order: into an earlier card, it
  *   is a send-back; into a later one, a forward hand-off. Stages order does not decide it,
@@ -17,7 +18,7 @@
  *   first outcome and how many more ("built +2"), every outcome kept in `outcomes` for the
  *   map's tip (`MapPillTips`). One that would skip cards gets no route of its own: its
  *   outcomes join the label of the hand-off from its source card to the next, as
- *   "<outcome> → <target card>", and when no such hand-off is declared, one is drawn for it.
+ *   "<outcome> → <target card>", and when there is no such hand-off, one is drawn for it.
  * - Forward hand-offs between one pair of cards are one line, their outcomes joined, each once.
  * - Every send-back is drawn in the one feedback lane under the row (`map-feedback-lane.ts`).
  *
@@ -28,6 +29,7 @@ import { boardColumns, type ColumnTone } from './board-columns';
 import { feedbackLane, type FeedbackLane, type LaneCard, type SendBack } from './map-feedback-lane';
 import { cardSize, GAP_MIN, LANE, PILL_CLEAR, PILL_GAP, PILL_LINE } from './map-sizes';
 import { pillWidth, PILL_H } from './overview-layout';
+import type { MapArrow } from './graph-structure';
 import { isSendBack, type Seat } from './stage-direction';
 import type { FactoryViewListed } from './views';
 
@@ -61,7 +63,7 @@ export interface PlacedCard extends MapCardDecl {
 
 /** A forward hand-off between two neighbouring cards. */
 export interface ArrowPath {
-  /** Unique on the map: `decl:<index>` of the first declared arrow it draws. */
+  /** Unique on the map: `decl:<index>` of the first arrow it draws. */
   id: string;
   /** The cards it joins, by card id. */
   from: string;
@@ -108,9 +110,9 @@ interface Forward {
   parts: string[];
 }
 
-/** The declared arrows sorted into forward hand-offs and send-backs, by the rules above. */
+/** The arrows sorted into forward hand-offs and send-backs, by the rules above. */
 function sortArrows(
-  view: Declaration,
+  arrows: readonly MapArrow[],
   cards: readonly MapCardDecl[]
 ): { forward: Forward[]; sendBacks: SendBack[] } {
   const seats = new Map<string, Seat>();
@@ -119,7 +121,7 @@ function sortArrows(
   });
   const forward = new Map<number, Forward>();
   const sendBacks: SendBack[] = [];
-  view.map.arrows.forEach((arrow, index) => {
+  arrows.forEach((arrow, index) => {
     const a = seats.get(arrow.from);
     const b = seats.get(arrow.to);
     if (a === undefined || b === undefined) return;
@@ -163,7 +165,7 @@ function pillOf(parts: readonly string[]): { lines: string[]; w: number; h: numb
       : parts.map((part, i) => (i < parts.length - 1 ? `${part},` : part));
   return {
     lines,
-    w: Math.max(...lines.map(line => pillWidth(line, false))),
+    w: Math.max(...lines.map(line => pillWidth(line))),
     h: PILL_H + PILL_LINE * (lines.length - 1),
   };
 }
@@ -177,10 +179,10 @@ function boundsOf(boxes: readonly Box[]): Box {
   return { x: left, y: top, w: right - left, h: lowest - top };
 }
 
-/** The map's cards, lines, pills and bounds. */
-export function layoutMap(view: Declaration): MapLayout {
+/** The map's cards, lines, pills and bounds, for the arrows the pack graph draws (`mapArrows`). */
+export function layoutMap(view: Declaration, drawn: readonly MapArrow[]): MapLayout {
   const decls = mapCards(view);
-  const { forward, sendBacks } = sortArrows(view, decls);
+  const { forward, sendBacks } = sortArrows(drawn, decls);
   const size = cardSize(Math.max(0, ...decls.map(card => card.stages.length)));
   const pills = new Map(forward.map(entry => [entry.left, pillOf(entry.parts)]));
   const cards: PlacedCard[] = [];

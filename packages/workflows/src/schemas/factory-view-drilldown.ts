@@ -18,8 +18,8 @@ interface DrilldownView {
 
 /**
  * A drill-down tells its own stage: each card covers, and its loop names, a workflow the
- * stage lists, and the loop spans phases it has. Whether a step is real only the coverage
- * check can say, from the pack's workflows.
+ * stage lists, and the loop spans phases it has. Whether a step is real only
+ * `bun run check:factory-view` can say, from the pack graph.
  */
 export function drilldownIssues(view: DrilldownView): Issue[] {
   const issues: Issue[] = [];

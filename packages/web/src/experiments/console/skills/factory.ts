@@ -66,13 +66,3 @@ export async function getFactoryDiscoveries(
 ): Promise<FactoryDiscoveries> {
   return requestJson('/api/factory/discoveries', 'get', { query: opts, signal: init.signal });
 }
-
-export type FactoryPackSettings = components['schemas']['FactoryPackSettings'];
-
-/** A pack's declared settings, in its order, and what each project that runs it sets. */
-export async function getFactoryPackSettings(
-  opts: QueryParams<'/api/factory/pack-settings', 'get'>,
-  init: { signal?: AbortSignal } = {}
-): Promise<FactoryPackSettings> {
-  return requestJson('/api/factory/pack-settings', 'get', { query: opts, signal: init.signal });
-}

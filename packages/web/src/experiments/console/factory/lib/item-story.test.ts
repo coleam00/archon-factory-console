@@ -31,7 +31,7 @@ function oneRun(workflow: string, run: Partial<ItemRun>): FactoryItemDetail {
       ...run,
     },
   ];
-  base.runs = [{ ...facts, runId: 'r1', workflow, steps: [], shadows: [], said: null }];
+  base.runs = [{ ...facts, runId: 'r1', workflow, steps: [], said: null }];
   base.item.progress = { ...base.item.progress, parked: null, runs: [] };
   return base;
 }
@@ -128,7 +128,7 @@ describe("the console's clauses", () => {
   });
 });
 
-describe('a run that works several stages tells its own facts once, on its last panel', () => {
+describe('a deliver run tells its facts on its one Build panel', () => {
   /** Item 111 cut after its deliver run, which ends so. */
   function delivered(run: Partial<ItemRun>, answered = false): FactoryItemDetail {
     const detail = structuredClone(itemDetail('111'));
@@ -146,55 +146,19 @@ describe('a run that works several stages tells its own facts once, on its last 
   const deliverPanels = (detail: FactoryItemDetail) =>
     stagePanels(detail).filter(panel => ['build', 'checks', 'host'].includes(panel.stage.id));
 
-  test('an answered ask: on the last panel only, with its "you said"', () => {
+  test('an answered ask: on its panel, with its "you said"', () => {
     const panels = deliverPanels(delivered({ outcome: 'ask' }, true));
     expect(panels.map(panel => [panel.stage.id, panel.answered.length, panel.youSaid])).toEqual([
-      ['build', 0, null],
-      ['checks', 0, null],
-      ['host', 1, 'Send back'],
+      ['build', 1, 'Send back'],
     ]);
-    // Open asks of the run show in that panel alone.
-    expect(panels.map(panel => panel.runIds.length)).toEqual([0, 0, 1]);
   });
 
-  test("a stopped run reads on its last panel as its board card's stop line reads", () => {
+  test("a stopped run reads on its panel as its board card's stop line reads", () => {
     for (const status of ['failed', 'cancelled'] as const) {
       const detail = delivered({ status, outcome: null });
       const { stopLine } = itemPill(shippedView, detail.item, false);
       expect(deliverPanels(detail).at(-1)?.sentence.text).toBe(stopLine ?? undefined);
     }
-  });
-});
-
-describe('a loop-form delivery in its fix step', () => {
-  /** Item 111's deliver cut after its first round, now in `rounds.fix` (Build (2)), ended so. */
-  function inFix(run: Partial<ItemRun>): FactoryItemDetail {
-    const detail = structuredClone(itemDetail('111'));
-    const at = detail.item.runs.findIndex(entry => entry.id.startsWith('aba8f7aa'));
-    const deliver = detail.item.runs[at];
-    const facts = detail.runs.find(entry => entry.runId === deliver?.id);
-    if (deliver === undefined || facts === undefined || facts.rounds === null)
-      throw new Error('111 delivered');
-    if (detail.item.progress === null) throw new Error('111 has progress');
-    const cut = facts.steps.findIndex(step => step.node === 'rounds.fix');
-    facts.steps = facts.steps.slice(0, cut + 1);
-    facts.rounds = { ...facts.rounds, rounds: facts.rounds.rounds.slice(0, 1) };
-    facts.shadows = [];
-    Object.assign(deliver, { completedAt: null, outcome: null }, run);
-    detail.item.runs = detail.item.runs.slice(0, at + 1);
-    detail.item.progress = { ...detail.item.progress, change: null, running: null };
-    detail.item.answers = [];
-    return detail;
-  }
-  test("running its fix: the first Build says what it did; Checks keeps its round's reason", () => {
-    const panels = stagePanels(inFix({ status: 'running' }));
-    expect(panels.map(panel => panel.key).slice(-3)).toEqual(['build:1', 'checks:1', 'build:2']);
-    expect(panels.find(panel => panel.key === 'build:1')?.sentence.text).toBe(
-      'Build wrote the change'
-    );
-    const checks = panels.find(panel => panel.key === 'checks:1');
-    expect(checks?.sentence.text).toBe('Checks sent it back');
-    expect(checks?.reason?.full).toStartWith('Return.');
   });
 });
 

@@ -35,8 +35,6 @@ export interface FlowMove {
   points: Point[];
   start: number;
   end: number;
-  /** Along a shadow line: drawn in the shadow colour. */
-  shadow: boolean;
 }
 
 interface FlowGlow {
@@ -102,7 +100,6 @@ export function overviewFlow(
     points: leg.points,
     start: 0,
     end: t,
-    shadow: start.shadow,
   }));
   const glows: FlowGlow[] = [];
 
@@ -160,5 +157,4 @@ const pick = (edge: OverviewLayout['edges'][number]) => ({
   from: edge.from,
   to: edge.to,
   points: edge.points,
-  shadow: edge.shadow,
 });

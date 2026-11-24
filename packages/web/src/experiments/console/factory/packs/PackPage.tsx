@@ -9,8 +9,7 @@ import { PackLookup, packHeading } from './PackLookup';
  * `/console/factory/:pack/how-it-works`: How it works for one pack, from the overview file the
  * server chose (the pack's own, else a project's copy, said behind the header's Source toggle).
  * A pack explains the factory on every project that runs it, so its page lives in the sidebar,
- * not in a project, and names none (owner change of 2026-11-23): a project's own setup is that
- * project's Factory Settings page.
+ * not in a project, and names none (owner change of 2026-11-23).
  */
 export function PackPage(): ReactElement {
   return <PackLookup render={pack => <HowItWorks pack={pack} />} />;

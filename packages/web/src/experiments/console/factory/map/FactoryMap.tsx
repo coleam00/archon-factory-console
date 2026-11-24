@@ -6,11 +6,15 @@ import type { FactoryItem } from '../../skills/factory';
 import { StaleRead } from '../StaleRead';
 import { useFactoryItems } from '../useFactoryItems';
 import { layoutMap } from '../lib/map-layout';
+import type { MapArrow } from '../lib/graph-structure';
+import { readFailure } from '../lib/read-failure';
+import { GraphSkeleton } from '../GraphSkeleton';
+import { ReadFailure } from '../ReadFailure';
+import { useMapStructure, type MapStructure } from '../usePackGraph';
 import { stageReadOf, type MapLive, type Unread } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { stageModalLink, type FactoryViewListed } from '../lib/views';
 import { MapArrows } from './MapArrows';
-import { stageShadowLines, stageShadows, type ShadowItems } from '../lib/shadows';
 import { MapCard } from './MapCard';
 import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
@@ -32,20 +36,22 @@ interface FactoryMapProps {
 interface MapInputs {
   projectId: string;
   view: FactoryViewListed['declaration'];
+  structure: MapStructure;
 }
 
 /**
- * The Overview's map: the stages and arrows the view file declares, and live chips from the
- * items read.
+ * The Overview's map: the view file's stages, the arrows the pack graph draws between them, and
+ * live chips from the items read.
  */
 export function FactoryMap({ projectId, view }: FactoryMapProps): ReactElement {
   const items = useFactoryItems(projectId);
+  const structure = useMapStructure(projectId, view);
   return (
     <section aria-label="The map" className="flex flex-col gap-2.5">
       <h3 className="text-console-12 font-medium uppercase tracking-console-label text-text-tertiary">
         The map
       </h3>
-      <MapBody projectId={projectId} view={view.declaration} items={items} />
+      <MapBody projectId={projectId} view={view.declaration} structure={structure} items={items} />
     </section>
   );
 }
@@ -96,25 +102,50 @@ function MapLiveCanvas({
 }: MapInputs & { items: FactoryItem[] | undefined; unread: Unread }): ReactElement {
   const attention = useProjectAttention();
   const live = useStageLive(inputs.view, inputs.projectId, items, unread, attention.data?.items);
+  const { arrows } = inputs.structure;
   return (
     <>
-      <MapCanvas {...inputs} live={live} items={items ?? unread} />
-      <StageModal projectId={inputs.projectId} view={inputs.view} live={live} />
+      {arrows === undefined ? (
+        <GraphPending structure={inputs.structure} />
+      ) : (
+        <MapCanvas projectId={inputs.projectId} view={inputs.view} arrows={arrows} live={live} />
+      )}
+      <StageModal
+        projectId={inputs.projectId}
+        view={inputs.view}
+        structure={inputs.structure}
+        live={live}
+      />
     </>
   );
+}
+
+/**
+ * The map's place while the pack graph is read, which can take over a minute cold: its loading
+ * shape, or why it could not be read with a Retry. The map draws only once it has the arrows,
+ * since they set the gaps between its cards.
+ */
+function GraphPending({ structure }: { structure: MapStructure }): ReactElement {
+  const { failed, retry } = structure;
+  if (failed !== undefined)
+    return (
+      <ReadFailure retry={retry}>
+        The map could not read the pack's graph: {readFailure(failed)}
+      </ReadFailure>
+    );
+  return <GraphSkeleton label="Loading the map" />;
 }
 
 function MapCanvas({
   projectId,
   view,
+  arrows,
   live,
-  items,
-}: MapInputs & {
+}: Omit<MapInputs, 'structure'> & {
+  arrows: readonly MapArrow[];
   live: MapLive | Unread;
-  /** Every item read, for what each shadow step decided lately; why there is none until then. */
-  items: ShadowItems;
 }): ReactElement {
-  const layout = useMemo(() => layoutMap(view), [view]);
+  const layout = useMemo(() => layoutMap(view, arrows), [view, arrows]);
   const { cards, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const selectedCard = cards.find(card => card.id === selected);
@@ -159,7 +190,6 @@ function MapCanvas({
                 key={card.id}
                 card={card}
                 stages={stagesOf(card.stages)}
-                shadows={stage => stageShadowLines(stage, view, items)}
                 live={stage => stageReadOf(live, stage)}
                 selected={card.id === selected}
                 stageLink={stage => stageModalLink(projectId, stage)}
@@ -187,16 +217,12 @@ function MapCanvas({
               stage,
               live: stageReadOf(live, stage.id),
               notes: stageNotes(stage.id),
-              shadows: stageShadowLines(stage, view, items),
             }))}
             onClose={() => setSelected(null)}
           />
         )}
       </div>
-      <MapLegend
-        tones={cards.map(card => card.tone)}
-        shadow={view.stages.some(stage => stageShadows(stage, view).length > 0)}
-      />
+      <MapLegend tones={cards.map(card => card.tone)} />
       <MapNotOnMap
         projectId={projectId}
         view={view}

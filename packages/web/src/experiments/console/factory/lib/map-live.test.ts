@@ -36,7 +36,7 @@ const askOn = (id: string, key: string): AttentionQueueItem =>
   askItem({ ref: `ask:${key}`, item: { id, projectKey: 'acme', key } });
 
 describe('the live chips on each card', () => {
-  test('the seeded items: running ones by their step, idle ones by their last outcome, endings on none', () => {
+  test('the seeded items: running ones by their workflow, idle ones by their last outcome, endings on none', () => {
     // A triage ending is on no card, and not listed as missing one either.
     const closed = itemWith('close', [run('triage', 'completed', 'close')]);
     const items = [...['6', '5', '4', '3', '8', '7'].map(realItem), closed];
@@ -44,10 +44,11 @@ describe('the live chips on each card', () => {
     expect(chips(live)).toEqual({
       order: [[], 0, []],
       triage: [[], 0, []],
+      link: [[], 0, []],
       plan: [[], 0, []],
-      build: [['5', '3'], 1, []],
-      checks: [['4'], 1, []],
-      host: [['6'], 1, []],
+      build: [['6', '5', '4', '3'], 3, []],
+      checks: [[], 0, []],
+      host: [[], 0, []],
       ready: [[], 0, []],
       landed: [['8', '7'], 0, []],
     });

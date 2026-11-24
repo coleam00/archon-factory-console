@@ -81,10 +81,9 @@ const drilldownCardSchema = z.strictObject({
   /** Who does it: an agent, a check that approves or returns, a script, or you. */
   kind: z.enum(['agent', 'check', 'script', 'you']),
   /**
-   * The real steps the card stands for; the first step named is the one a click on the card
-   * opens. `bun run check:factory-view` reads the pack's workflows and fails when a real step
-   * is covered by no card or by two, or a card names a workflow its stage does not list or
-   * one the view retired.
+   * The real steps the card stands for, by name. `bun run check:factory-view` fails a step the
+   * pack graph lacks, one two cards cover, and a workflow its stage does not list or the view
+   * retired; it warns on a real step no card covers.
    */
   covers: z.array(coverSchema).min(1),
 });
@@ -125,16 +124,10 @@ const stageSchema = z.strictObject({
    * stages shows whole. Absent, the map shows the blurb, cut to fit.
    */
   short: z.string().min(1).max(24).optional(),
-  /** The colour group the map draws the stage in. */
-  group: z.enum(['intake', 'build', 'check', 'land']),
+  /** The colour group the map draws the stage in: a name the view gives, such as "intake". */
+  group: stageIdSchema,
   /** The pack entrypoints whose runs count here. Empty for a stage no run works, like Landed. */
   workflows: z.array(workflowNameSchema),
-  /**
-   * When given, a running run counts here only while one of these steps runs. A step
-   * matches an entry equal to its id, or one its id begins with followed by `.`, so
-   * `rounds` matches `rounds.fix`.
-   */
-  nodes: z.array(stepIdSchema).min(1).optional(),
   /** What the stage does, step by step, in plain words, for a stage page to draw. */
   drilldown: drilldownSchema.optional(),
 });
@@ -216,86 +209,23 @@ const mapSchema = z.strictObject({
     })
   ),
   /**
-   * Every arrow the map draws, and no others: the hand-offs between stages and the send-backs,
-   * curated by the view's author. The map reads no other source; `bun run check:factory-view`
-   * keeps the hand-offs equal to the pack graph's (`GET /api/packs/{pack}/graph`): each one the
-   * pack starts between two stages is declared, and each declared one the pack does not start
-   * is marked as a person's step.
+   * Words for the map's arrows, not the arrows: the map draws what the pack graph
+   * (`GET /api/packs/{pack}/graph`) connects between two stages, and an entry here labels the
+   * arrow from stage `from` to stage `to`. `bun run check:factory-view` fails an entry for a
+   * pair the graph does not connect, and warns on a drawn pair with no entry.
    */
   arrows: z.array(
     z.strictObject({
       from: stageIdSchema,
       to: stageIdSchema,
       /** The outcome that moves an item along, in plain words. */
-      label: labelSchema.optional(),
-      /*
-       * Accepted, and ignored, so a view file that marks its send-backs still loads: the map
-       * reads a send-back from `stages` order (an arrow into its own stage or an earlier one),
-       * since a second statement of direction could only disagree with that order.
-       */
-      back: z.boolean().optional(),
-      /** A step a person takes (a replan, a landing), which no pack hand-off starts. */
-      person: z.boolean().optional(),
+      label: labelSchema,
     })
   ),
   notes: z
     .array(z.strictObject({ text: z.string().min(1).max(160), near: z.string().min(1) }))
     .optional(),
 });
-
-/** What a shadow step is and how a person reads it: the step, and a plain question for it. */
-const shadowStepShape = {
-  workflow: workflowNameSchema,
-  /** The step id as the engine records it: `rounds.checks` for a loop's body node. */
-  node: stepIdSchema,
-  /** A plain question or name for what it decides: "Would it start on its own". */
-  label: labelSchema,
-};
-
-/**
- * One step the pack runs as a shadow: it decides what it would do, records it, and does
- * nothing. A console reads each completed run of the step from its value (its structured
- * output, else its text output parsed as JSON) and never shows it as having acted. `reads`
- * says how the value is read:
- * - `verdict`: one string at `pointer`, worded through `words` (value to plain words, "would
- *   ask you first"); a value `words` lacks stays the pack's token. `why`, when given, is the
- *   step's reason.
- * - `checks`: a list of checks at `results`, each entry read through `entry`'s pointers.
- * - `lists`: the lists at each `lists[].pointer`, counted, each count after its `words`
- *   ("would file"); `why`, when given, is the step's own summary.
- * A value that does not read so is shown as unreadable, never as a decision.
- */
-const shadowSchema = z.discriminatedUnion('reads', [
-  z.strictObject({
-    ...shadowStepShape,
-    reads: z.literal('verdict'),
-    pointer: jsonPointerSchema,
-    words: z
-      .record(z.string().min(1), labelSchema)
-      .refine(words => Object.keys(words).length > 0, 'names at least one value'),
-    why: jsonPointerSchema.optional(),
-  }),
-  z.strictObject({
-    ...shadowStepShape,
-    reads: z.literal('checks'),
-    results: jsonPointerSchema,
-    entry: z.strictObject({
-      name: jsonPointerSchema,
-      passed: jsonPointerSchema,
-      seconds: jsonPointerSchema.optional(),
-      tail: jsonPointerSchema.optional(),
-    }),
-  }),
-  z.strictObject({
-    ...shadowStepShape,
-    reads: z.literal('lists'),
-    lists: z
-      .array(z.strictObject({ pointer: jsonPointerSchema, words: labelSchema }))
-      .min(1)
-      .max(6),
-    why: jsonPointerSchema.optional(),
-  }),
-]);
 
 /** One plain sentence a person reads about what a run did: no placeholders, no markup. */
 const sentenceSchema = z.string().trim().min(1).max(160);
@@ -308,7 +238,7 @@ const sentenceSchema = z.string().trim().min(1).max(160);
  * drop answered before any pull request). `steps`: the earlier stages of a run that works
  * several, by the step each starts on. `said`: pointers, in order, to what a run's result says in its own words. A
  * sentence is static text; a console adds only its own clauses (the pull request, why it was
- * sent back, what you answered). Checked by `storyReferenceIssues` and the coverage check.
+ * sent back, what you answered). Checked by `storyReferenceIssues` and `bun run check:factory-view`.
  */
 const storySchema = z.strictObject({
   outcomes: z.record(
@@ -378,12 +308,6 @@ const factoryViewShape = z.strictObject({
     )
     .optional(),
   /**
-   * Completed outcomes that stop to ask you (`workflow:outcome`, or `workflow:*` for every
-   * outcome, not a run without one). A run that ended so reads "asked you"; `placement` still
-   * decides where the item waits.
-   */
-  asked: z.array(outcomeKeySchema).optional(),
-  /**
    * Completed outcomes that leave the item open and idle by choice (`workflow:outcome`, or
    * `workflow:*`): kept for later, not ended. `label` words it ("Parked by triage"); `why`, when
    * given, points at the run's reason in its result. `placement` must take each key, since it
@@ -420,7 +344,7 @@ const factoryViewShape = z.strictObject({
    * place, render and count. `bun run check:factory-view` neither requires the pack to have
    * them nor compares their steps, arrows or outcomes with its graph, and fails when the pack
    * has one again. No drill-down card or loop may name one: a stage draws only the workflows
-   * the pack runs now, and a retired workflow has no step page to open.
+   * the pack runs now.
    */
   retired: z.array(workflowNameSchema).optional(),
   /**
@@ -449,13 +373,11 @@ const factoryViewShape = z.strictObject({
    * Where the result of each completed run of `workflow` (a drain of what agents noticed
    * outside their scope) lists what it decided, as JSON pointers: `filed`, `held` and
    * `dropped` into the result, `entry` into each entry of `filed`. Its runs place no item, so
-   * no stage need list it; `bun run check:factory-view` checks the pack has it. `shadow`: the
-   * drain only decides what it would file and files nothing, so a console words it "would file".
+   * no stage need list it; `bun run check:factory-view` checks the pack has it.
    */
   discoveries: z
     .strictObject({
       workflow: workflowNameSchema,
-      shadow: z.boolean(),
       filed: jsonPointerSchema,
       held: jsonPointerSchema,
       dropped: jsonPointerSchema,
@@ -466,13 +388,6 @@ const factoryViewShape = z.strictObject({
       }),
     })
     .optional(),
-  /**
-   * The steps the pack runs as shadows (see `shadowSchema`), one entry per step. Each names
-   * a workflow a stage lists, or the `discoveries` workflow; `bun run check:factory-view`
-   * checks the step is real. When `discoveries` is given, its `shadow` flag and an entry
-   * here naming its workflow must agree.
-   */
-  shadows: z.array(shadowSchema).min(1).optional(),
   /** The run input whose title line (after any front matter) is the item's title. */
   itemTitle: z.strictObject({ input: z.string().min(1) }).optional(),
   /**
@@ -631,9 +546,6 @@ function workflowReferenceIssues(view: FactoryViewShape): Issue[] {
   // Not `discoveries`: its runs place no item, so it is the one workflow no stage need list.
   for (const workflow of Object.keys(view.steps ?? {})) refer(['steps', workflow], workflow);
   for (const workflow of Object.keys(view.verdicts ?? {})) refer(['verdicts', workflow], workflow);
-  view.asked?.forEach((key, index) => {
-    refer(['asked', index], workflowOf(key));
-  });
   for (const field of ['parked', 'awaits'] as const)
     for (const key of Object.keys(view[field] ?? {})) refer([field, key], workflowOf(key));
   for (const key of Object.keys(view.answers ?? {})) refer(['answers', key], workflowOf(key));
@@ -659,51 +571,6 @@ function verdictOverlapIssues(view: FactoryViewShape): Issue[] {
   return issues;
 }
 
-/**
- * Each shadow names a workflow a stage lists, or the `discoveries` workflow (its runs place no
- * item, so no stage lists it, as in `workflowReferenceIssues`); no step is declared twice.
- */
-function shadowReferenceIssues(view: FactoryViewShape): Issue[] {
-  const workflows = new Set(view.stages.flatMap(stage => stage.workflows));
-  if (view.discoveries !== undefined) workflows.add(view.discoveries.workflow);
-  const seen = new Set<string>();
-  const issues: Issue[] = [];
-  view.shadows?.forEach((shadow, index) => {
-    if (!workflows.has(shadow.workflow))
-      issues.push({
-        path: ['shadows', index, 'workflow'],
-        message: `names workflow "${shadow.workflow}", which no stage lists`,
-      });
-    const key = JSON.stringify([shadow.workflow, shadow.node]);
-    if (seen.has(key))
-      issues.push({
-        path: ['shadows', index, 'node'],
-        message: `step "${shadow.workflow}/${shadow.node}" is declared a shadow twice`,
-      });
-    seen.add(key);
-  });
-  return issues;
-}
-
-/**
- * `discoveries.shadow` and `shadows` say the same thing about the drain, so they must agree:
- * a shadow drain has an entry naming its workflow, and one that files for real has none.
- */
-function discoveriesShadowIssues(view: FactoryViewShape): Issue[] {
-  const { discoveries } = view;
-  if (discoveries === undefined) return [];
-  const declared = (view.shadows ?? []).some(shadow => shadow.workflow === discoveries.workflow);
-  if (declared === discoveries.shadow) return [];
-  return [
-    {
-      path: ['discoveries', 'shadow'],
-      message: discoveries.shadow
-        ? `is true, but no entry of shadows names workflow "${discoveries.workflow}"`
-        : `is false, but shadows names workflow "${discoveries.workflow}"`,
-    },
-  ];
-}
-
 export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
   for (const issue of [
     ...stageReferenceIssues(view),
@@ -714,8 +581,6 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
     ...heldOpenIssues(view),
     ...retiredIssues(view),
     ...drilldownIssues(view),
-    ...shadowReferenceIssues(view),
-    ...discoveriesShadowIssues(view),
     ...storyReferenceIssues(view),
   ])
     ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
@@ -723,7 +588,6 @@ export const factoryViewSchema = factoryViewShape.superRefine((view, ctx) => {
 export type FactoryView = z.infer<typeof factoryViewSchema>;
 export type FactoryStage = FactoryView['stages'][number];
 export type FactoryDrilldown = NonNullable<FactoryStage['drilldown']>;
-export type FactoryShadow = NonNullable<FactoryView['shadows']>[number];
 
 /** Where a view was found: a pack's own file, or the project's file for a pack. */
 export const factoryViewSourceSchema = z.enum([...workflowSourceSchema.options, 'project-file']);

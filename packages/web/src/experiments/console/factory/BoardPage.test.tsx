@@ -149,19 +149,17 @@ test('the Pipeline: columns, cards, work orders, the strips under the board, a f
   try {
     expect(headers(container)).toEqual([
       'Intake0',
-      'Plan & build3',
-      'Checks & review1',
+      'Plan & build4',
+      'Checks & review0',
       'Ready to merge0',
       'Merged3',
     ]);
     expect(columnNamed(container, 'Intake')?.textContent).toContain('Nothing in Intake now');
     // A running card names its step and links its item and its run.
-    const checks = columnNamed(container, 'Checks & review');
-    expect(
-      checks?.querySelector('a[aria-label="Checks · Product check · round 1"]')
-    ).not.toBeNull();
-    expect(checks?.querySelector(`a[href="/console/p/${ID}/factory/items/8"]`)).not.toBeNull();
-    expect(checks?.querySelector('a[href^="/console/p/cb-1/r/"]')).not.toBeNull();
+    const build = columnNamed(container, 'Plan & build');
+    expect(build?.querySelector('a[aria-label="Build · product"]')).not.toBeNull();
+    expect(build?.querySelector(`a[href="/console/p/${ID}/factory/items/8"]`)).not.toBeNull();
+    expect(build?.querySelector('a[href^="/console/p/cb-1/r/"]')).not.toBeNull();
     // A merged card is compact: its change and when it merged, no round, no returned count.
     const change = realItem('7').progress!.change!;
     expect(card(container, '7')?.textContent).toContain(formatDateTime(change.mergedAt!));
@@ -255,7 +253,7 @@ describe('filters and re-reads', () => {
       expect(plan?.querySelector('header p')?.textContent).toBe('Plan, build');
       expect(
         [...(plan?.querySelectorAll('header li') ?? [])].map(chip => chip.textContent)
-      ).toEqual(['running 2', 'waiting 2']);
+      ).toEqual(['running 3', 'waiting 2']);
       expect(card(container, '6')?.textContent).toContain('Build');
       expect(card(container, '6')?.querySelector('a[href*="/r/"]')).toBeNull();
 
@@ -279,7 +277,7 @@ describe('filters and re-reads', () => {
     const { container, unmount } = await mount([...PAGE.items, readyWithMerge('p', 'pending')]);
     try {
       expect(headers(container)).toEqual(
-        expect.arrayContaining(['Ready to mergechecking', 'Mergedchecking', 'Plan & build4'])
+        expect.arrayContaining(['Ready to mergechecking', 'Mergedchecking', 'Plan & build5'])
       );
       expect(columnNamed(container, 'Ready to merge')?.textContent).toContain(
         'checking merge state'
@@ -298,9 +296,9 @@ test('the Table: row order and sorting, Column and Stage, Merged and Work order 
   try {
     const { container } = table;
     // Board order: left to right, then the order the page lists them.
-    expect(rowKeys(container)).toEqual(['5', '4', '6', '3', '8', '7', '2', '1']);
+    expect(rowKeys(container)).toEqual(['8', '5', '4', '6', '3', '7', '2', '1']);
     expect(container.querySelector('tbody tr a')?.getAttribute('href')).toBe(
-      `/console/p/${ID}/factory/items/5`
+      `/console/p/${ID}/factory/items/8`
     );
     const header = (label: string): HTMLButtonElement =>
       [...container.querySelectorAll('th button')].find(candidate =>
@@ -311,7 +309,7 @@ test('the Table: row order and sorting, Column and Stage, Merged and Work order 
     await act(async () => header('Item').click());
     expect(rowKeys(container)).toEqual(['8', '7', '6', '5', '4', '3', '2', '1']);
     await act(async () => header('Returned').click());
-    expect(rowKeys(container)).toEqual(['5', '4', '6', '8', '7', '3', '2', '1']);
+    expect(rowKeys(container)).toEqual(['8', '5', '4', '6', '7', '3', '2', '1']);
 
     const titles = [...container.querySelectorAll('thead th')].map(th =>
       (th.textContent ?? '').replace(/ [↑↓]$/, '')
@@ -323,8 +321,8 @@ test('the Table: row order and sorting, Column and Stage, Merged and Work order 
     // A merged row's Stage is empty; a running item's step folds into its Stage cell.
     expect(cell('7', 'Column')?.textContent).toBe('Merged');
     expect(cell('7', 'Stage')?.textContent).toBe('');
-    expect(cell('8', 'Column')?.textContent).toBe('Checks & review');
-    expect(cell('8', 'Stage')?.textContent).toBe('ChecksProduct check · round 1');
+    expect(cell('8', 'Column')?.textContent).toBe('Plan & build');
+    expect(cell('8', 'Stage')?.textContent).toBe('Buildproduct');
     expect(cell('7', 'State')?.textContent).toBe('Merged');
     // The Merged cell is short (no year, HH:MM), the full local time on hover.
     const at = realItem('7').progress!.change!.mergedAt!;
@@ -401,7 +399,7 @@ describe('a board opened from a number', () => {
           ).click()
         );
         expect(container.querySelector('table')).not.toBeNull();
-        expect(rowKeys(container)).toEqual(['5', '4', '6', '3', '8', '7', '2', '1']);
+        expect(rowKeys(container)).toEqual(['8', '5', '4', '6', '3', '7', '2', '1']);
         expect(container.querySelector('tr[data-mark]')).toBeNull();
         expect(container.textContent).not.toContain('Showing:');
       } finally {

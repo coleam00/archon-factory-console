@@ -5,12 +5,11 @@
  * `rounds` on the item read's runs (the server normalises them), so the grid reads one shape;
  * only their numbering differs (`roundNumbers`).
  * Rows come from declared data only: a step with a declared meaning (`returns`, `approves`,
- * `verdicts`), the builder's fixes between rounds, the stage that read CI and the reviews after
- * the last round, and the shadow steps' decisions (rule 10). Nothing here names a pack's step.
+ * `verdicts`), the builder's fixes between rounds, and the stage that read CI and the reviews
+ * after the last round. Nothing here names a pack's step.
  */
 import type { FactoryItemDetail } from '../../skills/factory';
-import { shadowOf, shadowWords } from './shadows';
-import { stageOfStep, stageOfWorkflow } from './placement';
+import { stageOfWorkflow } from './placement';
 import { roundsSources, stepLabel } from './step-label';
 import type { RunKind, TimelineRow } from './timeline';
 import type { RunFacts, StoryVisit } from './item-visits';
@@ -24,8 +23,7 @@ type Meaning = NonNullable<Declaration['verdicts']>[string][string][string];
 /**
  * What a cell says. `approved`, `returned`, `asked`: a check's declared meaning. `fixed`: the
  * builder fixed what the round sent back. `failed`, `running`: a run that did not finish.
- * `token`: an outcome the view does not word (the pack's token, in mono). `shadow`: what a
- * shadow step would have done, never a state colour.
+ * `token`: an outcome the view does not word (the pack's token, in mono).
  */
 export type CellMeaning =
   | 'approved'
@@ -34,8 +32,7 @@ export type CellMeaning =
   | 'fixed'
   | 'failed'
   | 'running'
-  | 'token'
-  | 'shadow';
+  | 'token';
 
 export interface GridCell {
   meaning: CellMeaning;
@@ -71,7 +68,6 @@ export interface GridColumn {
 export interface GridRow {
   key: string;
   label: string;
-  shadow: boolean;
   /** One list per column, stacked in order; an empty list reads "Not run". */
   cells: GridCell[][];
 }
@@ -206,7 +202,7 @@ function roundNumbers(view: Declaration, detail: FactoryItemDetail): Map<string,
   detail.item.runs.forEach((run, index) => {
     const workflow = workflows[index] ?? null;
     if (workflow === null) return;
-    if (stageOfWorkflow(view, workflow, null)?.group === 'intake') count = 0;
+    if (stageOfWorkflow(view, workflow)?.group === 'intake') count = 0;
     const rounds = facts.get(run.id)?.rounds?.rounds ?? [];
     if (loopForm(view, workflow)) {
       if (delivered(run, index)) delivery += 1;
@@ -233,72 +229,50 @@ function gridColumns(
     const fact = ctx.facts.get(runId);
     const workflow = fact?.workflow;
     if (fact?.rounds == null || workflow == null) return [];
+    if (roundStage(ctx.view, workflow) !== panel.stage.id) return [];
     const { max } = fact.rounds;
-    return fact.rounds.rounds
-      .filter(round => roundStage(ctx.view, workflow, round) === panel.stage.id)
-      .map(round => {
-        const numbered = ctx.numbers.get(roundKey(runId, round.iteration));
-        return {
-          column: {
-            number: numbered?.number ?? round.iteration,
-            delivery: numbered?.delivery ?? null,
-            iteration: round.iteration,
-            max,
-            verdict: round.verdict,
-            runId,
-            reason: round.verdict === 'returned' ? round.summary : null,
-          },
-          round,
-          workflow,
-        };
-      });
+    return fact.rounds.rounds.map(round => {
+      const numbered = ctx.numbers.get(roundKey(runId, round.iteration));
+      return {
+        column: {
+          number: numbered?.number ?? round.iteration,
+          delivery: numbered?.delivery ?? null,
+          iteration: round.iteration,
+          max,
+          verdict: round.verdict,
+          runId,
+          reason: round.verdict === 'returned' ? round.summary : null,
+        },
+        round,
+        workflow,
+      };
+    });
   });
 }
 
-/** The stage a round's checks are on: its first step's that a stage names, else its workflow's. */
-function roundStage(view: Declaration, workflow: string, round: Round): string | undefined {
-  for (const step of round.steps) {
-    const stage = stageOfStep(view, workflow, step.node);
-    if (stage !== undefined && stage.group !== 'build') return stage.id;
-  }
-  return stageOfWorkflow(view, workflow, null)?.id;
+/** The stage a round's checks are on: the one its workflow counts in. */
+function roundStage(view: Declaration, workflow: string): string | undefined {
+  return stageOfWorkflow(view, workflow)?.id;
 }
 
 /** A row by label, created in first-seen order. */
-function rowOf(
-  rows: GridRow[],
-  key: string,
-  label: string,
-  width: number,
-  shadow = false
-): GridRow {
+function rowOf(rows: GridRow[], key: string, label: string, width: number): GridRow {
   const found = rows.find(row => row.key === key);
   if (found !== undefined) return found;
-  const row: GridRow = { key, label, shadow, cells: Array.from({ length: width }, () => []) };
+  const row: GridRow = { key, label, cells: Array.from({ length: width }, () => []) };
   rows.push(row);
   return row;
 }
 
 /**
  * The checks' rows: each declared step, named by `stepLabel` (so a loop's and a stage's review
- * share one row), in the order the view names the workflow's steps; a step a build stage names
- * inside the loop (its fix) goes to the fix row, in the column of the round it answered.
+ * share one row), in the order the view names the workflow's steps.
  */
-function checkRows(
-  ctx: GridContext,
-  columns: ReturnType<typeof gridColumns>
-): { checks: GridRow[]; fixes: GridRow | null } {
+function checkRows(ctx: GridContext, columns: ReturnType<typeof gridColumns>): GridRow[] {
   const checks: GridRow[] = [];
-  let fixes: GridRow | null = null;
   const width = columns.length;
   columns.forEach(({ round, workflow }, index) => {
     for (const step of round.steps) {
-      const stage = stageOfStep(ctx.view, workflow, step.node);
-      if (stage?.group === 'build') {
-        fixes ??= rowOf([], 'fix', stage.label, width);
-        fixes.cells[Math.max(0, index - 1)]?.push({ ...fixCell(undefined), title: step.node });
-        continue;
-      }
       if (!declaredStep(ctx.view, workflow, step.node)) continue;
       const label = stepLabel(ctx.view, workflow, step.node);
       rowOf(checks, label, label, width).cells[index]?.push(stepCell(ctx.view, workflow, step));
@@ -310,24 +284,22 @@ function checkRows(
     const at = names.indexOf(row.label);
     return at === -1 ? names.length : at;
   };
-  return { checks: checks.sort((a, b) => rank(a) - rank(b)), fixes };
+  return checks.sort((a, b) => rank(a) - rank(b));
 }
 
 /** The builder's fix runs folded into the panel, each in the column of the round it answered. */
 function addFixRuns(
   ctx: GridContext,
   panel: StoryVisit,
-  columns: ReturnType<typeof gridColumns>,
-  rows: GridRow[],
-  existing: GridRow | null
+  columns: ReturnType<typeof gridColumns>
 ): GridRow | null {
-  let fixes = existing;
+  let fixes: GridRow | null = null;
   for (const runId of panel.fixRunIds) {
     if (columns.some(entry => entry.column.runId === runId)) continue;
     const at = ctx.order.get(runId) ?? 0;
     const index = columns.filter(entry => (ctx.order.get(entry.column.runId) ?? 0) < at).length - 1;
-    const stage = stageOfWorkflow(ctx.view, ctx.facts.get(runId)?.workflow ?? '', null);
-    fixes ??= rowOf(rows, 'fix', stage?.label ?? 'Fix', columns.length);
+    const stage = stageOfWorkflow(ctx.view, ctx.facts.get(runId)?.workflow ?? '');
+    fixes ??= rowOf([], 'fix', stage?.label ?? 'Fix', columns.length);
     fixes.cells[Math.max(0, index)]?.push(fixCell(ctx.rows.get(runId)));
   }
   return fixes;
@@ -353,35 +325,6 @@ function nextStageRow(
   return row;
 }
 
-/** What the shadow steps decided in each round: a row per shadow label, never a state colour. */
-function shadowRows(ctx: GridContext, columns: ReturnType<typeof gridColumns>): GridRow[] {
-  const rows: GridRow[] = [];
-  columns.forEach(({ column }, index) => {
-    for (const decision of ctx.facts.get(column.runId)?.shadows ?? []) {
-      if (decision.round !== null && decision.round !== column.iteration) continue;
-      const shadow = shadowOf(ctx.view, decision.workflow, decision.node);
-      const label = shadow?.label ?? decision.node;
-      const words = shadowWords(shadow, decision);
-      rowOf(rows, `shadow:${label}`, label, columns.length, true).cells[index]?.push({
-        meaning: 'shadow',
-        text: words.line,
-        title: words.detail,
-      });
-    }
-  });
-  return rows;
-}
-
-/** The shadow decisions the grid shows, as `runId|node|round` keys, so the panel lists the rest. */
-export function gridShadowKeys(grid: RoundsGrid | null, facts: ReadonlyMap<string, RunFacts>) {
-  const keys = new Set<string>();
-  for (const column of grid?.columns ?? [])
-    for (const decision of facts.get(column.runId)?.shadows ?? [])
-      if (decision.round === null || decision.round === column.iteration)
-        keys.add(`${decision.runId}|${decision.node}|${String(decision.round)}`);
-  return keys;
-}
-
 /** The grid of a panel's check rounds; null when the panel recorded no round. */
 export function roundsGrid(
   view: Declaration,
@@ -399,16 +342,11 @@ export function roundsGrid(
   };
   const columns = gridColumns(ctx, panel);
   if (columns.length === 0) return null;
-  const { checks, fixes: loopFixes } = checkRows(ctx, columns);
-  const fixes = addFixRuns(ctx, panel, columns, [], loopFixes);
+  const checks = checkRows(ctx, columns);
+  const fixes = addFixRuns(ctx, panel, columns);
   const after = nextStageRow(ctx, next, columns.length);
   return {
     columns: columns.map(entry => entry.column),
-    rows: [
-      ...checks,
-      ...(fixes === null ? [] : [fixes]),
-      ...(after === null ? [] : [after]),
-      ...shadowRows(ctx, columns),
-    ],
+    rows: [...checks, ...(fixes === null ? [] : [fixes]), ...(after === null ? [] : [after])],
   };
 }

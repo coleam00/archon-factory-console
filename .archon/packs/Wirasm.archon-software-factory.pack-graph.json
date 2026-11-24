@@ -448,7 +448,7 @@
     },
     {
       "name": "Wirasm/archon-software-factory:link",
-      "returns": "link",
+      "returns": "end",
       "outcome": {
         "field": "outcome",
         "form": "enum",
@@ -458,17 +458,49 @@
             "startsNothing": true
           },
           {
+            "value": "waiting",
+            "startsNothing": true
+          },
+          {
             "value": "fold",
+            "startsNothing": true
+          },
+          {
+            "value": "dropped",
+            "startsNothing": true
+          },
+          {
+            "value": "none",
             "startsNothing": true
           }
         ]
       },
-      "asks": false,
+      "asks": true,
       "nodes": [
+        {
+          "id": "given",
+          "kind": "exec",
+          "dependsOn": [],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
         {
           "id": "link",
           "kind": "agent",
-          "dependsOn": [],
+          "dependsOn": [
+            "given"
+          ],
+          "loopGroup": null,
+          "blocks": [],
+          "fanOut": null
+        },
+        {
+          "id": "end",
+          "kind": "exec",
+          "dependsOn": [
+            "link"
+          ],
           "loopGroup": null,
           "blocks": [],
           "fanOut": null
@@ -484,6 +516,10 @@
         "values": [
           {
             "value": "ready",
+            "startsNothing": true
+          },
+          {
+            "value": "work_order",
             "startsNothing": true
           },
           {
@@ -1038,21 +1074,6 @@
           "fanOut": null
         },
         {
-          "id": "link__link",
-          "kind": "agent",
-          "dependsOn": [
-            "judge__judge"
-          ],
-          "loopGroup": null,
-          "blocks": [
-            {
-              "include": "link",
-              "workflow": "Wirasm/archon-software-factory:link"
-            }
-          ],
-          "fanOut": null
-        },
-        {
           "id": "admit",
           "kind": "agent",
           "dependsOn": [
@@ -1162,14 +1183,33 @@
     },
     {
       "from": {
+        "stage": "Wirasm/archon-software-factory:order",
+        "outcome": "work_order"
+      },
+      "to": "Wirasm/archon-software-factory:order",
+      "linked": {
+        "kind": "part_of",
+        "holder": "from",
+        "items": "/start",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "order-after-work-order",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
         "stage": "Wirasm/archon-software-factory:triage",
         "outcome": "build"
       },
-      "to": "Wirasm/archon-software-factory:plan",
+      "to": "Wirasm/archon-software-factory:link",
       "linked": null,
       "active": false,
       "declared": {
-        "binding": "plan-after-triage",
+        "binding": "link-after-triage",
         "problems": []
       },
       "installed": null
@@ -1179,11 +1219,327 @@
         "stage": "Wirasm/archon-software-factory:triage",
         "outcome": "narrow"
       },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": null,
+      "active": false,
+      "declared": {
+        "binding": "link-after-triage",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:link",
+        "outcome": "place"
+      },
       "to": "Wirasm/archon-software-factory:plan",
       "linked": null,
       "active": false,
       "declared": {
-        "binding": "plan-after-triage",
+        "binding": "plan-after-link",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:link",
+        "settled": "any"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": null,
+      "active": false,
+      "declared": {
+        "binding": "link-after-answers",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:land",
+        "outcome": "landed"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-landed",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:close",
+        "outcome": "dropped"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-closed",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:close",
+        "outcome": "reshape"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-closed",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:close",
+        "outcome": "not_closed"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-closed",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "shape"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "recipe"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "native"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "fold"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "park"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "deprecate"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "decline"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:triage",
+        "outcome": "close"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-judged",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:split",
+        "outcome": "split"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-split",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:split",
+        "outcome": "waiting"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-split",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:plan",
+        "outcome": "stop"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-plan-stopped",
+        "problems": []
+      },
+      "installed": null
+    },
+    {
+      "from": {
+        "stage": "Wirasm/archon-software-factory:link",
+        "outcome": "dropped"
+      },
+      "to": "Wirasm/archon-software-factory:link",
+      "linked": {
+        "kind": "depends_on",
+        "holder": "from",
+        "entries": {}
+      },
+      "active": false,
+      "declared": {
+        "binding": "link-after-blocker-dropped",
         "problems": []
       },
       "installed": null
@@ -1225,6 +1581,7 @@
       "linked": {
         "kind": "part_of",
         "holder": "from",
+        "items": "/start",
         "entries": {}
       },
       "active": false,

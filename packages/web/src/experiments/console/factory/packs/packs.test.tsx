@@ -117,8 +117,6 @@ test.each([
     '/console/factory/acme.kit/how-it-works',
   ],
   ['/console/factory/acme.kit', two, '/console/factory/acme.kit/how-it-works'],
-  ['/console/factory/acme.kit/settings?project=cb-1#land', two, '/console/p/cb-1/factory/settings'],
-  ['/console/factory/acme.kit/settings', two, '/console/factory/acme.kit/how-it-works'],
 ] as const)('%s opens %p', async (from, packs, to) => {
   const page = await mount(from, packs);
   expect(at(page)).toBe(to);
