@@ -301,8 +301,8 @@ It **warns**, and still passes, on what the graph has that the view leaves out:
   so leaves its item where its earlier runs put it), and, with a `story`, one no sentence tells;
 - a step of a listed workflow no drill-down card covers;
 - an arrow the map draws with no `map.arrows` label;
-- a stage of the view that sits, in `stages` order, between two stages the overview's cards
-  open, and that no card opens: a stage the pack added that How it works skips.
+- a stage of the view that no card of the overview opens, so a stage How it works skips is
+  always named.
 
 A `retired` workflow is not required of the pack, and none of its names is compared, so its
 entries in `placement`, `story` and the rest stay to word its old runs.

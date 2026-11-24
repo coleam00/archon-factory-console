@@ -730,8 +730,7 @@ or outcomes the view leaves unplaced, which is how a new stage (such as `link`) 
 on a real step no drill-down card covers, and on a drawn arrow with no label. It holds How it
 works to the graph where the picture draws the pack's stages, without making it read the graph
 or name a project: an overview edge between two cards that open a view stage must join two
-stages the graph connects (FAIL), and a view stage between two the picture draws that no card
-opens WARNS. It reads the graph from the pack itself, never from a committed capture: the pack's
+stages the graph connects (FAIL), and a view stage that no card opens WARNS. It reads the graph from the pack itself, never from a committed capture: the pack's
 repo and commit are pinned once, in `<pack key>.pack-pin.json` beside the view. Where a home is
 named it reads the pack installed there and fails when that is at another commit than the pin;
 in CI it fetches the pinned commit into a throwaway home. A `retired` workflow is not required

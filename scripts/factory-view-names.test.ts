@@ -199,12 +199,8 @@ describe('checkOverviewEdges', () => {
   const view = factoryViewSchema.parse(clean);
 
   test('an edge between two stages the graph connects passes', () => {
-    expect(
-      checkOverviewEdges(picture(['plan', 'build'], [['plan', 'build']]), view, graph)
-    ).toEqual({
-      fails: [],
-      warns: [],
-    });
+    const picture2 = picture(['plan', 'build'], [['plan', 'build']]);
+    expect(checkOverviewEdges(picture2, view, graph).fails).toEqual([]);
   });
 
   test('an edge between two stages the graph does not connect fails', () => {
@@ -216,9 +212,11 @@ describe('checkOverviewEdges', () => {
     expect(messages(fails)).toContain('"build" to stage "plan"');
   });
 
-  test('a stage between two the picture draws that no card opens warns', () => {
-    const { fails, warns } = checkOverviewEdges(picture(['plan', 'landed'], []), view, graph);
+  test('every view stage no card opens warns, at the ends as in between', () => {
+    const { fails, warns } = checkOverviewEdges(picture(['plan'], []), view, graph);
     expect(fails).toEqual([]);
     expect(messages(warns)).toContain('"build"');
+    expect(messages(warns)).toContain('"landed"');
+    expect(messages(warns)).not.toContain('"plan"');
   });
 });

@@ -379,10 +379,8 @@ export function checkViewNames(view: FactoryView, graph: PackGraph): NameCheck {
  * How it works stays a hand-drawn picture, but where it draws the pack's stages it may not
  * disagree with the pack. A card stands for a stage when the view it `opens` is named as a stage
  * of `view`. An edge between two such cards (feeds or loops back) must join a pair of stages the
- * pack graph connects (`mapArrows`), or the check FAILS. A stage of `view` that sits between two
- * stages the picture draws, in `view.stages` order, and that no card stands for WARNS: the pack
- * added a stage to the flow the picture skips. Stages before the first or after the last one the
- * picture draws are not compared, since it draws its inputs and outcomes as cards of their own.
+ * pack graph connects (`mapArrows`), or the check FAILS. Every stage of `view` that no card
+ * stands for WARNS (owner's decision on #172), so a stage the picture skips is always named.
  */
 export function checkOverviewEdges(
   overview: FactoryOverview,
@@ -412,14 +410,8 @@ export function checkOverviewEdges(
       });
     });
   }
-  const at = stageIds.map((id, i) => (shown.has(id) ? i : -1)).filter(i => i >= 0);
-  const first = Math.min(...at);
-  const last = Math.max(...at);
   const warns = stageIds
-    .filter((id, i) => i > first && i < last && !shown.has(id))
-    .map(id => ({
-      path: ['views'],
-      message: `stage "${id}" sits between stages the picture draws, and no card opens it`,
-    }));
+    .filter(id => !shown.has(id))
+    .map(id => ({ path: ['views'], message: `stage "${id}" is opened by no card` }));
   return { fails, warns };
 }
