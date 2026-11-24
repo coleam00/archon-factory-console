@@ -1,8 +1,8 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { BookOpen, GitMerge, Inbox } from 'lucide-react';
 import { Link } from 'react-router';
-import { EmptyNote } from '../../components/EmptyNote';
-import type { FactoryItem } from '../../skills/factory';
+import { EmptyNote } from '../ui/EmptyNote';
+import type { FactoryItem } from '../api';
 import type { EntityView } from '../../store/cache';
 import type { StageRead } from '../lib/map-live';
 import { liveWorkflows, type FactoryStage } from '../lib/stage-steps';

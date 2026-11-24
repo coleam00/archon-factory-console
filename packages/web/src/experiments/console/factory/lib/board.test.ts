@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { formatDateTime } from '../../lib/format';
-import { askItem } from '../../lib/needs-you.test-fixtures';
+import { askItem } from './attention.test-fixtures';
 import {
   boardModel,
   cardFields,
@@ -9,7 +9,7 @@ import {
   hiddenColumnsHint,
   movedKeys,
 } from './board';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import {
   readyWithMerge,
   delivering,

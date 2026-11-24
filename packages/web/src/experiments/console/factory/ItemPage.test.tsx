@@ -1,16 +1,17 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItemDetail, FactoryViews } from '../skills/factory';
-import type { AttentionQueue } from '../skills/runs';
+import type { FactoryItemDetail, FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
+import { FK } from './keys';
+import { factoryTestRoutes } from './test-routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { FIXTURE_NOW, declaredAwaits } from './lib/board.test-fixtures';
-import { askItem } from '../lib/needs-you.test-fixtures';
+import { attentionRead, refAsk } from './lib/attention.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import { formatDateTime } from '../lib/format';
+import type { RunsAttention } from '../primitives/run';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs.
@@ -23,13 +24,13 @@ afterAll(() => {
 
 afterEach(() => {
   invalidate('factory-views');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate('project');
   invalidate('runs');
 });
 
 const listing: FactoryViews = { views: [shippedListed], errors: [] };
-const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
+const quiet = attentionRead();
 
 /**
  * The shipped listing with the retired deliver workflow's rounds declared again, as a loop: the
@@ -71,16 +72,16 @@ function deliverRoundsListing(): FactoryViews {
 
 function render(
   detail: FactoryItemDetail,
-  attention: AttentionQueue = quiet,
+  attention: RunsAttention = quiet,
   views: FactoryViews = listing
 ): string {
   const key = detail.item.item.key;
-  set(K.factoryViews(PROJECT), views);
-  set(K.projectAttention(PROJECT), attention);
-  set(K.factoryItem(PROJECT, key), detail);
+  set(FK.factoryViews(PROJECT), views);
+  set(K.runsAttention, attention);
+  set(FK.factoryItem(PROJECT, key), detail);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/${key}`]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
 }
@@ -293,29 +294,29 @@ describe('the item page', () => {
     expect(text(running)).toContain('No change yet');
 
     const detail = itemDetail('6');
-    const mine = askItem({ ref: 'ask:mine', item: { ...detail.item.item } });
+    const project = { key: 'acme', codebaseId: PROJECT, name: 'acme' };
+    const mine = refAsk({ ref: 'ask:mine', project, item: { ...detail.item.item } });
     // A wait in a child run names no item; the item read lists it among its questions.
-    const child = askItem({ ref: 'ask:child', item: undefined, message: 'From the child run?' });
-    const other = askItem({ ref: 'ask:other', message: 'Not this item?' });
+    const child = refAsk({ ref: 'ask:child', item: undefined, message: 'From the child run?' });
+    const other = refAsk({ ref: 'ask:other', project, message: 'Not this item?' });
     const read = { ...detail, item: { ...detail.item, questions: [child] } };
-    const html = render(read, { items: [mine, child, other], runs: [], degraded: [] });
+    const html = render(read, attentionRead([mine, child, other]));
     const band = text(section(html, 'Summary'));
     expect(band).toContain('Needs you');
     expect(band).not.toContain('Running');
     expect(text(html)).toContain('Which base should the change target?');
     expect(text(html)).toContain('From the child run?');
     expect(text(html)).not.toContain('Not this item?');
-    // Each as the ask card, always open: its tiles, the recommended one first, answerable.
-    expect(html.split('data-ask=')).toHaveLength(3);
-    expect(text(html)).toContain('Use dev Recommended Rebases onto dev.');
+    // Both of the item's asks, each in Archon's ask section.
+    expect(html.split('data-ask-ref=')).toHaveLength(3);
   });
 
   test('while the item is read: skeletons, never Loading…', () => {
-    set(K.factoryViews(PROJECT), listing);
-    set(K.projectAttention(PROJECT), quiet);
+    set(FK.factoryViews(PROJECT), listing);
+    set(K.runsAttention, quiet);
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/77`]}>
-        <Routes>{projectRoutes('/console/')}</Routes>
+        <Routes>{factoryTestRoutes()}</Routes>
       </MemoryRouter>
     );
     expect(text(html)).toContain('Loading the item');
@@ -332,7 +333,7 @@ describe('work orders on the item page', () => {
       item: { ...three.item, key: 'issue-3' },
       progress: { ...three.progress!, title: null, partOf: '48' },
     };
-    set(K.factoryItems(PROJECT), { items: [placed], members: { '48': ['issue-3', '10'] } });
+    set(FK.factoryItems(PROJECT), { items: [placed], members: { '48': ['issue-3', '10'] } });
     const base = itemDetail('1');
     const html = render({
       ...base,
@@ -366,7 +367,7 @@ describe('work orders on the item page', () => {
   test('a member its order run placed, with no link: Part of the order it named', () => {
     const detail = itemDetail('3');
     const item = { ...detail.item, progress: { ...detail.item.progress!, partOf: '48' } };
-    set(K.factoryItems(PROJECT), { items: [item], members: {} });
+    set(FK.factoryItems(PROJECT), { items: [item], members: {} });
     const html = render({ ...detail, item });
     expect(text(html)).toContain('Part of #48 as its order run recorded');
     expect(html).toContain(`href="/console/p/${PROJECT}/factory/items/48"`);

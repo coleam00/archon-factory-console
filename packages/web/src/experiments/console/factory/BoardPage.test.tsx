@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { ProjectAttentionProvider } from '../components/ProjectAttention';
+import { FK } from './keys';
 import { Board } from './BoardPage';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import {
   endLastRun,
   idleInPlan,
@@ -23,6 +23,7 @@ import { boardColumns } from './lib/board-columns';
 import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches } from './merge-watch';
 import { formatDateTime } from '../lib/format';
+import { attentionRead } from './lib/attention.test-fixtures';
 
 // Filtering, sorting, the strips and the move highlight follow a re-render, which static markup
 // cannot reach. The rules behind each check are tested in lib/ (board, placement, set-aside,
@@ -37,13 +38,13 @@ const DAY = 24 * 60 * 60 * 1000;
 afterEach(() => {
   cancelRereads();
   cancelMergeWatches();
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
-/** `board` under a project queue where nothing waits on a person: asks are BoardAsks.test.tsx's. */
+/** `board` with nothing waiting on a person in Archon's attention read: asks are ItemAsks.test.tsx's. */
 function quiet(board: ReactElement): ReactElement {
-  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
-  return <ProjectAttentionProvider projectId={ID}>{board}</ProjectAttentionProvider>;
+  set(K.runsAttention, attentionRead());
+  return board;
 }
 
 async function mount(
@@ -51,9 +52,9 @@ async function mount(
   path = `/console/p/${ID}/factory/board`,
   members: Record<string, string[]> = {}
 ) {
-  set(K.factoryItems(ID), { items, members });
+  set(FK.factoryItems(ID), { items, members });
   // The view declares discoveries, so the board mounts the "Found by the factory" panel.
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -115,7 +116,7 @@ test('before the items are read: a skeleton column per declared column, no "Load
   globalThis.fetch = Object.assign(async (): Promise<Response> => new Promise(() => {}), {
     preconnect: answering.preconnect,
   });
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   const { container, unmount } = await render(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
       {quiet(<Board projectId={ID} view={VIEW} now={NOW} />)}
@@ -216,7 +217,7 @@ test('the Pipeline: columns, cards, work orders, the strips under the board, a f
     expect(stripsToggle(container)?.textContent).toBe('hide them');
 
     // A refresh that fails says so and keeps the board it last read.
-    await act(async () => invalidate(K.factoryItems(ID)));
+    await act(async () => invalidate(FK.factoryItems(ID)));
     for (let turn = 0; turn < 5 && container.querySelector('[role="status"]') === null; turn++)
       await settle();
     expect(container.querySelector('[role="status"]')?.textContent).toContain('Could not refresh');

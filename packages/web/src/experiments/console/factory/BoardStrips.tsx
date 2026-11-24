@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement, type RefObject } from 'react';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import type { SetAside } from './lib/set-aside';
 import { SetAsideLine, SetAsideList } from './SetAsideStrip';
@@ -30,8 +30,8 @@ export function useBoardStrips(arrived: boolean): {
 
 /**
  * Scroll the element into view the first time `ready` holds, once per mount. The line, not the
- * findings, is the target: it carries both strips' names, the shadow badge (Visual standard,
- * rule 10) and the toggle, and the opened strips follow it. Not per address: a Pipeline/Table
+ * findings, is the target: it carries both strips' names and the toggle, and the opened strips
+ * follow it. Not per address: a Pipeline/Table
  * switch rewrites the address and must leave the page where the person has it.
  */
 function useScrollOnce(ready: boolean): RefObject<HTMLDivElement | null> {

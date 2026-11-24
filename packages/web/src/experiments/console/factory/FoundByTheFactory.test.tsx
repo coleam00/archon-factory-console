@@ -1,19 +1,19 @@
 import { afterEach, expect, test } from 'bun:test';
 import { MemoryRouter } from 'react-router';
-import { installDom } from '../test-dom.test-helpers';
+import { installDom } from './test-dom.test-helpers';
 import { invalidate, set } from '../store/cache';
 import { formatDateTime } from '../lib/format';
-import { K } from '../store/keys';
+import { FK } from './keys';
 import { FoundByTheFactory, FoundByTheFactoryLine } from './FoundByTheFactory';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 
 // A failed read follows a render, which static markup cannot reach.
 const { mount: render } = await installDom();
 
 const ID = 'cb-found';
 afterEach(() => {
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 /** The line and the opened panel, as the board draws them with its strips open. */
@@ -34,7 +34,7 @@ async function mount(names: ReadonlyMap<string, ItemName> = new Map()) {
 }
 
 test('the line: its name and the count', async () => {
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   const { line, unmount } = await mount();
   try {
     expect(line.querySelector('h2')?.textContent).toBe('Found by the factory');
@@ -48,7 +48,7 @@ test('the line: its name and the count', async () => {
 });
 
 test('opened: the count no item covers, the chips and the findings listed', async () => {
-  set(K.factoryDiscoveries(ID), DISCOVERIES);
+  set(FK.factoryDiscoveries(ID), DISCOVERIES);
   const { body, unmount } = await mount();
   try {
     // The heading is the line's, once on the page.
@@ -85,7 +85,7 @@ test('opened: the count no item covers, the chips and the findings listed', asyn
 });
 
 test('nothing open: an empty state, not a zero list', async () => {
-  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, findings: [], unreadable: 0 });
+  set(FK.factoryDiscoveries(ID), { ...DISCOVERIES, findings: [], unreadable: 0 });
   const { line, body, unmount } = await mount();
   try {
     expect(line.textContent).toContain('Nothing filed that is not on the board');

@@ -6,7 +6,7 @@
  * its steps started) and from `placement` (where each completed run left the item), so the
  * strip, the board and the story place alike.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { boardColumns, type ColumnTone } from './board-columns';
 import { restartOf } from './answered';
 import { itemPositions, stageWorkflow } from './item-visits';

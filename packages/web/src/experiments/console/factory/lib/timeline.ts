@@ -4,7 +4,7 @@
  * page's story (`item-story.ts`) and its rounds grid read these rows; placement stays
  * `placement.ts`'s.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { placedStage } from './placement';
 import { stepLabel } from './step-label';
 import { boardSeats, isSendBack, type Seat } from './stage-direction';

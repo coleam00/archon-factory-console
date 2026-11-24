@@ -1,4 +1,4 @@
-import { shortWorkflow } from '../../lib/ask-card';
+import { shortWorkflow } from './attention';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];

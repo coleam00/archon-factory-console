@@ -2,7 +2,7 @@
  * Moving around a factory overview: the trail from the root to an open view, and every view
  * in the order the sidebar lists them.
  */
-import type { FactoryPacksRead } from '../../skills/factory';
+import type { FactoryPacksRead } from '../api';
 
 /** The overview file's contents, as the server listed it. */
 export type OverviewDeclaration = NonNullable<

@@ -1,11 +1,11 @@
 import type { ReactElement } from 'react';
 import { displayItemKey } from './lib/item-key';
-import type { ItemName } from '../lib/ask-naming';
+import type { ItemName } from './lib/item-names';
 import { Link2, Scale } from 'lucide-react';
 import { Link } from 'react-router';
-import { EmptyNote } from '../components/EmptyNote';
+import { EmptyNote } from './ui/EmptyNote';
 import { formatDateTime } from '../lib/format';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import { describeAnswer, linkWords } from './lib/item-answers';
 import { runHref } from './lib/timeline';
 import { factoryPath } from './lib/views';

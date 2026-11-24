@@ -1,4 +1,4 @@
-import type { FactoryDiscoveries } from '../../skills/factory';
+import type { FactoryDiscoveries } from '../api';
 
 /**
  * What the drains decided, in the shape `GET /api/factory/discoveries` answers: three

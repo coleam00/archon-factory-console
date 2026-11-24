@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
-import type { FactoryItem } from '../../skills/factory';
-import type { AttentionQueueItem } from '../../skills/runs';
+import type { FactoryItem } from '../api';
+import type { ItemAsk } from '../../primitives/run';
 import { stageLive, type MapLive, type Unread } from '../lib/map-live';
 import type { FactoryViewListed } from '../lib/views';
 import { useMinuteClock } from '../useMinuteClock';
@@ -18,16 +18,14 @@ export function useStageLive(
   projectId: string,
   items: readonly FactoryItem[] | undefined,
   unread: Unread,
-  queue: readonly AttentionQueueItem[] | undefined
+  asks: readonly ItemAsk[]
 ): MapLive | Unread {
   const previous = useRef<ReadonlyMap<string, string>>(new Map());
   const now = useMinuteClock();
   const live = useMemo(
     () =>
-      items === undefined
-        ? unread
-        : stageLive(view, projectId, items, queue ?? [], previous.current, now),
-    [view, projectId, items, queue, unread, now]
+      items === undefined ? unread : stageLive(view, projectId, items, asks, previous.current, now),
+    [view, projectId, items, asks, unread, now]
   );
   useEffect(() => {
     if (typeof live !== 'string') previous.current = live.positions;

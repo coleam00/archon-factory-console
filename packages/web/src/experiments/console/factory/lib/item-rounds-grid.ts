@@ -8,7 +8,7 @@
  * `verdicts`), the builder's fixes between rounds, and the stage that read CI and the reviews
  * after the last round. Nothing here names a pack's step.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { stageOfWorkflow } from './placement';
 import { roundsSources, stepLabel } from './step-label';
 import type { RunKind, TimelineRow } from './timeline';

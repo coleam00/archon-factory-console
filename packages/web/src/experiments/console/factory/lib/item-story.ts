@@ -6,7 +6,7 @@
  * rounds they took, and what you answered. An outcome the view does not tell falls back to a
  * neutral sentence from the timeline's words.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { answerStarts } from './answer-starts';
 import { answerWords, restartOf } from './answered';
 import { answererName } from './item-answers';

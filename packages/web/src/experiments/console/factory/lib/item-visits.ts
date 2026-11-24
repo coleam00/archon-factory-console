@@ -3,7 +3,7 @@
  * it (DESIGN.md, The item page). A run works the stage its workflow counts in
  * (`stageOfWorkflow`), so placement stays the board's.
  */
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { stageOfWorkflow } from './placement';
 import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';

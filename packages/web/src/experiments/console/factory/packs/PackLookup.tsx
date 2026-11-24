@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { useParams } from 'react-router';
 import { Factory } from 'lucide-react';
-import { EmptyNote } from '../../components/EmptyNote';
+import { EmptyNote } from '../ui/EmptyNote';
 import { errorDetail } from '../../lib/http';
 import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';

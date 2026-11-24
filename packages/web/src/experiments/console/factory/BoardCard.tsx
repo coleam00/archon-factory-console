@@ -11,7 +11,7 @@ import {
 } from './lib/board';
 import { engineIdTitle } from './lib/step-label';
 import { orderSearch } from './lib/work-orders';
-import { CardAsk, shownAsk } from './BoardAskFace';
+import { CardAsk } from './BoardCardAsk';
 import type { BoardAsks } from './useBoardAsks';
 
 /**
@@ -101,7 +101,7 @@ function CardBox({
   short = false,
   children,
 }: CardProps & {
-  /** The card carries an ask's face: its title takes 2 lines, not 3, so the card stays short. */
+  /** The card carries its open asks: its title takes 2 lines, not 3, so the card stays short. */
   short?: boolean;
   children: ReactNode;
 }): ReactElement {
@@ -143,7 +143,7 @@ function CardBox({
 export function BoardCard(props: CardProps & { asks: BoardAsks }): ReactElement {
   const { card } = props;
   return (
-    <CardBox {...props} short={shownAsk(card, props.asks) !== null}>
+    <CardBox {...props} short={props.asks.entriesOf(card.key).length > 0}>
       {card.run !== null ? (
         <RunLink run={card.run} />
       ) : card.stage === null ? null : (

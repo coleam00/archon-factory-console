@@ -1,8 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
 import { GitPullRequest } from 'lucide-react';
-import { SkeletonLine } from '../components/Skeleton';
+import { SkeletonLine } from './ui/Skeleton';
 import { formatCost } from '../lib/format';
-import type { FactoryItem, FactoryItemDetail } from '../skills/factory';
+import type { FactoryItem, FactoryItemDetail } from './api';
 import { PillBadge } from './BoardCard';
 import { HeaderBand, StatChip } from './document';
 import type { Pill } from './lib/board';

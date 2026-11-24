@@ -8,9 +8,9 @@
  * stage; without, by its workflow. An answer whose option the view words (`answers`) says what
  * it started in the view's sentence instead.
  */
-import type { FactoryItem } from '../../skills/factory';
-import type { ItemRead } from '../../skills/items';
-import { humaniseId, shortWorkflow } from '../../lib/ask-card';
+import type { FactoryItem } from '../api';
+import type { ItemRead } from '../api';
+import { humaniseId, shortWorkflow } from './attention';
 import { answerStarts } from './answer-starts';
 import { answererName } from './item-answers';
 import { stageOfWorkflow } from './placement';

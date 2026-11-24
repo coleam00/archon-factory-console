@@ -1,11 +1,11 @@
 import { afterAll, expect, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryViews } from '../skills/factory';
+import type { FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
-import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
-import { installDom } from '../test-dom.test-helpers';
+import { FK } from './keys';
+import { factoryTestRoutes } from './test-routes';
+import { installDom } from './test-dom.test-helpers';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import {
   capturedItemAs,
@@ -19,7 +19,7 @@ import { packGraphKey } from './usePackGraph';
 // Opening a stage and the tabs are clicks, and static markup cannot click.
 const { mount, settle } = await installDom();
 afterAll(() => {
-  for (const key of ['factory-views', 'factory-pack-graph', 'factory-items', 'runs'])
+  for (const key of ['factory-views', 'factory-pack-graph', 'runs:factory-items', 'runs'])
     invalidate(key);
 });
 
@@ -98,16 +98,16 @@ function serve(items: (url: string) => Response): void {
     },
     { preconnect: fetch.preconnect }
   );
-  set(K.factoryViews(ID), views);
+  set(FK.factoryViews(ID), views);
   set(packGraphKey(ID, 'acme.kit'), graph);
   // Each test starts from a cold items read, so it loads what this test serves.
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 }
 
 async function renderAt(path: string, check: (body: HTMLElement) => Promise<void>): Promise<void> {
   const mounted = await mount(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
   try {

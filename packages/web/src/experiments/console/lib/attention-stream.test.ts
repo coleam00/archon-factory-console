@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { subscribeKey } from '../store/cache';
 import { K } from '../store/keys';
+import { FK } from '../factory/keys';
 import {
   refreshOnAttentionChange,
   watchAttentionStream,
@@ -81,9 +82,9 @@ test("an attention change refreshes the project's queue and item reads, not anot
   const loads: string[] = [];
   const keys = [
     K.projectAttention('p1'),
-    K.factoryItems('p1'),
-    K.factoryItem('p1', '6'),
-    K.factoryItem('p2', '6'),
+    FK.factoryItems('p1'),
+    FK.factoryItem('p1', '6'),
+    FK.factoryItem('p2', '6'),
   ];
   const unsubscribe = keys.map(key =>
     subscribeKey(

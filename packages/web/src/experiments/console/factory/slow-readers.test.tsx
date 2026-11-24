@@ -1,10 +1,8 @@
 import { afterEach, expect, jest, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
-import { installDom } from '../test-dom.test-helpers';
-import { ProjectAttentionProvider } from '../components/ProjectAttention';
+import { installDom } from './test-dom.test-helpers';
 import { invalidate, set } from '../store/cache';
-import { K } from '../store/keys';
 import { SLOW_READ_NOTICE } from './FactoryLoading';
 import { FactoryMap } from './map/FactoryMap';
 import { shippedGraph, shippedListed } from './item-detail.test-fixtures';
@@ -18,7 +16,7 @@ afterEach(() => {
   jest.useRealTimers();
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate('factory-pack-graph');
 });
 
@@ -33,21 +31,19 @@ const neverAnswers = Object.assign(
   { preconnect: originalFetch.preconnect }
 );
 
+const ID = 'cb-slow-readers';
+
 const mountMap = (): ReturnType<typeof mount> =>
   mount(
     <MemoryRouter>
-      <ProjectAttentionProvider projectId={ID}>
-        <FactoryMap projectId={ID} view={shippedListed} />
-      </ProjectAttentionProvider>
+      <FactoryMap projectId={ID} view={shippedListed} asks={[]} />
     </MemoryRouter>
   );
 
-const ID = 'cb-slow-readers';
 test('the map draws its cards while the items read misses its first deadline, and says the read is slow', async () => {
   jest.useFakeTimers();
   // Never answers within this test: the first deadline passes and the retry is still waiting.
   globalThis.fetch = neverAnswers;
-  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
   set(packGraphKey(ID, shippedListed.packKey), shippedGraph);
   const { container, unmount } = await mountMap();
   try {
@@ -68,7 +64,6 @@ test('the map draws its cards while the items read misses its first deadline, an
 test('while the pack graph is read the map shows its loading shape, never a map without arrows', async () => {
   // A cold graph read can take over a minute; it has no deadline, so it is still waiting.
   globalThis.fetch = neverAnswers;
-  set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
   const { container, unmount } = await mountMap();
   try {
     expect(container.querySelector('[data-stage]')).toBeNull();

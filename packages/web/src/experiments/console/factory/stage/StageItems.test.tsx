@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { progressOf, realItem, VIEW } from '../lib/board.test-fixtures';
 import { ItemsHere } from './StageItems';
 

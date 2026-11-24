@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryItemDetail } from '../../skills/factory';
+import type { FactoryItemDetail } from '../api';
 import { itemDetail, PROJECT, shippedView } from '../item-detail.test-fixtures';
 import { itemPill } from './board';
 import { itemStory, type StagePanel, type StoryPanel } from './item-story';

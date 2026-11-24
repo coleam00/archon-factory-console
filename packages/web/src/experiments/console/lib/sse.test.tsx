@@ -3,6 +3,7 @@ import { Window } from 'happy-dom';
 import { act, useState, type ReactElement } from 'react';
 import { invalidate, useEntity } from '../store/cache';
 import { K } from '../store/keys';
+import { FK } from '../factory/keys';
 import { useAttentionStreamSSE, useConversationSSE, useDashboardSSE } from './sse';
 
 class TestEventSource {
@@ -92,8 +93,8 @@ test('unlock refetches the persisted reply and updates the subscribed chat view'
 });
 
 test('a run or node change on the dashboard stream refetches the factory item pages and item reads', async () => {
-  const pageKey = K.factoryItems('project-1');
-  const itemKey = K.factoryItem('project-1', '6');
+  const pageKey = FK.factoryItems('project-1');
+  const itemKey = FK.factoryItem('project-1', '6');
   const loadItems = mock(async () => ['page']);
   const loadItem = mock(async () => ['item']);
   const onRunChanged = (): void => {};

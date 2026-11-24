@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryViews } from '../../skills/factory';
+import type { FactoryViews } from '../api';
 import { currentView, factoryTabShown, stageSwitchLink } from './views';
 
 const view = (pack: string, source: FactoryViews['views'][number]['source']) =>

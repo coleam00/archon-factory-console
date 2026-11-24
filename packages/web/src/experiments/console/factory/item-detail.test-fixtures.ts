@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { FactoryItemDetail } from '../skills/factory';
+import type { FactoryItemDetail } from './api';
 import { mapArrows, type MapArrow, type PackGraph } from './lib/graph-structure';
 import type { FactoryViewListed } from './lib/views';
 

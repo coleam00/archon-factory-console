@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { SegmentedControl } from '../components/SegmentedControl';
+import { SegmentedControl } from './ui/SegmentedControl';
 import { BOARD_SHOW, type BoardShow } from './lib/board-show';
 
 /**

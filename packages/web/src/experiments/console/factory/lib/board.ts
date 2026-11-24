@@ -8,9 +8,8 @@
  */
 import { formatDateTime } from '../../lib/format';
 import { displayItemKey } from './item-key';
-import type { FactoryItem } from '../../skills/factory';
-import { askQuestion } from '../../lib/ask-card';
-import { awaitingItems, needsYou } from '../../lib/needs-you';
+import type { FactoryItem } from '../api';
+import { askQuestion, awaitingItems, openEntries } from './attention';
 import { BOARD_SHOW, showsCard, waitsOnYou, type BoardShow } from './board-show';
 import { boardColumns, type BoardColumnDecl } from './board-columns';
 import { anyMergePending, stageCountPending, type ChangeMerged } from './merge-pending';
@@ -210,9 +209,9 @@ export function cardFields(
 }
 
 /**
- * What an item waiting on you says on its card's line, as the ask face says an ask: its first
- * open question, with "N questions" when it recorded several, else the reason its run gave
- * (null when it gave neither).
+ * What an item waiting on you says on its card's line: its first open question, with
+ * "N questions" when it recorded several, else the reason its run gave (null when it gave
+ * neither).
  */
 function awaitsLine(
   awaits: NonNullable<Progress['awaits']>
@@ -246,7 +245,7 @@ export function itemPill(
   });
   const unread = item.progress === null ? 'Its progress could not be read.' : null;
   if (landed) return of('landed', unread);
-  const [ask] = needsYou(item.questions);
+  const [ask] = openEntries(item.questions);
   if (ask !== undefined) return of('needs-you', unread ?? askQuestion(ask));
   if (item.progress?.running != null) return of('running', null);
   // The item's last run of a declared workflow, its discoveries drain included.
@@ -258,7 +257,7 @@ export function itemPill(
     return of('failed', stoppedLine(view, last, label));
   }
   const awaits = item.progress?.awaits;
-  // `awaitingItems` takes the same items, so Needs you counts what this pill shows.
+  // `awaitingItems` takes the same items, so the Overview counts what this pill shows.
   if (awaits != null && awaitingItems([item]).length === 1)
     return { pill: 'awaits', pillLabel: awaits.label, ...awaitsLine(awaits) };
   if (item.progress?.parked != null) return of('parked', null);

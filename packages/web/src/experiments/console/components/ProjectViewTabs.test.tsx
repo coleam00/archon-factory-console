@@ -3,7 +3,7 @@ import { act } from 'react';
 import { MemoryRouter } from 'react-router';
 import { shippedListed } from '../factory/item-detail.test-fixtures';
 import { invalidate, set } from '../store/cache';
-import { K } from '../store/keys';
+import { FK } from '../factory/keys';
 import { installDom } from '../test-dom.test-helpers';
 import { ProjectAttentionProvider } from './ProjectAttention';
 import { ProjectViewTabs } from './ProjectViewTabs';
@@ -61,7 +61,7 @@ async function withLayout(width: (tab: Element) => number, run: () => Promise<vo
 }
 
 test('the project tabs, in order, with Factory once the views are read', async () => {
-  set(K.factoryViews(ID), { views: [shippedListed], errors: [] });
+  set(FK.factoryViews(ID), { views: [shippedListed], errors: [] });
   const page = await tabs('runs');
   expect([...page.container.querySelectorAll('a')].map(tab => tab.textContent)).toEqual([
     'Needs you',
@@ -81,7 +81,7 @@ test('on a phone the active Factory tab, last in the row, is scrolled into view 
       const page = await tabs('factory');
       const row = page.container.querySelector<HTMLElement>('a')?.parentElement;
       expect(row?.scrollLeft).toBe(0);
-      await act(async () => set(K.factoryViews(ID), { views: [shippedListed], errors: [] }));
+      await act(async () => set(FK.factoryViews(ID), { views: [shippedListed], errors: [] }));
       expect(row?.scrollLeft).toBe(100);
       await page.unmount();
     }

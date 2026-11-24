@@ -3,7 +3,7 @@
  * the discoveries drains decided (`GET /api/factory/discoveries`). A finding an item on the
  * project already carries (by title) is on the board, so only the others count.
  */
-import type { FactoryDiscoveries } from '../../skills/factory';
+import type { FactoryDiscoveries } from '../api';
 
 /** One finding a drain decided to file. */
 export type FactoryFinding = FactoryDiscoveries['findings'][number];

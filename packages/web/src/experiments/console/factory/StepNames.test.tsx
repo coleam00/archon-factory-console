@@ -7,11 +7,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test }
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItem, FactoryItemDetail, FactoryViews } from '../skills/factory';
-import type { AttentionQueue } from '../skills/runs';
+import type { FactoryItem, FactoryItemDetail, FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
+import { FK } from './keys';
+import { factoryTestRoutes } from './test-routes';
 import {
   itemDetail,
   shippedArrows,
@@ -21,6 +21,7 @@ import {
 import { FIXTURE_NOW, delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
 import { EMPTY_STAGE_LIVE } from './lib/map-live';
 import { StageView, useStageTab } from './stage/StageView';
+import { attentionRead } from './lib/attention.test-fixtures';
 import { packGraphKey, type MapStructure } from './usePackGraph';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
@@ -37,10 +38,16 @@ const listing: FactoryViews = {
   views: [{ ...shippedListed, declaration: VIEW }],
   errors: [],
 };
-const quiet: AttentionQueue = { items: [], runs: [], degraded: [] };
+const quiet = attentionRead();
 
 afterEach(() => {
-  for (const kind of ['factory-views', 'factory-pack-graph', 'factory-items', 'project', 'runs'])
+  for (const kind of [
+    'factory-views',
+    'factory-pack-graph',
+    'runs:factory-items',
+    'project',
+    'runs',
+  ])
     invalidate(kind);
 });
 
@@ -84,18 +91,18 @@ const structure: MapStructure = {
 };
 
 function seed(views: FactoryViews, detail?: FactoryItemDetail): void {
-  set(K.factoryViews(ID), views);
-  set(K.projectAttention(ID), quiet);
+  set(FK.factoryViews(ID), views);
+  set(K.runsAttention, quiet);
   set(packGraphKey(ID, shippedListed.packKey), shippedGraph);
-  set(K.factoryItems(ID), { items: ITEMS, members: {} });
-  if (detail !== undefined) set(K.factoryItem(ID, detail.item.item.key), detail);
+  set(FK.factoryItems(ID), { items: ITEMS, members: {} });
+  if (detail !== undefined) set(FK.factoryItem(ID, detail.item.item.key), detail);
 }
 
 function render(path: string, detail?: FactoryItemDetail, views = listing): string {
   seed(views, detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
 }

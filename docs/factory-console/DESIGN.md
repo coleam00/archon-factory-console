@@ -214,10 +214,14 @@ file, no pack names in code) and reads well to someone who has never seen Archon
 2. *(Removed in the v2 direction: the Needs you tab, its order and the ask card are Archon's own, as on Archon dev; the factory section adds no Needs you page and no ask design.)*
 3. **The board card is the approval card.** An item with an open ask shows its question and the
    recommended option on its board card, with a visible ping. Clicking it opens Archon's own ask
-   card (v2 direction) in a popover over the board, answered in place, without leaving the board. *Amended by the
-   owner on 2026-11-19 (#91), so the board fits its cards: such a card is short. Its title takes
-   2 lines; the question takes 1 line, with the ping and "N questions" on it. The popover holds
-   the rest.*
+   section (v2 direction) in a popover over the board, answered in place, without leaving the
+   board. *Amended by the owner on 2026-11-19 (#91), so the board fits its cards: such a card is
+   short. Its title takes 2 lines; the question takes 1 line, with the ping and "N questions" on
+   it. The popover holds the rest.* *Amended by the owner on 2026-11-24 (issue-171, v2): the
+   card shows the newest question on its line, then the ask's declared recommendation as
+   "Recommended: <label>" in green and how many asks are open ("N open asks"); with no
+   recommendation declared there is no recommendation line. After an answer the card says
+   nothing of it: the item page tells it.*
 4. **Fewer board columns.** The view file groups stages into columns; the board draws one column
    per group, not per stage. For this pack: **Intake** (order, triage) | **Plan & build** |
    **Checks & review** (the check rounds, CI and PR reviews) | **Ready to merge** | **Merged**.
@@ -472,20 +476,22 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 
 ### 9. The ask and the column header
 
-**The ask** is Archon's own ask card and answer panel, exactly as on Archon dev, wherever the
-factory section answers an ask (the board popover, the item page, the Overview) (v2 direction).
+**The ask** is Archon's own ask section and answer panel (`ItemAsksSection`,
+`AttentionAnswerPanel`, `ApprovalPanel`), exactly as on Archon dev, wherever the factory section
+answers an ask (the board popover, the item page, the Overview) (v2 direction).
 The factory section does not restyle, wrap, replace or parse it: its options, recommendation,
 confidence and cost come from what the ask's workflow declares (#6139), never from the ask's
 text. The factory's own surfaces that point at an ask follow the rules above:
 
-- On a board card (owner change 3, as amended on 2026-11-19): one line holding the ping, the
-  question at `--text-console-13` cut to that line (the whole question on hover and in the
-  popover), and "N questions" when there are several; under it, at `--text-console-12`,
-  "Recommended: <label>" when the ask's declared recommendation names an option, in green
-  (`--success`), which wraps long unbroken text inside the card. The card's title then takes 2
-  lines, not 3.
-- The popover that holds Archon's ask card over the board is at most 480 px wide; under 520 px
-  (a 390 px phone) it is a sheet from the bottom.
+- On a board card (owner change 3, as amended on 2026-11-19 and 2026-11-24): one line holding
+  the ping and the newest question at `--text-console-13` cut to that line (the whole question
+  on hover and in the popover); under it, at `--text-console-12`, "Recommended: <label>" when
+  the ask's declared recommendation names an option (the option's label from the ask's own
+  options, never read from its text), in green (`--success`), which wraps long unbroken text
+  inside the card, and after it (on the same line where it fits, else the next) a neutral
+  bordered chip reading "N open asks". The card's title then takes 2 lines, not 3.
+- The popover that holds Archon's ask section over the board is at most 480 px wide; under
+  520 px (a 390 px phone) it is a sheet from the bottom.
 
 **The column header** (owner change 4), one per board column:
 
@@ -665,7 +671,7 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest three asks (through Archon's ask card), then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
+  | `factory` | Overview: one paragraph saying what this factory does, the numbers strip, the newest asks of three items (through Archon's ask section), then the map. `?stage=<id>` opens that stage as a modal over the map (The map, Click) |
   | `factory/board` | The board (default view Pipeline, with a Table alternative) |
   | `factory/items/:key` | One item: its story (header band, journey strip, a panel per stage with its rounds grid and asks), links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
@@ -812,8 +818,8 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
 
 1. Title (Page title role) and the declaration's summary, clamped to two lines with More.
 2. **Numbers strip:** items in flight (in a board column, not merged; the items set aside are
-   not, see The board, Set aside), need you (what Archon's attention queue counts for the project's items, and the items waiting on you
-   with no ask open), merged today, merged in total ("N of
+   not, see The board, Set aside), need you (the open asks and waits on the project's items and Archon's attention read's asks for
+   the project, each once, and the items waiting on you with no ask open), merged today, merged in total ("N of
    M merged", M every item in a board column: not the items set aside, whether an ending took
    them off the board, they are parked or they sat idle), median time from first run to merged
    ("median to merged"). Each tile is a
@@ -835,10 +841,10 @@ panel). Port the logic and ideas, not the styling: Mission Control used its own 
    change 3 of 2026-11-23); each counts with the board's own show (`?show=`, one spec per show in
    `lib/board-show.ts`), so a number and the board agree. Only the unknown line under the tiles
    links (`?show=unknown`). The median tile's tooltip says what the figure means.
-3. **Needs you:** the newest three open asks and waits, each through Archon's own ask card or a
-   one-line link to where Archon answers it (the run page), never a second ask design (v2
-   direction); then "N more", the items waiting on you with no ask open among the N, so the line
-   and the number agree. Nothing shows when nothing waits.
+3. **Needs you:** the open asks of the three items that asked last, through Archon's own ask
+   section, answerable in place, never a second ask design (v2 direction); then "N more on the
+   board" (the board's `?show=needs-you`), the items waiting on you with no ask open among the N.
+   Nothing shows when nothing waits.
 4. **The map.**
 
 ## The map
@@ -1041,7 +1047,7 @@ A card, in this order:
    column only while a start waits for it, else it is set aside),
    **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the item record or the forge, never read out of a run input's markdown; else the
-   key), at most 3 lines; 2 on a card showing an ask's face (rule 7).
+   key), at most 3 lines; 2 on a card showing its open asks (rule 7).
 3. The stage line, so a card names its stage inside a column that groups several. While a run
    works it: its stage, the running step's name and the round when the step is of the declared
    rounds loop, "Checks · Code review · round 2", linking to the run in the console
@@ -1067,22 +1073,19 @@ A card, in this order:
    the step it failed at ("Build failed at Writes the change"; a cancelled run "Build was
    stopped"), never the workflow id. The item page's story says the same sentence. For one waiting on you with
    no ask open: the first question its run recorded, cut to its line, and "N questions" when it
-   recorded several (as the ask face does), else its reason. For one that needs you, the approval
-   card's face (owner change 3), from the project's attention queue (`itemAsks`): on one line
-   the ping, the first one's question cut to that line and "N questions" when it holds several;
-   then "Recommended: <label>" when the ask's declared recommendation names an option (data,
-   never parsed from the ask's text). Until that queue is read, one
-   line saying what it asks. The face opens the item's asks in a popover over the board, 480 px
-   beside the card from md up and a sheet from the bottom under md: Archon's own ask card for
-   each, as on dev, answered in place, with an empty slot under them for a later preview of the change.
-   Esc or a press outside closes it; focus returns to the card unless the press landed on
-   another control. Answering one of several keeps it open on the rest; answering the last
-   closes it, and the card reads "Answered: <label>", then "Answered · <stage> started again"
-   once the items read records the run the settled asks started (the view's `answers` sentence
-   in place of "<stage> started again" when the set's answers word one and started one run;
-   "Answered: <label>" when they word several or started several), until a read moves the card,
-   the item asks something new, or the card has its own stop line to show (the restarted run
-   failed). A merged card keeps its compact form and no face.
+   recorded several, else its reason. For one with open asks (the item read's questions and the
+   asks Archon's attention read names on the item, each once by ref, `itemOpenEntries`): one
+   control, the ping and the newest question cut to one line, and under it "Recommended: <label>"
+   in green when the newest ask declares a recommendation, then a neutral bordered chip reading
+   "N open asks". It
+   opens the item's asks in a popover over the board, 480 px beside the card from md up and a
+   sheet from the bottom under md: Archon's own `ItemAsksSection` for the asks answered by ref,
+   and a paused run's wait in Archon's `AttentionAnswerPanel` or `ApprovalPanel`, as dev's
+   pending-input banner draws them; a run it cannot answer links to its run page. Esc or a press
+   outside closes it; focus returns to the card unless the press landed on another control. An
+   answered ask stays in it as Archon's section shows it ("Answered: <label>") until it is
+   closed, and the card's count drops at once. A merged card keeps its compact form and no ask
+   control.
 
 A merged card, in the Merged column, is compact: its key and pill, its title, then the change
 and when it merged, in local time; no stage line, order chip, rounds or returned count. The
@@ -1100,11 +1103,11 @@ At 1280x720 it is one line on a board with no `?show=` chip; a `?show=` chip can
 parts (the Position unknown row, the hint) to a second line. On a phone it wraps. The work
 orders' section sits between the toolbar and the columns (see Work orders); in a short window
 the columns keep their floor and the page scrolls. The
-columns take the rest of the window. A card opens the item page, except its links and its ask face. **Table** view: one
+columns take the rest of the window. A card opens the item page, except its links and its ask control. **Table** view: one
 row per item in a column (the items set aside are no rows) with the same fields as columns, a Work order, a Column and a Stage column among
 them (a running item's step and round under its stage, as the card's stage line reads; a merged
 item's Stage empty, as its card names no stage; Merged as
-a short local time, the full one on hover), sortable; a row that needs you has an Answer button beside its state pill opening the same popover. A filter
+a short local time, the full one on hover), sortable; a row with open asks has an Answer button beside its state pill opening the same popover. A filter
 box narrows by key, title or work order key, matching the raw key (`136` finds `issue-136`). The
 Item and Work order columns sort by the key as it reads, so `#9` comes before `#111` whichever form
 each is stored in. A key never breaks inside itself (`#136 · pack view` is one line): its column
@@ -1188,8 +1191,8 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
     earlier one, and, when the view tells neither, a neutral sentence: "Plan finished: sent to
     Build", or the pack's token in mono.
   A run that works several stages tells what concerns the whole run (that it is running,
-  failed or was stopped, the asks it left and what you answered, why it sent the item back, its
-  open ask cards) only on the panel holding its last position; its earlier panels say what it
+  failed or was stopped, the asks it left and what you answered, why it sent the item back)
+  only on the panel holding its last position; its earlier panels say what it
   did on their stage ("Build wrote the change").
   The console adds only clauses about its own concepts: " and opened PR #n" on the panel of the
   run that named that pull request first, ": <why>" when the panel ended by sending the item
@@ -1230,9 +1233,9 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   question, "You said <option>" with the option's id as a tag and its own words, who answered
   and when, and what that started ("Build started again", the stage of the run whose cause
   names the settled asks, else "Nothing started"; the view's `answers` sentence for the option
-  when it words one, as "Leaves the PR as a draft until the item is shaped"). An open ask is
-  Archon's own ask card, as on dev, answerable in place, in its run's panel; one no panel holds waits on a "Waiting on
-  you" panel at the top of the story, which also shows a skeleton while the asks are read. An
+  when it words one, as "Leaves the PR as a draft until the item is shaped"). The item's open
+  asks wait on a "Waiting on you" panel at the top of the story, in Archon's own ask section (and
+  answer panels for a paused run's wait), as on dev, answerable in place. An
   item waiting on you with no ask open (its pill is an `awaits` label) opens its story with a
   panel of its own in the needs-you colour, without the ping: the label as its heading, the
   reason its run gave, the view's `next` sentence under "What to do", and "Questions to

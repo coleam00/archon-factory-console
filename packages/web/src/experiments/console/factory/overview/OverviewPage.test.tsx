@@ -5,7 +5,7 @@ import { overviewFlow } from '../lib/overview-flow';
 import { layoutOverview } from '../lib/overview-layout';
 import type { OverviewDeclaration, OverviewView } from '../lib/overview-nav';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
-import { installDom } from '../../test-dom.test-helpers';
+import { installDom } from '../test-dom.test-helpers';
 import { OverviewBody } from './OverviewPage';
 
 // Opening a view and going back up need clicks, which static markup cannot reach.

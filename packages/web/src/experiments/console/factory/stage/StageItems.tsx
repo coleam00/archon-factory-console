@@ -1,8 +1,8 @@
 import type { ReactElement, ReactNode } from 'react';
 import { displayKeyOf } from '../lib/work-orders';
 import { Link } from 'react-router';
-import { SkeletonGroup, SkeletonLine } from '../../components/Skeleton';
-import type { FactoryItem } from '../../skills/factory';
+import { SkeletonGroup, SkeletonLine } from '../ui/Skeleton';
+import type { FactoryItem } from '../api';
 import type { StageRead } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import { itemPill, PILL_LABEL, type Pill } from '../lib/board';

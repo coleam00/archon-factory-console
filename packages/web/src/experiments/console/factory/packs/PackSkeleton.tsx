@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../../components/Skeleton';
+import { SkeletonBlock, SkeletonGroup, SkeletonInnerLine } from '../ui/Skeleton';
 
 /** Rule 6: a sidebar Factory page's cards, as shapes, while the packs are read. */
 export function PackSkeleton({ cards = 2 }: { cards?: number }): ReactElement {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { askItem } from '../../lib/needs-you.test-fixtures';
-import type { FactoryItem } from '../../skills/factory';
+import { askItem } from './attention.test-fixtures';
+import type { FactoryItem } from '../api';
 import { boardModel, filterBoard } from './board';
 import {
   endLastRun,

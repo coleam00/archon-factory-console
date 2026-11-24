@@ -1,5 +1,5 @@
 import { useMemo, type ReactElement } from 'react';
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import type { EntityView } from '../../store/cache';
 import { FactoryLoading } from '../FactoryLoading';
 import { GraphSkeleton } from '../GraphSkeleton';

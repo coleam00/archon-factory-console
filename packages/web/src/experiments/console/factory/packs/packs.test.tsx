@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router';
-import type { FactoryPacksRead } from '../../skills/factory';
+import type { FactoryPacksRead } from '../api';
 import { invalidate, set } from '../../store/cache';
-import { K } from '../../store/keys';
-import { installDom } from '../../test-dom.test-helpers';
+import { FK } from '../keys';
+import { installDom } from '../test-dom.test-helpers';
 import { FactoryRailLink } from '../FactoryRailLink';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
 import type { FactoryPackListed } from '../lib/views';
@@ -17,7 +17,7 @@ let unmount: (() => Promise<void>) | undefined;
 afterEach(async () => {
   await unmount?.();
   unmount = undefined;
-  invalidate(K.factoryPacks);
+  invalidate(FK.factoryPacks);
 });
 
 const pack = (key: string, title: string, more: Partial<FactoryPackListed> = {}) => ({
@@ -46,7 +46,7 @@ function LocationProbe(): ReactElement {
 }
 
 async function mount(at: string, packs: FactoryPacksRead): Promise<HTMLElement> {
-  set(K.factoryPacks, packs);
+  set(FK.factoryPacks, packs);
   const page = await mountTree(
     <MemoryRouter initialEntries={[at]}>
       <LocationProbe />

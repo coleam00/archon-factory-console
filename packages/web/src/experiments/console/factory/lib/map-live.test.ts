@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { AttentionQueueItem } from '../../skills/runs';
-import { askItem, usageLimitItem } from '../../lib/needs-you.test-fixtures';
+import { refAsk, usageLimitItem } from './attention.test-fixtures';
 import { stageLive as stageLiveAt } from './map-live';
 import { itemWith, itemWithoutProgress, realItem, run } from './map.test-fixtures';
 import { shippedView } from '../item-detail.test-fixtures';
@@ -13,10 +12,10 @@ const view = shippedView;
 const stageLive = (
   declaration: Parameters<typeof stageLiveAt>[0],
   items: Parameters<typeof stageLiveAt>[2],
-  attention: Parameters<typeof stageLiveAt>[3],
+  asks: Parameters<typeof stageLiveAt>[3],
   previous: ReadonlyMap<string, string> = new Map()
 ): ReturnType<typeof stageLiveAt> =>
-  stageLiveAt(declaration, 'cb-1', items, attention, previous, FIXTURE_NOW);
+  stageLiveAt(declaration, 'cb-1', items, asks, previous, FIXTURE_NOW);
 
 /** Per stage: [keys here, working, keys needing you]. */
 function chips(live: ReturnType<typeof stageLive>): Record<string, [string[], number, string[]]> {
@@ -32,8 +31,8 @@ function chips(live: ReturnType<typeof stageLive>): Record<string, [string[], nu
   );
 }
 
-const askOn = (id: string, key: string): AttentionQueueItem =>
-  askItem({ ref: `ask:${key}`, item: { id, projectKey: 'acme', key } });
+const askOn = (id: string, key: string) =>
+  refAsk({ ref: `ask:${key}`, item: { id, projectKey: 'acme', key } });
 
 describe('the live chips on each card', () => {
   test('the seeded items: running ones by their workflow, idle ones by their last outcome, endings on none', () => {
@@ -58,15 +57,14 @@ describe('the live chips on each card', () => {
   test('needs you: an open ask on the item, matched by item id; a usage limit is not', () => {
     const asking = itemWith('ask', [run('deliver', 'completed', 'ask')]);
     const limited = itemWith('limit', [run('deliver', 'running', null, 'build__build')]);
+    limited.questions = [
+      usageLimitItem({ item: { id: limited.item.id, projectKey: 'acme', key: 'limit' } }),
+    ];
     const live = stageLive(
       view,
       [asking, limited],
-      [
-        askOn(asking.item.id, asking.item.key),
-        usageLimitItem({ item: { id: limited.item.id, projectKey: 'acme', key: 'limit' } }),
-        // Same key, another item: not this one.
-        askOn('other-id', 'limit'),
-      ]
+      // Same key, another item: not this one.
+      [askOn(asking.item.id, asking.item.key), askOn('other-id', 'limit')]
     );
     expect(chips(live).build).toEqual([['ask', 'limit'], 1, ['ask']]);
   });
@@ -83,7 +81,7 @@ describe('the live chips on each card', () => {
   test('needs you: a wait the item read lists among its questions counts, as on the item page', () => {
     const asking = itemWith('child', [run('deliver', 'completed', 'ask')]);
     // A wait inside a child run: the queue names no item, the item read lists its ref.
-    const wait = askItem({ ref: 'ask:child-run', item: undefined });
+    const wait = refAsk({ ref: 'ask:child-run', item: undefined });
     asking.questions = [wait];
     expect(chips(stageLive(view, [asking], [wait])).build).toEqual([['child'], 0, ['child']]);
   });

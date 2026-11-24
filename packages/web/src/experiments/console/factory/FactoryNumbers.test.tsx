@@ -1,10 +1,10 @@
 import { afterAll, afterEach, beforeEach, expect, jest, setSystemTime, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter } from 'react-router';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import { invalidate, set } from '../store/cache';
-import { K } from '../store/keys';
-import { installDom } from '../test-dom.test-helpers';
+import { FK } from './keys';
+import { installDom } from './test-dom.test-helpers';
 import { FactoryNumbers } from './FactoryNumbers';
 import { FIXTURE_NOW, PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
@@ -38,12 +38,12 @@ afterEach(() => {
   cancelMergeWatches();
   jest.useRealTimers();
   globalThis.fetch = serverDown;
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 /** The strip over `items` (warm from the cache, as the Overview reads it after the board), or cold. */
 async function mount(projectId: string, items?: FactoryItem[], waiting: number | null = 2) {
-  if (items !== undefined) set(K.factoryItems(projectId), { items, members: {} });
+  if (items !== undefined) set(FK.factoryItems(projectId), { items, members: {} });
   const mounted = await mountTree(
     <MemoryRouter>
       <FactoryNumbers projectId={projectId} view={VIEW} waiting={waiting ?? undefined} />
@@ -99,7 +99,7 @@ test('while a merge state is pending, the counts it decides show what is known a
   expect(tile('need you')).toBe('need you2');
   // The answer arrives. Item 3's merge state could not be read: it stays out of the counts,
   // said in words and linking to the board narrowed to it, never as loading.
-  await act(async () => set(K.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
+  await act(async () => set(FK.factoryItems('cb-pending'), { items: PAGE.items, members: {} }));
   expect(tile('merged')).toBe('merged3 of 8');
   expect(container.textContent).not.toContain('Checking');
   const unknown = [...container.querySelectorAll('a')].find(link =>
@@ -176,7 +176,7 @@ test('while a merge is pending the items are read again on their own, and again 
 
 test('a failed refresh says so and keeps the last numbers', async () => {
   const { container, tile, unmount } = await mount('cb-stale', PAGE.items);
-  await act(async () => invalidate(K.factoryItems('cb-stale')));
+  await act(async () => invalidate(FK.factoryItems('cb-stale')));
   for (let turn = 0; turn < 5; turn++) await settle();
   expect(container.querySelector('[role="status"]')?.textContent).toBe(
     'Could not refresh: the server is down. Showing the last values read.'
@@ -186,7 +186,7 @@ test('a failed refresh says so and keeps the last numbers', async () => {
 });
 
 test('a view that declares discoveries adds a tile; the tiles are plain figures, nothing to open', async () => {
-  set(K.factoryDiscoveries('cb-found'), DISCOVERIES);
+  set(FK.factoryDiscoveries('cb-found'), DISCOVERIES);
   const declared = await mount('cb-found', PAGE.items);
   const strip = declared.container.querySelector('ul[aria-label="Numbers"]');
   if (strip === null) throw new Error('the strip renders');
@@ -197,5 +197,5 @@ test('a view that declares discoveries adds a tile; the tiles are plain figures,
   expect(strip.textContent).not.toContain('Open');
   await declared.unmount();
 
-  invalidate(K.factoryDiscoveries('cb-found'));
+  invalidate(FK.factoryDiscoveries('cb-found'));
 });

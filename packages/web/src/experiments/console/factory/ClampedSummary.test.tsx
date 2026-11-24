@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { act } from 'react';
-import { installDom, type Mounted } from '../test-dom.test-helpers';
+import { installDom, type Mounted } from './test-dom.test-helpers';
 import { ClampedSummary } from './ClampedSummary';
 
 // The toggle shows on measured overflow and is clicked, which static markup cannot reach.

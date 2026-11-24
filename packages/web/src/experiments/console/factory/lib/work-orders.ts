@@ -5,7 +5,7 @@
  * An order is not work the factory does: one with no run of its own is no card, and only its
  * members count anywhere. Read-only; nothing here records or ends a link.
  */
-import type { FactoryItem } from '../../skills/factory';
+import type { FactoryItem } from '../api';
 import { displayItemKey } from './item-key';
 import type { BoardModel, Pill, PlacedCard } from './board';
 import { UNPLACED_LABEL } from './placement';

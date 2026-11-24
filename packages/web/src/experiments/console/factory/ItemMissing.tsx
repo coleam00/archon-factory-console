@@ -3,7 +3,7 @@ import { displayItemKey } from './lib/item-key';
 import { displayKeyOf } from './lib/work-orders';
 import { FileQuestionMark } from 'lucide-react';
 import { Link } from 'react-router';
-import { EmptyNote } from '../components/EmptyNote';
+import { EmptyNote } from './ui/EmptyNote';
 import { itemPath } from './lib/board';
 import { closestItems } from './lib/item-search';
 import { WAY_ON_LINK } from './FactoryNotFound';

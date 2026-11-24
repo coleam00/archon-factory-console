@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryItem } from '../skills/factory';
+import type { FactoryItem } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { projectRoutes } from '../routes/project-routes';
-import { installDom } from '../test-dom.test-helpers';
+import { factoryTestRoutes } from './test-routes';
+import { installDom } from './test-dom.test-helpers';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
 import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
+import { attentionRead } from './lib/attention.test-fixtures';
 
 // A read that answers 404 and one that gets no answer differ only once a read is mounted and
 // fails, and only a click can press Retry.
@@ -18,7 +19,7 @@ const originalFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
   invalidate(K.project(PROJECT));
 });
 
@@ -53,8 +54,7 @@ function serve(answers: Answers): { fetches: Record<keyof Answers, number> } {
         fetches.items++;
         return answers.items(url);
       }
-      if (url.includes('/api/runs/attention'))
-        return Response.json({ items: [], runs: [], degraded: [] });
+      if (url.includes('/api/runs/attention')) return Response.json(attentionRead());
       return Response.json({ error: 'not in this test' }, { status: 404 });
     },
     { preconnect: originalFetch.preconnect }
@@ -78,10 +78,10 @@ async function renderAt(
   path: string,
   check: (container: HTMLElement) => Promise<void>
 ): Promise<void> {
-  set(K.projectAttention(PROJECT), { items: [], runs: [], degraded: [] });
+  set(K.runsAttention, attentionRead());
   const { container, unmount } = await mount(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/${path}`]}>
-      <Routes>{projectRoutes('/console/')}</Routes>
+      <Routes>{factoryTestRoutes()}</Routes>
     </MemoryRouter>
   );
   try {

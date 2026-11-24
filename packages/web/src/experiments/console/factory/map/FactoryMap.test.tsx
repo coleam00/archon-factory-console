@@ -1,21 +1,19 @@
 import { afterAll, afterEach, beforeAll, expect, setSystemTime, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
-import type { AttentionQueue } from '../../skills/runs';
-import { ProjectAttentionProvider } from '../../components/ProjectAttention';
 import { invalidate, set } from '../../store/cache';
-import { K } from '../../store/keys';
-import type { FactoryItem } from '../../skills/factory';
+import { FK } from '../keys';
+import type { FactoryItem } from '../api';
 import { shippedGraph, shippedListed } from '../item-detail.test-fixtures';
 import { packGraphKey } from '../usePackGraph';
 import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { FIXTURE_NOW } from '../lib/board.test-fixtures';
-import { askItem } from '../../lib/needs-you.test-fixtures';
+import { refAsk } from '../lib/attention.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
 import { cancelMergeWatches } from '../merge-watch';
-import { installDom } from '../../test-dom.test-helpers';
+import { installDom } from '../test-dom.test-helpers';
 import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
@@ -33,17 +31,13 @@ afterAll(() => {
 afterEach(() => {
   cancelRereads();
   cancelMergeWatches();
-  invalidate('factory-items');
+  invalidate('runs:factory-items');
 });
 
 const ID = 'cb-1';
 const asking = itemWith('9', [run('deliver', 'completed', 'ask')]);
 const items = [realItem('5'), realItem('4'), realItem('7'), asking];
-const queue: AttentionQueue = {
-  items: [askItem({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })],
-  runs: [],
-  degraded: [],
-};
+const asks = [refAsk({ item: { id: asking.item.id, projectKey: 'acme', key: '9' } })];
 
 /** The stage the URL opens over the map, for the tests to read. */
 function OpenStage(): React.ReactElement | null {
@@ -56,8 +50,7 @@ async function mount(
   read: FactoryItem[] | null = items,
   listed: FactoryViewListed = shippedListed
 ): ReturnType<typeof mountTree> {
-  if (read !== null) set(K.factoryItems(ID), { items: read, members: {} });
-  set(K.projectAttention(ID), queue);
+  if (read !== null) set(FK.factoryItems(ID), { items: read, members: {} });
   set(packGraphKey(ID, listed.packKey), shippedGraph);
   return mountTree(
     <MemoryRouter initialEntries={[`/console/p/${ID}/factory`]}>
@@ -65,10 +58,10 @@ async function mount(
         <Route
           path="/console/p/:projectId/factory"
           element={
-            <ProjectAttentionProvider projectId={ID}>
-              <FactoryMap projectId={ID} view={listed} />
+            <>
+              <FactoryMap projectId={ID} view={listed} asks={asks} />
               <OpenStage />
-            </ProjectAttentionProvider>
+            </>
           }
         />
       </Routes>
@@ -233,7 +226,7 @@ test('a failed refresh says so and keeps the map it last read', async () => {
   // The harness's fetch throws: every read the map makes here fails.
   const { container, unmount } = await mount();
   try {
-    await act(async () => invalidate(K.factoryItems(ID)));
+    await act(async () => invalidate(FK.factoryItems(ID)));
     await settle(() => container.querySelector('[role="status"]') !== null);
     const status = container.querySelector('[role="status"]')?.textContent;
     expect(status).toContain('Could not refresh: the test fetched');
