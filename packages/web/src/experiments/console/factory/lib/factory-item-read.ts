@@ -27,6 +27,37 @@ export interface FactoryItemReads extends DeriveReads {
   view: FactoryItemsReads['view'];
 }
 
+type ItemRun = FactoryItemDetail['item']['runs'][number];
+type RunStory = Pick<FactoryItemRun, 'models' | 'steps'>;
+
+/**
+ * Ended runs' stories, kept for the page's life, so a refresh reads the detail (every event)
+ * only of runs still going. Keyed by status and end time: a failed run can resume and end again.
+ */
+const keptStories = new Map<string, RunStory>();
+const KEPT_STORIES = 500;
+const ENDED: ReadonlySet<string> = new Set(['completed', 'failed', 'cancelled']);
+
+async function storyOf(
+  run: ItemRun,
+  reads: Pick<FactoryItemReads, 'getRunDetail'>,
+  within: WithinDeadline
+): Promise<RunStory> {
+  const key = ENDED.has(run.status) ? `${run.id}|${run.status}|${run.completedAt ?? ''}` : null;
+  const kept = key === null ? undefined : keptStories.get(key);
+  if (kept !== undefined) return kept;
+  const detail = await within(signal => reads.getRunDetail(run.id, { signal }));
+  const story = runStory(detail);
+  if (key !== null && detail.run.status === run.status) {
+    keptStories.set(key, story);
+    for (const oldest of keptStories.keys()) {
+      if (keptStories.size <= KEPT_STORIES) break;
+      keptStories.delete(oldest);
+    }
+  }
+  return story;
+}
+
 /** The item `key` names, with what each of its runs tells; a 404 from the item read when none. */
 export async function readFactoryItem(
   codebaseId: string,
@@ -52,9 +83,9 @@ export async function readFactoryItem(
     );
     return { item: { ...item, progress: null }, runs, titlesPending: false };
   }
-  const [records, details] = await Promise.all([
+  const [records, stories] = await Promise.all([
     recordsOf(item.runs, recordFields(view), reads, within),
-    Promise.all(item.runs.map(run => within(signal => reads.getRunDetail(run.id, { signal })))),
+    Promise.all(item.runs.map(run => storyOf(run, reads, within))),
   ]);
   const facts = factsOf(view, [item], records);
   const lookup = lookupsOf(view, [item], facts).get(key);
@@ -72,7 +103,7 @@ export async function readFactoryItem(
   const runs = item.runs.map((run, index): FactoryItemRun => {
     const fact = facts.get(run.id);
     const record = records.get(run.id);
-    const detail = details[index];
+    const story = stories[index];
     return {
       runId: run.id,
       workflow: namedWorkflow(view, run.workflow),
@@ -84,7 +115,7 @@ export async function readFactoryItem(
         record === undefined
           ? null
           : (said.map(pointer => resultString(pointer, run, record)).find(Boolean) ?? null),
-      ...(detail === undefined ? { models: [], steps: [] } : runStory(detail)),
+      ...(story ?? { models: [], steps: [] }),
     };
   });
   return { item: { ...item, progress }, runs, titlesPending: forge.titlesPending };
