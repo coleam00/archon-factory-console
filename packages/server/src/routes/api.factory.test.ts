@@ -1150,9 +1150,7 @@ describe('GET /api/factory/workflow', () => {
   });
 
   /** The kit view listing `deliver` and `next` in Build, with `next` on disk and not `deliver`. */
-  async function twoWorkflowApp(
-    retired: string[] | undefined
-  ): Promise<{ app: OpenAPIHono; discoveries: () => number }> {
+  async function twoWorkflowApp(retired: string[] | undefined): Promise<OpenAPIHono> {
     const view = declaration('kit', 'Kit factory');
     const project = await projectWith(track, {
       '.archon/packs/kit.factory-view.json': {
@@ -1171,17 +1169,14 @@ describe('GET /api/factory/workflow', () => {
       },
       '.archon/workflows/kit/next/next.yaml': DELIVER.replace('name: deliver', 'name: next'),
     });
-    let discoveries = 0;
     const app = new OpenAPIHono();
     registerFactoryRoutes(app, {
       ...noItems,
       codebase: async () => ({ cwd: project, projectKey: 'acme/web', remote: null }),
-      discoverWorkflows: cwd => {
-        discoveries++;
-        return discoverWorkflows(cwd, { providers: providerRegistry, loadDefaults: false });
-      },
+      discoverWorkflows: cwd =>
+        discoverWorkflows(cwd, { providers: providerRegistry, loadDefaults: false }),
     });
-    return { app, discoveries: () => discoveries };
+    return app;
   }
 
   const missingError = async (app: OpenAPIHono): Promise<[number, string]> => {
@@ -1190,17 +1185,16 @@ describe('GET /api/factory/workflow', () => {
     return [response.status, error];
   };
 
-  test('a retired workflow returns 404 saying the pack has no such workflow, without discovering again', async () => {
-    const { app, discoveries } = await twoWorkflowApp(['deliver']);
+  test('a retired workflow returns 404 saying the pack has no such workflow', async () => {
+    const app = await twoWorkflowApp(['deliver']);
     expect(await missingError(app)).toEqual([
       404,
       'This pack has no workflow named deliver. It was retired; the items it worked still show their runs.',
     ]);
-    expect(discoveries()).toBe(1);
   });
 
   test('a workflow missing from a pack whose other workflows are here returns 404 saying so, not that the pack is missing', async () => {
-    const { app } = await twoWorkflowApp(undefined);
+    const app = await twoWorkflowApp(undefined);
     expect(await missingError(app)).toEqual([404, 'This pack has no workflow named deliver.']);
   });
 

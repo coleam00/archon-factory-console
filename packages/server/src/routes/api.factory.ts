@@ -726,11 +726,9 @@ export function registerFactoryRoutes(app: OpenAPIHono, deps: FactoryRouteDeps):
       ): WorkflowLoadResult['workflows'][number] | undefined =>
         found.workflows.find(candidate => candidate.workflow.name === runName);
       // A kept discovery may predate installing the pack, and the 404 below may tell the person
-      // to install it and reload: discover again before saying it is missing, unless the view
-      // retired the workflow, which no reinstall brings back.
+      // to install it and reload: discover again before saying it is missing.
       let found = await stageWorkflows(project.cwd);
-      if (named(found) === undefined && view.declaration.retired?.includes(workflow) !== true)
-        found = await stageWorkflows(project.cwd, { fresh: true });
+      if (named(found) === undefined) found = await stageWorkflows(project.cwd, { fresh: true });
       const entry = named(found);
       // Said for the person reading the stage page, who can act on it.
       if (entry === undefined)

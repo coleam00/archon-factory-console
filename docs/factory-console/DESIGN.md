@@ -110,8 +110,9 @@ not polish: reshape a page when restyling it would not make it read well.
      default" pill when the project sets nothing. A shadow setting carries the shadow badge and
      says what would change when it stops being one.
    - The checks file shows its checks as rows (name and command), not a raw dump.
-7. **A step page is a page about one step.** Reached from "The real workflow" (for example
-   `steps/land/land` or a step of `stage-check`), it shows:
+7. **A step page is a page about one step.** Reached from a step of "The real workflow" or a
+   card of "What this stage does" (for example `steps/land/land` or a step of `stage-check`), it
+   shows:
    - a header band: the step's plain name, its workflow and stage, its kind in its kind colour,
      the model it runs on, and how many items are on it now;
    - an aside with the facts in a definition grid (kind, model, inputs it reads, outcomes it can
@@ -1248,7 +1249,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
   says which: its hover, and the stage's details under "Shadow steps", give one line per
-  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Would it start on its own · last 5: would ask you first ×5"), or
   "nothing decided yet"; before the items are read, "…", and "could not be read" once that
   read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",
