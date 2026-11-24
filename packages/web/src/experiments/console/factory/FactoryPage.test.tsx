@@ -7,7 +7,7 @@ import { K } from '../store/keys';
 import { FK } from './keys';
 import { factoryRoutes } from './routes';
 import type { FactoryItem } from './api';
-import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
+import { FIXTURE_NOW, needsShaping, PAGE, realItem, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { attentionRead, refAsk } from './lib/attention.test-fixtures';
 import type { RunsAttention } from '../primitives/run';
@@ -115,19 +115,30 @@ function render(
   );
 }
 
-/** Six open asks on six items, newest last: more than the Overview shows. */
+/** Six open asks, newest last, on six of the board's real items: more than the Overview shows. */
+const askedKeys = ['1', '2', '3', '4', '5', '6'];
+const askedItems = askedKeys.map(realItem);
 const sixAsks = attentionRead(
-  Array.from({ length: 6 }, (_, i) =>
+  askedItems.map(({ item }, i) =>
     refAsk({
       ref: `ask:${i.toString()}`,
-      item: { id: `item-${i.toString()}`, projectKey: 'acme', key: `#${i.toString()}` },
+      item: { ...item },
       message: `Question ${i.toString()}?`,
       pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
     })
   )
 );
-/** How many ask cards are drawn. */
-const askCards = (html: string): number => html.split('data-ask-ref=').length - 1;
+/** An item waiting on you with no ask open, its own item and not item 6 it is made from. */
+const shaping = needsShaping('9s', ['Which?']);
+const awaitingOnly: FactoryItem = { ...shaping, item: { ...shaping.item, id: 'item-9s' } };
+/** The Overview's Needs you section, as markup. */
+const needsYouOf = (html: string): string => {
+  const start = html.indexOf('aria-label="Needs you"');
+  return start === -1 ? '' : html.slice(start, html.indexOf('</section>', start));
+};
+/** The items the Overview's Needs you rows open, by key, in order. */
+const rowKeys = (html: string): string[] =>
+  [...needsYouOf(html).matchAll(/data-ask-trigger="([^"]*)"/g)].map(([, key]) => key ?? '');
 const text = (html: string): string => html.replace(/<[^>]*>/g, '');
 /** The Overview's link to the board's needs-you show, as markup. */
 const moreLink = (html: string): string =>
@@ -146,12 +157,12 @@ const subNav = (html: string): string[] => {
 const SUB_NAV = [`/console/p/${ID}/factory Overview`, `/console/p/${ID}/factory/board Board`];
 
 describe('the Factory section', () => {
-  test('a busy Overview: title, summary, one count of what waits, the newest three asks, then the map', () => {
-    const html = render(`/console/p/${ID}/factory`, withView, sixAsks, [
-      needsShaping('9s', ['Which?']),
+  test('a busy Overview: the title, one count of what waits, the newest three asks as rows, then the map', () => {
+    const html = render(`/console/p/${ID}/factory`, shipped, sixAsks, [
+      ...askedItems,
+      awaitingOnly,
     ]);
-    expect(html).toContain('Kit factory');
-    expect(html).toContain(SUMMARY);
+    expect(html).toContain(VIEW.title);
     expect(currentLinks(html)).toEqual([
       `/console/p/${ID}/factory Factory`,
       `/console/p/${ID}/factory Overview`,
@@ -160,13 +171,12 @@ describe('the Factory section', () => {
     // Six asks and an item waiting on you.
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
     expect(text(strip)).toContain('need you7');
-    expect(askCards(html)).toBe(3);
-    for (const i of [5, 4, 3]) expect(html).toContain(`Question ${i.toString()}?`);
+    // The newest three, one row each, and none of Archon's ask section drawn in the page.
+    expect(rowKeys(html)).toEqual(['6', '5', '4']);
+    for (const i of [5, 4, 3]) expect(needsYouOf(html)).toContain(`Question ${i.toString()}?`);
+    expect(html).not.toContain('data-ask-ref=');
     // The rest wait on the board: three asks and the item waiting on you.
     expect(text(moreLink(html))).toContain('4');
-    // Archon's ask section, answerable here: the recommendation's why, an option's cost.
-    expect(text(html)).toContain('Dev is the working base.');
-    expect(text(html)).toContain('One more rebase.');
     const needsYou = html.indexOf('aria-label="Needs you"');
     expect(needsYou).toBeGreaterThan(-1);
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
@@ -176,8 +186,10 @@ describe('the Factory section', () => {
     const waiting = render(`/console/p/${ID}/factory`, withView, quiet, [
       needsShaping('9s', ['Which?']),
     ]);
+    expect(waiting).toContain('Kit factory');
+    expect(waiting).toContain(SUMMARY);
     expect(text(moreLink(waiting))).toContain('1');
-    expect(askCards(waiting)).toBe(0);
+    expect(rowKeys(waiting)).toEqual([]);
 
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     const strip = text(

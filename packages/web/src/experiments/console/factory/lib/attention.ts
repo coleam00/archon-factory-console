@@ -15,15 +15,18 @@ export type OpenEntry = Exclude<QueueEntry, { kind: 'usage_limit' }>;
  */
 export function openEntries(entries: readonly QueueEntry[]): OpenEntry[] {
   const open = entries.filter((entry): entry is OpenEntry => entry.kind !== 'usage_limit');
+  // Array.prototype.sort is stable, so equal times keep the given order.
+  return open.sort(newestFirst);
+}
+
+/** Newest first by `pausedAt`; an entry with no time (a gate) after every timed one. */
+export function newestFirst(a: OpenEntry, b: OpenEntry): number {
   const time = (entry: OpenEntry): number =>
     entry.pausedAt === null ? Number.NEGATIVE_INFINITY : Date.parse(entry.pausedAt);
-  // Array.prototype.sort is stable, so equal times keep the given order.
-  return open.sort((a, b) => {
-    const ta = time(a);
-    const tb = time(b);
-    if (ta === tb) return 0;
-    return tb > ta ? 1 : -1;
-  });
+  const ta = time(a);
+  const tb = time(b);
+  if (ta === tb) return 0;
+  return tb > ta ? 1 : -1;
 }
 
 /**
@@ -60,18 +63,26 @@ export function awaitingItems<T extends Pick<FactoryItem, 'questions' | 'progres
   );
 }
 
+/** The refs of what waits on a person in the factory: every item's open entries and the project's asks, each once. */
+export function waitingRefs(
+  items: readonly Pick<FactoryItem, 'questions'>[],
+  asks: readonly ItemAsk[]
+): Set<string> {
+  const refs = new Set(asks.map(ask => ask.ref));
+  for (const item of items) for (const entry of openEntries(item.questions)) refs.add(entry.ref);
+  return refs;
+}
+
 /**
- * How many things in the factory need a person: every item's open entries and the project's
- * asks, each once by ref, and the items waiting on a person with no ask open. The Overview's
- * number reads this.
+ * How many things in the factory need a person: what waits by ref (`waitingRefs`), and the
+ * items waiting on a person with no ask open. The Overview's number reads this, and its Needs
+ * you counts what it does not show from the same refs.
  */
 export function factoryWaitingCount(
   items: readonly Pick<FactoryItem, 'item' | 'questions' | 'progress'>[],
   asks: readonly ItemAsk[]
 ): number {
-  const refs = new Set(asks.map(ask => ask.ref));
-  for (const item of items) for (const entry of openEntries(item.questions)) refs.add(entry.ref);
-  return refs.size + awaitingItems(items).length;
+  return waitingRefs(items, asks).size + awaitingItems(items).length;
 }
 
 /**

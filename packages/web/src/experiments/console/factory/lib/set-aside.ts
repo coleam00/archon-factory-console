@@ -91,7 +91,7 @@ function idle(placed: PlacedCard, since: string | null, now: Date): SetAsideReas
 /**
  * Whether the board sets `placed` aside, first that holds; null when it stays in its column.
  * An item an ending took off the board (`{ ended }`) is set aside whatever else holds: it has
- * no column to go back to (an open ask on it still shows on the Overview). One placement found no
+ * no column to go back to (an open ask on it still counts in the Overview's Needs you). One placement found no
  * column for is not: it keeps its own "Position unknown" row. Otherwise a live item
  * (`live`) never is; a parked one is; an idle one is by the idle rule.
  */

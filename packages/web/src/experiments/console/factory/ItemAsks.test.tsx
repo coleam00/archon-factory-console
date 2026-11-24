@@ -142,4 +142,53 @@ describe("an item's open ask", () => {
       await page.unmount();
     }
   });
+
+  test('on the Overview: three rows at most, the rest counted, and a row opens Archon’s ask, which answers', async () => {
+    const sent = serveAnswers();
+    // The newest ask on item 6, older ones on items 3 to 5: four items, one more than the rows.
+    const older = ['3', '4', '5'].map((key, i) => {
+      const item = realItem(key);
+      const ask = {
+        ...askOn(item),
+        ref: `ask:older-${key}`,
+        pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
+      };
+      return { item: { ...item, questions: [ask] }, ask };
+    });
+    const six = realItem('6');
+    const newest = askOn(six);
+    set(FK.factoryViews(PROJECT), { views: [shippedListed], errors: [] });
+    set(FK.factoryItems(PROJECT), {
+      items: [...older.map(entry => entry.item), { ...six, questions: [newest] }],
+      members: {},
+    });
+    set(K.runsAttention, attentionRead([...older.map(entry => entry.ask), newest]));
+    const page = await mount(
+      <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory`]}>
+        <Routes>{factoryRoutes('/console/')}</Routes>
+      </MemoryRouter>
+    );
+    try {
+      const section = page.container.querySelector('section[aria-label="Needs you"]');
+      if (section === null) throw new Error('The Overview shows nothing that needs you');
+      const rows = [...section.querySelectorAll('[data-ask-trigger]')];
+      expect(rows.map(row => row.getAttribute('data-ask-trigger'))).toEqual(['6', '5', '4']);
+      expect(section.querySelector('[data-ask-ref]')).toBeNull();
+      const more = section.querySelector('a[href$="/factory/board?show=needs-you"]');
+      expect(more?.textContent).toContain('1');
+      const [open] = rows;
+      if (open === undefined) throw new Error('No row');
+      await click(open);
+      const dialog = document.body.querySelector('[role="dialog"]');
+      if (dialog === null) throw new Error('No ask opened over the Overview');
+      await answersThroughArchon(dialog, sent);
+      await act(async () => {
+        document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
+        await Promise.resolve();
+      });
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    } finally {
+      await page.unmount();
+    }
+  });
 });
