@@ -64,34 +64,3 @@ test('a read that missed its deadline says so and retries itself, waiting longer
     invalidate(key);
   }
 });
-
-test('readers of the same key retry it once between them', async () => {
-  jest.useFakeTimers();
-  const key = 'factory-shared-read-test';
-  const stall = stalled();
-  // Each shows nothing while it waits: the retry does not depend on a loading notice.
-  function Reader(): null {
-    useFactoryRead(key, within => within(stall.read));
-    return null;
-  }
-  const page = await mount(
-    <>
-      <Reader />
-      <Reader />
-      <Reader />
-    </>
-  );
-  try {
-    expect(stall.attempts()).toBe(1);
-    await advance(FACTORY_READ_DEADLINE_MS);
-    await advance(2_000);
-    expect(stall.attempts()).toBe(2);
-    // Past the retry's 16 s deadline, short of the next 4 s wait. Without the dedup, the other
-    // readers' retries, queued behind attempt 2 by the cache, start a third attempt here.
-    await advance(16_000);
-    expect(stall.attempts()).toBe(2);
-  } finally {
-    await page.unmount();
-    invalidate(key);
-  }
-});

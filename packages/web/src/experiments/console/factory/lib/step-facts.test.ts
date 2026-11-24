@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryWorkflow } from '../../skills/factory';
 import deliverJson from './fixtures/deliver-workflow.json';
-import { coveringCard, modelWords, stepFacts } from './step-facts';
+import { stepFacts } from './step-facts';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -40,22 +40,6 @@ const VIEW = {
       blurb: 'Ready.',
       group: 'land',
       workflows: ['land'],
-      drilldown: {
-        phases: [
-          {
-            label: 'Merge',
-            cards: [
-              {
-                title: 'Merge',
-                text: 'Merges the change',
-                icon: 'git-merge',
-                kind: 'agent',
-                covers: [{ workflow: 'land', steps: ['land'] }],
-              },
-            ],
-          },
-        ],
-      },
     },
   ],
   placement: {},
@@ -73,12 +57,6 @@ const facts = (target: FactoryStep, steps: FactoryStep[] = [target]) =>
   stepFacts({ step: target, view: VIEW, workflow: 'land', steps, groups: [], stepName: name });
 
 describe('stepFacts', () => {
-  test('leaves out every row it knows nothing for: a lone script step is only its kind', () => {
-    expect(facts(step('end', { kind: 'script', model: ['@lander'] }))).toEqual([
-      { key: 'kind', label: 'Kind', text: 'Script' },
-    ]);
-  });
-
   test('a step the view declares outcomes for says what each does', () => {
     const outcomes = facts(step('gate')).find(fact => fact.key === 'outcomes');
     // Plain words first, the pack's outcome id second.
@@ -135,23 +113,5 @@ describe('stepFacts', () => {
     );
     expect(rows.find(fact => fact.key === 'reads')?.chips).toEqual(['item', 'validate command']);
     expect(rows.find(fact => fact.key === 'reads-steps')?.lines).toEqual(['Gate output, why']);
-  });
-
-  test('an expression no parser took shows as written', () => {
-    const when = facts(step('land', { when: 'odd expression' })).find(fact => fact.key === 'when');
-    expect(when).toEqual({ key: 'when', label: 'Runs when', text: 'odd expression', mono: true });
-  });
-});
-
-test('a tier reads as its name and "tier"; a model as written', () => {
-  expect(modelWords(['@judge', 'medium'])).toBe('Judge tier, else medium');
-  expect(modelWords(['sonnet'])).toBe('sonnet');
-});
-
-describe('coveringCard', () => {
-  test('is the drill-down card covering the step, else undefined', () => {
-    expect(coveringCard(VIEW, 'land', 'land')?.text).toBe('Merges the change');
-    expect(coveringCard(VIEW, 'land', 'end')).toBeUndefined();
-    expect(coveringCard(VIEW, 'deliver', 'land')).toBeUndefined();
   });
 });

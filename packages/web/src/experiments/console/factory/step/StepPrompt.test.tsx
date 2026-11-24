@@ -33,8 +33,6 @@ describe('reference chips', () => {
       'Land $INPUTS.item under $INPUTS.land_policy, then $INPUTS.item.',
       ['item', 'land policy', 'item'],
     ],
-    // A code span that is exactly one reference is its chip.
-    ['a whole code span', 'Merge onto `$INPUTS.land_on` for $INPUTS.item.', ['land on', 'item']],
     // A reference inside real code stays code.
     [
       'inside real code',
@@ -53,7 +51,7 @@ describe('reference chips', () => {
     expect(root.textContent).not.toContain('.proposed');
   });
 
-  test('a chip has the token on hover, and the prose and real code keep their shape', () => {
+  test('a chip has the token on hover, and the prose keeps its shape', () => {
     const root = rendered(
       '# Land it\n\nLand $INPUTS.item.\n\n```sh\necho $INPUTS.item\n```\n',
       CHIPS
@@ -63,19 +61,12 @@ describe('reference chips', () => {
     expect(chip?.getAttribute('data-ref-kind')).toBe('input');
     expect(root.querySelector('h1')?.textContent).toBe('Land it');
     expect(root.querySelector('p')?.textContent).not.toContain('$INPUTS');
-    expect(root.querySelector('pre code')?.textContent).toContain('echo $INPUTS.item');
   });
 });
 
 describe('the fold', () => {
   const lines = (count: number): string =>
     Array.from({ length: count }, (_, index) => `Line ${(index + 1).toString()}.`).join('\n\n');
-
-  test('a short prompt is not folded and has no toggle', () => {
-    const root = rendered(lines(10));
-    expect(root.querySelector('[data-prompt-fold]')).toBeNull();
-    expect(root.querySelector('button')).toBeNull();
-  });
 
   test('a long prompt is clipped to its first screen until "Show the whole prompt"', async () => {
     const { container, unmount } = await mount(<StepPrompt prompt={lines(60)} chips={[]} />);

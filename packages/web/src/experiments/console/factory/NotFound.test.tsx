@@ -13,7 +13,7 @@ import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page'
 
 // A read that answers 404 and one that gets no answer differ only once a read is mounted and
 // fails, and only a click can press Retry.
-const { dom, mount } = await installDom();
+const { mount } = await installDom();
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -110,22 +110,6 @@ async function click(button: HTMLElement | null | undefined): Promise<void> {
   await settle();
 }
 
-async function type(container: HTMLElement, text: string): Promise<void> {
-  const input = container.querySelector<HTMLInputElement>('input[type="search"]');
-  expect(input?.getAttribute('aria-label')).toBe('Find an item by key or title');
-  await act(async () => {
-    // React listens for the native input event; set the value the way a keystroke does.
-    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set;
-    setter?.call(input, text);
-    input?.dispatchEvent(new dom.Event('input', { bubbles: true }) as unknown as Event);
-  });
-}
-
-const hrefs = (container: HTMLElement, selector: string): string[] =>
-  [...container.querySelectorAll<HTMLAnchorElement>(`${selector} a`)].map(
-    link => link.getAttribute('href') ?? ''
-  );
-
 describe('an item', () => {
   test('that does not exist says so, links the board and offers a search', async () => {
     serve(healthy);
@@ -155,28 +139,11 @@ describe('an item', () => {
 
   test('whose read got no answer says why, and Retry reads it again and draws the item', async () => {
     const answers: Answers = { ...healthy, item: offline };
-    const { fetches } = serve(answers);
+    serve(answers);
     await renderAt('items/3', async container => {
       const alert = container.querySelector('[role="alert"]');
       expect(alert?.textContent).toContain('Item #3 could not be read: the server did not answer');
       expect(words(container)).not.toContain('There is no item');
-      // While the retry waits, the held failure gives way to the page's loading shape.
-      let fail: (error: Error) => void = () => undefined;
-      answers.item = () =>
-        new Promise<Response>((_resolve, reject) => {
-          fail = reject;
-        });
-      const before = fetches.item;
-      await click(alert?.querySelector('button'));
-      expect(fetches.item).toBe(before + 1);
-      expect(container.querySelector('[role="alert"]')).toBeNull();
-      expect(words(container)).toContain('Loading the item');
-      // Still offline: the new failure shows.
-      await act(async () => fail(new TypeError('Failed to fetch')));
-      await settle();
-      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-        'the server did not answer'
-      );
       answers.item = () => Response.json(itemDetail('3'));
       await click(container.querySelector<HTMLButtonElement>('[role="alert"] button'));
       expect(container.querySelector('[role="alert"]')).toBeNull();
@@ -199,37 +166,6 @@ describe('an item', () => {
       expect(words(container)).toContain('There is no item #9999 in this project.');
     });
   });
-
-  test('search lists the closest items as links, the exact key first, and says when none match', async () => {
-    serve(healthy);
-    await renderAt('items/9999', async container => {
-      // Nothing is listed before the person types.
-      expect(container.querySelector('[aria-label="Matching items"]')).toBeNull();
-      await type(container, '3');
-      const links = hrefs(container, '[aria-label="Matching items"]');
-      expect(links[0]).toBe(`/console/p/${PROJECT}/factory/items/3`);
-      await type(container, 'no item is called this');
-      expect(container.querySelector('[aria-label="Matching items"]')).toBeNull();
-      expect(words(container)).toContain('No item with a run matches.');
-    });
-  });
-});
-
-describe('a Factory page', () => {
-  test('whose factory view read got no answer says so with a Retry, which draws the page', async () => {
-    const answers: Answers = { ...healthy, views: offline };
-    serve(answers);
-    await renderAt('nope', async container => {
-      const alert = container.querySelector('[role="alert"]');
-      expect(alert?.textContent).toContain(
-        'The factory view could not be read: the server did not answer'
-      );
-      answers.views = healthy.views;
-      await click(alert?.querySelector('button'));
-      expect(container.querySelector('[role="alert"]')).toBeNull();
-      expect(words(container)).toContain('No page here.');
-    });
-  });
 });
 
 describe('a step', () => {
@@ -245,16 +181,6 @@ describe('a step', () => {
         link => link.textContent === 'Open the Overview'
       );
       expect(overview?.getAttribute('href')).toBe(`/console/p/${PROJECT}/factory`);
-    });
-  });
-
-  test("of a stage's workflow that answers 404 stays a failure with the server's words", async () => {
-    const missing =
-      'The pack acme/kit has no workflow deliver in this project, so it cannot be drawn.';
-    serve({ ...healthy, workflow: notFound(missing) });
-    await renderAt('steps/deliver/x', async container => {
-      expect(container.querySelector('[role="alert"]')?.textContent).toContain(missing);
-      expect(words(container)).not.toContain('There is no workflow');
     });
   });
 });

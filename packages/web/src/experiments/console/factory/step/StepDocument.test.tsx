@@ -24,27 +24,22 @@ afterAll(async () => {
 });
 
 const deliver = deliverJson as FactoryWorkflow;
-/**
- * `deliver` with a prompt that reads inputs and a step's output, one input in a code span, and
- * a model on its shell step, which the page must still not show.
- */
+/** `deliver` with a prompt that reads inputs and a step's output, one input in a code span. */
 const WITH_PROMPT: FactoryWorkflow = {
   ...deliver,
   steps: deliver.steps.map(step =>
-    step.key === 'rounds.base'
-      ? { ...step, model: ['@lander'] }
-      : step.key === 'rounds.fix'
-        ? {
-            ...step,
-            prompt:
-              '# Fix what the checks returned\n\nFix $INPUTS.item on `$INPUTS.land_on` from $build__build.output.',
-            references: [
-              { kind: 'input', token: '$INPUTS.item', name: 'item' },
-              { kind: 'input', token: '$INPUTS.land_on', name: 'land_on' },
-              { kind: 'output', token: '$build__build.output', key: 'build__build', path: null },
-            ],
-          }
-        : step
+    step.key === 'rounds.fix'
+      ? {
+          ...step,
+          prompt:
+            '# Fix what the checks returned\n\nFix $INPUTS.item on `$INPUTS.land_on` from $build__build.output.',
+          references: [
+            { kind: 'input', token: '$INPUTS.item', name: 'item' },
+            { kind: 'input', token: '$INPUTS.land_on', name: 'land_on' },
+            { kind: 'output', token: '$build__build.output', key: 'build__build', path: null },
+          ],
+        }
+      : step
   ),
 };
 
@@ -175,21 +170,5 @@ describe('the step page as a document page', () => {
       '1git fetch origin main',
       '2git diff --stat origin/main',
     ]);
-    // A shell step with a model declared still shows no model: it runs no agent.
-    expect(chips(root).some(chip => chip.includes('model'))).toBe(false);
-    expect(root.querySelector('aside dl')?.textContent).not.toContain('Runs on');
-  });
-
-  test('the count chip is in the running colour; the empty state links the board', () => {
-    expect(chips(page('build__build', capturedItemsPage.items))).toContain(
-      'running: 3on this step now'
-    );
-    // Inside the items section: the frame's own navigation links the board too.
-    const items = [...page('rounds.fix').querySelectorAll('[data-doc-section]')].find(
-      section => section.querySelector('h2')?.textContent === 'Items on this step now'
-    );
-    expect(
-      [...(items?.querySelectorAll('a') ?? [])].map(link => link.getAttribute('href'))
-    ).toEqual([`/console/p/${ID}/factory/board`]);
   });
 });

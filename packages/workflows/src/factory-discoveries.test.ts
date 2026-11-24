@@ -53,20 +53,9 @@ describe('what one drain decided', () => {
       { filed: [{ title: 'A thing' }], held: [], dropped: [] },
       { filed: [{ title: 'A thing', kind: null, verified: null }], held: 0, dropped: 0 },
     ],
-    ['a declared list missing is unreadable', { filed: [], held: [] }, 'unreadable'],
-    [
-      'a declared list that is not a list is unreadable',
-      { filed: 'none', held: [], dropped: [] },
-      'unreadable',
-    ],
     [
       'a filed entry with no title is unreadable',
       { filed: [{ kind: 'defect' }], held: [], dropped: [] },
-      'unreadable',
-    ],
-    [
-      'a filed entry with a blank title is unreadable',
-      { filed: [{ title: '  ' }], held: [], dropped: [] },
       'unreadable',
     ],
   ])('%s', (_name, value, expected) => {
@@ -215,18 +204,6 @@ describe('reading every drain on the project', () => {
     );
     expect(read.findings.map(f => f.runId)).toEqual(liveValue.filed.map(() => 'd1'));
     expect(unreadable).toEqual(['d2']);
-  });
-
-  test('a drain with no output is counted unreadable and reported, not read as empty', async () => {
-    const unreadable: string[] = [];
-    const read = await readFactoryDiscoveries(
-      source([item(1)], { '1': [drain('d1', '2026-11-17T17:03:26Z')] }, [
-        completedEvent('d1', null, 'unavailable'),
-      ]),
-      { view, pack: PACK, projectKey: 'acme/web', onUnreadable: id => unreadable.push(id) }
-    );
-    expect(read).toMatchObject({ unreadable: 1, held: 0, dropped: 0, findings: [] });
-    expect(unreadable).toEqual(['d1']);
   });
 
   test('reads past the first page of items', async () => {

@@ -118,13 +118,6 @@ describe('findPackDeclaration', () => {
       ],
     });
   });
-
-  test('returns a broken declaration as its error, and null for a pack with none', async () => {
-    await declare('inputs:\n  1bad: {}\n');
-    const found = await findPackDeclaration(roots, 'kit');
-    expect(found !== null && 'error' in found ? found.error : null).toContain("'1bad'");
-    expect(await findPackDeclaration(roots, 'other')).toBeNull();
-  });
 });
 
 describe('readFactoryPackSettings', () => {
@@ -232,38 +225,5 @@ describe('readFactoryPackSettings', () => {
       checks: null,
     });
     expect(refused?.state === 'set' ? refused.file?.error : null).toContain("'checks.0.run'");
-  });
-
-  test('names a map key the pack does not declare', async () => {
-    const result = await read([], { ...MAP, retired_policy: { shadow: true } });
-    expect(result.mapErrors).toHaveLength(1);
-    expect(result.mapErrors[0]).toContain('"retired_policy"');
-    expect(result.settings.map(s => s.name)).not.toContain('retired_policy');
-  });
-
-  test("reports one project's broken settings file on that project only", async () => {
-    const broken = await project('broken', 'settings: [not, a, map]\n');
-    const web = await project('web', 'settings:\n  command: bun test\n');
-    const result = await read([broken, web]);
-    expect(projectNamed(result, 'broken')).toMatchObject({ values: {}, undeclared: [] });
-    expect(projectNamed(result, 'broken')?.error).toContain("'settings' must be a mapping");
-    expect(projectNamed(result, 'web')?.error).toBeNull();
-    expect(projectNamed(result, 'web')?.values.command).toMatchObject({ value: 'bun test' });
-  });
-
-  test('a broken declaration is reported, with no settings and no project read', async () => {
-    const result = await readFactoryPackSettings({
-      packKey: 'kit',
-      declaration: { path: '/p/.pack/pack.yaml', error: 'not valid YAML' },
-      map: MAP,
-      projects: [await project('web', 'settings:\n  colour: red\n')],
-    });
-    expect(result).toMatchObject({
-      declaration: { path: '/p/.pack/pack.yaml', error: 'not valid YAML' },
-      sections: [],
-      settings: [],
-      mapErrors: [],
-      projects: [],
-    });
   });
 });

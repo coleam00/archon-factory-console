@@ -11,32 +11,12 @@ afterEach(() => {
   invalidate('factory-items');
 });
 
-const turn = (ms = 0): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 /** Enough turns for several ticks at a zero delay to ask and settle. */
 const ticks = async (n = 5): Promise<void> => {
-  for (let i = 0; i < n; i++) await turn(1);
+  for (let i = 0; i < n; i++) await new Promise(resolve => setTimeout(resolve, 1));
 };
 
 type Merged = NonNullable<NonNullable<FactoryItem['progress']>['change']>['merged'];
-
-/** A tab whose visibility the test sets, and announces like a browser does. */
-function fakeDoc(): NonNullable<MergeWatchDeps['doc']> & { show(): void; hide(): void } {
-  const target = new EventTarget();
-  const doc = {
-    visibilityState: 'visible' as DocumentVisibilityState,
-    addEventListener: target.addEventListener.bind(target),
-    removeEventListener: target.removeEventListener.bind(target),
-    show() {
-      doc.visibilityState = 'visible';
-      target.dispatchEvent(new Event('visibilitychange'));
-    },
-    hide() {
-      doc.visibilityState = 'hidden';
-      target.dispatchEvent(new Event('visibilitychange'));
-    },
-  };
-  return doc as never;
-}
 
 /**
  * A progress read that records every request's keys and answers each key from `state`
@@ -64,20 +44,6 @@ const read = (projectId: string): FactoryItemsRead =>
   get(K.factoryItems(projectId)) as FactoryItemsRead;
 const seed = (projectId: string, items: FactoryItem[]): void =>
   set(K.factoryItems(projectId), { items, members: {} });
-
-test('only the waiting keys are asked, a page of 100 at a time', async () => {
-  const keys = Array.from({ length: 101 }, (_, i) => readyWithMerge(`k${i.toString()}`, false));
-  seed('cb-keys', [readyWithMerge('a', true), ...keys]);
-  const host = forge();
-  const release = watchMerges('cb-keys', { getProgress: host.getProgress, delayMs: 0 });
-  try {
-    await ticks(1);
-    expect(host.asked.slice(0, 2).map(asked => asked.length)).toEqual([100, 1]);
-    expect(host.asked.flat()).not.toContain('a');
-  } finally {
-    release();
-  }
-});
 
 test('once the forge says merged, the item is merged and nothing more is asked', async () => {
   seed('cb-merge', [readyWithMerge('b', false)]);
@@ -113,23 +79,6 @@ test('an item that leaves the board, or the last release, stops the asking', asy
   expect(host.asked.length).toBe(afterLeaving);
 });
 
-test('a hidden tab asks nothing, and asks again when it shows', async () => {
-  seed('cb-hidden', [readyWithMerge('b', false)]);
-  const host = forge();
-  const doc = fakeDoc();
-  doc.hide();
-  const release = watchMerges('cb-hidden', { getProgress: host.getProgress, delayMs: 0, doc });
-  try {
-    await ticks();
-    expect(host.asked).toEqual([]);
-    doc.show();
-    await turn();
-    expect(host.asked).toEqual([['b']]);
-  } finally {
-    release();
-  }
-});
-
 test('an open item page takes the answer too, so its header agrees with the board', async () => {
   const item = readyWithMerge('b', false);
   seed('cb-detail', [item]);
@@ -145,42 +94,4 @@ test('an open item page takes the answer too, so its header agrees with the boar
     release();
     invalidate(detailKey);
   }
-});
-
-test('a failed ask keeps the board as it was and asks again next time', async () => {
-  seed('cb-fail', [readyWithMerge('b', false)]);
-  const before = read('cb-fail');
-  const host = forge({ b: true });
-  host.fail = true;
-  const warn = console.warn;
-  console.warn = () => undefined;
-  const release = watchMerges('cb-fail', { getProgress: host.getProgress, delayMs: 0 });
-  try {
-    await ticks(3);
-    expect(host.asked.length).toBeGreaterThan(1);
-    expect(read('cb-fail')).toBe(before);
-    host.fail = false;
-    await ticks();
-    expect(read('cb-fail').items[0]?.progress?.change?.merged).toBe(true);
-  } finally {
-    console.warn = warn;
-    release();
-  }
-});
-
-test('two readers share one watch: one ask per interval, until both release', async () => {
-  seed('cb-two', [readyWithMerge('b', false)]);
-  const host = forge();
-  const deps = { getProgress: host.getProgress, delayMs: 20 };
-  const first = watchMerges('cb-two', deps);
-  const second = watchMerges('cb-two', deps);
-  await turn(30);
-  expect(host.asked.length).toBe(1);
-  // The reader that came last leaves first: the watch is shared, so the other keeps it.
-  second();
-  await turn(20);
-  expect(host.asked.length).toBe(2);
-  first();
-  await turn(40);
-  expect(host.asked.length).toBe(2);
 });

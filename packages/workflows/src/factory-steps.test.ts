@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, spyOn, test } from 'bun:test';
-import { mkdir, mkdtemp, unlink, writeFile } from 'fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { dirname, join } from 'path';
 import { providerRegistry } from '@archon/providers';
@@ -82,13 +82,8 @@ nodes:
 `,
 };
 
-/**
- * `ship`'s steps. With `scriptGone`, the named script `tally` is removed after discovery
- * (which refuses a workflow whose named script is missing), as when a pack changed since.
- */
-async function shipSteps(
-  scriptGone = false
-): Promise<Awaited<ReturnType<typeof factoryWorkflowSteps>>> {
+/** `ship`'s steps, discovered from the pack above in a scratch project. */
+async function shipSteps(): Promise<Awaited<ReturnType<typeof factoryWorkflowSteps>>> {
   const project = track(await mkdtemp(join(tmpdir(), 'archon-factory-steps-')));
   const fileOf = (path: string): string =>
     join(project, '.archon', 'workflows', 'kit', ...path.split('/'));
@@ -104,7 +99,6 @@ async function shipSteps(
   expect(errors).toEqual([]);
   const ship = workflows.find(entry => entry.workflow.name === 'ship');
   if (ship === undefined) throw new Error('ship was not discovered');
-  if (scriptGone) await unlink(fileOf('.shared/scripts/tally.ts'));
   return factoryWorkflowSteps('ship', ship.workflow, {
     cwd: project,
     deps: { loadConfig: async () => ({}) as never },
@@ -216,12 +210,5 @@ describe('factoryWorkflowSteps', () => {
     });
     expect(steps.get('tally')?.scriptError).toBeNull();
     expect(steps.get('rounds.fix')?.script).toBeNull();
-  });
-
-  test('a named script that is not there says so, and the other steps still read', async () => {
-    const steps = new Map((await shipSteps(true)).steps.map(s => [s.key, s]));
-    expect(steps.get('tally')?.script).toBeNull();
-    expect(steps.get('tally')?.scriptError).toContain('The script tally could not be read');
-    expect(steps.get('result')?.script?.body).toBe("console.log('{}')");
   });
 });

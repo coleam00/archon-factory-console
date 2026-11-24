@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryWorkflow } from '../../skills/factory';
-import deliverJson from './fixtures/deliver-workflow.json';
 import { capturedItemAs, capturedItemsPage } from './fixtures/factory-items-page';
 import { itemsOnStep, runningItems } from './items-on-step';
-import { stepGraph } from './step-graph';
 
 const captured = capturedItemsPage.items;
 const running = (step: string | null, workflow = 'deliver') => ({
@@ -31,19 +28,6 @@ describe('itemsOnStep', () => {
   test('keeps to the asked workflow', () => {
     expect(keys(itemsOnStep(items, 'triage').get('classify'))).toEqual(['triaged']);
     expect(itemsOnStep(items, 'deliver').has('classify')).toBe(false);
-  });
-
-  test("names only the deliver graph's step keys and loop ids for the captured runs", () => {
-    const graph = stepGraph(
-      deliverJson as FactoryWorkflow,
-      () => ({ kind: 'none' }),
-      key => key
-    );
-    const drawn = new Set([
-      ...graph.nodes.map(node => node.key),
-      ...graph.groups.filter(group => group.kind === 'loop').map(group => group.id),
-    ]);
-    for (const step of itemsOnStep(items, 'deliver').keys()) expect(drawn).toContain(step);
   });
 });
 

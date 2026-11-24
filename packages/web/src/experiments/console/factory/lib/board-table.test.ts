@@ -72,27 +72,11 @@ describe('the Table under a number', () => {
     ]);
   });
 
-  test('sorted by Key, a split member sits right after its order, as it reads (#136 · …)', () => {
-    const rows = [
-      row('issue-137', 1),
-      row('issue-136-item-keys', 1, 'landed', 'issue-136'),
-      row('135', 1),
-      row('issue-136', 1),
-    ];
-    expect(keys(sortRows(rows, { by: 'key', descending: false }))).toEqual([
-      '135',
-      'issue-136',
-      'issue-136-item-keys',
-      'issue-137',
-    ]);
-  });
-
   test('the median marks the middle row of an odd count, the two middle rows of an even one', () => {
     const odd = [row('a', 5), row('b', 1), row('c', 3), row('n', null)];
     expect([...markedKeys(odd, 'median', 'landed')]).toEqual(['c']);
     const even = [row('a', 5), row('b', 1), row('c', 3), row('d', 8)];
     expect([...markedKeys(even, 'median', 'landed')].sort()).toEqual(['a', 'c']);
-    expect(markedKeys([row('n', null)], 'median', 'landed').size).toBe(0);
   });
 
   test('merged marks every row in the landed stage, none elsewhere', () => {

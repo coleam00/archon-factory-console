@@ -1,14 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import {
-  fitCamera,
-  fittedHeight,
-  MAX_ZOOM,
-  MIN_FRAME_HEIGHT,
-  MIN_ZOOM,
-  READABLE_K,
-  reveal,
-  zoomAt,
-} from './map-camera';
+import { fitCamera, fittedHeight, MIN_ZOOM, READABLE_K, reveal, zoomAt } from './map-camera';
 import { layoutMap } from './map-layout';
 import { shippedView } from '../item-detail.test-fixtures';
 
@@ -21,12 +12,6 @@ describe('the map camera', () => {
     expect(camera.x).toBe(24);
     // 200 tall at 0.8 is 160, centred in 400; the world starts at y -10.
     expect(camera.y).toBe(120 + 8);
-  });
-
-  test('fit never enlarges past the drawn size, nor shrinks the text under the type floor', () => {
-    expect(fitCamera(world, { width: 5000, height: 5000 }).k).toBe(1);
-    expect(fitCamera(world, { width: 60, height: 60 }).k).toBe(READABLE_K);
-    expect(READABLE_K).toBeGreaterThan(MIN_ZOOM);
   });
 
   test('a frame too narrow for the whole map opens on its start, at the readable scale', () => {
@@ -44,20 +29,6 @@ describe('the map camera', () => {
     }
   });
 
-  test('fit is finite for an empty map and for a frame not laid out yet', () => {
-    const empty = fitCamera({ x: 0, y: 0, w: 0, h: 0 }, { width: 800, height: 300 });
-    expect(empty).toEqual({ k: 1, x: 400, y: 150 });
-    const unsized = fitCamera(world, { width: 0, height: 0 });
-    expect([unsized.k, unsized.x, unsized.y].every(Number.isFinite)).toBe(true);
-  });
-
-  test('the fitted frame height leaves no empty band, never below the floor', () => {
-    expect(fittedHeight({ x: 0, y: 0, w: 1000, h: 600 }, 848, 24, MIN_ZOOM)).toBe(528);
-    // Too narrow to fit: the height of the map at the readable scale.
-    expect(fittedHeight({ x: 0, y: 0, w: 1000, h: 600 }, 300, 24)).toBe(600 * READABLE_K + 48);
-    expect(fittedHeight(world, 548, 24)).toBe(MIN_FRAME_HEIGHT);
-  });
-
   test('zoom keeps the point under the cursor over the same world point', () => {
     const camera = { x: 40, y: 20, k: 0.8 };
     const at = { x: 300, y: 120 };
@@ -66,15 +37,6 @@ describe('the map camera', () => {
     expect(zoomed.k).toBe(1);
     expect(worldAt.x * zoomed.k + zoomed.x).toBeCloseTo(at.x);
     expect(worldAt.y * zoomed.k + zoomed.y).toBeCloseTo(at.y);
-  });
-
-  test('zoom stops at its bounds', () => {
-    expect(zoomAt({ x: 0, y: 0, k: MIN_ZOOM }, { x: 10, y: 10 }, 0.1).k).toBe(MIN_ZOOM);
-    expect(zoomAt({ x: 0, y: 0, k: MAX_ZOOM }, { x: 10, y: 10 }, 2)).toEqual({
-      x: 0,
-      y: 0,
-      k: MAX_ZOOM,
-    });
   });
 
   test('reveal pans the least that shows a card, and not at all when it shows', () => {

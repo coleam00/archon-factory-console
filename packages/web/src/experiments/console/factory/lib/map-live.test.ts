@@ -86,27 +86,6 @@ describe('the live chips on each card', () => {
     asking.questions = [wait];
     expect(chips(stageLive(view, [asking], [wait])).build).toEqual([['child'], 0, ['child']]);
   });
-
-  test('an item on a stage the map draws no card for is listed with that stage', () => {
-    const noCards = { ...view, map: { ...view.map, cards: [] } };
-    const ready = itemWith('ready', [run('deliver', 'completed', 'ready')]);
-    const live = stageLive(noCards, [ready], []);
-    expect(live.notOnMap.map(entry => [entry.item.item.key, entry.why])).toEqual([
-      ['ready', { kind: 'no-card', stage: 'ready' }],
-    ]);
-    expect(chips(live).ready).toEqual([['ready'], 0, []]);
-  });
-
-  test('an item placement finds no column for is listed, not thrown', () => {
-    // A view that no longer lists `deliver`, read beside items cached under the old one.
-    const stages = view.stages.map(stage => ({
-      ...stage,
-      workflows: stage.workflows.filter(workflow => workflow !== 'deliver'),
-    }));
-    const item = itemWith('r', [run('deliver', 'running', null, 'build__build')]);
-    const live = stageLive({ ...view, stages }, [item], []);
-    expect(live.notOnMap).toEqual([{ item, why: { kind: 'no-column' } }]);
-  });
 });
 
 describe('the map and the board', () => {

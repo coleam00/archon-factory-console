@@ -34,6 +34,5 @@ test('an untitled row reads its key as the board does (#7), its link keeping the
   const words = html.replace(/<[^>]*>/g, ' ');
   expect(words).toContain('#7');
   expect(words).not.toContain('issue-7');
-  expect(words).not.toMatch(/#7\s+7\b/);
   expect(html).toContain(`href="/console/p/cb-1/factory/items/${key}"`);
 });

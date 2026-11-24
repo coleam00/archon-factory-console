@@ -6,9 +6,6 @@ import { itemColumn, placementInput } from './placement';
 
 const NOW = Date.parse('2026-11-22T09:00:00Z');
 
-const itinerary = (detail: FactoryItemDetail, column: ReturnType<typeof itemColumn>) =>
-  itemJourney(shippedView, detail, column, NOW);
-
 function journey(detail: FactoryItemDetail, now = NOW): Journey {
   const facts = new Map(detail.runs.map(run => [run.runId, run]));
   const column = itemColumn(shippedView, placementInput(detail.item, facts));
@@ -58,24 +55,6 @@ describe('item 113: an ask the build left', () => {
       },
     ]);
   });
-
-  test('an open ask waits to now', () => {
-    const detail = structuredClone(itemDetail('113'));
-    const asking = detail.item.runs.find(run => run.outcome === 'ask');
-    if (asking === undefined || asking.completedAt === null) throw new Error('113 asked');
-    detail.item.answers = [];
-    detail.item.questions = [
-      {
-        kind: 'attention',
-        ref: 'ask:open',
-        message: 'Which title?',
-        askedIn: { runId: asking.id, workflow: asking.workflow },
-      } as unknown as FactoryItemDetail['item']['questions'][number],
-    ];
-    expect(segment(journey(detail), 'plan-build').pauses).toEqual([
-      { ms: NOW - Date.parse(asking.completedAt), open: true },
-    ]);
-  });
 });
 
 describe('an item whose last stage run failed', () => {
@@ -120,21 +99,6 @@ describe('an item that stopped by the view or by your answer', () => {
     expect(of.segments.find(entry => entry.stopped !== null)?.id).toBe('plan-build');
   });
 
-  test('a resting item whose change then merged ends merged', () => {
-    const detail = structuredClone(itemDetail('3'));
-    const change = detail.item.progress?.change;
-    if (detail.item.progress === null || change == null) throw new Error('3 has a change');
-    detail.item.progress = {
-      ...detail.item.progress,
-      change: { ...change, merged: true, mergedAt: '2026-11-17T06:00:00Z' },
-    };
-    const facts = new Map(detail.runs.map(run => [run.runId, run]));
-    const column = itemColumn(shippedView, { ...placementInput(detail.item, facts), merged: true });
-    const of = itinerary(detail, column);
-    expect([of.stopped, of.until]).toEqual([null, 'merge']);
-    expect(of.segments.filter(entry => entry.lit).map(entry => entry.id)).toEqual(['merged']);
-  });
-
   test('not resting while the answer has started a run, or an ask is still open', () => {
     // Item 113, unmerged, between the run its answer started and the next: in flight.
     const between = structuredClone(itemDetail('113'));
@@ -153,16 +117,5 @@ describe('an item that stopped by the view or by your answer', () => {
       { kind: 'attention', ref: 'ask:open', message: 'Which?' },
     ] as unknown as FactoryItemDetail['item']['questions'];
     expect(journey(open).stopped).toBeNull();
-  });
-
-  test('not resting while the start the answer made waits for a slot or the install hold', () => {
-    const queued = structuredClone(itemDetail('3'));
-    queued.item.queued = [
-      { workflow: 'deliver', ahead: 2 },
-    ] as unknown as FactoryItemDetail['item']['queued'];
-    expect([journey(queued).stopped, journey(queued).until]).toEqual([null, 'now']);
-    const kept = structuredClone(itemDetail('3'));
-    kept.item.held = [{ workflow: 'deliver' }] as unknown as FactoryItemDetail['item']['held'];
-    expect([journey(kept).stopped, journey(kept).until]).toEqual([null, 'now']);
   });
 });

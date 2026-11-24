@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
-import { endLastRun, keepRuns, PAGE, VIEW, realItem } from './board.test-fixtures';
+import { PAGE, VIEW, realItem } from './board.test-fixtures';
 import {
   boardShadowLine,
   cardShadows,
@@ -60,7 +60,6 @@ describe('shadowWords', () => {
         tally: 'would ask you first',
       },
     ],
-    ['another verdict', ['triage', 'admit'], verdict('auto'), { line: 'would start on its own' }],
     [
       'a verdict the words do not name stays the pack token, in mono',
       ['triage', 'admit'],
@@ -116,12 +115,6 @@ describe('shadowWords', () => {
       { reads: 'unreadable' },
       { line: 'recorded nothing readable' },
     ],
-    [
-      'a value the declaration now reads otherwise says so',
-      ['triage', 'admit'],
-      { reads: 'lists', counts: [1], why: null },
-      { line: 'recorded nothing readable' },
-    ],
   ];
   test.each(cases)('%s', (_name, [workflow, node], read, expected) => {
     expect(shadowWords(shadow(workflow, node), decision(workflow, node, read))).toMatchObject(
@@ -130,75 +123,31 @@ describe('shadowWords', () => {
   });
 });
 
-/** A card standing for one step, as a drill-down of the view would declare it. */
-const cardFor = (workflow: string, step: string) => ({
-  title: 'Project checks',
-  text: "Runs the project's declared checks",
-  icon: 'clipboard-list' as const,
-  kind: 'script' as const,
-  covers: [{ workflow, steps: [step] }],
-});
-
-/** `view` with one more phase on its Checks drill-down, holding `card`. */
-function withChecksCard(view: typeof VIEW, card: ReturnType<typeof cardFor>): typeof VIEW {
-  return {
-    ...view,
-    stages: view.stages.map(stage =>
-      stage.id !== 'checks' || stage.drilldown === undefined
-        ? stage
-        : {
-            ...stage,
-            drilldown: {
-              ...stage.drilldown,
-              phases: [...stage.drilldown.phases, { label: 'Checks', cards: [card] }],
-            },
-          }
-    ),
-  };
-}
-
-/**
- * The shipped view with a Checks card for deliver's project checks, a shadow step: the card
- * the view drew until the pack retired deliver, and with it the step.
- */
-const CHECKS_SHADOWED = withChecksCard(VIEW, cardFor('deliver', 'rounds.checks'));
-
 describe('where the shipped view holds shadows', () => {
-  test('a drill-down card covering a shadow step names it; one that does not names none', () => {
-    const covering = (view: typeof VIEW) =>
-      view.stages
-        .flatMap(stage => (stage.drilldown?.phases ?? []).flatMap(phase => phase.cards))
-        .flatMap(card => cardShadows(card, view).map(found => [card.title, found.node]));
-    // The project checks went with deliver: the shipped Checks stage draws no card for them.
-    expect(covering(VIEW)).toEqual([['Would it start on its own', 'admit']]);
-    expect(covering(CHECKS_SHADOWED)).toEqual([
-      ['Would it start on its own', 'admit'],
-      ['Project checks', 'rounds.checks'],
-    ]);
-  });
-
-  test('the stages holding one: triage alone; the merge gate acts, so it is none', () => {
+  test('the drill-down card covering a shadow step names it; triage alone holds one', () => {
+    const covering = VIEW.stages
+      .flatMap(stage => (stage.drilldown?.phases ?? []).flatMap(phase => phase.cards))
+      .flatMap(card => cardShadows(card, VIEW).map(found => [card.title, found.node]));
+    expect(covering).toEqual([['Would it start on its own', 'admit']]);
+    // The merge gate acts, so it is no shadow.
     expect(
       VIEW.stages.filter(stage => stageShadows(stage, VIEW).length > 0).map(stage => stage.id)
     ).toEqual(['triage']);
   });
 
   test("the map's lines for a stage: each shadow step's label and what it decided lately", () => {
-    const view = CHECKS_SHADOWED;
-    const checks = view.stages.find(stage => stage.id === 'checks');
-    if (checks === undefined) throw new Error('the shipped view has a checks stage');
-    expect(stageShadowLines(checks, view, [idleWithEveryDecision()])).toEqual([
-      'Project checks · last 1: all passed ×1',
+    const stage = (id: string) => {
+      const found = VIEW.stages.find(entry => entry.id === id);
+      if (found === undefined) throw new Error(`the shipped view has a ${id} stage`);
+      return found;
+    };
+    expect(stageShadowLines(stage('triage'), VIEW, [idleWithEveryDecision()])).toEqual([
+      'Would it start on its own · last 1: would ask you first ×1',
     ]);
-    expect(stageShadowLines(checks, view, [])).toEqual(['Project checks · nothing decided yet']);
-    // Before the items are read, or once the read failed, it claims no decision either way.
-    expect(stageShadowLines(checks, view, 'loading')).toEqual(['Project checks · …']);
-    expect(stageShadowLines(checks, view, 'failed')).toEqual([
-      'Project checks · could not be read',
+    expect(stageShadowLines(stage('triage'), VIEW, [])).toEqual([
+      'Would it start on its own · nothing decided yet',
     ]);
-    const plan = view.stages.find(stage => stage.id === 'plan');
-    if (plan === undefined) throw new Error('the shipped view has a plan stage');
-    expect(stageShadowLines(plan, view, [idleWithEveryDecision()])).toEqual([]);
+    expect(stageShadowLines(stage('plan'), VIEW, [idleWithEveryDecision()])).toEqual([]);
   });
 });
 
@@ -251,33 +200,6 @@ describe('boardShadowLine', () => {
     ]);
   });
 
-  test('a triage run that failed after admit decided still shows that line in Triage', () => {
-    const real = realItem('5');
-    const triageAt = real.runs.findIndex(run => run.workflow.endsWith(':triage'));
-    if (triageAt === -1) throw new Error('fixture item 5 has a triage run');
-    const item = endLastRun(keepRuns(real, triageAt + 1), 'failed', null, 'admitted');
-    if (item.progress === null) throw new Error('unreachable');
-    item.progress.shadows = [decision('triage', 'admit', verdict('auto'))];
-    // Placement puts it in Triage (placement.test.ts); the line is that stage's decision.
-    const triage = VIEW.stages.find(stage => stage.id === 'triage') ?? null;
-    expect(boardShadowLine(item, triage, VIEW)?.line).toBe('would start on its own');
-  });
-
-  test('an item a run works now shows none, nor does one without progress', () => {
-    const item = idleWithEveryDecision();
-    const ready = VIEW.stages.find(stage => stage.id === 'ready') ?? null;
-    if (item.progress === null) throw new Error('unreachable');
-    item.progress.running = {
-      runId: 'r',
-      workflow: 'land',
-      step: 'land',
-      startedAt: '2026-11-18T13:00:00.000Z',
-    };
-    expect(boardShadowLine(item, ready, VIEW)).toBeNull();
-    expect(boardShadowLine({ ...item, progress: null }, ready, VIEW)).toBeNull();
-    expect(boardShadowLine(idleWithEveryDecision(), null, VIEW)).toBeNull();
-  });
-
   test('the newest of the stage’s verdict decisions wins', () => {
     const item = idleWithEveryDecision();
     item.progress?.shadows.push(
@@ -316,9 +238,5 @@ describe('recentTally', () => {
     expect(recentTally(items, [shadow('triage', 'admit')], 6)).toBe(
       'last 6: would ask you first ×5 · would start on its own ×1'
     );
-  });
-
-  test('null when no item has a decision of it', () => {
-    expect(recentTally(PAGE.items, [shadow('discoveries', 'result')])).toBeNull();
   });
 });

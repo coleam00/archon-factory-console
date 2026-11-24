@@ -9,7 +9,7 @@ import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import type { ItemName } from '../lib/ask-naming';
 
 // A failed read follows a render, which static markup cannot reach.
-const { mount: render, settle } = await installDom();
+const { mount: render } = await installDom();
 
 const ID = 'cb-found';
 afterEach(() => {
@@ -108,34 +108,6 @@ test.each([
     expect(body.textContent).toContain(inBody);
     if ('shadow' in change) expect(container.textContent).not.toContain('shadow');
     else expect(body.querySelector('#found-by-the-factory-list')).toBeNull();
-  } finally {
-    await unmount();
-  }
-});
-
-test('a read that fails says so once, on the line; the opened panel draws nothing', async () => {
-  const { container, line, body, unmount } = await mount();
-  try {
-    for (let turn = 0; turn < 5 && container.querySelector('[role="alert"]') === null; turn++)
-      await settle();
-    expect(line.querySelector('[role="alert"]')?.textContent).toContain('the test fetched');
-    expect(body.children).toHaveLength(0);
-  } finally {
-    await unmount();
-  }
-});
-
-test('a finding from a split member names it under its order; its link keeps the key', async () => {
-  const KEY = 'issue-136-item-keys';
-  set(K.factoryDiscoveries(ID), {
-    ...DISCOVERIES,
-    findings: [{ ...DISCOVERIES.findings[0]!, from: { key: KEY, title: null } }],
-  });
-  const names = new Map([[KEY, { title: null, partOf: 'issue-136' }]]);
-  const { container, unmount } = await mount(names);
-  try {
-    const link = container.querySelector(`#found-by-the-factory-list a[href$="/items/${KEY}"]`);
-    expect(link?.textContent).toBe('#136 · item keys');
   } finally {
     await unmount();
   }

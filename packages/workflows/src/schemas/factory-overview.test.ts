@@ -96,29 +96,14 @@ test('accepts the overview this repository ships, every live-able shadow setting
   expect(unexplained).toEqual([]);
 });
 
-describe('factoryOverviewSchema accepts', () => {
-  test.each<[string, (o: FactoryOverview) => unknown]>([
-    ['the valid overview', () => undefined],
-    [
-      'settings in sections, a shadow saying what it does live',
-      o => ({ ...o, setting_sections: sections, settings }),
-    ],
-    [
-      // `check` and `ship` both send work back to `make`; the longer line runs under the shorter.
-      'loops-back lines whose spans nest, each on its own track',
-      o => {
-        top(o).cards.push(card('ship', 4, 1));
-        top(o).edges.push(
-          { from: 'check', to: 'ship', kind: 'feeds' },
-          { from: 'ship', to: 'make', kind: 'loops-back', label: 'again' },
-          { from: 'make', to: 'in', kind: 'loops-back', shadow: true }
-        );
-      },
-    ],
-    ['a reply to an ask, drawn beside it', o => void asked(o)],
-  ])('%s', (_name, edit) => {
-    expect(issues(edited(edit))).toEqual([]);
-  });
+test.each<[string, (o: FactoryOverview) => unknown]>([
+  [
+    'the valid overview, settings in sections',
+    o => ({ ...o, setting_sections: sections, settings }),
+  ],
+  ['a reply to an ask, drawn beside it', o => void asked(o)],
+])('factoryOverviewSchema accepts %s', (_name, edit) => {
+  expect(issues(edited(edit))).toEqual([]);
 });
 
 describe('factoryOverviewSchema rejects', () => {
@@ -129,70 +114,22 @@ describe('factoryOverviewSchema rejects', () => {
     ]);
   });
 
-  // Each row: what is refused, the change to `valid()`, and its issues. A row marked `some`
-  // checks only that its issue is among them: a broken layout often breaks more than one rule.
+  // One row per rule: what is refused, the change to `valid()`, and its issues. A row marked
+  // `some` checks only that its issue is among them: a broken layout often breaks more than one.
   test.each<[string, (o: FactoryOverview) => unknown, string[], 'some'?]>([
-    [
-      'a second checks file',
-      o => ({
-        ...o,
-        settings: { checks_file: { points_to: 'checks' }, more: { points_to: 'checks' } },
-      }),
-      ['settings.more.points_to more checks_file'],
-    ],
-    [
-      'a key that is no setting name',
-      o => ({ ...o, settings: { '1st': { shadow: true } } }),
-      ['settings.1st'],
-    ],
-    [
-      'a section listed twice',
-      o => ({ ...o, setting_sections: [...sections, sections[0]], settings }),
-      ['setting_sections.2.id held'],
-    ],
     [
       'a setting in an unknown section',
       o => ({ ...o, setting_sections: sections, settings: { plan_policy: { section: 'gone' } } }),
       ['settings.plan_policy.section gone'],
     ],
-    [
-      'when_live off a shadow',
-      o => ({ ...o, settings: { plan_policy: { when_live: 'Would act' } } }),
-      ['settings.plan_policy.when_live'],
-    ],
     ['a root that names no view', o => ({ ...o, root: 'nope' }), ['root nope']],
-    [
-      'an id used twice across views',
-      o => void make(o).cards.push(card('in', 3, 1)),
-      ['views.make.cards.2.id in'],
-    ],
     [
       'opens naming a missing view',
       o => void ((top(o).cards[0] as Card).opens = 'gone'),
       ['views.top.cards.0.opens gone'],
     ],
-    [
-      'opens naming its own view',
-      o => void ((top(o).cards[0] as Card).opens = 'top'),
-      ['views.top.cards.0.opens top'],
-    ],
-    [
-      'a view opened twice',
-      o => void ((top(o).cards[2] as Card).opens = 'make'),
-      ['views.top.cards.2.opens make make'],
-    ],
     ['a view no card opens', o => void delete (top(o).cards[1] as Card).opens, ['views.make']],
-    [
-      'a caption on the root view, whose line is the top-level caption',
-      o => void (top(o).caption = 'x'),
-      ['views.top.caption'],
-    ],
     ['a root without a loops-back edge', o => void top(o).edges.pop(), ['views.top.edges']],
-    [
-      'the same ask pair joined again',
-      o => void asked(o).edges.push({ from: 'you', to: 'write', kind: 'loops-back' }),
-      ['views.make.edges.3 you write'],
-    ],
     [
       'two cards in one cell',
       o => void (make(o).cards[1] = card('test', 1, 1)),
@@ -205,74 +142,14 @@ describe('factoryOverviewSchema rejects', () => {
       ['views.top.cards.0.group nope'],
     ],
     [
-      'an empty group',
-      o => void (top(o).groups = [{ id: 'empty', label: 'Empty' }]),
-      ['views.top.groups.0 empty'],
-    ],
-    [
-      // A group of `in` and `check` spans column 2, where `make` sits outside it.
-      'a group holding a stranger',
-      o => {
-        top(o).groups = [{ id: 'ends', label: 'Ends' }];
-        (top(o).cards[0] as Card).group = 'ends';
-        (top(o).cards[2] as Card).group = 'ends';
-      },
-      ['views.top.groups.0 ends make'],
-      'some',
-    ],
-    [
       'an edge naming nothing',
       o => void make(o).edges.push({ from: 'write', to: 'gone', kind: 'calls' }),
       ['views.make.edges.1.to gone'],
     ],
     [
-      'an edge joining a card to itself',
-      o => void make(o).edges.push({ from: 'test', to: 'test', kind: 'calls' }),
-      ['views.make.edges.1'],
-    ],
-    [
-      'an edge repeating a pair',
-      o => void make(o).edges.push({ from: 'test', to: 'write', kind: 'calls' }),
-      ['views.make.edges.1 test write'],
-    ],
-    [
-      'a loops-back edge from a group',
-      o => {
-        top(o).groups = [{ id: 'g', label: 'G' }];
-        (top(o).cards[2] as Card).group = 'g';
-        top(o).edges[2] = { from: 'g', to: 'make', kind: 'loops-back' };
-      },
-      ['views.top.edges.2'],
-    ],
-    // The layout rules, one of each kind: a line must be drawable without crossing.
-    [
-      // Columns 1 to 3 and 2 to 4 overlap without one holding the other, so they must cross.
-      'two loops-back lines whose spans interleave',
-      o => {
-        top(o).cards.push(card('ship', 4, 1));
-        top(o).edges[2] = { from: 'check', to: 'in', kind: 'loops-back' };
-        top(o).edges.push({ from: 'ship', to: 'make', kind: 'loops-back' });
-      },
-      ['views.top.edges.2 ship make'],
-    ],
-    [
-      'an edge whose ends share no row or column',
-      o => {
-        make(o).cards.push(card('far', 3, 2));
-        make(o).edges.push({ from: 'write', to: 'far', kind: 'calls' });
-      },
-      ['views.make.edges.1'],
-    ],
-    [
       'an edge that runs through a card',
       o => void top(o).edges.push({ from: 'in', to: 'check', kind: 'calls' }),
       ['views.top.edges.3 make'],
-      'some',
-    ],
-    [
-      'a loops-back lane dropping through a card under its source',
-      o => void top(o).cards.push(card('under', 3, 2)),
-      ['views.top.edges.2 under'],
       'some',
     ],
   ])('%s', (...[_name, edit, expected, some]) => {

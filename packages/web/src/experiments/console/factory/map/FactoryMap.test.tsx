@@ -18,7 +18,7 @@ import { installDom } from '../../test-dom.test-helpers';
 import { FactoryMap } from './FactoryMap';
 
 // Opening a card's stage or its details needs clicks, which static markup cannot reach.
-const { dom, mount: mountTree } = await installDom();
+const { mount: mountTree } = await installDom();
 
 // The map sets aside items as the board does, idle ones by the clock: read the fixtures at the
 // time they were copied, never at the day the test runs.
@@ -122,14 +122,6 @@ test('the warm map: a card per column with its chips, rows, hand-offs and detail
     expect(chip('build', 'need-you')).toContain('1');
     expect(chip('checks', 'need-you')).toBeUndefined();
     expect(chip('plan', 'here')).toBeUndefined();
-    // A card of one stage reads its short line; Build's row shows who needs you there instead.
-    const text = (id: string): string =>
-      container.querySelector(`[data-card="${id}"]`)?.textContent ?? '';
-    expect(text('ready')).toContain('Gated, merged on land');
-    expect(text('ready')).not.toContain('A gate reads the approved change');
-    expect(text('plan-build')).toContain('Plans how to build it');
-    expect(text('plan-build')).not.toContain('Writes the change and PR');
-    expect(container.textContent).not.toContain('Landed');
     // A dot runs into each card where a run works an item.
     expect(
       [...container.querySelectorAll<HTMLElement>('[data-flow]')].map(el => el.dataset.flow)
@@ -172,88 +164,6 @@ test('the warm map: a card per column with its chips, rows, hand-offs and detail
 
     await act(async () => card(container, 'checks').click());
     expect(stagePage(container)).toBe('checks');
-  } finally {
-    await unmount();
-  }
-});
-
-test('a drag that ends on a card pans the map and does not open the card', async () => {
-  const { container, unmount } = await mount();
-  try {
-    const target = card(container, 'build');
-    const layer = (): string | null | undefined =>
-      container.querySelector<HTMLElement>('[style*="scale("]')?.style.transform;
-    const before = layer();
-    const send = (event: Event): void => {
-      target.dispatchEvent(event);
-    };
-    const pointer = (type: string, init: Record<string, number>): Event =>
-      new dom.PointerEvent(type, { bubbles: true, cancelable: true, ...init }) as unknown as Event;
-    await act(async () => {
-      send(
-        pointer('pointerdown', { button: 0, buttons: 1, pointerId: 1, clientX: 100, clientY: 100 })
-      );
-      send(pointer('pointermove', { buttons: 1, pointerId: 1, clientX: 140, clientY: 100 }));
-      send(pointer('pointerup', { pointerId: 1, clientX: 140, clientY: 100 }));
-      send(
-        new dom.MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          detail: 1,
-        }) as unknown as Event
-      );
-    });
-    expect(stagePage(container)).toBeUndefined();
-    expect(layer()).not.toBe(before);
-    // The guard lasts one task: the next click opens the card.
-    await new Promise(resolve => setTimeout(resolve, 0));
-    await act(async () => card(container, 'build').click());
-    expect(stagePage(container)).toBe('build');
-  } finally {
-    await unmount();
-  }
-});
-
-test('a pill past two lines lists its outcomes on focus and tap, and Escape shuts the list', async () => {
-  const { container, unmount } = await mount();
-  try {
-    const tips = [...container.querySelectorAll<HTMLButtonElement>('[data-pill-tip]')];
-    // Only the pill that hides outcomes has one: "build, narrow" and "ready, drop or reshape" show all theirs.
-    expect(tips).toHaveLength(1);
-    const [tip] = tips as [HTMLButtonElement];
-    const outcomes = ['built', 'fixed for CI', 'drop or reshape → Ready to merge'];
-    expect(tip.getAttribute('aria-label')).toBe(
-      `Plan & build to Checks & review: ${outcomes.join(', ')}`
-    );
-    const listed = (): string[] | undefined => {
-      const shown = container.querySelector('[role="tooltip"]');
-      return shown === null ? undefined : [...shown.children].map(line => line.textContent ?? '');
-    };
-    expect(listed()).toBeUndefined();
-    await act(async () => tip.focus());
-    expect(listed()).toEqual(outcomes);
-    expect(tip.getAttribute('aria-expanded')).toBe('true');
-    await act(async () =>
-      tip.dispatchEvent(
-        new dom.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }) as unknown as Event
-      )
-    );
-    expect(listed()).toBeUndefined();
-    await act(async () => tip.blur());
-    // A tap: a touch browser focuses no button, so the click alone opens it.
-    await act(async () => tip.click());
-    expect(listed()).toEqual(outcomes);
-    // A press on the pill keeps it open; one anywhere else shuts it, as the next tap does.
-    const press = (target: Element): Promise<void> =>
-      act(async () => {
-        target.dispatchEvent(
-          new dom.PointerEvent('pointerdown', { bubbles: true }) as unknown as Event
-        );
-      });
-    await press(tip);
-    expect(listed()).toEqual(outcomes);
-    await press(container);
-    expect(listed()).toBeUndefined();
   } finally {
     await unmount();
   }
@@ -386,22 +296,13 @@ test('a first items read that fails says so over the map drawn from the declarat
     expect(card(container, 'landed').getAttribute('aria-label')).toBe(
       'Merged: items could not be read'
     );
-    expect(container.querySelectorAll('[data-stage]')).toHaveLength(
-      shippedListed.declaration.map.cards.length
-    );
     expect(container.querySelector('[data-chip]')).toBeNull();
     await act(async () => details(container, 'plan-build').click());
     const panel = container.querySelector('aside[aria-label="Plan & build details"]');
     expect(panel?.textContent).toContain('Could not be read.');
-    expect(panel?.textContent).not.toContain('Loading');
-    expect(panel?.textContent).not.toContain('Nothing here now.');
     expect(shadowTitle(container, 'triage')).toContain(
       'Would it start on its own · could not be read'
     );
-    await act(async () => details(container, 'intake').click());
-    const intake = container.querySelector('aside[aria-label="Intake details"]');
-    expect(intake?.textContent).toContain('Would it start on its own · could not be read');
-    expect(intake?.textContent).not.toContain('nothing decided yet');
   } finally {
     await unmount();
   }

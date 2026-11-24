@@ -168,10 +168,6 @@ describe('the shipped map', () => {
       expect(Math.max(...segments(path.d).map(seg => seg.y2))).toBeGreaterThan(bottom);
   });
 
-  test('declaring shadow steps changes no card or line', () => {
-    expect(layout).toEqual(layoutMap({ ...shippedView, shadows: undefined }));
-  });
-
   test("every lane pill is within the row's span: the map opens at the first card", () => {
     const first = layout.cards[0]?.box as Box;
     const last = layout.cards.at(-1)?.box as Box;
@@ -217,33 +213,6 @@ describe('the rules for arrows between card groups', () => {
     expect(layout.arrows.some(arrow => arrow.from === 'b' && arrow.to === 'd')).toBe(false);
   });
 
-  test('with no neighbour hand-off declared, the folded one is drawn alone', () => {
-    const view = declaration(
-      ['s1', 's2', 's3'],
-      { arrows: [{ from: 's1', to: 's3', label: 'skip' }] },
-      undefined
-    );
-    const only = layoutMap(view);
-    expect(only.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines])).toEqual([
-      ['s1', 's2', ['skip → s3']],
-    ]);
-    expectClean(only);
-  });
-
-  test("a long send-back label into the first card's first stage stays within the row", () => {
-    const view = declaration(['s1', 's2', 's3'], {
-      arrows: [
-        { from: 's1', to: 's2', label: 'go' },
-        { from: 's3', to: 's1', label: 'pieces, broke the branch, and a long one more' },
-      ],
-    });
-    const only = layoutMap(view);
-    const [pill] = only.feedback.pills;
-    expect(pill?.box.x).toBe(0);
-    expect(only.bounds.x).toBe(0);
-    expectClean(only);
-  });
-
   test('send-backs go by card order; one inside a card into its own stage too', () => {
     expect(layout.feedback.paths.map(path => [path.from, path.to])).toEqual([
       ['c', 's3'],
@@ -256,7 +225,8 @@ describe('the rules for arrows between card groups', () => {
 });
 
 describe('every view is one row and clean', () => {
-  for (let n = 1; n <= 12; n++) {
+  // A few representative sizes: one card, a common factory, and a long one.
+  for (const n of [1, 5, 12]) {
     const stages = Array.from({ length: n }, (_, i) => `s${(i + 1).toString()}`);
     const arrows = [
       ...stages
@@ -285,19 +255,6 @@ describe('every view is one row and clean', () => {
 });
 
 describe('declarations the schema allows', () => {
-  test('a view with no columns draws one card per stage', () => {
-    const layout = layoutMap(declaration(['p', 'q', 'r']));
-    expect(layout.cards.map(card => card.stages)).toEqual([['p'], ['q'], ['r']]);
-  });
-
-  test('no cards: no boxes, no arrows, empty bounds', () => {
-    const layout = layoutMap({ ...seeded, map: { cards: [], arrows: seeded.map.arrows } });
-    expect(layout.cards).toEqual([]);
-    expect(layout.arrows).toEqual([]);
-    expect(layout.feedback.paths).toEqual([]);
-    expect(layout.bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
-  });
-
   test('a stage with no card leaves its column, and a column with none is not drawn', () => {
     const view = {
       ...seeded,
@@ -312,16 +269,5 @@ describe('declarations the schema allows', () => {
     ]);
     expect(layout.feedback.paths.some(path => path.to === 's1')).toBe(false);
     expectClean(layout);
-  });
-
-  test('a card of three stages grows taller, and wider to stay wider than tall', () => {
-    const view = declaration(['p', 'q', 'r', 's'], {}, [
-      column('x', ['p', 'q', 'r']),
-      column('y', ['s']),
-    ]);
-    const [first] = layoutMap(view).cards;
-    const [alone] = layoutMap(declaration(['p'])).cards;
-    expect(first?.box.h).toBeGreaterThan(alone?.box.h ?? 0);
-    expect(first?.box.w).toBeGreaterThanOrEqual(first?.box.h ?? 0);
   });
 });

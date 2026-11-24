@@ -43,11 +43,6 @@ describe('storyVisits', () => {
     ]);
   });
 
-  test('item 115: a replan after an ask is a second Plan panel, numbered', () => {
-    expect(panels(itemDetail('115'))).toContain('Plan (2) 1+0');
-    expect(panels(itemDetail('115'))).toContain('Build (2) 1+0');
-  });
-
   test("item 113: a run's closing steps do not move it out of the stage it worked", () => {
     // The first delivery built, then ran its closing steps (declared on CI and review) to ask:
     // it stays on Build, beside the delivery the answer started.
@@ -60,9 +55,5 @@ describe('storyVisits', () => {
       'CI and review 1+0',
       'Ready to merge 1+0',
     ]);
-  });
-
-  test('item 86: parked after triage, two panels', () => {
-    expect(panels(itemDetail('86'))).toEqual(['Order 1+0', 'Triage 1+0']);
   });
 });

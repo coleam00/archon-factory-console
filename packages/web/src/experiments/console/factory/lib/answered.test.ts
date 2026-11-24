@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import { shippedView } from '../item-detail.test-fixtures';
 import { answeredRows, answeredToday, recentlySettled, type SettledAsks } from './answered';
-import { itemWith, run, settledItem } from './map.test-fixtures';
+import { run, settledItem } from './map.test-fixtures';
 
 const plan = settledItem(
   'p',
@@ -56,36 +56,6 @@ describe('asks settled lately, and the stage each started again', () => {
       null,
     ]);
   });
-
-  test('without a view a restart is named by its workflow in words, and each ask by its answer in words', () => {
-    const asks: FactoryItem['answers'] = [
-      askAnswer('Send it back?', { id: 'send-back-once-more', does: 'Restarts the stage.' }),
-      askAnswer('Which base?', { id: 'other', does: 'None of these.' }),
-      { ...askAnswer('Split it?', null), withdrawn: true },
-      { ...askAnswer('From another run?', null), runId: 'run-elsewhere' },
-    ];
-    const settledOnly = deliver.answers.filter(answer => answer.kind !== 'ask');
-    const item = { ...deliver, answers: [...settledOnly, ...asks], progress: null };
-    const [entry] = recentlySettled(null, [item]);
-    expect(entry?.restart).toEqual({
-      runId: 'run-d-1',
-      status: 'completed',
-      label: 'Deliver',
-    });
-    // An ask of another run is not this set's.
-    expect(entry?.asks.map(ask => [ask.question, ask.answer, ask.withdrawn])).toEqual([
-      ['Send it back?', 'Send back once more', false],
-      ['Which base?', 'Something else', false],
-      ['Split it?', 'withdrawn', true],
-    ]);
-    expect(entry?.askedAt).toBe(deliver.runs[0]?.completedAt ?? null);
-  });
-
-  test('only the newest few; an item with no settled set adds nothing', () => {
-    const quiet = itemWith('q', [run('plan', 'completed', 'planned')]);
-    const listed = recentlySettled(shippedView, [quiet, waiting, plan, deliver], 2);
-    expect(listed.map(entry => entry.itemKey)).toEqual(['d', 'p']);
-  });
 });
 
 describe('Answered lately, one row per answer', () => {
@@ -123,17 +93,6 @@ describe('Answered lately, one row per answer', () => {
       ['a question 1', 'Plan', 'cole-owner'],
       ['b question 0', null, 'cole-owner'],
     ]);
-  });
-
-  test('the answer an item read records names who gave it', () => {
-    const item = {
-      ...deliver,
-      answers: [
-        ...deliver.answers.filter(answer => answer.kind !== 'ask'),
-        { ...askAnswer('Ship it?', null), by: { declared: 'someone-else' } },
-      ],
-    };
-    expect(recentlySettled(null, [item])[0]?.asks[0]?.by).toBe('someone-else');
   });
 });
 

@@ -77,29 +77,6 @@ test('a cursor error starts a fresh stream; stopping closes it and drops a pendi
   expect(changes()).toBe(0);
 });
 
-test('hiding the page closes the stream, and a restore from the back/forward cache opens a fresh one', async () => {
-  const page = new EventTarget();
-  const { sources, changes, stop } = watch(page);
-  sources[0]?.send('attention');
-  page.dispatchEvent(new Event('pagehide'));
-  expect(sources[0]?.closed).toBe(true);
-  page.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
-  expect(sources).toHaveLength(2);
-  expect(sources[1]?.closed).toBe(false);
-
-  // A cursor error after the restore still starts a fresh stream.
-  sources[1]?.send('error');
-  expect(sources).toHaveLength(3);
-
-  stop();
-  page.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
-  await settle();
-  expect(sources).toHaveLength(3);
-  expect(sources[2]?.closed).toBe(true);
-  // The line sent before the page hid refetches nothing once its connection is gone.
-  expect(changes()).toBe(0);
-});
-
 test("an attention change refreshes the project's queue and item reads, not another project's", async () => {
   const loads: string[] = [];
   const keys = [

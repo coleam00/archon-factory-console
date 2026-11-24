@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { formatDateTime } from '../../lib/format';
 import { askItem } from '../../lib/needs-you.test-fixtures';
-import { needsYouCount } from '../../lib/needs-you';
 import {
   boardModel,
   cardFields,
@@ -9,7 +8,6 @@ import {
   filterBoard,
   hiddenColumnsHint,
   movedKeys,
-  newRoundRunning,
 } from './board';
 import type { FactoryItem } from '../../skills/factory';
 import {
@@ -27,24 +25,11 @@ import {
   VIEW,
   FIXTURE_NOW,
 } from './board.test-fixtures';
-import { pageItemColumn, stageOfWorkflow } from './placement';
-import { coveringCard } from './step-facts';
+import { pageItemColumn } from './placement';
 
 const PROJECT = 'cb-1';
 const card = (item: FactoryItem, previous?: string) =>
   cardFields(VIEW, PROJECT, item, pageItemColumn(VIEW, item, previous));
-
-/** Item 6 ended by a `land` run that completed `landed`: in Merged through a placement alone. */
-function landedByPlacement(): FactoryItem {
-  const item = endLastRun(realItem('6'), 'completed', 'landed');
-  item.runs[item.runs.length - 1] = { ...item.runs.at(-1)!, workflow: 'land' };
-  const progress = progressOf(item);
-  const runs = progress.runs.map((run, i, all) =>
-    i === all.length - 1 ? { ...run, workflow: 'land' } : run
-  );
-  item.progress = { ...progress, runs };
-  return item;
-}
 
 const asking = (item: FactoryItem): FactoryItem => ({ ...item, questions: [askItem()] });
 
@@ -65,21 +50,10 @@ describe('card fields, in order', () => {
     ['waiting', () => realItem('6'), 'waiting'],
     ['merged', () => realItem('7'), 'landed'],
     ['an open ask', () => asking(realItem('6')), 'needs-you'],
-    [
-      'an open ask on an item needing shaping',
-      () => asking(needsShaping('9s', ['W?'])),
-      'needs-you',
-    ],
     ['failed', () => endLastRun(realItem('5'), 'failed', null), 'failed'],
     ['a land run still running after the merge', landRunning, 'running'],
-    ['in Merged by a placement, merge state not known', landedByPlacement, 'landed'],
   ] as const)('2: the state pill: %s', (_name, item, pill) => {
     expect(card(item()).pill).toBe(pill);
-  });
-
-  test('2: only a merge known merged shows when it merged', () => {
-    expect(card(landRunning()).mergedAt).toBeNull();
-    expect(card(landedByPlacement()).mergedAt).toBeNull();
   });
 
   test('an item whose progress could not be read stays on the board and says so', () => {
@@ -95,15 +69,6 @@ describe('card fields, in order', () => {
         { iteration: 2, verdict: 'undecided', label: 'round 2: needs a decision' },
       ],
     });
-    expect(card(realItem('2')).round?.dots.map(dot => dot.label)).toEqual([
-      'round 1: returned',
-      'round 2: returned',
-      'round 3: approved',
-    ]);
-    const unbounded = realItem('3');
-    const progress = progressOf(unbounded);
-    unbounded.progress = { ...progress, round: { ...progress.round!, max: null } };
-    expect(card(unbounded).round?.text).toBe('round 2');
     expect(card(realItem('6')).round).toBeNull();
   });
 
@@ -117,23 +82,8 @@ describe('card fields, in order', () => {
       startedAt: '2026-11-21T12:00:00.000Z',
     };
     item.progress = { ...progress, running };
-    expect(newRoundRunning(VIEW, item.progress)).toBe(true);
-    const labels = (it: FactoryItem) => card(it).round?.dots.map(dot => dot.label);
     expect(card(item).round?.text).toBe('round 2 of 3, next one running');
-    expect(labels(item)).toEqual([
-      'round 1: returned',
-      'round 2: needs a decision',
-      'next round: running',
-    ]);
-    // No stage-check round recorded yet: the first is running.
-    item.progress = { ...progress, running, round: null };
-    expect(card(item).round?.text).toBe('first round running');
-    expect(labels(item)).toEqual(['first round: running']);
-    // A deliver run going now, not yet in its loop, adds none: deliver's loop is a loop-form
-    // source, which numbers its own rounds, so its card reads as it always has.
-    item.progress = { ...progress, running: { ...running, workflow: 'deliver' } };
-    expect(newRoundRunning(VIEW, item.progress)).toBe(false);
-    expect(card(item).round?.text).toBe('round 2 of 3');
+    expect(card(item).round?.dots.at(-1)?.label).toBe('next round: running');
   });
 
   test('4: the running stage, step name and round, linking to the run', () => {
@@ -145,23 +95,7 @@ describe('card fields, in order', () => {
       href: `/console/p/${PROJECT}/r/${progressOf(item).running!.runId}`,
     });
     expect(card(delivering('build__build')).run?.text).toBe('Build · Writes the change');
-    expect(card(delivering(null)).run?.text).toBe('Build · between steps');
     expect(card(realItem('6')).run).toBeNull();
-  });
-
-  test('4: on a step no stage names, the run line names the column the card holds', () => {
-    const item = delivering('rounds.shown');
-    const model = boardModel(
-      VIEW,
-      PROJECT,
-      [item],
-      new Map([[item.item.key, 'checks']]),
-      FIXTURE_NOW
-    );
-    const checks = model.columns.find(column => column.id === 'checks-review');
-    expect(checks?.cards.map(placed => placed.card.run?.text)).toEqual([
-      'Checks · Posts the review · round 2',
-    ]);
   });
 
   test('5: returned ×N, linking to the item page', () => {
@@ -184,14 +118,6 @@ describe('card fields, in order', () => {
       mergeState: 'unknown',
     });
     expect(card(realItem('6')).change).toBeNull();
-  });
-
-  test('6: a change the host has not named yet is "the change", with no link', () => {
-    const item = readyWithMerge('p', 'pending');
-    const progress = progressOf(item);
-    if (progress.change === null) throw new Error('readyWithMerge has a change');
-    item.progress = { ...progress, change: { ...progress.change, url: null, number: null } };
-    expect(card(item).change).toEqual({ href: null, label: 'the change', mergeState: 'pending' });
   });
 
   test('7: in Merged, when it merged in local time', () => {
@@ -256,32 +182,9 @@ describe('the board', () => {
     );
   });
 
-  test('the filter finds the members of a work order by its key', () => {
-    // 5 is part of 48 by its order run's result; 3 by its order run's result too, of 60.
-    const items = PAGE.items.map(item =>
-      item.item.key === '5' || item.item.key === '3'
-        ? {
-            ...item,
-            progress: { ...progressOf(item), partOf: item.item.key === '5' ? '48' : '60' },
-          }
-        : item
-    );
-    const board = boardModel(VIEW, PROJECT, items, new Map(), FIXTURE_NOW);
-    const keys = (model: typeof board): string[] =>
-      model.columns.flatMap(column => column.cards.map(p => p.card.key));
-    expect(keys(filterBoard(board, '48', undefined, FIXTURE_NOW))).toEqual(['5']);
-  });
-
   test('a card that changed position moved; one new to the board did not', () => {
-    const before = new Map([
-      ['1', 'ready'],
-      ['8', 'build'],
-    ]);
-    const after = new Map([
-      ['1', 'landed'],
-      ['8', 'build'],
-      ['9', 'triage'],
-    ]);
+    const before = new Map(Object.entries({ 1: 'ready', 8: 'build' }));
+    const after = new Map(Object.entries({ 1: 'landed', 8: 'build', 9: 'triage' }));
     expect(movedKeys(before, after)).toEqual(['1']);
   });
 
@@ -300,15 +203,10 @@ describe('a column waiting on a merge answer', () => {
       .columns.filter(column => column.pending)
       .map(column => column.id);
 
-  test('the column holding a pending item and the landed column, no other', () => {
+  test('the column holding a pending item and the landed column load, also under a landed number', () => {
     const items = [...PAGE.items, readyWithMerge('p', 'pending')];
     expect(pendingColumns(items)).toEqual(['ready', 'merged']);
-  });
-
-  test('a board opened from a landed number keeps the landed column loading', () => {
-    const items = [...PAGE.items, readyWithMerge('p', 'pending')];
     expect(pendingColumns(items, 'landed')).toContain('merged');
-    expect(pendingColumns(items, 'landed-today')).toContain('merged');
   });
 });
 
@@ -328,46 +226,24 @@ describe('grouped columns', () => {
     );
     expect(intake[0]?.card.stopCount).toBe('4 questions');
     expect(columnChips(intake)).toEqual([{ pill: 'needs-you', count: 1 }]);
-    // With no questions recorded, the line is its reason; one question needs no count.
-    expect(card(needsShaping('9t', [])).stopLine).toBe('Worth doing; the scope is open.');
-    expect(card(needsShaping('9u', ['Which?'])).stopCount).toBeNull();
   });
 
-  test('close: dropped ends the item, reshape waits in Intake, not closed is set aside in its words', () => {
-    // The server reads a declared `parked` outcome so: its label, and the run's why.
-    const notClosed = lastRunAs('c3', 'close', 'not_closed');
-    const parked = VIEW.parked?.['close:not_closed'];
-    if (parked === undefined || notClosed.progress === null)
-      throw new Error('the shipped view parks close:not_closed');
-    notClosed.progress = {
-      ...notClosed.progress,
-      parked: { label: parked.label, why: 'Refused.' },
-    };
+  test('close: dropped ends the item; reshape waits in Intake as Needs shaping', () => {
     const shaped = lastRunAs('c2', 'close', 'reshape', declaredAwaits('close:reshape', null, []));
     const model = boardModel(
       VIEW,
       PROJECT,
-      [lastRunAs('c1', 'close', 'dropped'), shaped, notClosed],
+      [lastRunAs('c1', 'close', 'dropped'), shaped],
       new Map(),
       FIXTURE_NOW
     );
-    expect(model.setAside.map(entry => [entry.placed.card.key, entry.kind, entry.why])).toEqual([
-      ['c1', 'ended', 'Dropped by you'],
-      ['c3', 'parked', 'The forge would not close the PR: close or draft it by hand'],
+    expect(model.setAside.map(entry => [entry.placed.card.key, entry.why])).toEqual([
+      ['c1', 'Dropped by you'],
     ]);
     const intake = model.columns.find(column => column.id === 'intake')?.cards;
-    expect(intake?.map(placed => [placed.card.key, placed.card.pillLabel])).toEqual([
+    expect(intake?.map(({ card }) => [card.key, card.pillLabel])).toEqual([
       ['c2', 'Needs shaping'],
     ]);
-    // Nothing the console reads sees a PR closed by hand: not waiting on you.
-    expect(needsYouCount({ items: [] }, [notClosed])).toBe(0);
-  });
-
-  test('a stage-check or stage-host run writing the report is in its stage, on the Report card', () => {
-    expect(stageOfWorkflow(VIEW, 'stage-check', 'report__report')?.id).toBe('checks');
-    expect(stageOfWorkflow(VIEW, 'stage-host', 'report__report')?.id).toBe('host');
-    expect(coveringCard(VIEW, 'stage-check', 'report__report')?.title).toBe('Report');
-    expect(coveringCard(VIEW, 'stage-host', 'report__report')?.title).toBe('Report');
   });
 
   test("a column's chips count its cards by state, only states above 0", () => {

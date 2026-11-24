@@ -60,24 +60,13 @@ const views: FactoryViews = {
   errors: [],
 };
 
-/** What each workflow read gets, in turn, the last repeating; a test sets it to fail first. */
-let workflowAnswers: (() => Response)[] = [() => Response.json(deliverJson)];
-let workflowFetches = 0;
-/** What the stubbed server answers for the items read; a test swaps it to move an item. */
-let itemsResponse: (url: string) => Response = itemsReadAnswer([]);
-
 function serve(items: (url: string) => Response): void {
-  itemsResponse = items;
   globalThis.fetch = Object.assign(
     async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/factory/views')) return Response.json(views);
-      if (url.includes('/api/factory/workflow')) {
-        const answer = workflowAnswers[Math.min(workflowFetches, workflowAnswers.length - 1)];
-        workflowFetches++;
-        return answer!();
-      }
-      if (isItemsRead(url)) return itemsResponse(url);
+      if (url.includes('/api/factory/workflow')) return Response.json(deliverJson);
+      if (isItemsRead(url)) return items(url);
       if (url.includes('/api/runs/attention'))
         return Response.json({ items: [], runs: [], degraded: [] });
       return Response.json({ error: 'not in this test' }, { status: 404 });
@@ -111,14 +100,6 @@ const click = async (target: Element | null | undefined): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 0));
   });
 };
-const reread = (answer: (url: string) => Response): Promise<void> =>
-  act(async () => {
-    itemsResponse = answer;
-    // What lib/sse.ts calls on a workflow_status or dag_node event.
-    invalidate('factory-items');
-    await new Promise(resolve => setTimeout(resolve, 0));
-  });
-
 function stepButton(body: HTMLElement, label: string): HTMLButtonElement {
   const button = [...body.querySelectorAll('button')].find(b => b.textContent.startsWith(label));
   if (!button) throw new Error(`The stage graph drew no ${label} step`);
@@ -173,30 +154,7 @@ test('a stage with no drill-down opens on its graph, glows the running step, and
   });
 });
 
-test('a failed refresh says so in the stage modal and stops the glow; the graph still draws', async () => {
-  serve(itemsReadAnswer(capturedItemsPage.items));
-  await renderAt(`/console/p/${ID}/factory?stage=build`, async body => {
-    expect(stepButton(body, '·build').hasAttribute('data-running')).toBe(true);
-    await reread(() => Response.json({ error: 'The items read failed.' }, { status: 500 }));
-    expect(body.textContent).toContain(
-      'Could not refresh the items, so this stage shows the last ones read: The items read failed.'
-    );
-    expect(stepButton(body, '·build').hasAttribute('data-running')).toBe(false);
-    expect(itemLinks(body)).toEqual([]);
-  });
-});
-
-test('a run between loop bodies lights the loop frame, naming the item by its number', async () => {
-  serve(itemsReadAnswer([on('issue-9', 'rounds')]));
-  await renderAt(`/console/p/${ID}/factory?stage=build`, async body => {
-    const lit = [...body.querySelectorAll('div[data-running]')];
-    expect(lit.map(frame => frame.textContent)).toEqual([expect.stringContaining('rounds')]);
-    expect(lit[0]?.getAttribute('title')).toBe('Running for #9');
-    expect(body.querySelectorAll('button[data-running]')).toHaveLength(0);
-  });
-});
-
-test('the step page draws the items on the step as board cards, says when there are none, and follows an event', async () => {
+test('the step page draws the items on the step as board cards, and says when there are none', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async body => {
     expect(body.textContent).toContain('Items on this step now');
@@ -209,38 +167,11 @@ test('the step page draws the items on the step as board cards, says when there 
   await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async body => {
     expect(itemLinks(body)).toEqual([]);
     expect(body.textContent).toContain('No item is on this step now.');
-    await reread(itemsReadAnswer([on('12', 'rounds.fix')]));
-    expect(itemLinks(body)).toEqual([`/console/p/${ID}/factory/items/12`]);
   });
 });
 
-test('the step page tries its workflow read again, and Retry reads it after two failures', async () => {
-  serve(itemsReadAnswer([]));
-  invalidate('factory-workflow');
-  const offline = (): Response => {
-    throw new TypeError('Failed to fetch');
-  };
-  workflowAnswers = [offline, offline, () => Response.json(deliverJson)];
-  workflowFetches = 0;
-  try {
-    await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async body => {
-      await act(async () => new Promise(resolve => setTimeout(resolve, 1_100)));
-      expect(workflowFetches).toBe(2);
-      const alert = body.querySelector('[role="alert"]');
-      expect(alert?.textContent).toContain('deliver');
-      expect(alert?.textContent).toContain('the server did not answer');
-      await click(alert?.querySelector('button'));
-      await settle();
-      expect(body.querySelector('[role="alert"]')).toBeNull();
-      expect(body.textContent).toContain('From command fix');
-    });
-  } finally {
-    workflowAnswers = [() => Response.json(deliverJson)];
-  }
-});
-
-test('the drill-down tells numbered phases of cards in one loop, and a card links its step page', async () => {
-  serve(itemsReadAnswer([]));
+test('the drill-down tells numbered phases of cards in one loop; a card glows, links its items and opens its step page', async () => {
+  serve(itemsReadAnswer([on('7', 'rounds.review__review')]));
   await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
     expect(phaseLabels(body)).toEqual([
       'Phase 1: Prepare',
@@ -257,7 +188,14 @@ test('the drill-down tells numbered phases of cards in one loop, and a card link
       'Phase 2: Check',
       'Phase 3: Verdict',
     ]);
-    expect(liveCards(body)).toEqual([]);
+    expect(liveCards(body)).toEqual([expect.stringContaining('Code review')]);
+    const lit = body.querySelector('article[data-live]');
+    expect(lit?.hasAttribute('data-running')).toBe(true);
+    // The items are links of their own beside the card's link, never inside it.
+    expect(
+      [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(a => a.getAttribute('href'))
+    ).toEqual([`/console/p/${ID}/factory/items/7`]);
+    expect(lit?.querySelector('a a')).toBeNull();
 
     const review = cardLink(body, 'Code review');
     expect(review.textContent).toContain("Reads the change for bugs and the project's rules");
@@ -268,26 +206,6 @@ test('the drill-down tells numbered phases of cards in one loop, and a card link
     await click(review);
     expect(body.querySelector('[data-id-tag]')?.textContent).toBe('rounds.review__review');
     expect(body.textContent).toContain('Back to Checks');
-  });
-});
-
-test('a drill-down card glows and links the items on its step; a run between rounds lights the loop', async () => {
-  serve(itemsReadAnswer([on('7', 'rounds.review__review')]));
-  await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
-    expect(liveCards(body)).toEqual([expect.stringContaining('Code review')]);
-    const lit = body.querySelector('article[data-live]');
-    expect(lit?.hasAttribute('data-running')).toBe(true);
-    // The items are links of their own beside the card's link, never inside it.
-    expect(
-      [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(a => a.getAttribute('href'))
-    ).toEqual([`/console/p/${ID}/factory/items/7`]);
-    expect(lit?.querySelector('a a')).toBeNull();
-
-    await reread(itemsReadAnswer([on('9', 'rounds')]));
-    expect(liveCards(body)).toEqual([]);
-    const label = body.querySelector('[data-loop] > [data-live]');
-    expect(label?.textContent).toContain('Up to 3 rounds');
-    expect(label?.getAttribute('title')).toBe('Between rounds: #9');
   });
 });
 

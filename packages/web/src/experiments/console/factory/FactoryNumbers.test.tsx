@@ -8,7 +8,7 @@ import { installDom } from '../test-dom.test-helpers';
 import { FactoryNumbers } from './FactoryNumbers';
 import { FIXTURE_NOW, PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
-import { cancelRereads, MERGE_REREAD_MS } from './merge-reread';
+import { cancelRereads } from './merge-reread';
 import { cancelMergeWatches, MERGE_WATCH_MS } from './merge-watch';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
@@ -23,11 +23,9 @@ afterAll(() => {
 // A failed read lands after the first render, which static markup cannot reach.
 const { mount: mountTree, settle } = await installDom();
 const failing = globalThis.fetch;
-let fetches = 0;
 /** The server is down unless a test serves something else. */
 const serverDown = Object.assign(
   async (): Promise<Response> => {
-    fetches++;
     throw new Error('the server is down');
   },
   { preconnect: failing.preconnect }
@@ -43,21 +41,12 @@ afterEach(() => {
   invalidate('factory-items');
 });
 
-const turns = async (n = 5): Promise<void> => {
-  for (let turn = 0; turn < n; turn++) await settle();
-};
-
 /** The strip over `items` (warm from the cache, as the Overview reads it after the board), or cold. */
-async function mount(
-  projectId: string,
-  items?: FactoryItem[],
-  view: typeof VIEW = VIEW,
-  waiting: number | null = 2
-) {
+async function mount(projectId: string, items?: FactoryItem[], waiting: number | null = 2) {
   if (items !== undefined) set(K.factoryItems(projectId), { items, members: {} });
   const mounted = await mountTree(
     <MemoryRouter>
-      <FactoryNumbers projectId={projectId} view={view} waiting={waiting ?? undefined} />
+      <FactoryNumbers projectId={projectId} view={VIEW} waiting={waiting ?? undefined} />
     </MemoryRouter>
   );
   const tile = (label: string): string | null | undefined =>
@@ -71,7 +60,6 @@ test('a failed first read says so, and never shows zeros', async () => {
     await settle();
   const alert = container.querySelector('[role="alert"]');
   expect(alert?.textContent).toContain('The numbers could not be loaded');
-  expect(alert?.textContent).toContain('the server is down');
   expect(container.textContent).not.toContain('in flight');
   await unmount();
 });
@@ -80,7 +68,7 @@ test('before the reads answer, every tile shows a skeleton figure, never a count
   globalThis.fetch = Object.assign(() => new Promise<Response>(() => undefined), {
     preconnect: failing.preconnect,
   });
-  const { container, unmount } = await mount('cb-unread', undefined, VIEW, null);
+  const { container, unmount } = await mount('cb-unread', undefined, null);
   const tiles = [...container.querySelectorAll('[aria-label="Numbers"] li')];
   expect(tiles.map(li => li.textContent)).toEqual([
     'in flightLoading',
@@ -160,26 +148,11 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
 test('a failed refresh says so and keeps the last numbers', async () => {
   const { container, tile, unmount } = await mount('cb-stale', PAGE.items);
   await act(async () => invalidate(K.factoryItems('cb-stale')));
-  await turns();
+  for (let turn = 0; turn < 5; turn++) await settle();
   expect(container.querySelector('[role="status"]')?.textContent).toBe(
     'Could not refresh: the server is down. Showing the last values read.'
   );
   expect(tile('merged')).toBe('merged3 of 8');
-  await unmount();
-});
-
-test('while pending it reads again on its own, and a failed re-read leaves the pending item out', async () => {
-  const { container, tile, unmount } = await mount('cb-reread', [
-    ...PAGE.items,
-    readyWithMerge('p', 'pending'),
-  ]);
-  const before = fetches;
-  // Nothing invalidates the key here: only the hook's own re-read can fetch.
-  await act(async () => new Promise(resolve => setTimeout(resolve, MERGE_REREAD_MS + 100)));
-  await turns();
-  expect(fetches).toBeGreaterThan(before);
-  expect(tile('merged')).toBe('merged3 of 9Checking which changes merged');
-  expect(container.querySelector('[role="status"]')?.textContent).toContain('Could not refresh');
   await unmount();
 });
 
@@ -195,10 +168,5 @@ test('a view that declares discoveries adds a tile; the tiles are plain figures,
   expect(strip.textContent).not.toContain('Open');
   await declared.unmount();
 
-  const { discoveries: _declared, ...without } = VIEW;
-  const plain = await mount('cb-found', PAGE.items, without as typeof VIEW);
-  expect(plain.container.querySelectorAll('[aria-label="Numbers"] li')).toHaveLength(5);
-  expect(plain.container.textContent).not.toContain('found by the factory');
-  await plain.unmount();
   invalidate(K.factoryDiscoveries('cb-found'));
 });

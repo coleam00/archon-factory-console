@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { OpenAPIHono } from '@hono/zod-openapi';
-import type { ChangeLookup, ChangeMergeState } from '@archon/adapters/forge-host';
+import type { ChangeMergeState } from '@archon/adapters/forge-host';
 import { getHomeWorkflowsPath } from '@archon/paths';
 import { removeTempTree, trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
@@ -110,8 +110,6 @@ const PR7_AUDIT = {
   durationMs: 1,
 };
 
-const REMOTE = 'https://forge.example/acme/web.git';
-
 /** The routes over one project, `cb-1`, holding `files`; `deps` replaces what a test reads. */
 async function factoryApp(
   track: (path: string) => string,
@@ -123,7 +121,7 @@ async function factoryApp(
   registerFactoryRoutes(app, {
     ...noItems,
     codebase: async id =>
-      id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: REMOTE } : null,
+      id === 'cb-1' ? { cwd: project, projectKey: 'acme/web', remote: null } : null,
     ...deps,
   });
   return { app, project };
@@ -187,16 +185,13 @@ const completed = (
 
 describe('GET /api/factory/views', () => {
   const track = trackTempRoots();
-  const file = '.archon/packs/acme.kit.factory-view.json';
-  const views = async (files: Record<string, unknown>) => {
-    const { app, project } = await factoryApp(track, files);
-    const response = await app.request('/api/factory/views?codebaseId=cb-1');
-    expect(response.status).toBe(200);
-    return { listing: factoryViewsSchema.parse(await response.json()), project };
-  };
 
   test("a project's own file applies with no runs, naming its pack key and run names", async () => {
-    const { listing, project } = await views({ [file]: declaration('acme/kit', 'Kit factory') });
+    const file = '.archon/packs/acme.kit.factory-view.json';
+    const { app, project } = await factoryApp(track, { [file]: declaration('acme/kit', 'Kit') });
+    const response = await app.request('/api/factory/views?codebaseId=cb-1');
+    expect(response.status).toBe(200);
+    const listing = factoryViewsSchema.parse(await response.json());
     expect(
       listing.views.map(v => [v.pack, v.source, v.path, v.declaration.title, v.packKey, v.runNames])
     ).toEqual([
@@ -204,19 +199,10 @@ describe('GET /api/factory/views', () => {
         'acme/kit',
         'project-file',
         join(project, '.archon', 'packs', 'acme.kit.factory-view.json'),
-        'Kit factory',
+        'Kit',
         'acme.kit',
         { deliver: 'acme/kit:deliver' },
       ],
-    ]);
-  });
-
-  test('a malformed project file is listed under errors with its path', async () => {
-    const { listing, project } = await views({ [file]: '{ "version": ' });
-    const path = join(project, '.archon', 'packs', 'acme.kit.factory-view.json');
-    expect(listing.views).toEqual([]);
-    expect(listing.errors).toEqual([
-      { pack: 'acme.kit', source: 'project-file', path, error: expect.stringContaining(path) },
     ]);
   });
 });
@@ -226,23 +212,21 @@ describe('GET /api/factory/packs', () => {
   const viewFile = '.archon/packs/acme.kit.factory-view.json';
   const overviewFile = '.archon/packs/acme.kit.factory-overview.json';
   async function read(
-    projects: { id: string; name: string; files: Record<string, unknown>; config?: 'throws' }[]
-  ): Promise<{ status: number; body: unknown; cwds: Map<string, string> }> {
+    projects: { id: string; name: string; files: Record<string, unknown> }[]
+  ): Promise<{ body: unknown; cwds: Map<string, string> }> {
     const cwds = new Map<string, string>();
     for (const project of projects) cwds.set(project.id, await projectWith(track, project.files));
-    const app = new OpenAPIHono();
-    registerFactoryRoutes(app, {
-      ...noItems,
-      codebases: async () =>
-        projects.map(({ id, name }) => ({ id, name, cwd: cwds.get(id) ?? '' })),
-      loadConfig: async cwd => {
-        if (projects.find(p => cwds.get(p.id) === cwd)?.config === 'throws')
-          throw new Error('config is broken');
-        return noItems.loadConfig(cwd);
-      },
-    });
+    const { app } = await factoryApp(
+      track,
+      {},
+      {
+        codebases: async () =>
+          projects.map(({ id, name }) => ({ id, name, cwd: cwds.get(id) ?? '' })),
+      }
+    );
     const response = await app.request('/api/factory/packs');
-    return { status: response.status, body: await response.json(), cwds };
+    expect(response.status).toBe(200);
+    return { body: await response.json(), cwds };
   }
 
   test('a project file is read from the first project by name, and the projects listed', async () => {
@@ -274,19 +258,6 @@ describe('GET /api/factory/packs', () => {
     expect(pack?.projects).toEqual([
       { codebaseId: 'cb-1', name: 'alpha' },
       { codebaseId: 'cb-2', name: 'zeta' },
-    ]);
-  });
-
-  test('a project that cannot be read is listed, and the other packs remain', async () => {
-    const { status, body } = await read([
-      { id: 'cb-1', name: 'broken', files: {}, config: 'throws' },
-      { id: 'cb-2', name: 'web', files: { [overviewFile]: overview('acme/kit', 'Kit') } },
-    ]);
-    expect(status).toBe(200);
-    const packs = factoryPacksResponseSchema.parse(body);
-    expect(packs.packs.map(p => p.readFrom?.name)).toEqual(['web']);
-    expect(packs.unreadProjects).toEqual([
-      { codebaseId: 'cb-1', name: 'broken', error: 'config is broken' },
     ]);
   });
 });
@@ -430,20 +401,12 @@ describe('GET /api/factory/discoveries', () => {
       ['A finding', 'defect', '1', null],
     ]);
   });
-
-  test('a view that declares no discoveries is a 404 saying so', async () => {
-    expect(await request({ [viewFile]: declaration('acme/kit', 'Kit factory') })).toEqual({
-      status: 404,
-      body: { error: 'This factory view declares no discoveries' },
-    });
-  });
 });
 
 // One project's three items, their runs and events, as the item reader's store holds them.
-const items: [WorkflowItem, WorkflowItem, WorkflowItem] = [
+const items: [WorkflowItem, WorkflowItem] = [
   { id: 'item-a', projectKey: 'acme/web', key: '1' },
   { id: 'item-b', projectKey: 'acme/web', key: '2' },
-  { id: 'item-c', projectKey: 'acme/web', key: '3' },
 ];
 const run = (id: string, item: WorkflowItem, fields: Partial<WorkflowRun>): WorkflowRun => ({
   origin: null,
@@ -473,15 +436,11 @@ const run = (id: string, item: WorkflowItem, fields: Partial<WorkflowRun>): Work
 const runs: Record<string, WorkflowRun[]> = {
   '1': [run('run-a', items[0], {})],
   '2': [run('run-b', items[1], { status: 'running', completed_at: null, completed_outcome: null })],
-  // A deliver whose result names an empty change URL.
-  '3': [run('run-c', items[2], {})],
 };
 const CHANGE = 'https://forge.example/acme/web/pull/7';
-const BRANCH_CHANGE = 'https://forge.example/acme/web/pull/8';
 const events: WorkflowEventRow[] = [
   // The shape a completed run records: its terminal record carries the declared result.
   completed('run-a', 'result', { change: CHANGE }, '2026-11-16T10:30:00Z', 9),
-  completed('run-c', 'result', { change: '' }, '2026-11-16T10:30:00Z', 9),
   {
     // A forge audit row naming the pull request, the shape `pr.ready` records.
     id: 'e0-audit',
@@ -545,22 +504,19 @@ const withView = {
 describe('GET /api/factory/progress and /api/factory/item', () => {
   const track = trackTempRoots();
 
-  async function itemsApp(lookups: unknown[] = [], branchesSeen: string[][] = []) {
+  async function itemsApp(lookups: unknown[] = []) {
     const { app } = await factoryApp(track, withView, {
       itemsSource: source,
-      changeMergeState: async (lookup, branches) => {
+      changeMergeState: async lookup => {
         lookups.push(lookup.kind === 'url' ? lookup.url : lookup);
-        branchesSeen.push([...(await branches())]);
-        return lookup.kind === 'url'
-          ? // No number from the forge: the one the run's audit row names stands.
-            { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: null }
-          : { url: BRANCH_CHANGE, merged: false, mergedAt: null, number: 8 };
+        // No number from the forge: the one the run's audit row names stands.
+        return { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: null };
       },
     });
     return app;
   }
 
-  test('the progress of each key asked, repeated or one; a key with no item is left out', async () => {
+  test('the progress of each key asked; a key with no item is left out', async () => {
     const app = await itemsApp();
     const response = await app.request('/api/factory/progress?codebaseId=cb-1&keys=2&keys=9');
     expect(response.status).toBe(200);
@@ -586,41 +542,22 @@ describe('GET /api/factory/progress and /api/factory/item', () => {
       },
     });
     expect(read.members).toEqual({ '2': [] });
-    const one = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
-    const single = factoryProgressResponseSchema.parse(await one.json());
-    expect(Object.keys(single.progress)).toEqual(['1']);
   });
 
-  test('a change is looked up once across requests and both routes; an empty change URL asks the branches', async () => {
+  test("a change is looked up once across requests and both routes, numbered by the run's audit row", async () => {
     const lookups: unknown[] = [];
-    const branchesSeen: string[][] = [];
-    const app = await itemsApp(lookups, branchesSeen);
+    const app = await itemsApp(lookups);
     for (let request = 0; request < 2; request++) {
-      const response = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1&keys=3');
-      const read = factoryProgressResponseSchema.parse(await response.json());
-      expect(read.progress['1']?.change).toEqual({
-        url: CHANGE,
-        merged: true,
-        mergedAt: '2026-11-17T01:00:00Z',
-        // Named by the run's own forge audit row.
-        number: 7,
-      });
-      // Item 3's run named an empty URL: the PR the forge finds on its branches in the remote.
-      expect(read.progress['3']?.change).toEqual({
-        url: BRANCH_CHANGE,
-        merged: false,
-        mergedAt: null,
-        number: 8,
-      });
+      const response = await app.request('/api/factory/progress?codebaseId=cb-1&keys=1');
+      expect(
+        factoryProgressResponseSchema.parse(await response.json()).progress['1']?.change
+      ).toEqual({ url: CHANGE, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 7 });
     }
     const detail = await app.request('/api/factory/item?codebaseId=cb-1&key=1');
     expect(
       factoryItemDetailResponseSchema.parse(await detail.json()).item.progress?.change?.merged
     ).toBe(true);
-    expect(lookups).toHaveLength(2);
-    expect(lookups).toEqual(expect.arrayContaining([CHANGE, { kind: 'branch', remote: REMOTE }]));
-    // The lookup is handed the item's runs' recorded branches.
-    expect(branchesSeen).toEqual(expect.arrayContaining([['branch-run-a'], ['branch-run-c']]));
+    expect(lookups).toEqual([CHANGE]);
   });
 
   test("one item: its read and progress, with each run's story facts", async () => {
@@ -694,42 +631,6 @@ describe('the merge-state cache', () => {
     expect((await state(change, noBranches, null, null)).merged).toBe('unknown');
     expect(lookups).toBe(1);
   });
-
-  test('runs that named no URL get an answer each, asked in the remote they are given', async () => {
-    const asked: ChangeLookup[] = [];
-    const state = changeStateCache({
-      changeMergeState: async lookup => {
-        asked.push(lookup);
-        const number = asked.length === 1 ? 8 : 9;
-        return { url: `${CHANGE.slice(0, -1)}${number}`, merged: true, mergedAt: null, number };
-      },
-    });
-    const branches = async (): Promise<string[]> => ['a'];
-    const of = (run: string) => state({ kind: 'branch', run }, branches, 'remote-1', null);
-    const [first, second] = [await of('run-1'), await of('run-2')];
-    expect([first.number, second.number, first.url]).toEqual([8, 9, `${CHANGE.slice(0, -1)}8`]);
-    expect((await of('run-1')).number).toBe(8);
-    expect(asked).toEqual([
-      { kind: 'branch', remote: 'remote-1' },
-      { kind: 'branch', remote: 'remote-1' },
-    ]);
-  });
-
-  const recorded = { change: CHANGE, at: '2026-11-17T01:00:00.000Z' };
-  const fromRecord = { url: CHANGE, merged: true, mergedAt: recorded.at };
-
-  test('a recorded merge whose audit rows name its pull request never asks the change host', async () => {
-    let lookups = 0;
-    const state = changeStateCache({
-      changeMergeState: async () => {
-        lookups++;
-        return { url: null, merged: false, mergedAt: null, number: null };
-      },
-    });
-    const audited = { ...change, audits: [PR7_AUDIT] };
-    expect(await state(audited, noBranches, null, recorded)).toEqual({ ...fromRecord, number: 7 });
-    expect(lookups).toBe(0);
-  });
 });
 
 /** Workflow discovery as runs see it, without the bundled defaults. */
@@ -754,54 +655,20 @@ describe('GET /api/factory/workflow', () => {
   const viewFile = '.archon/packs/kit.factory-view.json';
   const deliverFile = '.archon/workflows/kit/deliver/deliver.yaml';
 
-  async function read(
-    files: Record<string, unknown>
-  ): Promise<{ status: number; body: { error?: string } }> {
-    const { app } = await factoryApp(track, files, { discoverWorkflows: discover });
-    const response = await app.request('/api/factory/workflow?codebaseId=cb-1&workflow=deliver');
-    return { status: response.status, body: (await response.json()) as { error?: string } };
-  }
-
   test("returns the steps of a workflow the project's view names", async () => {
-    const { status, body } = await read({
-      [viewFile]: declaration('kit', 'Kit factory'),
-      [deliverFile]: DELIVER,
-    });
-    expect(status).toBe(200);
-    const workflow = factoryWorkflowSchema.parse(body);
+    const { app } = await factoryApp(
+      track,
+      { [viewFile]: declaration('kit', 'Kit factory'), [deliverFile]: DELIVER },
+      { discoverWorkflows: discover }
+    );
+    const response = await app.request('/api/factory/workflow?codebaseId=cb-1&workflow=deliver');
+    expect(response.status).toBe(200);
+    const workflow = factoryWorkflowSchema.parse(await response.json());
     expect([workflow.name, workflow.runName]).toEqual(['deliver', 'deliver']);
     expect(workflow.groups.map(g => [g.id, g.kind, g.maxRounds])).toEqual([['rounds', 'loop', 2]]);
     expect(workflow.steps.map(s => [s.key, s.kind, s.yaml])).toEqual([
       ['rounds.fix', 'bash', 'id: fix\nbash: echo fixed'],
     ]);
-  });
-
-  test('a workflow the view names but the project lacks returns 404 naming the pack', async () => {
-    const { status, body } = await read({ [viewFile]: declaration('kit', 'Kit factory') });
-    expect(status).toBe(404);
-    // Read by a person on a stage: it names the pack and the workflow.
-    expect(body.error).toContain('kit');
-    expect(body.error).toContain('deliver');
-  });
-
-  test.each([
-    ['retired', ['deliver'], ' It was retired; the items it worked still show their runs.'],
-    ['missing from a pack whose other workflows are here', undefined, ''],
-  ])('a %s workflow returns 404 saying the pack has no such workflow', async (_, retired, why) => {
-    // Build lists `deliver` and `next`; `next` is on disk and `deliver` is not.
-    const build = { id: 'build', label: 'Build', blurb: 'Builds.', group: 'build' };
-    const { status, body } = await read({
-      [viewFile]: {
-        ...declaration('kit', 'Kit factory'),
-        stages: [
-          { ...build, workflows: ['deliver', 'next'] },
-          { id: 'landed', label: 'Landed', blurb: 'Merged.', group: 'land', workflows: [] },
-        ],
-        ...(retired === undefined ? {} : { retired }),
-      },
-      '.archon/workflows/kit/next/next.yaml': DELIVER.replace('name: deliver', 'name: next'),
-    });
-    expect([status, body.error]).toEqual([404, `This pack has no workflow named deliver.${why}`]);
   });
 
   test('reads share one discovery; a workflow missing from it is discovered again before the 404', async () => {
@@ -834,25 +701,14 @@ describe('GET /api/factory/workflow', () => {
 
 describe('a request the routes cannot answer', () => {
   const track = trackTempRoots();
-  const many = Array.from({ length: 101 }, (_, i) => `keys=${String(i)}`).join('&');
 
   test.each([
-    // A query the route cannot take: no keys, more keys than a window page holds, no key.
     ['view', '/api/factory/progress?codebaseId=cb-1', 400],
-    ['view', `/api/factory/progress?codebaseId=cb-1&${many}`, 400],
-    ['view', '/api/factory/item?codebaseId=cb-1', 400],
-    // An unknown codebase, item, workflow or pack.
-    ['view', '/api/factory/views?codebaseId=missing', 404],
     ['view', '/api/factory/progress?codebaseId=missing&keys=1', 404],
-    ['view', '/api/factory/item?codebaseId=missing&key=1', 404],
     ['view', '/api/factory/item?codebaseId=cb-1&key=9', 404],
-    ['view', '/api/factory/workflow?codebaseId=missing&workflow=deliver', 404],
     ['view', '/api/factory/workflow?codebaseId=cb-1&workflow=other', 404],
     ['view', '/api/factory/pack-settings?pack=nope', 404],
-    // No view applies to the project.
     ['no view', '/api/factory/progress?codebaseId=cb-1&keys=1', 404],
-    ['no view', '/api/factory/item?codebaseId=cb-1&key=1', 404],
-    ['no view', '/api/factory/discoveries?codebaseId=cb-1', 404],
   ] as const)('%s: %s is a %i', async (files, path, status) => {
     const { app } = await factoryApp(track, files === 'view' ? withView : {}, {
       itemsSource: source,

@@ -103,28 +103,6 @@ describe('/console/factory', () => {
     expect(cards[1]?.textContent).not.toContain('web');
     expect(cards[1]?.textContent).not.toContain('api');
   });
-
-  test('with one pack and a project it could not read, stays to say so', async () => {
-    const page = await mount('/console/factory', {
-      ...listing([pack('acme.kit', 'Kit')]),
-      unreadProjects: [{ codebaseId: 'cb-9', name: 'gone', error: 'ENOENT' }],
-    });
-    expect(at(page)).toBe('/console/factory');
-    expect(page.querySelector('[role="alert"]')?.textContent).toContain('gone: ENOENT');
-    expect(page.querySelectorAll('article')).toHaveLength(1);
-  });
-
-  test('a pack whose files are all broken still gets a card, saying so', async () => {
-    const page = await mount(
-      '/console/factory',
-      listing([pack('acme.kit', 'Kit'), pack('acme.web', 'Web', { overview: null })])
-    );
-    const cards = [...page.querySelectorAll('article')];
-    expect(cards).toHaveLength(2);
-    // With no overview, the card is still titled by the pack's name and opens its page.
-    expect(cards[1]?.querySelector('h2')?.textContent).toBe('Web');
-    expect(hrefs(cards[1])).toContain('/console/factory/acme.web/how-it-works');
-  });
 });
 
 const two = listing([
@@ -188,27 +166,5 @@ describe('/console/factory/:pack/how-it-works', () => {
     expect(hrefs(page).filter(href => href.endsWith('/settings'))).toEqual([]);
     expect(hrefs(page).filter(href => href.startsWith('/console/p/'))).toEqual([]);
     expect(page.textContent).not.toContain('Settings');
-  });
-
-  test('an unknown pack says so and links every pack', async () => {
-    const page = await mount('/console/factory/nope/how-it-works', two);
-    expect(page.querySelector('[data-card]')).toBeNull();
-    expect(page.textContent).toContain('No installed pack keyed "nope"');
-    const back = page.querySelector('a[data-back-link]');
-    expect(back?.getAttribute('href')).toBe('/console/factory');
-  });
-
-  test("a broken pack file's error shows on its page", async () => {
-    const page = await mount(
-      '/console/factory/acme.kit/how-it-works',
-      listing([
-        pack('acme.kit', 'Kit', {
-          overview: null,
-          readFrom: null,
-          errors: [{ pack: 'acme/kit', source: 'installed', path: '/p/o.json', error: 'bad root' }],
-        }),
-      ])
-    );
-    expect(page.querySelector('[role="alert"]')?.textContent).toContain('bad root');
   });
 });

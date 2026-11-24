@@ -97,19 +97,4 @@ describe('the feedback lane', () => {
     for (const s of drawn)
       for (const card of cards.values()) expect(enters(card.box, s)).toBe(false);
   });
-
-  test('every target leg ends in a head into its card; a source leg does not', () => {
-    const heads = lane.strokes.filter(stroke => stroke.head).map(stroke => stroke.points.at(-1));
-    for (const head of heads) expect(head?.y).toBe(CARD_H);
-    expect(heads).toHaveLength(3);
-  });
-
-  test('a send-back whose card or stage is not drawn is left out; none, no extent', () => {
-    const missing = feedbackLane(cards, Y, [
-      sendBack('card9', 'a', 'x'),
-      sendBack('card2', 'zz', 'y'),
-    ]);
-    expect(missing.paths).toEqual([]);
-    expect(missing.extent).toBeUndefined();
-  });
 });

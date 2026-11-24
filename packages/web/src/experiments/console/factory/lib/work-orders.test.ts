@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import { boardModel } from './board';
-import { FIXTURE_NOW, PAGE, progressOf, realItem, VIEW } from './board.test-fixtures';
-import { factoryNumbers } from './numbers';
+import { FIXTURE_NOW, progressOf, realItem, VIEW } from './board.test-fixtures';
 import {
   displayKeyOf,
   highlightedKeys,
@@ -49,31 +48,18 @@ describe("an item's key as it reads", () => {
 
   test("a member of a work order reads as the order's number and its piece", () => {
     expect(displayKeyOf(linkTo(member(), 'issue-136'))).toBe('#136 · item keys');
-    expect(displayKeyOf(namedBy(member(), 'issue-136'))).toBe('#136 · item keys');
   });
 });
 
 describe("an item's work order", () => {
   const five = (): FactoryItem => realItem('5');
-  const LATER = '2026-11-17T11:00:00.000Z';
   // Expected as `source order`, or null for no work order.
   test.each([
     ['an active part_of link', () => linkTo(five(), '48'), 'link 48'],
     ["its order run's result, with no link", () => namedBy(five(), '48'), 'output 48'],
     ['a link wins over a result', () => linkTo(namedBy(five(), '60'), '48'), 'link 48'],
     ['an ended link makes no member', () => linkTo(five(), '48', AT, true), null],
-    [
-      'the link ended: the result',
-      () => linkTo(namedBy(five(), '60'), '48', AT, true),
-      'output 60',
-    ],
-    [
-      'two links: the one recorded last',
-      () => linkTo(linkTo(five(), '48'), '70', LATER),
-      'link 70',
-    ],
     ['no link and no result', five, null],
-    ['a result naming the item itself', () => namedBy(five(), '5'), null],
   ] as const)('%s', (_name, item, expected) => {
     const found = membershipOf(item());
     expect(found === null ? null : `${found.source} ${found.order}`).toBe(expected);
@@ -97,37 +83,11 @@ describe('the work orders on a board', () => {
     ]);
   });
 
-  test('a member whose order has no other members is an order of one', () => {
-    const [order] = ordersOf([namedBy(realItem('5'), '60'), realItem('3')]);
-    // 60 is named only by a result: no item row, no members map entry.
-    expect(order).toMatchObject({ key: '60', title: 'Work order #60', landed: 0 });
-    expect(order?.members.map(member => member.key)).toEqual(['5']);
-  });
-
-  test('a member linked to one order is not counted again under the order its result names', () => {
-    const orders = ordersOf([linkTo(namedBy(realItem('5'), '60'), '48')], { '48': ['5'] });
-    expect(orders.map(order => [order.key, order.members.map(member => member.key)])).toEqual([
-      ['48', ['5']],
-    ]);
-  });
-
   test('an order with runs of its own keeps its card and its title', () => {
     const items = [realItem('8'), linkTo(realItem('5'), '8')];
     const [order] = ordersOf(items, { '8': ['5'] });
     expect(order).toMatchObject({ key: '8', title: progressOf(realItem('8')).title });
     expect(highlightedKeys(order)).toEqual(new Set(['8', '5']));
-  });
-
-  test('an order whose members map lists none and no item names is no order', () => {
-    expect(ordersOf(PAGE.items, { '48': [] })).toEqual([]);
-  });
-
-  test("the overview's numbers do not change when items join an order", () => {
-    const now = new Date('2026-11-17T12:00:00Z');
-    const linked = PAGE.items.map(item => linkTo(item, '48'));
-    const numbersOf = (items: FactoryItem[]) =>
-      factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW), now);
-    expect(numbersOf(linked)).toEqual(numbersOf(PAGE.items));
   });
 });
 

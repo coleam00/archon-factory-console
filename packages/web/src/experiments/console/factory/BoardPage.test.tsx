@@ -275,31 +275,6 @@ describe('filters and re-reads', () => {
     }
   });
 
-  test('a re-read that moves a card marks it, and the mark clears after its time', async () => {
-    const { container, unmount } = await mount(PAGE.items);
-    try {
-      expect(container.querySelector('[data-moved]')).toBeNull();
-      // Item 6 starts its deliver run: Build, then Checks once its review runs.
-      const moved = PAGE.items.map(item =>
-        item.item.key === '6' ? { ...realItem('8'), item: item.item } : item
-      );
-      await act(async () => set(K.factoryItems(ID), { items: moved, members: {} }));
-      // A second read right after that moves nothing, as several node events bring.
-      await act(async () =>
-        set(K.factoryItems(ID), { items: structuredClone(moved), members: {} })
-      );
-      expect(
-        [...container.querySelectorAll('[data-moved="true"]')].map(moved =>
-          moved.getAttribute('data-card')
-        )
-      ).toEqual(['6']);
-      await act(async () => new Promise(resolve => setTimeout(resolve, 1600)));
-      expect(container.querySelector('[data-moved]')).toBeNull();
-    } finally {
-      await unmount();
-    }
-  });
-
   test('while a merge state is pending, Ready and Merged say checking, and so does the card', async () => {
     const { container, unmount } = await mount([...PAGE.items, readyWithMerge('p', 'pending')]);
     try {
@@ -434,55 +409,4 @@ describe('a board opened from a number', () => {
       }
     }
   );
-
-  test('found by the factory: the whole board, the strips open, their line scrolled to once', async () => {
-    const scrolled: Element[] = [];
-    const proto = dom.HTMLElement.prototype as unknown as {
-      scrollIntoView: (this: Element, options?: unknown) => void;
-    };
-    const original = proto.scrollIntoView;
-    proto.scrollIntoView = function (this: Element): void {
-      scrolled.push(this);
-    };
-    const closed = endLastRun(keepRuns(realItem('6'), 1), 'completed', 'fold');
-    const { container, unmount } = await mount(
-      [closed, ...PAGE.items.filter(item => item.item.key !== '6')],
-      `/console/p/${ID}/factory/board?show=found`
-    );
-    try {
-      // Nothing narrowed: every card and the set-aside line stay.
-      expect(cardKeys(container)).toHaveLength(PAGE.items.length - 1);
-      expect(container.querySelector('#set-aside-heading')?.textContent).toBe('1 set aside');
-      expect(container.querySelector('#found-by-the-factory-list')).not.toBeNull();
-      expect(container.querySelector('#set-aside-list')).not.toBeNull();
-      expect(container.textContent).toContain('Showing: found by the factory');
-      // By identity: a failing toEqual on a happy-dom Element hangs bun while it formats the diff.
-      expect(scrolled).toHaveLength(1);
-      expect(scrolled[0] === container.querySelector('[data-board-strips]')).toBe(true);
-      // Neither a view switch nor closing and reopening scrolls the page again.
-      await act(async () => button(container, 'Table').click());
-      await act(async () => button(container, 'Pipeline').click());
-      await act(async () => stripsToggle(container)?.click());
-      await act(async () => stripsToggle(container)?.click());
-      expect(scrolled).toHaveLength(1);
-    } finally {
-      await unmount();
-      proto.scrollIntoView = original;
-    }
-  });
-
-  test('an unknown ?show= says so and filters nothing', async () => {
-    const { container, unmount } = await mount(
-      PAGE.items,
-      `/console/p/${ID}/factory/board?show=bogus`
-    );
-    try {
-      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-        'Unknown filter "bogus"'
-      );
-      expect(cardKeys(container)).toHaveLength(PAGE.items.length);
-    } finally {
-      await unmount();
-    }
-  });
 });

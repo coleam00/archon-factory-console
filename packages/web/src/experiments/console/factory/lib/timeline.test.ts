@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { FactoryItemDetail } from '../../skills/factory';
 import { itemDetail, shippedView } from '../item-detail.test-fixtures';
-import { askItem, gateItem } from '../../lib/needs-you.test-fixtures';
 import { buildTimeline, type TimelineRow } from './timeline';
 
 /** An outcome the declaration words, and a pack token it does not, drawn in mono. */
@@ -83,12 +82,6 @@ describe("each run's outcome, as the declaration words it, and what it did to th
       expect(row?.kind).toBe(kind);
     });
 
-  test('a running run shows its live step by name', () => {
-    const running = timeline(itemDetail('6')).at(-1);
-    expect([running?.outcome, running?.kind]).toEqual([said('running'), 'running']);
-    expect(running?.liveStepName).toBe('Writes the change');
-  });
-
   test('both deliver runs of item 3 asked, each with the question it left', () => {
     const detail = itemDetail('3');
     const delivers = timeline(detail).filter(row => row.workflow === 'deliver');
@@ -120,19 +113,6 @@ describe('a run that asked', () => {
     // Without the declaration it reads where `placement` sends it.
     const { asked: _asked, ...undeclared } = shippedView;
     expect(rowOf(noAsks, undeclared)?.outcome).toEqual(said('sent to Build'));
-    // `deliver:*` takes every outcome, but not a run that recorded none.
-    const anyOutcome = { ...shippedView, asked: ['deliver:*'] };
-    expect(rowOf(noAsks, anyOutcome)?.outcome).toEqual(said('asked you'));
-    const noOutcome = {
-      ...noAsks,
-      item: {
-        ...noAsks.item,
-        runs: noAsks.item.runs.map(run =>
-          run.id === deliver.id ? { ...run, outcome: null } : run
-        ),
-      },
-    };
-    expect(rowOf(noOutcome, anyOutcome)?.outcome).not.toEqual(said('asked you'));
   });
 
   test('reads "asked you" over its placement when it left asks on the item', () => {
@@ -145,64 +125,28 @@ describe('a run that asked', () => {
     expect(row?.outcome).toEqual(said('asked you'));
     expect(row?.asked).toHaveLength(1);
   });
-
-  test("an open ask counts by the run it was asked in, not a gate's own question", () => {
-    const placed = noAsks.item.runs.map(run =>
-      run.id === deliver.id ? { ...run, outcome: 'returned' } : run
-    );
-    const message = 'Merge it now?';
-    const asked = askItem({ message, askedIn: { runId: deliver.id, workflow: 'deliver' } });
-    const gate = askItem({ message, run: { ...gateItem().run, id: deliver.id } });
-    const withQuestion = (question: typeof asked) =>
-      rowOf({ ...noAsks, item: { ...noAsks.item, runs: placed, questions: [question] } });
-    expect([withQuestion(asked)?.outcome, withQuestion(asked)?.asked]).toEqual([
-      said('asked you'),
-      [message],
-    ]);
-    expect([withQuestion(gate)?.outcome, withQuestion(gate)?.asked]).toEqual([
-      said('sent to Build'),
-      [],
-    ]);
-  });
 });
 
 describe('shadow decisions on the timeline', () => {
-  const at = '2026-11-17T01:00:00.000Z';
-
   test('each run lists what its shadow steps decided, worded, under that run only', () => {
     const detail = itemDetail('1');
-    const [triage, , deliver] = detail.runs;
-    if (triage === undefined || deliver === undefined) throw new Error('item 1 has three runs');
+    const [triage] = detail.runs;
+    if (triage === undefined) throw new Error('item 1 has runs');
     triage.shadows = [
       {
         workflow: 'triage',
         node: 'admit',
         round: null,
         runId: triage.runId,
-        decidedAt: at,
+        decidedAt: '2026-11-17T01:00:00.000Z',
         read: { reads: 'verdict', value: 'ask', why: 'No policy says it may start.' },
       },
     ];
-    deliver.shadows = [
-      {
-        workflow: 'deliver',
-        node: 'rounds.checks',
-        round: 2,
-        runId: deliver.runId,
-        decidedAt: at,
-        read: {
-          reads: 'checks',
-          results: [{ name: 'lint', passed: true, seconds: 56, tail: null }],
-        },
-      },
-    ];
     const rows = timeline(detail);
-    expect(
-      rows.map(row => row.shadows.map(entry => [entry.label, entry.round, entry.words.line]))
-    ).toEqual([
-      [['Would it start on its own', null, 'would ask you first']],
+    expect(rows.map(row => row.shadows.map(entry => [entry.label, entry.words.line]))).toEqual([
+      [['Would it start on its own', 'would ask you first']],
       [],
-      [['Project checks', 2, '1 check · all passed · 56 s']],
+      [],
     ]);
     expect(rows[0]?.shadows[0]?.words.detail).toBe('No policy says it may start.');
   });

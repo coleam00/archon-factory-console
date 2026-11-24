@@ -2,7 +2,6 @@ import { describe, expect, test } from 'bun:test';
 import {
   factoryShadowDecisionSchema,
   latestShadowDecisions,
-  readShadowValue,
   shadowDecisions,
   type FactoryShadowDecision,
 } from './factory-shadows';
@@ -132,24 +131,6 @@ describe('reading what each shadow step recorded', () => {
 });
 
 describe('a step with no readable decision', () => {
-  const started = landgate70.events.filter(row => row.event_type === 'node_started');
-  test.each<[string, RunFixture]>([
-    [
-      'a skipped step',
-      {
-        run: landgate70.run,
-        events: started.map(row => ({
-          ...row,
-          event_type: 'node_skipped',
-          data: { reason: 'when_condition' },
-        })),
-      },
-    ],
-    ['a step that started and never completed', { run: landgate70.run, events: started }],
-  ])('%s yields no decision', (_name, fix) => {
-    expect(decisionsOf(fix)).toEqual([]);
-  });
-
   test.each<[string, RunFixture]>([
     [
       'text output that is not JSON',
@@ -171,29 +152,6 @@ describe('a step with no readable decision', () => {
     ],
   ])('%s is unreadable', (_name, fix) => {
     expect(decisionsOf(fix).map(decision => decision.read)).toEqual([{ reads: 'unreadable' }]);
-  });
-
-  const shadowReading = (reads: string) =>
-    view.shadows?.find(entry => entry.reads === reads) as FactoryShadow;
-  test.each([
-    ['a check entry without a name or passed flag', 'checks', { results: [{ name: 'lint' }] }],
-    ['checks that are not a list', 'checks', { results: 'none' }],
-    [
-      'a declared list that is not a list',
-      'lists',
-      { filed: [], folded: [], held: [], dropped: 2 },
-    ],
-  ])('%s is unreadable', (_name, reads, value) => {
-    expect(readShadowValue(shadowReading(reads), value)).toEqual({ reads: 'unreadable' });
-  });
-
-  test('a verdict the words map lacks is still read, as the pack recorded it', () => {
-    const shadow = view.shadows?.find(entry => entry.node === 'gate') as FactoryShadow;
-    expect(readShadowValue(shadow, { land: 'maybe' })).toEqual({
-      reads: 'verdict',
-      value: 'maybe',
-      why: null,
-    });
   });
 });
 

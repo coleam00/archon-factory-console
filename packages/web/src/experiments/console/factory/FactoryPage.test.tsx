@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
-import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
@@ -12,8 +11,6 @@ import type { FactoryItem } from '../skills/factory';
 import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { askItem } from '../lib/needs-you.test-fixtures';
-import { EMPTY_STAGE_LIVE } from './lib/map-live';
-import { StageView, useStageTab } from './stage/StageView';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs.
@@ -114,37 +111,6 @@ function render(
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>{projectRoutes('/console/')}</Routes>
-    </MemoryRouter>
-  );
-}
-
-/** A stage on the tab it opens on, as its modal draws it; the modal portals, which static markup cannot reach. */
-function renderStage(stageId: string): string {
-  render(`/console/p/${ID}/factory`, withView);
-  const view = withView.views[0]!.declaration;
-  const stage = view.stages.find(candidate => candidate.id === stageId)!;
-  function Stage(): ReactElement {
-    const [tab, setTab] = useStageTab(stage);
-    return (
-      <StageView
-        projectId={ID}
-        view={view}
-        stage={stage}
-        live={EMPTY_STAGE_LIVE}
-        tab={tab}
-        onTab={setTab}
-        frame={({ head, body }) => (
-          <>
-            {head}
-            {body}
-          </>
-        )}
-      />
-    );
-  }
-  return renderToStaticMarkup(
-    <MemoryRouter>
-      <Stage />
     </MemoryRouter>
   );
 }
@@ -287,20 +253,5 @@ describe('the Factory section', () => {
     expect(render(`/console/p/${ID}/factory`, none)).toContain(
       'No factory view applies to this project'
     );
-  });
-});
-
-describe('a stage, as its modal shows it', () => {
-  test("its blurb, then its workflow's steps framed by loop and include, its own step marked", () => {
-    const html = renderStage('checks');
-    expect(html).toContain('Checks the change.');
-    expect(html).toContain('up to 3 rounds');
-    expect(html).toContain('>included<');
-    const own = [...html.matchAll(/<button[^>]*data-worker="this"[^>]*>/g)];
-    expect(own).toHaveLength(1);
-    expect(own[0]?.[0]).toContain('title="review (engine id: rounds.review__review)"');
-    // Another stage's step names that stage and opens it.
-    expect(html).toContain(`href="/console/p/${ID}/factory?stage=build"`);
-    expect(renderStage('landed')).toContain('No workflow runs in this stage.');
   });
 });

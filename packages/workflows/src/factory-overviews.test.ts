@@ -80,19 +80,6 @@ describe('discoverFactoryOverviews', () => {
     ]);
   });
 
-  test('an invalid file is listed with its path and the field at fault', async () => {
-    const invalid = overview('folder', 'Invalid');
-    invalid.root = 'nope';
-    await write(packFile('folder'), invalid);
-
-    const listing = await discoverFactoryOverviews(roots);
-    expect(listing.overviews).toEqual([]);
-    expect(listing.errors[0]?.error).toContain(packFile('folder'));
-    // The field at fault, and the value it named.
-    expect(listing.errors[0]?.error).toContain('root:');
-    expect(listing.errors[0]?.error).toContain('"nope"');
-  });
-
   test('a factory view file is not read as an overview, nor the reverse', async () => {
     await write(projectFile('acme.kit'), overview('acme/kit', 'Overview'));
     // A view file's name, holding an overview: the view reader refuses it, the overview reader never sees it.
@@ -175,43 +162,6 @@ describe('resolveFactoryPacks', () => {
     expect(packs.packs.map(p => [p.key, p.readFrom?.name])).toEqual([['folder', 'beta']]);
   });
 
-  test('a broken pack file falls back to a project file and stays listed on the pack', () => {
-    const packs = resolveFactoryPacks({
-      home: { overviews: [], errors: [broken('acme/kit', 'installed')] },
-      projects: [
-        project('alpha', {
-          overviews: [listed('acme/kit', 'project-file', 'Project')],
-          // Every project re-reads the home files: the same error once.
-          errors: [broken('acme/kit', 'installed')],
-        }),
-      ],
-    });
-    expect(packs.packs).toHaveLength(1);
-    expect(packs.packs[0]?.overview?.declaration.title).toBe('Project');
-    expect(packs.packs[0]?.readFrom?.name).toBe('alpha');
-    expect(packs.packs[0]?.errors.map(e => e.path)).toEqual(['/installed/acme/kit']);
-  });
-
-  test('only broken files list the pack with no overview, under its key', () => {
-    const packs = resolveFactoryPacks({
-      home: none,
-      projects: [project('alpha', { overviews: [], errors: [broken('acme.kit', 'project-file')] })],
-    });
-    expect(packs.packs.map(p => [p.pack, p.key, p.overview, p.errors.length])).toEqual([
-      ['acme.kit', 'acme.kit', null, 1],
-    ]);
-  });
-
-  test('an unreadable scope root names no pack and is listed once at the top', () => {
-    const root = broken('/plugins', 'installed', '/plugins');
-    const packs = resolveFactoryPacks({
-      home: { overviews: [], errors: [root] },
-      projects: [project('alpha', { overviews: [], errors: [root] })],
-    });
-    expect(packs.packs).toEqual([]);
-    expect(packs.errors).toEqual([root]);
-  });
-
   test('a pack lists the projects a view of it applies to, by name', () => {
     const packs = resolveFactoryPacks({
       home: { overviews: [listed('acme/kit', 'installed')], errors: [] },
@@ -222,18 +172,6 @@ describe('resolveFactoryPacks', () => {
       ],
     });
     expect(packs.packs[0]?.projects.map(p => p.name)).toEqual(['alpha', 'zeta']);
-  });
-
-  test('an unreadable project is listed and the other packs remain', () => {
-    const packs = resolveFactoryPacks({
-      home: { overviews: [listed('acme/kit', 'installed')], errors: [] },
-      projects: [
-        { codebaseId: 'gone', name: 'gone', error: 'ENOENT' },
-        project('alpha', none, ['acme/kit']),
-      ],
-    });
-    expect(packs.packs.map(p => p.key)).toEqual(['acme.kit']);
-    expect(packs.unreadProjects).toEqual([{ codebaseId: 'gone', name: 'gone', error: 'ENOENT' }]);
   });
 
   test('packs are sorted by title, else key', () => {

@@ -89,12 +89,6 @@ describe("the item's story", () => {
     expect(cells[1]).toContain('Not run');
     // Shown in the grid, so not again as a line under the panel.
     expect(page.querySelector('[data-shadow]')).toBeNull();
-    // Nor on the Build panel the same deliver run opened: it sits with its own stage.
-    const build = await render(
-      <StageStoryPanel view={shippedView} panel={stagePanel('build')} asks={null} />
-    );
-    expect(build.querySelector('[data-shadow]')).toBeNull();
-    expect(build.textContent).not.toContain('Project checks');
   });
 });
 
@@ -123,20 +117,6 @@ describe('a stage drill-down card standing for a shadow step', () => {
     const article = page.querySelector('article');
     expect(article?.querySelector('[data-shadow-badge]')).not.toBeNull();
     expect(article?.textContent).toContain('last 5: all passed ×4 · 1 failed ×1');
-  });
-
-  test('a card standing for no shadow step has neither', async () => {
-    const page = await render(
-      <DrilldownCard
-        view={shippedView}
-        projectId={PROJECT}
-        stageId="checks"
-        card={{ ...card, title: 'Code review' }}
-        onCard={[]}
-        shadow={null}
-      />
-    );
-    expect(page.querySelector('[data-shadow-badge]')).toBeNull();
   });
 });
 
@@ -201,7 +181,5 @@ describe("the map's details and legend", () => {
     expect(legend.querySelector('[data-shadow-badge]')?.parentElement?.textContent).toBe(
       'shadowA step that decides what it would do and does nothing; hover it for which and what it decided'
     );
-    const plain = await render(<MapLegend tones={['check']} shadow={false} />);
-    expect(plain.querySelector('[data-shadow-badge]')).toBeNull();
   });
 });

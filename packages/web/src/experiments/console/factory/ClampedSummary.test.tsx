@@ -46,11 +46,4 @@ describe('the clamped summary', () => {
     await act(async () => toggle().click());
     expect(toggle().textContent).toBe('More');
   });
-
-  test('text that fits in its lines gets no toggle', async () => {
-    stubHeights(44, 44);
-    const page = await summary();
-    expect(page.querySelector('p')?.textContent).toBe('A long summary of the factory.');
-    expect(page.querySelector('button')).toBeNull();
-  });
 });

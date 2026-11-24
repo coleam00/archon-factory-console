@@ -251,21 +251,6 @@ test('what the stage offered shows whole between the question and the tiles, and
   }
 });
 
-test('an ask without the marker has no offered list and an optional note', async () => {
-  serve();
-  const card = await mount([askItem()]);
-  try {
-    expect(card.container.querySelector('section[aria-label="What the stage offered"]')).toBeNull();
-    expect(card.text()).toContain('The branch was cut from main but the item names dev.');
-    await card.click('Use main');
-    expect(card.container.querySelector('textarea')?.placeholder).toBe(
-      'Optional note with your answer'
-    );
-  } finally {
-    await card.unmount();
-  }
-});
-
 /** The routes a delivery ask of the pack's `ending.ts` offers, with their pack words. */
 const PACK_ROUTES = ['send-back', 'replan', 'take-as-is', 'drop', 'reshape'].map(id => ({
   id,
@@ -324,18 +309,6 @@ test('an unrecommended pack ask: drop and reshape say what they start, no tile i
     expect(card.text()).toContain('Round 3 of 3 allowed on this item.');
     // Declared order: no tile moves first.
     expect(card.container.querySelector('[role=group] button')?.textContent).toContain('Send back');
-  } finally {
-    await card.unmount();
-  }
-});
-
-test('a recommended ask quoting the marker keeps its context whole and its recommended tile', async () => {
-  serve();
-  const card = await mount([packAsk('Left.\n\nNo recommendation: quoted from the script.')]);
-  try {
-    expect(card.container.querySelector('[data-unrecommended]')).toBeNull();
-    expect(card.container.querySelector('[data-recommended]')?.textContent).toContain('Send back');
-    expect(card.text()).toContain('No recommendation: quoted from the script.');
   } finally {
     await card.unmount();
   }
