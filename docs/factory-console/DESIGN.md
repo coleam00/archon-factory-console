@@ -43,7 +43,10 @@ Visual standard below still bind everything a person sees):
   is no Needs you tab: Archon dev has none, and the factory's asks show on its board and item
   pages through Archon's own ask components. The
   factory adds a sidebar entry, a project tab and their routes, nothing else, and its view is
-  read only for a project whose pack has one.
+  read only for a project whose pack has one. `bun run lint` (`scripts/check-factory-imports.ts`)
+  fails when any other file under `packages/web/src` imports from `factory/`: only
+  `ConsoleApp.tsx` (the routes), `ProjectRail.tsx` (the entry) and `ProjectViewTabs.tsx` (the
+  tab) may.
 
 **Structure comes from the pack graph.** `GET /api/packs/{pack}/graph` gives stages, steps,
 outcomes, asks and arrows. The view JSON names workflows, steps and outcomes only to give them
@@ -248,7 +251,7 @@ presentation of it.
 
 Binds the Overview map, the How it works canvas (root and every drill-down) and the cards of the
 stage modal's "What this stage does" (rule 2: one card language). The tokens live in
-`packages/web/src/experiments/console/theme.css`; the line constants in `factory/canvas-lines.tsx`.
+`packages/web/src/experiments/console/factory/factory.css`; the line constants in `factory/canvas-lines.tsx`.
 They are checked in the browser, not pinned by tests (v2 direction: no test asserts a class or a
 colour).
 
@@ -315,9 +318,10 @@ live in two files: `packages/web/src/index.css` (`@theme inline`: `--text-consol
 `--radius-console-*`, `--tracking-console-*`; `:root`: `--node-command`, `--node-prompt`,
 `--node-bash`, `--node-loop`, `--node-approval`, `--node-wait`) and
 `packages/web/src/experiments/console/theme.css` (`.console-root`: surfaces, borders, text, accent,
-status colours, `--node-script`, `--node-cancel`, `--node-opaque`, and the canvases' identity:
+status colours, `--node-script`, `--node-cancel`, `--node-opaque`); the canvases' identity is
+the factory's own, in `factory/factory.css` (ConsoleApp imports it after theme.css):
 `--tone-intake`, `--card-depth`, `--card-depth-hover`, `--canvas-texture`, the running mark
-(`--running-fill`, `--running-border`, `--running-ring`), and on `.factory-card`
+(`--running-border`, `--running-ring`), and on `.factory-card`
 `--card-glow` and `--card-tint`). Where no token exists yet, a
 rule names the Tailwind utility or the value instead; the list closing this section names those
 gaps.
@@ -351,7 +355,7 @@ keeps its own look (rule 9).
 
 - Box: `--radius-console-12` (`rounded-console-12`), 1 px `--border`, `--surface` background.
   Hover: `--border-bright` border, `--surface-elevated` background. On the map, How it works
-  and a stage's drill-down the box is `.factory-card` (theme.css) instead: depth, a top tint in
+  and a stage's drill-down the box is `.factory-card` (factory.css) instead: depth, a top tint in
   its colour and light when it holds work ("Visual identity, 2026-11-19").
 - Padding: 12 px (`p-3`); a drill-down card 16 px (`p-4`).
 - A 3 px top accent bar in the stage group's colour (rule 5), inside the radius.
@@ -375,10 +379,7 @@ One 4/8 px grid: Tailwind's 4 px scale, every value a multiple of 4.
 - Board columns: 12 px apart (`gap-3`), each at least 208 px wide (owner, 2026-11-18: five
   columns fit beside the sidebar at 1440x900, 5 x 208 + 4 x 12 = 1088 of 1100 px; narrower
   windows scroll sideways).
-- The project tabs stay one line: where they do not fit (on a phone), the row scrolls sideways
-  with no scrollbar and brings the active tab into view, again whenever its place changes (the
-  row's width, or a tab before it widening, as the Needs-you badge does) (owner, 2026-11-24).
-  A tab link (`TabLink`) never wraps or squeezes its label.
+- The project tab row is Archon's, drawn as on dev with the Factory tab last (v2 direction).
 
 ### 4. Lines
 
@@ -530,7 +531,7 @@ At 390x844 columns stack and the map pans.
 **No token yet.** Spacing, motion (duration, easing), skeleton colour and icon size have no
 console token; the rules above name the Tailwind utility or the value. Line strokes, dashes and
 colours are constants in `factory/canvas-lines.tsx`; card depth, tint, light and the canvas
-texture are tokens in theme.css ("Visual identity, 2026-11-19"). A later change may add a token
+texture are tokens in factory/factory.css ("Visual identity, 2026-11-19"). A later change may add a token
 when it first needs one, in the files named above.
 
 ## Owner changes of 2026-11-17 (bind every later change; win over older text below)
@@ -648,8 +649,11 @@ documents through Neon live queries.
 - Archon's own Console stays as on Archon dev (v2 direction): its project tabs and their order,
   its answer panel and ask card, and where it answers asks. The factory adds a project tab, a
   sidebar entry and their routes, nothing else.
-- A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a factory view
-  applies to the project (below). Without one, nothing else changes.
+- A last project tab, **Factory**, after Runs, Chat and Metrics. It shows only when a pack with a
+  factory overview file lists the project among those a factory view of the pack applies to
+  (`GET /api/factory/packs`, the cached read the sidebar entry already makes), so a Runs, Chat or
+  Metrics page reads no view. A project whose pack has no overview file, or whose own view file
+  is broken, gets no tab. Without one, nothing else changes.
 - A **Factory** entry in the console's sidebar (`ProjectRail`), directly above Settings, for what
   explains a pack rather than a project (owner change 5). It shows only when at least one
   installed pack has a factory overview file, or a broken one. Its routes:
@@ -775,7 +779,8 @@ routes (v2 direction):
   `pack-declarations.ts` reader), validated against the presentation-only schema, with
   `packKey` (the graph's `{pack}`).
 - `GET /api/factory/packs` every pack with a factory overview file across the install, for How
-  it works: the overview its page shows and its files that failed.
+  it works: the overview its page shows and its files that failed; and the projects a factory
+  view of the pack applies to, which gate the sidebar entry and the Factory tab.
 - No route carries the pack's vocabulary: no rounds, returns, shadows, parked, discoveries or
   item story read in `packages/workflows` or `packages/server`. The web composes those from the
   generic reads and the view file's words. Placement and the board numbers are computed once, in

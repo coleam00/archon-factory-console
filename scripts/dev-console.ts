@@ -12,7 +12,7 @@
  * - The live home's installed packs (`plugins/`) are copied in once too, so the console can
  *   draw their workflows' steps, prompts and YAML. `--fresh` copies them again.
  * - `--reopen-asks` reopens the newest wholly answered set of asks per item and workflow on the
- *   copy (`console-reopen-asks.ts`), so Needs you shows real asks; without it, and with
+ *   copy (`console-reopen-asks.ts`), so the factory's board and item pages show real asks; without it, and with
  *   `--fresh`, the copy shows what the live factory has open.
  * - It serves the built web UI (`bun run build:web` first) on the given port, default 3190.
  */
@@ -65,7 +65,7 @@ if (reopenAsks && existsSync(db)) {
   const copy = new Database(db);
   const reopened = reopenAnsweredAsks(copy);
   copy.close();
-  console.log(`Reopened ${reopened.toString()} answered asks on the copy for Needs you.`);
+  console.log(`Reopened ${reopened.toString()} answered asks on the copy.`);
 }
 
 // The installed packs, so the console can draw their workflows' steps and prompts. Copied

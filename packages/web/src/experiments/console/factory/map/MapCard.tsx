@@ -26,7 +26,7 @@ interface MapCardProps {
 
 /**
  * The box every card shares (Visual standard, rule 2); `link` makes the whole of it one. Its
- * fill, depth, light, border colour and hover are `.factory-card`'s (theme.css).
+ * fill, depth, light, border colour and hover are `.factory-card`'s (factory.css).
  */
 const BOX =
   'factory-card relative flex size-full flex-col gap-2 overflow-hidden rounded-console-12 border px-3 pb-3 pt-4';

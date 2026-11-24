@@ -129,9 +129,8 @@ const RESTING = 'Nothing started after your answer';
 
 /**
  * Resting after your answer: the last stage run asked, every ask is settled, nothing waits on
- * you, settling them started no run (`restartOf`, the reading behind Needs you's "Nothing
- * started"), and no start waits for one either: none queued for a slot, none kept back by the
- * install hold. Nothing runs, so the item rests where it is until someone starts it again.
+ * you, settling them started no run (`restartOf`), and no start waits for one either: none
+ * queued for a slot, none kept back by the install hold. Nothing runs, so the item rests where it is until someone starts it again.
  */
 function resting(view: Declaration, detail: FactoryItemDetail, runId: string): boolean {
   const { item } = detail;

@@ -9,7 +9,7 @@ import {
   Timer,
 } from 'lucide-react';
 import { Link } from 'react-router';
-import { errorDetail } from '../lib/http';
+import { factoryErrorDetail } from './lib/read-failure';
 import { useFactoryItems } from './useFactoryItems';
 import { boardModel, type FactoryDeclaration } from './lib/board';
 import { boardShowSearch } from './lib/board-show';
@@ -108,7 +108,7 @@ export function FactoryNumbers({
   if (numbers === undefined && failed !== undefined)
     return (
       <p role="alert" className="text-console-14 text-error">
-        The numbers could not be loaded: {errorDetail(failed)}
+        The numbers could not be loaded: {factoryErrorDetail(failed)}
       </p>
     );
   return (

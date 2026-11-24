@@ -4,7 +4,7 @@ import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryItem } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import { installDom } from './test-dom.test-helpers';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
@@ -81,7 +81,7 @@ async function renderAt(
   set(K.runsAttention, attentionRead());
   const { container, unmount } = await mount(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/${path}`]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
   try {

@@ -2,8 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
 
 /**
- * One tab of a tab row: the console's project tabs, the Factory sub-navigation and a pack's
- * page tabs. The active tab is marked by the brand-bar underline (the one place the brand
+ * One tab of the Factory sub-navigation (the project tabs above it are Archon's own). The active tab is marked by the brand-bar underline (the one place the brand
  * gradient is used, Visual standard rule 5) and `aria-current`.
  */
 export function TabLink({

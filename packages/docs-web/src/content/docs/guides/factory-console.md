@@ -20,38 +20,25 @@ states, words) is written in the repository's design document:
 
 ## What the tab shows
 
-Every project, factory or not, has a **Needs you** tab, left of Runs, with how many asks and
-paused waits need a person on it, and, on a project with a factory view, the items an `awaits`
-outcome left waiting on a person with no question open. It opens with a band saying how many
-wait, how long the oldest has waited and how many were answered today. Those items are listed
-under **Waiting on you**, each with its label, its reason, what to do (the view's `next`) and the
-questions to settle, linking
-to its item page. It lists every open question on the
-project's items and runs, from any workflow, grouped under their item on a panel marked in the
-needs-you colour, each under the stage that asked, as an ask card:
-the question, its context, and one tile per option saying what it does and costs, the
-recommended option first and marked, with why. An ask a stage left with no recommendation marks
-no tile and says why where the recommendation would be ("The stage could not choose: <reason>").
-An option the factory view's `answers` words also says what choosing it starts ("Closes the PR
-without merging"). Choosing a tile does not send: a confirm row says "Answer: <option>", and **Confirm** answers it in place; the card then says what it was
-answered with for a few seconds. A stage waiting for an event past its deadline is listed
-apart, under **Paused**, with what it waits for. Beside them, **Answered lately** lists the
-newest answers, one row each: the question, the option chosen, who answered and when, and the
-stage (or, on a project without a factory, the workflow) that settling the item's asks started
-again, linking to that run, or "Nothing started" (a run started by hand after them is not one).
-An answer whose option `answers` words reads that sentence in place of the stage.
-With nothing open, the tab says so, when something was last asked, and links to the runs (and,
-on a project with a factory, to the board).
+The factory adds no page or tab for asks of its own. An open question on a factory item is
+answered where Archon answers it, through Archon's own ask section (the question, its context,
+each option with what it does and costs, and the recommendation): on the Overview, on the
+item's board card and on its item page. Items an `awaits` outcome left waiting on a person with
+no question open are listed by the board's **needs you** show and on their item page, with
+what to do (the view's `next`) and the questions to settle.
 
-A project gets a **Factory** tab after Runs, Chat and Metrics when a factory view applies to
-it. Its sub-navigation, on the line of the view's title, has two pages: **Overview** and
-**Board**. Needs you is the project tab beside it, and How it works is the pack's page under
-**Factory** in the console's sidebar. Inside the tab:
+A project gets a **Factory** tab after Runs, Chat and Metrics when a pack with a factory
+overview file lists it among the projects a factory view of the pack applies to (the
+`/api/factory/packs` read the sidebar's **Factory** entry also makes). A project whose pack has
+no overview file, or whose own view file is broken, gets no tab. Its sub-navigation, on the
+line of the view's title, has two pages: **Overview** and **Board**. How it works is the pack's
+page under **Factory** in the console's sidebar. Inside the tab:
 
 - **Overview**: the view's title and summary (on a phone, its first three lines and **More**),
-  then a strip of numbers (its **need you** number is the Needs you tab's count), then the
-  newest three asks as compact cards, the question and the recommended option, each with
-  **Open**, which answers it on the Needs you tab, and how many more wait there. Then **the map**: one card per board column (one per stage
+  then a strip of numbers (its **need you** number counts the factory's open asks and waits and
+  the items waiting on you), then **Needs you**: the open asks of the newest three items that
+  asked, in Archon's own ask section and answerable in place, and a link to the board's
+  **needs you** show saying how many more wait there. Then **the map**: one card per board column (one per stage
   when the view declares no `columns`), in one row, always. A card of several stages lists each
   as a row. A card shows its group's colour, icon and kind, each stage's label and `short` line,
   and chips for how many items are there now ("2 here", its dot pulsing while a run works one)
@@ -118,8 +105,8 @@ shape until the graph is read, which can take a while the first time. A
   never while a run works it, it has an open question, an `awaits` outcome leaves it waiting on
   you, or a start is queued or held for it. It is a reading of the items, not a state: nothing
   is stored or written, and a new run brings the item back to its column at once. An item set
-  aside counts in no column, not in flight and not in M; an open question on it still shows in
-  Needs you.
+  aside counts in no column, not in flight and not in M; an open question on it still shows on
+  the Overview.
 - **Item page**: the story of one item. A header band gives its number and title, its state
   pill, its pull request, where it is (a parked item reads its declared `parked` label and its
   run's reason, an item waiting on you its `awaits` label and reason) and its key facts: the time from its order to its merge (or to now), its cost,
@@ -139,7 +126,7 @@ shape until the graph is read, which can take a while the first time. A
   cell an icon and a word ("Sent back", "Approved", "Fixed", "Not run"), with a legend and, for
   each round sent back, why in one sentence (the rest behind "More"). An ask sits in the panel
   of the stage that asked it: the question, the option chosen, who chose it and what that
-  started; an open one as the ask card, answerable in place. Beside the story: the item's
+  started; an open one in Archon's own ask section, answerable in place. Beside the story: the item's
   links to other items (on a work order, its members with their state and how many merged; an
   item no run has started yet says "Not started") and the rulings and answers given on it.
   An outcome the declaration does not tell reads as a neutral sentence from `placement`,
@@ -164,7 +151,7 @@ question opening or closing.
 | Number | Counts |
 |---|---|
 | in flight | Items in a board column outside the landed stage; items set aside are not |
-| items need you | Open questions and waits, and items an `awaits` outcome left waiting on a person; the Needs you tab's own count |
+| items need you | Open questions and waits, and items an `awaits` outcome left waiting on a person; the Overview's **need you** number |
 | merged today | Items whose change merged today, in the browser's local time |
 | N of M merged | N items merged out of M in the board's columns, however long ago. Items set aside (ended, parked or idle) are not in M |
 | median from first run to merged | Over merged items, the median time from an item's first run of a workflow the view names to its change merging |
@@ -229,7 +216,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `approves` | no | Steps whose outcome approves a round, in the same shape. A round with neither a declared return nor a declared approval reads as needing a decision. |
 | `verdicts` | no | What other steps' outcomes mean, so the item page's rounds grid words them and gives each such step a row: `{ "<workflow>": { "<step id>": { "<outcome>": "approved" } } }`, each meaning one of `approved`, `returned` or `asked`. A check's outcome then reads "Approved", "Sent back" or "Asked you". It decides nothing: only `returns` and `approves` decide a round, and an entry that restates one of theirs is rejected. An outcome no entry means reads as the pack's own token, in mono. `bun run check:factory-view` fails a step the workflow does not have. |
 | `parked` | no | Completed outcomes that keep an item open for later, not ended: `workflow:outcome`, or `workflow:*` for every outcome (not a run without one), each to `{ "label", "why" }`. `label` is what the item reads ("Parked by triage") in its header band and where its journey stops, with the Parked state pill; `why`, optional, is the JSON pointer to the run's reason in its result, shown after the label. `placement` must take each key, since it still decides where the item sits, and an exact `endings` key may not name one. The board sets a parked item aside while no start waits for it: it counts in no column, in flight or "N of M merged". |
-| `awaits` | no | Completed outcomes after which the item is open and waits on a person, though no question is open (shaped again, say): `workflow:outcome`, or `workflow:*`, each to `{ "label", "why", "questions", "next" }`. `label` is what the item reads ("Needs shaping") on its state pill, in its header band and where its journey stops; `why`, optional, is the JSON pointer to the run's reason in its result; `questions`, optional, points at a list of what the person has to settle: the board card shows the first and how many ("4 questions"), the item page and Needs you list them. `next`, optional, is one plain sentence saying what the person does to move the item on (nothing here is answered in place); the item page and Needs you show it under "What to do". The item shows in the needs-you colour (soft, never the filled Needs you pill), counts in "items need you", and is listed on Needs you under "Waiting on you". `placement` must take each key and no exact `endings` key may name one, as with `parked`; an outcome is parked or awaits, not both. |
+| `awaits` | no | Completed outcomes after which the item is open and waits on a person, though no question is open (shaped again, say): `workflow:outcome`, or `workflow:*`, each to `{ "label", "why", "questions", "next" }`. `label` is what the item reads ("Needs shaping") on its state pill, in its header band and where its journey stops; `why`, optional, is the JSON pointer to the run's reason in its result; `questions`, optional, points at a list of what the person has to settle: the board card shows the first and how many ("4 questions"), the item page lists them. `next`, optional, is one plain sentence saying what the person does to move the item on (nothing here is answered in place); the item page shows it under "What to do". The item shows in the needs-you colour (soft, never the filled Needs you pill), counts in "items need you", and is listed by the board's **needs you** show. `placement` must take each key and no exact `endings` key may name one, as with `parked`; an outcome is parked or awaits, not both. |
 | `retired` | no | Workflows a stage still lists that the installed pack no longer has, so items they delivered before still place, render and count: `["deliver"]`. `bun run check:factory-view` neither requires the pack to have them nor compares their names with the pack, and fails when the pack has one again. Each must be listed by a stage, once. |
 | `change` | no | Where the pull request URL is in a workflow's result: one `{ "workflow", "pointer" }`, or a list naming each workflow once. The newest run of any listed workflow with a non-empty URL at its pointer gives the item's change. |
 | `partOf` | no | `{ "workflow", "pointer", "outcome" }`: the JSON pointer to the item's work order (an item key) in that workflow's result, read only from runs that completed with `outcome` (the one that accepts the item), so a refused run never makes an item a member. Read only for an item with no active `part_of` link; the newest such run decides, and an empty value there means none. |
@@ -237,7 +224,7 @@ parse or validate shows on the Factory tab with its path and the error.
 | `itemTitle` | no | `{ "input" }`: the run input whose title line is the item's title: its first non-empty line after any `---` front matter, without a leading `#<n> ` or markdown heading marker. Without it, the item's key is its title. |
 | `steps` | no | Display names for steps, by workflow: `{ "<workflow>": { "<step id>": "Writes the change" } }`, keyed by the step id as the engine records it (`build__build`, `rounds.fix`, the bare loop id `rounds`). Every page prints a step by this name. A step with no name reads as its cleaned id: a doubled include name collapses (`build__build` reads "build"), an include reads `include: inner`, a loop prefix is dropped (a step of the declared `rounds` loop adds its round where it is known), and `_` and `-` become spaces. The raw id shows on hover. `bun run check:factory-view` fails a key that names no real step. |
 | `story` | no | How the item page tells what each run did, one plain sentence per stage: `{ "outcomes", "steps", "said" }`. `outcomes` maps `workflow:outcome` to a sentence, or to `{ "withChange", "withoutChange" }` when the outcome reads differently with and without a change on the item (a drop answered before any pull request), the page picking by whether the item has one ("Triage judged it worth building"), or `workflow:*` for every completed run of the workflow no exact key takes, a run that recorded no outcome included (as in `placement`); a key may name the `discoveries` workflow. `steps`, optional, words the earlier stages of a run that works several, by the step that starts each part: `{ "<workflow>": { "<step id>": "Build wrote the change" } }`. `said`, optional, lists JSON pointers into a run's result, tried in order, for what the run said in its own words: the page shows it as the reason a panel sent the item back, cut to a sentence with the rest behind "More", when a run sent the item back and no check round gave a reason (a CI send-back, say): on that panel's sentence while it is the panel's last run, else listed under the sentence with the fix that followed. It is not shown otherwise. A sentence is plain text of at most 160 characters with no placeholders; the page adds its own clauses after it (the pull request a run opened, why the checks sent it back, what you answered). With a `story`, `bun run check:factory-view` fails a key or step the workflow does not have, and warns on an outcome a listed workflow declares that no key takes. Without one, the page words each run from `placement`, `endings` and `parked` ("Triage finished: sent to Plan"). |
-| `answers` | no | What choosing an option of an ask starts, in plain words: `{ "<workflow>:<option id>": { "starts": "Closes the PR without merging" } }`, keyed exactly (no `*`) by a workflow a stage lists and the option id an ask its runs leave offers. The ask card shows the sentence on that option's tile, and Needs you's Answered lately and the item page show it in place of "<stage> started again" for an answer that chose it. It decides nothing: the pack's own bindings decide what an answer starts. A sentence is plain text of at most 160 characters. |
+| `answers` | no | What choosing an option of an ask starts, in plain words: `{ "<workflow>:<option id>": { "starts": "Closes the PR without merging" } }`, keyed exactly (no `*`) by a workflow a stage lists and the option id an ask its runs leave offers. The item page's story shows it in place of "<stage> started again" for an answer that chose it. It decides nothing: the pack's own bindings decide what an answer starts. A sentence is plain text of at most 160 characters. |
 | `map` | yes | The layout of the factory map: `cards` name the stages the map draws (`{ "stage" }`; each is drawn in the card of its board column, in the column's order, and the `col` and `row` an older file has are accepted and ignored), `arrows` word the arrows it draws (`{ "from", "to", "label" }`: two stage ids and the label for the arrow between them), and optional `notes` sit near a stage or near `needs-you`. The arrows themselves are the pack graph's: each arrow between two workflows the stages list, from the first stage listing its source to the first listing its target, once per pair of stages. An arrow over a `depends_on` link (one that wakes the link stage on another item) moves no item and is not drawn, and nor is one into a workflow no stage lists. A `map.arrows` entry for a pair the graph does not connect fails `bun run check:factory-view`; a drawn pair with no entry is drawn unlabelled, and the check warns. An arrow into an earlier card is a send-back, and so is one into its own stage or an earlier stage of its own card; one into a later stage of its own card is not drawn, since the card's rows show that order. A forward arrow runs between neighbouring cards; one that would skip cards is drawn as part of the label of the hand-off from its card to the next ("fast → Merged"). Every send-back runs in one feedback lane under the row. The cards always take one row; the map pans where it does not fit. The map lists a stage's notes in its card's details; a `needs-you` note is not drawn yet. |
 
 Every stage a field names must be declared in `stages`, and every workflow named in

@@ -11,10 +11,9 @@ interface ProjectHeaderProps {
 }
 
 /**
- * The header of every project page (Runs, Chat, Metrics, Factory). One shape so the tab row
- * sits at the same height on each: the title row centres its control rather than aligning
- * baselines with it, and keeps at least the height of the tallest control (Runs' search box),
- * and the subtitle never wraps.
+ * The header of the Factory pages, above the project tabs (Runs, Chat and Metrics draw Archon's
+ * own). The title row centres its control rather than aligning baselines with it, and keeps at
+ * least the height of the tallest control (Runs' search box), and the subtitle never wraps.
  */
 export function ProjectHeader({
   title,

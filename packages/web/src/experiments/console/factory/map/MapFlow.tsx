@@ -4,7 +4,7 @@ import type { ArrowPath, PlacedCard } from '../lib/map-layout';
 /**
  * The map's flow: while a run works an item on a card, a dot travels along the hand-off into
  * that card, over and over, 10 px with a soft halo in the running colour (`.map-flow-dot` in
- * theme.css; hidden under reduced motion). Its
+ * factory.css; hidden under reduced motion). Its
  * arrival is held by the running chip's pulsing dot on the card (rule 7). A card no hand-off
  * runs into (the first) has no dot. A CSS loop per card, so the map never re-renders for it.
  */

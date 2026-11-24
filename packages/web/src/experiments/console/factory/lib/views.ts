@@ -8,13 +8,14 @@ export type FactoryViewListed = FactoryViews['views'][number];
 export type FactoryPackListed = FactoryPacksRead['packs'][number];
 
 /**
- * Whether a project gets the Factory tab: a view applies, or the project's own view file is
- * broken. A project file is an explicit opt-in, so its error shows on the tab instead of the
- * tab vanishing; a broken file in some pack the project never ran stays out of its way.
+ * Whether a project gets the Factory tab: a pack with a factory overview lists it among the
+ * projects its factory view applies to. Hidden while the packs read loads, after it fails, and
+ * when its body is not a packs listing: the tab sits on Archon's own Runs, Chat and Metrics
+ * pages, which a factory read must never break. `/console/factory` reports a failed read.
  */
-export function factoryTabShown(listing: FactoryViews | undefined): boolean {
-  if (listing === undefined) return false;
-  return listing.views.length > 0 || listing.errors.some(error => error.source === 'project-file');
+export function factoryTabShown(packs: FactoryPacksRead | undefined, projectId: string): boolean {
+  if (!Array.isArray(packs?.packs)) return false;
+  return packs.packs.some(pack => pack.projects.some(project => project.codebaseId === projectId));
 }
 
 /**

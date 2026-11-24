@@ -6,13 +6,13 @@ import { FactoryPage } from './FactoryPage';
 import { ItemPage } from './ItemPage';
 
 /**
- * The Factory section's routes, a child of the project's route, where the console mounts
- * them. A function returning a `<Route>` rather than a component, because `<Routes>` reads
- * its children's route elements directly.
+ * The Factory section's routes under a project. A function returning a `<Route>` rather than a
+ * component, because `<Routes>` reads its children's route elements directly. `base` is what
+ * precedes `p/`: the console nests it under `/console/*`, a test mounts it at `/console/`.
  */
-export function factoryRoutes(): ReactElement {
+export function factoryRoutes(base: '' | '/console/'): ReactElement {
   return (
-    <Route path="factory">
+    <Route path={`${base}p/:projectId/factory`}>
       <Route index element={<FactoryPage />} />
       <Route path="board" element={<BoardPage />} />
       <Route path="items/:key" element={<ItemPage />} />

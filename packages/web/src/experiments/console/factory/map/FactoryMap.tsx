@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
-import { errorDetail } from '../../lib/http';
+import { factoryErrorDetail } from '../lib/read-failure';
 import type { ItemAsk } from '../../primitives/run';
 import type { EntityView } from '../../store/cache';
 import type { FactoryItem } from '../api';
@@ -94,7 +94,7 @@ function ItemsNotice({ items }: { items: EntityView<FactoryItem[]> }): ReactElem
   if (failed !== undefined)
     return (
       <p role="alert" className="text-console-14 text-error">
-        The factory's items could not be loaded: {errorDetail(failed)}
+        The factory's items could not be loaded: {factoryErrorDetail(failed)}
       </p>
     );
   return items.error instanceof SlowReadError ? <FactoryLoading read={items} /> : null;

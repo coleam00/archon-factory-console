@@ -14,8 +14,7 @@ const RETRY_MAX_MS = 15_000;
  *   missed, so a read that is slow but healthy still lands. The last miss is read at load
  *   time, from the render that showed it: a retry or an invalidation loads after that render.
  * - The retry lives here rather than in what draws the read, so every reader is retried,
- *   including one that shows nothing while it waits (the project tabs' Factory entry,
- *   Answered lately). `FactoryLoading` only says so.
+ *   including one that shows nothing while it waits (the project tabs' Factory entry). `FactoryLoading` only says so.
  */
 export function useFactoryRead<T>(
   key: string,

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 
 /**
- * The canvases' identity lives in tokens (DESIGN.md, "Visual identity, 2026-11-19"): theme.css
+ * The canvases' identity lives in tokens (DESIGN.md, "Visual identity, 2026-11-19"): factory.css
  * defines the depth, light, tint and texture, and the files that draw the map, How it works and
  * the stage drill-down's cards use them by class, never with a one-off shadow or colour.
  */
@@ -26,8 +26,8 @@ const CANVAS_SOURCES = [
 ];
 
 describe('the canvas identity', () => {
-  test('theme.css defines its tokens and classes', () => {
-    const css = read('../theme.css');
+  test('factory.css defines its tokens and classes', () => {
+    const css = read('factory.css');
     for (const token of [
       '--tone-intake',
       '--card-depth',
@@ -35,7 +35,6 @@ describe('the canvas identity', () => {
       '--card-glow',
       '--card-tint',
       '--canvas-texture',
-      '--running-fill',
       '--running-border',
       '--running-ring',
     ])

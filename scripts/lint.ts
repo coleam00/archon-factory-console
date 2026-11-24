@@ -25,6 +25,7 @@ export const LINT_CHECKS = [
   { id: 'check-sdk-type-drift', args: ['bun', 'run', 'scripts/check-sdk-type-drift.ts'] },
   { id: 'check-web-api-types', args: ['bun', 'run', 'scripts/check-web-api-types.ts'] },
   { id: 'check-console-tokens', args: ['bun', 'run', 'scripts/check-console-tokens.ts'] },
+  { id: 'check-factory-imports', args: ['bun', 'run', 'scripts/check-factory-imports.ts'] },
   { id: 'biome', args: ['bun', 'x', 'biome', 'lint', '--error-on-warnings', '.'] },
 ] as const satisfies readonly LintCheck[];
 

@@ -11,7 +11,7 @@ import type { FactoryItem, FactoryItemDetail, FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import {
   itemDetail,
   shippedArrows,
@@ -102,7 +102,7 @@ function render(path: string, detail?: FactoryItemDetail, views = listing): stri
   seed(views, detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }

@@ -1,11 +1,6 @@
 import type { paths } from '@/lib/api.generated';
-import type { AttentionQueue, ListRunsOptions, RunsAttention } from '../primitives/run';
-export type {
-  AttentionQueue,
-  AttentionQueueItem,
-  ListRunsOptions,
-  RunsAttention,
-} from '../primitives/run';
+import type { ListRunsOptions, RunsAttention } from '../primitives/run';
+export type { ListRunsOptions, RunsAttention } from '../primitives/run';
 import { requestJson, buildApiUrl } from '../lib/http';
 import { isItemAsk, toOwnerLostHolders, toRun, type Run } from '../primitives/run';
 import { toRunEvent, type RunEvent, type RunNodeState } from '../primitives/event';
@@ -53,23 +48,6 @@ export async function listRunsNeedingAttention(): Promise<RunsAttention> {
     asks: res.items.filter(isItemAsk),
     answerRefusals: res.answerRefusals,
     itemIds: new Set(res.items.flatMap(item => (item.item === undefined ? [] : [item.item.id]))),
-    degraded: res.degraded ?? [],
-  };
-}
-
-/** The open attention items of one project (a codebase id), with the runs holding them. */
-export async function listAttentionQueue(
-  project: string,
-  init: { signal?: AbortSignal } = {}
-): Promise<AttentionQueue> {
-  const res = await requestJson('/api/runs/attention', 'get', {
-    query: { project },
-    signal: init.signal,
-  });
-  if (!('items' in res)) throw new Error('Attention endpoint returned counts instead of items');
-  return {
-    items: res.items,
-    runs: res.runs.map(toRun),
     degraded: res.degraded ?? [],
   };
 }

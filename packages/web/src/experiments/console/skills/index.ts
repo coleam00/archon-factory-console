@@ -12,8 +12,6 @@ export * from './workflows';
 export * from './worktrees';
 export * from './runs';
 export * from './metrics';
-export * from './factory';
-export * from './items';
 export * from './startRun';
 export * from './messages';
 export * from './conversations';

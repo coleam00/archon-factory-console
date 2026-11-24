@@ -11,8 +11,8 @@ export const WAY_ON_LINK =
   'text-accent-bright transition-colors duration-150 ease-out hover:underline';
 
 /**
- * The tab's two pages, linked from a path it does not have. Needs you is the project tab
- * above, and How it works the sidebar Factory page; neither is a page of this tab.
+ * The tab's two pages, linked from a path it does not have. How it works is the sidebar Factory
+ * page, not a page of this tab.
  */
 const PAGES: readonly { label: string; to: (projectId: string) => string }[] = [
   { label: 'Overview', to: projectId => factoryPath(projectId) },

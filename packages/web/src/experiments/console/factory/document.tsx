@@ -29,7 +29,7 @@ type PanelTag = 'div' | 'section' | 'li' | 'article';
 
 /**
  * A filled panel: `--surface-elevated`, 1 px `--border`, `rounded-console-12` and the card
- * depth (theme.css, `[data-doc-panel]`). `inset` is a row box inside a panel, on
+ * depth (factory.css, `[data-doc-panel]`). `inset` is a row box inside a panel, on
  * `--surface-inset` with no depth. `tone` with `bar` draws a 3 px bar in that colour on the
  * left or top edge, inside the radius.
  */

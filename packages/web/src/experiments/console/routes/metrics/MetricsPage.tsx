@@ -1,7 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { EmptyState } from '../../components/EmptyState';
-import { ProjectHeader } from '../../components/ProjectHeader';
 import { ProjectViewTabs } from '../../components/ProjectViewTabs';
 import { useEntity, type EntityView } from '../../store/cache';
 import { ALL_SCOPE, K, type Scope } from '../../store/keys';
@@ -65,12 +64,16 @@ export function MetricsPage({ view = 'overview' }: { view?: MetricsView }): Reac
   const heading = scope === ALL_SCOPE ? 'Metrics' : (project?.name ?? 'Project');
   return (
     <section className="flex h-full flex-col">
-      <ProjectHeader
-        title={view === 'overview' ? heading : `${heading} · Details`}
-        subtitle={
-          <span role="status">{windowStatus(days, report.data, failing(report), shown)}</span>
-        }
-        aside={
+      <header className="flex flex-col gap-3 border-b border-border px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-medium text-text-primary">
+              {view === 'overview' ? heading : `${heading} · Details`}
+            </h1>
+            <p role="status" className="text-xs text-text-tertiary">
+              {windowStatus(days, report.data, failing(report), shown)}
+            </p>
+          </div>
           <div className="flex shrink-0 items-center gap-3">
             <WindowButtons scope={scope} view={view} days={days} />
             <Link
@@ -80,10 +83,9 @@ export function MetricsPage({ view = 'overview' }: { view?: MetricsView }): Reac
               {view === 'overview' ? 'Details' : 'Overview'}
             </Link>
           </div>
-        }
-      >
+        </div>
         {scope === ALL_SCOPE ? null : <ProjectViewTabs projectId={scope} active="metrics" />}
-      </ProjectHeader>
+      </header>
       <div className="flex-1 overflow-y-auto px-4 pb-7.5 pt-5.5 md:px-7.5">
         <MetricsBody
           view={view}

@@ -5,7 +5,7 @@ import type { FactoryItemDetail, FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { FK } from './keys';
-import { factoryTestRoutes } from './test-routes';
+import { factoryRoutes } from './routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { FIXTURE_NOW, declaredAwaits } from './lib/board.test-fixtures';
 import { attentionRead, refAsk } from './lib/attention.test-fixtures';
@@ -81,7 +81,7 @@ function render(
   set(FK.factoryItem(PROJECT, key), detail);
   return renderToStaticMarkup(
     <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/${key}`]}>
-      <Routes>{factoryTestRoutes()}</Routes>
+      <Routes>{factoryRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
 }
@@ -316,7 +316,7 @@ describe('the item page', () => {
     set(K.runsAttention, quiet);
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory/items/77`]}>
-        <Routes>{factoryTestRoutes()}</Routes>
+        <Routes>{factoryRoutes('/console/')}</Routes>
       </MemoryRouter>
     );
     expect(text(html)).toContain('Loading the item');

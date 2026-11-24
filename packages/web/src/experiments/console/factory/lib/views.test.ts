@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import type { FactoryViews } from '../api';
+import type { FactoryPacksRead, FactoryViews } from '../api';
 import { currentView, factoryTabShown, stageSwitchLink } from './views';
 
 const view = (pack: string, source: FactoryViews['views'][number]['source']) =>
@@ -9,26 +9,20 @@ const view = (pack: string, source: FactoryViews['views'][number]['source']) =>
     path: `/${pack}`,
     declaration: { title: pack },
   }) as FactoryViews['views'][number];
-const error = (source: FactoryViews['errors'][number]['source']) => ({
-  pack: 'p',
-  source,
-  path: '/p',
-  error: 'is invalid',
-});
+const packs = (...projects: string[]): FactoryPacksRead =>
+  ({
+    packs: [{ projects: projects.map(codebaseId => ({ codebaseId, name: codebaseId })) }],
+  }) as FactoryPacksRead;
 
 describe('factoryTabShown', () => {
-  test('shown when a view applies', () => {
-    expect(factoryTabShown({ views: [view('a', 'installed')], errors: [] })).toBe(true);
+  test('shown for a project a pack lists, hidden for one it does not', () => {
+    expect(factoryTabShown(packs('a', 'b'), 'b')).toBe(true);
+    expect(factoryTabShown(packs('a'), 'b')).toBe(false);
   });
 
-  test("shown for a broken project file, so its error is seen; not for another pack's", () => {
-    expect(factoryTabShown({ views: [], errors: [error('project-file')] })).toBe(true);
-    expect(factoryTabShown({ views: [], errors: [error('installed')] })).toBe(false);
-  });
-
-  test('hidden with no views, and while the listing loads', () => {
-    expect(factoryTabShown({ views: [], errors: [] })).toBe(false);
-    expect(factoryTabShown(undefined)).toBe(false);
+  test('hidden while the packs read loads or after it fails, and for a body that is no listing', () => {
+    expect(factoryTabShown(undefined, 'a')).toBe(false);
+    expect(factoryTabShown([] as unknown as FactoryPacksRead, 'a')).toBe(false);
   });
 });
 

@@ -15,8 +15,8 @@ The factory building this repository runs Archon from another checkout, on the h
   That serves on a throwaway home (`.console-home/`, gitignored) seeded once with a read-only copy
   of the live database and of its installed packs (`plugins/`), so real items, runs and the
   pack's workflows show. `--fresh` takes a new copy. `--reopen-asks` reopens, on that copy only,
-  the newest wholly answered set of asks per item and workflow, so Needs you has real asks to
-  look at. Use it only for looking: never confirm an answer on the copy, because settling an
+  the newest wholly answered set of asks per item and workflow, so the board and item pages have
+  real asks to look at. Use it only for looking: never confirm an answer on the copy, because settling an
   item's asks there can start a real agent run.
 - Pick a free port (not 3090, 3190 or 8864, which are in use); check it first.
 - Stop every server and browser you start before you finish. Kill by the PID you started, never by
@@ -39,10 +39,12 @@ The factory building this repository runs Archon from another checkout, on the h
   presentation only: words, grouping, order, layout. It holds
   no step lists, outcome lists, arrows, ask flags, shadow flags, settings or stage-group enum.
 - Factory web code stays under `packages/web/src/experiments/console/factory/` (components, pure
-  `lib/`, the page routes), and nothing outside that folder imports from it, except the one
-  place that mounts its routes and sidebar entry. Archon's own Console files (the answer panel,
-  the ask card, the project tabs, Needs you, every generic page and component) stay as they are
-  on Archon dev.
+  `lib/`, the page routes), and nothing outside that folder imports from it, except the three
+  files that mount it: `ConsoleApp.tsx` (its routes and `factory.css`), `ProjectRail.tsx` (the
+  sidebar entry) and `ProjectViewTabs.tsx` (the Factory tab). `bun run lint` enforces it
+  (`scripts/check-factory-imports.ts`). Every other file under `packages/web/src` (the answer
+  panel, the ask card, the project tabs apart from that one tab, every generic page and
+  component, `theme.css`) stays as it is on Archon dev.
 - Server code is `packages/server/src/routes/api.factory.ts`, kept to the view-file read and
   what the web cannot get from existing routes. The server asks the change host through
   `packages/adapters/src/forge-host.ts`, which finds plugins through

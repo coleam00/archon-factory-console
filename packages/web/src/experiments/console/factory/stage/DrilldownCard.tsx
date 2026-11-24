@@ -12,7 +12,7 @@ import { ICONS, KINDS } from './drilldown-kinds';
  * line of text. It is plain text: a step has no page of its own (DESIGN.md, v2 direction). The
  * items on a step it covers now are named under it. While items are on it, it wears the running
  * border and ring (`data-running`), held still: the items read carries no owner liveness. Its
- * box is `.factory-card`'s (theme.css), tinted in its kind's colour.
+ * box is `.factory-card`'s (factory.css), tinted in its kind's colour.
  */
 export function DrilldownCard({
   view,
