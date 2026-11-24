@@ -6,7 +6,7 @@ import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import { ProjectAttentionLayout } from '../components/ProjectAttention';
-import { StagePage } from './StagePage';
+import { FactoryPage } from './FactoryPage';
 import { StepPage } from './StepPage';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
@@ -120,12 +120,12 @@ async function renderChecks(check: (container: HTMLElement) => Promise<void>): P
   try {
     await act(async () =>
       root.render(
-        <MemoryRouter initialEntries={[`/console/p/${ID}/factory/stages/checks`]}>
+        <MemoryRouter initialEntries={[`/console/p/${ID}/factory?stage=checks`]}>
           <Routes>
             {/* As in ConsoleApp: every project page sits under the project layout, which holds
                 the one attention stream (#42). */}
             <Route path="/console/p/:projectId" element={<ProjectAttentionLayout />}>
-              <Route path="factory/stages/:stage" element={<StagePage />} />
+              <Route path="factory" element={<FactoryPage />} />
               <Route path="factory/steps/:workflow/:node" element={<StepPage />} />
             </Route>
           </Routes>
@@ -133,7 +133,8 @@ async function renderChecks(check: (container: HTMLElement) => Promise<void>): P
       )
     );
     await settle();
-    await check(container);
+    // The modal portals to the body, outside the root.
+    await check(document.body as unknown as HTMLElement);
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -166,7 +167,7 @@ const click = async (target: HTMLElement): Promise<void> => {
   });
 };
 
-test('the stage page tells its drill-down: numbered phases of cards, one loop around 1 to 3', async () => {
+test('the stage modal tells its drill-down: numbered phases of cards, one loop around 1 to 3', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
     expect(phaseLabels(container)).toEqual([
@@ -268,7 +269,7 @@ test('a card is a link that looks it, and clicking it opens its step page back t
   });
 });
 
-test('on the stage page the tabs switch between the phases, the items and the real step graph', async () => {
+test('in the stage modal the tabs switch between the phases, the items and the real step graph', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
     const graphStep = (): HTMLButtonElement | undefined =>

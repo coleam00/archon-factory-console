@@ -239,11 +239,11 @@ describe('an item', () => {
   });
 });
 
-describe('a stage', () => {
+describe('a Factory page', () => {
   test('whose factory view read got no answer says so with a Retry, which draws the page', async () => {
     const answers: Answers = { ...healthy, views: offline };
     serve(answers);
-    await renderAt('stages/nope', async container => {
+    await renderAt('nope', async container => {
       const alert = container.querySelector('[role="alert"]');
       expect(alert?.textContent).toContain(
         'The factory view could not be read: the server did not answer'
@@ -251,7 +251,7 @@ describe('a stage', () => {
       answers.views = healthy.views;
       await click(alert?.querySelector('button'));
       expect(container.querySelector('[role="alert"]')).toBeNull();
-      expect(words(container)).toContain('There is no stage nope in this factory.');
+      expect(words(container)).toContain('No page here.');
     });
   });
 });

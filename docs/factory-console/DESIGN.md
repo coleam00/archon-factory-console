@@ -184,7 +184,7 @@ From the owner's review of the finished work order #64. The section is close; th
    - "What this stage does": the view file's curated drill-down;
    - "Items here now": the items in the stage, linking to their item pages;
    - "The real workflow": the step graph read from the pack's workflow files, behind a clearly labelled tab with one sentence saying it is generated from the YAML.
-   The stage page route stays as a deep link that opens the same content. A failed read shows a retry, never a dead "Could not load".
+   A failed read shows a retry, never a dead "Could not load".
 6. **How it works moves and comes alive.** The sidebar Factory page is the only home of How it works. Its canvas shows the flow as a quiet, looping animation: three dots leave An issue, A work order and Found by agents and travel into Triage, on through Plan, Build, Checks and CI and reviews; there one dot goes on to Merged and one returns along the "unrelated finds" lane to Found by agents; the loop repeats. Off under reduced motion, pausable. Each kind on the canvas has its own colour: "A check on the change" and "What comes out" must differ.
 7. **A look of its own, not the default.** The map and the How it works canvas get a considered visual identity: depth (soft shadow and a faint inner glow on cards), a subtle texture or grid on the canvas, light that follows the flow. Restraint is the rule: no neon, no heavy 3D, no motion that competes with the content, and nothing that slows rendering. If a treatment looks gimmicky at 1440x900 on a projector, it is out.
 
@@ -230,7 +230,7 @@ file, no pack names in code) and reads well to someone who has never seen Archon
 6. **Shadow steps are shown as shadows.** The pack runs some stages as shadows: they say what they
    would do and do nothing (admit, split, discoveries filing, the project's declared checks,
    order linking). The land gate is not one: it acts, and the factory merges on its "land"
-   (owner decision on #120). Wherever one appears (map, board, stage page, item
+   (owner decision on #120). Wherever one appears (map, board, stage modal, item
    timeline) it reads plainly as "would ..." with what it would have done, marked "shadow", never as
    if it acted. Which steps are shadows is declared in the view file, not in code.
 7. **Send-backs and found work.** How it works draws several labelled lines going back (returned
@@ -784,7 +784,6 @@ documents through Neon live queries.
   | `factory/how-it-works` | Redirects (replace) to the sidebar page for the pack the project's view draws (`/console/factory/<pack key>/how-it-works`), keeping the query string and hash, so old links and bookmarks land |
   | `factory/overview` | The same redirect, in one hop |
   | `factory/items/:key` | One item: its story (header band, journey strip, a panel per stage with its rounds grid and asks), links and change. A key with no item and no work order says "There is no item <key> in this project" (rule 6) with "Open the board" and a search by key or title listing the closest items; a read that failed says why, with a Retry |
-  | `factory/stages/:stage` | One stage, full page, as a deep link: the same content the Overview's stage modal shows (its label, blurb and the tabs "What this stage does \| Items here now \| The real workflow"), under a back link to the Overview. An id the view does not declare says "There is no stage <id> in this factory" and links the Overview and each declared stage |
   | `factory/steps/:workflow/:node` | One step, as a document page (owner change 7 of 2026-11-21): a header band with its name and id tag, the drill-down card's line for what it does (else its kind and workflow), and chips for its kind in its kind colour, the model in words ("Lander tier, else medium"), its workflow, the stage that works it (opening that stage's modal) and how many items are on it now. The main column: "What it does" (the covering drill-down card's title and line, which the header's sentence also is: the view file gives one line per step), its prompt as markdown with each `$INPUTS.x` and `$node.output` reference as a named chip (the server finds them with the engine's grammar; a code span that is exactly one reference is its chip too, the raw token on hover, while a longer code span or a code block stays code), folded after 30 lines, or a bash or script step's script on a numbered code panel (a named script read from its file); the items on it now as board cards, or an empty state linking the board; its YAML behind a closed "Show the YAML". The aside: a definition grid of its kind, model, condition, the inputs and step outputs its prompt reads, the outcomes the view file declares for it (`verdicts`, `returns`, `approves`), each in words with its outcome id as a tag, and what starts after it (the steps and loops that wait on it, and a step whose condition reads its result, "next round" when that step comes earlier in the same loop), each row left out when nothing says it; then its workflow down one line, inside its loops, this step marked and every other a link to its own page. A workflow no stage runs, or a step its workflow does not have, says so in plain words and links the step's stage, else the Overview; a read that failed says why, with a Retry |
   | `factory/*` | Any other path: "No page here" inside the section, with links to Overview and Board |
 
@@ -806,7 +805,7 @@ present itself without the console knowing it. Shape (validated with zod in
   "pack": "Wirasm/archon-software-factory",       // the pack this view draws
   "title": "Software factory",
   "summary": "One paragraph, plain words: what goes in, what comes out, where people step in.",
-  "stages": [                                      // map cards and stage pages, left to right
+  "stages": [                                      // map cards and stages, left to right
     { "id": "order", "label": "Order", "blurb": "Takes a work order and makes it one item.",
       "short": "Turns orders into items",  // optional: the map card's one line, at
       "group": "intake", "workflows": ["order"] },   // most 24 characters; else the blurb
@@ -924,7 +923,7 @@ what it decided: the board's "Found by the factory" panel and the Overview's til
 Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of the
 retired `deliver`, and the drain; not the land gate, which acts, and not `stage-check`, which no
 longer runs the project checks since pack 43bedfe) and how each one's value reads; the item
-page, stage pages, board and map show their decisions as shadows (#80). The map and a stage's
+page, stage modals, board and map show their decisions as shadows (#80). The map and a stage's
 drill-down show a shadow only through a card that covers it, and no card covers a step of a
 retired workflow, so since #154 the Checks stage carries no "Project checks" line; the item
 page's rounds grid still shows that row for the old runs that recorded it.
@@ -1211,7 +1210,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   so it can be linked and Back closes it). Esc, the close button and a press on the backdrop close it too;
   the Overview stays mounted under it, so the page keeps its scroll and the map its pan, zoom
   and open details panel. Focus moves to the close button, stays in the modal, and returns to
-  the stage that opened it. The `factory/stages/:stage` route shows the same content full page.
+  the stage that opened it.
   Under the stage's label and blurb, "Where items go from here": one chip per arrow the view
   file declares out of the stage into another, "<label> → <stage>", in its words and order (none
   when it declares none). Then three tabs, and between the tabs and the open tab one

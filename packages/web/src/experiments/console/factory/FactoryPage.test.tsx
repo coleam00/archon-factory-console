@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, setSystemTime, test } from 'bun:test';
+import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import type { FactoryViews, FactoryWorkflow } from '../skills/factory';
@@ -11,6 +12,8 @@ import type { FactoryItem } from '../skills/factory';
 import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { askItem, usageLimitItem } from '../lib/needs-you.test-fixtures';
+import { EMPTY_STAGE_LIVE } from './lib/map-live';
+import { StageView, useStageTab } from './stage/StageView';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs.
@@ -118,6 +121,37 @@ function render(
   );
 }
 
+/** A stage on the tab it opens on, as its modal draws it; the modal portals, which static markup cannot reach. */
+function renderStage(stageId: string): string {
+  render(`/console/p/${ID}/factory`, withView);
+  const view = withView.views[0]!.declaration;
+  const stage = view.stages.find(candidate => candidate.id === stageId)!;
+  function Stage(): ReactElement {
+    const [tab, setTab] = useStageTab(stage);
+    return (
+      <StageView
+        projectId={ID}
+        view={view}
+        stage={stage}
+        live={EMPTY_STAGE_LIVE}
+        tab={tab}
+        onTab={setTab}
+        frame={({ head, body }) => (
+          <>
+            {head}
+            {body}
+          </>
+        )}
+      />
+    );
+  }
+  return renderToStaticMarkup(
+    <MemoryRouter>
+      <Stage />
+    </MemoryRouter>
+  );
+}
+
 describe('the Factory tab', () => {
   test('follows Metrics when a view applies to the project', () => {
     const html = render(`/console/p/${ID}/needs-you`, withView);
@@ -198,7 +232,7 @@ describe('the Overview', () => {
       .match(/<p[^>]*class="([^"]*)"[^>]*>([^<]*)<\/p>/g)
       ?.find(p => p.includes(summary));
     expect(paragraph).toContain('line-clamp-2');
-    for (const path of ['/board', '/stages/checks', '/steps/deliver/rounds.fix']) {
+    for (const path of ['/board', '/steps/deliver/rounds.fix']) {
       const html = render(`/console/p/${ID}/factory${path}`, withView);
       expect(html).toContain('Kit factory');
       expect(html).not.toContain(summary);
@@ -363,9 +397,9 @@ describe('the board', () => {
   });
 });
 
-describe('the stage page', () => {
+describe('a stage, as its modal shows it', () => {
   test("shows the stage's label and blurb, then its workflow's steps framed by loop and include", () => {
-    const html = render(`/console/p/${ID}/factory/stages/checks`, withView);
+    const html = renderStage('checks');
     expect(html).toContain('Checks');
     expect(html).toContain('Checks the change.');
     expect(html).toContain('up to 3 rounds');
@@ -399,25 +433,10 @@ describe('the stage page', () => {
     expect(html).not.toContain('dimmed');
     for (const step of ['fix', 'base', 'review', 'tests', 'product', 'verdict'])
       expect(html).toContain(`>${step}</span>`);
-    expect(html).toContain('Back to the overview');
   });
 
   test('a stage no workflow runs in says how an item arrives', () => {
-    expect(render(`/console/p/${ID}/factory/stages/landed`, withView)).toContain(
-      'No workflow runs in this stage.'
-    );
-  });
-
-  test('a stage the view does not declare says so, with the Overview and its stages as ways on', () => {
-    const html = render(`/console/p/${ID}/factory/stages/nope`, withView);
-    expect(html).toContain(
-      'There is no stage <span class="font-mono">nope</span> in this factory.'
-    );
-    const start = html.indexOf('aria-label="Stages"');
-    expect(start).toBeGreaterThan(-1);
-    const links = [...html.slice(start, html.indexOf('</nav>', start)).matchAll(/href="([^"]*)"/g)];
-    expect(links.map(([, href]) => href)[0]).toBe(`/console/p/${ID}/factory`);
-    expect(links.map(([, href]) => href)).toContain(`/console/p/${ID}/factory?stage=build`);
+    expect(renderStage('landed')).toContain('No workflow runs in this stage.');
   });
 });
 
@@ -483,10 +502,7 @@ describe('Factory routes', () => {
     ]);
   });
 
-  test('an unknown stage or item keeps its own page and message', () => {
-    const stage = render(`/console/p/${ID}/factory/stages/nope`, withView);
-    expect(stage.replace(/<[^>]*>/g, '')).toContain('There is no stage nope in this factory.');
-    expect(stage).not.toContain('No page here');
+  test('an unknown item keeps its own page and message', () => {
     expect(render(`/console/p/${ID}/factory/items/nope`, withView)).not.toContain('No page here');
   });
 });

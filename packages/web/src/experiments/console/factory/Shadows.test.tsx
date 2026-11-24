@@ -136,7 +136,7 @@ describe("the item's story", () => {
   });
 });
 
-describe('a stage page card standing for a shadow step', () => {
+describe('a stage drill-down card standing for a shadow step', () => {
   // The card the Checks stage drew for deliver's project checks until the pack retired deliver:
   // the shipped view still declares that step a shadow, for the old runs it reads.
   const card = {

@@ -6,7 +6,6 @@ import { FactoryFrame } from './FactoryFrame';
 import { FactoryNotFound } from './FactoryNotFound';
 import { FactoryPage } from './FactoryPage';
 import { ItemPage } from './ItemPage';
-import { StagePage } from './StagePage';
 import { StepPage } from './StepPage';
 import { ProjectSettingsPage } from './settings/ProjectSettingsPage';
 import { factoryPackPath } from './lib/views';
@@ -26,7 +25,6 @@ export function factoryRoutes(): ReactElement {
       <Route path="how-it-works" element={<HowItWorksMoved />} />
       <Route path="overview" element={<HowItWorksMoved />} />
       <Route path="items/:key" element={<ItemPage />} />
-      <Route path="stages/:stage" element={<StagePage />} />
       <Route path="steps/:workflow/:node" element={<StepPage />} />
       <Route path="*" element={<FactoryNotFound />} />
     </Route>

@@ -31,14 +31,6 @@ const SOURCE = 'text-console-13 text-text-tertiary';
 /** How a caller lays out the stage's parts: its title and tabs, then the open tab's body. */
 export type StageFrame = (parts: { head: ReactNode; body: ReactNode }) => ReactElement;
 
-/** The page's layout: one column, the body under the tabs. */
-const COLUMN: StageFrame = ({ head, body }) => (
-  <div className="flex min-w-0 flex-col gap-4">
-    {head}
-    {body}
-  </div>
-);
-
 /**
  * The tab a stage shows. It opens on the tab the link named, else on the summary when the view
  * file gives one, else on the workflow, which is then the most this stage can say about itself.
@@ -55,11 +47,11 @@ export function useStageTab(
 }
 
 /**
- * One stage opened, as the Overview's modal and the stage page both show it: its label and
- * blurb, where items go from it, then three tabs. "What this stage does" is the view file's summary, "Items here now"
- * what sits in it, and "The real workflow" the step graph of each workflow behind it. The
+ * One stage opened, as the Overview's modal shows it: its label and blurb, where items go from
+ * it, then three tabs. "What this stage does" is the view file's summary, "Items here now" what
+ * sits in it, and "The real workflow" the step graph of each workflow behind it. The
  * caller holds the tab (`useStageTab`). `frame` lays out the head and the body; the modal
- * passes one that scrolls the body alone under a fixed head, the page the default column.
+ * passes one that scrolls the body alone under a fixed head.
  */
 export function StageView({
   projectId,
@@ -69,7 +61,7 @@ export function StageView({
   titleId,
   tab,
   onTab,
-  frame = COLUMN,
+  frame,
 }: {
   projectId: string;
   view: Declaration;
@@ -80,7 +72,7 @@ export function StageView({
   titleId?: string;
   tab: StageTab;
   onTab: (tab: StageTab) => void;
-  frame?: StageFrame;
+  frame: StageFrame;
 }): ReactElement {
   const items = useFactoryItems(projectId);
   return frame({

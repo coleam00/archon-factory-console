@@ -66,8 +66,8 @@ export interface StageSwitchLink {
 /**
  * Another stage, opened on its real workflow, from a step's tag. In the modal (`?stage=` on the
  * address) it replaces the entry and keeps its state, so Close still does what it did: back to
- * the page before a pushed modal, or dropping `stage` in place for a pasted link's. From the
- * stage page it pushes the modal, as any map link does.
+ * the page before a pushed modal, or dropping `stage` in place for a pasted link's. From
+ * anywhere else it pushes the modal, as any map link does.
  */
 export function stageSwitchLink(
   projectId: string,

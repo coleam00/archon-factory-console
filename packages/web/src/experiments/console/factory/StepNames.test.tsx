@@ -24,7 +24,8 @@ import { itemDetail, shippedListed } from './item-detail.test-fixtures';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
 import deliverJson from './lib/fixtures/deliver-workflow.json';
 import { FIXTURE_NOW, delivering, endLastRun, realItem, VIEW } from './lib/board.test-fixtures';
-import { stageLive } from './lib/map-live';
+import { EMPTY_STAGE_LIVE, stageLive } from './lib/map-live';
+import { StageView, useStageTab } from './stage/StageView';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs.
@@ -121,15 +122,50 @@ const graphsListing: FactoryViews = {
   })),
 };
 
-function render(path: string, detail?: FactoryItemDetail, views = listing): string {
+function seed(views: FactoryViews, detail?: FactoryItemDetail): void {
   set(K.factoryViews(ID), views);
   set(K.projectAttention(ID), quiet);
   set(K.factoryWorkflow(ID, 'deliver'), DELIVER);
   set(K.factoryItems(ID), { items: ITEMS, members: {} });
   if (detail !== undefined) set(K.factoryItem(ID, detail.item.item.key), detail);
+}
+
+function render(path: string, detail?: FactoryItemDetail, views = listing): string {
+  seed(views, detail);
   return markup(
     <MemoryRouter initialEntries={[path]}>
       <Routes>{projectRoutes('/console/')}</Routes>
+    </MemoryRouter>
+  );
+}
+
+/** A stage on the tab it opens on, as its modal draws it; the modal portals, which static markup cannot reach. */
+function renderStage(stageId: string, views = listing): string {
+  seed(views);
+  const view = views.views[0]!.declaration;
+  const stage = view.stages.find(candidate => candidate.id === stageId)!;
+  function Stage(): ReactElement {
+    const [tab, setTab] = useStageTab(stage);
+    return (
+      <StageView
+        projectId={ID}
+        view={view}
+        stage={stage}
+        live={EMPTY_STAGE_LIVE}
+        tab={tab}
+        onTab={setTab}
+        frame={({ head, body }) => (
+          <>
+            {head}
+            {body}
+          </>
+        )}
+      />
+    );
+  }
+  return markup(
+    <MemoryRouter>
+      <Stage />
     </MemoryRouter>
   );
 }
@@ -228,19 +264,19 @@ describe('no raw step id where a person reads', () => {
     expect(rawIds(html)).toEqual([]);
   });
 
-  test("the stage page's drill-down", () => {
-    const html = render(`/console/p/${ID}/factory/stages/checks`, undefined, deliverListing);
+  test("the stage modal's drill-down", () => {
+    const html = renderStage('checks', deliverListing);
     // The card reads its own title; the item on it reads its step by name, its id on hover.
     expect(readable(html)).toContain('Code review');
     expect(readable(html)).toContain('on Code review');
     expect(titles(html)).toContain('rounds.review__review');
     expect(rawIds(html)).toEqual([]);
     // The shipped Checks drill-down, which covers stage-check alone, names no raw id either.
-    expect(rawIds(render(`/console/p/${ID}/factory/stages/checks`))).toEqual([]);
+    expect(rawIds(renderStage('checks'))).toEqual([]);
   });
 
-  test("the stage page's step graph", () => {
-    const html = render(`/console/p/${ID}/factory/stages/checks`, undefined, graphsListing);
+  test("the stage modal's step graph", () => {
+    const html = renderStage('checks', graphsListing);
     expect(readable(html)).toContain('Code review');
     // A name the step box may cut reads in full on hover, with its engine id.
     expect(html).toContain('title="Code review (engine id: rounds.review__review)');
@@ -251,8 +287,8 @@ describe('no raw step id where a person reads', () => {
     expect(rawIds(html)).toEqual([]);
   });
 
-  test("the stage page's conditions name each step by the name the graph prints it by", () => {
-    const html = render(`/console/p/${ID}/factory/stages/checks`, undefined, graphsListing);
+  test("the stage modal's conditions name each step by the name the graph prints it by", () => {
+    const html = renderStage('checks', graphsListing);
     const words = readable(html);
     // A condition reads a step by its bare id ("if rounds = approve"), which neither id
     // shape catches, so every condition's subject is checked against the declared names.

@@ -20,7 +20,7 @@ export function stepPagePath(projectId: string, workflow: string, stepKey: strin
   );
 }
 
-/** What the stage page hands the step page, so its back link returns to that stage. */
+/** What a stage hands the step page, so its back link returns to that stage. */
 export interface StepPageState {
   fromStage: string;
 }

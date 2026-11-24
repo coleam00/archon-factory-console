@@ -40,7 +40,7 @@ export interface StepGraph {
 }
 
 /**
- * The step graph a stage page draws for one workflow. A dependency on a loop group comes
+ * The step graph a stage draws for one workflow. A dependency on a loop group comes
  * from the loop's last steps (those no other step of the loop waits on); the loop's own
  * dependencies go into its first steps (those that wait on nothing inside it). `stepName`
  * names each step and each loop (a loop's id is a step key); an include frame keeps the
