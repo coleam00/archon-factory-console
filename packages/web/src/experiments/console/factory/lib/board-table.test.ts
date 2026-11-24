@@ -49,7 +49,7 @@ describe('the Table under a number', () => {
       ['6', 'Plan & build', 'Build'],
       ['4', 'Plan & build', 'Build'],
       ['5', 'Plan & build', 'Build'],
-      ['8', 'Checks & review', 'Checks'],
+      ['8', 'Plan & build', 'Build'],
       // A merged row's Stage is empty, as its card's is.
       ['1', 'Merged', null],
       ['2', 'Merged', null],

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { layoutMap, type Box, type MapLayout } from './map-layout';
-import { shippedView } from '../item-detail.test-fixtures';
+import { shippedArrows, shippedView } from '../item-detail.test-fixtures';
 import {
   boxesMeet,
   crosses,
@@ -109,15 +109,18 @@ function expectClean(layout: MapLayout): void {
   }
 }
 
+/** The layout of a test declaration, its `map.arrows` standing for the arrows the graph draws. */
+const lay = (view: Declaration): MapLayout => layoutMap(view, view.map.arrows);
+
 const arrowBetween = (layout: MapLayout, from: string, to: string) =>
   layout.arrows.find(arrow => arrow.from === from && arrow.to === to);
 
 describe('the shipped map', () => {
-  const layout = layoutMap(shippedView);
+  const layout = layoutMap(shippedView, shippedArrows);
 
   test("five cards, the board's columns in order, each holding its stages", () => {
     expect(layout.cards.map(card => [card.label, card.stages])).toEqual([
-      ['Intake', ['order', 'triage']],
+      ['Intake', ['order', 'triage', 'link']],
       ['Plan & build', ['plan', 'build']],
       ['Checks & review', ['checks', 'host']],
       ['Ready to merge', ['ready']],
@@ -133,7 +136,7 @@ describe('the shipped map', () => {
     expect(
       layout.arrows.map(arrow => [arrow.from, arrow.to, arrow.lines.join(' '), arrow.outcomes])
     ).toEqual([
-      ['intake', 'plan-build', 'build, narrow', ['build', 'narrow']],
+      ['intake', 'plan-build', 'placed, kept whole', ['placed', 'kept whole']],
       // Build to CI and review ("fixed for CI") skips Checks, but not a card: Plan & build and
       // Checks & review are neighbours, so it joins the one pill between them.
       // Build to Ready to merge (a drop or reshape answer starts close) skips a card, so it is
@@ -159,6 +162,7 @@ describe('the shipped map', () => {
     expect(layout.feedback.pills.map(pill => [pill.stage, pill.text])).toEqual([
       ['order', 'pieces, broke the branch'],
       ['triage', 'split'],
+      ['link', 'answers'],
       ['plan', 'replan, answers'],
       ['build', 'returned, sent back, answers'],
       ['ready', 'land, drop or reshape'],
@@ -182,7 +186,7 @@ describe('the shipped map', () => {
 describe('a forward pill holds at most two lines', () => {
   /** The one pill between s1 and s2 when their hand-off reads `label`. */
   const pillFor = (label: string): MapLayout['arrows'][number] | undefined =>
-    layoutMap(declaration(['s1', 's2'], { arrows: [{ from: 's1', to: 's2', label }] })).arrows[0];
+    lay(declaration(['s1', 's2'], { arrows: [{ from: 's1', to: 's2', label }] })).arrows[0];
 
   test('up to two outcomes, one per line; past that, the first and how many more', () => {
     expect(pillFor('a')?.lines).toEqual(['a']);
@@ -196,7 +200,7 @@ describe('a forward pill holds at most two lines', () => {
 });
 
 describe('the rules for arrows between card groups', () => {
-  const layout = layoutMap(seeded);
+  const layout = lay(seeded);
 
   test('a hand-off inside a card is not drawn; one between neighbours is; nothing crosses', () => {
     expectClean(layout);
@@ -239,7 +243,7 @@ describe('every view is one row and clean', () => {
       { from: stages.at(-1) ?? '', to: stages.at(-1) ?? '', label: 'again' },
     ];
     test(`${n.toString()} stages, one card each`, () => {
-      const layout = layoutMap(declaration(stages, { arrows }));
+      const layout = lay(declaration(stages, { arrows }));
       expect(layout.cards).toHaveLength(n);
       expectClean(layout);
     });
@@ -247,7 +251,7 @@ describe('every view is one row and clean', () => {
       const columns = Array.from({ length: Math.ceil(n / 2) }, (_, i) =>
         column(`c${i.toString()}`, stages.slice(2 * i, 2 * i + 2))
       );
-      const layout = layoutMap(declaration(stages, { arrows }, columns));
+      const layout = lay(declaration(stages, { arrows }, columns));
       expect(layout.cards).toHaveLength(columns.length);
       expectClean(layout);
     });
@@ -260,7 +264,7 @@ describe('declarations the schema allows', () => {
       ...seeded,
       map: { ...seeded.map, cards: seeded.map.cards.filter(c => !['s1', 's6'].includes(c.stage)) },
     };
-    const layout = layoutMap(view);
+    const layout = lay(view);
     expect(layout.cards.map(card => [card.id, card.stages])).toEqual([
       ['a', ['s2']],
       ['b', ['s3']],

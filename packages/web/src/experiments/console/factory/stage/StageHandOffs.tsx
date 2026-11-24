@@ -1,20 +1,22 @@
 import type { ReactElement } from 'react';
-import { stageHandOffs } from '../lib/stage-hand-offs';
+import { stageHandOffs, type MapArrow } from '../lib/graph-structure';
 import type { FactoryViewListed } from '../lib/views';
 
 /**
- * "Where items go from here": each arrow out of the stage as the view file words it, "<label>
- * → <stage>", one chip each. It is where every outcome a map pill folds into "+N" reads in
- * full. Nothing when the stage declares no arrow out.
+ * "Where items go from here": each arrow the pack graph draws out of the stage, as the view file
+ * words it, "<label> → <stage>", one chip each. It is where every outcome a map pill folds into
+ * "+N" reads in full. Nothing while the graph is read, or when it has no arrow out.
  */
 export function StageHandOffs({
   view,
+  arrows,
   stage,
 }: {
   view: FactoryViewListed['declaration'];
+  arrows: readonly MapArrow[] | undefined;
   stage: string;
 }): ReactElement | null {
-  const handOffs = stageHandOffs(view, stage);
+  const handOffs = arrows === undefined ? [] : stageHandOffs(view, arrows, stage);
   if (handOffs.length === 0) return null;
   return (
     <section aria-label="Where items go from here" className="flex flex-col gap-1.5">

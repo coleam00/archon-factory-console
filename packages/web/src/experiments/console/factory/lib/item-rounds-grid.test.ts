@@ -5,22 +5,63 @@ import { roundHeading, roundsGrid, type GridColumn, type RoundsGrid } from './it
 import { storyVisits } from './item-visits';
 import { buildTimeline } from './timeline';
 
-/** The grid of the item's Checks panel. */
-function checksGrid(detail: FactoryItemDetail): RoundsGrid | null {
-  const visits = storyVisits(shippedView, detail);
-  const at = visits.findIndex(visit => visit.stage.id === 'checks');
-  const visit = visits[at];
-  if (visit === undefined) throw new Error('no Checks panel');
-  return roundsGrid(shippedView, detail, buildTimeline(shippedView, detail), visit, visits[at + 1]);
+type Declaration = typeof shippedView;
+
+/**
+ * The shipped view with the retired deliver workflow's rounds declared again, as a loop: the
+ * shipped view no longer declares them, so this keeps the loop-form grid exercised on runs
+ * captured from it. Its rounds count where deliver does, on Build.
+ */
+function deliverRoundsView(): Declaration {
+  const verdict = 'rounds.verdict__verdict';
+  return {
+    ...shippedView,
+    rounds: [{ workflow: 'deliver', loop: 'rounds' }, ...[shippedView.rounds ?? []].flat()],
+    returns: [
+      { workflow: 'deliver', node: verdict, outcome: 'return' },
+      ...(shippedView.returns ?? []),
+    ],
+    approves: [
+      { workflow: 'deliver', node: verdict, outcome: 'approve' },
+      ...(shippedView.approves ?? []),
+    ],
+    verdicts: {
+      ...shippedView.verdicts,
+      deliver: {
+        'rounds.review__review': { approve: 'approved', return: 'returned', ask: 'asked' },
+        'rounds.tests__tests': { sound: 'approved', return: 'returned', ask: 'asked' },
+        'rounds.product__product': { approve: 'approved', return: 'returned', ask: 'asked' },
+        [verdict]: { ask: 'asked' },
+      },
+    },
+    steps: {
+      ...shippedView.steps,
+      deliver: {
+        'rounds.review__review': 'Code review',
+        'rounds.tests__tests': 'Test check',
+        'rounds.product__product': 'Product check',
+        [verdict]: 'Verdict',
+      },
+    },
+  };
 }
 
-/** The columns of every Checks panel on the item, in order: a replan can split the panel. */
-function checksColumns(detail: FactoryItemDetail): GridColumn[] {
-  const visits = storyVisits(shippedView, detail);
-  const timeline = buildTimeline(shippedView, detail);
+/** The grid of the item's first panel on `stage`. */
+function stageGrid(view: Declaration, detail: FactoryItemDetail, stage: string): RoundsGrid | null {
+  const visits = storyVisits(view, detail);
+  const at = visits.findIndex(visit => visit.stage.id === stage);
+  const visit = visits[at];
+  if (visit === undefined) throw new Error(`no ${stage} panel`);
+  return roundsGrid(view, detail, buildTimeline(view, detail), visit, visits[at + 1]);
+}
+
+/** The columns of every panel on `stage`, in order: a replan can split the panel. */
+function stageColumns(view: Declaration, detail: FactoryItemDetail, stage: string): GridColumn[] {
+  const visits = storyVisits(view, detail);
+  const timeline = buildTimeline(view, detail);
   return visits.flatMap((visit, at) =>
-    visit.stage.id === 'checks'
-      ? (roundsGrid(shippedView, detail, timeline, visit, visits[at + 1])?.columns ?? [])
+    visit.stage.id === stage
+      ? (roundsGrid(view, detail, timeline, visit, visits[at + 1])?.columns ?? [])
       : []
   );
 }
@@ -49,7 +90,8 @@ const table = (grid: RoundsGrid | null): string[][] =>
   ]);
 
 describe('the rounds grid of a loop-form delivery (one deliver run)', () => {
-  const grid = checksGrid(itemDetail('111'));
+  // Deliver counts in Build, so its rounds are the Build panel's grid.
+  const grid = stageGrid(deliverRoundsView(), itemDetail('111'), 'build');
 
   test('its two rounds are the columns, with the allowance', () => {
     expect(grid?.columns.map(c => [c.iteration, c.max, c.verdict])).toEqual([
@@ -60,40 +102,18 @@ describe('the rounds grid of a loop-form delivery (one deliver run)', () => {
     expect(grid?.columns[1]?.reason).toBeNull();
   });
 
-  test('rows: the declared checks in the order the view names them, the fix, CI, the shadow', () => {
+  test('rows: the declared checks, in the order the view names them', () => {
     expect(table(grid)).toEqual([
       ['Code review', 'Sent back', 'Approved'],
       ['Test check', 'Sent back', 'Approved'],
       ['Product check', 'Sent back', 'Approved'],
       ['Verdict', 'Sent back', 'Approved'],
-      // The fix step ran at the start of round 2, answering round 1.
-      ['Build', 'Fixed', '-'],
-      ['CI and review', '-', 'Approved'],
-      ['Project checks', '4 checks · all passed · 3 min', '4 checks · all passed · 4 min'],
     ]);
-    // "Posts the review" only restates the verdict: no declared meaning, no row.
-    expect(grid?.rows.map(row => row.label)).not.toContain('Posts the review');
-    expect(grid?.rows.at(-1)?.shadow).toBe(true);
-    expect(grid?.rows.at(-1)?.cells[0]?.[0]?.meaning).toBe('shadow');
   });
 });
 
-/**
- * `detail` as the server reads it under the shipped view: only the shadow steps the view
- * declares decide. Item 125 was captured while stage-check still ran the project checks as a
- * shadow; the pack dropped that step, and the view with it.
- */
-function readUnderShippedView(detail: FactoryItemDetail): FactoryItemDetail {
-  const declared = new Set(
-    (shippedView.shadows ?? []).map(shadow => `${shadow.workflow}/${shadow.node}`)
-  );
-  for (const run of detail.runs)
-    run.shadows = run.shadows.filter(entry => declared.has(`${run.workflow}/${entry.node}`));
-  return detail;
-}
-
 describe('the rounds grid of a stage-form delivery (a stage-check run per round)', () => {
-  const grid = checksGrid(readUnderShippedView(structuredClone(itemDetail('125'))));
+  const grid = stageGrid(shippedView, itemDetail('125'), 'checks');
 
   test('each run is one column, bounded by its own result; the builds between are the fix row', () => {
     expect(grid?.columns.map(c => [c.iteration, c.max, c.verdict])).toEqual([
@@ -111,7 +131,6 @@ describe('the rounds grid of a stage-form delivery (a stage-check run per round)
       // After round 2 the builder asked first, then fixed once answered.
       ['Build', 'Fixed', 'Asked you+Fixed', 'Fixed', '-'],
       ['CI and review', '-', '-', '-', 'Sent back+Approved'],
-      // No project checks row: stage-check no longer runs them, so no shadow is declared there.
     ]);
   });
 });
@@ -123,7 +142,11 @@ describe('round numbers on the item', () => {
     const base = structuredClone(itemDetail('111'));
     const deliver = base.runs.find(run => run.workflow === 'deliver')?.runId;
     if (deliver === undefined) throw new Error('111 delivered');
-    const columns = checksColumns(withRunCopy(base, deliver, 'second-deliver', deliver));
+    const columns = stageColumns(
+      deliverRoundsView(),
+      withRunCopy(base, deliver, 'second-deliver', deliver),
+      'build'
+    );
     expect(columns.map(column => [column.number, column.max, column.delivery])).toEqual([
       [1, 3, 1],
       [2, 3, 1],

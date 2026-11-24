@@ -10,7 +10,6 @@ import {
   LinePill,
   MAIN_STROKE,
   rounded,
-  SHADOW,
   STROKE,
 } from '../canvas-lines';
 import type { Box } from '../lib/map-layout';
@@ -18,7 +17,7 @@ import type { OverviewEdgePath, OverviewFan } from '../lib/overview-layout';
 
 /*
  * Lines in the Visual standard's rule 4 (`canvas-lines.tsx`): a forward line 2 px, brightening
- * along the flow; asks dotted; send-backs dashed and a little quieter; a shadow line as it was.
+ * along the flow; asks dotted; send-backs dashed and a little quieter.
  */
 
 const DASH: Record<OverviewEdgePath['kind'], string | undefined> = {
@@ -28,16 +27,12 @@ const DASH: Record<OverviewEdgePath['kind'], string | undefined> = {
 };
 
 /** The colour a line is drawn in, and the arrowhead marker of that colour. */
-function colourOf(edge: {
-  kind: OverviewEdgePath['kind'];
-  shadow: boolean;
-}): 'flow' | 'line' | 'back' | 'shadow' {
-  if (edge.shadow) return 'shadow';
+function colourOf(edge: { kind: OverviewEdgePath['kind'] }): 'flow' | 'line' | 'back' {
   if (edge.kind === 'loops-back') return 'back';
   return edge.kind === 'feeds' ? 'flow' : 'line';
 }
 /** `flow` is a forward line's head, in the colour its gradient ends on. */
-const COLOURS = { flow: LINE_TO, line: LINE, back: BACK, shadow: SHADOW } as const;
+const COLOURS = { flow: LINE_TO, line: LINE, back: BACK } as const;
 
 /**
  * A view's edges and fans, under its cards, with an arrowhead at each target card and each
@@ -96,7 +91,6 @@ export function OverviewEdges({
             key={`${edge.from}->${edge.to}:${edge.kind}`}
             pill={edge.pill}
             lines={[edge.label]}
-            shadow={edge.shadow}
           />
         )
       )}

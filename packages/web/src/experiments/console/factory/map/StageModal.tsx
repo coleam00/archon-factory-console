@@ -13,6 +13,7 @@ import { stageReadOf, type MapLive, type Unread } from '../lib/map-live';
 import type { FactoryStage } from '../lib/stage-steps';
 import type { FactoryViewListed, StageModalLink, StageTab } from '../lib/views';
 import { StageView, useStageTab, type StageFrame } from '../stage/StageView';
+import type { MapStructure } from '../usePackGraph';
 import type { FactoryDrilldown } from '../lib/drilldown-live';
 import { PHASE_COLUMN_REM, PHASE_GAP_REM } from '../stage/StageDrilldown';
 
@@ -29,10 +30,13 @@ import { PHASE_COLUMN_REM, PHASE_GAP_REM } from '../stage/StageDrilldown';
 export function StageModal({
   projectId,
   view,
+  structure,
   live,
 }: {
   projectId: string;
   view: FactoryViewListed['declaration'];
+  /** The pack graph the map draws from: the stage's steps and where items go from it. */
+  structure: MapStructure;
   /** The map's own live read, so the modal's items and the card's chips agree. */
   live: MapLive | Unread;
 }): ReactElement | null {
@@ -83,6 +87,7 @@ export function StageModal({
       key={stage.id}
       projectId={projectId}
       view={view}
+      structure={structure}
       stage={stage}
       live={live}
       titleId={titleId}
@@ -96,6 +101,7 @@ export function StageModal({
 function OpenStage({
   projectId,
   view,
+  structure,
   stage,
   live,
   titleId,
@@ -104,6 +110,7 @@ function OpenStage({
 }: {
   projectId: string;
   view: FactoryViewListed['declaration'];
+  structure: MapStructure;
   stage: FactoryStage;
   live: MapLive | Unread;
   titleId: string;
@@ -117,6 +124,7 @@ function OpenStage({
         <StageView
           projectId={projectId}
           view={view}
+          structure={structure}
           stage={stage}
           live={stageReadOf(live, stage.id)}
           titleId={titleId}

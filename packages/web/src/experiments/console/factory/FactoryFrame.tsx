@@ -21,8 +21,8 @@ import { currentView, factoryPath, type FactoryViewListed } from './lib/views';
 import { BackLink } from './BackLink';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 
-/** The sub-navigation entry a page sits under; item, stage and step pages sit under none. */
-type FactorySection = 'overview' | 'board' | 'settings' | null;
+/** The sub-navigation entry a page sits under; an item page sits under none. */
+type FactorySection = 'overview' | 'board' | null;
 
 interface FactoryFrameProps {
   section: FactorySection;
@@ -161,13 +161,12 @@ const SECTIONS: readonly {
 }[] = [
   { key: 'overview', label: 'Overview', rest: '' },
   { key: 'board', label: 'Board', rest: '/board' },
-  { key: 'settings', label: 'Settings', rest: '/settings' },
 ];
 
 /**
  * The view's title and the sub-navigation on one line, which wraps where it must (a phone, a
- * long title), so the board keeps the height. The tab has three pages, Overview, Board and
- * Settings: Needs you is the project tab beside it and How it works the sidebar Factory page.
+ * long title), so the board keeps the height. The tab has two pages, Overview and Board: How
+ * it works is the sidebar Factory page.
  */
 function FactoryHeading({
   projectId,

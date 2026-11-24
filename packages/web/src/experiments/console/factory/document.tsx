@@ -1,8 +1,8 @@
 /**
  * The document pages' pieces (DESIGN.md, owner change 5 of 2026-11-21). Every page of the
- * factory section that is not a canvas (a project's Settings page, a step page, an item page,
- * Needs you, a stage's "Items here now") is built from these, so the pages read alike and
- * `document.test-helpers.ts` can hold each one to the rule.
+ * factory section that is not a canvas (an item page, a stage's "Items here now") is built
+ * from these, so the pages read alike and `document.test-helpers.ts` can hold each one to the
+ * rule.
  *
  * - `Panel`: the filled surface content sits on, never an outline on the page colour. A nested
  *   row box is a `Panel inset`, a shade darker than what it sits on. A tone draws a 3 px bar.
@@ -148,15 +148,14 @@ export function HeaderBand({
   );
 }
 
-/** Rule 5's state colours, as text on the state's soft background; shadow is rule 10's. */
+/** Rule 5's state colours, as text on the state's soft background. */
 const STATE: Record<StatState, string> = {
   running: 'bg-[color:var(--running-soft)] text-[color:var(--running)]',
   'needs-you': 'bg-[color:var(--warning-soft)] text-warning',
   failed: 'bg-[color:var(--error-soft)] text-error',
   done: 'bg-[color:var(--success-soft)] text-success',
-  shadow: 'border border-dashed border-[color:var(--node-opaque)] text-[color:var(--node-opaque)]',
 };
-type StatState = 'running' | 'needs-you' | 'failed' | 'done' | 'shadow';
+type StatState = 'running' | 'needs-you' | 'failed' | 'done';
 
 /**
  * One key fact: a figure and its label, neutral, in a state colour, or with a dot and figure in a

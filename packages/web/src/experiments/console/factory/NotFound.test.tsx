@@ -8,7 +8,6 @@ import { factoryRoutes } from './routes';
 import { installDom } from './test-dom.test-helpers';
 import { itemDetail, PROJECT, shippedListed } from './item-detail.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
-import deliverJson from './lib/fixtures/deliver-workflow.json';
 import { isItemsRead, itemsReadAnswer } from './lib/fixtures/factory-items-page';
 import { attentionRead } from './lib/attention.test-fixtures';
 
@@ -21,7 +20,6 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
   invalidate('runs:factory-items');
-  invalidate('factory-workflow');
   invalidate(K.project(PROJECT));
 });
 
@@ -36,12 +34,11 @@ interface Answers {
   views: () => Response;
   item: () => Response | Promise<Response>;
   items: (url: string) => Response;
-  workflow: () => Response;
 }
 
 /** The stubbed server: each read answers as `answers` says at the time of the request. */
 function serve(answers: Answers): { fetches: Record<keyof Answers, number> } {
-  const fetches = { views: 0, item: 0, items: 0, workflow: 0 };
+  const fetches = { views: 0, item: 0, items: 0 };
   globalThis.fetch = Object.assign(
     async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -52,10 +49,6 @@ function serve(answers: Answers): { fetches: Record<keyof Answers, number> } {
       if (url.includes('/api/factory/item?')) {
         fetches.item++;
         return answers.item();
-      }
-      if (url.includes('/api/factory/workflow')) {
-        fetches.workflow++;
-        return answers.workflow();
       }
       if (isItemsRead(url)) {
         fetches.items++;
@@ -73,7 +66,6 @@ const healthy: Answers = {
   views: () => Response.json({ views: [shippedListed], errors: [] }),
   item: notFound('No such item in this project'),
   items: itemsReadAnswer(ITEMS),
-  workflow: () => Response.json(deliverJson),
 };
 
 const settle = (ms = 0): Promise<void> =>
@@ -164,23 +156,6 @@ describe('an item', () => {
       await click(alert?.querySelector('button'));
       expect(fetches.items).toBeGreaterThan(before);
       expect(words(container)).toContain('There is no item #9999 in this project.');
-    });
-  });
-});
-
-describe('a step', () => {
-  test('of a workflow no stage runs says there is no such workflow, and links the Overview', async () => {
-    serve({
-      ...healthy,
-      workflow: notFound('This factory has no stage that runs the workflow nope.'),
-    });
-    await renderAt('steps/nope/x', async container => {
-      expect(words(container)).toContain('There is no workflow nope in this factory.');
-      expect(container.querySelector('[role="alert"]')).toBeNull();
-      const overview = [...container.querySelectorAll('a')].find(
-        link => link.textContent === 'Open the Overview'
-      );
-      expect(overview?.getAttribute('href')).toBe(`/console/p/${PROJECT}/factory`);
     });
   });
 });

@@ -9,10 +9,13 @@ import { TONES } from './tones';
  */
 describe('the group colours', () => {
   const map = tokens();
-  const groups = Object.entries(TONES).map(([tone, { color }]) => {
-    const [, chroma, hue] = oklch(color, map);
-    return { name: tone, hue, chroma };
-  });
+  // `other`, a group the view names that the console has no colour for, is grey on purpose.
+  const groups = Object.entries(TONES)
+    .filter(([tone]) => tone !== 'other')
+    .map(([tone, { color }]) => {
+      const [, chroma, hue] = oklch(color, map);
+      return { name: tone, hue, chroma };
+    });
 
   test('every group is a saturated colour, none purple or pink', () => {
     for (const { name, hue, chroma } of groups) {

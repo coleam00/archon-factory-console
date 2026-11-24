@@ -40,11 +40,13 @@ jobs:
       # The factory-imports test guards the lint check that keeps Archon's Console free of factory code.
       - name: Console reopen-asks and factory import boundary
         run: bun test ./scripts/console-reopen-asks.test.ts ./scripts/check-factory-imports.test.ts
-      # The factory view's schema and coverage check. The coverage test shares the step-stage
-      # fixture with the web placement test, which keeps their two placement rules in agreement.
-      - name: Factory view schema and coverage
-        run: bun test src/schemas/factory-view src/factory-view-coverage.test.ts
+      # The factory view's schemas, and `bun run check:factory-view`'s own tests (the check itself
+      # runs in validate's generated-files group).
+      - name: Factory view schemas
+        run: bun test src/schemas/factory-view src/schemas/factory-overview
         working-directory: packages/workflows
+      - name: Factory view check
+        run: bun test ./scripts/check-factory-view.test.ts ./scripts/factory-view-names.test.ts
       - name: Web build
         run: bun run build:web
 

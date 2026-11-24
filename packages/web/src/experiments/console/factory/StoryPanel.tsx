@@ -15,11 +15,9 @@ import type {
   Sentence,
   StagePanel,
 } from './lib/item-story';
-import type { TimelineShadow } from './lib/timeline';
 import type { FactoryViewListed } from './lib/views';
 import { MEANING_WORD } from './lib/item-rounds-grid';
 import { Reason as ReasonLine, RoundsGrid } from './RoundsGrid';
-import { ShadowRow } from './ShadowRow';
 import { AnsweredAskBlock } from './StoryAsks';
 import { TONES, toneColor } from './tones';
 
@@ -70,7 +68,6 @@ export function StageStoryPanel({
         <AnsweredAskBlock key={`${ask.runId}|${ask.at}|${ask.question}`} ask={ask} />
       ))}
       <DefinitionGrid rows={detailRows(panel.details, panel.merged)} />
-      <Shadows shadows={panel.shadows} />
     </Panel>
   );
 }
@@ -235,19 +232,7 @@ function RunLinks({ runs }: { runs: PanelDetails['runs'] }): ReactElement {
   );
 }
 
-/** The shadow steps' decisions, quieter than the real steps (rule 10). */
-function Shadows({ shadows }: { shadows: readonly TimelineShadow[] }): ReactNode {
-  if (shadows.length === 0) return null;
-  return (
-    <ol aria-label="What its shadow steps would have done" className="flex flex-col gap-1.5">
-      {shadows.map(shadow => (
-        <ShadowRow key={shadow.key} shadow={shadow} />
-      ))}
-    </ol>
-  );
-}
-
-/** A drain's run, on no stage: told quietly, in the shadow's colour while it only decides. */
+/** A drain's run, on no stage: told quietly. */
 export function DrainStoryPanel({ panel }: { panel: DrainPanel }): ReactElement {
   return (
     <Panel
@@ -268,7 +253,6 @@ export function DrainStoryPanel({ panel }: { panel: DrainPanel }): ReactElement 
         <SentenceText sentence={panel.sentence} />.
       </p>
       <DefinitionGrid rows={detailRows(panel.details, null)} />
-      <Shadows shadows={panel.shadows} />
     </Panel>
   );
 }

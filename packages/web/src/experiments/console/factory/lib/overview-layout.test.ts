@@ -69,7 +69,6 @@ describe('the shipped overview, drawn', () => {
       'ci->build',
       'ci->found',
     ]);
-    expect(lanes.find(edge => edge.to === 'found')?.shadow).toBe(true);
     const checks = layoutOverview(shipped.views.checks as OverviewView).edges;
     expect(laneLines(checks).map(edge => [edge.from, edge.to, edge.label])).toEqual([
       ['checks-verdict', 'checks-build', 'sent back to fix'],

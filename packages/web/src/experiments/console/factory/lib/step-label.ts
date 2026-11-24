@@ -1,10 +1,10 @@
 /**
  * A step's name as a person reads it (DESIGN.md, "Step names, everywhere a person reads").
  * Every page that shows a step prints it through `stepLabel`; the raw engine id stays in
- * routes, keys and `title` attributes, and on the step page as the id tag beside its name.
+ * routes, keys and `title` attributes.
  */
-import { stageOfStep, stageOfWorkflow, type PlacementRun } from './placement';
-import { stepInStage, type FactoryStage } from './stage-steps';
+import { stageOfWorkflow, type PlacementRun } from './placement';
+import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
 
 type Declaration = FactoryViewListed['declaration'];
@@ -26,7 +26,7 @@ function inRoundsLoop(view: Declaration, workflow: string, stepId: string): bool
     source =>
       'loop' in source &&
       source.workflow === workflow &&
-      stepInStage({ nodes: [source.loop] }, stepId)
+      (stepId === source.loop || stepId.startsWith(`${source.loop}.`))
   );
 }
 
@@ -95,9 +95,9 @@ export interface RunLine {
 
 /**
  * The one line every live surface prints for a running run (the board card, Table, map).
- * The stage is the one whose `nodes` name the step; on a step no stage names, the stage the
- * item is `placed` in when it lists the workflow, as placement holds it there; else the
- * workflow's own stage. So a card never names a stage other than its column for its run.
+ * The stage is the one the item is `placed` in when it lists the workflow, as placement holds it
+ * there; else the workflow's own stage. So a card never names a stage other than its column for
+ * its run.
  */
 export function runLine(
   view: Declaration,
@@ -107,11 +107,7 @@ export function runLine(
 ): RunLine {
   const { workflow, step } = running;
   const holds = placed?.workflows.includes(workflow) === true ? placed : undefined;
-  const stage =
-    (step === null ? undefined : stageOfStep(view, workflow, step))?.label ??
-    holds?.label ??
-    stageOfWorkflow(view, workflow, step)?.label ??
-    workflow;
+  const stage = holds?.label ?? stageOfWorkflow(view, workflow)?.label ?? workflow;
   const name = step === null ? null : stepLabel(view, workflow, step);
   const of =
     step === null ? null : (roundOfStep(view, workflow, step, round, running.runId) ?? null);

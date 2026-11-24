@@ -555,7 +555,7 @@ The section has **two separate things**, each with its own file:
    full-screen mode over the whole screen with the legend docked bottom-left. Style: Mission Control's curated map, beautified (the console's tokens), not a hand-drawn look.
    **The flow loop** (owner change 6 of 2026-11-19), on the root view only: dots leave every input
    card together (An issue, A work order, Found by agents) and reach the first stage (Triage) at the
-   same moment; one dot then carries on along the forward line (Plan, Build, Checks, CI and
+   same moment; one dot then carries on along the forward line (Link, Plan, Build, Checks, CI and
    reviews, Ready to merge, Merged), resting a beat on each card while a faint halo in the card's
    kind colour shows round it. Where a send-back line returns to an input card, a second dot leaves
    at the same moment and travels it (CI and reviews, along "unrelated finds would become new
@@ -727,16 +727,23 @@ This repository ships the declaration for `Wirasm/archon-software-factory` as th
 `.archon/packs/Wirasm.archon-software-factory.factory-view.json`, until it moves into the owner's
 own copy of the pack (v2 direction). Its `story` field gives the item page one plain sentence per
 outcome (#122). Its `retired` field names `deliver`, the one-workflow delivery the pack dropped
-on 2026-11-23 (pack d7f8c36), kept only while old items need it to place; `deliver` is drawn
-nowhere. Its `answers` field words what the pack's `drop` and `reshape` routes start, for the
+on 2026-11-23 (pack d7f8c36), kept only while old items need it to place: the Build stage lists
+it, `placement` places its outcomes, `story.outcomes` words them and `change` reads its pull
+request; `deliver` is drawn nowhere. Its `answers` field words what the pack's `drop` and `reshape` routes start, for the
 workflows whose asks the pack binds them on.
 
 **The check** (`bun run check:factory-view`, run in console CI; later shipped with the owner's
-pack copy) loads the view file and the pack graph. It FAILS on any workflow, step or outcome
-name the view uses that the graph lacks. It WARNS on graph workflows or outcomes the view leaves
-unplaced, which is how a new stage (such as `link`) gets noticed. It reads the graph from the
-installed pack where a home is named, and from a snapshot of `archon pack graph` committed
-beside the view file in CI (failing when the two differ). A `retired` workflow is not required
+pack copy) loads the view file and the pack graph. It FAILS on any workflow, step, outcome or
+option name the view uses that the graph lacks, on a drill-down step two cards cover, and on a
+`map.arrows` label for a pair of stages the graph does not connect. It WARNS on graph workflows
+or outcomes the view leaves unplaced, which is how a new stage (such as `link`) gets noticed,
+on a real step no drill-down card covers, and on a drawn arrow with no label. It holds How it
+works to the graph where the picture draws the pack's stages, without making it read the graph
+or name a project: an overview edge between two cards that open a view stage must join two
+stages the graph connects (FAIL), and a view stage that no card opens WARNS. It reads the graph from the pack itself, never from a committed capture: the pack's
+repo and commit are pinned once, in `<pack key>.pack-pin.json` beside the view. Where a home is
+named it reads the pack installed there and fails when that is at another commit than the pin;
+in CI it fetches the pinned commit into a throwaway home. A `retired` workflow is not required
 of the pack.
 
 ## Data
@@ -856,11 +863,12 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right, at zoom 1 (the type floor; rule 1). Where the row does not
   fit the frame, the map pans sideways, opening (and Fit returning) at the row's start, so the
-  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1275 px
+  flow reads left to right from Intake (owner ruling on #71). The shipped map is about 1345 px
   wide with its padding, so at 1440x900 Intake shows whole and Merged is partly off the right;
   it pans more on smaller screens.
-- **Cards in the card language** (rule 2), 184 px wide by 168 tall, every card one size so the
-  lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
+- **Cards in the card language** (rule 2), 184 px wide and at least 168 tall, the height set
+  by the card holding the most stages (216 for the shipped file, whose Intake holds Order,
+  Triage and Link), every card one size so the lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
   label ("Intake", "Build", "Check", "Merge", "Merged"), then:
   - a card of one stage: the stage label (Card title role, two lines at most), its one short
     line (the stage's `short`, at most 24 characters; without one, its blurb clamped to two lines),
@@ -871,17 +879,22 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
 - **Live chips** are rule 9's pills at `--text-console-12`: "2 here" (running colour with a
   pulsing dot while a run works an item there, rule 7; the waiting colour otherwise),
   "1 needs you" (soft, rule 5), and "checking…" in place of a count where a board column would
-  show a skeleton bar for a pending merge state. The cards and arrows are drawn from the view
-  file as soon as it is read: until the items read answers each chip is a skeleton bar (rule 6;
+  show a skeleton bar for a pending merge state. The cards and arrows are drawn as soon as the
+  view file and the pack graph are read (the map shows its loading shape until the graph is,
+  which can take over a minute cold; the board and the item page never wait on it): until the
+  items read answers each chip is a skeleton bar (rule 6;
   never "0 here", never "…"), and the chips fill in on the same cards when it does. If that
   first read fails, an alert above the map says so and the cards stay drawn with no chip, their
   details saying the items could not be read.
 - The arrows are the pack graph's (`GET /api/packs/{pack}/graph`): its bindings between
-  workflows and its outcomes (v2 direction). The view file may word an arrow and give it its
-  lane, never add or remove one. Direction comes from card order: an arrow into an earlier card is a send-back, into a later
+  workflows and its outcomes (v2 direction), each drawn from the first stage listing its
+  source workflow to the first listing its target, once per pair of stages. An arrow over a
+  `depends_on` link (one that wakes the link stage on an item waiting there) moves no item and
+  is not drawn, nor is one into a workflow no stage lists. The view file's `map.arrows` only
+  labels a pair the graph connects; it never adds or removes an arrow. Direction comes from card order: an arrow into an earlier card is a send-back, into a later
   one a forward hand-off. Inside one card, an arrow to a later stage of the card is not drawn
   (the rows show that order); one into its own stage or an earlier one of the card is a
-  send-back. An arrow's `back` flag is accepted, so an older view file loads, and ignored.
+  send-back.
 - **Forward hand-offs** run only between neighbouring cards: a short straight line at the
   cards' mid-height, its outcomes on one pill above the line (rule 4), one outcome per line
   ("build, narrow" stacks) up to two. Three or more read as the first and how many more
@@ -960,13 +973,8 @@ Placement of one item,
 first rule that matches. The board, the map and the item page all place through one function
 (`factory/lib/placement.ts`), so they never disagree:
 
-1. A run of a declared workflow is **running** on it: the stage whose `workflows` (and `nodes`,
-   when given) match the run's workflow and deepest running step. On a step no stage names (a
-   loop group between rounds, or none between steps) the board, the map and the item page each
-   keep the item in the stage it sat in on their last read when that stage lists the workflow,
-   so a card does not hop; else the workflow's first stage. A view opened while a run is
-   between named steps has no last read, so for that moment it can show the workflow's first
-   stage where a view open longer still holds the item.
+1. A run of a declared workflow is **running** on it: the first stage whose `workflows` list
+   the run's workflow (the view names no steps of a stage).
 2. Its change **merged**: the Merged column. A view that held the item in Merged on its last
    read keeps it there while its merge state is pending or unknown.
 3. Its last completed run's `workflow:outcome` is in `placement`, else its `workflow:*` (which
@@ -983,9 +991,14 @@ first rule that matches. The board, the map and the item page all place through 
    drafts it by hand nothing the console reads would see that, so it must not count in Need you
    with no way out; its label says what to do ("The forge would not close the PR: close or draft
    it by hand"), which the Set aside list shows as its why.
-5. Its last run **failed** or was cancelled: the stage whose `nodes` name the step it failed at,
-   else the first stage of that run's workflow, with the failed pill and stop line.
+5. Its last run **failed** or was cancelled: the first stage of that run's workflow, with the
+   failed pill and stop line.
 6. Otherwise the first stage.
+
+A run that completed with an outcome neither `placement` nor `endings` takes is passed over by
+every rule, so the item stays where its earlier runs put it: the link stage starts again on
+every item that depends on one that ended, and on an item that was not waiting it ends `none`
+and changes nothing. The check warns on such an outcome.
 
 **Set aside** (#145). The columns hold live work. An item with nothing left to happen leaves
 its column, counts in no column header, chip, In flight or M, and is no Table row; it folds
@@ -1166,11 +1179,7 @@ and their sentences (`item-story.ts`), and the rounds grid (`item-rounds-grid.ts
   band says the same ("Nothing started after your answer, in Build."). A merged change wins:
   the strip then lights Merged.
 - **The story:** one panel per stage visit in the order it ran: a stage the item met again is
-  its own panel, numbered ("Plan (2)"). A run of a workflow one stage lists works that stage; a
-  run of a workflow several stages list (a loop-form delivery) moves to a stage when a step the
-  stage's `nodes` name starts; a step no stage names (a loop group) leaves it where it was, and
-  so do a completed run's closing steps when its outcome places the item back on the stage it
-  worked before them (a build that stopped to ask still runs the delivery's ending steps). A
+  its own panel, numbered ("Plan (2)"). A run works the first stage that lists its workflow. A
   build visit between two visits of one check stage is that stage's fix and folds into its
   panel, so build and check ping-pong (a stage-form delivery's runs, or a loop's fix step) reads
   as one Checks panel. Each panel has a 3 px bar and a section heading in its board column's

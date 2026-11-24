@@ -87,7 +87,7 @@ export function restartOf(
   // The view names workflows as the progress read reports them.
   const workflow = item.progress?.runs.find(entry => entry.runId === run.id)?.workflow;
   const stage =
-    view === null || workflow === undefined ? undefined : stageOfWorkflow(view, workflow, null);
+    view === null || workflow === undefined ? undefined : stageOfWorkflow(view, workflow);
   return {
     runId: run.id,
     status: run.status,

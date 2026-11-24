@@ -10,11 +10,11 @@ import type { FactoryItemDetail } from '../api';
 import { answerStarts } from './answer-starts';
 import { answerWords, restartOf } from './answered';
 import { answererName } from './item-answers';
-import { gridShadowKeys, roundsGrid, type RoundsGrid } from './item-rounds-grid';
+import { roundsGrid, type RoundsGrid } from './item-rounds-grid';
 import { storyVisits, type RunFacts, type StoryVisit } from './item-visits';
-import { isStopped, stageOfWorkflow, stoppedStage } from './placement';
+import { isStopped, stageOfWorkflow } from './placement';
 import { stoppedLine } from './step-label';
-import { runHref, type TimelineRow, type TimelineShadow } from './timeline';
+import { runHref, type TimelineRow } from './timeline';
 import type { FactoryStage } from './stage-steps';
 import type { FactoryViewListed } from './views';
 
@@ -68,7 +68,6 @@ interface PanelBase {
   key: string;
   sentence: Sentence;
   details: PanelDetails;
-  shadows: TimelineShadow[];
 }
 
 export interface StagePanel extends PanelBase {
@@ -201,8 +200,7 @@ function statusSentence(
   const failedStep =
     ctx.detail.item.progress?.runs.find(entry => entry.runId === run.id)?.failedStep ?? null;
   const workflow = ctx.facts.get(run.id)?.workflow ?? null;
-  const stage =
-    byStage && workflow !== null ? stoppedStage(ctx.view, workflow, failedStep) : undefined;
+  const stage = byStage && workflow !== null ? stageOfWorkflow(ctx.view, workflow) : undefined;
   return stoppedLine(ctx.view, { workflow, status: run.status, failedStep }, stage?.label ?? label);
 }
 
@@ -231,7 +229,7 @@ function roundsSentence(label: string, grid: RoundsGrid): string | null {
   const last = grid.columns.at(-1)?.verdict;
   const index = grid.columns.length - 1;
   const asked = grid.rows.some(
-    row => !row.shadow && row.cells[index]?.some(cell => cell.meaning === 'asked') === true
+    row => row.cells[index]?.some(cell => cell.meaning === 'asked') === true
   );
   const back = grid.columns.filter(column => column.verdict === 'returned').length;
   if (last === 'returned') return `${label} sent it back${back > 1 ? ` ${times(back)}` : ''}`;
@@ -412,33 +410,6 @@ function details(
 }
 
 /**
- * The shadow decisions that belong in this panel and its grid does not show already: each
- * decision sits with the stage its step is on, so a delivery's round checks go to its Checks
- * panel, not to the Build panel the same run opened.
- */
-function panelShadows(
-  ctx: StoryContext,
-  panel: StoryVisit,
-  grid: RoundsGrid | null
-): TimelineShadow[] {
-  const shown = gridShadowKeys(grid, ctx.facts);
-  const here = new Set(
-    panel.allRunIds.flatMap(id => {
-      const facts = ctx.facts.get(id);
-      return (facts?.shadows ?? [])
-        .filter(decision => {
-          const stage = stageOfWorkflow(ctx.view, facts?.workflow ?? '', decision.node);
-          return stage === undefined || stage.id === panel.stage.id;
-        })
-        .map(decision => `${decision.runId}|${decision.node}|${String(decision.round)}`);
-    })
-  );
-  return panel.allRunIds
-    .flatMap(id => ctx.rows.get(id)?.shadows ?? [])
-    .filter(shadow => here.has(shadow.key) && !shown.has(shadow.key));
-}
-
-/**
  * What happened inside a panel with no grid, before its last run: each run that sent the item
  * back with its own words (`story.said`), and each fix folded into the panel with its outcome's
  * sentence. The panel's last run tells its own ending in the sentence.
@@ -493,7 +464,6 @@ function stagePanel(
     grid,
     happened: panelEvents(ctx, panel, grid),
     details: details(ctx, panel.allRunIds, panelSpan(ctx, panel, next), shared),
-    shadows: panelShadows(ctx, panel, grid),
     merged:
       panel.stage.id === ctx.view.landed.stage && change?.merged === true
         ? (change.mergedAt ?? null)
@@ -519,7 +489,6 @@ function drainPanels(ctx: StoryContext): (DrainPanel & { at: number })[] {
         mono: null,
       },
       details: details(ctx, [run.id], runsSpan(ctx, [run.id]), false),
-      shadows: ctx.rows.get(run.id)?.shadows ?? [],
     }));
 }
 

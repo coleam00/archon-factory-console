@@ -8,6 +8,7 @@ import {
   FIXTURE_NOW,
   idleInPlan,
   ITEM_114,
+  lastRunAs,
   needsShaping,
   PAGE,
   parkedByTriage,
@@ -137,14 +138,14 @@ describe('what counts a set-aside item', () => {
     const withUnplaced = boardModel(
       view,
       'cb-1',
-      [...items, delivering('rounds.review__review')],
+      [...items, lastRunAs('u', 'stage-build', 'built')],
       new Map(),
       FIXTURE_NOW
     );
     const rows = tableRows(withUnplaced).map(row => [row.placed.card.key, row.column]);
     expect(rows.map(([key]) => key)).not.toContain('p-aside');
     expect(rows.map(([key]) => key)).not.toContain('i-aside');
-    expect(rows).toContainEqual(['8', 'Position unknown']);
+    expect(rows).toContainEqual(['u', 'Position unknown']);
   });
 
   test('a set-aside member of a work order still says where it is', () => {

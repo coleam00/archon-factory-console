@@ -1,31 +1,31 @@
 /**
  * `bun run check:factory-view`: checks each project factory view
- * (`.archon/packs/<pack key>.factory-view.json`) against its pack's real workflows and
- * hand-offs (`factoryViewCoverage`). It exits 1 on any finding. CI runs it in the
- * generated-files group of `scripts/validate.ts`.
+ * (`.archon/packs/<pack key>.factory-view.json`) and its How it works file
+ * (`<pack key>.factory-overview.json`) against the pack's graph (`checkViewNames`,
+ * `checkOverviewEdges`). It exits 1 on a name the view uses that the graph lacks, or an overview
+ * edge between two stages the graph does not connect, and prints a warning, still passing, for
+ * what the graph has that the view leaves out. CI runs it in the generated-files group of
+ * `scripts/validate.ts`.
  *
- * The pack's graph comes from two places, so neither can drift unseen:
- * - The committed snapshot beside the view (`<pack key>.pack-graph.json`): what CI, which has
- *   no install, checks against. A missing snapshot is a finding.
- * - The installed pack, when a home is named: ARCHON_FACTORY_LIVE_HOME, else ARCHON_HOME. The
- *   view is then checked against the pack the CLI reads from that home's `plugins/`, and a
- *   snapshot that differs from it is a finding, so a reinstall that changes the pack fails the
- *   check here (the factory's own validate command runs it) before it can mislead CI. When the
- *   CLI cannot read the pack there (no `plugins/`, or no such pack in it), the check fails with
- *   the CLI's reason rather than falling back to the snapshot: the CLI alone decides whether
- *   the pack is installed.
+ * The graph is always read from the pack itself, never from a committed capture. The pack's
+ * commit is pinned in one place, `<pack key>.pack-pin.json` beside the view (`{ repo, commit }`):
+ * - With no home named (CI), the pinned commit is fetched from GitHub at depth 1 into a throwaway
+ *   home, laid out as `archon plugin add` lays out an install.
+ * - With a home named (ARCHON_FACTORY_LIVE_HOME, else ARCHON_HOME), the pack installed there is
+ *   read, and an install at another commit than the pin fails the check, so a reinstall is caught
+ *   where it happens (the factory's own validate command runs this) before CI checks an older
+ *   pack. When the CLI cannot read the pack there, the check fails with the CLI's reason rather
+ *   than falling back to the pin: the CLI alone decides whether the pack is installed.
  *
- * The installed graph is `archon pack graph <pack key> --json` run on a throwaway home holding a
- * copy of that `plugins/` and nothing else: the install is only read, and with no trigger files
- * every arrow is one the pack declares and no machine path reaches the snapshot.
- * `--write <pack key>` rewrites the snapshot from it after a reinstall.
- *
- * Only the workflows a view's stages list are compared, steps, hand-offs and outcomes alike;
- * the check names the pack's other workflows on an informational line that is not a finding.
+ * Either way the graph is `archon pack graph <pack key> --json` (core `readPackGraph`, the read
+ * `GET /api/packs/{pack}/graph` answers from) run on a throwaway home holding only those plugins:
+ * an install is only read, and with no trigger files every arrow is one the pack declares.
+ * `--pin <pack key>` rewrites the pin from the pack installed in the named home.
  */
 import {
   cpSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -35,19 +35,50 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { getPluginsPath } from '@archon/paths';
-import {
-  factoryViewCoverage,
-  unlistedWorkflows,
-} from '../packages/workflows/src/factory-view-coverage';
+import { workflowPackReceiptSchema } from '../packages/plugin-manifest/src/index';
+import { packTreePath, receiptPath } from '../packages/plugin-manifest/src/store';
 import { type PackGraph, packGraphSchema } from '../packages/workflows/src/pack-graph';
+import {
+  FACTORY_OVERVIEW_PROJECT_SUFFIX,
+  factoryOverviewSchema,
+} from '../packages/workflows/src/schemas/factory-overview';
 import {
   FACTORY_VIEW_PROJECT_SUFFIX,
   factoryViewSchema,
 } from '../packages/workflows/src/schemas/factory-view';
+import { checkOverviewEdges, checkViewNames, type NameCheck } from './factory-view-names';
 
 const root = resolve(import.meta.dir, '..');
 const packs = join(root, '.archon', 'packs');
-const SNAPSHOT_SUFFIX = '.pack-graph.json';
+const PIN_SUFFIX = '.pack-pin.json';
+
+/** The one place a pack's commit is pinned: its GitHub `owner/name` and the commit checked. */
+export interface PackPin {
+  repo: string;
+  commit: string;
+}
+
+/**
+ * A pin file's contents, or what is wrong with them. Read by hand rather than with zod: the
+ * repository root does not depend on zod, and a script resolves its imports from the root.
+ */
+export function parsePin(value: unknown): PackPin | { problems: string[] } {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return { problems: ['expected an object { repo, commit }'] };
+  const fields = new Map(Object.entries(value));
+  const repo = fields.get('repo');
+  const commit = fields.get('commit');
+  const problems = [...fields.keys()]
+    .filter(key => key !== 'repo' && key !== 'commit')
+    .map(key => `${key}: not a pin field`);
+  const repoOk = typeof repo === 'string' && /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
+  const commitOk = typeof commit === 'string' && /^[0-9a-f]{40}$/.test(commit);
+  if (!repoOk) problems.push('repo: expected owner/name');
+  if (!commitOk) problems.push('commit: expected a full commit sha');
+  return problems.length === 0 && typeof repo === 'string' && typeof commit === 'string'
+    ? { repo, commit }
+    : { problems };
+}
 
 /** The `plugins/` of the home `env` names, whether or not it exists; undefined when none is. */
 export function namedPlugins(env: Record<string, string | undefined>): string | undefined {
@@ -55,11 +86,16 @@ export function namedPlugins(env: Record<string, string | undefined>): string | 
   return home ? getPluginsPath(home) : undefined;
 }
 
-/** What reading the installed pack gave: its graph, or why it could not be read. */
-export type InstalledRead = { graph: PackGraph } | { error: string };
+/** A pack's graph and the commit it was read at, or why it could not be read. */
+export type GraphRead = { graph: PackGraph; commit: string } | { error: string };
 
-/** Reads one pack from a `plugins/` directory: `installedGraph`, or a test's stand-in. */
-export type ReadInstalled = (plugins: string, packKey: string) => InstalledRead;
+/** Where the check reads a pack's graph: the real reads, or a test's stand-ins. */
+export interface GraphSource {
+  /** The pack installed in `plugins`. */
+  installed: (plugins: string, packKey: string, pin: PackPin) => GraphRead;
+  /** The pack at its pinned commit. */
+  pinned: (packKey: string, pin: PackPin) => GraphRead;
+}
 
 /**
  * Why `archon pack graph --json` failed, in the CLI's own words: it prints `{ ok: false, error }`
@@ -77,24 +113,16 @@ function cliError(stdout: string, exitCode: number): string {
 }
 
 /**
- * The graph as the snapshot holds it: the pack alone. `loaded` and `otherCopies` say where the
- * CLI found its copies, which for `installedGraph` is a throwaway home's temporary path, new on
- * every read: kept, no snapshot could ever equal the install, and a machine path would reach
- * the committed file.
+ * `archon pack graph <pack key> --json` on a throwaway home whose `plugins/` is `fill`ed, or why
+ * it failed. `loaded` and `otherCopies` name the throwaway paths, so they are dropped.
  */
-export function packShape(graph: PackGraph): PackGraph {
-  return { ...graph, loaded: [], otherCopies: [] };
-}
-
-/**
- * The installed pack's graph (`packShape`), read on a throwaway copy of `plugins`, or why it
- * could not be.
- * A `plugins` that does not exist is not copied, so the CLI gives its own reason.
- */
-export function installedGraph(plugins: string, packKey: string): InstalledRead {
+function graphOnScratchHome(
+  packKey: string,
+  fill: (plugins: string) => void
+): { graph: PackGraph } | { error: string } {
   const scratch = mkdtempSync(join(tmpdir(), 'factory-view-home-'));
   try {
-    if (existsSync(plugins)) cpSync(plugins, getPluginsPath(scratch), { recursive: true });
+    fill(getPluginsPath(scratch));
     const read = Bun.spawnSync(
       ['bun', 'run', 'cli', 'pack', 'graph', packKey, '--cwd', root, '--json'],
       {
@@ -106,71 +134,175 @@ export function installedGraph(plugins: string, packKey: string): InstalledRead 
     );
     const stdout = read.stdout.toString();
     if (read.exitCode !== 0) return { error: cliError(stdout, read.exitCode) };
-    return { graph: packShape(packGraphSchema.parse(JSON.parse(stdout))) };
+    const graph = packGraphSchema.parse(JSON.parse(stdout));
+    return { graph: { ...graph, loaded: [], otherCopies: [] } };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
 }
 
-const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
-
-/** A named home whose `plugins/` cannot give the pack: what the CLI said, and what to do next. */
-const notInstalled = (packKey: string, plugins: string, error: string): string =>
-  `${plugins}: [install] \`archon pack graph ${packKey}\` could not read the pack there: ${error} ` +
-  'Install the pack in that home, or unset ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME to check against the committed snapshot.';
-
-/** One declaration's checks: its findings as `path: message` lines, and what it leaves out. */
-interface FileResult {
-  /** Empty when the declaration is clean. */
-  findings: string[];
-  /** The pack's workflows no stage lists, so never compared; empty when no graph was read. */
-  unlisted: string[];
+/** The commit of `repo` installed in `plugins`, from its receipt; undefined when none is. */
+function installedCommit(plugins: string, repo: string): string | undefined {
+  const path = receiptPath(plugins, repo);
+  if (!existsSync(path)) return undefined;
+  const receipt = workflowPackReceiptSchema.safeParse(JSON.parse(readFileSync(path, 'utf8')));
+  return receipt.success ? receipt.data.commit : undefined;
 }
 
-function checkOne(
-  packsDir: string,
-  file: string,
-  plugins: string | undefined,
-  readInstalled: ReadInstalled
-): FileResult {
-  const packKey = file.slice(0, -FACTORY_VIEW_PROJECT_SUFFIX.length);
-  const parsed = factoryViewSchema.safeParse(readJson(join(packsDir, file)));
-  if (!parsed.success) {
-    const findings = parsed.error.issues.map(
-      i => `${i.path.join('.') || '(view)'}: [schema] ${i.message}`
-    );
-    return { findings, unlisted: [] };
+/** The pack installed in `plugins`, read on a throwaway copy of it. */
+export function installedGraph(plugins: string, packKey: string, pin: PackPin): GraphRead {
+  const commit = installedCommit(plugins, pin.repo);
+  const read = graphOnScratchHome(packKey, scratch => {
+    // A `plugins` that does not exist is not copied, so the CLI gives its own reason.
+    if (existsSync(plugins)) cpSync(plugins, scratch, { recursive: true });
+  });
+  if ('error' in read) return read;
+  return commit === undefined
+    ? { error: `no receipt in ${plugins} names the commit of ${pin.repo}` }
+    : { graph: read.graph, commit };
+}
+
+const git = (args: string[], cwd: string): void => {
+  const run = Bun.spawnSync(['git', '-c', 'core.autocrlf=false', ...args], {
+    cwd,
+    stdout: 'ignore',
+    stderr: 'pipe',
+  });
+  if (run.exitCode !== 0) throw new Error(`git ${args.join(' ')}: ${run.stderr.toString().trim()}`);
+};
+
+/**
+ * Fetches `pin.commit` of `pin.repo` at depth 1 and writes it where an install puts it: the tree
+ * under `packTreePath` and a receipt naming the commit, built from the tree's own manifest.
+ */
+function installPinned(plugins: string, pin: PackPin): void {
+  const tree = packTreePath(plugins, pin.repo, pin.commit);
+  mkdirSync(tree, { recursive: true });
+  git(['init', '-q'], tree);
+  git(['fetch', '-q', '--depth', '1', `https://github.com/${pin.repo}.git`, pin.commit], tree);
+  git(['checkout', '-q', 'FETCH_HEAD'], tree);
+  rmSync(join(tree, '.git'), { recursive: true, force: true });
+  const receipt = workflowPackReceiptSchema.parse({
+    schemaVersion: 1,
+    id: pin.repo,
+    manifest: JSON.parse(readFileSync(join(tree, 'archon-plugin.json'), 'utf8')),
+    commit: pin.commit,
+    installedAt: new Date().toISOString(),
+  });
+  const path = receiptPath(plugins, pin.repo);
+  mkdirSync(join(path, '..'), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(receipt, null, 2)}\n`);
+}
+
+/** The pack at its pinned commit, fetched into a throwaway home. */
+export function pinnedGraph(packKey: string, pin: PackPin): GraphRead {
+  try {
+    const read = graphOnScratchHome(packKey, plugins => {
+      installPinned(plugins, pin);
+    });
+    return 'error' in read ? read : { graph: read.graph, commit: pin.commit };
+  } catch (error) {
+    return { error: (error as Error).message };
   }
-  const snapshotPath = join(packsDir, `${packKey}${SNAPSHOT_SUFFIX}`);
-  const snapshot = existsSync(snapshotPath)
-    ? packGraphSchema.parse(readJson(snapshotPath))
-    : undefined;
-  const read = plugins === undefined ? undefined : readInstalled(plugins, packKey);
+}
+
+const readJson = (path: string): unknown => JSON.parse(readFileSync(path, 'utf8'));
+
+const line = (kind: string, finding: { path: PropertyKey[]; message: string }): string =>
+  `${finding.path.map(String).join('.') || '(view)'}: [${kind}] ${finding.message}`;
+
+/** One file's findings, each as a `path: [kind] message` line. */
+interface FileResult {
+  file: string;
+  /** Empty when the file is clean. */
+  fails: string[];
+  warns: string[];
+}
+
+const asLines = (file: string, check: NameCheck, pre: string[] = []): FileResult => ({
+  file,
+  fails: [...pre, ...check.fails.map(finding => line('fail', finding))],
+  warns: check.warns.map(finding => line('warn', finding)),
+});
+
+/** The graph a pack is checked against, or the lines saying why there is none. */
+function readGraph(
+  packsDir: string,
+  packKey: string,
+  plugins: string | undefined,
+  source: GraphSource
+): { graph: PackGraph } | { fails: string[] } {
+  const pinPath = join(packsDir, `${packKey}${PIN_SUFFIX}`);
+  if (!existsSync(pinPath))
+    return { fails: [`${pinPath}: [pin] missing; it names the pack's repo and commit`] };
+  const pin = parsePin(readJson(pinPath));
+  if ('problems' in pin)
+    return { fails: pin.problems.map(problem => `${pinPath}: [pin] ${problem}`) };
+  if (plugins === undefined) {
+    const read = source.pinned(packKey, pin);
+    return 'error' in read
+      ? {
+          fails: [`${pinPath}: [pin] could not read ${pin.repo} at ${pin.commit}: ${read.error}`],
+        }
+      : { graph: read.graph };
+  }
   // Naming a home says the pack is installed there, and the CLI decides whether it is: a quiet
-  // fallback to the snapshot would hide that it is not.
-  if (plugins !== undefined && read !== undefined && 'error' in read)
-    return { findings: [notInstalled(packKey, plugins, read.error)], unlisted: [] };
-  const installed = read !== undefined && 'graph' in read ? read.graph : undefined;
-  const findings: string[] = [];
-  const refresh = `run \`bun run check:factory-view --write ${packKey}\``;
-  if (snapshot === undefined) findings.push(`${snapshotPath}: [snapshot] missing; ${refresh}`);
-  else if (installed !== undefined && !Bun.deepEquals(snapshot, installed))
-    findings.push(
-      `${snapshotPath}: [snapshot] differs from the pack installed in ${plugins}; ${refresh} and commit it`
-    );
-  const graph = installed ?? snapshot;
-  if (graph === undefined) return { findings, unlisted: [] };
-  for (const finding of factoryViewCoverage(parsed.data, graph))
-    findings.push(`${finding.path.join('.') || '(view)'}: [${finding.kind}] ${finding.message}`);
-  return { findings, unlisted: unlistedWorkflows(parsed.data, graph) };
+  // fallback to the pin would hide that it is not.
+  const read = source.installed(plugins, packKey, pin);
+  if ('error' in read)
+    return {
+      fails: [
+        `${plugins}: [install] \`archon pack graph ${packKey}\` could not read the pack there: ${read.error} ` +
+          'Install the pack in that home, or unset ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME to check the pinned commit.',
+      ],
+    };
+  if (read.commit !== pin.commit)
+    return {
+      fails: [
+        `${pinPath}: [pin] the pack installed in ${plugins} is at ${read.commit}, the pin at ${pin.commit}; ` +
+          `run \`bun run check:factory-view --pin ${packKey}\` and commit it`,
+      ],
+    };
+  return { graph: read.graph };
+}
+
+/** A view file and, when there is one, its overview file, checked against their pack's graph. */
+function checkPack(
+  packsDir: string,
+  viewFile: string,
+  plugins: string | undefined,
+  source: GraphSource
+): FileResult[] {
+  const packKey = viewFile.slice(0, -FACTORY_VIEW_PROJECT_SUFFIX.length);
+  const overviewFile = `${packKey}${FACTORY_OVERVIEW_PROJECT_SUFFIX}`;
+  const view = factoryViewSchema.safeParse(readJson(join(packsDir, viewFile)));
+  const overview = existsSync(join(packsDir, overviewFile))
+    ? factoryOverviewSchema.safeParse(readJson(join(packsDir, overviewFile)))
+    : undefined;
+  const results: FileResult[] = [];
+  const schemaFails = (
+    file: string,
+    issues: readonly { path: PropertyKey[]; message: string }[]
+  ): void => {
+    results.push({ file, fails: issues.map(issue => line('schema', issue)), warns: [] });
+  };
+  if (!view.success) schemaFails(viewFile, view.error.issues);
+  if (overview !== undefined && !overview.success) schemaFails(overviewFile, overview.error.issues);
+  if (!view.success) return results;
+  const read = readGraph(packsDir, packKey, plugins, source);
+  if ('fails' in read) return [...results, { file: viewFile, fails: read.fails, warns: [] }];
+  results.push(asLines(viewFile, checkViewNames(view.data, read.graph)));
+  if (overview?.success === true)
+    results.push(asLines(overviewFile, checkOverviewEdges(overview.data, view.data, read.graph)));
+  return results;
 }
 
 interface CheckInput {
-  /** The directory holding the view files and their snapshots. */
+  /** The directory holding the view, overview and pin files. */
   packsDir: string;
-  /** The named home's `plugins/`, or undefined to check against the snapshots only. */
+  /** The named home's `plugins/`, or undefined to fetch each pack at its pinned commit. */
   plugins: string | undefined;
-  readInstalled: ReadInstalled;
+  source: GraphSource;
 }
 
 /** What the check prints, `out` on stdout and `err` on stderr, and its exit code. */
@@ -180,41 +312,45 @@ interface CheckReport {
   err: string[];
 }
 
-/** Checks every view file in `packsDir`, reading the installed pack only through `readInstalled`. */
-export function runCheck({ packsDir, plugins, readInstalled }: CheckInput): CheckReport {
+/** Checks every view file in `packsDir`, reading each pack's graph only through `source`. */
+export function runCheck({ packsDir, plugins, source }: CheckInput): CheckReport {
   const out = [
     plugins === undefined
-      ? 'No home named (ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME are unset or empty): checking against the committed snapshots only.'
-      : `Reading each pack from ${plugins}, and checking each snapshot against it.`,
+      ? 'No home named (ARCHON_FACTORY_LIVE_HOME and ARCHON_HOME are unset or empty): reading each pack at its pinned commit.'
+      : `Reading each pack from ${plugins}, and checking it is at its pinned commit.`,
   ];
   const err: string[] = [];
   const files = readdirSync(packsDir).filter(name => name.endsWith(FACTORY_VIEW_PROJECT_SUFFIX));
-  for (const file of files) {
-    const { findings, unlisted } = checkOne(packsDir, file, plugins, readInstalled);
-    if (findings.length === 0)
-      out.push(`${file}: covers every step, hand-off and outcome of the workflows its stages list`);
-    else err.push(`${file}:`, ...findings.map(line => `  ${line}`));
-    // Information, not a finding: no step or hand-off of these workflows is compared.
-    if (unlisted.length > 0)
-      out.push(`${file}: not compared, since no stage lists them: ${unlisted.join(', ')}`);
+  for (const { file, fails, warns } of files.flatMap(f =>
+    checkPack(packsDir, f, plugins, source)
+  )) {
+    if (fails.length === 0) out.push(`${file}: agrees with the pack graph`);
+    else err.push(`${file}:`, ...fails.map(entry => `  ${entry}`));
+    if (warns.length > 0)
+      out.push(
+        `${file}: what the pack graph has and the file leaves out (warnings):`,
+        ...warns.map(entry => `  ${entry}`)
+      );
   }
   return { code: err.length === 0 ? 0 : 1, out, err };
 }
+
+const realSource: GraphSource = { installed: installedGraph, pinned: pinnedGraph };
 
 /** Prints the check over this checkout's `.archon/packs/` and returns its exit code. */
 function check(): number {
   const report = runCheck({
     packsDir: packs,
     plugins: namedPlugins(process.env),
-    readInstalled: installedGraph,
+    source: realSource,
   });
-  for (const line of report.out) console.log(line);
-  for (const line of report.err) console.error(line);
+  for (const entry of report.out) console.log(entry);
+  for (const entry of report.err) console.error(entry);
   return report.code;
 }
 
-/** Rewrites the pack's snapshot from the installed pack. */
-function write(packKey: string): number {
+/** Rewrites the pack's pin to the commit installed in the named home. */
+function pin(packKey: string): number {
   const plugins = namedPlugins(process.env);
   if (plugins === undefined) {
     console.error(
@@ -222,25 +358,32 @@ function write(packKey: string): number {
     );
     return 1;
   }
-  const read = installedGraph(plugins, packKey);
-  if ('error' in read) {
-    console.error(notInstalled(packKey, plugins, read.error));
+  const path = join(packs, `${packKey}${PIN_SUFFIX}`);
+  const current = parsePin(readJson(path));
+  if ('problems' in current) {
+    console.error(`${path}: ${current.problems.join('; ')}`);
     return 1;
   }
-  const target = join(packs, `${packKey}${SNAPSHOT_SUFFIX}`);
-  writeFileSync(target, `${JSON.stringify(read.graph, null, 2)}\n`);
-  console.log(`Wrote ${target} from the pack installed in ${plugins}`);
+  const commit = installedCommit(plugins, current.repo);
+  if (commit === undefined) {
+    console.error(
+      `${plugins}: no receipt names the commit of ${current.repo}; install it there first.`
+    );
+    return 1;
+  }
+  writeFileSync(path, `${JSON.stringify({ ...current, commit }, null, 2)}\n`);
+  console.log(`Pinned ${current.repo} at ${commit} in ${path}`);
   return 0;
 }
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  const at = args.indexOf('--write');
+  const at = args.indexOf('--pin');
   if (at === -1) process.exit(check());
   const packKey = args[at + 1];
   if (packKey === undefined) {
-    console.error('Usage: bun run check:factory-view [--write <pack key>]');
+    console.error('Usage: bun run check:factory-view [--pin <pack key>]');
     process.exit(2);
   }
-  process.exit(write(packKey));
+  process.exit(pin(packKey));
 }

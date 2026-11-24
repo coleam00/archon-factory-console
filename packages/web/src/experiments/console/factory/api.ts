@@ -24,7 +24,6 @@ export type FactoryItemProgress = NonNullable<FactoryItem['progress']>;
 export type FactoryWorkflow = components['schemas']['FactoryWorkflow'];
 export type FactoryPacksRead = components['schemas']['FactoryPacks'];
 export type FactoryDiscoveries = components['schemas']['FactoryDiscoveries'];
-export type FactoryPackSettings = components['schemas']['FactoryPackSettings'];
 export type ItemWindow = components['schemas']['ItemWindow'];
 /** One item read whole, as `GET /api/items` and a window page return it. */
 export type ItemRead = components['schemas']['ItemRead'];
@@ -114,14 +113,6 @@ export async function getFactoryDiscoveries(
   init: Init = {}
 ): Promise<FactoryDiscoveries> {
   return requestJson('/api/factory/discoveries', 'get', { query: opts, signal: init.signal });
-}
-
-/** A pack's declared settings, in its order, and what each project that runs it sets. */
-export async function getFactoryPackSettings(
-  opts: QueryParams<'/api/factory/pack-settings', 'get'>,
-  init: Init = {}
-): Promise<FactoryPackSettings> {
-  return requestJson('/api/factory/pack-settings', 'get', { query: opts, signal: init.signal });
 }
 
 /**

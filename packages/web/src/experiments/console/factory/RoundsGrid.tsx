@@ -20,12 +20,10 @@ import {
   type RoundsGrid as Grid,
 } from './lib/item-rounds-grid';
 import { firstSentence } from './lib/item-story';
-import { ShadowBadge } from './ShadowBadge';
 
 /**
  * Each cell's icon and colour (rule 5's state colours): a send-back in the send-back line's
- * colour (rule 4), a shadow in its own and never a state colour (rule 10). A cell is always an
- * icon and a word, never a colour alone.
+ * colour (rule 4). A cell is always an icon and a word, never a colour alone.
  */
 const LOOK: Record<CellMeaning, { Icon: LucideIcon; className: string }> = {
   approved: { Icon: Check, className: 'text-success' },
@@ -35,7 +33,6 @@ const LOOK: Record<CellMeaning, { Icon: LucideIcon; className: string }> = {
   failed: { Icon: CircleX, className: 'text-error' },
   running: { Icon: CircleDot, className: 'text-[color:var(--running)]' },
   token: { Icon: CircleDot, className: 'text-text-secondary' },
-  shadow: { Icon: CircleDot, className: 'text-[color:var(--node-opaque)]' },
 };
 
 /**
@@ -90,13 +87,9 @@ export function RoundsGrid({ grid }: { grid: Grid }): ReactElement {
 function Row({ row }: { row: GridRow }): ReactElement {
   return (
     <tr data-grid-row={row.label} className="border-t border-border">
-      <th
-        scope="row"
-        className={`py-2 pr-4 text-console-13 font-medium ${row.shadow ? 'text-text-tertiary' : 'text-text-primary'}`}
-      >
+      <th scope="row" className="py-2 pr-4 text-console-13 font-medium text-text-primary">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="whitespace-nowrap">{row.label}</span>
-          {row.shadow ? <ShadowBadge /> : null}
         </span>
       </th>
       {row.cells.map((cells, index) => (
@@ -127,7 +120,7 @@ function Cell({ cell, absent = false }: { cell: GridCell; absent?: boolean }): R
       title={cell.title ?? undefined}
       className={`inline-flex items-start gap-1.5 text-console-13 ${className} ${
         cell.meaning === 'token' && !absent ? 'font-mono' : 'font-medium'
-      } ${cell.meaning === 'shadow' ? '' : 'whitespace-nowrap'}`}
+      } whitespace-nowrap`}
     >
       <Icon aria-hidden="true" className="size-4 shrink-0" />
       {cell.text}

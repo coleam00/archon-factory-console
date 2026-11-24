@@ -2,8 +2,6 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import { liveWorkflows, type FactoryStage } from '../lib/stage-steps';
 import type { StageRead } from '../lib/map-live';
-import { SHADOW_MEANS } from '../lib/shadows';
-import { ShadowBadge } from '../ShadowBadge';
 import { ItemsHere } from '../stage/StageItems';
 import { stageModalLink, type FactoryViewListed } from '../lib/views';
 
@@ -15,8 +13,6 @@ interface StageDetails {
   live: StageRead;
   /** Notes the declaration places by the stage. */
   notes: readonly string[];
-  /** Its shadow steps with what each decided lately (`stageShadowLines`); empty when none. */
-  shadows: readonly string[];
 }
 
 interface MapDetailsProps {
@@ -86,7 +82,7 @@ function StageSection({
   entry: StageDetails;
   named: boolean;
 }): ReactElement {
-  const { stage, live, notes, shadows } = entry;
+  const { stage, live, notes } = entry;
   const open = stageModalLink(projectId, stage.id);
   // A workflow's name opens the stage on that workflow's steps.
   const steps = stageModalLink(projectId, stage.id, 'workflow');
@@ -111,7 +107,6 @@ function StageSection({
           {note}
         </p>
       ))}
-      <ShadowSteps lines={shadows} />
       <ItemsHere
         projectId={projectId}
         view={view}
@@ -140,26 +135,6 @@ function StageSection({
           </ul>
         )}
       </section>
-    </section>
-  );
-}
-
-/** The stage's shadow steps (rule 10): each step's label and what it decided lately. */
-function ShadowSteps({ lines }: { lines: readonly string[] }): ReactElement | null {
-  if (lines.length === 0) return null;
-  return (
-    <section className="flex flex-col gap-1.5">
-      <h6 className={`${HEADING} flex items-center gap-2`}>
-        Shadow steps <ShadowBadge className="normal-case tracking-normal" />
-      </h6>
-      <p className="text-console-13 text-text-tertiary">{`Each ${SHADOW_MEANS}.`}</p>
-      <ul className="flex flex-col gap-1">
-        {lines.map(line => (
-          <li key={line} className="text-console-13 text-text-tertiary">
-            {line}
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }

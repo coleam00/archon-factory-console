@@ -2,7 +2,7 @@
   "version": 1,
   "pack": "Wirasm/archon-software-factory",
   "title": "How the factory works",
-  "caption": "Work comes in as a work order, or as an issue someone adds the factory label to; agents also find work while working. Triage decides whether it is worth building. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the reviews on the pull request get their say. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it. When something needs a decision, the factory asks you, and your answer restarts the stage that asked. On a change in delivery you pick what happens: send it back to the builder or to Plan, take it as it is, drop it, or reshape it. What the checks and CI find goes back to the same builder, for up to three rounds; an item that needs a different approach goes back to Plan.",
+  "caption": "Work comes in as a work order, or as an issue someone gives the factory label; agents also find work as they go. Triage decides whether it is worth building. Link holds it until what it needs has landed. Plan writes down how. Build writes the change and opens a draft pull request. Three checks read it, then CI and the pull request's reviews have their say. A ready change goes to a merge gate that lets it through or asks you; told \"land\", the factory merges it. When a decision is yours, the factory asks you, and your answer restarts the stage that asked. On a change in delivery you pick what happens: send it back to the builder or to Plan, take it as is, drop it, or reshape it. What the checks and CI find goes back to the same builder, for up to three rounds, or to Plan for a new approach.",
   "root": "factory",
   "views": {
     "factory": {
@@ -49,12 +49,22 @@
           "opens": "triage"
         },
         {
+          "id": "link",
+          "title": "Link",
+          "text": "Finds what it depends on and waits for it",
+          "icon": "list",
+          "kind": "stage",
+          "col": 3,
+          "row": 2,
+          "opens": "link"
+        },
+        {
           "id": "plan",
           "title": "Plan",
           "text": "Writes down how to build it",
           "icon": "map",
           "kind": "stage",
-          "col": 3,
+          "col": 4,
           "row": 2,
           "opens": "plan"
         },
@@ -64,7 +74,7 @@
           "text": "Writes the change and opens a draft PR",
           "icon": "hammer",
           "kind": "stage",
-          "col": 4,
+          "col": 5,
           "row": 2,
           "opens": "build"
         },
@@ -74,7 +84,7 @@
           "text": "Review, tests and product read it",
           "icon": "check",
           "kind": "check",
-          "col": 5,
+          "col": 6,
           "row": 2,
           "opens": "checks"
         },
@@ -84,7 +94,7 @@
           "text": "What CI and reviewers say on the PR",
           "icon": "eye",
           "kind": "check",
-          "col": 6,
+          "col": 7,
           "row": 2
         },
         {
@@ -93,7 +103,7 @@
           "text": "Approved; the gate lets it merge or asks you",
           "icon": "git-pull-request",
           "kind": "outcome",
-          "col": 7,
+          "col": 8,
           "row": 2
         },
         {
@@ -102,7 +112,7 @@
           "text": "The change is in main",
           "icon": "flag",
           "kind": "outcome",
-          "col": 8,
+          "col": 9,
           "row": 2
         },
         {
@@ -111,7 +121,7 @@
           "text": "Answer what the factory asks",
           "icon": "users",
           "kind": "person",
-          "col": 3,
+          "col": 4,
           "row": 1
         },
         {
@@ -120,13 +130,14 @@
           "text": "Decides whether it merges without asking you; on \"land\" the factory merges it",
           "icon": "gavel",
           "kind": "gate",
-          "col": 7,
+          "col": 8,
           "row": 1
         }
       ],
       "edges": [
         { "from": "inputs", "to": "triage", "kind": "feeds" },
-        { "from": "triage", "to": "plan", "kind": "feeds" },
+        { "from": "triage", "to": "link", "kind": "feeds" },
+        { "from": "link", "to": "plan", "kind": "feeds" },
         { "from": "plan", "to": "build", "kind": "feeds" },
         { "from": "build", "to": "checks", "kind": "feeds" },
         { "from": "checks", "to": "ci", "kind": "feeds" },
@@ -147,8 +158,7 @@
           "from": "ci",
           "to": "found",
           "kind": "loops-back",
-          "label": "unrelated finds would become new work",
-          "shadow": true
+          "label": "unrelated finds would become new work"
         }
       ]
     },
@@ -174,21 +184,12 @@
           "row": 2
         },
         {
-          "id": "triage-place",
-          "title": "Place it",
-          "text": "Sets it among the project's other open work",
-          "icon": "list",
-          "kind": "stage",
-          "col": 3,
-          "row": 2
-        },
-        {
           "id": "triage-call",
           "title": "The call",
           "text": "Build, narrow, park or close",
           "icon": "flag",
           "kind": "outcome",
-          "col": 4,
+          "col": 3,
           "row": 2
         },
         {
@@ -203,9 +204,55 @@
       ],
       "edges": [
         { "from": "triage-item", "to": "triage-judge", "kind": "feeds" },
-        { "from": "triage-judge", "to": "triage-place", "kind": "feeds" },
-        { "from": "triage-place", "to": "triage-call", "kind": "feeds" },
+        { "from": "triage-judge", "to": "triage-call", "kind": "feeds" },
         { "from": "triage-judge", "to": "you-triage", "kind": "calls", "label": "asks" }
+      ]
+    },
+    "link": {
+      "caption": "Link reads the project's other open work and records how the item relates to it. An item that depends on unfinished work waits for it, and starts again when that work ends.",
+      "cards": [
+        {
+          "id": "link-item",
+          "title": "The item",
+          "text": "With triage's call and its work order",
+          "icon": "inbox",
+          "kind": "input",
+          "col": 1,
+          "row": 2
+        },
+        {
+          "id": "link-find",
+          "title": "Find its links",
+          "text": "What it depends on, overlaps or belongs to",
+          "icon": "search",
+          "kind": "stage",
+          "col": 2,
+          "row": 2
+        },
+        {
+          "id": "link-next",
+          "title": "Go on or wait",
+          "text": "On to Plan, or waits for what it depends on",
+          "icon": "flag",
+          "kind": "outcome",
+          "col": 3,
+          "row": 2
+        },
+        {
+          "id": "you-link",
+          "title": "You",
+          "text": "Asked when it cannot be placed",
+          "icon": "users",
+          "kind": "person",
+          "col": 2,
+          "row": 1
+        }
+      ],
+      "edges": [
+        { "from": "link-item", "to": "link-find", "kind": "feeds" },
+        { "from": "link-find", "to": "link-next", "kind": "feeds" },
+        { "from": "link-find", "to": "you-link", "kind": "calls", "label": "asks" },
+        { "from": "you-link", "to": "link-find", "kind": "loops-back", "label": "your answer restarts it" }
       ]
     },
     "plan": {
@@ -401,37 +448,5 @@
         { "from": "checks-verdict", "to": "checks-plan", "kind": "loops-back", "label": "replan" }
       ]
     }
-  },
-  "settings": {
-    "triage_policy": { "points_to": "policy", "section": "held" },
-    "plan_policy": { "points_to": "policy", "section": "held" },
-    "split_policy": { "points_to": "policy", "section": "held" },
-    "build_policy": { "points_to": "policy", "section": "held" },
-    "review_policy": { "points_to": "policy", "section": "held" },
-    "test_policy": { "points_to": "policy", "section": "held" },
-    "product_policy": { "points_to": "policy", "section": "held" },
-    "propose_policy": { "points_to": "policy", "section": "held" },
-    "host_policy": { "points_to": "policy", "section": "held" },
-    "admit_policy": {
-      "points_to": "policy",
-      "shadow": true,
-      "section": "ahead",
-      "when_live": "Would let an item this policy admits start without asking you; today the judgment is only recorded."
-    },
-    "land_policy": { "points_to": "policy", "section": "ahead" },
-    "validate_command": { "section": "proven" },
-    "checks_file": {
-      "points_to": "checks",
-      "shadow": true,
-      "section": "proven",
-      "when_live": "Would count its results in the check round; today they are recorded and never fail it."
-    },
-    "discoveries_policy": { "points_to": "policy", "section": "filed" }
-  },
-  "setting_sections": [
-    { "id": "held", "eyebrow": "Policies", "title": "What work is held to", "kind": "stage", "icon": "scale" },
-    { "id": "ahead", "eyebrow": "Gates", "title": "What may go ahead without you", "kind": "gate", "icon": "gavel" },
-    { "id": "proven", "eyebrow": "Checks", "title": "How a change is proven", "kind": "check", "icon": "flask" },
-    { "id": "filed", "eyebrow": "Discoveries", "title": "What gets filed", "kind": "outcome", "icon": "flag" }
-  ]
+  }
 }

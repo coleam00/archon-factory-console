@@ -63,15 +63,6 @@ function edited(edit: (overview: FactoryOverview) => unknown): unknown {
 const top = (o: FactoryOverview): View => o.views.top as View;
 const make = (o: FactoryOverview): View => o.views.make as View;
 
-const sections = [
-  { id: 'held', eyebrow: 'Policies', title: 'Held to', kind: 'stage', icon: 'scale' },
-  { id: 'proven', eyebrow: 'Checks', title: 'Proven', kind: 'check', icon: 'flask' },
-] as const;
-const settings = {
-  plan_policy: { points_to: 'policy', section: 'held' },
-  checks_file: { points_to: 'checks', shadow: true, section: 'proven', when_live: 'Sends back' },
-  validate_command: {},
-} as const;
 /** An ask from `write` to a person below it, and their reply drawn beside it. */
 const asked = (o: FactoryOverview): View => {
   make(o).cards.push(card('you', 1, 2));
@@ -82,25 +73,17 @@ const asked = (o: FactoryOverview): View => {
   return make(o);
 };
 
-test('accepts the overview this repository ships, every live-able shadow setting explained', () => {
+test('accepts the overview this repository ships', () => {
   const file = join(
     import.meta.dir,
     '../../../../.archon/packs/Wirasm.archon-software-factory.factory-overview.json'
   );
   const overview = JSON.parse(readFileSync(file, 'utf8')) as FactoryOverview;
   expect(issues(overview)).toEqual([]);
-  // The Settings page says what changes when a shadow goes live; this file gives every one.
-  const unexplained = Object.entries(overview.settings ?? {})
-    .filter(([, setting]) => setting.shadow === true && setting.when_live === undefined)
-    .map(([name]) => name);
-  expect(unexplained).toEqual([]);
 });
 
 test.each<[string, (o: FactoryOverview) => unknown]>([
-  [
-    'the valid overview, settings in sections',
-    o => ({ ...o, setting_sections: sections, settings }),
-  ],
+  ['the valid overview', o => o],
   ['a reply to an ask, drawn beside it', o => void asked(o)],
 ])('factoryOverviewSchema accepts %s', (_name, edit) => {
   expect(issues(edited(edit))).toEqual([]);
@@ -117,11 +100,6 @@ describe('factoryOverviewSchema rejects', () => {
   // One row per rule: what is refused, the change to `valid()`, and its issues. A row marked
   // `some` checks only that its issue is among them: a broken layout often breaks more than one.
   test.each<[string, (o: FactoryOverview) => unknown, string[], 'some'?]>([
-    [
-      'a setting in an unknown section',
-      o => ({ ...o, setting_sections: sections, settings: { plan_policy: { section: 'gone' } } }),
-      ['settings.plan_policy.section gone'],
-    ],
     ['a root that names no view', o => ({ ...o, root: 'nope' }), ['root nope']],
     [
       'opens naming a missing view',

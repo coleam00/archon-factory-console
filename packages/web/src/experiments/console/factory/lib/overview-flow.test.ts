@@ -29,12 +29,13 @@ const order = (flow: OverviewFlow): string[] =>
 describe('the How it works flow on the shipped root view', () => {
   const flow = flowOf(root) as OverviewFlow;
 
-  test('three inputs into Triage, on through the stages, split at CI, the found line a shadow', () => {
+  test('three inputs into Triage, on through Link and the stages, split at CI', () => {
     expect(order(flow)).toEqual([
       'found->triage',
       'issue->triage',
       'order->triage',
-      'triage->plan',
+      'triage->link',
+      'link->plan',
       'plan->build',
       'build->checks',
       'checks->ci',
@@ -42,8 +43,6 @@ describe('the How it works flow on the shipped root view', () => {
       'ci->ready',
       'ready->landed',
     ]);
-    expect(flow.moves.find(move => move.to === 'found')?.shadow).toBe(true);
-    expect(flow.moves.find(move => move.to === 'ready')?.shadow).toBe(false);
   });
 });
 

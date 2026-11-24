@@ -1,29 +1,55 @@
 import { afterAll, expect, test } from 'bun:test';
 import { act } from 'react';
 import { MemoryRouter, Routes } from 'react-router';
-import type { FactoryViews, FactoryWorkflow } from './api';
+import type { FactoryViews } from './api';
 import { invalidate, set } from '../store/cache';
 import { FK } from './keys';
 import { factoryRoutes } from './routes';
 import { installDom } from './test-dom.test-helpers';
 import { checksDrilldown } from './lib/fixtures/checks-drilldown';
-import deliverJson from './lib/fixtures/deliver-workflow.json';
 import {
   capturedItemAs,
   capturedItemsPage,
   isItemsRead,
   itemsReadAnswer,
 } from './lib/fixtures/factory-items-page';
+import type { PackGraph } from './lib/graph-structure';
+import { packGraphKey } from './usePackGraph';
 
-// Opening a stage, a step and the tabs are clicks, and static markup cannot click.
+// Opening a stage and the tabs are clicks, and static markup cannot click.
 const { mount, settle } = await installDom();
 afterAll(() => {
-  for (const key of ['factory-views', 'factory-workflow', 'runs:factory-items', 'runs'])
+  for (const key of ['factory-views', 'factory-pack-graph', 'runs:factory-items', 'runs'])
     invalidate(key);
 });
 
 const ID = 'cb-1';
-const deliver = deliverJson as FactoryWorkflow;
+const STEPS = ['build__build', 'rounds', 'rounds.review__review', 'rounds.fix'];
+/** The pack graph: `deliver` and its steps, in the graph's order. */
+const graph = {
+  pack: 'acme.kit',
+  loaded: [],
+  otherCopies: [],
+  stages: [
+    {
+      name: 'acme/kit:deliver',
+      returns: 'rounds',
+      outcome: null,
+      asks: false,
+      nodes: STEPS.map(id => ({
+        id,
+        kind: 'prompt',
+        dependsOn: [],
+        loopGroup: id.startsWith('rounds.') ? 'rounds' : null,
+        blocks: [],
+        fanOut: null,
+      })),
+    },
+  ],
+  arrows: [],
+  fanOutBlocks: [],
+  discoveryErrors: [],
+} satisfies PackGraph;
 const views: FactoryViews = {
   views: [
     {
@@ -38,7 +64,7 @@ const views: FactoryViews = {
         title: 'Kit factory',
         summary: 'Issues come in; changes go out.',
         stages: [
-          // No drill-down: its modal opens on the real step graph.
+          // No drill-down: its modal opens on the real workflow's steps.
           { id: 'build', label: 'Build', blurb: 'Builds.', group: 'build', workflows: ['deliver'] },
           {
             id: 'checks',
@@ -46,7 +72,6 @@ const views: FactoryViews = {
             blurb: 'Checks the change.',
             group: 'check',
             workflows: ['deliver'],
-            nodes: ['rounds.review__review'],
             drilldown: checksDrilldown,
           },
         ],
@@ -66,7 +91,6 @@ function serve(items: (url: string) => Response): void {
     async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/api/factory/views')) return Response.json(views);
-      if (url.includes('/api/factory/workflow')) return Response.json(deliverJson);
       if (isItemsRead(url)) return items(url);
       if (url.includes('/api/runs/attention'))
         return Response.json({ items: [], runs: [], degraded: [] });
@@ -75,7 +99,7 @@ function serve(items: (url: string) => Response): void {
     { preconnect: fetch.preconnect }
   );
   set(FK.factoryViews(ID), views);
-  set(FK.factoryWorkflow(ID, 'deliver'), deliver);
+  set(packGraphKey(ID, 'acme.kit'), graph);
   // Each test starts from a cold items read, so it loads what this test serves.
   invalidate('runs:factory-items');
 }
@@ -101,28 +125,14 @@ const click = async (target: Element | null | undefined): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 0));
   });
 };
-function stepButton(body: HTMLElement, label: string): HTMLButtonElement {
-  const button = [...body.querySelectorAll('button')].find(b => b.textContent.startsWith(label));
-  if (!button) throw new Error(`The stage graph drew no ${label} step`);
-  return button;
-}
-/** The item links on the page, or in the stage modal when it is open. */
-const itemLinks = (body: HTMLElement): string[] =>
-  [
-    ...(body.querySelector('[role="dialog"]') ?? body).querySelectorAll(
-      'a[href*="/factory/items/"]'
-    ),
-  ].map(link => link.getAttribute('href') ?? '');
+/** The real workflow's steps as the stage lists them, by engine id. */
+const listedSteps = (body: HTMLElement): Element[] => [...body.querySelectorAll('[data-step]')];
 const phaseLabels = (root: Element): string[] =>
   [...root.querySelectorAll('[data-phase]')].map(phase => phase.getAttribute('aria-label') ?? '');
 const liveCards = (body: HTMLElement): string[] =>
-  [...body.querySelectorAll('article[data-live]')].map(
-    c => c.querySelector('a')?.textContent ?? ''
-  );
-const cardLink = (body: HTMLElement, text: string): HTMLAnchorElement => {
-  const found = [...body.querySelectorAll<HTMLAnchorElement>('article > a')].find(a =>
-    a.textContent.includes(text)
-  );
+  [...body.querySelectorAll('article[data-live]')].map(c => c.textContent ?? '');
+const card = (body: HTMLElement, text: string): Element => {
+  const found = [...body.querySelectorAll('article')].find(a => a.textContent.includes(text));
   if (!found) throw new Error(`No card reads ${text}`);
   return found;
 };
@@ -134,44 +144,27 @@ const on = (key: string, step: string) =>
 // Newest activity first: #4's run started after #12's.
 const capturedLinks = ['4', '12', '6'].map(key => `/console/p/${ID}/factory/items/${key}`);
 
-test('a stage with no drill-down opens on its graph, glows the running step, and a step opens its page and leads back', async () => {
+test('a stage with no drill-down lists the pack graph steps as text, the running one naming its items', async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory?stage=build`, async body => {
     const selected = body.querySelector('[role="tab"][aria-selected="true"]');
     expect(selected?.textContent).toBe('The real workflow');
     expect(body.textContent).toContain('Running now');
-    expect(itemLinks(body)).toEqual(capturedLinks);
-    const build = stepButton(body, '·build');
-    expect(build.hasAttribute('data-running')).toBe(true);
-    expect(build.title).toContain('Running for #4, #12, #6');
-    expect(stepButton(body, '·fix').hasAttribute('data-running')).toBe(false);
-
-    await click(stepButton(body, '·fix'));
-    expect(body.querySelector('[data-id-tag]')?.textContent).toBe('rounds.fix');
-    const back = body.querySelector<HTMLAnchorElement>('a[data-back-link]');
-    expect(back?.textContent).toBe('Back to Build');
-    await click(back);
-    expect(document.querySelector('[role="dialog"] h3')?.textContent).toBe('Build');
+    expect(listedSteps(body).map(step => step.getAttribute('data-step'))).toEqual(STEPS);
+    const build = listedSteps(body)[0];
+    expect(build?.hasAttribute('data-running')).toBe(true);
+    expect(
+      [...(build?.querySelectorAll('a[href*="/factory/items/"]') ?? [])].map(a =>
+        a.getAttribute('href')
+      )
+    ).toEqual(capturedLinks);
+    expect(listedSteps(body)[3]?.hasAttribute('data-running')).toBe(false);
+    // A step is plain text: there is no step page to open.
+    expect(body.querySelector('a[href*="/factory/steps/"]')).toBeNull();
   });
 });
 
-test('the step page draws the items on the step as board cards, and says when there are none', async () => {
-  serve(itemsReadAnswer(capturedItemsPage.items));
-  await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async body => {
-    expect(body.textContent).toContain('Items on this step now');
-    expect([...body.querySelectorAll('[data-card]')].map(c => c.getAttribute('data-card'))).toEqual(
-      ['4', '12', '6']
-    );
-    // Each card's own link to its item, in the read's order (a card may link its item twice).
-    expect([...new Set(itemLinks(body))]).toEqual(capturedLinks);
-  });
-  await renderAt(`/console/p/${ID}/factory/steps/deliver/rounds.fix`, async body => {
-    expect(itemLinks(body)).toEqual([]);
-    expect(body.textContent).toContain('No item is on this step now.');
-  });
-});
-
-test('the drill-down tells numbered phases of cards in one loop; a card glows, links its items and opens its step page', async () => {
+test('the drill-down tells numbered phases of cards in one loop; a card glows and links its items', async () => {
   serve(itemsReadAnswer([on('7', 'rounds.review__review')]));
   await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
     expect(phaseLabels(body)).toEqual([
@@ -192,29 +185,20 @@ test('the drill-down tells numbered phases of cards in one loop; a card glows, l
     expect(liveCards(body)).toEqual([expect.stringContaining('Code review')]);
     const lit = body.querySelector('article[data-live]');
     expect(lit?.hasAttribute('data-running')).toBe(true);
-    // The items are links of their own beside the card's link, never inside it.
-    expect(
-      [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(a => a.getAttribute('href'))
-    ).toEqual([`/console/p/${ID}/factory/items/7`]);
-    expect(lit?.querySelector('a a')).toBeNull();
-
-    const review = cardLink(body, 'Code review');
-    expect(review.textContent).toContain("Reads the change for bugs and the project's rules");
-    expect(review.getAttribute('href')).toBe(
-      `/console/p/${ID}/factory/steps/deliver/rounds.review__review`
+    // The card is plain text: its only links are the items on it.
+    expect([...(lit?.querySelectorAll('a') ?? [])].map(a => a.getAttribute('href'))).toEqual([
+      `/console/p/${ID}/factory/items/7`,
+    ]);
+    expect(card(body, 'Code review').textContent).toContain(
+      "Reads the change for bugs and the project's rules"
     );
-    expect(body.textContent).not.toContain('The real steps');
-    await click(review);
-    expect(body.querySelector('[data-id-tag]')?.textContent).toBe('rounds.review__review');
-    expect(body.textContent).toContain('Back to Checks');
   });
 });
 
-test('the stage modal tabs switch between the phases, the items and the real step graph', async () => {
+test('the stage modal tabs switch between the phases, the items and the real steps', async () => {
   serve(itemsReadAnswer([]));
   await renderAt(`/console/p/${ID}/factory?stage=checks`, async body => {
-    const graphStep = () =>
-      [...body.querySelectorAll('button')].find(b => b.textContent.startsWith('·fix'));
+    const graphStep = () => listedSteps(body)[0];
     const tab = (name: string) =>
       [...body.querySelectorAll('[role="tab"]')].find(candidate => candidate.textContent === name);
     expect(phaseLabels(body)).toHaveLength(4);
