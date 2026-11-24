@@ -11,9 +11,10 @@ From the owner's review on 2026-11-23 (#151).
 1. **The sidebar Factory is How it works only.** It is the Archon software factory that ships
    with Archon: a general view of how the pack works, not one project's factory. A pack's page
    has no tabs and no Settings, and nothing on it names a project: where the overview file was
-   read from says "a project's copy", not which project. The index (`/console/factory`, shown
-   when there is more than one pack or something it could not read) still lists which projects run each pack, as a way into their
-   Factory tabs. An old `/console/factory/:pack/settings` link still lands: with `?project=` on
+   read from says "a project's copy", not which project. The index (`/console/factory`) lists
+   packs only, each with how many projects run it, and names and links no project. The one
+   exception is its warning about projects that could not be read, which names them so the
+   failure can be found (owner decision on #151). An old `/console/factory/:pack/settings` link still lands: with `?project=` on
    that project's Settings, else on How it works.
 2. **Settings belong to each project's Factory.** The project's Factory tab has three pages:
    Overview, Board and Settings. Settings is the page owner changes 5 and 6 of 2026-11-21
@@ -753,7 +754,7 @@ documents through Neon live queries.
 
   | Route | Page |
   |---|---|
-  | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them), each linking to its Factory tab, and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
+  | `/console/factory` | One card per pack with an overview file: the pack's name, its caption, how many projects run it (a factory view of the pack applies to them; counted, never named or linked, owner change 1 of 2026-11-23), and "Overview file is broken" when every file for it is. With one pack and no unreadable root or project to report, it opens that pack's page (replace) |
   | `/console/factory/:pack` | Redirects (replace) to `how-it-works` |
   | `/console/factory/:pack/how-it-works` | How it works: the pack's factory overview (`?view=<id>` opens a drill-down, full screen as before), under a header titled by the pack's name as a person reads it (the name part of `owner/name`, its separators made spaces, first letter upper-cased: "Archon software factory"; the raw id on hover; the same on the index's card; the overview's own title heads the map as the root of its breadcrumb), with a quiet "Source" toggle beside the title that opens the file it was read from (never a line of the header). `:pack` is the pack key (`owner.name` when installed). The page has no tabs and names no project (owner change 1 of 2026-11-23) |
   | `/console/factory/:pack/settings` | Redirects (replace): with `?project=<codebase id>` to that project's `factory/settings`, the rest of the query and the hash kept; without one to `how-it-works`. Settings were this page's second tab until owner change 1 of 2026-11-23 |

@@ -9,7 +9,7 @@ import { FactoryLoading } from '../FactoryLoading';
 import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
 import { packDisplayName } from '../lib/pack-name';
-import { factoryPackPath, factoryPath, type FactoryPackListed } from '../lib/views';
+import { factoryPackPath, type FactoryPackListed } from '../lib/views';
 import { PackFrame, PacksFailed } from './PackFrame';
 import { PackSkeleton } from './PackSkeleton';
 
@@ -24,10 +24,7 @@ export function PackIndexPage(): ReactElement {
   const only = listing === undefined ? undefined : onlyPack(listing);
   if (only !== undefined) return <Navigate replace to={factoryPackPath(only.key)} />;
   return (
-    <PackFrame
-      title="Factory"
-      subtitle="The factory packs installed here, and the projects that run them"
-    >
+    <PackFrame title="Factory" subtitle="The factory packs installed here">
       {failed !== undefined ? (
         <PacksFailed message={errorDetail(failed)} />
       ) : listing === undefined ? (
@@ -93,9 +90,9 @@ function UnreadProjects({ projects }: { projects: FactoryPacksRead['unreadProjec
 }
 
 /**
- * One pack: its name, its overview's caption and the projects that run it; the name opens its
- * page. The
- * Visual standard's card, without the top accent bar: that bar is a stage group's colour, and
+ * One pack: its name, its overview's caption and how many projects run it; the name opens its
+ * page. It names no project: the sidebar Factory is the general view of how a pack works
+ * (owner change 1 of 2026-11-23). The Visual standard's card, without the top accent bar: that bar is a stage group's colour, and
  * a pack has none.
  */
 function PackCard({ pack }: { pack: FactoryPackListed }): ReactElement {
@@ -122,17 +119,6 @@ function PackCard({ pack }: { pack: FactoryPackListed }): ReactElement {
         {count === 0
           ? 'Runs on no project yet'
           : `Runs on ${count.toString()} ${count === 1 ? 'project' : 'projects'}`}
-        {pack.projects.map((project, index) => (
-          <span key={project.codebaseId}>
-            {index === 0 ? ': ' : ', '}
-            <Link
-              to={factoryPath(project.codebaseId)}
-              className="text-accent-bright hover:underline"
-            >
-              {project.name}
-            </Link>
-          </span>
-        ))}
       </p>
     </article>
   );

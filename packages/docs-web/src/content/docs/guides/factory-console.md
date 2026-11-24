@@ -418,7 +418,7 @@ file and commit both.
 A factory overview explains how a factory runs, for presenting it. It is written by hand: it
 is not live, not exhaustive, and never generated from the pack's workflows. The same pack runs
 on many projects, so the overview lives in the console's sidebar: **Factory** (shown once a pack
-has an overview file) lists every such pack with the projects that run it, and each pack's
+has an overview file) lists every such pack with how many projects run it, and each pack's
 **How it works** page (`/console/factory/<pack key>/how-it-works`) draws its overview. With one
 pack, **Factory** opens its page directly. A project's old `factory/how-it-works` and
 `factory/overview` addresses land on the page for its pack.

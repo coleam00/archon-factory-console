@@ -113,7 +113,7 @@ describe('/console/factory', () => {
     expect(page.querySelector('output')?.getAttribute('data-by')).toBe('REPLACE');
   });
 
-  test('with two, a card each: title, summary, project count and links', async () => {
+  test('with two, a card each: title, summary and how many projects run it, naming none', async () => {
     const page = await mount(
       '/console/factory',
       listing([
@@ -134,11 +134,10 @@ describe('/console/factory', () => {
     expect(cards[0]?.textContent).toContain(OVERVIEW.caption);
     expect(cards[0]?.textContent).toContain('Runs on 1 project');
     expect(cards[1]?.textContent).toContain('Runs on 2 projects');
-    expect(hrefs(cards[1])).toEqual([
-      '/console/factory/acme.web/how-it-works',
-      '/console/p/cb-1/factory',
-      '/console/p/cb-2/factory',
-    ]);
+    // The index names no project: it counts them, and links only to the pack's own page.
+    expect(hrefs(cards[1])).toEqual(['/console/factory/acme.web/how-it-works']);
+    expect(cards[1]?.textContent).not.toContain('web');
+    expect(cards[1]?.textContent).not.toContain('api');
   });
 
   test('with one pack and a project it could not read, stays to say so', async () => {
