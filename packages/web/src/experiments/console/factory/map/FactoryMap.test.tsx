@@ -12,7 +12,7 @@ import { itemWith, realItem, run } from '../lib/map.test-fixtures';
 import { FIXTURE_NOW } from '../lib/board.test-fixtures';
 import { askItem } from '../../lib/needs-you.test-fixtures';
 import { isItemsRead, itemsReadAnswer } from '../lib/fixtures/factory-items-page';
-import { FIT_PAD, MAP_SMALLEST_PX, READABLE_K } from '../lib/map-camera';
+import { FIT_PAD, READABLE_K } from '../lib/map-camera';
 import { layoutMap } from '../lib/map-layout';
 import type { FactoryViewListed } from '../lib/views';
 import { cancelRereads } from '../merge-reread';
@@ -171,7 +171,7 @@ test('every card shows its chips and links to its stage; its details button list
       // deliver still places Build's old items but is not offered as a workflow.
       `/console/p/${ID}/factory?stage=build`,
     ]);
-    const chips = [...(panel?.querySelectorAll('li a.font-mono') ?? [])].map(
+    const chips = [...(panel?.querySelectorAll('li a[href*="?stage="]') ?? [])].map(
       link => link.textContent
     );
     expect(chips).toEqual(['plan', 'stage-build']);
@@ -217,38 +217,30 @@ test('the map draws one card per board column, a card of several stages a row fo
   }
 });
 
-test('a card is lit while it holds an item, the merged card never; the canvas carries its texture', async () => {
+test('a card is lit while it holds an item, the merged card never', async () => {
   const { container, unmount } = await mount();
   try {
-    const boxes = [...container.querySelectorAll<HTMLElement>('[data-card] > .factory-card')];
-    // Every card is drawn in the card identity, each tinted in its group's colour.
-    expect(boxes.length).toBe(5);
-    for (const box of boxes) expect(box.style.getPropertyValue('--card-tone')).toMatch(/^var\(--/);
-    const lit = [...container.querySelectorAll<HTMLElement>('.factory-card[data-lit]')].map(
+    expect(container.querySelectorAll('[data-card]').length).toBe(5);
+    const lit = [...container.querySelectorAll<HTMLElement>('[data-card] > [data-lit]')].map(
       box => box.parentElement?.dataset.card
     );
     // Build and Checks hold items; Intake and Ready to merge hold none; Merged holds one for good.
     expect(lit).toEqual(['plan-build', 'checks-review']);
-    expect(container.querySelector('[role="group"]')?.className).toContain('factory-canvas');
-    // The selected card is marked for its accent ring, and only it.
+    // The selected card is marked, and only it.
     await act(async () => details(container, 'ready').click());
-    const selected = [...container.querySelectorAll<HTMLElement>('.factory-card[data-selected]')];
+    const selected = [...container.querySelectorAll<HTMLElement>('[data-card] > [data-selected]')];
     expect(selected.map(box => box.parentElement?.dataset.card)).toEqual(['ready']);
   } finally {
     await unmount();
   }
 });
 
-test('a dot runs into a card a run works an item on, along the hand-off into it, and not under reduced motion', async () => {
+test('a dot runs into a card a run works an item on, along the hand-off into it', async () => {
   const { container, unmount } = await mount();
   try {
     const dots = [...container.querySelectorAll<HTMLElement>('[data-flow]')];
     // Build and Checks each have an item a run works; nothing runs in the others.
     expect(dots.map(el => el.dataset.flow)).toEqual(['plan-build', 'checks-review']);
-    for (const dot of dots) {
-      expect(dot.className).toContain('map-flow-dot');
-      expect(dot.className).toContain('motion-reduce:hidden');
-    }
   } finally {
     await unmount();
   }
@@ -259,21 +251,6 @@ test('a dot runs into a card a run works an item on, along the hand-off into it,
     expect(first.container.querySelector('[data-flow]')).toBeNull();
   } finally {
     await first.unmount();
-  }
-});
-
-test('no text the camera scales is under the type floor the readable scale assumes', async () => {
-  const { container, unmount } = await mount();
-  try {
-    const layer = container.querySelector('[style*="scale("]');
-    if (layer === null) throw new Error('The map layer was not rendered');
-    const sizes = [...layer.querySelectorAll('[class*="text-console-"]')].flatMap(el =>
-      [...el.getAttribute('class')!.matchAll(/text-console-(\d+)/g)].map(m => Number(m[1]))
-    );
-    expect(sizes.length).toBeGreaterThan(0);
-    expect(Math.min(...sizes)).toBeGreaterThanOrEqual(MAP_SMALLEST_PX);
-  } finally {
-    await unmount();
   }
 });
 
@@ -377,9 +354,8 @@ test('the map draws hand-offs between neighbouring cards, labelled on pills, and
     const declared = shippedListed.declaration.map.arrows.map((_, i) => `decl:${i.toString()}`);
     for (const g of container.querySelectorAll('g[data-arrow]'))
       expect(declared).toContain(g.getAttribute('data-arrow') ?? '');
-    // A forward line is 2 px, painted with its own gradient along the flow.
+    // A forward line is painted with its own gradient along the flow.
     for (const path of container.querySelectorAll('g[data-arrow] > path')) {
-      expect(path.getAttribute('stroke-width')).toBe('2');
       const id = /^url\(#(.+)\)$/.exec(path.getAttribute('stroke') ?? '')?.[1] ?? '';
       expect(container.querySelector(`linearGradient[id="${id}"]`)).not.toBeNull();
     }

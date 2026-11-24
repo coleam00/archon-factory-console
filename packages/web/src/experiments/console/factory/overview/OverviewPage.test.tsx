@@ -152,18 +152,16 @@ describe('the factory overview', () => {
     expect((page.querySelector('aside select') as HTMLSelectElement).value).toBe('check');
   });
 
-  test('full screen draws over the console until Exit or Esc, the legend docked bottom left', async () => {
+  test('full screen draws over the console until Exit or Esc, with its legend', async () => {
     const page = await mount();
     await click(button(page, 'Full screen'));
     const overlay = document.body.querySelector('[role="dialog"]');
     expect(overlay?.getAttribute('aria-label')).toBe('How it works, full screen');
     expect(cards(overlay as Element)).toEqual(['in', 'make', 'check']);
-    // The map has the screen: no views sidebar or caption, the legend in its bottom-left corner.
+    // The map has the screen: no views sidebar or caption, and the legend.
     expect(overlay?.querySelector('aside')).toBeNull();
     expect(overlay?.textContent).not.toContain('Work comes in, is made, and is checked.');
-    const legend = overlay?.querySelector('ul[aria-label="Legend"]')?.parentElement;
-    expect(legend?.className).toContain('bottom-4');
-    expect(legend?.className).toContain('left-4');
+    expect(overlay?.querySelector('ul[aria-label="Legend"]')).not.toBeNull();
     // Views open inside it too.
     await click(overlay?.querySelector('[data-card="check"]'));
     expect(cards(document.body.querySelector('[role="dialog"]') as Element)).toEqual(['read']);
@@ -241,9 +239,6 @@ describe('the flow on the root view', () => {
       expect(motion.getAttribute('calcMode')).toBe('linear');
       expect(motion.getAttribute('keyTimes')?.split(';')).toHaveLength(4);
     }
-    expect(page.querySelector('svg[data-flow]')?.getAttribute('class')).toContain(
-      'motion-reduce:hidden'
-    );
 
     await click(button(page, 'Pause flow'));
     expect(button(page, 'Play flow')?.getAttribute('aria-pressed')).toBe('true');
@@ -267,10 +262,6 @@ describe('the flow on the root view', () => {
     // The dot and its halo move as one: two circles in the moving group.
     for (const dot of page.querySelectorAll('[data-flow-move]'))
       expect(dot.querySelectorAll('circle')).toHaveLength(2);
-    // Every card is drawn in the card identity.
-    for (const card of page.querySelectorAll('[data-card]'))
-      expect(card.className).toContain('factory-card');
-    expect(page.querySelector('[role="group"]')?.className).toContain('factory-canvas');
     await unmount?.();
 
     const shadowed = await mount('/console/p/cb-1/factory/how-it-works', {

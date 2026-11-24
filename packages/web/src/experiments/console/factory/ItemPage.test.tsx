@@ -8,7 +8,7 @@ import { K } from '../store/keys';
 import { projectRoutes } from '../routes/project-routes';
 import { itemDetail, PROJECT, shippedListed, shippedView } from './item-detail.test-fixtures';
 import { FIXTURE_NOW, declaredAwaits } from './lib/board.test-fixtures';
-import { PILL_CLASS } from './BoardCard';
+import { PillBadge } from './BoardCard';
 import { itemPill } from './lib/board';
 import { askItem } from '../lib/needs-you.test-fixtures';
 import { WORK_ORDER_WORDS } from './ItemWorkOrder';
@@ -51,9 +51,9 @@ function render(detail: FactoryItemDetail, attention: AttentionQueue = quiet): s
   );
 }
 
-/** The header's pill, as the board's card draws it: one class map for both. */
-const pill = (state: keyof typeof PILL_CLASS, words: string): string =>
-  `${PILL_CLASS[state]}">${words}<`;
+/** The header's pill in `words`, drawn by the board card's own badge for `state`. */
+const pill = (state: Parameters<typeof PillBadge>[0]['pill'], words: string): string =>
+  renderToStaticMarkup(<PillBadge pill={state} label={words} />);
 
 /** The page's visible words, tags dropped. */
 const text = (html: string): string =>
@@ -345,18 +345,17 @@ describe('the item page', () => {
     expect(section(html, 'Journey')).not.toContain('data-lit');
   });
 
-  test('the header: the PR as a button-style link, its merge state as quiet words', () => {
+  test('the header: the PR as a link, its merge state as words', () => {
     const merged = render(itemDetail('1'));
+    const pr = itemDetail('1').item.progress?.change?.url;
     expect(merged).toMatch(
-      /class="inline-flex[^"]*rounded-md border border-border[^"]*"><svg[^>]*lucide-git-pull-request/
+      new RegExp(`<a href="${pr}" target="_blank"[^>]*>(?:(?!</a>).)*PR #10</a>`)
     );
     // A merged item says so once: its pill, then the PR with a quiet "merged". No "In Merged",
     // which only repeated the pill.
     expect(merged).toContain(pill('landed', 'Merged'));
     expect(text(merged)).not.toContain('In Merged');
-    expect(merged).toContain(
-      'data-merge-state="true" class="whitespace-nowrap text-console-13 text-text-tertiary">merged<'
-    );
+    expect(merged).toMatch(/data-merge-state="true"[^>]*>merged</);
     expect(render(itemDetail('3'))).toContain('data-merge-state="unknown"');
     const detail = itemDetail('3');
     const change = detail.item.progress?.change;
@@ -371,13 +370,11 @@ describe('the item page', () => {
             : { ...detail.item.progress, change: { ...change, merged: value } },
       },
     });
-    expect(render(withMerged(false))).toContain(
-      'data-merge-state="false" class="whitespace-nowrap text-console-13 text-text-tertiary">open<'
-    );
+    expect(render(withMerged(false))).toMatch(/data-merge-state="false"[^>]*>open</);
     const pending = render(withMerged('pending'));
     expect(pending).toContain('data-merge-state="pending"');
     expect(pending).toContain('data-skeleton="line"');
-    expect(pending).toContain('<span class="sr-only">checking whether it merged</span>');
+    expect(text(pending)).toContain('checking whether it merged');
   });
 
   test('while the item is read: the header and three runs as skeletons, never Loading', () => {
@@ -388,8 +385,9 @@ describe('the item page', () => {
         <Routes>{projectRoutes('/console/')}</Routes>
       </MemoryRouter>
     );
-    expect(html).toContain('<span class="sr-only">Loading the item</span>');
-    expect(html.match(/data-skeleton="block" class="[^"]*h-16/g)?.length).toBe(3);
+    expect(text(html)).toContain('Loading the item');
+    // The header's pill, then one block per run.
+    expect(html.match(/data-skeleton="block"/g)?.length).toBe(4);
     expect(html).not.toContain('Loading…');
   });
 
@@ -758,11 +756,9 @@ describe('an issue key on the item page', () => {
     const progress = title === null ? { ...base.item.progress!, title } : base.item.progress;
     return { ...base, item: { ...base.item, item: { ...base.item.item, key }, progress } };
   };
-  /** The band's mono key, the first thing its title reads. */
+  /** The band's key, the first thing its title reads. */
   const bandKey = (html: string): string | undefined =>
-    /<span class="mr-2 font-mono text-text-tertiary">([^<]*)<\/span>/.exec(
-      section(html, 'Summary')
-    )?.[1];
+    /<h2[^>]*><span[^>]*>([^<]*)<\/span>/.exec(section(html, 'Summary'))?.[1];
 
   test('`issue-7` and `7` both title the page #7; an untitled one falls back to #7 too', () => {
     for (const key of ['issue-7', '7']) {

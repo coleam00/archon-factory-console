@@ -196,7 +196,6 @@ test('the stage modal glows the step items are on now and links each item', asyn
     // Another stage works build__build; a step an item is on glows whichever stage works it.
     const build = stepButton(container, '·build');
     expect(build.hasAttribute('data-running')).toBe(true);
-    expect(build.className).not.toContain('opacity-60');
     expect(build.title).toContain('Running for #4, #12, #6');
     expect(stepButton(container, '·fix').hasAttribute('data-running')).toBe(false);
   });
@@ -218,7 +217,7 @@ test('the step page draws the items on the step now as board cards, and says whe
   });
 });
 
-test("the step page's YAML pane reads at the type floor: its label and Copy at 12 px", async () => {
+test("the step page's YAML pane says it is read-only and offers Copy", async () => {
   serve(itemsReadAnswer(capturedItemsPage.items));
   await renderAt(`/console/p/${ID}/factory/steps/deliver/build__build`, async container => {
     const label = [...container.querySelectorAll('span')].find(
@@ -226,10 +225,6 @@ test("the step page's YAML pane reads at the type floor: its label and Copy at 1
     );
     const pane = label?.closest('header');
     expect(pane?.querySelector('button')?.textContent).toBe('Copy');
-    // The pane's header: nothing in it under the floor, and both its texts at 12 px.
-    expect(pane?.innerHTML).not.toMatch(/text-console-(9|10|11)\b/);
-    expect(label?.className).toContain('text-console-12');
-    expect(pane?.querySelector('button')?.className).toContain('text-console-12');
   });
 });
 

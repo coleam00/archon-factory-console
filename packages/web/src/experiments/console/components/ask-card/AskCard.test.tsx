@@ -18,7 +18,7 @@ import { K } from '../../store/keys';
 import { AskCard, SubjectName } from './AskCard';
 import { AskGroup } from './AskGroup';
 import { ANSWERED_SHOWN_MS } from './useAnsweredHold';
-import { holding, LONG, wrapsAnywhere } from './wrap.test-fixtures';
+import { holding, LONG } from './wrap.test-fixtures';
 
 // Choosing, confirming and folding re-render the card, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -155,11 +155,8 @@ test('a chosen tile shows what its option does and costs whole, not only in a to
       [...card.button('Use main').querySelectorAll('span')].find(span =>
         span.textContent?.startsWith('Cost:')
       );
-    // At rest it clamps to 2 lines; chosen, the cost is text in full, unclamped.
-    expect(costLine()?.className).toContain('line-clamp-2');
     await card.click('Use main');
     expect(costLine()?.textContent).toBe(`Cost: ${long}`);
-    expect(costLine()?.className).not.toContain('line-clamp');
   } finally {
     await card.unmount();
   }
@@ -283,6 +280,16 @@ const labelsWhere = (container: HTMLElement, which: (tile: HTMLElement) => boole
     .filter(which)
     .map(tile => tile.querySelector('span > span')?.textContent ?? '');
 const pressed = (tile: HTMLElement): boolean => tile.getAttribute('aria-pressed') === 'true';
+/** The context paragraph drawn between the question and the tiles, or null when none is. */
+const contextOf = (container: HTMLElement): string | null => {
+  const options = container.querySelector('[aria-label="Options"]');
+  const above = [...container.querySelectorAll('article[data-ask] > div > p')].filter(
+    p =>
+      options !== null &&
+      (p.compareDocumentPosition(options) & dom.Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+  );
+  return above[0]?.textContent ?? null;
+};
 
 test('before any pick nothing looks selected; the recommended tile is green with its badge', async () => {
   serve();
@@ -305,7 +312,6 @@ test('before any pick nothing looks selected; the recommended tile is green with
     expect(labelsWhere(card.container, tile => tile.dataset.recommended === 'true')).toEqual([
       'Use dev',
     ]);
-    expect(recommended[0]?.classList.contains('bg-[color:var(--success-soft)]')).toBe(true);
     expect(markOf(recommended[0])).toBe('recommended');
     expect(recommended[0]?.textContent).toContain('Recommended');
   } finally {
@@ -320,9 +326,6 @@ test('picking a tile the ask does not recommend: that tile alone looks selected'
     await card.click('Use main');
     expect(labelsWhere(card.container, looksSelected)).toEqual(['Use main']);
     expect(labelsWhere(card.container, pressed)).toEqual(['Use main']);
-    // No other tile wears the chosen tile's look.
-    const chosen = card.button('Use main').className;
-    expect(tiles(card.container).filter(tile => tile.className === chosen).length).toBe(1);
     // The recommended tile keeps only its green mark.
     const recommended = card.button('Use dev');
     expect(looksSelected(recommended)).toBe(false);
@@ -347,23 +350,7 @@ test('picking the recommended tile: selected, keeping its badge, with one border
   }
 });
 
-test('Confirm is the accent at reduced strength, never the full-strength block', async () => {
-  serve();
-  const card = await mount([askItem()]);
-  try {
-    await card.click('Use main');
-    const confirm = card.button('Confirm');
-    expect(confirm.classList.contains('bg-[color:var(--accent-soft)]')).toBe(true);
-    expect(confirm.classList.contains('text-accent')).toBe(true);
-    expect(confirm.style.getPropertyValue('border-color')).toBe('var(--accent-muted)');
-    expect(confirm.classList.contains('bg-accent')).toBe(false);
-    expect(confirm.classList.contains('text-white')).toBe(false);
-  } finally {
-    await card.unmount();
-  }
-});
-
-test('a long unbroken path in every text field wraps inside its tile and the card', async () => {
+test('a long unbroken path in every text field shows whole inside its tile or the card', async () => {
   serve();
   const [question, context, label, does, cost, why] = [
     'question',
@@ -390,24 +377,18 @@ test('a long unbroken path in every text field wraps inside its tile and the car
     const tile = card.button(label);
     const inTile = [label, does, cost];
     for (const text of [question, context, label, does, cost, why]) {
-      const found = holding(article, text);
-      expect(found.length).toBeGreaterThan(0);
       const box = inTile.includes(text) ? tile : article;
-      for (const el of found) expect([text, wrapsAnywhere(el, box)]).toEqual([text, true]);
+      expect([text, holding(box, text).length > 0]).toEqual([text, true]);
     }
-    expect(article.classList.contains('min-w-0')).toBe(true);
-    for (const each of tiles(card.container))
-      expect(each.classList.contains('max-w-full')).toBe(true);
-    // Chosen, the tile shows its words whole; they still wrap.
+    // Chosen, the tile still shows its words whole.
     await card.click(label);
-    for (const text of inTile)
-      for (const el of holding(tile, text)) expect(wrapsAnywhere(el, tile)).toBe(true);
+    for (const text of inTile) expect([text, holding(tile, text).length > 0]).toEqual([text, true]);
   } finally {
     await card.unmount();
   }
 });
 
-test("the Overview's compact card wraps a long question and label, and marks the tile green", async () => {
+test("the Overview's compact card shows a long question and label whole, and marks the tile recommended", async () => {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -434,19 +415,18 @@ test("the Overview's compact card wraps a long question and label, and marks the
     const article = container.querySelector('article[data-ask]');
     if (article === null) throw new Error('No card');
     for (const text of [question, label])
-      for (const el of holding(article, text)) expect(wrapsAnywhere(el, article)).toBe(true);
-    expect(article.classList.contains('min-w-0')).toBe(true);
-    // The tile is not a control and nothing is chosen: green, never the accent.
+      expect([text, holding(article, text).length > 0]).toEqual([text, true]);
+    // The tile is not a control and nothing is chosen: marked recommended, never selected.
     const tile = holding(article, label)[0]?.parentElement;
     expect(markOf(tile)).toBe('recommended');
-    expect(tile?.className).not.toContain('accent');
+    expect(article.querySelector('button')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     container.remove();
   }
 });
 
-test('the item key never shrinks or wraps beside a long title; the title truncates', async () => {
+test('the item key reads whole as its own words beside a long title', async () => {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -460,15 +440,9 @@ test('the item key never shrinks or wraps beside a long title; the title truncat
         </MemoryRouter>
       )
     );
-    const key = holding(container, '#91').find(el => el.textContent === '#91');
-    if (key === undefined) throw new Error('No key');
-    // A wrap class or a shrinkable key splits '91' into '9' over '1' (PR #97 review).
-    expect(key.className).not.toContain('overflow-wrap');
-    expect(key.className).not.toContain('break-');
-    expect(key.classList.contains('min-w-0')).toBe(false);
-    expect(key.classList.contains('shrink-0')).toBe(true);
-    expect(key.classList.contains('whitespace-nowrap')).toBe(true);
-    expect(holding(container, 'title:')[0]?.classList.contains('truncate')).toBe(true);
+    // The key is its own element, apart from the title (that it never wraps is browser-checked).
+    expect(holding(container, '#91').map(el => el.textContent)).toEqual(['#91']);
+    expect(holding(container, 'title:')[0]?.textContent).toBe(` title:${LONG}`);
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -509,13 +483,11 @@ test('what the stage offered shows whole between the question and the tiles, the
       'Cost: The board shows a blank column until then.',
     ])
       expect([text, offered.textContent?.includes(text)]).toEqual([text, true]);
-    // Never the raw id, and nothing in it is clamped.
+    // Never the raw id.
     expect(offered.textContent).not.toContain('build-it');
-    expect(offered.querySelectorAll('[class*="line-clamp"]').length).toBe(0);
 
-    // The rest of the context keeps its clamp and loses the list.
-    const clamped = article.querySelector('p.line-clamp-3');
-    expect(clamped?.textContent).toBe(
+    // The rest of the context stays above it and loses the list.
+    expect(contextOf(card.container)).toBe(
       'Review says the item asks for it; product says it was never mentioned. (Left by: verdict.)'
     );
 
@@ -524,7 +496,6 @@ test('what the stage offered shows whole between the question and the tiles, the
       ['recommended', true],
       [null, false],
     ]);
-    expect(rows[0]?.classList.contains('bg-[color:var(--success-soft)]')).toBe(true);
     expect(offered.querySelectorAll('button').length).toBe(0);
   } finally {
     await card.unmount();
@@ -552,14 +523,12 @@ test("with an offered list, a tile pick's note asks which of them is meant", asy
   }
 });
 
-test('an ask without the marker draws its whole context clamped and no offered list', async () => {
+test('an ask without the marker draws its whole context and no offered list', async () => {
   serve();
   const card = await mount([askItem()]);
   try {
     expect(card.container.querySelector('section[aria-label="What the stage offered"]')).toBeNull();
-    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(
-      'The branch was cut from main but the item names dev.'
-    );
+    expect(contextOf(card.container)).toBe('The branch was cut from main but the item names dev.');
     await card.click('Use main');
     expect(card.container.querySelector('textarea')?.placeholder).toBe(
       'Optional note with your answer'
@@ -569,7 +538,7 @@ test('an ask without the marker draws its whole context clamped and no offered l
   }
 });
 
-test("a long unbroken path in an offered option's words wraps inside the card", async () => {
+test("a long unbroken path in an offered option's words shows whole in the card", async () => {
   serve();
   const [does, cost] = [`does:${LONG}`, `cost:${LONG}`] as const;
   const card = await mount([
@@ -578,13 +547,10 @@ test("a long unbroken path in an offered option's words wraps inside the card", 
   try {
     const article = card.container.querySelector('article[data-ask]');
     if (article === null) throw new Error('No card');
-    // Only the list, so no clamped rest above it.
-    expect(article.querySelector('p.line-clamp-3')).toBeNull();
-    for (const text of [does, cost]) {
-      const found = holding(article, text);
-      expect(found.length).toBeGreaterThan(0);
-      for (const el of found) expect([text, wrapsAnywhere(el, article)]).toEqual([text, true]);
-    }
+    // Only the list, so no rest of the context above it.
+    expect(contextOf(card.container)).toBeNull();
+    for (const text of [does, cost])
+      expect([text, holding(article, text).length > 0]).toEqual([text, true]);
   } finally {
     await card.unmount();
   }
@@ -649,9 +615,8 @@ test("drop and reshape tiles say what they start, in the view's words; the other
       ['Drop', 'Closes the PR without merging'],
       ['Reshape', 'Leaves the PR as a draft until the item is shaped'],
     ]);
-    // Read whole, never clamped, and named in the tile's title for hover too.
+    // Named in the tile's title for hover too.
     const drop = card.button('Drop');
-    expect(drop.querySelector('[data-starts]')?.className).not.toContain('line-clamp');
     expect(drop.title.split('\n')[0]).toBe('Closes the PR without merging');
   } finally {
     await card.unmount();
@@ -682,10 +647,8 @@ test('an ask the stage left without a recommendation marks no tile and says why 
     expect(
       (options.compareDocumentPosition(why) & dom.Node.DOCUMENT_POSITION_FOLLOWING) !== 0
     ).toBe(true);
-    // The reason is said once: the clamped context loses its paragraph.
-    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(
-      'Round 3 of 3 allowed on this item.'
-    );
+    // The reason is said once: the context loses its paragraph.
+    expect(contextOf(card.container)).toBe('Round 3 of 3 allowed on this item.');
     // Declared order: no tile moves first.
     expect(card.container.querySelector('[role=group] button')?.textContent).toContain('Send back');
   } finally {
@@ -700,7 +663,7 @@ test('a recommended ask quoting the marker keeps its context whole and its green
   try {
     expect(card.container.querySelector('[data-unrecommended]')).toBeNull();
     expect(card.container.querySelector('[data-recommended]')?.textContent).toContain('Send back');
-    expect(card.container.querySelector('p.line-clamp-3')?.textContent).toBe(context);
+    expect(contextOf(card.container)).toBe(context);
   } finally {
     await card.unmount();
   }

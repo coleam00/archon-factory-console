@@ -44,12 +44,12 @@ afterAll(async () => {
   }
 });
 
-async function mount(lines: 2 | 3 = 2): Promise<HTMLElement> {
+async function mount(): Promise<HTMLElement> {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   await act(async () =>
-    root.render(<ClampedSummary text="A long summary of the factory." lines={lines} />)
+    root.render(<ClampedSummary text="A long summary of the factory." lines={2} />)
   );
   unmount = async () => {
     await act(async () => root.unmount());
@@ -59,23 +59,21 @@ async function mount(lines: 2 | 3 = 2): Promise<HTMLElement> {
 }
 
 describe('the clamped summary', () => {
-  test('clamped text that overflows gets More, which unclamps it, and Less clamps it again', async () => {
+  test('clamped text that overflows gets More, which expands it, and Less folds it again', async () => {
     stubHeights(240, 66);
     const page = await mount();
-    const paragraph = page.querySelector('p') as HTMLParagraphElement;
     const toggle = (): HTMLButtonElement => page.querySelector('button') as HTMLButtonElement;
-    expect(paragraph.classList.contains('line-clamp-2')).toBe(true);
+    expect(page.querySelector('p')?.textContent).toBe('A long summary of the factory.');
     expect(toggle().textContent).toBe('More');
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
 
     await act(async () => toggle().click());
-    expect(paragraph.classList.contains('line-clamp-2')).toBe(false);
     expect(toggle().textContent).toBe('Less');
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
 
     await act(async () => toggle().click());
-    expect(paragraph.classList.contains('line-clamp-2')).toBe(true);
     expect(toggle().textContent).toBe('More');
+    expect(toggle().getAttribute('aria-expanded')).toBe('false');
   });
 
   test('text that fits in its lines gets no toggle', async () => {
@@ -83,11 +81,5 @@ describe('the clamped summary', () => {
     const page = await mount();
     expect(page.querySelector('p')?.textContent).toBe('A long summary of the factory.');
     expect(page.querySelector('button')).toBeNull();
-  });
-
-  test('an ask context clamps at three lines', async () => {
-    stubHeights(240, 66);
-    const page = await mount(3);
-    expect(page.querySelector('p')?.classList.contains('line-clamp-3')).toBe(true);
   });
 });

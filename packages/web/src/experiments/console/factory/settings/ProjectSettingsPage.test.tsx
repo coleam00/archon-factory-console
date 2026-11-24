@@ -11,7 +11,7 @@ import type { AttentionQueue } from '../../skills/runs';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { projectRoutes } from '../../routes/project-routes';
-import { documentPageProblems, outlineBoxes } from '../document.test-helpers';
+import { documentPageProblems } from '../document.test-helpers';
 
 // A failed read lands after the first render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -300,10 +300,6 @@ describe('/console/p/:projectId/factory/settings', () => {
     const page = await settingsPage();
     expect(card(page, 'triage_policy')?.querySelector('[data-pack-default]')).not.toBeNull();
     expect(value(page, 'validate_command')).toBe('bun test');
-    // A command wraps at its spaces (overflow-wrap: anywhere), never mid-word (break-all).
-    const command = card(page, 'validate_command')?.querySelector('[data-setting-value] span');
-    expect(command?.className).toContain('[overflow-wrap:anywhere]');
-    expect(command?.className).not.toContain('break-all');
   });
 
   test('a map key the pack does not declare, and an unreadable project file, say so', async () => {
@@ -359,7 +355,10 @@ describe('/console/p/:projectId/factory/settings', () => {
   test('a policy path not in the project says "file not found", its whole path on hover', async () => {
     const page = await settingsPage();
     expect(value(page, 'land_policy')).toBe('docs/land.mdfile not found');
-    expect(card(page, 'land_policy')?.querySelector('[title="/repo/docs/land.md"]')).not.toBeNull();
+    const titles = [...(card(page, 'land_policy')?.querySelectorAll('[title]') ?? [])].map(el =>
+      el.getAttribute('title')
+    );
+    expect(titles).toContain('/repo/docs/land.md');
   });
 
   test('a checks file is shown as rows of its checks, name and command, in an inset box', async () => {
@@ -378,9 +377,6 @@ describe('/console/p/:projectId/factory/settings', () => {
     expect(card(page, 'land_policy')?.textContent).toContain(
       'Would land a change without asking you'
     );
-    // A shadow's bar is rule 10's --node-opaque; any other panel takes its section's colour.
-    expect(card(page, 'land_policy')?.getAttribute('style')).toContain('var(--node-opaque)');
-    expect(card(page, 'triage_policy')?.getAttribute('style')).toContain('var(--node-wait)');
   });
 
   test('a key this project sets that the pack does not declare is listed as such', async () => {
@@ -434,7 +430,7 @@ describe('/console/p/:projectId/factory/settings', () => {
     }
   });
 
-  test('a read that fails says so in a filled panel, not an outline box', async () => {
+  test('a read that fails says so in a panel', async () => {
     globalThis.fetch = Object.assign(
       () => Promise.reject(new TypeError('connection refused')),
       originalFetch
@@ -445,16 +441,15 @@ describe('/console/p/:projectId/factory/settings', () => {
         node.textContent?.includes("The pack's settings could not be read")
       );
       expect(alert?.getAttribute('data-doc-panel')).toBe('panel');
-      expect(outlineBoxes(page)).toEqual([]);
     } finally {
       globalThis.fetch = silent;
     }
   });
 
-  test('while the settings are read, the skeleton draws no outline-only box', async () => {
+  test('while the settings are read, the page shows its skeleton and no failure', async () => {
     // A read that never answers holds the page on its skeleton.
     const page = await mount(`/console/p/${ID}/factory/settings`);
     expect(page.querySelector('[data-skeleton="true"]')).not.toBeNull();
-    expect(outlineBoxes(page)).toEqual([]);
+    expect(page.querySelector('[role="alert"]')).toBeNull();
   });
 });

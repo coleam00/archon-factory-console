@@ -99,7 +99,8 @@ not polish: reshape a page when restyling it would not make it read well.
      the id (`land_policy`) is a small mono tag beside it, never the heading.
    The shared pieces (panel, section heading, header band, stat chip, definition grid) are built
    once, in one module of the factory section, and every document page uses them. A test holds
-   the pages to them (no outline-only box on the page background, no section without a heading row).
+   the pages to them (every top-level box a panel or a section, no section without a heading row);
+   that no box is an outline alone on the page background is checked in the browser.
 6. **A project's Settings page is rebuilt on those rules.** It reads as "how this project has set
    up its factory", not a list of fields (the page is a project's Factory page since owner change
    2 of 2026-11-23):

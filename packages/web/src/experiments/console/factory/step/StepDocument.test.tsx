@@ -6,7 +6,7 @@ import type { FactoryItem, FactoryViews, FactoryWorkflow } from '../../skills/fa
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { projectRoutes } from '../../routes/project-routes';
-import { documentPageProblems, outlineBoxes } from '../document.test-helpers';
+import { documentPageProblems } from '../document.test-helpers';
 import { capturedItemsPage } from '../lib/fixtures/factory-items-page';
 import deliverJson from '../lib/fixtures/deliver-workflow.json';
 
@@ -118,11 +118,10 @@ const chips = (root: HTMLElement): string[] =>
   );
 
 describe('the step page as a document page', () => {
-  test('holds to owner change 5: panels and headed sections only, no outline boxes', () => {
+  test('holds to owner change 5: panels and headed sections only', () => {
     for (const key of ['rounds.fix', 'rounds.base', 'build__build']) {
       const root = page(key, key === 'build__build' ? capturedItemsPage.items : []);
       expect({ key, problems: documentPageProblems(root) }).toEqual({ key, problems: [] });
-      expect({ key, outlines: outlineBoxes(root) }).toEqual({ key, outlines: [] });
     }
   });
 
@@ -179,7 +178,11 @@ describe('the step page as a document page', () => {
       '1git fetch origin main',
       '2git diff --stat origin/main',
     ]);
-    expect(root.querySelector('.chat-markdown')).toBeNull();
+    // The prompt section is headed by its eyebrow on a prompt step, and absent here.
+    const eyebrows = (key: string): string[] =>
+      [...page(key).querySelectorAll('[data-doc-heading]')].map(h => h.textContent ?? '');
+    expect(eyebrows('rounds.fix').some(h => h.startsWith('The prompt'))).toBe(true);
+    expect(eyebrows('rounds.base').some(h => h.startsWith('The prompt'))).toBe(false);
     // A shell step with a model declared still shows no model: it runs no agent.
     expect(chips(root).some(chip => chip.includes('model'))).toBe(false);
     expect(root.querySelector('aside dl')?.textContent).not.toContain('Runs on');

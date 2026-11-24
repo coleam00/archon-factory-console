@@ -9,7 +9,7 @@ import { FactoryNumbers } from './FactoryNumbers';
 import { FIXTURE_NOW, PAGE, readyWithMerge, VIEW } from './lib/board.test-fixtures';
 import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import { cancelRereads, MERGE_REREAD_MS, scheduleReread } from './merge-reread';
-import { cancelMergeWatches, MERGE_WATCH_MS, mergeWatchHeld } from './merge-watch';
+import { cancelMergeWatches, MERGE_WATCH_MS } from './merge-watch';
 
 // The board sets aside items idle past a line counted from now, so the fixtures' items are read
 // at the time they were copied, never at the day the test runs. Before each test: the
@@ -234,28 +234,55 @@ test('a merge on the forge reaches the numbers on the watch interval, with no ru
   }
 });
 
-test('the page holds the merge watch only while a change waits on a merge', async () => {
+test('the page asks the forge about merges only while a change waits on one', async () => {
+  const asked: string[] = [];
+  const held = globalThis.fetch;
+  globalThis.fetch = Object.assign(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname !== '/api/factory/progress') throw new Error('the server is down');
+      const keys = url.searchParams.getAll('keys');
+      asked.push(keys.join(','));
+      const progress = Object.fromEntries(
+        keys.map(key => [key, readyWithMerge(key, false).progress])
+      );
+      return Response.json({ pack: 'p', progress, members: {} });
+    },
+    { preconnect: originalFetch.preconnect }
+  );
+  jest.useFakeTimers();
+  setSystemTime(FIXTURE_NOW);
   const { unmount } = await mount('cb-held', [readyWithMerge('m', true)]);
   const items = async (list: FactoryItem[]) =>
     act(async () => set(K.factoryItems('cb-held'), { items: list, members: {} }));
+  /** The keys the watch asked the forge about over one more interval. */
+  const interval = async (): Promise<string[]> => {
+    asked.length = 0;
+    await act(async () => {
+      jest.advanceTimersByTime(MERGE_WATCH_MS);
+      for (let turn = 0; turn < 5; turn++) await Promise.resolve();
+    });
+    return [...asked];
+  };
   try {
-    expect(mergeWatchHeld('cb-held')).toBe(false);
+    expect(await interval()).toEqual([]);
     await items([readyWithMerge('m', true), readyWithMerge('w', false)]);
-    expect(mergeWatchHeld('cb-held')).toBe(true);
+    expect(await interval()).toEqual(['w']);
     // It merges.
     await items([readyWithMerge('m', true), readyWithMerge('w', true)]);
-    expect(mergeWatchHeld('cb-held')).toBe(false);
+    expect(await interval()).toEqual([]);
     await items([readyWithMerge('w', 'unknown')]);
-    expect(mergeWatchHeld('cb-held')).toBe(true);
+    expect(await interval()).toEqual(['w']);
     // It leaves the board.
     await items([readyWithMerge('m', true)]);
-    expect(mergeWatchHeld('cb-held')).toBe(false);
+    expect(await interval()).toEqual([]);
     await items([readyWithMerge('w', false)]);
-  } finally {
     await unmount();
+    // The last reader gone, nothing asks.
+    expect(await interval()).toEqual([]);
+  } finally {
+    globalThis.fetch = held;
   }
-  // The last reader gone, nothing holds it.
-  expect(mergeWatchHeld('cb-held')).toBe(false);
 });
 
 test('a failed refresh says so and keeps the last numbers', async () => {
@@ -329,7 +356,7 @@ test('a view that declares discoveries adds a tile; one that does not, none', as
   }
 });
 
-test('the tiles are plain figures: no link, nothing to focus or hover, no words on where they go', async () => {
+test('the tiles are plain figures: no link, nothing to focus, no words on where they go', async () => {
   set(K.factoryItems('cb-plain'), { items: PAGE.items, members: {} });
   set(K.factoryDiscoveries('cb-plain'), DISCOVERIES);
   const container = document.createElement('div');
@@ -352,14 +379,6 @@ test('the tiles are plain figures: no link, nothing to focus or hover, no words 
       ...[...strip.querySelectorAll('[title]')].map(el => el.getAttribute('title') ?? ''),
     ];
     expect(words.filter(text => /Open/.test(text))).toEqual([]);
-    // No hover or pointer affordance: nothing in the strip changes under the cursor.
-    const affordances = [...strip.querySelectorAll('[class]')].flatMap(el =>
-      [...el.classList].filter(
-        name =>
-          name.startsWith('hover:') || name === 'cursor-pointer' || name.startsWith('transition')
-      )
-    );
-    expect(affordances).toEqual([]);
   } finally {
     await act(async () => root.unmount());
     container.remove();

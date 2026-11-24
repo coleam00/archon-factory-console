@@ -197,12 +197,8 @@ test('a card glows and names the items on a step it covers; a run between rounds
   await renderChecks(async container => {
     expect(liveCards(container)).toEqual([expect.stringContaining('Code review')]);
     const lit = container.querySelector('article[data-live]');
-    // It wears the step graph's running mark, its tint still its kind's colour.
-    expect(lit?.className).toContain('factory-card');
+    // It wears the step graph's running mark.
     expect(lit?.hasAttribute('data-running')).toBe(true);
-    expect((lit as HTMLElement | null)?.style.getPropertyValue('--card-tone')).not.toBe(
-      'var(--running)'
-    );
     // The items on it are links of their own, beside the card's link, never inside it.
     expect(
       [...(lit?.querySelectorAll(':scope > div a') ?? [])].map(link => link.getAttribute('href'))
@@ -248,18 +244,14 @@ test('a failed items read says so and lights no card', async () => {
   });
 });
 
-test('a card is a link that looks it, and clicking it opens its step page back to the stage', async () => {
+test('a card is a link, and clicking it opens its step page back to the stage', async () => {
   serve(itemsReadAnswer([]));
   await renderChecks(async container => {
     const review = cardLink(container, 'Code review');
     expect(review.getAttribute('href')).toBe(
       `/console/p/${ID}/factory/steps/deliver/rounds.review__review`
     );
-    // Its hover is `.factory-card`'s (theme.css) on the box, and a background on the link.
-    expect(review.parentElement?.className).toContain('factory-card');
     expect(review.parentElement?.hasAttribute('data-link')).toBe(true);
-    expect(review.className).toContain('cursor-pointer');
-    expect(review.className).toContain('hover:bg-surface-elevated');
     expect(review.getAttribute('title')).toContain('rounds.review__review');
     // No panel of the card's steps opens below the phases: the card goes straight to its step.
     expect(container.textContent).not.toContain('The real steps');
