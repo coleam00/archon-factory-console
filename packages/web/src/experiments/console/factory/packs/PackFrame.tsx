@@ -1,6 +1,5 @@
 import { useId, useState, type ReactElement, type ReactNode } from 'react';
 import { Info } from 'lucide-react';
-import { BackLink } from '../BackLink';
 
 /**
  * The frame of the sidebar's Factory pages: a header in the console's shape (the page title
@@ -79,9 +78,4 @@ export function PacksFailed({ message }: { message: string }): ReactElement {
       The factory packs could not be loaded: {message}
     </p>
   );
-}
-
-/** The link back to every pack. */
-export function AllPacksLink(): ReactElement {
-  return <BackLink to="/console/factory" label="All factory packs" />;
 }

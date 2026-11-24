@@ -10,7 +10,7 @@ import { OVERVIEW } from '../lib/overview.test-fixtures';
 import type { FactoryPackListed } from '../lib/views';
 import { factoryPackRoutes } from './routes';
 
-// The index's redirect and the drill-down need a live tree; static markup follows neither.
+// The redirects and the drill-down need a live tree; static markup follows neither.
 const { mount: mountTree } = await installDom();
 
 let unmount: (() => Promise<void>) | undefined;
@@ -66,42 +66,17 @@ const hrefs = (within: ParentNode | null | undefined): string[] =>
   [...(within?.querySelectorAll('a') ?? [])].map(a => a.getAttribute('href') ?? '');
 
 describe('the sidebar Factory entry', () => {
-  test('shows once a pack is listed, and is absent with none', async () => {
-    const shown = await mount('/rail', listing([pack('acme.kit', 'Kit')]));
-    expect(hrefs(shown)).toEqual(['/console/factory']);
-    await unmount?.();
-
-    const hidden = await mount('/rail', listing([]));
-    expect(hrefs(hidden)).toEqual([]);
+  test('opens How it works of the pack', async () => {
+    const page = await mount('/rail', listing([pack('acme.kit', 'Kit')]));
+    await act(async () => {
+      page.querySelector('a')?.click();
+    });
+    expect(at(page)).toBe('/console/factory/acme.kit/how-it-works');
   });
-});
 
-describe('/console/factory', () => {
-  test('with two, a card each: title, summary and how many projects run it, naming none', async () => {
-    const page = await mount(
-      '/console/factory',
-      listing([
-        pack('acme.kit', 'Kit'),
-        pack('acme.web', 'Web', {
-          projects: [
-            { codebaseId: 'cb-1', name: 'web' },
-            { codebaseId: 'cb-2', name: 'api' },
-          ],
-        }),
-      ])
-    );
-    const cards = [...page.querySelectorAll('article')];
-    // Each card is titled by the pack's name as a person reads it (its id on hover), its
-    // overview's caption under it.
-    expect(cards.map(card => card.querySelector('h2')?.textContent)).toEqual(['Kit', 'Web']);
-    expect(cards[0]?.querySelector('h2 a')?.getAttribute('title')).toBe('acme/kit');
-    expect(cards[0]?.textContent).toContain(OVERVIEW.caption);
-    expect(cards[0]?.textContent).toContain('Runs on 1 project');
-    expect(cards[1]?.textContent).toContain('Runs on 2 projects');
-    // The index names no project: it counts them, and links only to the pack's own page.
-    expect(hrefs(cards[1])).toEqual(['/console/factory/acme.web/how-it-works']);
-    expect(cards[1]?.textContent).not.toContain('web');
-    expect(cards[1]?.textContent).not.toContain('api');
+  test('is absent with no pack', async () => {
+    const page = await mount('/rail', listing([]));
+    expect(hrefs(page)).toEqual([]);
   });
 });
 
@@ -109,18 +84,66 @@ const two = listing([
   pack('acme.kit', 'How the kit works'),
   pack('acme.web', 'Web', { readFrom: null }),
 ]);
+// The server lists packs by name; the console opens the first it lists, whatever its key.
+const twoReversed = listing([...two.packs].reverse());
+// A pack whose overview file is broken is listed by its key, so it can sort first.
+const broken = pack('acme.aaa', 'unused', { overview: null });
+// Install-wide read problems: a file no pack could be told from, a project it could not open.
+const withProblems: FactoryPacksRead = {
+  ...listing([pack('acme.kit', 'Kit')]),
+  errors: [{ pack: 'acme/other', source: 'installed', path: '/plugins/x.json', error: 'bad' }],
+  unreadProjects: [{ codebaseId: 'cb-2', name: 'api', error: 'gone' }],
+};
 
-test.each([
-  [
-    '/console/factory',
-    listing([pack('acme.kit', 'Kit')]),
-    '/console/factory/acme.kit/how-it-works',
-  ],
-  ['/console/factory/acme.kit', two, '/console/factory/acme.kit/how-it-works'],
-] as const)('%s opens %p', async (from, packs, to) => {
-  const page = await mount(from, packs);
-  expect(at(page)).toBe(to);
-  expect(page.querySelector('output')?.getAttribute('data-by')).toBe('REPLACE');
+describe('/console/factory opens How it works directly', () => {
+  test.each([
+    ['one pack', '/console/factory', listing([pack('acme.kit', 'Kit')]), 'acme.kit'],
+    ['several: the first listed', '/console/factory', two, 'acme.kit'],
+    ['several, listed the other way', '/console/factory', twoReversed, 'acme.web'],
+    ['a listing that also reports problems', '/console/factory', withProblems, 'acme.kit'],
+    [
+      'a broken pack listed first: the first readable',
+      '/console/factory',
+      listing([broken, pack('acme.web', 'Web')]),
+      'acme.web',
+    ],
+    [
+      'only broken packs: the first, to show its errors',
+      '/console/factory',
+      listing([broken]),
+      'acme.aaa',
+    ],
+    ['a pack without its page', '/console/factory/acme.kit', two, 'acme.kit'],
+  ] as const)('%s', async (_, from, packs, key) => {
+    const page = await mount(from, packs);
+    expect(at(page)).toBe(`/console/factory/${key}/how-it-works`);
+    expect(page.querySelector('output')?.getAttribute('data-by')).toBe('REPLACE');
+  });
+
+  test('with no pack, stays and says so: no index of packs, no link back', async () => {
+    const page = await mount('/console/factory', listing([]));
+    expect(at(page)).toBe('/console/factory');
+    expect(page.querySelector('h1')).not.toBeNull();
+    expect(page.querySelector('article')).toBeNull();
+    expect(hrefs(page)).toEqual([]);
+    // The not-found note is there; its wording is not the test's business.
+    expect(page.querySelector('p')?.textContent).toBeTruthy();
+  });
+
+  // Each read problem shows where the route lands, so a missing pack is explained.
+  const problems = (page: HTMLElement): string[] =>
+    [...page.querySelectorAll('[role="alert"]')].map(alert => alert.textContent ?? '');
+  test.each([
+    ['after the redirect', withProblems, '/console/factory/acme.kit/how-it-works'],
+    ['with no pack', { ...withProblems, packs: [] }, '/console/factory'],
+  ])('read problems show %s', async (_, packs, lands) => {
+    const page = await mount('/console/factory', packs);
+    expect(at(page)).toBe(lands);
+    const shown = problems(page);
+    expect(shown).toHaveLength(2);
+    expect(shown.some(alert => alert.includes('/plugins/x.json'))).toBe(true);
+    expect(shown.some(alert => alert.includes('api') && alert.includes('gone'))).toBe(true);
+  });
 });
 
 describe('/console/factory/:pack/how-it-works', () => {
@@ -164,5 +187,11 @@ describe('/console/factory/:pack/how-it-works', () => {
     expect(hrefs(page).filter(href => href.endsWith('/settings'))).toEqual([]);
     expect(hrefs(page).filter(href => href.startsWith('/console/p/'))).toEqual([]);
     expect(page.textContent).not.toContain('Settings');
+  });
+
+  test.each(['acme.kit', 'nope'])('%s links back to no list of packs', async key => {
+    const page = await mount(`/console/factory/${key}/how-it-works`, two);
+    expect(at(page)).toBe(`/console/factory/${key}/how-it-works`);
+    expect(hrefs(page).filter(href => href === '/console/factory')).toEqual([]);
   });
 });

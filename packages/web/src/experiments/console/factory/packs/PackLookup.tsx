@@ -1,5 +1,4 @@
 import type { ReactElement } from 'react';
-import { useParams } from 'react-router';
 import { Factory } from 'lucide-react';
 import { EmptyNote } from '../ui/EmptyNote';
 import { factoryErrorDetail } from '../lib/read-failure';
@@ -8,38 +7,46 @@ import { useFactoryPacks } from '../useFactoryPacks';
 import { readFailed } from '../lib/deadline';
 import { packDisplayName } from '../lib/pack-name';
 import type { FactoryPackListed } from '../lib/views';
-import { AllPacksLink, PackFrame, PacksFailed } from './PackFrame';
+import type { FactoryPacksRead } from '../api';
+import { ListingProblems } from './ListingProblems';
+import { PackFrame, PacksFailed } from './PackFrame';
 import { PackSkeleton } from './PackSkeleton';
 
 /**
- * The pack the page's URL names (`:pack`, its key), from the packs list every sidebar Factory
- * page reads; until it is found, the frame says why (loading, failed, or no such pack).
+ * The pack the caller picks from the packs list every sidebar Factory page reads; until one is
+ * picked, the frame says why (loading, failed, or no such pack). `pick` sees the list in the
+ * server's order (by overview title, else key), so the first is the first by name.
  */
 export function PackLookup({
+  pick,
+  subtitle,
+  missing,
   render,
 }: {
-  render: (pack: FactoryPackListed) => ReactElement;
+  pick: (packs: FactoryPackListed[]) => FactoryPackListed | undefined;
+  subtitle?: string;
+  /** What the frame says once the list is read and `pick` found nothing. */
+  missing: string;
+  /** Draws the picked pack; `listing` carries the install-wide read problems to show too. */
+  render: (pack: FactoryPackListed, listing: FactoryPacksRead) => ReactElement;
 }): ReactElement {
-  const { pack: packKey = '' } = useParams<{ pack: string }>();
   const read = useFactoryPacks();
   const failed = readFailed(read.error);
-  const pack = read.data?.packs.find(listed => listed.key === packKey);
-  if (pack !== undefined) return render(pack);
+  const listing = read.data;
+  const pack = listing === undefined ? undefined : pick(listing.packs);
+  if (listing !== undefined && pack !== undefined) return render(pack, listing);
   return (
-    <PackFrame title="Factory" subtitle={packKey}>
+    <PackFrame title="Factory" subtitle={subtitle}>
       {failed !== undefined ? (
         <PacksFailed message={factoryErrorDetail(failed)} />
-      ) : read.data === undefined ? (
+      ) : listing === undefined ? (
         <FactoryLoading read={read}>
           <PackSkeleton />
         </FactoryLoading>
       ) : (
         <>
-          <AllPacksLink />
-          <EmptyNote
-            icon={Factory}
-            sentence={`No installed pack keyed "${packKey}" has a factory overview file.`}
-          />
+          <ListingProblems listing={listing} />
+          <EmptyNote icon={Factory} sentence={missing} />
         </>
       )}
     </PackFrame>

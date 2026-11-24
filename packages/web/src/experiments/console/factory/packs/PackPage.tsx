@@ -1,7 +1,10 @@
 import type { ReactElement, ReactNode } from 'react';
+import { Navigate, useParams } from 'react-router';
 import { FactoryErrors } from '../FactoryFrame';
 import { OverviewBody } from '../overview/OverviewPage';
-import type { FactoryPackListed } from '../lib/views';
+import { factoryPackPath, type FactoryPackListed } from '../lib/views';
+import type { FactoryPacksRead } from '../api';
+import { ListingProblems } from './ListingProblems';
 import { PackFrame } from './PackFrame';
 import { PackLookup, packHeading } from './PackLookup';
 
@@ -12,12 +15,43 @@ import { PackLookup, packHeading } from './PackLookup';
  * not in a project, and names none (owner change of 2026-11-23).
  */
 export function PackPage(): ReactElement {
-  return <PackLookup render={pack => <HowItWorks pack={pack} />} />;
+  const { pack: key = '' } = useParams<{ pack: string }>();
+  return (
+    <PackLookup
+      subtitle={key}
+      pick={packs => packs.find(listed => listed.key === key)}
+      missing={`No installed pack keyed "${key}" has a factory overview file.`}
+      render={(pack, listing) => <HowItWorks pack={pack} listing={listing} />}
+    />
+  );
 }
 
-function HowItWorks({ pack }: { pack: FactoryPackListed }): ReactElement {
+/**
+ * `/console/factory`: there is no pack index (DESIGN.md, v2 direction). It opens How it works
+ * of the first listed pack whose overview file reads; the server lists them by name, so with
+ * several the first by name. Only when every listed pack's file is broken does it open the
+ * first anyway, whose page then says what could not be read.
+ */
+export function FactoryHome(): ReactElement {
+  return (
+    <PackLookup
+      pick={packs => packs.find(listed => listed.overview !== null) ?? packs[0]}
+      missing="No installed pack has a factory overview file."
+      render={pack => <Navigate replace to={factoryPackPath(pack.key)} />}
+    />
+  );
+}
+
+function HowItWorks({
+  pack,
+  listing,
+}: {
+  pack: FactoryPackListed;
+  listing: FactoryPacksRead;
+}): ReactElement {
   return (
     <PackFrame {...packHeading(pack)} source={<ReadFrom pack={pack} />}>
+      <ListingProblems listing={listing} />
       <FactoryErrors errors={pack.errors} />
       {pack.overview === null ? null : <OverviewBody overview={pack.overview.declaration} />}
     </PackFrame>
