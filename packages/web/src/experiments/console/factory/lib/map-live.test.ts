@@ -36,8 +36,10 @@ const askOn = (id: string, key: string): AttentionQueueItem =>
   askItem({ ref: `ask:${key}`, item: { id, projectKey: 'acme', key } });
 
 describe('the live chips on each card', () => {
-  test('the seeded items: running ones by their step, idle ones by their last outcome', () => {
-    const items = ['6', '5', '4', '3', '8', '7'].map(realItem);
+  test('the seeded items: running ones by their step, idle ones by their last outcome, endings on none', () => {
+    // A triage ending is on no card, and not listed as missing one either.
+    const closed = itemWith('close', [run('triage', 'completed', 'close')]);
+    const items = [...['6', '5', '4', '3', '8', '7'].map(realItem), closed];
     const live = stageLive(view, items, []);
     expect(chips(live)).toEqual({
       order: [[], 0, []],
@@ -49,47 +51,6 @@ describe('the live chips on each card', () => {
       ready: [[], 0, []],
       landed: [['8', '7'], 0, []],
     });
-    expect(live.notOnMap).toEqual([]);
-  });
-
-  test('which card a running step belongs to', () => {
-    const live = stageLive(
-      view,
-      [
-        itemWith('r', [run('deliver', 'running', null, 'rounds.review__review')]),
-        itemWith('b', [run('deliver', 'running', null, 'build__build')]),
-        itemWith('h', [run('deliver', 'running', null, 'hostrounds.host__host')]),
-        itemWith('n', [run('deliver', 'running')]),
-      ],
-      []
-    );
-    expect(chips(live).checks).toEqual([['r'], 1, []]);
-    expect(chips(live).build).toEqual([['b', 'n'], 2, []]);
-    expect(chips(live).host).toEqual([['h'], 1, []]);
-  });
-
-  test('an idle ready item is on Ready, not working; a triage ending is on no card', () => {
-    const live = stageLive(
-      view,
-      [
-        itemWith('ready', [run('deliver', 'completed', 'ready')]),
-        itemWith('close', [run('triage', 'completed', 'close')]),
-      ],
-      []
-    );
-    expect(chips(live).ready).toEqual([['ready'], 0, []]);
-    expect([...live.stages.values()].flatMap(entry => entry.items)).toHaveLength(1);
-    expect(live.notOnMap).toEqual([]);
-  });
-
-  test('an item taken up again after triage closed it stays on a card while its new run is paused', () => {
-    const reopened = itemWith('again', [
-      run('triage', 'completed', 'reject'),
-      run('triage', 'paused'),
-    ]);
-    const live = stageLive(view, [reopened], []);
-    // Paused, it works on no step: the first stage, as on the board.
-    expect(chips(live).order).toEqual([['again'], 0, []]);
     expect(live.notOnMap).toEqual([]);
   });
 
@@ -125,61 +86,18 @@ describe('the live chips on each card', () => {
     asking.questions = [wait];
     expect(chips(stageLive(view, [asking], [wait])).build).toEqual([['child'], 0, ['child']]);
   });
-
-  test("a failed run after a placed completion keeps the completion's card, as on the item page", () => {
-    const histories = [
-      itemWith('w', [run('deliver', 'completed', 'waiting'), run('deliver', 'failed')]),
-      itemWith('p', [run('plan', 'completed', 'planned'), run('triage', 'failed')]),
-    ];
-    const live = stageLive(view, histories, []);
-    expect(chips(live).host).toEqual([['w'], 0, []]);
-    expect(chips(live).build).toEqual([['p'], 0, []]);
-  });
-
-  test('an item whose progress could not be read sits in the first stage, as on the board', () => {
-    const live = stageLive(view, [itemWithoutProgress('z')], []);
-    expect(chips(live).order).toEqual([['z'], 0, []]);
-    expect(live.notOnMap).toEqual([]);
-  });
-
-  test('an item on a stage the map draws no card for is listed with that stage', () => {
-    const noCards = { ...view, map: { ...view.map, cards: [] } };
-    const ready = itemWith('ready', [run('deliver', 'completed', 'ready')]);
-    const live = stageLive(noCards, [ready], []);
-    expect(live.notOnMap.map(entry => [entry.item.item.key, entry.why])).toEqual([
-      ['ready', { kind: 'no-card', stage: 'ready' }],
-    ]);
-    expect(chips(live).ready).toEqual([['ready'], 0, []]);
-  });
-
-  test('a run on a step no stage names keeps its card where it sat on the last read', () => {
-    const between = itemWith('r', [run('deliver', 'running', null, 'rounds')]);
-    const first = stageLive(view, [between], [], new Map([['r', 'checks']]));
-    expect(chips(first).checks).toEqual([['r'], 1, []]);
-    expect(first.positions.get('r')).toBe('checks');
-    // With no last read, the workflow's first stage.
-    expect(chips(stageLive(view, [between], [])).build).toEqual([['r'], 1, []]);
-  });
-
-  test('an item placement finds no column for is listed, not thrown', () => {
-    // A view that no longer lists `deliver`, read beside items cached under the old one.
-    const stages = view.stages.map(stage => ({
-      ...stage,
-      workflows: stage.workflows.filter(workflow => workflow !== 'deliver'),
-    }));
-    const item = itemWith('r', [run('deliver', 'running', null, 'build__build')]);
-    const live = stageLive({ ...view, stages }, [item], []);
-    expect(live.notOnMap).toEqual([{ item, why: { kind: 'no-column' } }]);
-  });
 });
 
 describe('the map and the board', () => {
+  // Placement's rules are tested in placement.test.ts; the map must only agree with the board.
   test('put every item in the same stage, over two reads, a run between named steps included', () => {
     const items = [
       ...['6', '5', '4', '3', '8', '7'].map(realItem),
       itemWith('between', [run('deliver', 'running', null, 'rounds')]),
       itemWith('nostep', [run('deliver', 'running', null, null)]),
       itemWithoutProgress('unread'),
+      itemWith('again', [run('triage', 'completed', 'reject'), run('triage', 'paused')]),
+      itemWith('w', [run('deliver', 'completed', 'waiting'), run('deliver', 'failed')]),
     ];
     // The first read has no last read; the second holds the run between steps in Checks.
     for (const previous of [

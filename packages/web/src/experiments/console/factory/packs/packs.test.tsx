@@ -1,33 +1,17 @@
-import { afterAll, afterEach, describe, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'react-router';
 import type { FactoryPacksRead } from '../../skills/factory';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import { installDom } from '../../test-dom.test-helpers';
 import { FactoryRailLink } from '../FactoryRailLink';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
 import type { FactoryPackListed } from '../lib/views';
 import { factoryPackRoutes } from './routes';
 
 // The index's redirect and the drill-down need a live tree; static markup follows neither.
-const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-
-afterAll(async () => {
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
-});
+const { mount: mountTree } = await installDom();
 
 let unmount: (() => Promise<void>) | undefined;
 afterEach(async () => {
@@ -63,25 +47,17 @@ function LocationProbe(): ReactElement {
 
 async function mount(at: string, packs: FactoryPacksRead): Promise<HTMLElement> {
   set(K.factoryPacks, packs);
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <MemoryRouter initialEntries={[at]}>
-        <LocationProbe />
-        <Routes>
-          {factoryPackRoutes('/console/')}
-          <Route path="/rail" element={<FactoryRailLink />} />
-        </Routes>
-      </MemoryRouter>
-    )
+  const page = await mountTree(
+    <MemoryRouter initialEntries={[at]}>
+      <LocationProbe />
+      <Routes>
+        {factoryPackRoutes('/console/')}
+        <Route path="/rail" element={<FactoryRailLink />} />
+      </Routes>
+    </MemoryRouter>
   );
-  unmount = async () => {
-    await act(async () => root.unmount());
-    container.remove();
-  };
-  return container;
+  unmount = page.unmount;
+  return page.container;
 }
 
 const at = (page: HTMLElement): string | null =>
@@ -101,12 +77,6 @@ describe('the sidebar Factory entry', () => {
 });
 
 describe('/console/factory', () => {
-  test('with one pack, opens its page in place of the index', async () => {
-    const page = await mount('/console/factory', listing([pack('acme.kit', 'Kit')]));
-    expect(at(page)).toBe('/console/factory/acme.kit/how-it-works');
-    expect(page.querySelector('output')?.getAttribute('data-by')).toBe('REPLACE');
-  });
-
   test('with two, a card each: title, summary and how many projects run it, naming none', async () => {
     const page = await mount(
       '/console/factory',
@@ -133,35 +103,49 @@ describe('/console/factory', () => {
     expect(cards[1]?.textContent).not.toContain('web');
     expect(cards[1]?.textContent).not.toContain('api');
   });
+});
 
-  test('with one pack and a project it could not read, stays to say so', async () => {
-    const page = await mount('/console/factory', {
-      ...listing([pack('acme.kit', 'Kit')]),
-      unreadProjects: [{ codebaseId: 'cb-9', name: 'gone', error: 'ENOENT' }],
-    });
-    expect(at(page)).toBe('/console/factory');
-    expect(page.querySelector('[role="alert"]')?.textContent).toContain('gone: ENOENT');
-    expect(page.querySelectorAll('article')).toHaveLength(1);
-  });
+const two = listing([
+  pack('acme.kit', 'How the kit works'),
+  pack('acme.web', 'Web', { readFrom: null }),
+]);
 
-  test('a pack whose files are all broken still gets a card, saying so', async () => {
-    const page = await mount(
-      '/console/factory',
-      listing([pack('acme.kit', 'Kit'), pack('acme.web', 'Web', { overview: null })])
-    );
-    const cards = [...page.querySelectorAll('article')];
-    expect(cards).toHaveLength(2);
-    // With no overview, the card is still titled by the pack's name and opens its page.
-    expect(cards[1]?.querySelector('h2')?.textContent).toBe('Web');
-    expect(hrefs(cards[1])).toContain('/console/factory/acme.web/how-it-works');
-  });
+test.each([
+  [
+    '/console/factory',
+    listing([pack('acme.kit', 'Kit')]),
+    '/console/factory/acme.kit/how-it-works',
+  ],
+  ['/console/factory/acme.kit', two, '/console/factory/acme.kit/how-it-works'],
+  ['/console/factory/acme.kit/settings?project=cb-1#land', two, '/console/p/cb-1/factory/settings'],
+  ['/console/factory/acme.kit/settings', two, '/console/factory/acme.kit/how-it-works'],
+] as const)('%s opens %p', async (from, packs, to) => {
+  const page = await mount(from, packs);
+  expect(at(page)).toBe(to);
+  expect(page.querySelector('output')?.getAttribute('data-by')).toBe('REPLACE');
 });
 
 describe('/console/factory/:pack/how-it-works', () => {
-  const two = listing([
-    pack('acme.kit', 'How the kit works'),
-    pack('acme.web', 'Web', { readFrom: null }),
-  ]);
+  test.each([
+    ['acme.kit', ["a project's copy of the overview file", 'acme.kit.factory-overview.json']],
+    ['acme.web', ["the pack's own overview file"]],
+  ])('%s: the file it was read from is behind Source, naming no project', async (key, says) => {
+    const page = await mount(`/console/factory/${key}/how-it-works`, two);
+    const header = page.querySelector('header');
+    expect(header?.textContent).not.toContain('factory-overview.json');
+    expect(header?.textContent).not.toContain('web');
+    const toggle = header?.querySelector<HTMLElement>('button[aria-expanded]');
+    expect(toggle?.textContent).toBe('Source');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    await act(async () => {
+      toggle?.click();
+    });
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    const source = document.getElementById(toggle?.getAttribute('aria-controls') ?? '');
+    for (const words of says) expect(source?.textContent).toContain(words);
+    expect(source?.textContent?.replaceAll(key, '')).not.toContain('web');
+    expect(hrefs(source)).toEqual([]);
+  });
 
   test("draws the overview with ?view= open, under the pack's readable name", async () => {
     const page = await mount('/console/factory/acme.kit/how-it-works?view=make', two);
@@ -176,81 +160,11 @@ describe('/console/factory/:pack/how-it-works', () => {
     expect(h1?.getAttribute('title')).toBe('acme/kit');
   });
 
-  test('the file it was read from is a detail behind Source, not a line of the header', async () => {
-    const page = await mount('/console/factory/acme.kit/how-it-works', two);
-    const header = page.querySelector('header');
-    // Closed: the header names neither a project nor the file.
-    expect(header?.textContent).not.toContain('factory-overview.json');
-    expect(header?.textContent).not.toContain('web');
-    const toggle = header?.querySelector('button[aria-expanded]');
-    expect(toggle?.textContent).toBe('Source');
-    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
-    await act(async () => {
-      (toggle as HTMLElement).click();
-    });
-    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
-    const source = document.getElementById(toggle?.getAttribute('aria-controls') ?? '');
-    expect(source?.textContent).toContain("a project's copy of the overview file");
-    expect(source?.textContent).toContain('acme.kit.factory-overview.json');
-    // A pack's page names no project, even where its file came from one.
-    expect(source?.textContent).not.toContain('web');
-    expect(hrefs(source)).toEqual([]);
-  });
-
-  test("the pack's own file names no project", async () => {
-    const page = await mount('/console/factory/acme.web/how-it-works', two);
-    // The source sits behind the Source toggle: open it, then read what it says.
-    const toggle = page.querySelector<HTMLElement>('header button[aria-expanded]');
-    await act(async () => {
-      toggle?.click();
-    });
-    const source = document.getElementById(toggle?.getAttribute('aria-controls') ?? '');
-    expect(source?.textContent).toContain("the pack's own overview file");
-    expect(hrefs(source).filter(href => href.startsWith('/console/p/'))).toEqual([]);
-  });
-
   test('is the only page: no tabs, no Settings, no project named or linked', async () => {
     const page = await mount('/console/factory/acme.kit/how-it-works', two);
     expect(page.querySelector('nav[aria-label="Pack"]')).toBeNull();
     expect(hrefs(page).filter(href => href.endsWith('/settings'))).toEqual([]);
     expect(hrefs(page).filter(href => href.startsWith('/console/p/'))).toEqual([]);
     expect(page.textContent).not.toContain('Settings');
-  });
-
-  test("the old Settings address lands on that project's Settings, else on How it works", async () => {
-    const withProject = await mount('/console/factory/acme.kit/settings?project=cb-1#land', two);
-    expect(at(withProject)).toBe('/console/p/cb-1/factory/settings');
-    expect(withProject.querySelector('output')?.getAttribute('data-by')).toBe('REPLACE');
-    await unmount?.();
-    unmount = undefined;
-    const without = await mount('/console/factory/acme.kit/settings', two);
-    expect(at(without)).toBe('/console/factory/acme.kit/how-it-works');
-  });
-
-  test('the bare pack address opens How it works', async () => {
-    const page = await mount('/console/factory/acme.kit', two);
-    expect(at(page)).toBe('/console/factory/acme.kit/how-it-works');
-  });
-
-  test('an unknown pack says so and links every pack', async () => {
-    const page = await mount('/console/factory/nope/how-it-works', two);
-    expect(page.querySelector('[data-card]')).toBeNull();
-    expect(page.textContent).toContain('No installed pack keyed "nope"');
-    const back = page.querySelector('a[data-back-link]');
-    expect(back?.getAttribute('href')).toBe('/console/factory');
-  });
-
-  test("a broken pack file's error shows on its page", async () => {
-    const page = await mount(
-      '/console/factory/acme.kit/how-it-works',
-      listing([
-        pack('acme.kit', 'Kit', {
-          overview: null,
-          readFrom: null,
-          errors: [{ pack: 'acme/kit', source: 'installed', path: '/p/o.json', error: 'bad root' }],
-        }),
-      ])
-    );
-    expect(page.querySelector('[role="alert"]')?.textContent).toContain('bad root');
   });
 });

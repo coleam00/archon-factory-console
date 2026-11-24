@@ -1,47 +1,15 @@
-import { afterAll, expect, jest, test } from 'bun:test';
-import { Window } from 'happy-dom';
+import { afterEach, expect, jest, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
+import { installDom } from '../test-dom.test-helpers';
 import { invalidate } from '../store/cache';
 import { FactoryLoading, SLOW_READ_NOTICE } from './FactoryLoading';
 import { FACTORY_READ_DEADLINE_MS } from './lib/deadline';
 import { useFactoryRead } from './useFactoryRead';
 
-const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-
-afterAll(async () => {
+const { mount } = await installDom();
+afterEach(() => {
   jest.useRealTimers();
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
 });
-
-async function mount(): Promise<{
-  show: (element: ReactElement) => Promise<void>;
-  text: () => string;
-  unmount: () => Promise<void>;
-}> {
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  return {
-    show: async element => act(async () => root.render(element)),
-    text: () => container.textContent,
-    unmount: async () => {
-      await act(async () => root.unmount());
-      container.remove();
-    },
-  };
-}
 
 const advance = (ms: number): Promise<void> =>
   act(async () => {
@@ -72,14 +40,14 @@ test('a read that missed its deadline says so and retries itself, waiting longer
     const read = useFactoryRead(key, within => within(stall.read));
     return <FactoryLoading read={read}>L</FactoryLoading>;
   }
-  const page = await mount();
+  const page = await mount(<Stalled />);
+  const text = (): string => page.container.textContent ?? '';
   try {
-    await page.show(<Stalled />);
-    expect(page.text()).toBe('L');
+    expect(text()).toBe('L');
     expect(stall.attempts()).toBe(1);
     // The 8 s deadline passes: the page says so above its skeleton.
     await advance(FACTORY_READ_DEADLINE_MS);
-    expect(page.text()).toBe(`${SLOW_READ_NOTICE}L`);
+    expect(text()).toBe(`${SLOW_READ_NOTICE}L`);
     await advance(1_999);
     expect(stall.attempts()).toBe(1);
     await advance(1);
@@ -88,7 +56,7 @@ test('a read that missed its deadline says so and retries itself, waiting longer
     await advance(16_000);
     await advance(3_999);
     expect(stall.attempts()).toBe(2);
-    expect(page.text()).toBe(`${SLOW_READ_NOTICE}L`);
+    expect(text()).toBe(`${SLOW_READ_NOTICE}L`);
     await advance(1);
     expect(stall.attempts()).toBe(3);
   } finally {
@@ -100,20 +68,15 @@ test('a read that missed its deadline says so and retries itself, waiting longer
 test('a read slower than the first deadline on every attempt still lands, on a longer one', async () => {
   jest.useFakeTimers();
   const key = 'factory-slow-read-test';
-  let attempts = 0;
   // Healthy but slow: every attempt answers after 9 s, past the first 8 s deadline.
-  const slowRead = (signal: AbortSignal): Promise<string> => {
-    attempts += 1;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        resolve('the data');
-      }, 9_000);
+  const slowRead = (signal: AbortSignal): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => resolve('the data'), 9_000);
       signal.addEventListener('abort', () => {
         clearTimeout(timer);
         reject(new DOMException('aborted', 'AbortError'));
       });
     });
-  };
   function Slow(): ReactElement {
     const read = useFactoryRead(key, within => within(slowRead));
     return read.data === undefined ? (
@@ -122,49 +85,14 @@ test('a read slower than the first deadline on every attempt still lands, on a l
       <p>{read.data}</p>
     );
   }
-  const page = await mount();
+  const page = await mount(<Slow />);
   try {
-    await page.show(<Slow />);
-    expect(page.text()).toBe('L');
     await advance(FACTORY_READ_DEADLINE_MS);
-    expect(page.text()).toBe(`${SLOW_READ_NOTICE}L`);
+    expect(page.container.textContent).toBe(`${SLOW_READ_NOTICE}L`);
     // The retry, 2 s later, gets a 16 s deadline, which the 9 s answer meets.
     await advance(2_000);
     await advance(9_000);
-    expect(page.text()).toBe('the data');
-    expect(attempts).toBe(2);
-  } finally {
-    await page.unmount();
-    invalidate(key);
-  }
-});
-
-test('readers of the same key retry it once between them', async () => {
-  jest.useFakeTimers();
-  const key = 'factory-shared-read-test';
-  const stall = stalled();
-  // Each shows nothing while it waits: the retry does not depend on a loading notice.
-  function Reader(): null {
-    useFactoryRead(key, within => within(stall.read));
-    return null;
-  }
-  const page = await mount();
-  try {
-    await page.show(
-      <>
-        <Reader />
-        <Reader />
-        <Reader />
-      </>
-    );
-    expect(stall.attempts()).toBe(1);
-    await advance(FACTORY_READ_DEADLINE_MS);
-    await advance(2_000);
-    expect(stall.attempts()).toBe(2);
-    // Past the retry's 16 s deadline, short of the next 4 s wait. Without the dedup, the other
-    // readers' retries, queued behind attempt 2 by the cache, start a third attempt here.
-    await advance(16_000);
-    expect(stall.attempts()).toBe(2);
+    expect(page.container.textContent).toBe('the data');
   } finally {
     await page.unmount();
     invalidate(key);

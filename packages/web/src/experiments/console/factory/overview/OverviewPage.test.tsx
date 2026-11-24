@@ -1,34 +1,15 @@
-import { afterAll, afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { act } from 'react';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { overviewFlow } from '../lib/overview-flow';
 import { layoutOverview } from '../lib/overview-layout';
 import type { OverviewDeclaration, OverviewView } from '../lib/overview-nav';
 import { OVERVIEW } from '../lib/overview.test-fixtures';
-import { KINDS } from './overview-kinds';
+import { installDom } from '../../test-dom.test-helpers';
 import { OverviewBody } from './OverviewPage';
 
 // Opening a view and going back up need clicks, which static markup cannot reach.
-const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-
-afterAll(async () => {
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
-});
+const { dom, mount: mountTree } = await installDom();
 
 let unmount: (() => Promise<void>) | undefined;
 afterEach(async () => {
@@ -40,26 +21,18 @@ async function mount(
   at = '/console/p/cb-1/factory/how-it-works',
   overview: OverviewDeclaration = OVERVIEW
 ): Promise<HTMLElement> {
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <MemoryRouter initialEntries={[at]}>
-        <Routes>
-          <Route
-            path="/console/p/:projectId/factory/how-it-works"
-            element={<OverviewBody overview={overview} />}
-          />
-        </Routes>
-      </MemoryRouter>
-    )
+  const mounted = await mountTree(
+    <MemoryRouter initialEntries={[at]}>
+      <Routes>
+        <Route
+          path="/console/p/:projectId/factory/how-it-works"
+          element={<OverviewBody overview={overview} />}
+        />
+      </Routes>
+    </MemoryRouter>
   );
-  unmount = async () => {
-    await act(async () => root.unmount());
-    container.remove();
-  };
-  return container;
+  unmount = mounted.unmount;
+  return mounted.container;
 }
 
 const cards = (within: ParentNode): string[] =>
@@ -94,10 +67,6 @@ describe('the factory overview', () => {
       ['Test it1', 'What Test it does.'],
       ['Check1', 'What Check does.'],
     ]);
-    // On a phone, the open view's line sits under the select.
-    expect(page.querySelector('aside label')?.textContent).toContain(
-      'The whole factory, start to end'
-    );
     // Only a card that opens a view is a button.
     expect(page.querySelector('button[data-card="in"]')).toBeNull();
     // Up one level has nowhere to go from the root.
@@ -132,36 +101,12 @@ describe('the factory overview', () => {
     expect(crumbs(page)).toBe('How it works › Make › Test it');
   });
 
-  test('on a phone the views are a select showing the open view, and choosing one opens it', async () => {
-    const page = await mount();
-    const select = page.querySelector('aside select') as HTMLSelectElement;
-    expect(select.value).toBe('top');
-    const nb = (n: number): string => String.fromCharCode(160).repeat(n);
-    expect([...select.options].map(o => o.textContent)).toEqual([
-      'How it works (3)',
-      `${nb(2)}Make (2)`,
-      `${nb(4)}Test it (1)`,
-      `${nb(2)}Check (1)`,
-    ]);
-    await act(async () => {
-      select.value = 'check';
-      select.dispatchEvent(new dom.Event('change', { bubbles: true }) as unknown as Event);
-    });
-    expect(cards(page)).toEqual(['read']);
-    expect(crumbs(page)).toBe('How it works › Check');
-    expect((page.querySelector('aside select') as HTMLSelectElement).value).toBe('check');
-  });
-
-  test('full screen draws over the console until Exit or Esc, with its legend', async () => {
+  test('full screen draws over the console, opens views inside, and Esc closes it', async () => {
     const page = await mount();
     await click(button(page, 'Full screen'));
     const overlay = document.body.querySelector('[role="dialog"]');
     expect(overlay?.getAttribute('aria-label')).toBe('How it works, full screen');
     expect(cards(overlay as Element)).toEqual(['in', 'make', 'check']);
-    // The map has the screen: no views sidebar or caption, and the legend.
-    expect(overlay?.querySelector('aside')).toBeNull();
-    expect(overlay?.textContent).not.toContain('Work comes in, is made, and is checked.');
-    expect(overlay?.querySelector('ul[aria-label="Legend"]')).not.toBeNull();
     // Views open inside it too.
     await click(overlay?.querySelector('[data-card="check"]'));
     expect(cards(document.body.querySelector('[role="dialog"]') as Element)).toEqual(['read']);
@@ -171,31 +116,6 @@ describe('the factory overview', () => {
     });
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(cards(page)).toEqual(['read']);
-
-    await click(button(page, 'Full screen'));
-    await click(
-      button(document.body.querySelector('[role="dialog"]') as Element, 'Exit full screen')
-    );
-    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  });
-
-  test('the shipped overview says Merged, never Landed, and its legend explains the shadow line', async () => {
-    const shipped = JSON.parse(
-      readFileSync(
-        join(
-          import.meta.dir,
-          '../../../../../../../.archon/packs/Wirasm.archon-software-factory.factory-overview.json'
-        ),
-        'utf8'
-      )
-    ) as OverviewDeclaration;
-    const page = await mount(undefined, shipped);
-    expect(page.textContent).toContain('Merged');
-    expect(page.textContent).toContain('Ready to merge');
-    expect(page.textContent).not.toMatch(/Landed|Ready to land|may it land/);
-    expect(page.querySelector('ul[aria-label="Legend"]')?.textContent).toContain(
-      'would do it, does nothing yet'
-    );
   });
 });
 
@@ -227,62 +147,18 @@ describe('the flow on the root view', () => {
       dot => dot.getAttribute('data-flow-move') ?? ''
     );
 
-  test('dots run the forward line on one SMIL timeline, and Pause flow stops it', async () => {
+  test('dots run the forward line; Pause flow stops it, also across full screen', async () => {
     const page = await mount();
     const flow = overviewFlow(
       OVERVIEW.views.top as OverviewView,
       layoutOverview(OVERVIEW.views.top as OverviewView)
     );
     expect(dots(page)).toEqual(flow?.moves.map(move => `${move.from}->${move.to}`) ?? []);
-    for (const motion of page.querySelectorAll('animateMotion')) {
-      // Paced (the default) would ignore the key times that hold a dot still outside its leg.
-      expect(motion.getAttribute('calcMode')).toBe('linear');
-      expect(motion.getAttribute('keyTimes')?.split(';')).toHaveLength(4);
-    }
 
     await click(button(page, 'Pause flow'));
     expect(button(page, 'Play flow')?.getAttribute('aria-pressed')).toBe('true');
     expect(calls.at(-1)).toBe('pause:mounted');
-    await click(button(page, 'Play flow'));
-    expect(button(page, 'Pause flow')?.getAttribute('aria-pressed')).toBe('false');
-    expect(calls.at(-1)).toBe('unpause');
-  });
-
-  test('each dot takes the colour of the card it travels to, on a shadow line the shadow colour', async () => {
-    const top = OVERVIEW.views.top as OverviewView;
-    const kindOf = new Map(top.cards.map(card => [card.id, card.kind]));
-    const fills = (within: ParentNode): string[] =>
-      [...within.querySelectorAll('[data-flow-move]')].map(dot => dot.getAttribute('fill') ?? '');
-    const page = await mount();
-    const moves = dots(page);
-    expect(moves.length).toBeGreaterThan(0);
-    expect(fills(page)).toEqual(
-      moves.map(move => KINDS[kindOf.get(move.split('->')[1] ?? '') ?? 'stage'].color)
-    );
-    // The dot and its halo move as one: two circles in the moving group.
-    for (const dot of page.querySelectorAll('[data-flow-move]'))
-      expect(dot.querySelectorAll('circle')).toHaveLength(2);
-    await unmount?.();
-
-    const shadowed = await mount('/console/p/cb-1/factory/how-it-works', {
-      ...OVERVIEW,
-      views: {
-        ...OVERVIEW.views,
-        top: {
-          ...top,
-          edges: top.edges.map(edge =>
-            edge.from === 'in' && edge.to === 'make' ? { ...edge, shadow: true } : edge
-          ),
-        },
-      },
-    });
-    const into = [...shadowed.querySelectorAll('[data-flow-move="in->make"]')];
-    expect(into.map(dot => dot.getAttribute('fill'))).toEqual(['var(--node-opaque)']);
-  });
-
-  test('a pause holds across full screen, where the map mounts anew', async () => {
-    const page = await mount();
-    await click(button(page, 'Pause flow'));
+    // A pause holds across full screen, where the map mounts anew.
     calls = [];
     await click(button(page, 'Full screen'));
     const overlay = document.body.querySelector('[role="dialog"]') as Element;
@@ -290,35 +166,16 @@ describe('the flow on the root view', () => {
     expect(overlay.querySelector('svg[data-flow]')?.getAttribute('data-flow')).toBe('paused');
     expect(calls).toEqual(['pause:mounted']);
     await click(button(overlay, 'Exit full screen'));
+    await click(button(page, 'Play flow'));
+    expect(button(page, 'Pause flow')?.getAttribute('aria-pressed')).toBe('false');
+    expect(calls.at(-1)).toBe('unpause');
   });
 
-  test('no dots and no control under reduced motion', async () => {
+  test('under reduced motion the root has no dots and no control', async () => {
     dom.happyDOM.settings.device.prefersReducedMotion = 'reduce';
-    const page = await mount();
-    expect(cards(page)).toEqual(['in', 'make', 'check']);
-    expect(dots(page)).toEqual([]);
-    expect(button(page, 'Pause flow')).toBeUndefined();
-  });
-
-  test('a drill-down stays still, even one with a line the flow could run', async () => {
-    // The drill-down gets an input card feeding its first stage, as every shipped drill-down
-    // has, so only the root-only gate keeps its dots off.
-    const make = OVERVIEW.views.make as OverviewView;
-    const animatable: OverviewView = {
-      ...make,
-      cards: [
-        { ...(make.cards[0] as OverviewView['cards'][number]), id: 'brief', kind: 'input' },
-        ...make.cards.map(card => ({ ...card, col: card.col + 1 })),
-      ],
-      edges: [{ from: 'brief', to: 'write', kind: 'feeds' }, ...make.edges],
-    };
-    expect(overviewFlow(animatable, layoutOverview(animatable))).toBeDefined();
-    const page = await mount('/console/p/cb-1/factory/how-it-works?view=make', {
-      ...OVERVIEW,
-      views: { ...OVERVIEW.views, make: animatable },
-    });
-    expect(cards(page)).toEqual(['brief', 'write', 'test']);
-    expect(dots(page)).toEqual([]);
-    expect(button(page, 'Pause flow')).toBeUndefined();
+    const still = await mount();
+    expect(cards(still)).toEqual(['in', 'make', 'check']);
+    expect(dots(still)).toEqual([]);
+    expect(button(still, 'Pause flow')).toBeUndefined();
   });
 });

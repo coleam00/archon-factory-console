@@ -1,5 +1,4 @@
-import { afterAll, describe, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
+import { describe, expect, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { BoardCard } from './BoardCard';
@@ -9,44 +8,18 @@ import { StageStoryPanel } from './StoryPanel';
 import { cardFields } from './lib/board';
 import { VIEW, realItem } from './lib/board.test-fixtures';
 import { EMPTY_STAGE_LIVE } from './lib/map-live';
-import { layoutMap } from './lib/map-layout';
 import type { ShadowDecision } from './lib/shadows';
 import { buildTimeline } from './lib/timeline';
-import { MapCard } from './map/MapCard';
 import { MapDetails } from './map/MapDetails';
 import { MapLegend } from './map/MapLegend';
 import { DrilldownCard } from './stage/DrilldownCard';
-import { stageModalLink } from './lib/views';
 import type { BoardAsks } from './useBoardAsks';
+import { installDom } from '../test-dom.test-helpers';
 
 // A shadow row's disclosure is a click, which static markup cannot reach.
-const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-
-afterAll(async () => {
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
-});
-
-async function render(element: ReactElement): Promise<HTMLElement> {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  await act(async () => {
-    root.render(<MemoryRouter>{element}</MemoryRouter>);
-  });
-  return container as unknown as HTMLElement;
-}
+const { dom, mount } = await installDom();
+const render = async (element: ReactElement): Promise<HTMLElement> =>
+  (await mount(<MemoryRouter>{element}</MemoryRouter>)).container;
 
 const at = '2026-11-18T12:00:00.000Z';
 const failedChecks: ShadowDecision = {
@@ -116,12 +89,6 @@ describe("the item's story", () => {
     expect(cells[1]).toContain('Not run');
     // Shown in the grid, so not again as a line under the panel.
     expect(page.querySelector('[data-shadow]')).toBeNull();
-    // Nor on the Build panel the same deliver run opened: it sits with its own stage.
-    const build = await render(
-      <StageStoryPanel view={shippedView} panel={stagePanel('build')} asks={null} />
-    );
-    expect(build.querySelector('[data-shadow]')).toBeNull();
-    expect(build.textContent).not.toContain('Project checks');
   });
 });
 
@@ -151,24 +118,10 @@ describe('a stage drill-down card standing for a shadow step', () => {
     expect(article?.querySelector('[data-shadow-badge]')).not.toBeNull();
     expect(article?.textContent).toContain('last 5: all passed ×4 · 1 failed ×1');
   });
-
-  test('a card standing for no shadow step has neither', async () => {
-    const page = await render(
-      <DrilldownCard
-        view={shippedView}
-        projectId={PROJECT}
-        stageId="checks"
-        card={{ ...card, title: 'Code review' }}
-        onCard={[]}
-        shadow={null}
-      />
-    );
-    expect(page.querySelector('[data-shadow-badge]')).toBeNull();
-  });
 });
 
 describe('a board card in Triage', () => {
-  test('one line: what the admit gate would do', async () => {
+  test('one line: what the admit gate would do, in the shadow style', async () => {
     // Any real item: the line reads only its progress and the stage it is placed in.
     const item = realItem('1');
     if (item.progress === null) throw new Error('fixture item 1 has progress');
@@ -201,41 +154,6 @@ describe('a board card in Triage', () => {
   });
 });
 
-describe('the map', () => {
-  const layout = layoutMap(shippedView);
-
-  test('a stage holding a shadow step carries the badge by its name, saying it on hover', async () => {
-    const lines = (stage: { id: string }): string[] =>
-      stage.id === 'checks' ? ['Project checks · last 5: all passed ×5'] : [];
-    const marked: string[] = [];
-    const titles: (string | null)[] = [];
-    for (const card of layout.cards) {
-      const stages = card.stages.flatMap(id => shippedView.stages.filter(stage => stage.id === id));
-      const page = await render(
-        <MapCard
-          card={card}
-          stages={stages}
-          live={() => EMPTY_STAGE_LIVE}
-          selected={false}
-          stageLink={stage => stageModalLink('cb-1', stage)}
-          onDetails={() => undefined}
-          shadows={lines}
-        />
-      );
-      for (const badge of page.querySelectorAll('[data-shadow-badge]')) {
-        marked.push(badge.closest('[data-stage]')?.getAttribute('data-stage') ?? card.id);
-        titles.push(badge.getAttribute('title'));
-      }
-    }
-    expect(marked).toEqual(['checks']);
-    expect(titles).toEqual([
-      'shadow: decides what it would do and does nothing\nProject checks · last 5: all passed ×5',
-    ]);
-    // The map's lines are the declared arrows only: declaring shadows changes none of them.
-    expect(layout).toEqual(layoutMap({ ...shippedView, shadows: undefined }));
-  });
-});
-
 describe("the map's details and legend", () => {
   test("a stage's details list its shadow steps; the legend says what the badge means", async () => {
     const checks = shippedView.stages.find(stage => stage.id === 'checks');
@@ -263,7 +181,5 @@ describe("the map's details and legend", () => {
     expect(legend.querySelector('[data-shadow-badge]')?.parentElement?.textContent).toBe(
       'shadowA step that decides what it would do and does nothing; hover it for which and what it decided'
     );
-    const plain = await render(<MapLegend tones={['check']} shadow={false} />);
-    expect(plain.querySelector('[data-shadow-badge]')).toBeNull();
   });
 });

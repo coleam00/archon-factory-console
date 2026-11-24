@@ -23,7 +23,7 @@ export const KIND_WORDS: Record<FactoryStepKind, string> = {
  * Each kind's colour. An agent and a script take the stage drill-down's colours for the same
  * kinds, and an approval How it works' colour for a person, so a step reads in the colour its
  * stage's cards give it; the rest are node tokens of their own. None is purple or pink (owner
- * change 1 of 2026-11-19; `step-kinds.test.ts`).
+ * change 1 of 2026-11-19; `stage/drilldown-kinds.test.ts`).
  */
 export const KIND_TONES: Record<FactoryStepKind, ToneColor> = {
   agent: DRILLDOWN_KINDS.agent.color,

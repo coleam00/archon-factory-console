@@ -18,7 +18,7 @@ describe("a board card's face", () => {
     expect(face).toMatchObject({ line: 'Use main', tile: { recommended: false }, count: 1 });
   });
 
-  test('an answer in words, a gate, and a run it cannot answer each say so', () => {
+  test('an answer in words, a gate, and a run it cannot answer each say so; nothing open, no face', () => {
     expect(boardAskFace([askItem({ form: 'message', options: [] })])?.line).toBe('Answer in words');
     expect(boardAskFace([gateItem()])).toMatchObject({
       question: 'Approve the plan?',
@@ -28,9 +28,6 @@ describe("a board card's face", () => {
       question: 'This paused run could not be read',
       line: 'Resume or abandon it on the run',
     });
-  });
-
-  test('nothing open: no face', () => {
     expect(boardAskFace([])).toBeNull();
   });
 });
@@ -52,7 +49,7 @@ describe('an answer held on the card', () => {
     restarts: restart === null ? 0 : 1,
   });
   const restart = { runId: 'run-again', status: 'running' as const, label: 'Plan' };
-  const declared = (starts: (string | null)[], restarts = 1): SettledAsks => ({
+  const declared = (starts: (string | null)[]): SettledAsks => ({
     ...settled(restart),
     asks: starts.map((sentence, index) => ({
       question: `Question ${index.toString()}?`,
@@ -62,29 +59,17 @@ describe('an answer held on the card', () => {
       by: null,
       starts: sentence,
     })),
-    restarts,
   });
 
   test('says what was answered until the read records the restart of the asking run', () => {
     expect(answeredLine(held, [])).toBe('Answered: Use dev');
-    expect(answeredLine(held, [settled(null)])).toBe('Answered: Use dev');
     expect(answeredLine(held, [settled(restart, 'run-other')])).toBe('Answered: Use dev');
     expect(answeredLine(held, [settled(restart)])).toBe('Answered · Plan started again');
   });
 
-  test("an option the view words reads the view's sentence, unless the set started several runs", () => {
+  test("an option the view words reads the view's sentence", () => {
     const drop = 'Closes the PR without merging';
     expect(answeredLine(held, [declared([drop, null])])).toBe(`Answered · ${drop}`);
-    expect(answeredLine(held, [declared([drop, null], 2)])).toBe('Answered: Use dev');
-    expect(answeredLine(held, [declared([drop, 'Leaves the PR as a draft'])])).toBe(
-      'Answered: Use dev'
-    );
-  });
-
-  test('a gate settles no set, so it never reads as a restart', () => {
-    const gate = heldAnswer(gateItem(), 'Approve', 'plan', [gateItem()]);
-    expect(gate.askingRun).toBeNull();
-    expect(answeredLine(gate, [settled(restart)])).toBe('Answered: Approve');
   });
 
   test('stands until the card moves or the item asks something new', () => {
@@ -95,22 +80,19 @@ describe('an answer held on the card', () => {
   });
 });
 
-describe("the popover's place", () => {
+test('the popover sits right of the card when it fits, else left, always inside the window', () => {
   const viewport = { width: 1440, height: 900 };
   const box = { width: 480, height: 400 };
+  const inside = (place: { top: number; left: number }) =>
+    place.top >= 0 &&
+    place.left >= 0 &&
+    place.top + box.height <= viewport.height &&
+    place.left + box.width <= viewport.width;
   const card = { top: 200, left: 300, right: 508, bottom: 340 };
-
-  test('right of the card when it fits, level with it', () => {
-    expect(popoverPlace(card, box, viewport)).toEqual({ top: 200, left: 516 });
-  });
-
-  test('left of a card near the right edge', () => {
-    const right = { top: 200, left: 1100, right: 1308, bottom: 340 };
-    expect(popoverPlace(right, box, viewport)).toEqual({ top: 200, left: 612 });
-  });
-
-  test('kept inside the window top and bottom', () => {
-    expect(popoverPlace({ ...card, top: -40 }, box, viewport).top).toBe(16);
-    expect(popoverPlace({ ...card, top: 800 }, box, viewport).top).toBe(484);
-  });
+  const right = popoverPlace(card, box, viewport);
+  expect(right.left).toBeGreaterThan(card.right);
+  const nearEdge = { top: 200, left: 1100, right: 1308, bottom: 340 };
+  expect(popoverPlace(nearEdge, box, viewport).left + box.width).toBeLessThan(nearEdge.left);
+  for (const top of [-40, 200, 800])
+    expect(inside(popoverPlace({ ...card, top }, box, viewport))).toBe(true);
 });

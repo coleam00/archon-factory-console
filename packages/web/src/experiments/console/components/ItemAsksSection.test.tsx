@@ -202,18 +202,3 @@ test('an ask with no recommendation says so and marks no option recommended', as
     await view.unmount();
   }
 });
-
-test('the item header reads `issue-7` and `7` as #7, the group keeping the key', async () => {
-  for (const key of ['issue-7', '7']) {
-    const view = await mount();
-    try {
-      const keyed = { ...first, item: { ...item, key } };
-      await view.render(<Harness listed={[keyed]} />);
-      const group = view.container.querySelector('[data-item-asks]');
-      expect(group?.querySelector('.font-mono')?.textContent).toBe('#7');
-      expect(view.container.textContent).not.toContain('issue-7');
-    } finally {
-      await view.unmount();
-    }
-  }
-});

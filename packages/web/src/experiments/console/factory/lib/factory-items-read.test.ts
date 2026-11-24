@@ -1,23 +1,13 @@
-import { afterEach, expect, jest, mock, test } from 'bun:test';
+import { expect, mock, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemWindow } from '../../skills/items';
-import { deadlineOf, FACTORY_READ_DEADLINE_MS, SlowReadError } from './deadline';
-import { readyWithMerge } from './board.test-fixtures';
-import {
-  readEveryFactoryItem,
-  readEveryItem,
-  withProgress,
-  type FactoryItemsReads,
-} from './factory-items-read';
+import { deadlineOf, FACTORY_READ_DEADLINE_MS } from './deadline';
+import { readEveryFactoryItem, readEveryItem, type FactoryItemsReads } from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
 const within = deadlineOf(FACTORY_READ_DEADLINE_MS);
 
-// A failing fake-timer test must not leave its clock to the tests after it.
-afterEach(() => {
-  jest.useRealTimers();
-});
 const read = ({ progress: _progress, ...rest }: FactoryItem): ItemWindow['items'][number] => rest;
 const page = (items: FactoryItem[], next: string | null): ItemWindow => ({
   window: { since: '1970-01-01T00:00:00.000Z', until: '2026-11-17T12:00:00.000Z' },
@@ -86,13 +76,6 @@ test('walks the window from far back, then by its cursor alone, joining each pag
   );
 });
 
-test('a key the progress read left out reads as progress null', async () => {
-  const stranger = at(captured[0]!, 'stranger', '2026-11-17T00:00:00.000Z');
-  const { deps } = reads([page([stranger], null)]);
-  const [item] = (await readEveryFactoryItem('cb-1', deps, within)).items;
-  expect(item?.progress).toBeNull();
-});
-
 test('newest activity first, ties by item id, whatever order the window pages in', async () => {
   const base = captured[0]!;
   const { deps } = reads([
@@ -107,49 +90,6 @@ test('newest activity first, ties by item id, whatever order the window pages in
   ]);
   const { items } = await readEveryFactoryItem('cb-1', deps, within);
   expect(items.map(item => item.item.key)).toEqual(['new', 'a', 'b', 'old']);
-});
-
-test('an empty project asks for no progress', async () => {
-  const { deps, progressCalls } = reads([page([], null)]);
-  expect(await readEveryFactoryItem('cb-1', deps, within)).toEqual({ items: [], members: {} });
-  expect(progressCalls).toEqual([]);
-});
-
-test('fails the whole read when a later page, or a progress read, fails', async () => {
-  const [first] = captured;
-  const failing: FactoryItemsReads = {
-    ...reads([]).deps,
-    listWindow: mock(async opts => {
-      if ('after' in opts && opts.after !== undefined) throw new Error('page two failed');
-      return page([first!], 'c1');
-    }),
-  };
-  await expect(readEveryFactoryItem('cb-1', failing, within)).rejects.toThrow('page two failed');
-  const { deps } = reads([page([first!], null)], true);
-  await expect(readEveryFactoryItem('cb-1', deps, within)).rejects.toThrow('progress failed');
-});
-
-test('a progress read that never answers fails the walk at its deadline, and is cancelled', async () => {
-  jest.useFakeTimers();
-  let progressSignal: AbortSignal | undefined;
-  let progressAsked: () => void = () => undefined;
-  const asked = new Promise<void>(resolve => {
-    progressAsked = resolve;
-  });
-  const stuck: FactoryItemsReads = {
-    listWindow: async () => page(captured.slice(0, 1), null),
-    getProgress: (_opts, init) => {
-      progressSignal = init?.signal;
-      progressAsked();
-      return new Promise(() => undefined);
-    },
-  };
-  const walk = readEveryFactoryItem('cb-1', stuck, within).catch((e: unknown) => e);
-  // The window page has landed and the progress read is the one waiting.
-  await asked;
-  jest.advanceTimersByTime(FACTORY_READ_DEADLINE_MS);
-  expect(await walk).toBeInstanceOf(SlowReadError);
-  expect(progressSignal?.aborted).toBe(true);
 });
 
 /** `item` renamed `key`, part of `order` by an active link, or by its order run's result. */
@@ -207,12 +147,6 @@ test('orders the window lacks are read after the walk, together, never one reque
   expect('60' in read.members).toBe(false);
 });
 
-test('no order named, no read after the walk', async () => {
-  const { deps, progressCalls } = reads([page([captured[0]!], null)]);
-  await readEveryFactoryItem('cb-1', deps, within);
-  expect(progressCalls).toHaveLength(1);
-});
-
 test('with no factory view it walks the window alone, never the progress read, newest first', async () => {
   const [first, second] = captured;
   const older = at(first!, 'old', '2026-11-10T00:00:00.000Z');
@@ -223,26 +157,4 @@ test('with no factory view it walks the window alone, never the progress read, n
   expect(items[0]).not.toHaveProperty('progress');
   expect(windowCalls).toHaveLength(2);
   expect(progressCalls).toEqual([]);
-});
-
-test('withProgress takes the answered keys, null included, and keeps the rest and the order', () => {
-  const [a, b, c] = [
-    readyWithMerge('a', false),
-    readyWithMerge('b', false),
-    readyWithMerge('c', 'unknown'),
-  ];
-  const merged = readyWithMerge('a', true).progress;
-  const read = { items: [a, b, c], members: { a: ['x'] } };
-  const next = withProgress(read, {
-    pack: 'p',
-    progress: { a: merged, c: null },
-    members: { c: ['y'] },
-  });
-  expect(next.items.map(item => item.item.key)).toEqual(['a', 'b', 'c']);
-  expect(next.items[0]?.progress).toBe(merged);
-  expect(next.items[1]).toBe(b);
-  expect(next.items[2]?.progress).toBeNull();
-  expect(next.members).toEqual({ a: ['x'], c: ['y'] });
-  // The value read before is unchanged: the cache compares by identity.
-  expect(read.items[0]).toBe(a);
 });

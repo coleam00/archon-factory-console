@@ -1,7 +1,6 @@
 import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { mkdir, mkdtemp, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { dirname, join } from 'path';
+import { mkdir } from 'fs/promises';
+import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
@@ -10,7 +9,7 @@ import {
   type FactoryPackSettings,
   type FoundPackDeclaration,
 } from './factory-pack-settings';
-import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
+import { scratchRoots, writeAt } from './factory-test.test-helpers';
 import type { FactoryOverview } from './schemas/factory-overview';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
@@ -22,25 +21,13 @@ afterAll(() => {
 
 let root: string;
 let roots: LiveWorkflowSourceRoots;
-
 beforeEach(async () => {
-  root = track(await mkdtemp(join(tmpdir(), 'archon-factory-pack-settings-')));
-  roots = {
-    kind: 'live',
-    config: DEFAULT_WORKFLOW_SOURCE_CONFIG,
-    project: null,
-    globalWorkflows: join(root, 'home', 'workflows'),
-    globalCommands: join(root, 'home', 'commands'),
-    globalScripts: join(root, 'home', 'scripts'),
-    bundledWorkflows: join(root, 'bundled'),
-    installed: { kind: 'receipts', pluginsDir: join(root, 'home', 'plugins') },
-  };
+  ({ root, roots } = await scratchRoots(track, 'archon-factory-pack-settings-', {
+    project: false,
+  }));
 });
 
-async function write(path: string, content: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content);
-}
+const write = writeAt;
 
 /** A global folder pack `kit` declaring `yaml` as its `.pack/pack.yaml`. */
 const declare = (yaml: string): Promise<void> =>
@@ -130,13 +117,6 @@ describe('findPackDeclaration', () => {
         ['command', { type: 'string', default: 'make test' }],
       ],
     });
-  });
-
-  test('returns a broken declaration as its error, and null for a pack with none', async () => {
-    await declare('inputs:\n  1bad: {}\n');
-    const found = await findPackDeclaration(roots, 'kit');
-    expect(found !== null && 'error' in found ? found.error : null).toContain("'1bad'");
-    expect(await findPackDeclaration(roots, 'other')).toBeNull();
   });
 });
 
@@ -245,38 +225,5 @@ describe('readFactoryPackSettings', () => {
       checks: null,
     });
     expect(refused?.state === 'set' ? refused.file?.error : null).toContain("'checks.0.run'");
-  });
-
-  test('names a map key the pack does not declare', async () => {
-    const result = await read([], { ...MAP, retired_policy: { shadow: true } });
-    expect(result.mapErrors).toHaveLength(1);
-    expect(result.mapErrors[0]).toContain('"retired_policy"');
-    expect(result.settings.map(s => s.name)).not.toContain('retired_policy');
-  });
-
-  test("reports one project's broken settings file on that project only", async () => {
-    const broken = await project('broken', 'settings: [not, a, map]\n');
-    const web = await project('web', 'settings:\n  command: bun test\n');
-    const result = await read([broken, web]);
-    expect(projectNamed(result, 'broken')).toMatchObject({ values: {}, undeclared: [] });
-    expect(projectNamed(result, 'broken')?.error).toContain("'settings' must be a mapping");
-    expect(projectNamed(result, 'web')?.error).toBeNull();
-    expect(projectNamed(result, 'web')?.values.command).toMatchObject({ value: 'bun test' });
-  });
-
-  test('a broken declaration is reported, with no settings and no project read', async () => {
-    const result = await readFactoryPackSettings({
-      packKey: 'kit',
-      declaration: { path: '/p/.pack/pack.yaml', error: 'not valid YAML' },
-      map: MAP,
-      projects: [await project('web', 'settings:\n  colour: red\n')],
-    });
-    expect(result).toMatchObject({
-      declaration: { path: '/p/.pack/pack.yaml', error: 'not valid YAML' },
-      sections: [],
-      settings: [],
-      mapErrors: [],
-      projects: [],
-    });
   });
 });

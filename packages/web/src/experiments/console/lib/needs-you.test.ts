@@ -35,10 +35,8 @@ describe('needsYou', () => {
       'gate:b',
       'ask:new',
     ]);
-  });
-
-  test('a queue holding only a usage limit needs no one', () => {
-    expect(needsYou([usageLimitItem({ ref: 'limit:1' })])).toEqual([]);
+    // A queue holding only a usage limit needs no one.
+    expect(needsYou([limit])).toEqual([]);
   });
 });
 
@@ -89,11 +87,8 @@ describe('an overdue wait', () => {
     expect(askWorkflow(wait)).toBe('deliver');
     expect(askQuestion(wait)).toBe('A stage is still waiting past its deadline');
     expect(askTile(wait)).toEqual({ label: 'Look at it on the run', recommended: false });
-  });
-
-  test('an item-less wait counts as its run', () => {
-    const wait = overdueWaitItem({ item: undefined });
-    expect(needsYouSubjects([wait])).toEqual({ items: 0, runs: 1 });
+    // Item-less, it counts as its run.
+    expect(needsYouSubjects([overdueWaitItem({ item: undefined })])).toEqual({ items: 0, runs: 1 });
   });
 });
 

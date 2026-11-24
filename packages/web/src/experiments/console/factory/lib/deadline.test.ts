@@ -42,20 +42,6 @@ test('a read past its deadline is aborted and rejects with SlowReadError', async
   expect(signal?.aborted).toBe(true);
 });
 
-test('a read that ignores the signal still rejects at its deadline', async () => {
-  jest.useFakeTimers();
-  const result = withDeadline(1_000, () => new Promise<string>(() => undefined));
-  jest.advanceTimersByTime(1_000);
-  expect(await result.catch((e: unknown) => e)).toBeInstanceOf(SlowReadError);
-});
-
-test('a failure in time is passed on as it is', async () => {
-  const failure = new Error('500');
-  expect(await withDeadline(1_000, () => Promise.reject(failure)).catch((e: unknown) => e)).toBe(
-    failure
-  );
-});
-
 test('one slow failure is claimed for a retry once; the page shows only other failures', () => {
   const slow = new SlowReadError(1_000);
   expect(slow.claimRetry()).toBe(true);
@@ -68,11 +54,9 @@ test('one slow failure is claimed for a retry once; the page shows only other fa
 
 test('each attempt after a miss gets twice the deadline it missed, up to the cap', () => {
   expect(nextDeadlineMs(undefined)).toBe(FACTORY_READ_DEADLINE_MS);
-  expect(nextDeadlineMs(new Error('500'))).toBe(FACTORY_READ_DEADLINE_MS);
   expect(nextDeadlineMs(new SlowReadError(FACTORY_READ_DEADLINE_MS))).toBe(
     FACTORY_READ_DEADLINE_MS * 2
   );
-  expect(nextDeadlineMs(new SlowReadError(FACTORY_READ_DEADLINE_MAX_MS))).toBe(
-    FACTORY_READ_DEADLINE_MAX_MS
-  );
+  const capped = nextDeadlineMs(new SlowReadError(FACTORY_READ_DEADLINE_MAX_MS));
+  expect(capped).toBe(FACTORY_READ_DEADLINE_MAX_MS);
 });

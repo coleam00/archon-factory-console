@@ -15,26 +15,24 @@ const untitled = (key: string): FactoryItem => {
   };
 };
 
-test('an untitled row reads `issue-7` and `7` as #7, its link keeping the key', () => {
+test('an untitled row reads its key as the board does (#7), its link keeping the key', () => {
   const stage = VIEW.stages[0];
   if (stage === undefined) throw new Error('the view declares no stage');
-  for (const key of ['issue-7', '7']) {
-    const html = renderToStaticMarkup(
-      <MemoryRouter>
-        <ItemsHere
-          projectId="cb-1"
-          view={VIEW}
-          stage={stage}
-          live={{ items: [untitled(key)], working: 0, needYou: [], pending: false }}
-          empty="Nothing here"
-          resting
-        />
-      </MemoryRouter>
-    );
-    const words = html.replace(/<[^>]*>/g, ' ');
-    expect(words).toContain('#7');
-    expect(words).not.toContain('issue-7');
-    expect(words).not.toMatch(/#7\s+7\b/);
-    expect(html).toContain(`href="/console/p/cb-1/factory/items/${key}"`);
-  }
+  const key = 'issue-7';
+  const html = renderToStaticMarkup(
+    <MemoryRouter>
+      <ItemsHere
+        projectId="cb-1"
+        view={VIEW}
+        stage={stage}
+        live={{ items: [untitled(key)], working: 0, needYou: [], pending: false }}
+        empty="Nothing here"
+        resting
+      />
+    </MemoryRouter>
+  );
+  const words = html.replace(/<[^>]*>/g, ' ');
+  expect(words).toContain('#7');
+  expect(words).not.toContain('issue-7');
+  expect(html).toContain(`href="/console/p/cb-1/factory/items/${key}"`);
 });

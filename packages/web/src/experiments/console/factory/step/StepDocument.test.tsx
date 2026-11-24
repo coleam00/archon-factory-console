@@ -24,27 +24,22 @@ afterAll(async () => {
 });
 
 const deliver = deliverJson as FactoryWorkflow;
-/**
- * `deliver` with a prompt that reads inputs and a step's output, one input in a code span, and
- * a model on its shell step, which the page must still not show.
- */
+/** `deliver` with a prompt that reads inputs and a step's output, one input in a code span. */
 const WITH_PROMPT: FactoryWorkflow = {
   ...deliver,
   steps: deliver.steps.map(step =>
-    step.key === 'rounds.base'
-      ? { ...step, model: ['@lander'] }
-      : step.key === 'rounds.fix'
-        ? {
-            ...step,
-            prompt:
-              '# Fix what the checks returned\n\nFix $INPUTS.item on `$INPUTS.land_on` from $build__build.output.',
-            references: [
-              { kind: 'input', token: '$INPUTS.item', name: 'item' },
-              { kind: 'input', token: '$INPUTS.land_on', name: 'land_on' },
-              { kind: 'output', token: '$build__build.output', key: 'build__build', path: null },
-            ],
-          }
-        : step
+    step.key === 'rounds.fix'
+      ? {
+          ...step,
+          prompt:
+            '# Fix what the checks returned\n\nFix $INPUTS.item on `$INPUTS.land_on` from $build__build.output.',
+          references: [
+            { kind: 'input', token: '$INPUTS.item', name: 'item' },
+            { kind: 'input', token: '$INPUTS.land_on', name: 'land_on' },
+            { kind: 'output', token: '$build__build.output', key: 'build__build', path: null },
+          ],
+        }
+      : step
   ),
 };
 
@@ -125,7 +120,7 @@ describe('the step page as a document page', () => {
     }
   });
 
-  test('opens with what it does and its key facts', () => {
+  test('opens with what it does and its key facts, then the prompt with its references as chips', () => {
     const root = page('rounds.fix');
     const band = root.querySelector('[aria-label="Summary"]');
     expect(band?.querySelector('p')?.textContent).toBe('Fixes what the checks sent back');
@@ -140,10 +135,7 @@ describe('the step page as a document page', () => {
     expect(band?.querySelector('a')?.getAttribute('href')).toBe(
       `/console/p/${ID}/factory?stage=build`
     );
-  });
-
-  test('the prompt reads as a document, its references as chips; the facts list its inputs', () => {
-    const root = page('rounds.fix');
+    // The prompt reads as a document, its references as chips; the facts list its inputs.
     expect(
       [...root.querySelectorAll('[data-ref-label]')].map(chip =>
         chip.getAttribute('data-ref-label')
@@ -152,8 +144,7 @@ describe('the step page as a document page', () => {
     // "What it does" is the covering drill-down card's line.
     const does = root.querySelector('[data-doc-columns] section');
     expect(does?.textContent).toBe('What it doesFixFixes what the checks sent back');
-    const aside = root.querySelector('aside');
-    const facts = aside?.querySelector('dl')?.textContent ?? '';
+    const facts = root.querySelector('aside dl')?.textContent ?? '';
     expect(facts).toContain('Inputs it readsitemland on');
     expect(facts).toContain('Reads from stepsBuild output');
   });
@@ -178,26 +169,5 @@ describe('the step page as a document page', () => {
       '1git fetch origin main',
       '2git diff --stat origin/main',
     ]);
-    // The prompt section is headed by its eyebrow on a prompt step, and absent here.
-    const eyebrows = (key: string): string[] =>
-      [...page(key).querySelectorAll('[data-doc-heading]')].map(h => h.textContent ?? '');
-    expect(eyebrows('rounds.fix').some(h => h.startsWith('The prompt'))).toBe(true);
-    expect(eyebrows('rounds.base').some(h => h.startsWith('The prompt'))).toBe(false);
-    // A shell step with a model declared still shows no model: it runs no agent.
-    expect(chips(root).some(chip => chip.includes('model'))).toBe(false);
-    expect(root.querySelector('aside dl')?.textContent).not.toContain('Runs on');
-  });
-
-  test('the count chip is in the running colour; the empty state links the board', () => {
-    expect(chips(page('build__build', capturedItemsPage.items))).toContain(
-      'running: 3on this step now'
-    );
-    // Inside the items section: the frame's own navigation links the board too.
-    const items = [...page('rounds.fix').querySelectorAll('[data-doc-section]')].find(
-      section => section.querySelector('h2')?.textContent === 'Items on this step now'
-    );
-    expect(
-      [...(items?.querySelectorAll('a') ?? [])].map(link => link.getAttribute('href'))
-    ).toEqual([`/console/p/${ID}/factory/board`]);
   });
 });

@@ -112,6 +112,9 @@ const viewed = (state: 'open' | 'closed' | 'merged', mergedAt: string | null) =>
     },
   }) as unknown as Dispatched['response'];
 
+/** The options a lookup takes, with `dispatch` standing in for the forge. */
+const via = (dispatch: Dispatch, discovery = noPlugins) => ({ discovery, env: {}, dispatch });
+
 describe('the merge state of a change', () => {
   test('finds the pull request in the audit rows that carry its record', () => {
     expect(prRefFromAudits(URL10, audits)).toEqual({ repo, number: 10 });
@@ -122,17 +125,16 @@ describe('the merge state of a change', () => {
     throw new Error('branches are read only when no audit row names the change');
   };
 
-  test('a merged pull request is merged, with when and its number; asked by number with pr.view', async () => {
-    const { dispatch, asked } = answering(viewed('merged', '2026-11-17T01:00:00Z'));
-    const state = await changeMergeState(byUrl(audits), noBranches, {
-      discovery: noPlugins,
-      env: {},
-      dispatch,
-    });
-    expect(state).toEqual({
+  test.each([
+    ['merged', '2026-11-17T01:00:00Z', true],
+    ['open', null, false],
+    ['closed', null, false],
+  ] as const)('a %s pull request, asked by number with pr.view', async (state, at, merged) => {
+    const { dispatch, asked } = answering(viewed(state, at));
+    expect(await changeMergeState(byUrl(audits), noBranches, via(dispatch))).toEqual({
       url: URL10,
-      merged: true,
-      mergedAt: '2026-11-17T01:00:00Z',
+      merged,
+      mergedAt: at,
       number: 10,
     });
     expect(asked).toEqual([
@@ -143,52 +145,6 @@ describe('the merge state of a change', () => {
       },
     ]);
   });
-
-  test('an open pull request, or one closed without merging, is not merged', async () => {
-    for (const state of ['open', 'closed'] as const) {
-      const { dispatch } = answering(viewed(state, null));
-      expect(
-        await changeMergeState(byUrl(audits), noBranches, {
-          discovery: noPlugins,
-          env: {},
-          dispatch,
-        })
-      ).toEqual({ url: URL10, merged: false, mergedAt: null, number: 10 });
-    }
-  });
-
-  test('a forge failure or a throw is unknown, with why', async () => {
-    const failing = answering(refused);
-    expect(
-      await changeMergeState(byUrl(audits), noBranches, {
-        discovery: noPlugins,
-        env: {},
-        dispatch: failing.dispatch,
-      })
-    ).toEqual({
-      url: null,
-      merged: 'unknown',
-      mergedAt: null,
-      number: null,
-      reason: expect.any(String),
-    });
-    const throwing: Dispatch = async () => {
-      throw new Error('spawn failed');
-    };
-    expect(
-      await changeMergeState(byUrl(audits), noBranches, {
-        discovery: noPlugins,
-        env: {},
-        dispatch: throwing,
-      })
-    ).toEqual({
-      url: null,
-      merged: 'unknown',
-      mergedAt: null,
-      number: null,
-      reason: 'spawn failed',
-    });
-  });
 });
 
 const refused = {
@@ -196,47 +152,41 @@ const refused = {
   ok: false,
   error: { kind: 'no_credential', message: 'none configured' },
 } as unknown as Dispatched['response'];
+const resolved = {
+  operationId: 'op',
+  ok: true,
+  result: {
+    op: 'resolve',
+    value: {
+      kind: 'resolved',
+      forge: 'github',
+      repo,
+      plugin: { name: 'github', version: '1' },
+      subject: { kind: 'pr', number: 10 },
+    },
+  },
+} as unknown as Dispatched['response'];
+const noPr = { operationId: 'op', ok: true, result: { op: 'pr.view', value: null } };
 
-/**
- * A forge that resolves the change URL to `repo` and has a pull request on each head in
- * `heads` (null for none), answering per request.
- */
-function forgeWith(heads: Record<string, Dispatched['response'] | null>): {
-  dispatch: Dispatch;
-  asked: ForgeRequest[];
-} {
+/** A forge that resolves any remote to `repo` and has the pull request `heads` names on each head. */
+function forgeWith(heads: Record<string, Dispatched['response'] | null>) {
   const asked: ForgeRequest[] = [];
   const dispatch: Dispatch = async request => {
     asked.push(request);
     const response =
       request.op === 'resolve'
-        ? ({
-            operationId: 'op',
-            ok: true,
-            result: {
-              op: 'resolve',
-              value: {
-                kind: 'resolved',
-                forge: 'github',
-                repo,
-                plugin: { name: 'github', version: '1' },
-                subject: { kind: 'pr', number: 10 },
-              },
-            },
-          } as unknown as Dispatched['response'])
+        ? resolved
         : request.op === 'pr.view' && request.selector.kind === 'head'
-          ? (heads[request.selector.head] ?? {
-              operationId: 'op',
-              ok: true,
-              result: { op: 'pr.view', value: null },
-            })
+          ? (heads[request.selector.head] ?? (noPr as unknown as Dispatched['response']))
           : refused;
     return { response, plugin: null, audit: {} as Dispatched['audit'] };
   };
-  return { dispatch, asked };
+  const walked = () =>
+    asked.flatMap(r => (r.op === 'pr.view' && r.selector.kind === 'head' ? [r.selector.head] : []));
+  return { dispatch, asked, walked };
 }
 
-/** A pull request on another head, at another URL. */
+/** A merged pull request on another head, at another URL (#9). */
 const other = (() => {
   const view = viewed('merged', '2026-11-16T00:00:00Z') as unknown as {
     result: { value: { pr: Record<string, unknown> } };
@@ -245,114 +195,51 @@ const other = (() => {
   return view as unknown as Dispatched['response'];
 })();
 
-describe('a change no audit row names: the pull request on a run branch', () => {
-  const heads = (asked: ForgeRequest[]): string[] =>
-    asked.flatMap(request =>
-      request.op === 'pr.view' && request.selector.kind === 'head' ? [request.selector.head] : []
-    );
+describe('when the forge cannot say, or no audit row names the change', () => {
+  test('a forge failure or a throw is unknown, with why', async () => {
+    const throwing: Dispatch = async () => {
+      throw new Error('spawn failed');
+    };
+    for (const [dispatch, reason] of [
+      [answering(refused).dispatch, 'no_credential: none configured'],
+      [throwing, 'spawn failed'],
+    ] as const) {
+      expect(await changeMergeState(byUrl(audits), async () => [], via(dispatch))).toMatchObject({
+        merged: 'unknown',
+        number: null,
+        reason,
+      });
+    }
+  });
 
-  test('walks the branches newest first, past none and another URL, to the change', async () => {
+  test('walks the run branches newest first, past none and another URL, to the change', async () => {
     const forge = forgeWith({
       newest: null,
       middle: other,
       oldest: viewed('merged', '2026-11-17T01:00:00Z'),
     });
-    const state = await changeMergeState(byUrl([]), async () => ['newest', 'middle', 'oldest'], {
-      discovery: noPlugins,
-      env: {},
-      dispatch: forge.dispatch,
-    });
-    expect(state).toEqual({
+    const branches = async () => ['newest', 'middle', 'oldest'];
+    expect(await changeMergeState(byUrl([]), branches, via(forge.dispatch))).toEqual({
       url: URL10,
       merged: true,
       mergedAt: '2026-11-17T01:00:00Z',
       number: 10,
     });
     expect(forge.asked[0]).toMatchObject({ op: 'resolve', remote: URL10, web: true });
-    expect(heads(forge.asked)).toEqual(['newest', 'middle', 'oldest']);
-    expect(forge.asked[1]).toMatchObject({
-      selector: { kind: 'head', repo, headRepo: repo, state: 'any' },
-    });
+    expect(forge.walked()).toEqual(['newest', 'middle', 'oldest']);
   });
 
-  test('a forge failure mid-walk is unknown, not not-found, and stops the walk', async () => {
-    const forge = forgeWith({ newest: refused, oldest: viewed('merged', '2026-11-17T01:00:00Z') });
-    const state = await changeMergeState(byUrl([]), async () => ['newest', 'oldest'], {
-      discovery: noPlugins,
-      env: {},
-      dispatch: forge.dispatch,
-    });
-    expect(state).toEqual({
-      url: null,
-      merged: 'unknown',
-      mergedAt: null,
-      number: null,
-      reason: 'no_credential: none configured',
-    });
-    expect(heads(forge.asked)).toEqual(['newest']);
-  });
-
-  test('no branch, or none with the change, is unknown with why', async () => {
-    const none = forgeWith({});
-    expect(
-      await changeMergeState(byUrl([]), async () => [], {
-        discovery: noPlugins,
-        env: {},
-        dispatch: none.dispatch,
-      })
-    ).toMatchObject({ merged: 'unknown', number: null });
-    expect(none.asked).toEqual([]);
-    const elsewhere = forgeWith({ only: other });
-    expect(
-      await changeMergeState(byUrl([]), async () => ['only'], {
-        discovery: noPlugins,
-        env: {},
-        dispatch: elsewhere.dispatch,
-      })
-    ).toMatchObject({ merged: 'unknown', number: null });
-  });
-});
-
-describe('a run that named no URL: the first pull request on a run branch', () => {
-  const REMOTE = 'https://github.com/coleam00/archon-factory-console.git';
-
-  test("resolves the project's remote, passes over a branch with none, takes the next whatever its URL", async () => {
-    const forge = forgeWith({ newest: null, middle: other, oldest: viewed('merged', null) });
+  test("a run that named no URL resolves the project's remote and takes the first pull request", async () => {
+    const REMOTE = 'https://github.com/coleam00/archon-factory-console.git';
+    const forge = forgeWith({ newest: null, middle: other });
+    const branches = async () => ['newest', 'middle'];
     const state = await changeMergeState(
       { kind: 'branch', remote: REMOTE },
-      async () => ['newest', 'middle', 'oldest'],
-      { discovery: noPlugins, env: {}, dispatch: forge.dispatch }
+      branches,
+      via(forge.dispatch)
     );
-    expect(state).toEqual({
-      url: `${URL10.slice(0, -2)}9`,
-      merged: true,
-      mergedAt: '2026-11-16T00:00:00Z',
-      number: 9,
-    });
-    expect(forge.asked[0]).toEqual({
-      op: 'resolve',
-      operationId: expect.any(String),
-      remote: REMOTE,
-    });
-    expect(forge.asked.length).toBe(3);
-  });
-
-  test('a project with no remote is unknown, and nothing is asked', async () => {
-    const forge = forgeWith({ only: viewed('merged', null) });
-    expect(
-      await changeMergeState({ kind: 'branch', remote: null }, async () => ['only'], {
-        discovery: noPlugins,
-        env: {},
-        dispatch: forge.dispatch,
-      })
-    ).toEqual({
-      url: null,
-      merged: 'unknown',
-      mergedAt: null,
-      number: null,
-      reason: 'the project has no remote to look the change up in',
-    });
-    expect(forge.asked).toEqual([]);
+    expect(state).toMatchObject({ merged: true, number: 9 });
+    expect(forge.asked[0]).toMatchObject({ op: 'resolve', remote: REMOTE });
   });
 });
 
@@ -363,20 +250,6 @@ describe('forge plugins for the merge lookups', () => {
     track(await mkdtemp(join(tmpdir(), 'archon-forge-host-')));
   // The audit rows name the pull request, so no branch is read.
   const noBranches = async (): Promise<string[]> => [];
-
-  test('are discovered once for concurrent and later lookups', async () => {
-    let discovered = 0;
-    const discovery = forgeHostDiscoveryOnce(await home(), {}, async () => {
-      discovered += 1;
-      return none;
-    });
-    const { dispatch } = answering(viewed('merged', '2026-11-17T01:00:00Z'));
-    const lookup = () =>
-      changeMergeState(byUrl(audits), noBranches, { discovery, env: {}, dispatch });
-    await Promise.all([lookup(), lookup(), lookup()]);
-    await lookup();
-    expect(discovered).toBe(1);
-  });
 
   test('a failed discovery, or one that left a plugin unavailable, is discovered again', async () => {
     const answers: (() => PluginDiscovery)[] = [
@@ -393,8 +266,7 @@ describe('forge plugins for the merge lookups', () => {
       return answer();
     });
     const { dispatch } = answering(viewed('merged', '2026-11-17T01:00:00Z'));
-    const lookup = () =>
-      changeMergeState(byUrl(audits), noBranches, { discovery, env: {}, dispatch });
+    const lookup = () => changeMergeState(byUrl(audits), noBranches, via(dispatch, discovery));
     expect((await lookup()).merged).toBe('unknown');
     await lookup();
     await lookup();

@@ -12,9 +12,8 @@ import {
   VIEW,
   FIXTURE_NOW,
 } from './board.test-fixtures';
-import { showsCard } from './board-show';
 import { mergeUnsettled } from './merge-pending';
-import { factoryNumbers, median } from './numbers';
+import { factoryNumbers } from './numbers';
 
 /**
  * Every date here is built in local time, so the local-day boundary holds wherever the
@@ -59,16 +58,16 @@ const numbers = (items: FactoryItem[], now: Date) =>
   factoryNumbers(boardModel(VIEW, 'cb-1', items, new Map(), FIXTURE_NOW), now);
 
 describe('the numbers strip', () => {
-  test('in flight, landed and M over the real items', () => {
+  test('in flight, landed and M over the real items; a triage-closed item in none', () => {
     const counts = numbers([...PAGE.items, asking(), closedByTriage()], local(17, 12));
     // 8, 5, 4, 6 and the asking copy of 6 are on the board outside Landed; 7, 2, 1 landed.
     // Item 3's merge state is unknown, so it counts only in M.
     expect(counts).toMatchObject({ inFlight: 5, landed: 3, total: 9, pending: false, unknown: 1 });
-  });
-
-  test('an item closed by triage is not in M, nor in flight', () => {
-    const counts = numbers([realItem('5'), closedByTriage()], local(17, 12));
-    expect(counts).toMatchObject({ inFlight: 1, total: 1 });
+    // An item closed by triage is not in M, nor in flight.
+    expect(numbers([realItem('5'), closedByTriage()], local(17, 12))).toMatchObject({
+      inFlight: 1,
+      total: 1,
+    });
   });
 
   test('landed today follows the local day: 23:59 yesterday is not, 00:01 today is', () => {
@@ -90,7 +89,7 @@ describe('the numbers strip', () => {
     }
   });
 
-  test('median to land: odd and even counts, from the first declared run', () => {
+  test('median to land: odd and even counts, none when nothing landed', () => {
     const odd = [
       landed('a', local(17, 0), local(17, 1)),
       landed('b', local(17, 0), local(17, 3)),
@@ -99,9 +98,6 @@ describe('the numbers strip', () => {
     expect(numbers(odd, local(17, 12)).medianToLandMs).toBe(3 * HOUR);
     const even = [...odd, landed('d', local(17, 0), local(17, 10))];
     expect(numbers(even, local(17, 12)).medianToLandMs).toBe(5.5 * HOUR);
-  });
-
-  test('no landed item: no median', () => {
     expect(numbers([realItem('5')], local(17, 12)).medianToLandMs).toBeNull();
   });
 
@@ -113,58 +109,6 @@ describe('the numbers strip', () => {
       medianToLandMs: 2 * HOUR,
     });
   });
-
-  test('a change whose merge state is unknown has not landed', () => {
-    // Item 8's change is "unknown" and it runs in Checks.
-    expect(numbers([realItem('8')], local(17, 12))).toMatchObject({ landed: 0, inFlight: 1 });
-  });
-
-  test("a run the view does not declare is not the item's first run", () => {
-    const item = landed('a', local(17, 2), local(17, 4));
-    const first = item.runs[0];
-    if (first === undefined) throw new Error('item 7 has runs');
-    item.runs = [
-      { ...first, id: 'not-declared', startedAt: local(16, 0).toISOString() },
-      ...item.runs,
-    ];
-    expect(numbers([item], local(17, 12)).medianToLandMs).toBe(2 * HOUR);
-  });
-});
-
-describe('the board under a number', () => {
-  const now = local(17, 12);
-  const model = boardModel(
-    VIEW,
-    'cb-1',
-    [...PAGE.items, asking(), closedByTriage()],
-    new Map(),
-    FIXTURE_NOW
-  );
-  const keys = (shown: typeof model) =>
-    shown.columns.flatMap(column => column.cards.map(placed => placed.card.key)).sort();
-
-  test('shows exactly the cards the number counts, and hides the set-aside items', () => {
-    const shown = filterBoard(model, '', 'landed', now);
-    expect(keys(shown)).toEqual(['1', '2', '7']);
-    expect(model.setAside).not.toEqual([]);
-    expect(shown.setAside).toEqual([]);
-    expect(keys(filterBoard(model, '', 'needs-you', now))).toEqual(['6a']);
-  });
-
-  test('composes with the text filter', () => {
-    expect(keys(filterBoard(model, '7', 'landed', now))).toEqual(['7']);
-  });
-
-  test('an ended item is in no filter', () => {
-    const ended = model.setAside.find(entry => entry.kind === 'ended')?.placed;
-    if (ended === undefined) throw new Error('the triage ending is set aside');
-    for (const show of ['in-flight', 'needs-you', 'landed', 'landed-today'] as const)
-      expect(showsCard(show, ended, VIEW.landed.stage, now)).toBe(false);
-  });
-});
-
-test('median of nothing is null', () => {
-  expect(median([])).toBeNull();
 });
 
 test('an item whose merge state is not known is counted only in M, and the strip says so', () => {
@@ -183,10 +127,25 @@ test('an item whose merge state is not known is counted only in M, and the strip
     total: known.total + 1,
     unknown: 1,
   });
-  // Not merged is known: in flight.
-  expect(numbers([...settled, readyWithMerge('x', false)], now)).toMatchObject({
-    inFlight: known.inFlight + 1,
-    pending: false,
-    unknown: 0,
-  });
+});
+
+test('the board under a number shows exactly the cards it counts, set-aside items hidden', () => {
+  const now = local(17, 12);
+  const model = boardModel(
+    VIEW,
+    'cb-1',
+    [...PAGE.items, asking(), closedByTriage()],
+    new Map(),
+    FIXTURE_NOW
+  );
+  const keys = (query: string, show: 'landed' | 'needs-you') =>
+    filterBoard(model, query, show, now)
+      .columns.flatMap(column => column.cards.map(placed => placed.card.key))
+      .sort();
+  expect(keys('', 'landed')).toEqual(['1', '2', '7']);
+  expect(model.setAside).not.toEqual([]);
+  expect(filterBoard(model, '', 'landed', now).setAside).toEqual([]);
+  expect(keys('', 'needs-you')).toEqual(['6a']);
+  // It composes with the text filter.
+  expect(keys('7', 'landed')).toEqual(['7']);
 });

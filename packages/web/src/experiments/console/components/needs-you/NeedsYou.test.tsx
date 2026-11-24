@@ -1,30 +1,35 @@
-import { afterAll, afterEach, describe, expect, jest, test } from 'bun:test';
-import { Window } from 'happy-dom';
-import { act } from 'react';
+import { afterEach, expect, jest, test } from 'bun:test';
+import { act, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter, Routes } from 'react-router';
 import { documentPageProblems } from '../../factory/document.test-helpers';
 import { shippedListed } from '../../factory/item-detail.test-fixtures';
 import { needsShaping } from '../../factory/lib/board.test-fixtures';
 import { run, settledItem, type TestRun } from '../../factory/lib/map.test-fixtures';
-import { DRY_RUN_CONTEXT, DRY_RUN_ROUTES, DRY_RUN_WHY } from '../../lib/ask-offered.test-fixtures';
-import { askItem, gateItem, overdueWaitItem } from '../../lib/needs-you.test-fixtures';
+import {
+  askItem,
+  gateItem,
+  overdueWaitItem,
+  usageLimitItem,
+} from '../../lib/needs-you.test-fixtures';
 import { projectRoutes } from '../../routes/project-routes';
 import type { FactoryItem, FactoryViews } from '../../skills/factory';
 import type { ItemRead } from '../../skills/items';
 import type { AttentionQueue } from '../../skills/runs';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
+import { installDom } from '../../test-dom.test-helpers';
 import { ANSWERED_SHOWN_MS } from '../ask-card/useAnsweredHold';
+import { NeedsYouContent } from './NeedsYouLayout';
 
 const ID = 'cb-needs-design';
-const dom = new Window({ url: 'http://localhost' });
+const { mount, settle } = await installDom();
+const unserved = globalThis.fetch;
 
 afterEach(() => {
+  jest.useRealTimers();
+  globalThis.fetch = unserved;
   for (const prefix of ['factory-views', 'factory-items', 'runs', 'project']) invalidate(prefix);
-});
-afterAll(async () => {
-  await dom.happyDOM.close();
 });
 
 const none: FactoryViews = { views: [], errors: [] };
@@ -37,580 +42,228 @@ const queueOf = (...items: AttentionQueue['items']): AttentionQueue => ({
   degraded: [],
 });
 const quiet = queueOf();
-/** Two asks on #7, one on #9 with no recommendation. */
-const busy = queueOf(
-  askItem({ ref: 'ask:7a', item: seven, pausedAt: '2026-11-16T09:00:00.000Z' }),
-  askItem({
-    ref: 'ask:9',
-    item: nine,
-    message: 'Split it?',
-    recommendation: undefined,
-    pausedAt: '2026-11-15T09:00:00.000Z',
-  }),
-  askItem({ ref: 'ask:7b', item: seven, message: 'Rebase?', pausedAt: '2026-11-14T09:00:00.000Z' })
-);
 
-const windowRead = (items: FactoryItem[]): ItemRead[] =>
-  items.map(({ progress: _progress, ...read }) => read);
-
-/**
- * The tab as the route draws it, parsed into a DOM to query. `unread` leaves the history
- * unread.
- */
-let unread = 0;
-function render(
-  listing: FactoryViews,
-  queue: AttentionQueue,
-  items: FactoryItem[] | 'unread' = []
-): Element {
-  // A project of its own when unread: the cache keeps a value it has once held.
-  const id = items === 'unread' ? `${ID}-unread-${(unread++).toString()}` : ID;
-  set(K.factoryViews(id), listing);
-  set(K.projectAttention(id), queue);
-  if (items !== 'unread') {
-    set(K.factoryItems(id), { items, members: {} });
-    set(K.projectItems(id), windowRead(items));
-  }
-  const root = dom.document.createElement('div');
+/** The tab as the route draws it, parsed into a DOM to query. */
+function render(listing: FactoryViews, queue: AttentionQueue, items: FactoryItem[] = []): Element {
+  set(K.factoryViews(ID), listing);
+  set(K.projectAttention(ID), queue);
+  set(K.factoryItems(ID), { items, members: {} });
+  set(
+    K.projectItems(ID),
+    items.map(({ progress: _progress, ...read }): ItemRead => read)
+  );
+  const root = document.createElement('div');
   root.innerHTML = renderToStaticMarkup(
-    <MemoryRouter initialEntries={[`/console/p/${id}/needs-you`]}>
+    <MemoryRouter initialEntries={[`/console/p/${ID}/needs-you`]}>
       <Routes>{projectRoutes('/console/')}</Routes>
     </MemoryRouter>
   );
-  return root as unknown as Element;
+  return root;
 }
 const text = (el: Element | null | undefined): string =>
   (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
-const chip = (root: Element, label: string): Element | undefined =>
-  [...root.querySelectorAll('[data-stat-chip]')].find(el => text(el).endsWith(label));
-/** The words of each element inside `el`, so a key is found whole as its own words. */
-const keysIn = (el: Element | null | undefined): string[] =>
-  [...(el?.querySelectorAll('*') ?? [])].map(text);
 /** A chip's figure and label, as a person reads them. */
-const chipWords = (el: Element | undefined): string =>
-  [...(el?.childNodes ?? [])]
+const chipWords = (root: Element, label: string): string => {
+  const el = [...root.querySelectorAll('[data-stat-chip]')].find(c => text(c).endsWith(label));
+  return [...(el?.childNodes ?? [])]
     .map(node => text(node as Element))
     .join(' ')
     .trim();
-
+};
+const panelLabels = (root: Element): (string | null)[] =>
+  [...root.querySelectorAll('section[data-needs-you="open"] article[data-doc-panel]')].map(panel =>
+    panel.getAttribute('aria-label')
+  );
 /** Item `key` whose set of asks settled at `at` and started `restarted`, when given. */
 const answeredOn = (key: string, at: string, restarted?: TestRun): FactoryItem =>
   settledItem(key, run('plan', 'completed', 'ask'), at, restarted);
 
-describe('the header band', () => {
-  test("counts what waits, in the needs-you colour, and today's answers", () => {
-    const now = Date.now();
-    const today = new Date(now).toISOString();
-    const lastWeek = new Date(now - 7 * 86_400_000).toISOString();
-    const root = render(none, busy, [answeredOn('a', today), answeredOn('b', lastWeek)]);
-    const waiting = chip(root, 'waiting now');
-    expect(chipWords(waiting)).toBe('3 waiting now');
-    expect(waiting?.getAttribute('data-stat-chip')).toBe('needs-you');
-    // `a`'s two answers today; its withdrawn one and `b`'s last week do not count.
-    expect(chipWords(chip(root, 'answered today'))).toBe('2 answered today');
-  });
-
-  test('the oldest wait is the longest any open ask has waited, whatever order they come in', () => {
-    const ago = (ms: number): string => new Date(Date.now() - ms).toISOString();
-    const root = render(
-      none,
-      queueOf(
-        askItem({ ref: 'ask:new', pausedAt: ago(20 * 60_000) }),
-        askItem({ ref: 'ask:old', item: nine, pausedAt: ago(2 * 3_600_000) }),
-        gateItem()
-      )
-    );
-    expect(chipWords(chip(root, 'oldest wait'))).toBe('2 h oldest wait');
-  });
-
-  test('with nothing open it says so, its count neutral, and no oldest wait', () => {
-    const root = render(none, quiet);
-    expect(text(root.querySelector('section[aria-label="Summary"] h2'))).toBe('Nothing needs you');
-    expect(chip(root, 'waiting now')?.getAttribute('data-stat-chip')).toBe('neutral');
-    expect(chip(root, 'oldest wait')).toBeUndefined();
-    expect(chipWords(chip(root, 'answered today'))).toBe('0 answered today');
-  });
-
-  test('while the history is unread, answered today is a skeleton, never 0', () => {
-    const root = render(none, busy, 'unread');
-    const today = chip(root, 'answered today');
-    expect(today?.querySelector('[data-skeleton="figure"]')).not.toBeNull();
-    expect(chipWords(today)).toBe('answered today');
-  });
-});
-
-describe('open asks', () => {
-  test('grouped by item: one panel per item with its bar and one ping, its asks inside', () => {
-    const root = render(none, busy);
-    const open = root.querySelector('section[data-needs-you="open"]');
-    const panels = [...(open?.querySelectorAll('article[data-doc-panel]') ?? [])];
-    expect(panels.map(panel => panel.getAttribute('aria-label'))).toEqual([
-      'Asks on #7',
-      'Asks on #9',
-    ]);
-    for (const panel of panels) {
-      expect(panel.querySelectorAll('[data-doc-bar="left"]')).toHaveLength(1);
-      expect(panel.querySelectorAll('[data-ping]')).toHaveLength(1);
-    }
-    expect(panels[0]?.querySelectorAll('[data-ask]')).toHaveLength(2);
-    // #9's ask recommends nothing: it still carries the bar and the ping.
-    expect(panels[1]?.querySelectorAll('[data-recommended]')).toHaveLength(0);
-  });
-
-  test('the stage that asked heads each ask, named by the view when there is one', () => {
-    const heads = (listing: FactoryViews): string[] =>
-      [...render(listing, queueOf(gateItem())).querySelectorAll('[data-ask-stage]')].map(el =>
-        text(el)
-      );
-    // `deliver` begins on Build; its group colour is browser-checked.
-    expect(heads(withView)).toEqual(['Build']);
-    expect(heads(none)).toEqual(['deliver']);
-  });
-
-  test("a stage's drop and reshape tiles say what they start, in the view's words", () => {
-    const ask = askItem({
-      item: seven,
-      askedIn: { runId: 'run-check', workflow: 'Wirasm/archon-software-factory:stage-check' },
-      options: [
-        { id: 'send-back', does: 'Continues.' },
-        { id: 'drop', does: 'Closes it.' },
-        { id: 'reshape', does: 'Keeps a draft.' },
-      ],
-      recommendation: { option: 'send-back', why: 'Small.' },
-    });
-    const starts = (listing: FactoryViews): string[] =>
-      [...render(listing, queueOf(ask)).querySelectorAll('[role=group] button')].map(tile =>
-        text(tile.querySelector('[data-starts]'))
-      );
-    expect(starts(withView)).toEqual([
-      '',
-      'Closes the PR without merging',
-      'Leaves the PR as a draft until the item is shaped',
-    ]);
-    expect(starts(none)).toEqual(['', '', '']);
-  });
-
-  test('a gate no item holds sits in open asks, named as its run', () => {
-    const root = render(none, queueOf(gateItem()));
-    const open = root.querySelector('section[data-needs-you="open"]');
-    expect(open?.querySelector('[aria-label="Asks on Run run-gate"]') ?? null).not.toBeNull();
-    expect(root.querySelector('section[data-needs-you="paused"]')).toBeNull();
-  });
-});
-
-describe('paused waits', () => {
-  test('a wait past its deadline has its own section, with what it waits for, and no ping', () => {
-    const root = render(none, queueOf(askItem({ item: seven }), overdueWaitItem()));
-    const paused = root.querySelector('section[data-needs-you="paused"]');
-    const open = root.querySelector('section[data-needs-you="open"]');
-    expect(text(paused)).toContain('Waiting past their deadline');
-    expect(text(paused)).toContain('CI on the change');
-    expect(paused?.querySelector('[aria-label="Asks on #9"] [data-doc-bar="left"]')).not.toBeNull();
-    expect(paused?.querySelector('[data-ping]')).toBeNull();
-    expect(open?.querySelector('[aria-label="Asks on #9"]')).toBeNull();
-    // Both count as waiting.
-    expect(chipWords(chip(root, 'waiting now'))).toBe('2 waiting now');
-  });
-});
-
-describe('answered lately', () => {
-  const at = (hour: number): string => `2026-11-17T${hour.toString().padStart(2, '0')}:00:00.000Z`;
-  const restarts: [string, TestRun | undefined][] = [
-    ['none', undefined],
-    ['pending', run('plan', 'pending', null)],
-    ['running', run('plan', 'running', null, 'plan')],
-    ['completed', run('plan', 'completed', 'planned')],
-    ['failed', run('plan', 'failed', null)],
-    ['paused', run('plan', 'paused', null)],
-    ['cancelled', run('plan', 'cancelled', null)],
-  ];
-  const items = restarts.map(([key, restarted], index) =>
-    answeredOn(key, at(index + 1), restarted)
+test('a busy page counts what waits, groups asks by item, names gate runs, and holds the page rule', () => {
+  const now = Date.now();
+  const ago = (ms: number): string => new Date(now - ms).toISOString();
+  const queue: AttentionQueue = {
+    ...queueOf(
+      askItem({ ref: 'ask:7a', item: seven, pausedAt: ago(20 * 60_000) }),
+      askItem({
+        ref: 'ask:9',
+        item: nine,
+        recommendation: undefined,
+        pausedAt: ago(2 * 3_600_000),
+      }),
+      askItem({ ref: 'ask:7b', item: seven, message: 'Rebase?', pausedAt: ago(60 * 60_000) }),
+      gateItem({ ref: 'gate:1' }),
+      // A usage limit retries by itself: it needs no one.
+      usageLimitItem()
+    ),
+    degraded: [{ type: 'degraded', reason: 'run_unreadable', runId: 'r-x' }],
+  } as AttentionQueue;
+  const root = render(none, queue, [answeredOn('a', ago(0)), answeredOn('b', ago(7 * 86_400_000))]);
+  expect(root.querySelector('[aria-label="4 waiting"]')).not.toBeNull();
+  expect(chipWords(root, 'waiting now')).toBe('4 waiting now');
+  // `a`'s two answers today; its withdrawn one and `b`'s last week do not count.
+  expect(chipWords(root, 'answered today')).toBe('2 answered today');
+  expect(chipWords(root, 'oldest wait')).toBe('2 h oldest wait');
+  expect(text(root)).toContain('4 things need you');
+  expect(text(root)).toContain('on 2 items and 1 run');
+  // One panel per item, newest ask first, then the gate's run; without a view, the run links.
+  expect(panelLabels(root)).toEqual(['Asks on #7', 'Asks on #9', 'Asks on Run run-gate']);
+  const seventh = text(root.querySelector('[aria-label="Asks on #7"]'));
+  expect(seventh.indexOf('Which base should the change target?')).toBeLessThan(
+    seventh.indexOf('Rebase?')
   );
-
-  test('one compact row per answer, with what its set started and in which state', () => {
-    const root = render(none, quiet, items);
-    const aside = root.querySelector('section[aria-label="Answered lately"]');
-    const rows = [...(aside?.querySelectorAll('li') ?? [])];
-    // Eight newest answers: cancelled's three, paused's three, failed's first two.
-    expect(rows).toHaveLength(8);
-    // Rows, not boxes: one panel holds them all.
-    expect(aside?.querySelectorAll('[data-doc-panel]')).toHaveLength(1);
-    const first = rows[0];
-    expect(text(first)).toContain('cancelled');
-    expect(text(first?.querySelector('[data-answer-pill]'))).toBe('Approve');
-    expect(text(first)).toContain('by cole-owner');
-    // The withdrawn answer of the set reads as withdrawn.
-    expect(rows.some(row => text(row).includes('Withdrawn'))).toBe(true);
-    // Each row carries its restart's state; the state's colour is browser-checked.
-    for (const [key] of restarts) {
-      const shown = renderStarted(key, items);
-      expect([key, shown?.getAttribute('data-started')]).toEqual([key, key]);
-      if (key === 'none') expect(text(shown)).toBe('Nothing started');
-      else expect(text(shown?.querySelector('a'))).toBe('Plan started again');
-    }
-  });
-
-  /** The "what it started" of item `key`'s newest row, drawn with that item alone answered. */
-  function renderStarted(key: string, all: FactoryItem[]): Element | null {
-    const only = all.filter(item => item.item.key === key);
-    return render(none, quiet, only).querySelector(
-      'section[aria-label="Answered lately"] li [data-started]'
-    );
-  }
-
-  /** Item `key`, asked by a stage-check run, its set's two answers choosing `chosen`. */
-  const routed = (key: string, chosen: string, restarted: TestRun[]): FactoryItem => {
-    const item = settledItem(key, run('stage-check', 'completed', 'ask'), at(1), restarted[0]);
-    const extra = restarted.slice(1).map((entry, index) => ({
-      ...item.runs[1],
-      id: `run-${key}-again-${index.toString()}`,
-      workflow: `Wirasm/archon-software-factory:${entry.workflow}`,
-    }));
-    return {
-      ...item,
-      runs: [...item.runs, ...extra] as FactoryItem['runs'],
-      answers: item.answers.map(answer =>
-        answer.kind === 'ask' && !answer.withdrawn
-          ? { ...answer, chosen: { id: chosen, does: `Does ${chosen}.` } }
-          : answer
-      ),
-    };
-  };
-  const startedOf = (root: Element): string[] =>
-    [...root.querySelectorAll('section[aria-label="Answered lately"] li')].map(
-      row =>
-        `${text(row.querySelector('[data-answer-pill]'))} | ${text(row.querySelector('[data-started] a'))}`
-    );
-
-  test("a drop reads the view's sentence, linked to the one run it started; a send-back its stage", () => {
-    const drop = render(withView, quiet, [routed('d', 'drop', [run('close', 'running')])]);
-    expect(startedOf(drop)[0]).toBe('Drop | Closes the PR without merging');
-    expect(drop.querySelector('[data-started] a')?.getAttribute('href')).toBe(
-      `/console/p/${ID}/r/run-d-1`
-    );
-    const back = render(withView, quiet, [
-      routed('b', 'send-back', [run('stage-build', 'running')]),
-    ]);
-    expect(startedOf(back)[0]).toBe('Send back | Build started again');
-  });
-
-  test('a drop whose set started two runs, or none yet, reads the sentence unlinked', () => {
-    for (const restarted of [[run('close', 'running'), run('stage-build', 'running')], []]) {
-      const root = render(withView, quiet, [routed('d', 'drop', restarted)]);
-      const started = root.querySelector('section[aria-label="Answered lately"] li [data-started]');
-      expect(started?.getAttribute('data-started')).toBe('declared');
-      expect(text(started)).toBe('Closes the PR without merging');
-      expect(started?.querySelector('a')).toBeNull();
-    }
-  });
-
-  test('with nothing answered yet, the aside stays and says what appears there', () => {
-    const aside = render(none, busy).querySelector('section[aria-label="Answered lately"]');
-    expect(text(aside)).toContain('Answers given here, from the CLI or by an agent, appear here.');
-  });
-
-  test('while the history is unread it shows skeleton rows', () => {
-    const aside = render(none, busy, 'unread').querySelector(
-      'section[aria-label="Answered lately"]'
-    );
-    expect(text(aside?.querySelector('[data-skeleton="true"]'))).toBe(
-      'Loading what was answered lately'
-    );
-  });
-});
-
-describe('the empty state', () => {
-  test('a check, "Nothing needs you", when last asked, the board and the runs', () => {
-    const root = render(withView, quiet, [answeredOn('a', '2026-11-17T10:00:00.000Z')]);
-    const empty = root.querySelector('section[aria-label="Nothing needs you"]');
-    expect(empty?.getAttribute('data-doc-panel')).toBe('panel');
-    const icon = empty?.querySelector('[data-empty-icon]') ?? null;
-    expect(icon?.querySelector('svg') ?? null).not.toBeNull();
-    expect(text(empty)).toContain('Nothing needs you');
-    expect(text(empty)).toContain('Last asked');
-    const links = [...(empty?.querySelectorAll('a') ?? [])].map(a => [
-      text(a),
-      a.getAttribute('href'),
-    ]);
-    expect(links).toEqual([
-      ['Open the board', `/console/p/${ID}/factory/board`],
-      ['See the runs', `/console/p/${ID}`],
-    ]);
-    expect(root.querySelector('section[data-needs-you]')).toBeNull();
-  });
-
-  test('without a view there is no board to link; never asked, it says what appears here', () => {
-    const empty = render(none, quiet).querySelector('section[aria-label="Nothing needs you"]');
-    expect(text(empty)).not.toContain('Last asked');
-    expect(text(empty)).toContain('appears here to answer');
-    expect([...(empty?.querySelectorAll('a') ?? [])].map(text)).toEqual(['See the runs']);
-  });
-
-  test('while the history is unread, a skeleton bar, never the never-asked sentence', () => {
-    const empty = render(none, quiet, 'unread').querySelector(
-      'section[aria-label="Nothing needs you"]'
-    );
-    expect(empty).not.toBeNull();
-    expect(empty?.querySelector('[data-skeleton="line"]')).not.toBeNull();
-    expect(text(empty)).not.toContain('appears here to answer');
-  });
-});
-
-describe('items waiting on you with no ask open', () => {
-  const shaping = needsShaping('9s', ['Which surfaces?', 'Who owns it?']);
-
-  test('each is a panel under Waiting on you, with its label, title, reason and questions', () => {
-    const root = render(withView, busy, [shaping]);
-    const section = root.querySelector('section[data-needs-you="awaiting"]');
-    expect(section).not.toBeNull();
-    const panel = section?.querySelector('article');
-    expect(panel?.getAttribute('data-doc-panel')).toBe('panel');
-    expect(text(panel)).toContain('Needs shaping');
-    expect(text(panel)).toContain('#9s');
-    expect(text(panel)).toContain('Worth doing; the scope is open.');
-    // What moves the item on, in the view's words: nothing here is answered in place.
-    expect(text(panel?.querySelector('[data-awaits-next]'))).toBe(
-      `What to do ${shippedListed.declaration.awaits?.['triage:shape']?.next ?? '?'}`
-    );
-    expect([...(panel?.querySelectorAll('li') ?? [])].map(text)).toEqual([
-      'Which surfaces?',
-      'Who owns it?',
-    ]);
-    expect(panel?.querySelector('a')?.getAttribute('href')).toBe(
-      `/console/p/${ID}/factory/items/9s`
-    );
-    // Only an open ask pings.
-    expect(section?.querySelector('[data-ping]')).toBeNull();
-    // One count: the three asks and the item.
-    expect(chipWords(chip(root, 'waiting now'))).toBe('4 waiting now');
-    expect(text(root.querySelector('section[aria-label="Summary"] h2'))).toBe('4 things need you');
-    expect(text(root.querySelector('section[aria-label="Summary"]'))).toContain(
-      '1 item waits on you with no question to answer here.'
-    );
-  });
-
-  test('with no ask open, the item still needs you: no empty state', () => {
-    const root = render(withView, quiet, [shaping]);
-    expect(root.querySelector('section[aria-label="Nothing needs you"]')).toBeNull();
-    expect(chipWords(chip(root, 'waiting now'))).toBe('1 waiting now');
-    expect(documentPageProblems(root)).toEqual([]);
-  });
-
-  test('without a factory view there are none', () => {
-    const root = render(none, quiet, [shaping]);
-    expect(root.querySelector('section[data-needs-you="awaiting"]')).toBeNull();
-  });
-});
-
-describe('the page holds to the document-page rule', () => {
-  const offered = askItem({
-    item: seven,
-    context: DRY_RUN_CONTEXT,
-    options: DRY_RUN_ROUTES,
-    recommendation: { option: 'send-back', why: DRY_RUN_WHY },
-  });
-  const cases: [string, FactoryViews, AttentionQueue][] = [
-    [
-      'open asks with an offered list',
-      withView,
-      queueOf(offered, askItem({ ref: 'ask:9', item: nine })),
-    ],
-    ['nothing open', none, quiet],
-    [
-      'a paused wait and a run it could not read',
-      none,
-      {
-        ...queueOf(offered, overdueWaitItem()),
-        degraded: [{ type: 'degraded', reason: 'run_unreadable', runId: 'r-x' }],
-      } as AttentionQueue,
-    ],
-  ];
-  for (const [name, listing, queue] of cases)
-    test(name, () => {
-      const root = render(listing, queue, [answeredOn('a', '2026-11-17T10:00:00.000Z')]);
-      expect(documentPageProblems(root)).toEqual([]);
-      // Answered lately is the aside, after the main column, at 390 px as at 1440.
-      const page = root.querySelector('[data-doc-page]');
-      const last = page?.lastElementChild;
-      expect(last?.getAttribute('aria-label')).toBe('Answered lately');
-    });
-});
-
-/**
- * `NeedsYouContent` mounted in a live DOM, for what static markup cannot reach: a read that
- * fails after the first render, an answer and its hold. `fetch` answers every request.
- */
-async function mountLive(
-  queue: AttentionQueue,
-  fetch: (url: string) => Promise<Response>
-): Promise<{
-  container: HTMLElement;
-  rerender: (next: AttentionQueue) => Promise<void>;
-  click: (label: string) => Promise<void>;
-  done: () => Promise<void>;
-}> {
-  const originalFetch = globalThis.fetch;
-  const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-  const descriptors = new Map(
-    Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
+  expect(root.innerHTML).toContain(`href="/console/p/${ID}/r/run-gate"`);
+  expect(text(root)).toContain(
+    'One paused run could not be read, so what it waits on is not listed.'
   );
-  for (const [key, value] of Object.entries(globals))
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  globalThis.fetch = Object.assign(async (input: RequestInfo | URL) => fetch(String(input)), {
-    preconnect: originalFetch.preconnect,
-  });
-  const { createRoot } = await import('react-dom/client');
-  const { NeedsYouContent } = await import('./NeedsYouLayout');
-  const container = dom.document.createElement('div') as unknown as HTMLElement;
-  dom.document.body.append(container as never);
-  const root = createRoot(container);
-  const draw = async (current: AttentionQueue): Promise<void> =>
-    act(async () =>
-      root.render(
-        <MemoryRouter>
-          <NeedsYouContent projectId="cb-live" view={undefined} queue={current} />
-        </MemoryRouter>
-      )
-    );
-  await draw(queue);
-  for (let turn = 0; turn < 5; turn++)
-    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
-  return {
-    container,
-    rerender: draw,
-    click: async label => {
-      const button = [...container.querySelectorAll('button')].find(candidate =>
-        candidate.textContent?.startsWith(label)
-      );
-      if (button === undefined) throw new Error(`No button "${label}"`);
-      await act(async () => {
-        button.click();
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-    },
-    done: async () => {
-      jest.useRealTimers();
-      await act(async () => root.unmount());
-      container.remove();
-      invalidate('factory-items');
-      globalThis.fetch = originalFetch;
-      for (const [key, descriptor] of descriptors) {
-        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-        else Reflect.deleteProperty(globalThis, key);
-      }
-    },
-  };
-}
-
-test('a history read that fails says so in the aside, and answered today is unknown, not 0', async () => {
-  const page = await mountLive(quiet, async () => {
-    throw new Error('the server is down');
-  });
-  try {
-    const { container } = page;
-    const alert = text(
-      container.querySelector('section[aria-label="Answered lately"] [role="alert"]')
-    );
-    expect(alert).toContain('What was answered lately could not be loaded');
-    expect(alert).toContain('the server is down');
-    expect(chipWords(chip(container, 'answered today'))).toBe('? answered today');
-    expect(text(container)).not.toContain('appears here to answer');
-  } finally {
-    await page.done();
-  }
+  expect(documentPageProblems(root)).toEqual([]);
 });
+
+test('a wait past its deadline has its own section: what it waits for and its run, no ping', () => {
+  const root = render(none, queueOf(askItem({ item: seven }), overdueWaitItem()));
+  const paused = root.querySelector('section[data-needs-you="paused"]');
+  expect(text(paused)).toContain('Waiting past their deadline');
+  expect(text(paused)).toContain('CI on the change');
+  expect(paused?.innerHTML).toContain(`href="/console/p/${ID}/r/run-wait"`);
+  expect(paused?.querySelector('[data-ping]')).toBeNull();
+  expect(chipWords(root, 'waiting now')).toBe('2 waiting now');
+});
+
+test('a wait on a run no item holds is counted and named as a run, its workflow named once', () => {
+  const root = render(none, queueOf(gateItem({ ref: 'gate:1' })));
+  expect(text(root)).toContain('1 thing needs you');
+  expect(text(root)).toContain('on 1 run');
+  expect(
+    text(root.querySelector('[aria-label="Asks on Run run-gate"]')).match(/deliver/g)
+  ).toHaveLength(1);
+});
+
+test('with nothing open: "Nothing needs you", when last asked, the board and the runs', () => {
+  const root = render(withView, quiet, [answeredOn('a', '2026-11-17T10:00:00.000Z')]);
+  const empty = root.querySelector('section[aria-label="Nothing needs you"]');
+  expect(text(empty)).toContain('Last asked');
+  expect([...(empty?.querySelectorAll('a') ?? [])].map(a => a.getAttribute('href'))).toEqual([
+    `/console/p/${ID}/factory/board`,
+    `/console/p/${ID}`,
+  ]);
+  expect(chipWords(root, 'waiting now')).toBe('0 waiting now');
+});
+
+test('answered lately: the newest rows, each with its answer, who gave it and what it started', () => {
+  const at = (hour: number): string => `2026-11-17T0${hour.toString()}:00:00.000Z`;
+  const root = render(none, quiet, [
+    answeredOn('none', at(1)),
+    answeredOn('running', at(2), run('plan', 'running', null, 'plan')),
+  ]);
+  const rows = [...root.querySelectorAll('section[aria-label="Answered lately"] li')];
+  expect(rows).toHaveLength(6);
+  expect(text(rows[0])).toContain('running');
+  expect(text(rows[0]?.querySelector('[data-answer-pill]'))).toBe('Approve');
+  expect(text(rows[0])).toContain('by cole-owner');
+  expect(text(rows[0]?.querySelector('[data-started] a'))).toBe('Plan started again');
+  expect(rows.some(row => text(row).includes('Withdrawn'))).toBe(true);
+  expect(text(rows.at(-1)?.querySelector('[data-started]'))).toBe('Nothing started');
+});
+
+test('an item waiting on you with no ask open is listed with its questions and counted', () => {
+  const root = render(withView, queueOf(askItem({ item: seven })), [
+    needsShaping('9s', ['Which surfaces?', 'Who owns it?']),
+  ]);
+  const panel = root.querySelector('section[data-needs-you="awaiting"] article');
+  expect(text(panel)).toContain('Needs shaping');
+  expect([...(panel?.querySelectorAll('li') ?? [])].map(text)).toEqual([
+    'Which surfaces?',
+    'Who owns it?',
+  ]);
+  expect(panel?.querySelector('a')?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/9s`);
+  expect(chipWords(root, 'waiting now')).toBe('2 waiting now');
+});
+
+test.each([
+  ['issue-7', '#7', false],
+  ['issue-136-item-keys', '#136 · item keys', true],
+])(
+  '%s reads %s on its open ask and its answered row, whose links keep the key',
+  (key, shown, split) => {
+    const plain = answeredOn(key, '2026-11-17T10:00:00.000Z');
+    const answered: FactoryItem = split
+      ? {
+          ...plain,
+          links: [
+            {
+              id: 'link-136',
+              kind: 'part_of',
+              direction: 'outgoing',
+              other: { id: 'item-136', projectKey: plain.item.projectKey, key: 'issue-136' },
+              at: '2026-11-17T10:00:00.000Z',
+              via: 'cli',
+              by: null,
+              fromRun: null,
+              ended: null,
+            },
+          ],
+        }
+      : plain;
+    const href = `/console/p/${ID}/factory/items/${key}`;
+    const open = render(withView, queueOf(askItem({ ref: `ask:${key}`, item: answered.item })), [
+      answered,
+    ]);
+    expect(panelLabels(open)).toEqual([`Asks on ${shown}`]);
+    expect(
+      text(open.querySelector(`section[data-needs-you="open"] h3 a[href="${href}"]`))
+    ).toStartWith(shown);
+    const row = render(withView, quiet, [answered]).querySelector(
+      `section[aria-label="Answered lately"] li a[href="${href}"]`
+    );
+    expect(text(row)).toContain(shown);
+  }
+);
 
 test('answering the last ask keeps it in its panel, saying so, before the empty state', async () => {
-  const page = await mountLive(queueOf(askItem({ ref: 'ask:1', item: seven })), async url =>
-    url.includes('/api/attention/answer')
-      ? Response.json({ success: true })
-      : Response.json({ error: 'not in this test' }, { status: 404 })
+  globalThis.fetch = Object.assign(
+    async (input: RequestInfo | URL) =>
+      String(input).includes('/api/attention/answer')
+        ? Response.json({ success: true })
+        : Response.json({ error: 'not in this test' }, { status: 404 }),
+    { preconnect: unserved.preconnect }
   );
+  let setQueue: (next: AttentionQueue) => void = () => undefined;
+  function Host() {
+    const [current, setCurrent] = useState(queueOf(askItem({ ref: 'ask:1', item: seven })));
+    setQueue = setCurrent;
+    return <NeedsYouContent projectId="cb-live" view={undefined} queue={current} />;
+  }
+  const { container, unmount } = await mount(
+    <MemoryRouter>
+      <Host />
+    </MemoryRouter>
+  );
+  const click = async (label: string): Promise<void> => {
+    const button = [...container.querySelectorAll('button')].find(b =>
+      b.textContent?.startsWith(label)
+    );
+    await act(async () => {
+      button?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
   try {
-    const { container } = page;
+    for (let turn = 0; turn < 5; turn++) await settle();
     jest.useFakeTimers();
-    await page.click('Use dev');
-    await page.click('Confirm');
-    // The queue refreshes without the ask; its panel stays, saying what was answered.
-    await page.rerender(quiet);
+    await click('Use dev');
+    await click('Confirm');
+    await act(async () => setQueue(quiet));
     const panel = container.querySelector('[aria-label="Asks on #7"]');
     expect(text(panel?.querySelector('[role="status"]'))).toBe('Answered: Use dev');
     expect(container.querySelector('section[aria-label="Nothing needs you"]')).toBeNull();
-    expect(chipWords(chip(container, 'waiting now'))).toBe('0 waiting now');
     await act(async () => {
       jest.advanceTimersByTime(ANSWERED_SHOWN_MS);
     });
     expect(container.querySelector('[aria-label="Asks on #7"]')).toBeNull();
     expect(container.querySelector('section[aria-label="Nothing needs you"]')).not.toBeNull();
   } finally {
-    await page.done();
+    jest.useRealTimers();
+    await unmount();
+    invalidate('factory-items');
   }
-});
-
-describe('an issue key on Needs you', () => {
-  test('`issue-7` and `7` both name the open ask #7, whose link keeps the key', () => {
-    for (const key of ['issue-7', '7']) {
-      const item = { id: `item-${key}`, projectKey: 'acme', key };
-      const root = render(withView, queueOf(askItem({ ref: `ask:${key}`, item })));
-      const panel = root.querySelector('section[data-needs-you="open"] article[data-doc-panel]');
-      expect(panel?.getAttribute('aria-label')).toBe('Asks on #7');
-      const link = panel?.querySelector('h3 a');
-      expect(text(link)).toBe('#7');
-      expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/${key}`);
-    }
-  });
-
-  test('`issue-7` and `7` both name the answered row #7, whose link keeps the key', () => {
-    for (const key of ['issue-7', '7']) {
-      const root = render(withView, quiet, [answeredOn(key, '2026-11-17T10:00:00.000Z')]);
-      const link = root.querySelector(
-        `section[aria-label="Answered lately"] li a[href="/console/p/${ID}/factory/items/${key}"]`
-      );
-      expect(keysIn(link)).toContain('#7');
-    }
-  });
-
-  /** `item` as a split member of `issue-136`, through an active part_of link. */
-  const member = (item: FactoryItem): FactoryItem => ({
-    ...item,
-    links: [
-      {
-        id: 'link-136',
-        kind: 'part_of',
-        direction: 'outgoing',
-        other: { id: 'item-136', projectKey: item.item.projectKey, key: 'issue-136' },
-        at: '2026-11-17T10:00:00.000Z',
-        via: 'cli',
-        by: null,
-        fromRun: null,
-        ended: null,
-      },
-    ],
-  });
-  const KEY = 'issue-136-item-keys';
-
-  test("a split member's open ask reads #136 · item keys, with or without a view", () => {
-    const answered = answeredOn(KEY, '2026-11-17T10:00:00.000Z');
-    const ask = askItem({ ref: 'ask:member', item: answered.item });
-    for (const listing of [withView, none]) {
-      const root = render(listing, queueOf(ask), [member(answered)]);
-      const panel = root.querySelector('section[data-needs-you="open"] article[data-doc-panel]');
-      expect(panel?.getAttribute('aria-label')).toBe('Asks on #136 · item keys');
-      expect(keysIn(panel?.querySelector('h3'))).toContain('#136 · item keys');
-    }
-    const link = render(withView, queueOf(ask), [member(answered)]).querySelector(
-      'section[data-needs-you="open"] h3 a'
-    );
-    expect(link?.getAttribute('href')).toBe(`/console/p/${ID}/factory/items/${KEY}`);
-  });
-
-  test("a split member's answered row reads #136 · item keys, whose link keeps the key", () => {
-    const root = render(withView, quiet, [member(answeredOn(KEY, '2026-11-17T10:00:00.000Z'))]);
-    const link = root.querySelector(
-      `section[aria-label="Answered lately"] li a[href="/console/p/${ID}/factory/items/${KEY}"]`
-    );
-    expect(keysIn(link)).toContain('#136 · item keys');
-  });
 });

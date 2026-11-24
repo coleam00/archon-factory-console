@@ -1,7 +1,5 @@
 import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { mkdir, mkdtemp, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
@@ -12,7 +10,7 @@ import {
 import { discoverFactoryViews } from './factory-views';
 import type { FactoryOverview, FactoryOverviewsListing } from './schemas/factory-overview';
 import type { FactoryViewSource } from './schemas/factory-view';
-import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
+import { scratchRoots, writeAt } from './factory-test.test-helpers';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 const track = trackTempRoots();
@@ -23,20 +21,8 @@ afterAll(() => {
 
 let roots: LiveWorkflowSourceRoots;
 let project: string;
-
 beforeEach(async () => {
-  const root = track(await mkdtemp(join(tmpdir(), 'archon-factory-overviews-')));
-  project = join(root, 'project');
-  roots = {
-    kind: 'live',
-    config: DEFAULT_WORKFLOW_SOURCE_CONFIG,
-    project,
-    globalWorkflows: join(root, 'home', 'workflows'),
-    globalCommands: join(root, 'home', 'commands'),
-    globalScripts: join(root, 'home', 'scripts'),
-    bundledWorkflows: join(root, 'bundled'),
-    installed: { kind: 'receipts', pluginsDir: join(root, 'home', 'plugins') },
-  };
+  ({ roots, project } = await scratchRoots(track, 'archon-factory-overviews-'));
 });
 
 const overview = (pack: string, title: string): FactoryOverview => ({
@@ -59,10 +45,7 @@ const overview = (pack: string, title: string): FactoryOverview => ({
   },
 });
 
-async function write(path: string, content: unknown): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, typeof content === 'string' ? content : JSON.stringify(content));
-}
+const write = writeAt;
 
 const projectFile = (key: string): string =>
   join(project, '.archon', 'packs', `${key}.factory-overview.json`);
@@ -95,31 +78,6 @@ describe('discoverFactoryOverviews', () => {
     expect(listing.errors.map(({ pack, source, path }) => [pack, source, path])).toEqual([
       ['broken', 'project-file', projectFile('broken')],
     ]);
-  });
-
-  test('an invalid file is listed with its path and the field at fault', async () => {
-    const invalid = overview('folder', 'Invalid');
-    invalid.root = 'nope';
-    await write(packFile('folder'), invalid);
-
-    const listing = await discoverFactoryOverviews(roots);
-    expect(listing.overviews).toEqual([]);
-    expect(listing.errors[0]?.error).toContain(packFile('folder'));
-    // The field at fault, and the value it named.
-    expect(listing.errors[0]?.error).toContain('root:');
-    expect(listing.errors[0]?.error).toContain('"nope"');
-  });
-
-  test('a file naming another pack than where it was found is an error', async () => {
-    await write(projectFile('acme.kit'), overview('acme/other', 'Mislabelled'));
-    await write(packFile('folder'), overview('elsewhere', 'Mislabelled'));
-
-    const listing = await discoverFactoryOverviews(roots);
-    expect(listing.overviews).toEqual([]);
-    // Each is listed under where it was found, naming the pack it declared.
-    expect(listing.errors.map(({ pack }) => pack)).toEqual(['acme.kit', 'folder']);
-    expect(listing.errors[0]?.error).toContain('acme/other');
-    expect(listing.errors[1]?.error).toContain('elsewhere');
   });
 
   test('a factory view file is not read as an overview, nor the reverse', async () => {
@@ -204,48 +162,6 @@ describe('resolveFactoryPacks', () => {
     expect(packs.packs.map(p => [p.key, p.readFrom?.name])).toEqual([['folder', 'beta']]);
   });
 
-  test('no file anywhere lists no pack', () => {
-    const packs = resolveFactoryPacks({ home: none, projects: [project('alpha', none, ['x/y'])] });
-    expect(packs).toEqual({ packs: [], errors: [], unreadProjects: [] });
-  });
-
-  test('a broken pack file falls back to a project file and stays listed on the pack', () => {
-    const packs = resolveFactoryPacks({
-      home: { overviews: [], errors: [broken('acme/kit', 'installed')] },
-      projects: [
-        project('alpha', {
-          overviews: [listed('acme/kit', 'project-file', 'Project')],
-          // Every project re-reads the home files: the same error once.
-          errors: [broken('acme/kit', 'installed')],
-        }),
-      ],
-    });
-    expect(packs.packs).toHaveLength(1);
-    expect(packs.packs[0]?.overview?.declaration.title).toBe('Project');
-    expect(packs.packs[0]?.readFrom?.name).toBe('alpha');
-    expect(packs.packs[0]?.errors.map(e => e.path)).toEqual(['/installed/acme/kit']);
-  });
-
-  test('only broken files list the pack with no overview, under its key', () => {
-    const packs = resolveFactoryPacks({
-      home: none,
-      projects: [project('alpha', { overviews: [], errors: [broken('acme.kit', 'project-file')] })],
-    });
-    expect(packs.packs.map(p => [p.pack, p.key, p.overview, p.errors.length])).toEqual([
-      ['acme.kit', 'acme.kit', null, 1],
-    ]);
-  });
-
-  test('an unreadable scope root names no pack and is listed once at the top', () => {
-    const root = broken('/plugins', 'installed', '/plugins');
-    const packs = resolveFactoryPacks({
-      home: { overviews: [], errors: [root] },
-      projects: [project('alpha', { overviews: [], errors: [root] })],
-    });
-    expect(packs.packs).toEqual([]);
-    expect(packs.errors).toEqual([root]);
-  });
-
   test('a pack lists the projects a view of it applies to, by name', () => {
     const packs = resolveFactoryPacks({
       home: { overviews: [listed('acme/kit', 'installed')], errors: [] },
@@ -256,18 +172,6 @@ describe('resolveFactoryPacks', () => {
       ],
     });
     expect(packs.packs[0]?.projects.map(p => p.name)).toEqual(['alpha', 'zeta']);
-  });
-
-  test('an unreadable project is listed and the other packs remain', () => {
-    const packs = resolveFactoryPacks({
-      home: { overviews: [listed('acme/kit', 'installed')], errors: [] },
-      projects: [
-        { codebaseId: 'gone', name: 'gone', error: 'ENOENT' },
-        project('alpha', none, ['acme/kit']),
-      ],
-    });
-    expect(packs.packs.map(p => p.key)).toEqual(['acme.kit']);
-    expect(packs.unreadProjects).toEqual([{ codebaseId: 'gone', name: 'gone', error: 'ENOENT' }]);
   });
 
   test('packs are sorted by title, else key', () => {

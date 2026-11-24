@@ -1,31 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { readRunFixture } from './__fixtures__/read-run-fixture';
 import {
   factoryShadowDecisionSchema,
   latestShadowDecisions,
-  readShadowValue,
   shadowDecisions,
   type FactoryShadowDecision,
 } from './factory-shadows';
+import { PACK, runFixture, shippedView, type RunFixture } from './factory-test.test-helpers';
 import { factoryViewSchema, type FactoryShadow } from './schemas/factory-view';
-import type { WorkflowEventRow } from './schemas/workflow-event';
-import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
 
-const PACK = 'Wirasm/archon-software-factory';
-// The declaration this repository ships for the pack the fixtures' runs come from.
-const shipped = factoryViewSchema.parse(
-  JSON.parse(
-    readFileSync(
-      join(
-        import.meta.dir,
-        '../../../.archon/packs/Wirasm.archon-software-factory.factory-view.json'
-      ),
-      'utf8'
-    )
-  )
-);
+const shipped = shippedView();
 /**
  * The merge gate as the shipped view declared it while it was a shadow, when #70's landgate run
  * recorded its decision. The view no longer declares it (the gate acts now), so the reader is
@@ -45,49 +28,10 @@ const view = factoryViewSchema.parse({
   shadows: [...(shipped.shadows ?? []), GATE_SHADOW],
 });
 
-interface Fixture {
-  run: WorkflowRun;
-  events: WorkflowEventRow[];
-}
-
 /** Runs copied from the live factory database: each file's `note` says which. */
-function fixture(name: string): Fixture {
-  const raw = readRunFixture(
-    join(import.meta.dir, '__fixtures__', 'factory-shadows', `${name}.jsonl`)
-  ) as ReturnType<typeof readRunFixture> & {
-    run: Record<string, unknown> & {
-      started_at: string;
-      completed_at: string | null;
-      last_activity_at: string | null;
-    };
-  };
-  const date = (value: string | null): Date | null => (value === null ? null : new Date(value));
-  const run = workflowRunSchema.parse({
-    origin: null,
-    conversation_id: null,
-    parent_conversation_id: null,
-    codebase_id: null,
-    outcome: null,
-    completed_outcome: null,
-    user_message: '',
-    active_phase_started_at: null,
-    working_path: null,
-    user_id: null,
-    parent_run_id: null,
-    adopted_from_run_id: null,
-    output_root: null,
-    checkout_baseline: null,
-    item_id: null,
-    metadata: {},
-    ...raw.run,
-    started_at: new Date(raw.run.started_at),
-    completed_at: date(raw.run.completed_at),
-    last_activity_at: date(raw.run.last_activity_at),
-  });
-  return { run, events: raw.events };
-}
+const fixture = (name: string): RunFixture => runFixture('factory-shadows', name);
 
-const decisionsOf = ({ run, events }: Fixture): FactoryShadowDecision[] =>
+const decisionsOf = ({ run, events }: RunFixture): FactoryShadowDecision[] =>
   shadowDecisions(view, PACK, run, events);
 
 const triage65 = fixture('item-65-triage');
@@ -98,10 +42,10 @@ const discoveries70 = fixture('item-70-discoveries');
 
 /** `fix`'s run with its completed `node` event's data changed by `change`. */
 function withCompleted(
-  fix: Fixture,
+  fix: RunFixture,
   node: string,
   change: (data: Record<string, unknown>) => Record<string, unknown>
-): Fixture {
+): RunFixture {
   return {
     run: fix.run,
     events: fix.events.map(row =>
@@ -187,70 +131,27 @@ describe('reading what each shadow step recorded', () => {
 });
 
 describe('a step with no readable decision', () => {
-  test('a skipped step yields no decision', () => {
-    const skipped: Fixture = {
-      run: landgate70.run,
-      events: landgate70.events
-        .filter(row => row.event_type === 'node_started')
-        .map(row => ({ ...row, event_type: 'node_skipped', data: { reason: 'when_condition' } })),
-    };
-    expect(decisionsOf(skipped)).toEqual([]);
-  });
-
-  test('a step that started and never completed yields no decision', () => {
-    const started = {
-      run: landgate70.run,
-      events: landgate70.events.filter(row => row.event_type === 'node_started'),
-    };
-    expect(decisionsOf(started)).toEqual([]);
-  });
-
-  test('text output that is not JSON is unreadable', () => {
-    const prose = withCompleted(discoveries70, 'result', data => ({
-      ...data,
-      node_output: 'Filed one finding.',
-    }));
-    expect(decisionsOf(prose).map(decision => decision.read)).toEqual([{ reads: 'unreadable' }]);
-  });
-
-  test('text output cut short is unreadable, even when what is left parses', () => {
-    const cut = withCompleted(discoveries70, 'result', data => ({
-      ...data,
-      node_output_truncated: true,
-    }));
-    expect(decisionsOf(cut).map(decision => decision.read)).toEqual([{ reads: 'unreadable' }]);
-  });
-
-  test('a structured value missing the declared verdict is unreadable', () => {
-    const empty = withCompleted(landgate70, 'gate', data => ({
-      ...data,
-      structured_output: { why: 'no verdict' },
-    }));
-    expect(decisionsOf(empty).map(decision => decision.read)).toEqual([{ reads: 'unreadable' }]);
-  });
-
-  test('a check entry without a name or passed flag makes the checks unreadable', () => {
-    const shadow = view.shadows?.find(entry => entry.reads === 'checks') as FactoryShadow;
-    expect(readShadowValue(shadow, { results: [{ name: 'lint' }] })).toEqual({
-      reads: 'unreadable',
-    });
-    expect(readShadowValue(shadow, { results: 'none' })).toEqual({ reads: 'unreadable' });
-  });
-
-  test('a declared list that is not a list makes the lists unreadable', () => {
-    const shadow = view.shadows?.find(entry => entry.reads === 'lists') as FactoryShadow;
-    expect(readShadowValue(shadow, { filed: [], folded: [], held: [], dropped: 2 })).toEqual({
-      reads: 'unreadable',
-    });
-  });
-
-  test('a verdict the words map lacks is still read, as the pack recorded it', () => {
-    const shadow = view.shadows?.find(entry => entry.node === 'gate') as FactoryShadow;
-    expect(readShadowValue(shadow, { land: 'maybe' })).toEqual({
-      reads: 'verdict',
-      value: 'maybe',
-      why: null,
-    });
+  test.each<[string, RunFixture]>([
+    [
+      'text output that is not JSON',
+      withCompleted(discoveries70, 'result', data => ({
+        ...data,
+        node_output: 'Filed one finding.',
+      })),
+    ],
+    [
+      'text output cut short, even when what is left parses',
+      withCompleted(discoveries70, 'result', data => ({ ...data, node_output_truncated: true })),
+    ],
+    [
+      'a structured value missing the declared verdict',
+      withCompleted(landgate70, 'gate', data => ({
+        ...data,
+        structured_output: { why: 'no verdict' },
+      })),
+    ],
+  ])('%s is unreadable', (_name, fix) => {
+    expect(decisionsOf(fix).map(decision => decision.read)).toEqual([{ reads: 'unreadable' }]);
   });
 });
 

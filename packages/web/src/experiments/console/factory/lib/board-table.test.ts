@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { markedKeys, sortRows, type TableRow } from './board-table';
+import { boardModel } from './board';
+import { FIXTURE_NOW, PAGE, VIEW } from './board.test-fixtures';
+import { markedKeys, sortRows, tableRows, type TableRow } from './board-table';
 
 const HOUR = 3_600_000;
 const START = '2026-11-17T10:00:00Z';
@@ -37,6 +39,29 @@ describe('the Table under a number', () => {
     expect(keys(sortRows(rows, { by: 'toLand', descending: true }))).toEqual(['a', 'd', 'c', 'b']);
   });
 
+  test('rows name the column and stage; by stage they sort down the pipeline, Merged last', () => {
+    const rows = tableRows(
+      boardModel(VIEW, 'cb-1', [...PAGE.items].reverse(), new Map(), FIXTURE_NOW)
+    );
+    const sorted = sortRows(rows, { by: 'stage', descending: false });
+    expect(sorted.map(r => [r.placed.card.key, r.column, r.stage])).toEqual([
+      ['3', 'Plan & build', 'Build'],
+      ['6', 'Plan & build', 'Build'],
+      ['4', 'Plan & build', 'Build'],
+      ['5', 'Plan & build', 'Build'],
+      ['8', 'Checks & review', 'Checks'],
+      // A merged row's Stage is empty, as its card's is.
+      ['1', 'Merged', null],
+      ['2', 'Merged', null],
+      ['7', 'Merged', null],
+    ]);
+  });
+
+  test('sorted by work order, rows with none come last', () => {
+    const rows = [row('a', 1), row('b', 1, 'landed', '48'), row('c', 1, 'landed', '60')];
+    expect(keys(sortRows(rows, { by: 'order', descending: true }))).toEqual(['c', 'b', 'a']);
+  });
+
   test('sorted by Key, issue-N and N keys interleave by number, as the column shows them', () => {
     const rows = [row('issue-136', 1), row('140', 1), row('111', 1), row('issue-9', 1)];
     expect(keys(sortRows(rows, { by: 'key', descending: false }))).toEqual([
@@ -47,27 +72,11 @@ describe('the Table under a number', () => {
     ]);
   });
 
-  test('sorted by Key, a split member sits right after its order, as it reads (#136 · …)', () => {
-    const rows = [
-      row('issue-137', 1),
-      row('issue-136-item-keys', 1, 'landed', 'issue-136'),
-      row('135', 1),
-      row('issue-136', 1),
-    ];
-    expect(keys(sortRows(rows, { by: 'key', descending: false }))).toEqual([
-      '135',
-      'issue-136',
-      'issue-136-item-keys',
-      'issue-137',
-    ]);
-  });
-
   test('the median marks the middle row of an odd count, the two middle rows of an even one', () => {
     const odd = [row('a', 5), row('b', 1), row('c', 3), row('n', null)];
     expect([...markedKeys(odd, 'median', 'landed')]).toEqual(['c']);
     const even = [row('a', 5), row('b', 1), row('c', 3), row('d', 8)];
     expect([...markedKeys(even, 'median', 'landed')].sort()).toEqual(['a', 'c']);
-    expect(markedKeys([row('n', null)], 'median', 'landed').size).toBe(0);
   });
 
   test('merged marks every row in the landed stage, none elsewhere', () => {

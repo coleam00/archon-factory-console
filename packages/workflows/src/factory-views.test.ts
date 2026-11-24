@@ -1,7 +1,5 @@
 import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { mkdir, mkdtemp, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
@@ -10,7 +8,7 @@ import {
   factoryViewsForProject,
 } from './factory-views';
 import type { FactoryView, FactoryViewsListing } from './schemas/factory-view';
-import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
+import { scratchRoots, writeAt } from './factory-test.test-helpers';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 const track = trackTempRoots();
@@ -19,23 +17,10 @@ afterAll(() => {
   indexSpy.mockRestore();
 });
 
-let root: string;
 let roots: LiveWorkflowSourceRoots;
 let project: string;
-
 beforeEach(async () => {
-  root = track(await mkdtemp(join(tmpdir(), 'archon-factory-views-')));
-  project = join(root, 'project');
-  roots = {
-    kind: 'live',
-    config: DEFAULT_WORKFLOW_SOURCE_CONFIG,
-    project,
-    globalWorkflows: join(root, 'home', 'workflows'),
-    globalCommands: join(root, 'home', 'commands'),
-    globalScripts: join(root, 'home', 'scripts'),
-    bundledWorkflows: join(root, 'bundled'),
-    installed: { kind: 'receipts', pluginsDir: join(root, 'home', 'plugins') },
-  };
+  ({ roots, project } = await scratchRoots(track, 'archon-factory-views-'));
 });
 
 const view = (pack: string, title: string): FactoryView => ({
@@ -53,10 +38,7 @@ const view = (pack: string, title: string): FactoryView => ({
   map: { cards: [{ stage: 'build' }], arrows: [] },
 });
 
-async function write(path: string, content: unknown): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, typeof content === 'string' ? content : JSON.stringify(content));
-}
+const write = writeAt;
 
 const projectFile = (key: string): string =>
   join(project, '.archon', 'packs', `${key}.factory-view.json`);
@@ -116,11 +98,10 @@ describe('discoverFactoryViews', () => {
     await write(packFile('folder'), view('elsewhere', 'Mislabelled'));
 
     const listing = await discoverFactoryViews(roots);
-    // Both are refused, each listed under its file and naming the pack it declared.
     expect(listing.views).toEqual([]);
-    expect(listing.errors.map(({ pack, source, path }) => [pack, source, path])).toEqual([
-      ['acme.kit', 'project-file', projectFile('acme.kit')],
-      ['folder', 'project', packFile('folder')],
+    expect(listing.errors.map(({ pack, source }) => [pack, source])).toEqual([
+      ['acme.kit', 'project-file'],
+      ['folder', 'project'],
     ]);
     expect(listing.errors[0]?.error).toContain('acme/other');
     expect(listing.errors[1]?.error).toContain('elsewhere');

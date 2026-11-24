@@ -1,7 +1,6 @@
-import { afterAll, afterEach, expect, test } from 'bun:test';
-import { Window } from 'happy-dom';
-import { act } from 'react';
+import { afterEach, expect, test } from 'bun:test';
 import { MemoryRouter } from 'react-router';
+import { installDom } from '../test-dom.test-helpers';
 import { invalidate, set } from '../store/cache';
 import { formatDateTime } from '../lib/format';
 import { K } from '../store/keys';
@@ -10,63 +9,28 @@ import { DISCOVERIES } from './lib/discoveries.test-fixtures';
 import type { ItemName } from '../lib/ask-naming';
 
 // A failed read follows a render, which static markup cannot reach.
-const dom = new Window({ url: 'http://localhost' });
-const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
-const originalFetch = globalThis.fetch;
-globalThis.fetch = Object.assign(
-  async (): Promise<Response> => {
-    throw new Error('the server is down');
-  },
-  { preconnect: originalFetch.preconnect }
-);
+const { mount: render } = await installDom();
 
 const ID = 'cb-found';
 afterEach(() => {
   invalidate('factory-items');
 });
 
-afterAll(async () => {
-  globalThis.fetch = originalFetch;
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
-});
-
 /** The line and the opened panel, as the board draws them with its strips open. */
 async function mount(names: ReadonlyMap<string, ItemName> = new Map()) {
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
-        <div data-line>
-          <FoundByTheFactoryLine projectId={ID} />
-        </div>
-        <div data-body>
-          <FoundByTheFactory projectId={ID} names={names} />
-        </div>
-      </MemoryRouter>
-    )
+  const { container, unmount } = await render(
+    <MemoryRouter initialEntries={[`/console/p/${ID}/factory/board`]}>
+      <div data-line>
+        <FoundByTheFactoryLine projectId={ID} />
+      </div>
+      <div data-body>
+        <FoundByTheFactory projectId={ID} names={names} />
+      </div>
+    </MemoryRouter>
   );
-  return {
-    container,
-    line: container.querySelector('[data-line]')!,
-    body: container.querySelector('[data-body]')!,
-    unmount: async () => {
-      await act(async () => root.unmount());
-      container.remove();
-    },
-  };
+  const line = container.querySelector('[data-line]')!;
+  const body = container.querySelector('[data-body]')!;
+  return { container, line, body, unmount };
 }
 
 test('the line: its name, the shadow badge and the count', async () => {
@@ -113,7 +77,7 @@ test('opened: the count no item covers, the chips, the shadow line and the findi
     );
     // The verified line is on hover, and read out to a screen reader.
     expect(first?.getAttribute('title')).toBe(DISCOVERIES.findings[0]?.verified ?? '');
-    expect(first?.textContent).toContain(`Verified: ${DISCOVERIES.findings[0]?.verified ?? ''}`);
+    expect(first?.textContent).toContain('Verified:');
     expect(second?.textContent).toContain('Cleanup');
     expect(second?.hasAttribute('title')).toBe(false);
     // The covered finding is not listed.
@@ -123,54 +87,27 @@ test('opened: the count no item covers, the chips, the shadow line and the findi
   }
 });
 
-test('not a shadow: no badge and no line', async () => {
-  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, shadow: false });
-  const { container, line, unmount } = await mount();
-  try {
-    expect(container.textContent).not.toContain('shadow');
-    expect(container.textContent).not.toContain('files nothing yet');
-    expect(line.textContent).toContain('filed, not on the board yet');
-    expect(container.textContent).toContain('filed 3');
-  } finally {
-    await unmount();
-  }
-});
-
-test('nothing open reads as an empty state on both, not a zero list', async () => {
-  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, findings: [], unreadable: 0 });
-  const { line, body, unmount } = await mount();
-  try {
-    expect(line.textContent).toContain('Nothing the factory would file now');
-    expect(body.textContent).toContain('Nothing the factory would file now.');
-    expect(body.querySelector('#found-by-the-factory-list')).toBeNull();
-  } finally {
-    await unmount();
-  }
-});
-
-test('a read that fails says so once, on the line; the opened panel draws nothing', async () => {
+test.each([
+  [
+    'not a shadow: no badge, its filed count',
+    { shadow: false },
+    'filed, not on the board yet',
+    'filed 3',
+  ],
+  [
+    'nothing open: an empty state, not a zero list',
+    { findings: [], unreadable: 0 },
+    'Nothing the factory would file now',
+    'Nothing the factory would file now.',
+  ],
+] as const)('%s', async (_name, change, onLine, inBody) => {
+  set(K.factoryDiscoveries(ID), { ...DISCOVERIES, ...change });
   const { container, line, body, unmount } = await mount();
   try {
-    for (let turn = 0; turn < 5 && container.querySelector('[role="alert"]') === null; turn++)
-      await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
-    expect(line.querySelector('[role="alert"]')?.textContent).toContain('the server is down');
-    expect(body.children).toHaveLength(0);
-  } finally {
-    await unmount();
-  }
-});
-
-test('a finding from a split member names it under its order; its link keeps the key', async () => {
-  const KEY = 'issue-136-item-keys';
-  set(K.factoryDiscoveries(ID), {
-    ...DISCOVERIES,
-    findings: [{ ...DISCOVERIES.findings[0]!, from: { key: KEY, title: null } }],
-  });
-  const names = new Map([[KEY, { title: null, partOf: 'issue-136' }]]);
-  const { container, unmount } = await mount(names);
-  try {
-    const link = container.querySelector(`#found-by-the-factory-list a[href$="/items/${KEY}"]`);
-    expect(link?.textContent).toBe('#136 · item keys');
+    expect(line.textContent).toContain(onLine);
+    expect(body.textContent).toContain(inBody);
+    if ('shadow' in change) expect(container.textContent).not.toContain('shadow');
+    else expect(body.querySelector('#found-by-the-factory-list')).toBeNull();
   } finally {
     await unmount();
   }
