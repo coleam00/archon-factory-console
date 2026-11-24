@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readRunFixture } from './__fixtures__/read-run-fixture';
 import {
@@ -9,24 +8,13 @@ import {
   readFactoryDiscoveries,
   type DiscoveriesSource,
 } from './factory-discoveries';
+import { hydrateRun, PACK, shippedView } from './factory-test.test-helpers';
 import type { JsonValue } from './output-ref';
-import { factoryViewSchema } from './schemas/factory-view';
 import type { WorkflowEventRow } from './schemas/workflow-event';
-import { workflowRunSchema, type WorkflowItem, type WorkflowRun } from './schemas/workflow-run';
+import type { WorkflowItem, WorkflowRun } from './schemas/workflow-run';
 
-const PACK = 'Wirasm/archon-software-factory';
 // The declaration this repository ships, with its `discoveries` field.
-const view = factoryViewSchema.parse(
-  JSON.parse(
-    readFileSync(
-      join(
-        import.meta.dir,
-        '../../../.archon/packs/Wirasm.archon-software-factory.factory-view.json'
-      ),
-      'utf8'
-    )
-  )
-);
+const view = shippedView();
 const declaration = view.discoveries!;
 
 /** A completed drain copied from the live factory database (see the file's `note`). */
@@ -54,79 +42,58 @@ describe('what one drain decided', () => {
     });
   });
 
-  test('a drain that noticed nothing decided nothing, and still reads', () => {
-    expect(
-      decided({ summary: 'Nothing was noticed.', filed: [], folded: [], held: [], dropped: [] })
-    ).toEqual({
-      filed: [],
-      held: 0,
-      dropped: 0,
-    });
-  });
-
-  test('a declared list that is missing or not a list is unreadable', () => {
-    expect(decided({ filed: [], held: [] })).toBe('unreadable');
-    expect(decided({ filed: 'none', held: [], dropped: [] })).toBe('unreadable');
-  });
-
-  test('a filed entry with no title is unreadable; one with no kind or verified line reads them null', () => {
-    expect(decided({ filed: [{ kind: 'defect' }], held: [], dropped: [] })).toBe('unreadable');
-    expect(decided({ filed: [{ title: '  ' }], held: [], dropped: [] })).toBe('unreadable');
-    expect(decided({ filed: [{ title: 'A thing' }], held: [], dropped: [] })).toEqual({
-      filed: [{ title: 'A thing', kind: null, verified: null }],
-      held: 0,
-      dropped: 0,
-    });
+  test.each<[string, unknown, ReturnType<typeof drainDecisions>]>([
+    [
+      'a drain that noticed nothing decided nothing, and still reads',
+      { summary: 'Nothing.', filed: [], folded: [], held: [], dropped: [] },
+      { filed: [], held: 0, dropped: 0 },
+    ],
+    [
+      'a filed entry with no kind or verified line reads them null',
+      { filed: [{ title: 'A thing' }], held: [], dropped: [] },
+      { filed: [{ title: 'A thing', kind: null, verified: null }], held: 0, dropped: 0 },
+    ],
+    ['a declared list missing is unreadable', { filed: [], held: [] }, 'unreadable'],
+    [
+      'a declared list that is not a list is unreadable',
+      { filed: 'none', held: [], dropped: [] },
+      'unreadable',
+    ],
+    [
+      'a filed entry with no title is unreadable',
+      { filed: [{ kind: 'defect' }], held: [], dropped: [] },
+      'unreadable',
+    ],
+    [
+      'a filed entry with a blank title is unreadable',
+      { filed: [{ title: '  ' }], held: [], dropped: [] },
+      'unreadable',
+    ],
+  ])('%s', (_name, value, expected) => {
+    expect(decided(value)).toEqual(expected);
   });
 });
 
-describe('a finding is covered by an item with the same title', () => {
+test('a finding is covered by an item with the same title, in any case, trimmed; a near title does not', () => {
   const titles = new Map<string, string | null>([
     ['5', 'The board reads well'],
     ['9', null],
     ['12', ' An order with runs but no title reads "48 48" '],
   ]);
-
-  test('in any case, trimmed', () => {
-    expect(coveredBy('an ORDER with runs but no title reads "48 48"', titles)).toBe('12');
-  });
-
-  test('a near title does not cover it', () => {
-    expect(coveredBy('An order with runs but no title reads "48"', titles)).toBeNull();
-    expect(coveredBy('The board reads well.', titles)).toBeNull();
-    // A title an item's title extends is not the same title either.
-    expect(coveredBy('The board reads', titles)).toBeNull();
-  });
+  expect(coveredBy('an ORDER with runs but no title reads "48 48"', titles)).toBe('12');
+  expect(coveredBy('An order with runs but no title reads "48"', titles)).toBeNull();
+  expect(coveredBy('The board reads well.', titles)).toBeNull();
+  // A title an item's title extends is not the same title either.
+  expect(coveredBy('The board reads', titles)).toBeNull();
 });
 
-function run(
-  fields: Partial<WorkflowRun> & Pick<WorkflowRun, 'id' | 'workflow_name'>
-): WorkflowRun {
-  return workflowRunSchema.parse({
-    origin: null,
-    conversation_id: null,
-    parent_conversation_id: null,
-    codebase_id: null,
-    outcome: null,
-    completed_outcome: null,
-    user_message: '',
-    active_phase_started_at: null,
-    last_activity_at: null,
-    working_path: null,
-    user_id: null,
-    parent_run_id: null,
-    adopted_from_run_id: null,
-    output_root: null,
-    checkout_baseline: null,
-    item_id: null,
-    metadata: {},
+const run = (fields: Partial<WorkflowRun> & Pick<WorkflowRun, 'id' | 'workflow_name'>) =>
+  hydrateRun({
     status: 'completed',
-    started_at: new Date('2026-11-17T10:00:00Z'),
-    completed_at: new Date('2026-11-17T10:05:00Z'),
+    started_at: '2026-11-17T10:00:00Z',
+    completed_at: '2026-11-17T10:05:00Z',
     ...fields,
   });
-}
-
 /** A run of the item's own workflow, carrying the item text its title comes from. */
 const titled = (id: string, title: string): WorkflowRun =>
   run({

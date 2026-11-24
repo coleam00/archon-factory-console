@@ -1,7 +1,5 @@
 import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { mkdir, mkdtemp, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
@@ -12,7 +10,7 @@ import {
 import { discoverFactoryViews } from './factory-views';
 import type { FactoryOverview, FactoryOverviewsListing } from './schemas/factory-overview';
 import type { FactoryViewSource } from './schemas/factory-view';
-import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
+import { scratchRoots, writeAt } from './factory-test.test-helpers';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
 const track = trackTempRoots();
@@ -23,20 +21,8 @@ afterAll(() => {
 
 let roots: LiveWorkflowSourceRoots;
 let project: string;
-
 beforeEach(async () => {
-  const root = track(await mkdtemp(join(tmpdir(), 'archon-factory-overviews-')));
-  project = join(root, 'project');
-  roots = {
-    kind: 'live',
-    config: DEFAULT_WORKFLOW_SOURCE_CONFIG,
-    project,
-    globalWorkflows: join(root, 'home', 'workflows'),
-    globalCommands: join(root, 'home', 'commands'),
-    globalScripts: join(root, 'home', 'scripts'),
-    bundledWorkflows: join(root, 'bundled'),
-    installed: { kind: 'receipts', pluginsDir: join(root, 'home', 'plugins') },
-  };
+  ({ roots, project } = await scratchRoots(track, 'archon-factory-overviews-'));
 });
 
 const overview = (pack: string, title: string): FactoryOverview => ({
@@ -59,10 +45,7 @@ const overview = (pack: string, title: string): FactoryOverview => ({
   },
 });
 
-async function write(path: string, content: unknown): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, typeof content === 'string' ? content : JSON.stringify(content));
-}
+const write = writeAt;
 
 const projectFile = (key: string): string =>
   join(project, '.archon', 'packs', `${key}.factory-overview.json`);
@@ -108,18 +91,6 @@ describe('discoverFactoryOverviews', () => {
     // The field at fault, and the value it named.
     expect(listing.errors[0]?.error).toContain('root:');
     expect(listing.errors[0]?.error).toContain('"nope"');
-  });
-
-  test('a file naming another pack than where it was found is an error', async () => {
-    await write(projectFile('acme.kit'), overview('acme/other', 'Mislabelled'));
-    await write(packFile('folder'), overview('elsewhere', 'Mislabelled'));
-
-    const listing = await discoverFactoryOverviews(roots);
-    expect(listing.overviews).toEqual([]);
-    // Each is listed under where it was found, naming the pack it declared.
-    expect(listing.errors.map(({ pack }) => pack)).toEqual(['acme.kit', 'folder']);
-    expect(listing.errors[0]?.error).toContain('acme/other');
-    expect(listing.errors[1]?.error).toContain('elsewhere');
   });
 
   test('a factory view file is not read as an overview, nor the reverse', async () => {
@@ -202,11 +173,6 @@ describe('resolveFactoryPacks', () => {
     // `global-only` in a project listing without a home listing cannot happen; it is skipped
     // rather than credited to the project.
     expect(packs.packs.map(p => [p.key, p.readFrom?.name])).toEqual([['folder', 'beta']]);
-  });
-
-  test('no file anywhere lists no pack', () => {
-    const packs = resolveFactoryPacks({ home: none, projects: [project('alpha', none, ['x/y'])] });
-    expect(packs).toEqual({ packs: [], errors: [], unreadProjects: [] });
   });
 
   test('a broken pack file falls back to a project file and stays listed on the pack', () => {

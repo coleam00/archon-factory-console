@@ -1,7 +1,6 @@
 import { afterAll, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { mkdir, mkdtemp, writeFile } from 'fs/promises';
-import { tmpdir } from 'os';
-import { dirname, join } from 'path';
+import { mkdir } from 'fs/promises';
+import { join } from 'path';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import * as bundleInventory from './defaults/bundle-inventory';
 import {
@@ -10,7 +9,7 @@ import {
   type FactoryPackSettings,
   type FoundPackDeclaration,
 } from './factory-pack-settings';
-import { DEFAULT_WORKFLOW_SOURCE_CONFIG } from './workflow-source';
+import { scratchRoots, writeAt } from './factory-test.test-helpers';
 import type { FactoryOverview } from './schemas/factory-overview';
 import type { LiveWorkflowSourceRoots } from './workflow-source/roots';
 
@@ -22,25 +21,13 @@ afterAll(() => {
 
 let root: string;
 let roots: LiveWorkflowSourceRoots;
-
 beforeEach(async () => {
-  root = track(await mkdtemp(join(tmpdir(), 'archon-factory-pack-settings-')));
-  roots = {
-    kind: 'live',
-    config: DEFAULT_WORKFLOW_SOURCE_CONFIG,
-    project: null,
-    globalWorkflows: join(root, 'home', 'workflows'),
-    globalCommands: join(root, 'home', 'commands'),
-    globalScripts: join(root, 'home', 'scripts'),
-    bundledWorkflows: join(root, 'bundled'),
-    installed: { kind: 'receipts', pluginsDir: join(root, 'home', 'plugins') },
-  };
+  ({ root, roots } = await scratchRoots(track, 'archon-factory-pack-settings-', {
+    project: false,
+  }));
 });
 
-async function write(path: string, content: string): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content);
-}
+const write = writeAt;
 
 /** A global folder pack `kit` declaring `yaml` as its `.pack/pack.yaml`. */
 const declare = (yaml: string): Promise<void> =>
