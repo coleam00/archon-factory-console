@@ -24,7 +24,7 @@ test('a read that answers in time resolves, and its timer is cleared', async () 
   expect(signal?.aborted).toBe(false);
 });
 
-test('a read past its deadline is aborted and rejects with SlowReadError', async () => {
+test('a read past its deadline is aborted and rejects with SlowReadError, signal heeded or not', async () => {
   jest.useFakeTimers();
   let signal: AbortSignal | undefined;
   const result = withDeadline(1_000, received => {
@@ -40,13 +40,10 @@ test('a read past its deadline is aborted and rejects with SlowReadError', async
   const error = await result.catch((e: unknown) => e);
   expect(error).toBeInstanceOf(SlowReadError);
   expect(signal?.aborted).toBe(true);
-});
-
-test('a read that ignores the signal still rejects at its deadline', async () => {
-  jest.useFakeTimers();
-  const result = withDeadline(1_000, () => new Promise<string>(() => undefined));
+  // One that ignores the signal still rejects at its deadline.
+  const deaf = withDeadline(1_000, () => new Promise<string>(() => undefined));
   jest.advanceTimersByTime(1_000);
-  expect(await result.catch((e: unknown) => e)).toBeInstanceOf(SlowReadError);
+  expect(await deaf.catch((e: unknown) => e)).toBeInstanceOf(SlowReadError);
 });
 
 test('a failure in time is passed on as it is', async () => {

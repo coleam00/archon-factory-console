@@ -54,36 +54,29 @@ describe("an item's key as it reads", () => {
 });
 
 describe("an item's work order", () => {
-  test('from an active part_of link', () => {
-    expect(membershipOf(linkTo(realItem('5'), '48'))).toEqual({ order: '48', source: 'link' });
-  });
-
-  test("from its order run's result, when it has no link", () => {
-    expect(membershipOf(namedBy(realItem('5'), '48'))).toEqual({ order: '48', source: 'output' });
-  });
-
-  test('a link wins over a result that names another order', () => {
-    const item = linkTo(namedBy(realItem('5'), '60'), '48');
-    expect(membershipOf(item)).toEqual({ order: '48', source: 'link' });
-  });
-
-  test('an ended link makes no member', () => {
-    expect(membershipOf(linkTo(realItem('5'), '48', AT, true))).toBeNull();
-    // With the link ended, a result's order is read again.
-    expect(membershipOf(linkTo(namedBy(realItem('5'), '60'), '48', AT, true))).toEqual({
-      order: '60',
-      source: 'output',
-    });
-  });
-
-  test('with two active links, the one recorded last', () => {
-    const item = linkTo(linkTo(realItem('5'), '48'), '70', '2026-11-17T11:00:00.000Z');
-    expect(membershipOf(item)?.order).toBe('70');
-  });
-
-  test('no link and no result, or a result naming the item itself: none', () => {
-    expect(membershipOf(realItem('5'))).toBeNull();
-    expect(membershipOf(namedBy(realItem('5'), '5'))).toBeNull();
+  const five = (): FactoryItem => realItem('5');
+  const LATER = '2026-11-17T11:00:00.000Z';
+  // Expected as `source order`, or null for no work order.
+  test.each([
+    ['an active part_of link', () => linkTo(five(), '48'), 'link 48'],
+    ["its order run's result, with no link", () => namedBy(five(), '48'), 'output 48'],
+    ['a link wins over a result', () => linkTo(namedBy(five(), '60'), '48'), 'link 48'],
+    ['an ended link makes no member', () => linkTo(five(), '48', AT, true), null],
+    [
+      'the link ended: the result',
+      () => linkTo(namedBy(five(), '60'), '48', AT, true),
+      'output 60',
+    ],
+    [
+      'two links: the one recorded last',
+      () => linkTo(linkTo(five(), '48'), '70', LATER),
+      'link 70',
+    ],
+    ['no link and no result', five, null],
+    ['a result naming the item itself', () => namedBy(five(), '5'), null],
+  ] as const)('%s', (_name, item, expected) => {
+    const found = membershipOf(item());
+    expect(found === null ? null : `${found.source} ${found.order}`).toBe(expected);
   });
 });
 

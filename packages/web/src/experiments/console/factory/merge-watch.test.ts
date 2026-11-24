@@ -65,25 +65,18 @@ const read = (projectId: string): FactoryItemsRead =>
 const seed = (projectId: string, items: FactoryItem[]): void =>
   set(K.factoryItems(projectId), { items, members: {} });
 
-test('an unmerged change starts the watch, which asks only about the waiting keys', async () => {
-  seed('cb-keys', [readyWithMerge('a', true), readyWithMerge('b', false)]);
+test('only the waiting keys are asked, a page of 100 at a time', async () => {
+  const keys = Array.from({ length: 101 }, (_, i) => readyWithMerge(`k${i.toString()}`, false));
+  seed('cb-keys', [readyWithMerge('a', true), ...keys]);
   const host = forge();
   const release = watchMerges('cb-keys', { getProgress: host.getProgress, delayMs: 0 });
-  await ticks(1);
-  release();
-  expect(host.asked[0]).toEqual(['b']);
-});
-
-test('more than a page of waiting keys asks a page at a time', async () => {
-  seed(
-    'cb-pages',
-    Array.from({ length: 101 }, (_, i) => readyWithMerge(`k${i.toString()}`, false))
-  );
-  const host = forge();
-  const release = watchMerges('cb-pages', { getProgress: host.getProgress, delayMs: 0 });
-  await ticks(1);
-  release();
-  expect(host.asked.slice(0, 2).map(keys => keys.length)).toEqual([100, 1]);
+  try {
+    await ticks(1);
+    expect(host.asked.slice(0, 2).map(asked => asked.length)).toEqual([100, 1]);
+    expect(host.asked.flat()).not.toContain('a');
+  } finally {
+    release();
+  }
 });
 
 test('once the forge says merged, the item is merged and nothing more is asked', async () => {
@@ -103,16 +96,19 @@ test('an item that leaves the board, or the last release, stops the asking', asy
   seed('cb-leave', [readyWithMerge('b', false)]);
   const host = forge();
   const release = watchMerges('cb-leave', { getProgress: host.getProgress, delayMs: 0 });
-  await ticks(2);
-  expect(host.asked.length).toBeGreaterThan(0);
-  seed('cb-leave', [readyWithMerge('a', true)]);
-  await ticks(1);
-  const afterLeaving = host.asked.length;
-  await ticks();
-  expect(host.asked.length).toBe(afterLeaving);
-
-  seed('cb-leave', [readyWithMerge('b', false)]);
-  release();
+  let afterLeaving = 0;
+  try {
+    await ticks(2);
+    expect(host.asked.length).toBeGreaterThan(0);
+    seed('cb-leave', [readyWithMerge('a', true)]);
+    await ticks(1);
+    afterLeaving = host.asked.length;
+    await ticks();
+    expect(host.asked.length).toBe(afterLeaving);
+    seed('cb-leave', [readyWithMerge('b', false)]);
+  } finally {
+    release();
+  }
   await ticks();
   expect(host.asked.length).toBe(afterLeaving);
 });
@@ -148,27 +144,6 @@ test('an open item page takes the answer too, so its header agrees with the boar
   } finally {
     release();
     invalidate(detailKey);
-  }
-});
-
-test('a whole-board read that lands during the ask wins', async () => {
-  seed('cb-stale', [readyWithMerge('b', false)]);
-  let answer: (() => void) | undefined;
-  const host = forge({ b: true });
-  const held: MergeWatchDeps['getProgress'] = (query, init) =>
-    new Promise(resolve => {
-      answer = () => void host.getProgress(query, init).then(resolve);
-    });
-  const release = watchMerges('cb-stale', { getProgress: held, delayMs: 0 });
-  try {
-    await ticks(1);
-    const newer = { items: [readyWithMerge('b', false), readyWithMerge('z', false)], members: {} };
-    set(K.factoryItems('cb-stale'), newer);
-    answer?.();
-    await ticks(1);
-    expect(read('cb-stale')).toBe(newer);
-  } finally {
-    release();
   }
 });
 

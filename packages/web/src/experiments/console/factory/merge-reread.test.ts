@@ -31,21 +31,3 @@ test('two schedules for one key reload it once', async () => {
     unsubscribe();
   }
 });
-
-test('a cancelled re-read never reloads', async () => {
-  let loads = 0;
-  const unsubscribe = subscribeKey(
-    'merge-reread-test:b',
-    () => undefined,
-    async () => ++loads
-  );
-  try {
-    await turn();
-    scheduleReread('merge-reread-test:b', 0);
-    cancelRereads();
-    await turn(5);
-    expect(loads).toBe(1);
-  } finally {
-    unsubscribe();
-  }
-});

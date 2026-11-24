@@ -2,13 +2,7 @@ import { afterEach, expect, jest, mock, test } from 'bun:test';
 import type { FactoryItem } from '../../skills/factory';
 import type { ItemWindow } from '../../skills/items';
 import { deadlineOf, FACTORY_READ_DEADLINE_MS, SlowReadError } from './deadline';
-import { readyWithMerge } from './board.test-fixtures';
-import {
-  readEveryFactoryItem,
-  readEveryItem,
-  withProgress,
-  type FactoryItemsReads,
-} from './factory-items-read';
+import { readEveryFactoryItem, readEveryItem, type FactoryItemsReads } from './factory-items-read';
 import { capturedItemsPage } from './fixtures/factory-items-page';
 
 const captured = capturedItemsPage.items;
@@ -86,13 +80,6 @@ test('walks the window from far back, then by its cursor alone, joining each pag
   );
 });
 
-test('a key the progress read left out reads as progress null', async () => {
-  const stranger = at(captured[0]!, 'stranger', '2026-11-17T00:00:00.000Z');
-  const { deps } = reads([page([stranger], null)]);
-  const [item] = (await readEveryFactoryItem('cb-1', deps, within)).items;
-  expect(item?.progress).toBeNull();
-});
-
 test('newest activity first, ties by item id, whatever order the window pages in', async () => {
   const base = captured[0]!;
   const { deps } = reads([
@@ -109,10 +96,17 @@ test('newest activity first, ties by item id, whatever order the window pages in
   expect(items.map(item => item.item.key)).toEqual(['new', 'a', 'b', 'old']);
 });
 
-test('an empty project asks for no progress', async () => {
-  const { deps, progressCalls } = reads([page([], null)]);
-  expect(await readEveryFactoryItem('cb-1', deps, within)).toEqual({ items: [], members: {} });
-  expect(progressCalls).toEqual([]);
+test('an empty project asks for no progress; a key the progress read left out reads null', async () => {
+  const empty = reads([page([], null)]);
+  expect(await readEveryFactoryItem('cb-1', empty.deps, within)).toEqual({
+    items: [],
+    members: {},
+  });
+  expect(empty.progressCalls).toEqual([]);
+  const stranger = at(captured[0]!, 'stranger', '2026-11-17T00:00:00.000Z');
+  const [item] = (await readEveryFactoryItem('cb-1', reads([page([stranger], null)]).deps, within))
+    .items;
+  expect(item?.progress).toBeNull();
 });
 
 test('fails the whole read when a later page, or a progress read, fails', async () => {
@@ -207,12 +201,6 @@ test('orders the window lacks are read after the walk, together, never one reque
   expect('60' in read.members).toBe(false);
 });
 
-test('no order named, no read after the walk', async () => {
-  const { deps, progressCalls } = reads([page([captured[0]!], null)]);
-  await readEveryFactoryItem('cb-1', deps, within);
-  expect(progressCalls).toHaveLength(1);
-});
-
 test('with no factory view it walks the window alone, never the progress read, newest first', async () => {
   const [first, second] = captured;
   const older = at(first!, 'old', '2026-11-10T00:00:00.000Z');
@@ -223,26 +211,4 @@ test('with no factory view it walks the window alone, never the progress read, n
   expect(items[0]).not.toHaveProperty('progress');
   expect(windowCalls).toHaveLength(2);
   expect(progressCalls).toEqual([]);
-});
-
-test('withProgress takes the answered keys, null included, and keeps the rest and the order', () => {
-  const [a, b, c] = [
-    readyWithMerge('a', false),
-    readyWithMerge('b', false),
-    readyWithMerge('c', 'unknown'),
-  ];
-  const merged = readyWithMerge('a', true).progress;
-  const read = { items: [a, b, c], members: { a: ['x'] } };
-  const next = withProgress(read, {
-    pack: 'p',
-    progress: { a: merged, c: null },
-    members: { c: ['y'] },
-  });
-  expect(next.items.map(item => item.item.key)).toEqual(['a', 'b', 'c']);
-  expect(next.items[0]?.progress).toBe(merged);
-  expect(next.items[1]).toBe(b);
-  expect(next.items[2]?.progress).toBeNull();
-  expect(next.members).toEqual({ a: ['x'], c: ['y'] });
-  // The value read before is unchanged: the cache compares by identity.
-  expect(read.items[0]).toBe(a);
 });

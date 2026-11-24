@@ -91,39 +91,23 @@ describe('which items the board sets aside', () => {
     }
   });
 
-  test('an idle item whose change could not be read is set aside; one with an open change is not', () => {
-    const unknown = endedAt(readyWithMerge('u', 'unknown'), OLD);
-    const open = endedAt(readyWithMerge('o', false), OLD);
-    const board = model([unknown, open]);
-    expect(board.setAside.map(entry => [entry.placed.card.key, entry.why])).toEqual([
-      ['u', 'Its merge state could not be read'],
+  test('an idle item whose change could not be read, or that failed with none, is set aside; an open change is not', () => {
+    const failed = endedAt(endLastRun(keepRuns(realItem('6'), 2), 'failed', null), OLD);
+    const board = model([
+      endedAt(readyWithMerge('u', 'unknown'), OLD),
+      endedAt(readyWithMerge('o', false), OLD),
+      { ...failed, progress: { ...progressOf(failed), change: null } },
+    ]);
+    expect(board.setAside.map(entry => [entry.placed.card.key, entry.kind, entry.why])).toEqual([
+      ['u', 'idle', 'Its merge state could not be read'],
+      ['6', 'idle', 'Plan failed; no change was proposed'],
     ]);
     expect(columnKeys(board)).toEqual(['o']);
   });
 
-  test('an idle failed item that never proposed a change is set aside, saying it failed', () => {
-    const failed = endedAt(endLastRun(keepRuns(realItem('6'), 2), 'failed', null), OLD);
-    const [entry, ...rest] = model([
-      { ...failed, progress: { ...progressOf(failed), change: null } },
-    ]).setAside;
-    expect(rest).toEqual([]);
-    expect(entry?.kind).toBe('idle');
-    expect(entry?.why).toContain('failed');
-  });
-
-  test('an item with an open ask, or waiting on you, is never set aside, parked or old', () => {
+  test('never set aside: an open ask, waiting on you, a run working it or not yet ended, a start waiting, no ended run', () => {
     const asking = (item: FactoryItem): FactoryItem => ({ ...item, questions: [askItem()] });
-    const board = model([
-      asking(parkedByTriage('p')),
-      asking(idleInPlan('i', OLD)),
-      endedAt(needsShaping('s', ['Which?']), OLD),
-    ]);
-    expect(board.setAside).toEqual([]);
-    expect(columnKeys(board).sort()).toEqual(['i', 'p', 's']);
-  });
-
-  test('a new run, or a start waiting for it, brings it back to its column at once', () => {
-    const idle = idleInPlan('i', OLD);
+    const queued = (item: FactoryItem): FactoryItem => ({ ...item, queued: [queuedStart()] });
     // Item 8 with no change and its ended runs old: only the run working it now keeps it.
     const working = delivering('build__build');
     const running: FactoryItem = {
@@ -133,36 +117,24 @@ describe('which items the board sets aside', () => {
       ),
       progress: { ...progressOf(working), change: null },
     };
-    const board = model([
-      running,
-      { ...idle, queued: [queuedStart()] },
-      { ...parkedByTriage('p'), queued: [queuedStart()] },
-    ]);
-    expect(board.setAside).toEqual([]);
-    expect(columnKeys(board).sort()).toEqual(['8', 'i', 'p']);
-    // The same item once its run ended, nothing run since: set aside again.
-    expect(asideKeys(model([idle]))).toEqual(['i']);
-  });
-
-  test('a parked item with a run not yet ended (pending or paused) stays in its column', () => {
-    const parked = parkedByTriage('p');
+    const parked = parkedByTriage('pp');
     const [triage] = parked.runs;
     if (triage === undefined) throw new Error('the parked fixture has its triage run');
-    // A start the engine took but has not run: placement reads no running run.
-    const next = { ...triage, id: 'next', status: 'pending' as const, completedAt: null };
-    const pending = { ...parked, runs: [...parked.runs, next] };
-    expect(model([pending]).setAside).toEqual([]);
-    expect(columnKeys(model([pending]))).toEqual(['p']);
-  });
-
-  test('an item with no run, or one not yet ended, has no last run to count from', () => {
-    const fresh = idleInPlan('f', OLD);
+    const pending = { ...triage, id: 'next', status: 'pending' as const, completedAt: null };
     const unfinished = idleInPlan('u', OLD);
     const board = model([
-      { ...fresh, runs: [] },
+      asking(parkedByTriage('p')),
+      asking(idleInPlan('i', OLD)),
+      endedAt(needsShaping('s', ['Which?']), OLD),
+      running,
+      queued(idleInPlan('q', OLD)),
+      queued(parkedByTriage('qp')),
+      { ...parked, runs: [...parked.runs, pending] },
+      { ...idleInPlan('f', OLD), runs: [] },
       { ...unfinished, runs: unfinished.runs.map(run => ({ ...run, completedAt: null })) },
     ]);
     expect(board.setAside).toEqual([]);
+    expect(columnKeys(board).sort()).toEqual(['8', 'f', 'i', 'p', 'pp', 'q', 'qp', 's', 'u']);
   });
 
   test('an ending is set aside with its label; an item no column holds keeps its own row', () => {

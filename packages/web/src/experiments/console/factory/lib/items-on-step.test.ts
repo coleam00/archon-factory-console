@@ -20,16 +20,12 @@ const keys = (list: { item: { item: { key: string } } }[] | undefined): string[]
   (list ?? []).map(({ item }) => item.item.key);
 
 describe('itemsOnStep', () => {
-  test('lists every item whose run is on the step, in the read order', () => {
-    expect(keys(itemsOnStep(items, 'deliver').get('build__build'))).toEqual(['12', '4', '6']);
-  });
-
-  test('keys a run between loop bodies by the loop id', () => {
-    expect(keys(itemsOnStep(items, 'deliver').get('rounds'))).toEqual(['loop']);
-  });
-
-  test('holds no step for a run between steps, an idle item or an item with no progress', () => {
-    expect([...itemsOnStep(items, 'deliver').keys()].sort()).toEqual(['build__build', 'rounds']);
+  test('lists the items on each step in read order; a run between loop bodies by the loop id', () => {
+    const onStep = itemsOnStep(items, 'deliver');
+    expect(keys(onStep.get('build__build'))).toEqual(['12', '4', '6']);
+    expect(keys(onStep.get('rounds'))).toEqual(['loop']);
+    // No step for a run between steps, an idle item or an item with no progress.
+    expect([...onStep.keys()].sort()).toEqual(['build__build', 'rounds']);
   });
 
   test('keeps to the asked workflow', () => {

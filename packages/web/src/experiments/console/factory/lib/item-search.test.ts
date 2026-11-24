@@ -34,9 +34,7 @@ describe('closestItems', () => {
     const items = [item('ABC-1', 'Board polish'), item('2', 'Add a BOARD filter')];
     expect(keys(closestItems(items, '  abc-1 '))).toEqual(['ABC-1']);
     expect(keys(closestItems(items, 'board'))).toEqual(['ABC-1', '2']);
-  });
-
-  test('an item with no progress is titled by its key', () => {
+    // An item with no progress is titled by its key.
     expect(keys(closestItems([item('needle', null)], 'eed'))).toEqual(['needle']);
   });
 

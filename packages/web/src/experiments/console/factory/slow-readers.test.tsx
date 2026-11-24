@@ -1,7 +1,7 @@
-import { afterAll, afterEach, expect, jest, test } from 'bun:test';
-import { Window } from 'happy-dom';
+import { afterEach, expect, jest, test } from 'bun:test';
 import { act, type ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
+import { installDom } from '../test-dom.test-helpers';
 import { NeedsYouContent } from '../components/needs-you/NeedsYouLayout';
 import { ProjectAttentionProvider } from '../components/ProjectAttention';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
@@ -14,29 +14,7 @@ import { run, settledItem } from './lib/map.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 
 // Readers that show nothing while they wait: a missed deadline must still be retried (#39).
-const dom = new Window({ url: 'http://localhost' });
-/** The tabs' attention stream, which says nothing here. */
-class QuietEventSource {
-  onmessage: unknown = null;
-  onerror: unknown = null;
-  readyState = 0;
-  close(): void {
-    this.readyState = 2;
-  }
-}
-const globals = {
-  window: dom,
-  document: dom.document,
-  EventSource: QuietEventSource,
-  IS_REACT_ACT_ENVIRONMENT: true,
-};
-const descriptors = new Map(
-  Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-);
-for (const [key, value] of Object.entries(globals)) {
-  Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-}
-const { createRoot } = await import('react-dom/client');
+const { mount } = await installDom();
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -44,14 +22,6 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   invalidate('factory-views');
   invalidate('factory-items');
-});
-
-afterAll(async () => {
-  await dom.happyDOM.close();
-  for (const [key, descriptor] of descriptors) {
-    if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-    else Reflect.deleteProperty(globalThis, key);
-  }
 });
 
 const ID = 'cb-slow-readers';
@@ -79,22 +49,13 @@ function serveSlowly(answer: (url: string) => Response): void {
 async function renderFor60s(
   element: ReactElement
 ): Promise<{ text: string; done: () => Promise<void> }> {
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () => root.render(<MemoryRouter>{element}</MemoryRouter>));
+  const page = await mount(<MemoryRouter>{element}</MemoryRouter>);
   for (let second = 0; second < 60; second += 1) {
     await act(async () => {
       jest.advanceTimersByTime(1_000);
     });
   }
-  return {
-    text: container.textContent,
-    done: async () => {
-      await act(async () => root.unmount());
-      container.remove();
-    },
-  };
+  return { text: page.container.textContent ?? '', done: page.unmount };
 }
 
 test('the project tabs show the Factory tab when the views read answers after the first deadline', async () => {
@@ -153,17 +114,12 @@ test('the map draws its cards while the items read misses its first deadline, an
     { preconnect: originalFetch.preconnect }
   );
   set(K.projectAttention(ID), { items: [], runs: [], degraded: [] });
-  const container = document.createElement('div');
-  document.body.append(container);
-  const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <MemoryRouter>
-        <ProjectAttentionProvider projectId={ID}>
-          <FactoryMap projectId={ID} view={shippedListed} />
-        </ProjectAttentionProvider>
-      </MemoryRouter>
-    )
+  const { container, unmount } = await mount(
+    <MemoryRouter>
+      <ProjectAttentionProvider projectId={ID}>
+        <FactoryMap projectId={ID} view={shippedListed} />
+      </ProjectAttentionProvider>
+    </MemoryRouter>
   );
   try {
     for (let second = 0; second < 9; second += 1)
@@ -176,7 +132,6 @@ test('the map draws its cards while the items read misses its first deadline, an
     expect(container.querySelector('[data-chip="here"]')).toBeNull();
     expect(container.querySelector('[role="status"]')?.textContent).toBe(SLOW_READ_NOTICE);
   } finally {
-    await act(async () => root.unmount());
-    container.remove();
+    await unmount();
   }
 });
