@@ -91,6 +91,17 @@ export function askQuestion(entry: OpenEntry): string {
   }
 }
 
+/**
+ * The option an ask's workflow declares as recommended, in the ask's own words: the label of
+ * the option `recommendation.option` names, else that id in words. Null when the entry is not
+ * an ask with options or declares no recommendation. Read from the ask record, never its text.
+ */
+export function recommendedLabel(entry: OpenEntry): string | null {
+  if (entry.kind !== 'attention' || entry.recommendation === undefined) return null;
+  const id = entry.recommendation.option;
+  return entry.options.find(option => option.id === id)?.label ?? humaniseId(id);
+}
+
 /** The run an entry sits on, if any: the run holding the wait, else the run that asked. */
 export function entryRunId(entry: OpenEntry): string | undefined {
   if (entry.kind === 'overdue_wait') return entry.waitingIn.runId;

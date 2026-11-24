@@ -109,6 +109,9 @@ describe("an item's open ask", () => {
       const open = board.container.querySelector('article[data-card="6"] [data-ask-trigger]');
       if (open === null) throw new Error('The card has no ask control');
       expect(open.getAttribute('aria-label')).toContain('2');
+      // The newest ask's declared recommendation, by its option's label.
+      const recommended = ask.options.find(option => option.id === ask.recommendation?.option);
+      expect(open.textContent).toContain(recommended?.label ?? 'a recommended option');
       await click(open);
       const dialog = document.body.querySelector('[role="dialog"]');
       if (dialog === null) throw new Error('No ask opened over the board');

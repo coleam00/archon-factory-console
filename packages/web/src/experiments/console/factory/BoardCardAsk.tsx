@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from 'react';
-import { askQuestion } from './lib/attention';
+import { askQuestion, recommendedLabel } from './lib/attention';
 import type { BoardCard } from './lib/board';
 import type { BoardAsks } from './useBoardAsks';
 
@@ -60,8 +60,9 @@ function AskDot(): ReactElement {
 }
 
 /**
- * The foot of a board card: with open asks, one control, the newest one's question over how
- * many are open, that opens Archon's ask section for the item over the board; else the card's
+ * The foot of a board card: with open asks, one control that opens Archon's ask section for the
+ * item over the board. It shows the newest ask's question, then the option its workflow
+ * recommends (when it declares one, in green) and how many asks are open. Else the card's
  * stop line. It sits above the title's stretched link, so the rest of the card still opens the
  * item page. A card whose progress could not be read still says so under it.
  */
@@ -70,6 +71,7 @@ export function CardAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): R
   if (first === undefined) return <StopLine card={card} />;
   const words = openAsksWords(rest.length + 1);
   const question = askQuestion(first);
+  const recommended = recommendedLabel(first);
   return (
     <>
       <button
@@ -89,8 +91,19 @@ export function CardAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): R
             {question}
           </span>
         </span>
-        <span className="max-w-full rounded-console-12 border border-border px-2 py-1 text-console-12 text-text-primary transition-colors duration-150 ease-out hover:border-border-bright">
-          {words}
+        <span className="flex max-w-full flex-wrap items-center gap-2">
+          {recommended === null ? null : (
+            <span
+              className="max-w-full rounded-console-12 border bg-[color:var(--success-soft)] px-2 py-1 text-console-12 text-text-primary [overflow-wrap:anywhere]"
+              // Inline: theme.css sets border-color on `.console-root *` outside Tailwind's layers.
+              style={{ borderColor: 'color-mix(in oklab, var(--success) 40%, transparent)' }}
+            >
+              Recommended: {recommended}
+            </span>
+          )}
+          <span className="rounded-console-12 border border-border px-2 py-1 text-console-12 text-text-primary">
+            {words}
+          </span>
         </span>
       </button>
       {asks.unread(card.key) ? <StopLine card={card} /> : null}
