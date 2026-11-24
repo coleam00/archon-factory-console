@@ -29,7 +29,12 @@ export function FactoryPage(): ReactElement {
                 : factoryWaitingCount(items.data, asks.asks)
             }
           />
-          <OverviewAsks projectId={projectId} items={items.data} asks={asks} />
+          <OverviewAsks
+            projectId={projectId}
+            view={view.declaration}
+            items={items.data}
+            asks={asks}
+          />
           <FactoryMap projectId={projectId} view={view} asks={asks.asks} />
         </>
       )}

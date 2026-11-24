@@ -7,7 +7,7 @@ import { K } from '../store/keys';
 import { FK } from './keys';
 import { factoryRoutes } from './routes';
 import type { FactoryItem } from './api';
-import { FIXTURE_NOW, needsShaping, PAGE, VIEW } from './lib/board.test-fixtures';
+import { FIXTURE_NOW, needsShaping, PAGE, realItem, VIEW } from './lib/board.test-fixtures';
 import { shippedListed } from './item-detail.test-fixtures';
 import { attentionRead, refAsk } from './lib/attention.test-fixtures';
 import type { RunsAttention } from '../primitives/run';
@@ -115,19 +115,40 @@ function render(
   );
 }
 
-/** Six open asks on six items, newest last: more than the Overview shows. */
-const sixAsks = attentionRead(
-  Array.from({ length: 6 }, (_, i) =>
-    refAsk({
-      ref: `ask:${i.toString()}`,
-      item: { id: `item-${i.toString()}`, projectKey: 'acme', key: `#${i.toString()}` },
-      message: `Question ${i.toString()}?`,
-      pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
-    })
-  )
-);
-/** How many ask cards are drawn. */
-const askCards = (html: string): number => html.split('data-ask-ref=').length - 1;
+/**
+ * Six open asks, newest last, on six of the board's real items, each item's read listing its
+ * own: more than the Overview shows. Then an ask on an item the board does not hold, which the
+ * Need you number counts and the board's "needs you" show cannot list.
+ */
+const asksOnItems = ['1', '2', '3', '4', '5', '6'].map((key, i) => {
+  const item = realItem(key);
+  const ask = refAsk({
+    ref: `ask:${i.toString()}`,
+    item: { ...item.item },
+    message: `Question ${i.toString()}?`,
+    pausedAt: `2026-11-1${i.toString()}T09:00:00.000Z`,
+  });
+  return { item: { ...item, questions: [ask] }, ask };
+});
+const askedItems = asksOnItems.map(entry => entry.item);
+const offBoard = refAsk({
+  ref: 'ask:off-board',
+  item: { id: 'item-gone', projectKey: 'acme', key: '#99' },
+  message: 'Off the board?',
+  pausedAt: '2026-11-17T09:00:00.000Z',
+});
+const sixAsks = attentionRead([...asksOnItems.map(entry => entry.ask), offBoard]);
+/** An item waiting on you with no ask open, its own item and not item 6 it is made from. */
+const shaping = needsShaping('9s', ['Which?']);
+const awaitingOnly: FactoryItem = { ...shaping, item: { ...shaping.item, id: 'item-9s' } };
+/** The Overview's Needs you section, as markup. */
+const needsYouOf = (html: string): string => {
+  const start = html.indexOf('aria-label="Needs you"');
+  return start === -1 ? '' : html.slice(start, html.indexOf('</section>', start));
+};
+/** The items the Overview's Needs you rows open, by key, in order. */
+const rowKeys = (html: string): string[] =>
+  [...needsYouOf(html).matchAll(/data-ask-trigger="([^"]*)"/g)].map(([, key]) => key ?? '');
 const text = (html: string): string => html.replace(/<[^>]*>/g, '');
 /** The Overview's link to the board's needs-you show, as markup. */
 const moreLink = (html: string): string =>
@@ -146,38 +167,41 @@ const subNav = (html: string): string[] => {
 const SUB_NAV = [`/console/p/${ID}/factory Overview`, `/console/p/${ID}/factory/board Board`];
 
 describe('the Factory section', () => {
-  test('a busy Overview: title, summary, one count of what waits, the newest three asks, then the map', () => {
-    const html = render(`/console/p/${ID}/factory`, withView, sixAsks, [
-      needsShaping('9s', ['Which?']),
+  test('a busy Overview: the title, one count of what waits, the newest three asks as rows, then the map', () => {
+    const html = render(`/console/p/${ID}/factory`, shipped, sixAsks, [
+      ...askedItems,
+      awaitingOnly,
     ]);
-    expect(html).toContain('Kit factory');
-    expect(html).toContain(SUMMARY);
+    expect(html).toContain(VIEW.title);
     expect(currentLinks(html)).toEqual([
       `/console/p/${ID}/factory Factory`,
       `/console/p/${ID}/factory Overview`,
     ]);
     expect(subNav(html)).toEqual(SUB_NAV);
-    // Six asks and an item waiting on you.
+    // Seven asks and an item waiting on you.
     const strip = html.slice(html.indexOf('aria-label="Numbers"'), html.indexOf('</ul>'));
-    expect(text(strip)).toContain('need you7');
-    expect(askCards(html)).toBe(3);
-    for (const i of [5, 4, 3]) expect(html).toContain(`Question ${i.toString()}?`);
-    // The rest wait on the board: three asks and the item waiting on you.
-    expect(text(moreLink(html))).toContain('4');
-    // Archon's ask section, answerable here: the recommendation's why, an option's cost.
-    expect(text(html)).toContain('Dev is the working base.');
-    expect(text(html)).toContain('One more rebase.');
+    expect(text(strip)).toContain('need you8');
+    // The newest three, one row each, and none of Archon's ask section drawn in the page.
+    expect(rowKeys(html)).toEqual(['6', '5', '4']);
+    for (const i of [5, 4, 3]) expect(needsYouOf(html)).toContain(`Question ${i.toString()}?`);
+    expect(html).not.toContain('data-ask-ref=');
+    // The rest the board's "needs you" show lists: item 3's ask and the item waiting on you.
+    // Items 1 and 2 merged, so that show leaves them out; the ask off the board, the newest of
+    // all, is neither a row nor counted there. The Need you number counts all of them.
+    expect(needsYouOf(html)).not.toContain('Off the board?');
+    expect(text(moreLink(html))).toContain('2 more');
     const needsYou = html.indexOf('aria-label="Needs you"');
     expect(needsYou).toBeGreaterThan(-1);
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
   });
 
   test('a quiet Overview says an item waits on you, and its numbers count the board', () => {
-    const waiting = render(`/console/p/${ID}/factory`, withView, quiet, [
-      needsShaping('9s', ['Which?']),
-    ]);
+    const titled = render(`/console/p/${ID}/factory`, withView, quiet);
+    expect(titled).toContain('Kit factory');
+    expect(titled).toContain(SUMMARY);
+    const waiting = render(`/console/p/${ID}/factory`, shipped, quiet, [awaitingOnly]);
     expect(text(moreLink(waiting))).toContain('1');
-    expect(askCards(waiting)).toBe(0);
+    expect(rowKeys(waiting)).toEqual([]);
 
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     const strip = text(

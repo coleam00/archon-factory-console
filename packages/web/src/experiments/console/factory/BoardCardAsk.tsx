@@ -59,6 +59,40 @@ function AskDot(): ReactElement {
   );
 }
 
+/** An ask's question in one line, behind the warning dot; the whole question is on hover. */
+export function AskQuestionLine({ question }: { question: string }): ReactElement {
+  return (
+    <span className="flex w-full min-w-0 items-center gap-2">
+      <AskDot />
+      <span title={question} className="min-w-0 truncate text-console-13 text-text-primary">
+        {question}
+      </span>
+    </span>
+  );
+}
+
+/** The option an ask's workflow recommends, by its label, in green. */
+export function RecommendedChip({ label }: { label: string }): ReactElement {
+  return (
+    <span
+      className="max-w-full rounded-console-12 border bg-[color:var(--success-soft)] px-2 py-1 text-console-12 text-text-primary [overflow-wrap:anywhere]"
+      // Inline: theme.css sets border-color on `.console-root *` outside Tailwind's layers.
+      style={{ borderColor: 'color-mix(in oklab, var(--success) 40%, transparent)' }}
+    >
+      Recommended: {label}
+    </span>
+  );
+}
+
+/** How many asks are open on an item ("2 open asks"), beside its question. */
+export function OpenAsksChip({ words }: { words: string }): ReactElement {
+  return (
+    <span className="rounded-console-12 border border-border px-2 py-1 text-console-12 text-text-primary">
+      {words}
+    </span>
+  );
+}
+
 /**
  * The foot of a board card: with open asks, one control that opens Archon's ask section for the
  * item over the board. It shows the newest ask's question, then the option its workflow
@@ -85,25 +119,10 @@ export function CardAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): R
         }}
         className="relative z-10 flex min-w-0 max-w-full flex-col items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <span className="flex w-full min-w-0 items-center gap-2">
-          <AskDot />
-          <span title={question} className="min-w-0 truncate text-console-13 text-text-primary">
-            {question}
-          </span>
-        </span>
+        <AskQuestionLine question={question} />
         <span className="flex max-w-full flex-wrap items-center gap-2">
-          {recommended === null ? null : (
-            <span
-              className="max-w-full rounded-console-12 border bg-[color:var(--success-soft)] px-2 py-1 text-console-12 text-text-primary [overflow-wrap:anywhere]"
-              // Inline: theme.css sets border-color on `.console-root *` outside Tailwind's layers.
-              style={{ borderColor: 'color-mix(in oklab, var(--success) 40%, transparent)' }}
-            >
-              Recommended: {recommended}
-            </span>
-          )}
-          <span className="rounded-console-12 border border-border px-2 py-1 text-console-12 text-text-primary">
-            {words}
-          </span>
+          {recommended === null ? null : <RecommendedChip label={recommended} />}
+          <OpenAsksChip words={words} />
         </span>
       </button>
       {asks.unread(card.key) ? <StopLine card={card} /> : null}

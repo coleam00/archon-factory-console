@@ -142,4 +142,35 @@ describe("an item's open ask", () => {
       await page.unmount();
     }
   });
+
+  test('on the Overview: a row opens Archon’s ask over the page, which answers and closes on Esc', async () => {
+    const sent = serveAnswers();
+    const six = realItem('6');
+    const ask = askOn(six);
+    set(FK.factoryViews(PROJECT), { views: [shippedListed], errors: [] });
+    set(FK.factoryItems(PROJECT), { items: [{ ...six, questions: [ask] }], members: {} });
+    set(K.runsAttention, attentionRead([ask]));
+    const page = await mount(
+      <MemoryRouter initialEntries={[`/console/p/${PROJECT}/factory`]}>
+        <Routes>{factoryRoutes('/console/')}</Routes>
+      </MemoryRouter>
+    );
+    try {
+      const open = page.container.querySelector(
+        'section[aria-label="Needs you"] [data-ask-trigger]'
+      );
+      if (open === null) throw new Error('The Overview shows no row for the ask');
+      await click(open);
+      const dialog = document.body.querySelector('[role="dialog"]');
+      if (dialog === null) throw new Error('No ask opened over the Overview');
+      await answersThroughArchon(dialog, sent);
+      await act(async () => {
+        document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
+        await Promise.resolve();
+      });
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    } finally {
+      await page.unmount();
+    }
+  });
 });

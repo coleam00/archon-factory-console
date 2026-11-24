@@ -15,15 +15,18 @@ export type OpenEntry = Exclude<QueueEntry, { kind: 'usage_limit' }>;
  */
 export function openEntries(entries: readonly QueueEntry[]): OpenEntry[] {
   const open = entries.filter((entry): entry is OpenEntry => entry.kind !== 'usage_limit');
+  // Array.prototype.sort is stable, so equal times keep the given order.
+  return open.sort(newestFirst);
+}
+
+/** Newest first by `pausedAt`; an entry with no time (a gate) after every timed one. */
+export function newestFirst(a: OpenEntry, b: OpenEntry): number {
   const time = (entry: OpenEntry): number =>
     entry.pausedAt === null ? Number.NEGATIVE_INFINITY : Date.parse(entry.pausedAt);
-  // Array.prototype.sort is stable, so equal times keep the given order.
-  return open.sort((a, b) => {
-    const ta = time(a);
-    const tb = time(b);
-    if (ta === tb) return 0;
-    return tb > ta ? 1 : -1;
-  });
+  const ta = time(a);
+  const tb = time(b);
+  if (ta === tb) return 0;
+  return tb > ta ? 1 : -1;
 }
 
 /**
