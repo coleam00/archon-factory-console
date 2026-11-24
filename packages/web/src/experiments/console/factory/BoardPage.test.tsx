@@ -484,6 +484,13 @@ describe('work orders', () => {
         `/console/p/${ID}/factory/items/8`
       );
       expect(withRuns?.querySelector('a')?.textContent).toBe(`#8${realItem('8').progress!.title!}`);
+      // Its member merged: counted, and its dot says so.
+      expect(withRuns?.textContent).toContain('1 of 1 merged');
+      expect(
+        [...(withRuns?.querySelectorAll('[role="img"][title]') ?? [])].map(dot =>
+          dot.getAttribute('title')
+        )
+      ).toEqual(['#2: Merged']);
       // A chip on each member card, none on the others.
       expect(card(container, '5')?.querySelector('a[href$="?order=48"]')?.textContent).toBe(
         'part of #48'

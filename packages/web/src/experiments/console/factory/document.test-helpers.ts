@@ -1,25 +1,10 @@
 /**
  * Holds a rendered document page to owner change 5 of 2026-11-21 (`document.tsx`): every
  * top-level box of the page body (`[data-doc-page]`) is a filled `Panel` or a section that
- * opens with a `SectionHeading` and holds only panels, and nothing under it is an outline-only
- * box on the page colour. The step page, the item page and Needs you use this too.
+ * opens with a `SectionHeading` and holds only panels. The step page, the item page and Needs
+ * you use this too. That no box is drawn as an outline alone is a look, checked in the browser
+ * (DESIGN.md, Testing): the DOM here carries no styles to read it from.
  */
-
-/** Boxes drawn as an outline with no fill of their own: a border and a console radius, no `bg-`. */
-export function outlineBoxes(root: Element): string[] {
-  return [...root.querySelectorAll('*')]
-    .filter(el => {
-      // An inline badge (a span) is a mark on its line, not a box.
-      if (el.tagName === 'SPAN') return false;
-      const classes = [...el.classList];
-      return (
-        classes.includes('border') &&
-        classes.some(name => name.startsWith('rounded-console-')) &&
-        !classes.some(name => name.startsWith('bg-'))
-      );
-    })
-    .map(el => `outline-only box <${el.tagName.toLowerCase()} class="${el.className}">`);
-}
 
 const isPanel = (el: Element): boolean => el.getAttribute('data-doc-panel') === 'panel';
 
@@ -28,7 +13,7 @@ export function documentPageProblems(root: Element): string[] {
   const pages = root.querySelectorAll('[data-doc-page]');
   if (pages.length !== 1) return [`expected one [data-doc-page], found ${pages.length}`];
   const boxes = [...(pages[0]?.children ?? [])];
-  return [...boxes.flatMap(boxProblems), ...outlineBoxes(root)];
+  return boxes.flatMap(boxProblems);
 }
 
 /**

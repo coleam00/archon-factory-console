@@ -11,7 +11,7 @@ import type { AttentionQueue } from '../../skills/runs';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import { projectRoutes } from '../../routes/project-routes';
-import { documentPageProblems, outlineBoxes } from '../document.test-helpers';
+import { documentPageProblems } from '../document.test-helpers';
 
 // A failed read lands after the first render, which static markup cannot reach.
 const dom = new Window({ url: 'http://localhost' });
@@ -430,7 +430,7 @@ describe('/console/p/:projectId/factory/settings', () => {
     }
   });
 
-  test('a read that fails says so in a filled panel, not an outline box', async () => {
+  test('a read that fails says so in a panel', async () => {
     globalThis.fetch = Object.assign(
       () => Promise.reject(new TypeError('connection refused')),
       originalFetch
@@ -441,16 +441,15 @@ describe('/console/p/:projectId/factory/settings', () => {
         node.textContent?.includes("The pack's settings could not be read")
       );
       expect(alert?.getAttribute('data-doc-panel')).toBe('panel');
-      expect(outlineBoxes(page)).toEqual([]);
     } finally {
       globalThis.fetch = silent;
     }
   });
 
-  test('while the settings are read, the skeleton draws no outline-only box', async () => {
+  test('while the settings are read, the page shows its skeleton and no failure', async () => {
     // A read that never answers holds the page on its skeleton.
     const page = await mount(`/console/p/${ID}/factory/settings`);
     expect(page.querySelector('[data-skeleton="true"]')).not.toBeNull();
-    expect(outlineBoxes(page)).toEqual([]);
+    expect(page.querySelector('[role="alert"]')).toBeNull();
   });
 });
