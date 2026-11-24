@@ -1252,9 +1252,9 @@ first rule that matches. The board, the map and the item page all place through 
 
 **Set aside** (#145). The columns hold live work. An item with nothing left to happen leaves
 its column, counts in no column header, chip, In flight or M, and is no Table row; it folds
-into one line under the board, "N set aside", beside "Found by the factory", in both views,
-and opens in its list: each item's key (linking to its page), title, why it was set aside and
-when its last run ended. An item is set aside when the first of these holds:
+into one line under the board, "N set aside", beside "Found by the factory", in both views.
+Opened (see The strips under the board), it lists each item's key (linking to its page),
+title, why it was set aside and when its last run ended. An item is set aside when the first of these holds:
 
 - an ending took it off the board (rule 4): its ending label is the why;
 - otherwise, it is in a stage other than the landed one, its progress was read, and every run

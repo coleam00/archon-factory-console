@@ -83,9 +83,10 @@ export function BoardPipeline({
   }, [hint, onHint]);
   return (
     // The minimum sits on this box, not the row inside it: what the board draws under it (the
-    // Found by the factory panel) then follows the columns and the frame scrolls, rather than
-    // the row overflowing a shrunken box and the panel drawing over the cards.
-    <div className="flex flex-col md:min-h-80 md:flex-1">
+    // strips under the board) then follows the columns and the frame scrolls, rather than the
+    // row overflowing a shrunken box and the strips drawing over the cards. The 0 basis keeps
+    // the cards out of the board area's height, so this minimum is what a short window keeps.
+    <div className="flex flex-col md:min-h-80 md:flex-1 md:basis-0">
       {/* A phone stacks the columns, each at full width; from md they sit side by side and
           the row scrolls sideways when they do not fit. */}
       <div

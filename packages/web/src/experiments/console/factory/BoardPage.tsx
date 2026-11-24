@@ -136,12 +136,14 @@ export function Board({
   };
   return (
     <div className="flex flex-col gap-3 md:min-h-0 md:flex-1">
-      {/* The board area is exactly the fill height, so the strips opened after it run on below
-          the board in the page, which scrolls to them: they never squeeze the board or sit over
-          it. Its floor is the Pipeline's own floor (md:min-h-80) with the toolbar and the strips'
-          line, so in a short window the area grows rather than letting its content run under the
-          opened strips. */}
-      <div className="flex flex-col gap-3 md:h-full md:min-h-112 md:shrink-0">
+      {/* The board area fills the height and never shrinks, so the strips opened after it run on
+          below the board in the page, which scrolls to them: they never squeeze the board or sit
+          over it. Its height is auto with the fill as its minimum, and the board body's 0 flex
+          basis (BoardPipeline, BoardTable, BoardSkeleton) keeps the table's rows out of that auto
+          height: the area is the fill height, or in a short window the toolbar, the Pipeline's
+          own floor and the line, however they wrap. A fixed height would let a wrapped line run
+          under the opened strips. */}
+      <div className="flex flex-col gap-3 md:min-h-full md:shrink-0">
         <BoardToolbar
           query={query}
           onQuery={setQuery}
