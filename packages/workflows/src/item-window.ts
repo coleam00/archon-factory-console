@@ -5,7 +5,8 @@
  * that pins the window, so following it returns each remaining item once.
  */
 import { z } from 'zod';
-import { assembleItemReads, itemReadSchema, readItemQueue, type ItemReadSource } from './item-read';
+import { itemReadSchema, readItemQueue, type ItemReadSource } from './item-read';
+import { assembleItemReads } from './item-read-page';
 import { MetricsQueryError, resolveMetricsWindow } from './metrics';
 import type { IWorkflowStore } from './store';
 
