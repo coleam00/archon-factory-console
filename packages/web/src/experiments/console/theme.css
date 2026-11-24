@@ -288,6 +288,12 @@
   border-color: var(--border-bright);
 }
 
+/* A card that is a link (a stage drill-down's, which opens its step page) hovers as a step of
+   the step graph does, with the brighter border, so it reads as the link it is. */
+.console-root .factory-card[data-link]:hover {
+  border-color: var(--text-tertiary);
+}
+
 .console-root .factory-card[data-lit] {
   --card-light: var(--card-glow);
 }
@@ -299,6 +305,14 @@
 .console-root .factory-card[data-running]:not([data-static]):hover {
   --card-light: var(--running-ring);
   border-color: var(--running-border);
+}
+
+/* A step of the step graph, hovered: a brighter border and the card's lifted depth, so it reads
+   as the link it is. A rule, not a `hover:border-*` utility, which the root's border colour
+   outranks. A running step's inline glow keeps its own border and ring. */
+.console-root [data-step-node]:hover {
+  border-color: var(--text-tertiary);
+  box-shadow: var(--card-depth-hover);
 }
 
 /* A selected card: a muted accent ring, never an accent border (owner change 1). On the

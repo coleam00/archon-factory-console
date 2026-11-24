@@ -246,9 +246,11 @@ function StepButton({
       type="button"
       onClick={onOpen}
       data-running={glows ? '' : undefined}
+      // Its hover border and lift are theme.css's `[data-step-node]:hover`.
+      data-step-node=""
       title={title}
       data-worker={worker.kind}
-      className="absolute flex items-center gap-2.5 overflow-hidden rounded-lg border border-border-bright bg-surface-elevated px-3.5 text-left transition-colors hover:brightness-110"
+      className="absolute flex cursor-pointer items-center gap-2.5 overflow-hidden rounded-lg border border-border-bright bg-surface-elevated px-3.5 text-left transition-colors duration-150 ease-out hover:bg-surface-hover"
       style={{
         left: step.x,
         top: step.y,

@@ -31,6 +31,18 @@ export function stepPageFromStage(state: unknown): string | undefined {
   return typeof state.fromStage === 'string' ? state.fromStage : undefined;
 }
 
+/**
+ * The workflows `stage` draws and links: those it lists that the view has not retired. A
+ * retired workflow still places and tells its old runs (so every placement reader keeps
+ * `stage.workflows`), but the pack has no file for it to draw and no step page to open.
+ */
+export function liveWorkflows(
+  view: Pick<FactoryViewListed['declaration'], 'retired'>,
+  stage: Pick<FactoryStage, 'workflows'>
+): string[] {
+  return stage.workflows.filter(workflow => view.retired?.includes(workflow) !== true);
+}
+
 /** The stages that list `workflow`, in the view's order. */
 export function stagesOfWorkflow(
   stages: readonly FactoryStage[],

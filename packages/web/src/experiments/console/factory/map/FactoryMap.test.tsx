@@ -158,10 +158,14 @@ test('every card shows its chips and links to its stage; its details button list
       `/console/p/${ID}/factory?stage=plan`,
       `/console/p/${ID}/factory/items/5`,
       `/console/p/${ID}/factory/items/9`,
-      // Build's two workflows, deliver and stage-build, each open the stage.
-      `/console/p/${ID}/factory?stage=build`,
+      // Build's one workflow the pack runs now, stage-build, opens the stage; the retired
+      // deliver still places Build's old items but is not offered as a workflow.
       `/console/p/${ID}/factory?stage=build`,
     ]);
+    const chips = [...(panel?.querySelectorAll('li a.font-mono') ?? [])].map(
+      link => link.textContent
+    );
+    expect(chips).toEqual(['plan', 'stage-build']);
     expect(panel?.textContent).toContain('Needs you');
     expect(panel?.textContent).toContain('Build · Writes the change');
   } finally {
@@ -642,8 +646,8 @@ test('before the items answer, every declared card and arrow is drawn with skele
     expect(panel()?.querySelector('[data-skeleton="line"]')).not.toBeNull();
     expect(panel()?.textContent).not.toContain('Nothing here now.');
     // A shadow step's line says "…" too, never that it decided nothing.
-    expect(shadowTitle(container, 'checks')).toContain('Project checks · …');
-    expect(shadowTitle(container, 'checks')).not.toContain('nothing decided yet');
+    expect(shadowTitle(container, 'triage')).toContain('Would it start on its own · …');
+    expect(shadowTitle(container, 'triage')).not.toContain('nothing decided yet');
 
     // The answer fills the chips in on the same cards, and the open panel stays open.
     server.release();
@@ -658,7 +662,9 @@ test('before the items answer, every declared card and arrow is drawn with skele
     after.forEach((el, index) => expect(el).toBe(drawn[index]!));
     expect(panel()?.textContent).toContain('Items here · 2');
     // These items carry no shadow decision: now it is true that none was decided.
-    expect(shadowTitle(container, 'checks')).toContain('Project checks · nothing decided yet');
+    expect(shadowTitle(container, 'triage')).toContain(
+      'Would it start on its own · nothing decided yet'
+    );
     expect(details(container, 'plan-build').getAttribute('aria-pressed')).toBe('true');
   } finally {
     server.restore();
@@ -691,11 +697,13 @@ test('a first items read that fails says so over the map drawn from the declarat
     expect(panel?.textContent).toContain('Could not be read.');
     expect(panel?.textContent).not.toContain('Loading');
     expect(panel?.textContent).not.toContain('Nothing here now.');
-    expect(shadowTitle(container, 'checks')).toContain('Project checks · could not be read');
-    await act(async () => details(container, 'checks-review').click());
-    const checks = container.querySelector('aside[aria-label="Checks & review details"]');
-    expect(checks?.textContent).toContain('Project checks · could not be read');
-    expect(checks?.textContent).not.toContain('nothing decided yet');
+    expect(shadowTitle(container, 'triage')).toContain(
+      'Would it start on its own · could not be read'
+    );
+    await act(async () => details(container, 'intake').click());
+    const intake = container.querySelector('aside[aria-label="Intake details"]');
+    expect(intake?.textContent).toContain('Would it start on its own · could not be read');
+    expect(intake?.textContent).not.toContain('nothing decided yet');
   } finally {
     globalThis.fetch = originalFetch;
     await unmount();

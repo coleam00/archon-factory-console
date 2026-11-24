@@ -137,21 +137,24 @@ describe("the item's story", () => {
 });
 
 describe('a stage page card standing for a shadow step', () => {
-  const card = shippedView.stages
-    .find(stage => stage.id === 'checks')
-    ?.drilldown?.phases.flatMap(phase => phase.cards)
-    .find(entry => entry.title === 'Project checks');
-  if (card === undefined) throw new Error('the shipped checks stage has a Project checks card');
+  // The card the Checks stage drew for deliver's project checks until the pack retired deliver:
+  // the shipped view still declares that step a shadow, for the old runs it reads.
+  const card = {
+    title: 'Project checks',
+    text: "Runs the project's declared checks and records the result; nothing acts on it",
+    icon: 'shield-check' as const,
+    kind: 'script' as const,
+    covers: [{ workflow: 'deliver', steps: ['rounds.checks'] }],
+  };
 
   test('carries the badge, the shadow accent and what it decided lately', async () => {
     const page = await render(
       <DrilldownCard
         view={shippedView}
         projectId={PROJECT}
+        stageId="checks"
         card={card}
         onCard={[]}
-        selected={false}
-        onSelect={() => undefined}
         shadow={{ lately: ['last 5: all passed ×4 · 1 failed ×1'] }}
       />
     );
@@ -169,10 +172,9 @@ describe('a stage page card standing for a shadow step', () => {
       <DrilldownCard
         view={shippedView}
         projectId={PROJECT}
+        stageId="checks"
         card={{ ...card, title: 'Code review' }}
         onCard={[]}
-        selected={false}
-        onSelect={() => undefined}
         shadow={null}
       />
     );

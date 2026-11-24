@@ -131,41 +131,75 @@ describe('shadowWords', () => {
   });
 });
 
+/** A card standing for one step, as a drill-down of the view would declare it. */
+const cardFor = (workflow: string, step: string) => ({
+  title: 'Project checks',
+  text: "Runs the project's declared checks",
+  icon: 'clipboard-list' as const,
+  kind: 'script' as const,
+  covers: [{ workflow, steps: [step] }],
+});
+
+/** `view` with one more phase on its Checks drill-down, holding `card`. */
+function withChecksCard(view: typeof VIEW, card: ReturnType<typeof cardFor>): typeof VIEW {
+  return {
+    ...view,
+    stages: view.stages.map(stage =>
+      stage.id !== 'checks' || stage.drilldown === undefined
+        ? stage
+        : {
+            ...stage,
+            drilldown: {
+              ...stage.drilldown,
+              phases: [...stage.drilldown.phases, { label: 'Checks', cards: [card] }],
+            },
+          }
+    ),
+  };
+}
+
+/**
+ * The shipped view with a Checks card for deliver's project checks, a shadow step: the card
+ * the view drew until the pack retired deliver, and with it the step.
+ */
+const CHECKS_SHADOWED = withChecksCard(VIEW, cardFor('deliver', 'rounds.checks'));
+
 describe('where the shipped view holds shadows', () => {
   test('a drill-down card covering a shadow step names it; one that does not names none', () => {
-    const cards = VIEW.stages.flatMap(stage =>
-      (stage.drilldown?.phases ?? []).flatMap(phase => phase.cards)
-    );
-    const covering = cards.flatMap(card =>
-      cardShadows(card, VIEW).map(found => [card.title, found.node])
-    );
-    expect(covering).toEqual([
+    const covering = (view: typeof VIEW) =>
+      view.stages
+        .flatMap(stage => (stage.drilldown?.phases ?? []).flatMap(phase => phase.cards))
+        .flatMap(card => cardShadows(card, view).map(found => [card.title, found.node]));
+    // The project checks went with deliver: the shipped Checks stage draws no card for them.
+    expect(covering(VIEW)).toEqual([['Would it start on its own', 'admit']]);
+    expect(covering(CHECKS_SHADOWED)).toEqual([
       ['Would it start on its own', 'admit'],
       ['Project checks', 'rounds.checks'],
     ]);
   });
 
-  test('the stages holding one: triage and checks; the merge gate acts, so it is none', () => {
+  test('the stages holding one: triage alone; the merge gate acts, so it is none', () => {
     expect(
       VIEW.stages.filter(stage => stageShadows(stage, VIEW).length > 0).map(stage => stage.id)
-    ).toEqual(['triage', 'checks']);
+    ).toEqual(['triage']);
   });
 
   test("the map's lines for a stage: each shadow step's label and what it decided lately", () => {
-    const checks = VIEW.stages.find(stage => stage.id === 'checks');
+    const view = CHECKS_SHADOWED;
+    const checks = view.stages.find(stage => stage.id === 'checks');
     if (checks === undefined) throw new Error('the shipped view has a checks stage');
-    expect(stageShadowLines(checks, VIEW, [idleWithEveryDecision()])).toEqual([
+    expect(stageShadowLines(checks, view, [idleWithEveryDecision()])).toEqual([
       'Project checks · last 1: all passed ×1',
     ]);
-    expect(stageShadowLines(checks, VIEW, [])).toEqual(['Project checks · nothing decided yet']);
+    expect(stageShadowLines(checks, view, [])).toEqual(['Project checks · nothing decided yet']);
     // Before the items are read, or once the read failed, it claims no decision either way.
-    expect(stageShadowLines(checks, VIEW, 'loading')).toEqual(['Project checks · …']);
-    expect(stageShadowLines(checks, VIEW, 'failed')).toEqual([
+    expect(stageShadowLines(checks, view, 'loading')).toEqual(['Project checks · …']);
+    expect(stageShadowLines(checks, view, 'failed')).toEqual([
       'Project checks · could not be read',
     ]);
-    const plan = VIEW.stages.find(stage => stage.id === 'plan');
+    const plan = view.stages.find(stage => stage.id === 'plan');
     if (plan === undefined) throw new Error('the shipped view has a plan stage');
-    expect(stageShadowLines(plan, VIEW, [idleWithEveryDecision()])).toEqual([]);
+    expect(stageShadowLines(plan, view, [idleWithEveryDecision()])).toEqual([]);
   });
 
   test('one line per label: the project checks of two workflows tally together', () => {
@@ -174,28 +208,8 @@ describe('where the shipped view holds shadows', () => {
     const deliverChecks = VIEW.shadows?.find(entry => entry.node === 'rounds.checks');
     if (deliverChecks === undefined) throw new Error('the shipped view declares the checks');
     const stageCheck = { ...deliverChecks, workflow: 'stage-check', node: 'checks' };
-    const covering = {
-      title: 'Project checks',
-      text: "Runs the project's declared checks",
-      icon: 'clipboard-list' as const,
-      kind: 'script' as const,
-      covers: [{ workflow: 'stage-check', steps: ['checks'] }],
-    };
-    const view = {
-      ...VIEW,
-      shadows: [...(VIEW.shadows ?? []), stageCheck],
-      stages: VIEW.stages.map(stage =>
-        stage.id !== 'checks' || stage.drilldown === undefined
-          ? stage
-          : {
-              ...stage,
-              drilldown: {
-                ...stage.drilldown,
-                phases: [...stage.drilldown.phases, { label: 'Checks', cards: [covering] }],
-              },
-            }
-      ),
-    };
+    const shadowed = withChecksCard(CHECKS_SHADOWED, cardFor('stage-check', 'checks'));
+    const view = { ...shadowed, shadows: [...(VIEW.shadows ?? []), stageCheck] };
     const checks = view.stages.find(stage => stage.id === 'checks');
     if (checks === undefined) throw new Error('the shipped view has a checks stage');
     const failing = { name: 'lint', passed: false, seconds: 3, tail: null };

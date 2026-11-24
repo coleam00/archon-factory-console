@@ -110,8 +110,9 @@ not polish: reshape a page when restyling it would not make it read well.
      default" pill when the project sets nothing. A shadow setting carries the shadow badge and
      says what would change when it stops being one.
    - The checks file shows its checks as rows (name and command), not a raw dump.
-7. **A step page is a page about one step.** Reached from "The real workflow" (for example
-   `steps/land/land` or a step of `deliver`), it shows:
+7. **A step page is a page about one step.** Reached from a step of "The real workflow" or a
+   card of "What this stage does" (for example `steps/land/land` or a step of `stage-check`), it
+   shows:
    - a header band: the step's plain name, its workflow and stage, its kind in its kind colour,
      the model it runs on, and how many items are on it now;
    - an aside with the facts in a definition grid (kind, model, inputs it reads, outcomes it can
@@ -917,7 +918,10 @@ what it decided: the board's "Found by the factory" panel and the Overview's til
 Its `shadows` field names the steps the pack runs as shadows (admit, the project checks of the
 retired `deliver`, and the drain; not the land gate, which acts, and not `stage-check`, which no
 longer runs the project checks since pack 43bedfe) and how each one's value reads; the item
-page, stage pages, board and map show their decisions as shadows (#80).
+page, stage pages, board and map show their decisions as shadows (#80). The map and a stage's
+drill-down show a shadow only through a card that covers it, and no card covers a step of a
+retired workflow, so since #154 the Checks stage carries no "Project checks" line; the item
+page's rounds grid still shows that row for the old runs that recorded it.
 Its `story` field gives the item page one plain sentence per outcome (#122). Its `retired` field
 names `deliver`, the one-workflow delivery the pack dropped on 2026-11-23 (pack d7f8c36): every
 item delivered before then ran under it and still reads as it did, while new items run the
@@ -948,7 +952,10 @@ the workflow does not have, a loop-form `rounds` source naming no loop group, an
 stage-form `rounds` source on a workflow that returns no result. A `retired` workflow is not required of the pack and none of
 its steps, arrows or outcomes is compared with the graph (nothing in code names one); a stage's
 `nodes` entry for it is held to the steps the view itself names for it, so a misspelt one still
-fails, and a retired workflow the pack has again fails as `retired-present`. The snapshot holds
+fails, and a retired workflow the pack has again fails as `retired-present`. A drill-down card or
+loop may name only a workflow its stage lists and the pack runs now: one standing for a step of a
+retired workflow fails as `retired-covered`, and one on a workflow its stage does not list as
+`unknown-workflow` (#154), since a card opens its step's page and a retired workflow has none. The snapshot holds
 the pack alone: the `loaded` and `otherCopies` `archon pack graph` reports (where it found its
 copies, a throwaway path) are left out.
 
@@ -1209,9 +1216,11 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   - **What this stage does** (first when the view file gives the stage a drill-down), with the
     line "The factory's summary of this stage, from its view file.": numbered phase columns of
     plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
-    and naming the items on a step it covers now, and a click on a card listing the real steps
-    it stands for, each linking to its step page. A stage without one says it has no summary
-    and that the real workflow shows its steps.
+    and naming the items on a step it covers now. A card is a link: a click opens the step page
+    of the step it stands for (the first its first cover names, when it stands for several),
+    whose back link returns to the stage; it shows a pointer and `.factory-card`'s hover with
+    the step graph's brighter `--text-tertiary` border (owner review of 2026-11-23, #154). A stage without one says it has no summary and that
+    the real workflow shows its steps.
   - **Items here now**: the items in the stage that the board does not set aside (owner change 4
     of 2026-11-23), from the same read as the card's chips, each
     linking to its item page with its state (needs you, the run line of the run working it, or
@@ -1220,9 +1229,12 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   - **The real workflow** (first when the stage has no drill-down), with the line "Generated
     from the pack's workflow files; shows every step.": each workflow's steps drawn as a graph
     (the RunGraphPanel pattern: dagre, top to bottom; loop groups drawn as a framed group
-    labelled "up to N rounds"; included workflows as nested groups). A step that is running now
+    labelled "up to N rounds"; included workflows as nested groups). It draws each workflow the
+    stage lists that the view has not retired: a retired workflow still places its old runs in
+    the stage, but the pack has no file to draw for it. A step that is running now
     for any item glows, and above the graph each item running the workflow is named, linking to
-    its item page. Clicking a step opens the step page. The graph's read shows its skeleton,
+    its item page. Clicking a step opens the step page; a step shows a pointer, and on hover a
+    brighter border, the lifted card depth and the hover surface. The graph's read shows its skeleton,
     tries once more after a second when the request got no answer at all (a server
     restarting), and on failure says which workflow could not be read and why, with a Retry
     button. The server keeps a project's discovered workflows for this graph: younger than 30 s
@@ -1231,13 +1243,13 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     discovery; runs never read this list.
 - A card's **details** button: a panel beside the map listing each of its stages in turn, with
   its blurb, the notes the view file places by it, its shadow steps (below), the items in it
-  (linking to each item), and the workflows behind it with links to their steps (each opens the
-  stage on "The real workflow"). A step page's back link opens its stage over the Overview.
+  (linking to each item), and the workflows behind it that the view has not retired, with links
+  to their steps (each opens the stage on "The real workflow"). A step page's back link opens its stage over the Overview.
 - A stage that holds a shadow step (one its drill-down's cards cover, owner change 6) carries
   rule 10's badge: on a card of several stages at the start of its row's second line, so the
   stage's name keeps its width, and beside the name on a card of one stage. The badge marks a step of the stage, not the stage, so it
   says which: its hover, and the stage's details under "Shadow steps", give one line per
-  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Project checks · last 5: all passed ×5"), or
+  shadow step (steps of one label in two workflows share a line and a tally) with what it decided lately ("Would it start on its own · last 5: would ask you first ×5"), or
   "nothing decided yet"; before the items are read, "…", and "could not be read" once that
   read failed.
 - A legend under the map names the cards' colour groups in plain words ("Merging it",

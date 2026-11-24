@@ -7,7 +7,9 @@
  * a round from is one the workflow returns, and every option an `answers` key words is one an
  * asks-settled hand-off of its workflow leaves on. A workflow no stage lists is not compared
  * (`unlistedWorkflows` names them), and nor is a workflow the view declares `retired`: its old runs still read, so
- * the view keeps wording them, and the pack need not have it. The schema cannot see the pack's
+ * the view keeps wording them, and the pack need not have it. A drill-down card or loop may not
+ * name a retired workflow, nor one its stage does not list: a card opens its step's page, which
+ * only a workflow the pack runs now has. The schema cannot see the pack's
  * workflows; this check reads them as the pack graph (`archon pack graph`, `GET /api/packs/{pack}/graph`) reports them.
  * `bun run check:factory-view` runs it over this repository's declarations.
  */
@@ -33,6 +35,7 @@ export type CoverageFindingKind =
   | 'unbacked-answer'
   | 'no-result'
   | 'retired-present'
+  | 'retired-covered'
   | 'graph-incomplete';
 
 export interface CoverageFinding {
@@ -109,6 +112,8 @@ interface Coverer {
   path: ViewPath;
   /** A drill-down's loop, which must name a loop group. */
   loop: boolean;
+  /** The workflows of the stage whose drill-down it is in. */
+  listed: readonly string[];
 }
 
 function coverersOf(view: FactoryView): Coverer[] {
@@ -125,6 +130,7 @@ function coverersOf(view: FactoryView): Coverer[] {
               step,
               path: [...at, 'phases', p, 'cards', c, 'covers', k, 'steps', m],
               loop: false,
+              listed: stage.workflows,
             })
           )
         )
@@ -135,7 +141,13 @@ function coverersOf(view: FactoryView): Coverer[] {
       ? cards
       : [
           ...cards,
-          { workflow: loop.workflow, step: loop.step, path: [...at, 'loop', 'step'], loop: true },
+          {
+            workflow: loop.workflow,
+            step: loop.step,
+            path: [...at, 'loop', 'step'],
+            loop: true,
+            listed: stage.workflows,
+          },
         ];
   });
 }
@@ -153,7 +165,31 @@ function unknownCoverer(coverer: Coverer, graphStage: GraphStage): CoverageFindi
   };
 }
 
-/** Every real step covered once, none twice, and every coverer naming a real step. */
+/**
+ * A coverer on a workflow that has no steps to open: one the view retired, or one its stage
+ * does not list. Undefined for a workflow its stage lists and has not retired.
+ */
+function unrunCoverer(view: FactoryView, coverer: Coverer): CoverageFinding | undefined {
+  const what = coverer.loop ? 'loop' : 'card';
+  if (isRetired(view, coverer.workflow))
+    return {
+      kind: 'retired-covered',
+      path: coverer.path,
+      message: `a ${what} stands for step "${stepKey(coverer.workflow, coverer.step)}" of retired workflow "${coverer.workflow}"; a card or loop names only workflows the pack runs now (a retired workflow's old runs still place through stages[].workflows)`,
+    };
+  if (!coverer.listed.includes(coverer.workflow))
+    return {
+      kind: 'unknown-workflow',
+      path: coverer.path,
+      message: `a ${what} stands for a step of workflow "${coverer.workflow}", which its stage does not list`,
+    };
+  return undefined;
+}
+
+/**
+ * Every real step covered once, none twice, and every coverer naming a real step of a workflow
+ * its stage lists and the pack runs now.
+ */
 function coverageFindings(
   view: FactoryView,
   stages: ReadonlyMap<string, GraphStage>
@@ -161,8 +197,13 @@ function coverageFindings(
   const findings: CoverageFinding[] = [];
   const seen = new Map<string, Coverer>();
   for (const coverer of coverersOf(view)) {
+    const unrun = unrunCoverer(view, coverer);
+    if (unrun !== undefined) {
+      findings.push(unrun);
+      continue;
+    }
     const graphStage = stages.get(coverer.workflow);
-    // A workflow the graph lacks is reported once, as unknown-workflow.
+    // A listed workflow the graph lacks is reported once, at the stage, as unknown-workflow.
     if (graphStage === undefined) continue;
     const unknown = unknownCoverer(coverer, graphStage);
     if (unknown !== undefined) {
@@ -198,10 +239,10 @@ function uncovered(view: FactoryView, workflow: string, node: GraphNode): Covera
 }
 
 /**
- * The steps the view itself names for `workflow`: what its drill-down cards and loop cover and
- * what `steps`, `story.steps`, `verdicts`, `returns`, `approves`, a loop-form `rounds` source and
- * `shadows` name. For a retired workflow, which the graph no longer has, this is the record a
- * stage's `nodes` entry is held to.
+ * The steps the view itself names for `workflow`: what `steps`, `story.steps`, `verdicts`,
+ * `returns`, `approves`, a loop-form `rounds` source and `shadows` name. For a retired
+ * workflow, which the graph no longer has and no card may cover, this is the record a stage's
+ * `nodes` entry is held to.
  */
 function viewSteps(view: FactoryView, workflow: string): Set<string> {
   const points = [...(view.returns ?? []), ...(view.approves ?? []), ...(view.shadows ?? [])];
@@ -209,7 +250,6 @@ function viewSteps(view: FactoryView, workflow: string): Set<string> {
   const of = <T extends { workflow: string }>(list: readonly T[]): T[] =>
     list.filter(entry => entry.workflow === workflow);
   return new Set([
-    ...of(coverersOf(view)).map(coverer => coverer.step),
     ...[view.steps, view.story?.steps, view.verdicts].flatMap(byWorkflow =>
       Object.keys(byWorkflow?.[workflow] ?? {})
     ),

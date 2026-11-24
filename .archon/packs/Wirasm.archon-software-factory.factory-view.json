@@ -205,21 +205,7 @@
             "label": "Write",
             "cards": [
               {
-                "title": "Write the change",
-                "text": "Writes the change and opens a draft pull request",
-                "icon": "pencil",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "build__build"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Build stage",
+                "title": "Write or fix the change",
                 "text": "Writes or fixes the change, in the session it had",
                 "icon": "pencil",
                 "kind": "agent",
@@ -228,39 +214,6 @@
                     "workflow": "stage-build",
                     "steps": [
                       "build__build"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "label": "Fix",
-            "cards": [
-              {
-                "title": "Fix what checks found",
-                "text": "Fixes what the checks sent back",
-                "icon": "wrench",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "rounds.fix"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Fix what CI raised",
-                "text": "Fixes what CI and the pull request reviews raised",
-                "icon": "wrench",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "hostrounds.hostfix"
                     ]
                   }
                 ]
@@ -321,9 +274,9 @@
                 "kind": "script",
                 "covers": [
                   {
-                    "workflow": "deliver",
+                    "workflow": "stage-check",
                     "steps": [
-                      "rounds.base"
+                      "base"
                     ]
                   }
                 ]
@@ -335,56 +288,42 @@
             "cards": [
               {
                 "title": "Code review",
-                "text": "Reads the change for bugs and the project's rules",
+                "text": "Reviews the change",
                 "icon": "search-code",
                 "kind": "check",
                 "covers": [
                   {
-                    "workflow": "deliver",
+                    "workflow": "stage-check",
                     "steps": [
-                      "rounds.review__review"
+                      "review__review"
                     ]
                   }
                 ]
               },
               {
                 "title": "Test check",
-                "text": "Runs and reads the tests the change needs",
+                "text": "Checks the tests prove the change",
                 "icon": "flask-conical",
                 "kind": "check",
                 "covers": [
                   {
-                    "workflow": "deliver",
+                    "workflow": "stage-check",
                     "steps": [
-                      "rounds.tests__tests"
+                      "tests__tests"
                     ]
                   }
                 ]
               },
               {
                 "title": "Product check",
-                "text": "Checks the change does what the item asked",
+                "text": "Looks at the change in a browser",
                 "icon": "monitor-check",
                 "kind": "check",
                 "covers": [
                   {
-                    "workflow": "deliver",
+                    "workflow": "stage-check",
                     "steps": [
-                      "rounds.product__product"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Project checks",
-                "text": "Runs the project's declared checks and records the result; nothing acts on it",
-                "icon": "shield-check",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "rounds.checks"
+                      "product__product"
                     ]
                   }
                 ]
@@ -401,114 +340,6 @@
                 "kind": "check",
                 "covers": [
                   {
-                    "workflow": "deliver",
-                    "steps": [
-                      "rounds.verdict__verdict"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Post the review",
-                "text": "Posts the checks' findings on the pull request",
-                "icon": "message-square",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "rounds.shown"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "label": "Out of rounds",
-            "cards": [
-              {
-                "title": "Rounds ran out",
-                "text": "Says what is still wrong when every round is used",
-                "icon": "circle-alert",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "exhausted"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "label": "Check round (stage)",
-            "cards": [
-              {
-                "title": "Read the base",
-                "text": "Reads the commit the change is checked against",
-                "icon": "git-branch",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "stage-check",
-                    "steps": [
-                      "base"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Code review",
-                "text": "Reviews the change",
-                "icon": "search-code",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "stage-check",
-                    "steps": [
-                      "review__review"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Test check",
-                "text": "Checks the tests prove the change",
-                "icon": "flask-conical",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "stage-check",
-                    "steps": [
-                      "tests__tests"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Product check",
-                "text": "Looks at the change in a browser",
-                "icon": "monitor-check",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "stage-check",
-                    "steps": [
-                      "product__product"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Verdict",
-                "text": "Approves the change or sends it back",
-                "icon": "gavel",
-                "kind": "agent",
-                "covers": [
-                  {
                     "workflow": "stage-check",
                     "steps": [
                       "verdict__verdict"
@@ -519,7 +350,7 @@
             ]
           },
           {
-            "label": "Round ends (stage)",
+            "label": "Round ends",
             "cards": [
               {
                 "title": "Count the round",
@@ -579,14 +410,7 @@
               }
             ]
           }
-        ],
-        "loop": {
-          "label": "Up to 3 rounds",
-          "from": 1,
-          "to": 3,
-          "workflow": "deliver",
-          "step": "rounds"
-        }
+        ]
       }
     },
     {
@@ -611,58 +435,6 @@
             "cards": [
               {
                 "title": "Read CI and reviews",
-                "text": "Reads CI and the pull request reviews and sends back what they raise",
-                "icon": "git-pull-request",
-                "kind": "agent",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "hostrounds.host__host"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "label": "Hand off",
-            "cards": [
-              {
-                "title": "Decide the ending",
-                "text": "Decides how delivery ends: ready, returned or a question",
-                "icon": "flag",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "result"
-                    ]
-                  }
-                ]
-              },
-              {
-                "title": "Report",
-                "text": "Reports the ending on the item",
-                "icon": "send",
-                "kind": "script",
-                "covers": [
-                  {
-                    "workflow": "deliver",
-                    "steps": [
-                      "reported"
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "label": "CI and reviews (stage)",
-            "cards": [
-              {
-                "title": "Read CI and reviews",
                 "text": "Reads CI and the pull request's reviews",
                 "icon": "git-pull-request",
                 "kind": "agent",
@@ -674,7 +446,12 @@
                     ]
                   }
                 ]
-              },
+              }
+            ]
+          },
+          {
+            "label": "Round ends",
+            "cards": [
               {
                 "title": "Count the round",
                 "text": "Records the round and the rounds allowed",
@@ -733,14 +510,7 @@
               }
             ]
           }
-        ],
-        "loop": {
-          "label": "Until CI and reviews are clear",
-          "from": 1,
-          "to": 1,
-          "workflow": "deliver",
-          "step": "hostrounds"
-        }
+        ]
       }
     },
     {

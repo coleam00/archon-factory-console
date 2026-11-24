@@ -1,9 +1,10 @@
 import type { FactoryDrilldown } from '../drilldown-live';
 
 /**
- * The Checks stage's drill-down as the factory console's project view file declares it
- * (`.archon/packs/Wirasm.archon-software-factory.factory-view.json`, 2026-11-17): four phases,
- * the first three repeated by the `rounds` loop.
+ * A synthetic Checks drill-down over a `deliver`-shaped workflow, as the project's view file
+ * declared it on 2026-11-17 before the pack retired `deliver`: four phases, the first three
+ * repeated by the `rounds` loop. It is kept for the loop frame and live-glow tests, which the
+ * current view file (no loop) cannot exercise.
  */
 export const checksDrilldown: FactoryDrilldown = {
   phases: [

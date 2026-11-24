@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import type { FactoryItem } from '../../skills/factory';
 import { displayKeyOf } from '../lib/work-orders';
 import type { EntityView } from '../../store/cache';
@@ -11,14 +11,8 @@ import { cardShadows, recentTally } from '../lib/shadows';
 import { PHASE_COLUMN_REM, PHASE_GAP_REM } from '../lib/stage-modal-size';
 import { RUNNING_GLOW } from '../StepGraph';
 import { DrilldownCard } from './DrilldownCard';
-import { DrilldownSteps } from './DrilldownSteps';
 
 type Declaration = FactoryViewListed['declaration'];
-
-interface Selected {
-  phase: number;
-  card: number;
-}
 
 const NOTHING: readonly ItemOnStep[] = [];
 const NO_ITEMS: readonly FactoryItem[] = [];
@@ -35,7 +29,7 @@ const NO_ITEMS: readonly FactoryItem[] = [];
 /**
  * A stage told as its drill-down: numbered phases of plain cards, left to right, with the
  * loop drawn as one labelled frame around the phases it repeats. A card glows and names the
- * items on a step it covers now; clicking it lists its real steps.
+ * items on a step it covers now; clicking it opens the step page of the step it stands for.
  */
 export function StageDrilldown({
   projectId,
@@ -50,7 +44,6 @@ export function StageDrilldown({
   drilldown: FactoryDrilldown;
   items: EntityView<FactoryItem[]>;
 }): ReactElement {
-  const [selected, setSelected] = useState<Selected | null>(null);
   // A failed refresh keeps the last list in the cache; it is no longer evidence of what runs.
   const live = useMemo(
     () =>
@@ -65,50 +58,33 @@ export function StageDrilldown({
       index={p}
       view={view}
       projectId={projectId}
+      stageId={stage.id}
       drilldown={drilldown}
       live={live}
       items={items.data ?? NO_ITEMS}
-      selected={selected}
-      onSelect={card =>
-        setSelected(selected?.phase === p && selected.card === card ? null : { phase: p, card })
-      }
       besideLoop={besideLoop}
     />
   );
   const { loop, phases } = drilldown;
   const all = phases.map((_, p) => p);
-  const card = selected === null ? undefined : phases[selected.phase]?.cards[selected.card];
   return (
-    <div className="flex flex-col gap-4">
-      <div
-        className={`flex flex-col md:grid md:items-start ${loop === undefined ? '' : 'pb-4'}`}
-        style={{
-          gap: `${String(PHASE_GAP_REM)}rem`,
-          gridTemplateColumns: `repeat(${String(phases.length)}, minmax(0, ${String(PHASE_COLUMN_REM)}rem))`,
-        }}
-      >
-        {loop === undefined ? (
-          all.map(p => phase(p))
-        ) : (
-          <>
-            {all.slice(0, loop.from - 1).map(p => phase(p, true))}
-            <LoopFrame loop={loop} onLoop={live?.loop ?? NOTHING}>
-              {all.slice(loop.from - 1, loop.to).map(p => phase(p))}
-            </LoopFrame>
-            {all.slice(loop.to).map(p => phase(p, true))}
-          </>
-        )}
-      </div>
-      {card === undefined ? null : (
-        <DrilldownSteps
-          // A new card is a new panel, which brings itself into view once.
-          key={`${String(selected?.phase)}.${String(selected?.card)}`}
-          projectId={projectId}
-          view={view}
-          stage={stage}
-          card={card}
-          onClose={() => setSelected(null)}
-        />
+    <div
+      className={`flex flex-col md:grid md:items-start ${loop === undefined ? '' : 'pb-4'}`}
+      style={{
+        gap: `${String(PHASE_GAP_REM)}rem`,
+        gridTemplateColumns: `repeat(${String(phases.length)}, minmax(0, ${String(PHASE_COLUMN_REM)}rem))`,
+      }}
+    >
+      {loop === undefined ? (
+        all.map(p => phase(p))
+      ) : (
+        <>
+          {all.slice(0, loop.from - 1).map(p => phase(p, true))}
+          <LoopFrame loop={loop} onLoop={live?.loop ?? NOTHING}>
+            {all.slice(loop.from - 1, loop.to).map(p => phase(p))}
+          </LoopFrame>
+          {all.slice(loop.to).map(p => phase(p, true))}
+        </>
       )}
     </div>
   );
@@ -119,22 +95,20 @@ function Phase({
   index,
   view,
   projectId,
+  stageId,
   drilldown,
   live,
   items,
-  selected,
-  onSelect,
   besideLoop,
 }: {
   index: number;
   view: Declaration;
   projectId: string;
+  stageId: string;
   drilldown: FactoryDrilldown;
   live: DrilldownLive | undefined;
   /** Every item read, for what a shadow step decided lately; empty before the first read. */
   items: readonly FactoryItem[];
-  selected: Selected | null;
-  onSelect: (card: number) => void;
   /**
    * Beside a loop frame: in its own column of the row, its header padded level with the
    * framed phases' headers, which sit inside the frame's border and padding.
@@ -165,10 +139,9 @@ function Phase({
           key={c}
           view={view}
           projectId={projectId}
+          stageId={stageId}
           card={card}
           onCard={live?.cards[index]?.[c] ?? NOTHING}
-          selected={selected?.phase === index && selected.card === c}
-          onSelect={() => onSelect(c)}
           shadow={shadowOfCard(card, view, items)}
         />
       ))}

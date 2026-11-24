@@ -82,8 +82,10 @@ const drilldownCardSchema = z.strictObject({
   /** Who does it: an agent, a check that approves or returns, a script, or you. */
   kind: z.enum(['agent', 'check', 'script', 'you']),
   /**
-   * The real steps the card stands for. `bun run check:factory-view` reads the pack's
-   * workflows and fails when a real step is covered by no card or by two.
+   * The real steps the card stands for; the first step named is the one a click on the card
+   * opens. `bun run check:factory-view` reads the pack's workflows and fails when a real step
+   * is covered by no card or by two, or a card names a workflow its stage does not list or
+   * one the view retired.
    */
   covers: z.array(coverSchema).min(1),
 });
@@ -100,7 +102,8 @@ const drilldownSchema = z.strictObject({
     .min(1),
   /**
    * The loop group `step` of `workflow` repeats phases `from` to `to` (1-based): one line
-   * drawn around them, labelled ("Up to 3 rounds"). The loop covers its group step.
+   * drawn around them, labelled ("Up to 3 rounds"). The loop covers its group step, so its
+   * workflow is one the stage lists and the pack runs now, never a retired one.
    */
   loop: z
     .strictObject({
@@ -417,7 +420,8 @@ const factoryViewShape = z.strictObject({
    * Workflows a stage lists that the installed pack no longer has, whose stored runs still
    * place, render and count. `bun run check:factory-view` neither requires the pack to have
    * them nor compares their steps, arrows or outcomes with its graph, and fails when the pack
-   * has one again.
+   * has one again. No drill-down card or loop may name one: a stage draws only the workflows
+   * the pack runs now, and a retired workflow has no step page to open.
    */
   retired: z.array(workflowNameSchema).optional(),
   /**
