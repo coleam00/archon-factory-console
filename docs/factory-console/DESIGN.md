@@ -488,8 +488,8 @@ text. The factory's own surfaces that point at an ask follow the rules above:
   on hover and in the popover); under it, at `--text-console-12`, "Recommended: <label>" when
   the ask's declared recommendation names an option (the option's label from the ask's own
   options, never read from its text), in green (`--success`), which wraps long unbroken text
-  inside the card, and beside it a neutral bordered chip reading "N open asks". The card's
-  title then takes 2 lines, not 3.
+  inside the card, and after it (on the same line where it fits, else the next) a neutral
+  bordered chip reading "N open asks". The card's title then takes 2 lines, not 3.
 - The popover that holds Archon's ask section over the board is at most 480 px wide; under
   520 px (a 390 px phone) it is a sheet from the bottom.
 
