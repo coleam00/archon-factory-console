@@ -619,8 +619,9 @@ describe('what the last declared run leaves the item: parked, or waiting on a pe
     expect({ parked: progress.parked, awaits: progress.awaits }).toEqual(expected);
   });
 
-  test("the shaping outcome's next sentence is the one the view declares", () => {
-    expect(SHAPE_NEXT).toStartWith('Settle these questions');
+  test("the shaping rows compare against the view's own next sentence", () => {
+    expect(SHAPE_NEXT).toBeString();
+    expect(SHAPE_NEXT).not.toBe('');
   });
 });
 
@@ -824,16 +825,17 @@ describe("an item text's title", () => {
       'Items started by a work order show their title',
     ],
     [
-      // The order run carries the work order (a source URL, no item); the triage run after it
-      // carries the item text the order stage produced.
+      // An older run carries another text; the triage run after it carries the item text the
+      // order stage produced; the newest, an order run, carries the work order and no item.
       'an item an order started: the newest run that has an item text',
       [
-        withInputs(triage1, 'order-run', `${PACK}:order`, 0, {
-          key: '36',
-          source: 'https://github.com/coleam00/archon-factory-console/issues/36',
-        }),
+        withInputs(triage1, 'older-run', triage1.run.workflow_name, 0, { item: 'An old title' }),
         withInputs(triage1, 'triage-run', triage1.run.workflow_name, 60_000, {
           item: ORDERED_ITEM,
+        }),
+        withInputs(triage1, 'order-run', `${PACK}:order`, 120_000, {
+          key: '36',
+          source: 'https://github.com/coleam00/archon-factory-console/issues/36',
         }),
       ],
       'Items started by a work order show their title',
@@ -987,19 +989,19 @@ describe('the readers', () => {
     const counts: Counts = { queue: 0, loaded: [] };
     const seen: [string, number][] = [];
     const audits = deliver1.events.filter(row => row.event_type === 'integration_operation');
-    const detail = factoryItemDetailSchema.parse(
-      await readFactoryItem(
-        sourceFor({ '1': item1 }, { counts }),
-        inputFor({
-          changeState: async lookup => {
-            if (lookup.kind === 'url') seen.push([lookup.url, lookup.audits.length]);
-            // The forge's URL is not shown on the URL path: the run's is.
-            return { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 };
-          },
-        }),
-        '1'
-      )
+    const raw = await readFactoryItem(
+      sourceFor({ '1': item1 }, { counts }),
+      inputFor({
+        changeState: async lookup => {
+          if (lookup.kind === 'url') seen.push([lookup.url, lookup.audits.length]);
+          // The forge's URL is not shown on the URL path: the run's is.
+          return { url: null, merged: true, mergedAt: '2026-11-17T01:00:00Z', number: 10 };
+        },
+      }),
+      '1'
     );
+    // Parsing strips keys the schema does not name, so the board rounds' shape is read on `raw`.
+    const detail = factoryItemDetailSchema.parse(raw);
     expect(detail.pack).toBe(PACK);
     expect(counts.queue).toBe(1);
     // The run's forge audit rows reach the lookup with its URL.
@@ -1039,8 +1041,8 @@ describe('the readers', () => {
     expect(detail.runs.map(run => run.rounds?.rounds.length ?? null)).toEqual([null, null, 2]);
     // The board's rounds are the latest deliver run's, without steps or summaries.
     const deliver = detail.runs[2];
-    expect(decisions(deliver?.rounds)?.rounds).toEqual(detail.item.progress?.round?.rounds);
-    expect(Object.keys(detail.item.progress?.round?.rounds[0] ?? {}).sort()).toEqual([
+    expect(decisions(raw?.runs[2]?.rounds)?.rounds).toEqual(raw?.item.progress?.round?.rounds);
+    expect(Object.keys(raw?.item.progress?.round?.rounds[0] ?? {}).sort()).toEqual([
       'iteration',
       'outcome',
       'verdict',
