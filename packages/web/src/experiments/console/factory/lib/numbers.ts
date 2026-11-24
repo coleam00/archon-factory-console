@@ -1,7 +1,7 @@
 /**
  * The Overview's numbers strip (DESIGN.md, "Overview page"), from the board's model. Each
  * count is the number of cards the board shows under that number's filter. The strip's
- * "need you" tile is not here: it counts the attention queue (`needsYouCount`).
+ * "need you" tile is not here: it counts the asks too (`factoryWaitingCount`).
  */
 import { filterBoard, type BoardModel } from './board';
 import type { BoardShow } from './board-show';

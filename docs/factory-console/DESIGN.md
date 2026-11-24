@@ -1027,7 +1027,7 @@ A card, in this order:
    column only while a start waits for it, else it is set aside),
    **Waiting** (queued or idle between stages), **Merged**.
 2. Title (from the item record or the forge, never read out of a run input's markdown; else the
-   key), at most 3 lines; 2 on a card showing an ask's face (rule 7).
+   key), at most 3 lines; 2 on a card showing its open asks (rule 7).
 3. The stage line, so a card names its stage inside a column that groups several. While a run
    works it: its stage, the running step's name and the round when the step is of the declared
    rounds loop, "Checks · Code review · round 2", linking to the run in the console

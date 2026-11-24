@@ -216,9 +216,9 @@ export function cardFields(
 }
 
 /**
- * What an item waiting on you says on its card's line, as the ask face says an ask: its first
- * open question, with "N questions" when it recorded several, else the reason its run gave
- * (null when it gave neither).
+ * What an item waiting on you says on its card's line: its first open question, with
+ * "N questions" when it recorded several, else the reason its run gave (null when it gave
+ * neither).
  */
 function awaitsLine(
   awaits: NonNullable<Progress['awaits']>

@@ -1,7 +1,9 @@
 /**
  * The factory's cache keys. Item reads sit under `runs:` on purpose: the dashboard SSE
- * invalidates `runs` when a run starts, changes step or ends, and every answer panel does after
- * an answer, so the board, the map and an item page read again with no hook of their own.
+ * invalidates `runs` when a run starts, changes step or ends, as does Archon's answer panel for a
+ * paused run, so the board, the map and an item page read again with no hook of their own. An
+ * answer given through Archon's ask section refreshes only its own read; `useItemAsks` refreshes
+ * the item reads then.
  */
 export const FACTORY_ITEMS = 'runs:factory-items';
 

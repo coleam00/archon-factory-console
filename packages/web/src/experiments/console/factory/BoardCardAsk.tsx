@@ -60,8 +60,8 @@ function AskDot(): ReactElement {
 }
 
 /**
- * The foot of a board card: with open asks, one control naming how many, beside the newest
- * one's question, that opens Archon's ask section for the item over the board; else the card's
+ * The foot of a board card: with open asks, one control, the newest one's question over how
+ * many are open, that opens Archon's ask section for the item over the board; else the card's
  * stop line. It sits above the title's stretched link, so the rest of the card still opens the
  * item page. A card whose progress could not be read still says so under it.
  */
@@ -81,13 +81,15 @@ export function CardAsk({ card, asks }: { card: BoardCard; asks: BoardAsks }): R
         onClick={event => {
           asks.openFor(card.key, event.currentTarget);
         }}
-        className="relative z-10 flex w-full min-w-0 items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        className="relative z-10 flex min-w-0 max-w-full flex-col items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        <AskDot />
-        <span title={question} className="min-w-0 truncate text-console-13 text-text-primary">
-          {question}
+        <span className="flex w-full min-w-0 items-center gap-2">
+          <AskDot />
+          <span title={question} className="min-w-0 truncate text-console-13 text-text-primary">
+            {question}
+          </span>
         </span>
-        <span className="ml-auto shrink-0 whitespace-nowrap rounded-full bg-[color:var(--warning-soft)] px-2 py-0.5 text-console-12 font-medium text-warning">
+        <span className="max-w-full rounded-console-12 border border-border px-2 py-1 text-console-12 text-text-primary transition-colors duration-150 ease-out hover:border-border-bright">
           {words}
         </span>
       </button>

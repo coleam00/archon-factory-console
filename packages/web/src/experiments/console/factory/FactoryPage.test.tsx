@@ -130,6 +130,9 @@ const sixAsks = attentionRead(
 /** How many ask cards are drawn. */
 const askCards = (html: string): number => html.split('data-ask-ref=').length - 1;
 const text = (html: string): string => html.replace(/<[^>]*>/g, '');
+/** The Overview's link to the board's needs-you show, as markup. */
+const moreLink = (html: string): string =>
+  /<a[^>]*href="[^"]*\/factory\/board\?show=needs-you"[^>]*>.*?<\/a>/.exec(html)?.[0] ?? '';
 const SUMMARY = 'Issues come in; changes go out.';
 /** The Factory sub-navigation's links, as `href label`. */
 const subNav = (html: string): string[] => {
@@ -164,10 +167,11 @@ describe('the Factory section', () => {
     expect(text(strip)).toContain('need you7');
     expect(askCards(html)).toBe(3);
     for (const i of [5, 4, 3]) expect(html).toContain(`Question ${i.toString()}?`);
-    expect(html).toContain('4 more on the board');
-    // Archon's ask section, answerable here: the recommendation and each option's button.
-    expect(text(html)).toContain('Recommended: Use dev');
-    expect(text(html)).toContain('Use dev (recommended)');
+    // The rest wait on the board: three asks and the item waiting on you.
+    expect(text(moreLink(html))).toContain('4');
+    // Archon's ask section, answerable here: the recommendation's why, an option's cost.
+    expect(text(html)).toContain('Dev is the working base.');
+    expect(text(html)).toContain('One more rebase.');
     const needsYou = html.indexOf('aria-label="Needs you"');
     expect(needsYou).toBeGreaterThan(-1);
     expect(html.indexOf('aria-label="The map"')).toBeGreaterThan(needsYou);
@@ -177,8 +181,8 @@ describe('the Factory section', () => {
     const waiting = render(`/console/p/${ID}/factory`, withView, quiet, [
       needsShaping('9s', ['Which?']),
     ]);
-    expect(waiting).toContain('1 item waits for you on the board');
-    expect(waiting).not.toContain('more on the board');
+    expect(text(moreLink(waiting))).toContain('1');
+    expect(askCards(waiting)).toBe(0);
 
     const html = render(`/console/p/${ID}/factory`, shipped, quiet, PAGE.items);
     const strip = text(

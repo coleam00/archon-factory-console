@@ -41,7 +41,7 @@ afterEach(() => {
   invalidate('runs:factory-items');
 });
 
-/** `board` under a project queue where nothing waits on a person: asks are BoardAsks.test.tsx's. */
+/** `board` with nothing waiting on a person in Archon's attention read: asks are ItemAsks.test.tsx's. */
 function quiet(board: ReactElement): ReactElement {
   set(K.runsAttention, attentionRead());
   return board;

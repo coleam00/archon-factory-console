@@ -14,8 +14,9 @@ import type { FactoryItem } from './api';
 
 /**
  * Every item of the project with its progress, and the members of every work order they
- * name, for every Factory page. The dashboard SSE invalidates `factory-items` when a run
- * starts, changes step or ends, and the attention stream when an ask opens or closes. While
+ * name, for every Factory page. Its key sits under `runs:`, which the dashboard SSE
+ * invalidates when a run starts, changes step or ends; an answer given on a Factory page
+ * refreshes it too (`useItemAsks`). While
  * any item's merge state is `pending` it reads again shortly, a failed read included, until
  * the server has the answer. While any item's change is not merged it asks about those items
  * on an interval (`watchMerges`), because a merge on the forge is no run event.

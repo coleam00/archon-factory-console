@@ -54,30 +54,35 @@ async function click(element: Element): Promise<void> {
   });
 }
 
-const buttonNamed = (root: ParentNode, name: string): HTMLButtonElement | undefined =>
-  [...root.querySelectorAll('button')].find(
-    button =>
-      (button.getAttribute('aria-label') ?? button.textContent ?? '').startsWith(name) ||
-      button.textContent === name
-  );
+/** The first button whose text starts with an option's label. */
+const optionButton = (root: ParentNode, label: string): HTMLButtonElement | undefined =>
+  [...root.querySelectorAll('button')].find(button => button.textContent?.startsWith(label));
 
-/** Archon's ask is shown with its options, recommendation and cost, and answering posts it. */
+/**
+ * Archon's ask shows what the ask declares (its message, its options, the recommendation's why
+ * and an option's cost), and choosing an option posts the answer by the ask's ref. Once
+ * answered, its options are gone.
+ */
 async function answersThroughArchon(
   root: ParentNode,
   sent: { path: string; body: unknown }[]
 ): Promise<void> {
+  const ask = refAsk();
   const words = root.textContent ?? '';
-  expect(words).toContain('Which base should the change target?');
-  expect(words).toContain('Recommended: Use dev');
-  expect(words).toContain('Cost: One more rebase.');
-  expect(buttonNamed(root, 'Use main')).toBeDefined();
-  const recommended = buttonNamed(root, 'Use dev (recommended)');
-  if (recommended === undefined) throw new Error('No button for the recommended option');
-  await click(recommended);
+  expect(words).toContain(ask.message);
+  expect(words).toContain(ask.recommendation?.why ?? 'a recommendation');
+  for (const option of ask.options) expect(words).toContain(option.cost ?? 'a cost');
+  const block = (): Element | null => root.querySelector(`[data-ask-ref="${ask.ref}"]`);
+  const shown = block();
+  if (shown === null) throw new Error('The ask is not shown');
+  expect(optionButton(shown, 'Use main')).toBeDefined();
+  const chosen = optionButton(shown, 'Use dev');
+  if (chosen === undefined) throw new Error('No button for an option');
+  await click(chosen);
   expect(sent).toEqual([
-    { path: '/api/attention/answer', body: { ref: 'ask:1', choose: ['use-dev'] } },
+    { path: '/api/attention/answer', body: { ref: ask.ref, choose: ['use-dev'] } },
   ]);
-  expect(root.textContent).toContain('Answered: Use dev');
+  expect(block()?.querySelectorAll('button')).toHaveLength(0);
 }
 
 describe("an item's open ask", () => {
@@ -85,7 +90,9 @@ describe("an item's open ask", () => {
     const sent = serveAnswers();
     const six = realItem('6');
     const ask = { ...askOn(six), project: { ...project, codebaseId: 'cb-1' } };
-    set(FK.factoryItems('cb-1'), { items: [{ ...six, questions: [ask] }], members: {} });
+    // A second ask the item read lists and Archon's read does not yet: counted once each.
+    const later = { ...ask, ref: 'ask:2', message: 'And the title?' };
+    set(FK.factoryItems('cb-1'), { items: [{ ...six, questions: [ask, later] }], members: {} });
     set(FK.factoryDiscoveries('cb-1'), DISCOVERIES);
     set(K.runsAttention, attentionRead([ask]));
     const board = await mount(
@@ -99,9 +106,9 @@ describe("an item's open ask", () => {
       </MemoryRouter>
     );
     try {
-      const card = board.container.querySelector('article[data-card="6"]');
-      const open = card === null ? undefined : buttonNamed(card, '1 open ask');
-      if (open === undefined) throw new Error('The card names no open ask');
+      const open = board.container.querySelector('article[data-card="6"] [data-ask-trigger]');
+      if (open === null) throw new Error('The card has no ask control');
+      expect(open.getAttribute('aria-label')).toContain('2');
       await click(open);
       const dialog = document.body.querySelector('[role="dialog"]');
       if (dialog === null) throw new Error('No ask opened over the board');

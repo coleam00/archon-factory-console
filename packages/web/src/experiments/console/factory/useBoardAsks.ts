@@ -84,10 +84,16 @@ export function useBoardAsks({
     returnTo.current = null;
     focusBack(back);
   }, [open]);
-  // An answered ask stays in view, as answered, until a person closes it; only an item gone
-  // from the board or the filter closes it.
+  // An ask answered here stays in view, as answered, until a person closes it. The view closes
+  // by itself when its item leaves the board or the filter, or when nothing is left in it (its
+  // asks were answered elsewhere).
   const shownKeys = useMemo(() => new Set(itemsByKey(shown).keys()), [shown]);
-  const openGone = open !== null && !shownKeys.has(open.key);
+  const openItem = open === null ? undefined : items.get(open.key);
+  const emptied =
+    openItem !== undefined &&
+    asks.entriesOf(openItem).length === 0 &&
+    asks.sectionOf(openItem).answered.length === 0;
+  const openGone = open !== null && (!shownKeys.has(open.key) || emptied);
   useEffect(() => {
     if (openGone) close();
   }, [openGone, close]);

@@ -271,8 +271,8 @@ describe('the item page', () => {
     expect(text(html)).not.toContain('Not this item?');
     // Each in Archon's ask section, answerable: its options, the recommendation, the costs.
     expect(html.split('data-ask-ref=')).toHaveLength(3);
-    expect(text(html)).toContain('Recommended: Use dev');
-    expect(text(html)).toContain('Cost: One more rebase.');
+    expect(text(html)).toContain('Dev is the working base.');
+    expect(text(html)).toContain('One more rebase.');
   });
 
   test('while the item is read: skeletons, never Loading…', () => {
