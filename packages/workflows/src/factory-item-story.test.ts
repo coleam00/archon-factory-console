@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readRunFixture } from './__fixtures__/read-run-fixture';
 import { factoryRunStory } from './factory-item-story';
 import { factoryViewSchema } from './schemas/factory-view';
-import type { WorkflowEventRow } from './schemas/workflow-event';
 import { workflowRunSchema, type WorkflowRun } from './schemas/workflow-run';
 
 const view = factoryViewSchema.parse(
@@ -19,14 +19,10 @@ const view = factoryViewSchema.parse(
 );
 
 /** Item 111's one deliver run (see the file's `note`). */
-const raw = JSON.parse(
-  readFileSync(
-    join(import.meta.dir, '__fixtures__', 'factory-items', 'item-111-deliver-aba8f7aa.json'),
-    'utf8'
-  )
-) as {
+const raw = readRunFixture(
+  join(import.meta.dir, '__fixtures__', 'factory-items', 'item-111-deliver-aba8f7aa.jsonl')
+) as ReturnType<typeof readRunFixture> & {
   run: Record<string, unknown> & { started_at: string; completed_at: string };
-  events: WorkflowEventRow[];
 };
 
 const run: WorkflowRun = workflowRunSchema.parse({

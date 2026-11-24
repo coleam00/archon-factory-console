@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readRunFixture } from './__fixtures__/read-run-fixture';
 import {
   coveredBy,
   drainDecisions,
@@ -29,21 +30,9 @@ const view = factoryViewSchema.parse(
 const declaration = view.discoveries!;
 
 /** A completed drain copied from the live factory database (see the file's `note`). */
-const live = JSON.parse(
-  readFileSync(
-    join(import.meta.dir, '__fixtures__', 'factory-discoveries', 'drain-03398baa.json'),
-    'utf8'
-  )
-) as {
-  run: {
-    id: string;
-    workflow_name: string;
-    status: string;
-    started_at: string;
-    completed_at: string;
-  };
-  events: WorkflowEventRow[];
-};
+const live = readRunFixture(
+  join(import.meta.dir, '__fixtures__', 'factory-discoveries', 'drain-03398baa.jsonl')
+);
 type Result = { filed: Record<string, unknown>[]; held: unknown[]; dropped: unknown[] };
 const liveValue = (live.events[0]!.data as { terminal_record: { returns: { value: Result } } })
   .terminal_record.returns.value;

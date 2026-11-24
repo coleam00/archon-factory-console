@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FactoryItemDetail } from '../skills/factory';
-import { withLaterFields } from './lib/fixtures/later-fields';
 import type { FactoryViewListed } from './lib/views';
 
 /**
@@ -19,7 +18,7 @@ export function itemDetail(
   const raw = JSON.parse(
     readFileSync(join(import.meta.dir, '__fixtures__', `item-${key}.json`), 'utf8')
   ) as { response: FactoryItemDetail };
-  return withLaterFields(raw.response);
+  return raw.response;
 }
 
 /** The declaration this repository ships for the pack the fixtures' runs come from. */
