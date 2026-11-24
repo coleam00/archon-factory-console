@@ -288,6 +288,12 @@
   border-color: var(--border-bright);
 }
 
+/* A card that is a link (a stage drill-down's, which opens its step page) hovers as a step of
+   the step graph does, with the brighter border, so it reads as the link it is. */
+.console-root .factory-card[data-link]:hover {
+  border-color: var(--text-tertiary);
+}
+
 .console-root .factory-card[data-lit] {
   --card-light: var(--card-glow);
 }

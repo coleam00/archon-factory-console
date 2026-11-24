@@ -1217,8 +1217,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
     plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
     and naming the items on a step it covers now. A card is a link: a click opens the step page
     of the step it stands for (the first its first cover names, when it stands for several),
-    whose back link returns to the stage; it shows a pointer and `.factory-card`'s hover
-    (owner review of 2026-11-23, #154). A stage without one says it has no summary and that
+    whose back link returns to the stage; it shows a pointer and `.factory-card`'s hover with
+    the step graph's brighter `--text-tertiary` border (owner review of 2026-11-23, #154). A stage without one says it has no summary and that
     the real workflow shows its steps.
   - **Items here now**: the items in the stage that the board does not set aside (owner change 4
     of 2026-11-23), from the same read as the card's chips, each

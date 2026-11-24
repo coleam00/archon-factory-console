@@ -256,6 +256,7 @@ test('a card is a link that looks it, and clicking it opens its step page back t
     );
     // Its hover is `.factory-card`'s (theme.css) on the box, and a background on the link.
     expect(review.parentElement?.className).toContain('factory-card');
+    expect(review.parentElement?.hasAttribute('data-link')).toBe(true);
     expect(review.className).toContain('cursor-pointer');
     expect(review.className).toContain('hover:bg-surface-elevated');
     expect(review.getAttribute('title')).toContain('rounds.review__review');

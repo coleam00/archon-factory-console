@@ -55,6 +55,8 @@ export function DrilldownCard({
     <article
       data-live={live ? 'true' : undefined}
       data-running={live ? '' : undefined}
+      // Its hover border is theme.css's `.factory-card[data-link]:hover`.
+      data-link=""
       className="factory-card relative flex flex-col overflow-hidden rounded-console-12 border"
       style={cardTone(tone)}
     >

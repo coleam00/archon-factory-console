@@ -235,6 +235,8 @@ describe('no raw step id where a person reads', () => {
     expect(readable(html)).toContain('on Code review');
     expect(titles(html)).toContain('rounds.review__review');
     expect(rawIds(html)).toEqual([]);
+    // The shipped Checks drill-down, which covers stage-check alone, names no raw id either.
+    expect(rawIds(render(`/console/p/${ID}/factory/stages/checks`))).toEqual([]);
   });
 
   test("the stage page's step graph", () => {
