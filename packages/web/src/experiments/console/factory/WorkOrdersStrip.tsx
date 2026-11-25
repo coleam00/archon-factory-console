@@ -1,0 +1,187 @@
+/**
+ * The work orders, as a section of the board above its columns (ported from v1's
+ * `WorkOrdersStrip.tsx`, `origin/main`): a header ("2 work orders · 1 open") that folds the
+ * list, open by default and capped at about three rows, then one row per order with its key
+ * and title, how many of its members merged, Resolved once the order's own read stands done,
+ * each member's state as a dot, and a button that lights its members on the board. There is no
+ * item page, so a row opens nothing itself.
+ */
+import { useId, useState, type ReactElement } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { displayItemKey } from '../lib/item-key';
+import { CHIP, chipOf, type Chip } from '../routes/board/standing';
+import { useFactoryCards } from './cards-context';
+import { orderSummary, type WorkOrder } from './lib/work-orders';
+
+/** A member's state as a dot, in its chip's colour. */
+const CHIP_DOT: Record<Chip, string> = {
+  needs_you: 'bg-warning',
+  running: 'bg-[color:var(--running)]',
+  waiting: 'bg-text-tertiary/60',
+  queued: 'bg-text-tertiary/60',
+  failed: 'bg-error',
+  stopped: 'bg-error',
+  done: 'bg-success',
+  resting: 'bg-text-secondary',
+};
+
+export function WorkOrdersStrip({
+  orders,
+  counted,
+  error,
+  lit,
+  onLight,
+}: {
+  orders: readonly WorkOrder[];
+  /** Every item is read: the merged counts are known. */
+  counted: boolean;
+  error: Error | undefined;
+  /** The id of the order whose members are lit; null when none. */
+  lit: string | null;
+  onLight: (order: string | null) => void;
+}): ReactElement | null {
+  const [open, setOpen] = useState(true);
+  const list = useId();
+  // What a pack's view calls a work order; the orders are the project's, so the first view
+  // that words them does.
+  const words = [...(useFactoryCards()?.packs?.values() ?? [])].find(
+    pack => pack.view?.words?.workOrder !== undefined
+  )?.view?.words;
+  if (orders.length === 0 && error === undefined) return null;
+  const pending = orders.filter(order => !orderSummary(order).resolved).length;
+  const noun =
+    orders.length === 1 ? (words?.workOrder ?? 'work order') : (words?.workOrders ?? 'work orders');
+  return (
+    <section data-work-orders aria-label="Work orders" className="mb-6 flex flex-col gap-2">
+      {error === undefined ? null : (
+        <p role="alert" className="text-console-13 text-error">
+          The work orders could not be read in full: {error.message}
+        </p>
+      )}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={list}
+          onClick={() => {
+            setOpen(was => !was);
+          }}
+          className="-ml-2 flex items-center gap-2 whitespace-nowrap rounded px-2 py-1 text-console-14 font-semibold text-text-primary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:bg-surface-hover"
+        >
+          {`${String(orders.length)} ${noun}${counted ? ` · ${String(pending)} open` : ''}`}
+          <ChevronDown
+            aria-hidden="true"
+            className={`h-4 w-4 text-text-secondary motion-safe:transition-transform motion-safe:duration-150 ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
+      {open ? (
+        // Capped at about three rows so a long list never takes the columns' height; taller on
+        // a phone, where rows wrap.
+        <ul id={list} className="flex max-h-60 flex-col gap-1.5 overflow-y-auto md:max-h-32">
+          {orders.map(order => (
+            <WorkOrderRow
+              key={order.item.id}
+              order={order}
+              counted={counted}
+              lit={lit === order.item.id}
+              onLight={onLight}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function WorkOrderRow({
+  order,
+  counted,
+  lit,
+  onLight,
+}: {
+  order: WorkOrder;
+  counted: boolean;
+  lit: boolean;
+  onLight: (order: string | null) => void;
+}): ReactElement {
+  const summary = orderSummary(order);
+  const mergedWords = `${String(summary.merged)} of ${String(summary.total)} merged`;
+  // A member with no run has no card to light.
+  const lightable = order.members.some(member => member.read !== undefined);
+  return (
+    <li
+      data-work-order={order.item.key}
+      data-resolved={summary.resolved ? '' : undefined}
+      className={`flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded border bg-surface-elevated px-2.5 py-1.5 text-console-13 md:flex-nowrap ${
+        // Important (!): theme.css's unlayered `.console-root *` border colour outranks every
+        // border utility.
+        lit ? 'border-accent-bright!' : 'border-border'
+      }`}
+    >
+      <span className="flex min-w-0 max-w-full items-baseline gap-2">
+        <span data-work-order-key className="font-mono text-console-13 text-accent-bright">
+          {displayItemKey(order.item.key)}
+        </span>
+        <span className="min-w-0 truncate text-console-14 font-medium text-text-primary">
+          {order.item.title ?? 'Work order'}
+        </span>
+      </span>
+      {counted ? (
+        <span
+          data-work-order-line
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap text-text-secondary"
+        >
+          {mergedWords}
+          <span
+            role="img"
+            aria-label={mergedWords}
+            className="relative h-1.5 w-16 overflow-hidden rounded-full bg-surface-hover"
+          >
+            <span
+              className="absolute inset-y-0 left-0 rounded-full bg-success"
+              style={{
+                width: `${summary.total === 0 ? 0 : (summary.merged / summary.total) * 100}%`,
+              }}
+            />
+          </span>
+          {summary.unstarted > 0 ? <span>{`${String(summary.unstarted)} not started`}</span> : null}
+        </span>
+      ) : null}
+      {summary.resolved ? (
+        <span
+          data-work-order-resolved
+          className={`shrink-0 rounded-full px-2 py-0.5 text-console-12 font-medium ${CHIP.done.tone}`}
+        >
+          Resolved
+        </span>
+      ) : null}
+      <span className="flex flex-wrap items-center gap-1 md:shrink-0">
+        {order.members.map(member => {
+          const state = member.read === undefined ? 'not started' : CHIP[chipOf(member.read)].label;
+          const label = `${displayItemKey(member.item.key, order.item.key)}: ${state}`;
+          return (
+            <span
+              key={member.item.id}
+              role="img"
+              aria-label={label}
+              title={label}
+              className={`inline-block h-2 w-2 rounded-full ${member.read === undefined ? 'ring-1 ring-inset ring-text-tertiary' : CHIP_DOT[chipOf(member.read)]}`}
+            />
+          );
+        })}
+      </span>
+      <button
+        type="button"
+        aria-pressed={lit}
+        disabled={!lightable}
+        onClick={() => {
+          onLight(lit ? null : order.item.id);
+        }}
+        className="ml-auto shrink-0 whitespace-nowrap rounded px-2 py-0.5 text-console-13 font-medium text-text-secondary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:bg-surface-hover hover:text-text-primary disabled:opacity-50 disabled:hover:bg-transparent"
+      >
+        {lit ? 'Clear highlight' : 'Highlight members'}
+      </button>
+    </li>
+  );
+}
