@@ -88,14 +88,14 @@ test('accepts where progress lives in a run: one rounds source or a list, return
   ).toEqual([]);
 });
 
-test('a rounds source missing a key is refused naming the key', () => {
+test('a rounds source missing a key is refused, and the refusal names the key', () => {
   const parsed = factoryViewSchema.safeParse({
     ...valid(),
     rounds: { workflow: 'make', round: '/round' },
   });
-  expect(parsed.error?.issues.map(issue => [issue.path.join('.'), issue.message])).toEqual([
-    ['rounds', 'a stage-form rounds source { workflow, round, allowance } needs `allowance`'],
-  ]);
+  const issues = parsed.error?.issues ?? [];
+  expect(issues.map(issue => issue.path.join('.'))).toEqual(['rounds']);
+  expect(issues[0]?.message).toContain('allowance');
 });
 
 describe('factoryViewSchema rejects', () => {

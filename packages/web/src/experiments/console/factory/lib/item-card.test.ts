@@ -3,7 +3,14 @@ import type { ItemAsk } from '../../primitives/run';
 import type { ItemRead } from '../../skills/items';
 import type { FactoryView, ForgeSubjects, RunRecord } from '../api';
 import fixture from './__fixtures__/card-items.json';
-import { cardProgress, resultKeys, runsToRead, viewWorkflow, type CardPack } from './item-card';
+import {
+  cardProgress,
+  itemMatches,
+  resultKeys,
+  runsToRead,
+  viewWorkflow,
+  type CardPack,
+} from './item-card';
 
 /**
  * `card-items.json` is read from a copy of the live factory database: items #111 (delivered by
@@ -24,7 +31,7 @@ const VIEW = {
     'stage-check': { label: 'Check', blurb: 'x' },
     'stage-host': { label: 'Host', blurb: 'x' },
   },
-  words: { rounds: 'check rounds', sentBack: 'sent back' },
+  words: { round: 'check round', rounds: 'check rounds', sentBack: 'sent back' },
   retired: ['deliver'],
   rounds: [
     { workflow: 'deliver', loop: 'rounds' },
@@ -106,8 +113,12 @@ describe('rounds and returns from run records', () => {
   });
 
   test('a record that could not be read shows no rounds or returns, and says so', () => {
-    const reads = { ...allRead(), records: new Map<string, RunRecord>() };
-    const card = cardProgress(byKey('125'), PACK, reads, []);
+    // Every record but the newest stage-check run's: what was read would still count rounds.
+    const read = byKey('125');
+    const newestCheck = read.runs.filter(run => run.workflow === `${PREFIX}stage-check`).at(-1);
+    const partial = records.filter(record => record.id !== newestCheck?.id);
+    const reads = { ...allRead(), records: new Map(partial.map(record => [record.id, record])) };
+    const card = cardProgress(read, PACK, reads, []);
     expect(card.unread).toBe(true);
     expect(card.round).toBeNull();
     expect(card.returned).toBeNull();
@@ -120,15 +131,21 @@ describe('rounds and returns from run records', () => {
     expect(card.pr?.url).toBe(byKey('111').merged?.change);
   });
 
-  test('a stage-form round still running reads as the next round', () => {
-    const read = byKey('125');
-    const checks = read.runs.filter(run => run.workflow === `${PREFIX}stage-check`);
+  test('the words come from the view: a view that says "returned" reads "returned 1x"', () => {
+    const view = { ...VIEW, words: { ...VIEW.words, sentBack: 'returned' } } as FactoryView;
+    const card = cardProgress(byKey('111'), { stages: STAGES, view }, allRead(), []);
+    expect(card.returned?.text).toBe('returned 1x');
+  });
+
+  /** #125 with a stage-check run now running, its record naming the step it is on. */
+  function checkRunning(read: ItemRead): { read: ItemRead; records: RunRecord[] } {
+    const check = read.runs.find(run => run.workflow === `${PREFIX}stage-check`)!;
     const newest = {
-      ...checks[checks.length - 1]!,
+      ...check,
       id: 'running-check',
       status: 'running' as const,
+      startedAt: '2099-01-01T00:00:00.000Z',
     };
-    newest.startedAt = '2099-01-01T00:00:00.000Z';
     const running: RunRecord = {
       ...records[0]!,
       id: 'running-check',
@@ -138,14 +155,29 @@ describe('rounds and returns from run records', () => {
       node_outcomes: { run_id: 'running-check', first_failed_node: null, nodes: [] },
       loop_iterations: [],
     };
-    const card = cardProgress(
-      { ...read, runs: [...read.runs, newest] },
-      PACK,
-      allRead([...records, running]),
-      []
-    );
-    expect(card.round?.dots.at(-1)).toEqual({ iteration: 5, verdict: 'running' });
+    return { read: { ...read, runs: [...read.runs, newest] }, records: [...records, running] };
+  }
+
+  test('a check round running after recorded ones is not numbered: "next one running"', () => {
+    const { read, records: all } = checkRunning(byKey('125'));
+    const card = cardProgress(read, PACK, allRead(all), []);
+    // v1's reading: after a replan or past the allowance, N+1 would be a wrong number.
+    expect(card.round?.text).toBe('4 of 4 check rounds, next one running');
+    expect(card.round?.dots.at(-1)?.verdict).toBe('running');
     expect(card.running).toEqual({ stage: 'Check', step: 'review' });
+  });
+
+  test('a first check round running, before any is recorded, reads "first check round running"', () => {
+    const { read, records: all } = checkRunning(byKey('125'));
+    // No stage-check run but the running one: no round is recorded yet.
+    const runs = read.runs.filter(
+      run => run.id === 'running-check' || run.workflow !== `${PREFIX}stage-check`
+    );
+    const card = cardProgress({ ...read, runs }, PACK, allRead(all), []);
+    expect(card.round).toEqual({
+      dots: [{ iteration: 1, verdict: 'running' }],
+      text: 'first check round running',
+    });
   });
 });
 
@@ -162,9 +194,17 @@ describe('which runs are read, and as which workflow', () => {
   });
 
   test('only declared workflows and running runs are read, with the result keys the pointers name', () => {
-    const read = byKey('111');
-    const deliver = read.runs.find(run => run.workflow.endsWith(':deliver'));
-    expect(runsToRead(PACK, read)).toEqual([deliver!.id]);
+    const base = byKey('111');
+    const deliver = base.runs.find(run => run.workflow.endsWith(':deliver'));
+    // A running run of a workflow the view declares nothing for is read for its running step.
+    const plan = {
+      ...base.runs[0]!,
+      id: 'running-plan',
+      workflow: `${PREFIX}plan`,
+      status: 'running' as const,
+    };
+    const read = { ...base, runs: [...base.runs, plan] };
+    expect(runsToRead(PACK, read)).toEqual([deliver!.id, 'running-plan']);
     expect(resultKeys(VIEW).sort()).toEqual(['allowance', 'change', 'round']);
   });
 });
@@ -262,5 +302,26 @@ describe('title', () => {
       ] as unknown as ItemRead['links'],
     };
     expect(cardProgress(member, PACK, allRead(), []).title).toBe('#199 · board furniture');
+  });
+});
+
+describe('the board filter finds what the card shows', () => {
+  const issues = [
+    {
+      number: 111,
+      title: 'Asks show in full',
+      state: 'closed' as const,
+      url: null,
+      pending: false,
+    },
+  ];
+
+  test('by the issue title, the key as the card prints it, or the raw key', () => {
+    const read = byKey('111');
+    for (const query of ['asks show', '#111', '111', ''])
+      expect(itemMatches(read, issues, query)).toBe(true);
+    expect(itemMatches(read, issues, 'polish')).toBe(false);
+    // With no forge answer, the title is not known and only the key finds it.
+    expect(itemMatches(read, null, 'asks show')).toBe(false);
   });
 });

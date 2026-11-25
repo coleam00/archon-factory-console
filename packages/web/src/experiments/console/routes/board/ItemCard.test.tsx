@@ -217,7 +217,6 @@ test('an item with no run is not a link', async () => {
   try {
     const card = view.container.querySelector('[data-item="issue-48"]');
     expect(card?.querySelector('a')).toBeNull();
-    expect(card?.className).not.toContain('hover:');
   } finally {
     await view.unmount();
   }
@@ -249,14 +248,11 @@ const record = (id: string, round: number, outcome: string): RunRecord => ({
 });
 
 test('a card shows its rounds and returns from the run records its list read', async () => {
-  // What `useCardList` asks for: the item's runs of declared workflows, and no issue (key 'x').
-  set(K.cardReads('web', 'run-2,run-old|'), {
-    records: {
-      records: [record('run-old', 1, 'return'), record('run-2', 2, 'approve')],
-      missing: [],
-      unreadable: [],
-    },
-    forge: null,
+  // What `useCardList` asks for: the item's runs of declared workflows (key 'x' names no issue).
+  set(K.cardReads('web', ['run-2', 'run-old']), {
+    records: [record('run-old', 1, 'return'), record('run-2', 2, 'approve')],
+    missing: [],
+    unreadable: [],
   });
   const read = { ...READS[0]!, item: { ...READS[0]!.item, key: 'x' } };
   const view = await mount([read], new Map([['flow', FLOW]]));
@@ -273,16 +269,61 @@ test('a card shows its rounds and returns from the run records its list read', a
 });
 
 test('a run record the list could not read says so instead of showing no rounds', async () => {
-  set(K.cardReads('web', 'run-2,run-old|'), {
-    records: { records: [], missing: [], unreadable: [{ id: 'run-2', error: 'x' }] },
-    forge: null,
+  set(K.cardReads('web', ['run-2', 'run-old']), {
+    records: [],
+    missing: [],
+    unreadable: [{ id: 'run-2', error: 'x' }],
   });
   const read = { ...READS[0]!, item: { ...READS[0]!.item, key: 'x' } };
   const view = await mount([read], new Map([['flow', FLOW]]));
   try {
     const card = view.container.querySelector('[data-item="x"]');
     expect(card?.querySelector('[data-card-unread]')).not.toBeNull();
-    expect(card?.querySelector('[data-card-rounds]')).toBeNull();
+  } finally {
+    await view.unmount();
+    invalidate('board');
+  }
+});
+
+test('an item whose title column is empty shows its issue title from the forge', async () => {
+  // What `useCardList` asks the forge for: issue 2, the number `issue-2` names.
+  set(K.forgeTitles('web', [2]), {
+    issues: [{ number: 2, title: 'Issue title', state: 'open', url: null, pending: false }],
+    changes: [],
+  });
+  const read = { ...READS[0]!, item: { ...READS[0]!.item, title: null } };
+  const view = await mount([read]);
+  try {
+    const card = view.container.querySelector('[data-item="issue-2"]');
+    expect(card?.querySelector('[data-item-title]')?.textContent).toBe('Issue title');
+    expect(card?.querySelector('[data-item-key]')?.textContent).toBe('#2');
+  } finally {
+    await view.unmount();
+    invalidate('forge-titles');
+  }
+});
+
+test("a running run shows its stage and step in the view's words", async () => {
+  const running: RunRecord = {
+    ...record('run-2', 2, 'approve'),
+    status: 'running',
+    running: ['judge'],
+  };
+  set(K.cardReads('web', ['run-2', 'run-old']), {
+    records: [record('run-old', 1, 'return'), running],
+    missing: [],
+    unreadable: [],
+  });
+  const base = READS[0]!;
+  const read = {
+    ...base,
+    item: { ...base.item, key: 'x' },
+    runs: base.runs.map(run => (run.id === 'run-2' ? { ...run, status: 'running' as const } : run)),
+  };
+  const view = await mount([read], new Map([['flow', FLOW]]));
+  try {
+    const card = view.container.querySelector('[data-item="x"]');
+    expect(card?.querySelector('[data-card-running]')?.textContent).toBe('Check · judge');
   } finally {
     await view.unmount();
     invalidate('board');

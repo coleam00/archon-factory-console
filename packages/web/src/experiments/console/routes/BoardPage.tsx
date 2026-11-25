@@ -13,7 +13,8 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { ItemAsksSection, useItemAsks } from '../components/ItemAsksSection';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
-import { FactoryCardsProvider } from '../factory/FactoryCards';
+import { FactoryCardsProvider, useForgeTitles } from '../factory/FactoryCards';
+import { itemMatches } from '../factory/lib/item-card';
 import { displayItemKey } from '../lib/item-key';
 import type { Project } from '../primitives/project';
 import * as skill from '../skills';
@@ -518,13 +519,13 @@ export function BoardPage(): ReactElement {
   const every = useEntity<ItemRead[]>(K.boardOrders(projectId), () => listOrderItems(projectId));
   const all = open.data ?? [];
   const orders = workOrders(every.data ?? all);
+  // The filter searches what each card shows: its issue title and its key as a person reads it.
+  const titles = useForgeTitles(projectId, all);
   const wanted = filter.trim().toLowerCase();
   const items = all.filter(
     read =>
       (order === null || orderOf(read)?.id === order || read.item.id === order) &&
-      (wanted === '' ||
-        read.item.key.toLowerCase().includes(wanted) ||
-        (read.item.title ?? '').toLowerCase().includes(wanted))
+      itemMatches(read, titles, wanted)
   );
   const packOf = (read: ItemRead): string | undefined => read.standing.pack ?? undefined;
   const moving = items;

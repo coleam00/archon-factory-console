@@ -13,6 +13,8 @@ import type { FactoryView, ForgeSubjects, RunRecord } from '../api';
 import { displayItemKey, issueNumber } from '../../lib/item-key';
 import { listOf, runFacts, type RoundVerdict, type RunFacts, type RunRounds } from './run-facts';
 
+type ReadRun = { run: ItemRun; workflow: string | null; facts: RunFacts };
+
 type ItemRun = ItemRead['runs'][number];
 
 const byStart = (a: ItemRun, b: ItemRun): number =>
@@ -151,16 +153,12 @@ function cleanedId(stepId: string): string {
  * rounds are its own; a stage-form source's rounds run across its runs, newest back while each
  * older round is numbered below the one after it (the rounds since the item was last planned).
  */
-function itemRound(
-  view: FactoryView,
-  runs: readonly { run: ItemRun; workflow: string | null; facts: RunFacts }[]
-): { rounds: RunRounds; running: boolean } | null {
+function itemRound(view: FactoryView, runs: readonly ReadRun[]): RunRounds | null {
   const newestFirst = [...runs].reverse();
   const recorded = newestFirst.find(entry => (entry.facts.rounds?.rounds.length ?? 0) > 0);
   if (recorded?.facts.rounds == null) return null;
   const source = listOf(view.rounds).find(s => s.workflow === recorded.workflow);
-  if (source === undefined || 'loop' in source)
-    return { rounds: recorded.facts.rounds, running: false };
+  if (source === undefined || 'loop' in source) return recorded.facts.rounds;
   const taken: { iteration: number; verdict: RoundVerdict; max: number | null }[] = [];
   for (const entry of newestFirst) {
     if (entry.workflow !== recorded.workflow) continue;
@@ -171,34 +169,52 @@ function itemRound(
     taken.push({ ...round, max: entry.facts.rounds?.max ?? null });
   }
   taken.reverse();
-  // A stage-form run still going is the next round, which its result has not numbered yet.
-  const newest = newestFirst[0];
-  const running =
-    newest !== undefined &&
-    newest.workflow === recorded.workflow &&
-    newest.run.status === 'running';
   return {
-    rounds: {
-      max: taken.at(-1)?.max ?? null,
-      rounds: taken.map(({ iteration, verdict }) => ({ iteration, verdict })),
-    },
-    running,
+    max: taken.at(-1)?.max ?? null,
+    rounds: taken.map(({ iteration, verdict }) => ({ iteration, verdict })),
   };
 }
 
-function roundField(view: FactoryView, found: ReturnType<typeof itemRound>): CardProgress['round'] {
-  if (found === null) return null;
-  const dots = [...found.rounds.rounds];
-  const last = dots.at(-1);
-  if (found.running && last !== undefined)
-    dots.push({ iteration: last.iteration + 1, verdict: 'running' });
-  const shown = dots.at(-1)?.iteration ?? 0;
+/**
+ * Whether a run of a stage-form rounds workflow works the item now: a round its result has not
+ * numbered yet, so it is never one of `itemRound`'s, which only completed runs give.
+ */
+function newRoundRunning(view: FactoryView, runs: readonly ReadRun[]): boolean {
+  const running = [...runs].reverse().find(entry => entry.run.status === 'running');
+  return listOf(view.rounds).some(
+    source => !('loop' in source) && source.workflow === running?.workflow
+  );
+}
+
+/**
+ * The round line, read as v1 read it (`origin/main` factory/lib/board.ts `roundField`): "N of M
+ * check rounds" for the rounds recorded, "first check round running" when a stage-form round
+ * runs before any is recorded, and ", next one running" after the recorded ones. The running
+ * round is never numbered: after a replan it is the first of a new count, not N+1, and a round
+ * past the allowance is not one the card can name.
+ */
+function roundField(
+  view: FactoryView,
+  rounds: RunRounds | null,
+  next: boolean
+): CardProgress['round'] {
+  const round = view.words?.round ?? 'round';
+  if (rounds === null || rounds.rounds.length === 0)
+    return next
+      ? { dots: [{ iteration: 1, verdict: 'running' }], text: `first ${round} running` }
+      : null;
+  const dots = [...rounds.rounds];
+  const last = dots.at(-1)?.iteration ?? 0;
   const words = view.words?.rounds ?? 'rounds';
-  const max = found.rounds.max;
+  const counted =
+    rounds.max === null
+      ? `${String(last)} ${words}`
+      : `${String(last)} of ${String(rounds.max)} ${words}`;
+  if (!next) return { dots, text: counted };
+  // The running dot's iteration is only its key.
   return {
-    dots,
-    text:
-      max === null ? `${String(shown)} ${words}` : `${String(shown)} of ${String(max)} ${words}`,
+    dots: [...dots, { iteration: last + 1, verdict: 'running' }],
+    text: `${counted}, next one running`,
   };
 }
 
@@ -242,14 +258,38 @@ function asksField(read: ItemRead, asks: readonly ItemAsk[]): CardProgress['asks
   };
 }
 
-function titleOf(read: ItemRead, forge: ForgeSubjects | null, keyText: string): string | null {
+/** The item's own title, else its issue's title as the forge names it; null when neither is known. */
+function titleOf(read: ItemRead, issues: ForgeIssues, keyText: string): string | null {
   const own = read.item.title?.trim();
   if (own !== undefined && own !== '') return own;
   const number = issueNumber(read.item.key);
   if (number === null) return null;
-  const issue = forge?.issues.find(entry => String(entry.number) === number);
+  const issue = issues?.find(entry => String(entry.number) === number);
   const title = issue?.title?.trim();
   return title === undefined || title === '' || title === keyText ? null : title;
+}
+
+type ForgeIssues = ForgeSubjects['issues'] | null | undefined;
+
+/**
+ * How a person reads an item: its title (the item's own, else its issue's) and its key. The
+ * card prints these, and the board's filter searches them, so what a card shows is what a
+ * filter finds.
+ */
+export function itemTitle(
+  read: ItemRead,
+  issues: ForgeIssues
+): Pick<CardProgress, 'title' | 'titleIsKey' | 'keyText'> {
+  const keyText = displayItemKey(read.item.key, orderKey(read));
+  const title = titleOf(read, issues, keyText);
+  return { title: title ?? keyText, titleIsKey: title === null, keyText };
+}
+
+/** Whether `query` (lower case, trimmed) finds the item by its raw key or what its card shows. */
+export function itemMatches(read: ItemRead, issues: ForgeIssues, query: string): boolean {
+  if (query === '') return true;
+  const { title, keyText } = itemTitle(read, issues);
+  return [read.item.key, keyText, title].some(text => text.toLowerCase().includes(query));
 }
 
 /** The pull request: the newest declared run's named change, else the merge the item recorded. */
@@ -265,8 +305,6 @@ function prOf(
   const answer = forge?.changes.find(change => change.run === run && change.url === url);
   return { url, number: answer?.number ?? null, run };
 }
-
-type ReadRun = { run: ItemRun; workflow: string | null; facts: RunFacts };
 
 /** The item's runs whose records were read, in start order, with their facts. */
 function readRuns(read: ItemRead, pack: CardPack | null, reads: CardReads): ReadRun[] {
@@ -309,8 +347,6 @@ export function cardProgress(
   reads: CardReads,
   asks: readonly ItemAsk[]
 ): CardProgress {
-  const keyText = displayItemKey(read.item.key, orderKey(read));
-  const title = titleOf(read, reads.forge, keyText);
   const view = pack?.view ?? null;
   const wanted = pack === null ? [] : runsToRead(pack, read);
   const unread = wanted.some(id => reads.asked.has(id) && !reads.records.has(id));
@@ -319,11 +355,11 @@ export function cardProgress(
   const progressRuns = runs.filter(entry => declared.has(entry.workflow ?? ''));
   const counted = view !== null && !unread;
   return {
-    title: title ?? keyText,
-    titleIsKey: title === null,
-    keyText,
+    ...itemTitle(read, reads.forge?.issues),
     running: runningField(view, runs),
-    round: counted ? roundField(view, itemRound(view, progressRuns)) : null,
+    round: counted
+      ? roundField(view, itemRound(view, progressRuns), newRoundRunning(view, progressRuns))
+      : null,
     returned: counted ? returnedField(view, progressRuns) : null,
     pr: prOf(read, progressRuns, reads.forge),
     asks: asksField(read, asks),
