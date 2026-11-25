@@ -572,7 +572,7 @@ test('the Overview tiles and the Board count the same items: in flight, merged a
   const tile = (name: string): string | null | undefined =>
     overview.querySelector(`[data-number="${name}"] [data-value]`)?.textContent;
   const onStages = board.querySelectorAll('[data-pack="flow"] [data-stage] [data-item]').length;
-  const mergedShown = board.querySelector('[data-merged-count]')?.textContent;
+  const mergedShown = board.querySelector('[data-merged] [data-count]')?.textContent;
   expect(tile('in-flight')).toBe(String(onStages));
   expect(onStages).toBe(2);
   expect(overview.querySelector('[data-flow-group="merged"] [data-count]')?.textContent).toBe(

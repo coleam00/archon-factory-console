@@ -7,6 +7,7 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import type { ItemRead } from '../skills/items';
 import { CardList } from '../routes/board/ItemCard';
+import { ColumnHeader } from './ColumnHeader';
 import { MERGED_DAYS } from './lib/board-numbers';
 import { boardViewSearch } from './BoardToolbar';
 
@@ -15,6 +16,7 @@ export function MergedColumn({
   recent,
   earlier,
   counted,
+  error,
   lit,
 }: {
   projectId: string;
@@ -23,33 +25,33 @@ export function MergedColumn({
   earlier: number;
   /** Every item is read; until then the column has nothing to count. */
   counted: boolean;
+  /** The every-item read failed: what it would count is unknown. */
+  error?: Error;
   lit: ReadonlySet<string> | null;
 }): ReactElement {
   return (
     <div data-merged className="md:w-64 md:shrink-0">
-      <h3 className="flex items-baseline justify-between gap-2 border-b border-border pb-1 text-console-12 font-semibold text-text-secondary">
-        <span>Merged</span>
-        {counted ? (
-          <span data-merged-count className="text-text-tertiary">
-            {recent.length}
-          </span>
-        ) : (
-          <span
-            title="Reading"
-            className="inline-block h-3 w-6 rounded bg-surface-elevated motion-safe:animate-pulse"
-          />
-        )}
-      </h3>
-      <p className="mt-1 text-console-11 text-text-tertiary">last {MERGED_DAYS} days</p>
-      {counted ? null : (
-        <div className="mt-2 h-24 rounded-console-12 bg-surface-elevated motion-safe:animate-pulse" />
+      <ColumnHeader
+        label="Merged"
+        subtitle={`last ${String(MERGED_DAYS)} days`}
+        items={recent}
+        count={counted ? recent.length : error === undefined ? null : 'unknown'}
+        bar="var(--success)"
+        chips={false}
+      />
+      {counted ? null : error === undefined ? (
+        <div className="mt-3 h-24 rounded-console-12 bg-surface-elevated motion-safe:animate-pulse" />
+      ) : (
+        <p role="alert" className="mt-3 text-console-13 text-error">
+          The merged items could not be read: {error.message}
+        </p>
       )}
       {recent.length === 0 ? null : (
         <CardList
           reads={recent}
           projectId={projectId}
           lit={lit}
-          className="mt-2 flex flex-col gap-2"
+          className="mt-3 flex flex-col gap-3"
         />
       )}
       {earlier === 0 ? null : (

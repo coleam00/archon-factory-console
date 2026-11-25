@@ -80,13 +80,15 @@ export function FactoryNumbers({
   /** The every-item read failed. */
   error: Error | undefined;
 }): ReactElement {
+  // A failed read says so in words; skeletons would read as loading that never ends.
+  if (numbers === undefined && error !== undefined)
+    return (
+      <p role="alert" className="text-console-14 text-error">
+        The numbers could not be read: {error.message}
+      </p>
+    );
   return (
     <div className="flex flex-col gap-2">
-      {numbers === undefined && error !== undefined ? (
-        <p role="alert" className="text-console-14 text-error">
-          The numbers could not be read: {error.message}
-        </p>
-      ) : null}
       <ul data-numbers aria-label="Numbers" className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {tiles(numbers, needYou).map(tile => (
           <NumberTile key={tile.name} tile={tile}>

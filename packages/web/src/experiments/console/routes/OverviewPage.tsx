@@ -102,10 +102,13 @@ function Flow({
   board,
   flow,
   numbers,
+  failed,
 }: {
   board: string;
   flow: ReturnType<typeof flowCounts>;
   numbers: BoardNumbers | undefined;
+  /** The every-item read failed: the numbers tiles say so, and the box shows no count. */
+  failed: boolean;
 }): ReactElement {
   return (
     <div data-flow>
@@ -144,7 +147,9 @@ function Flow({
           >
             <span className="text-console-12 font-medium text-text-secondary">Merged</span>
             {numbers === undefined ? (
-              <span className="ml-2 inline-block h-3 w-6 rounded bg-surface-elevated motion-safe:animate-pulse" />
+              failed ? null : (
+                <span className="ml-2 inline-block h-3 w-6 rounded bg-surface-elevated motion-safe:animate-pulse" />
+              )
             ) : (
               <span data-count className="ml-2 text-base tabular-nums text-text-primary">
                 {numbers.mergedRecent}
@@ -209,6 +214,7 @@ function PackOverview({
         board={`/console/p/${projectId}/board`}
         flow={flowCounts(columns, board?.moving ?? [], graph?.stages)}
         numbers={board?.numbers}
+        failed={itemsError !== undefined}
       />
       {graph?.metricViews == null ? null : (
         <Headline projectId={projectId} views={graph.metricViews} />

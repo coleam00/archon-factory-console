@@ -16,6 +16,7 @@ import { ItemAsksSection, useItemAsks } from '../components/ItemAsksSection';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import { BoardTable } from '../factory/BoardTable';
 import { BoardToolbar, useBoardView, type BoardView } from '../factory/BoardToolbar';
+import { ColumnHeader } from '../factory/ColumnHeader';
 import { FactoryCardsProvider, useForgeTitles } from '../factory/FactoryCards';
 import { MergedColumn } from '../factory/MergedColumn';
 import { SetAsideStrip } from '../factory/SetAsideStrip';
@@ -38,19 +39,9 @@ import {
 import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
 import { CardList } from './board/ItemCard';
-import { CHIP, chipOf, isMoving, MOVING, stageAt, type Chip } from './board/standing';
+import { isMoving, MOVING, stageAt } from './board/standing';
 
 export { chipOf, MOVING } from './board/standing';
-
-/** What the items of a stage are doing, as counts: `1 needs you · 2 running`. */
-function stageLine(items: ItemRead[]): string {
-  return (Object.keys(CHIP) as Chip[])
-    .flatMap(chip => {
-      const count = items.filter(read => chipOf(read) === chip).length;
-      return count === 0 ? [] : [`${String(count)} ${CHIP[chip].label.toLowerCase()}`];
-    })
-    .join(' · ');
-}
 
 /** A column: a group the pack declares, or one stage, with its stages by their names in the pack. */
 export type StageGroup = PackGraph['groups'][number];
@@ -75,6 +66,7 @@ export function columnsOf(graph: PackGraph | undefined): StageGroup[] {
  */
 function Column({
   name,
+  stages,
   items,
   projectId,
   stageOf,
@@ -82,6 +74,8 @@ function Column({
   lit = null,
 }: {
   name: string;
+  /** The column's stages, by their names in the pack: its header's subtitle. */
+  stages: readonly string[];
   items: ItemRead[];
   projectId: string;
   lit?: ReadonlySet<string> | null;
@@ -100,27 +94,16 @@ function Column({
       ref={column}
       data-stage={name}
       data-empty={empty ? '' : undefined}
-      className={empty ? 'md:w-24 md:shrink-0' : 'md:w-64 md:shrink-0'}
+      className={empty ? 'md:w-28 md:shrink-0' : 'md:w-64 md:shrink-0'}
     >
-      <h3
-        title={name}
-        className={`flex items-baseline justify-between gap-2 border-b border-border pb-1 text-console-12 font-semibold ${empty ? 'text-text-tertiary' : 'text-text-secondary'}`}
-      >
-        <span className="truncate">{name}</span>
-        <span className="text-text-tertiary">{items.length}</span>
-      </h3>
-      {empty ? null : (
-        <p data-stage-line className="mt-1 text-console-11 text-text-tertiary">
-          {stageLine(items)}
-        </p>
-      )}
+      <ColumnHeader label={name} subtitle={stages.join(', ')} items={items} />
       {empty ? null : (
         <CardList
           reads={items}
           projectId={projectId}
           stageOf={stageOf}
           lit={lit}
-          className="mt-2 flex flex-col gap-2"
+          className="mt-3 flex flex-col gap-3"
         />
       )}
     </div>
@@ -289,6 +272,7 @@ export function PackBoard({
   view = 'pipeline',
   earlier = false,
   lit = null,
+  itemsError,
 }: {
   projectId: string;
   pack: string;
@@ -300,6 +284,8 @@ export function PackBoard({
   earlier?: boolean;
   /** The ids of a highlighted work order's members. */
   lit?: ReadonlySet<string> | null;
+  /** The every-item read failed. */
+  itemsError?: Error;
 }): ReactElement {
   const { data: graph, error } = useEntity<PackGraph>(K.packGraph(projectId, pack), () =>
     getPackGraph(projectId, pack)
@@ -356,6 +342,7 @@ export function PackBoard({
             <Column
               key={column.name}
               name={column.name}
+              stages={column.stages}
               items={items.filter(read => column.stages.includes(stageOf(read) ?? ''))}
               projectId={projectId}
               stageOf={column.stages.length > 1 ? stageOf : undefined}
@@ -364,13 +351,20 @@ export function PackBoard({
             />
           ))}
           {offStage.length > 0 ? (
-            <Column name="Not on a stage" items={offStage} projectId={projectId} lit={lit} />
+            <Column
+              name="Not on a stage"
+              stages={[]}
+              items={offStage}
+              projectId={projectId}
+              lit={lit}
+            />
           ) : null}
           <MergedColumn
             projectId={projectId}
             recent={board.merged.recent}
             earlier={board.merged.earlier.length}
             counted={counted}
+            error={itemsError}
             lit={lit}
           />
         </div>
@@ -435,10 +429,7 @@ export function BoardPage(): ReactElement {
   // The titles are read only once something is typed, so a cold board's first reads are the
   // stage columns' own.
   const wanted = filter.trim().toLowerCase();
-  const titles = useForgeTitles(
-    wanted === '' ? null : projectId,
-    all.filter(read => isMoving(read) || read.merged !== null)
-  );
+  const titles = useForgeTitles(wanted === '' ? null : projectId, all);
   const items = all.filter(read => itemMatches(read, titles, wanted));
   const now = new Date();
   const packOf = (read: ItemRead): string | undefined => read.standing.pack ?? undefined;
@@ -490,6 +481,7 @@ export function BoardPage(): ReactElement {
               view={view}
               earlier={earlier}
               lit={litIds}
+              itemsError={every.error}
             />
           ))}
           <DecisionStrip projectId={projectId} />
