@@ -87,7 +87,11 @@ export interface PackBoardGroups {
   moving: ItemRead[];
   /** Failed or stopped: the decision strip. */
   decide: ItemRead[];
-  /** Merged, newest first: `recent` in the Merged column, `earlier` only in the Table. */
+  /**
+   * Merged, newest first: `recent` in the Merged column, `earlier` only in the Table. A work
+   * order whose own change merged is here like any item; one done through its parts has no
+   * merge of its own and shows only in the work-orders strip.
+   */
   merged: { recent: ItemRead[]; earlier: ItemRead[] };
   /** Everything the board shows for the pack: moving, then decide, then merged. */
   onBoard: ItemRead[];
@@ -103,7 +107,7 @@ export function packBoard(items: readonly ItemRead[], pack: string, now: Date): 
   const moving = own.filter(isMoving);
   const decide = own.filter(needsDecision);
   const merged = own
-    .filter(read => read.standing.state === 'done' && read.merged !== null && !isOrder(read))
+    .filter(read => read.standing.state === 'done' && read.merged !== null)
     .map(read => ({ read, at: ms(read.merged?.at ?? '') }))
     .sort((a, b) => b.at - a.at);
   const since = startOfLocalDay(now, MERGED_DAYS - 1);

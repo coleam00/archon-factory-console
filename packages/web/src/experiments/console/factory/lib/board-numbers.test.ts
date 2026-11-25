@@ -87,10 +87,13 @@ test('Merged lists the last seven local days, newest first; today and the total 
   });
 });
 
-test('a work order counts nowhere unless it is on a stage itself; set-aside items are not on the board', () => {
+test('a work order counts only on a stage or by its own merge; set-aside items are not on the board', () => {
   const board = packBoard(
     [
+      // Done through its parts, with no merge of its own: only in the work-orders strip.
       item('order', 'done', { links: [hasPart] }),
+      // #157's shape: an order whose own change merged is a merged item like any other.
+      item('merged-order', 'done', { links: [hasPart], mergedAt: daysAgo(2) }),
       item('running-order', 'running', { links: [hasPart] }),
       item('dropped', 'done'),
       item('cancelled', 'resting', { status: 'cancelled' }),
@@ -100,8 +103,14 @@ test('a work order counts nowhere unless it is on a stage itself; set-aside item
     'flow',
     NOW
   );
-  expect(board.onBoard.map(read => read.item.key)).toEqual(['running-order', 'failed', 'merged']);
-  expect(board.numbers).toMatchObject({ merged: 1, total: 3 });
+  expect(board.onBoard.map(read => read.item.key)).toEqual([
+    'running-order',
+    'failed',
+    'merged',
+    'merged-order',
+  ]);
+  expect(board.merged.recent.map(read => read.item.key)).toEqual(['merged', 'merged-order']);
+  expect(board.numbers).toMatchObject({ merged: 2, total: 4 });
 });
 
 test('an item ended without merging or at rest is set aside, with why; a failed one or an order is not', () => {
