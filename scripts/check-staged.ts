@@ -21,6 +21,9 @@ function git(...args: string[]): Uint8Array {
 
 async function check(path: string): Promise<string | null> {
   const staged = git('show', `:${path}`);
+  // Biome formats no binary file, and refuses one on stdin ("Missing argument stdin"), so an
+  // image could never be committed. A NUL byte is how git itself tells binary from text.
+  if (staged.includes(0)) return null;
   // With --write and stdin, Biome prints the fixed text and touches no file.
   const biome = Bun.spawn(
     [
