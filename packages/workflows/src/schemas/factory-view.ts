@@ -13,6 +13,7 @@
  * run when the file is read and by `bun run check:factory-view`.
  */
 import { z } from 'zod';
+import { outcomeStorySchema } from './display';
 import { howItWorksSchema } from './factory-view-how-it-works';
 import { progressDeclarations } from './factory-view-progress';
 
@@ -84,12 +85,15 @@ const drilldownSchema = z.strictObject({
     .min(1),
 });
 
+// A stage's words live in its workflow's `display:` and reach the console through the pack
+// graph; an entry here is the fallback for a pack whose YAML carries none, and the home of
+// what YAML has no construct for (the drill-down's phases).
 const stageSchema = z.strictObject({
-  label: labelSchema,
+  label: labelSchema.optional(),
   /** At most 24 characters: what one row of a map card holding several stages shows whole. */
   short: z.string().min(1).max(24).optional(),
   /** One plain-words line: what this stage does to an item. */
-  blurb: z.string().min(1).max(300),
+  blurb: z.string().min(1).max(300).optional(),
   /** Display names for the stage's steps, by step id. A step with none reads as its id. */
   steps: z.record(stepIdSchema, labelSchema).optional(),
   /** What the stage does, step by step, in plain words, for the stage modal. */
@@ -106,12 +110,7 @@ const stageSchema = z.strictObject({
 const outcomeSchema = z
   .strictObject({
     label: labelSchema.optional(),
-    story: z
-      .union([
-        sentenceSchema,
-        z.strictObject({ withChange: sentenceSchema, withoutChange: sentenceSchema }),
-      ])
-      .optional(),
+    story: outcomeStorySchema.optional(),
     reads: z.enum(['ended', 'parked', 'awaits', 'returned']).optional(),
     next: sentenceSchema.optional(),
   })

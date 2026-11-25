@@ -217,6 +217,17 @@ describe('what the graph has and the view leaves out warns', () => {
     ).toEqual(['warning map.cards', 'warning stages']);
   });
 
+  test('a stage whose entry holds only a drill-down has no words, unless its display: gives a label', () => {
+    const drilldownOnly = (v: FactoryView) => {
+      const { drilldown } = v.stages.check ?? {};
+      v.stages.check = drilldown === undefined ? {} : { drilldown };
+    };
+    expect(problems(drilldownOnly)).toEqual(['warning stages']);
+    const g = graph();
+    for (const s of g.stages) if (s.workflow === 'check') s.display = { label: 'Check' };
+    expect(problems(drilldownOnly, g)).toEqual([]);
+  });
+
   test('a group with no words', () => {
     expect(problems(v => void delete v.groups!.Ship)).toEqual(['warning groups']);
   });

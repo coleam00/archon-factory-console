@@ -1,0 +1,142 @@
+name: triage
+description: |
+  Take one work item through triage: judge what should happen to it. The run
+  ends with the judgment's recommendation as its outcome, which a binding can
+  start the next stage on: the link stage for an item that should be built.
+
+inputs:
+  item:
+    description: >-
+      The work item as text: its title, its body, and the discussion on it.
+  land_on:
+    default: ""
+    description: The branch this item's change lands on. Empty means the project's base branch. This stage passes it on.
+  members:
+    default: "[]"
+    description: The other members of the work order or split this item is part of, as JSON, each with its `key` and `title`. The order stage's result carries them.
+  depends_on:
+    default: "[]"
+    description: Keys of the items the order says must land before this one, as JSON. The order stage's result carries them.
+
+# `final`: the outcomes after which the item needs nothing more. A run that ends in any
+# other outcome, starts nothing and leaves no ask shows the item as stopped in attention,
+# with `summary` as the reason.
+# No judgment is final: `build`, `narrow` and `split` start the next stage, and every other
+# one is a call a maintainer has to see and act on (shape it, close it, fold it, park it),
+# so the item shows as stopped with the reason until someone does.
+returns: { node: judge, outcome: recommend, summary: why }
+
+nodes:
+  - id: judge
+    include: judge
+    with:
+      item: $INPUTS.item
+      triage_policy: $INPUTS.triage_policy
+      members: $INPUTS.members
+      depends_on: $INPUTS.depends_on
+
+  # Shadow measurement, 2026-11-16: may this item start without an operator? Recorded in the
+  # run and read by nothing. It is not part of what triage returns and starts no stage.
+  # Nothing is admitted automatically: every item starts because an operator ordered it.
+  # The `admitted` node below records what the judgment would have done, so the prompt
+  # and the project's admit policy can be tuned against what then happened to the item.
+  - id: admit
+    display: { label: "Would it start on its own" }
+    command: admit
+    model: ['@judge', medium]
+    mutates_checkout: false
+    depends_on: [judge]
+    when: "$judge.output.recommend == 'build' || $judge.output.recommend == 'narrow'"
+    output_format:
+      type: object
+      additionalProperties: false
+      properties:
+        admit: { type: string, enum: [auto, ask] }
+        criterion: { type: string, description: 'The line of the policy that decided it, or: all hold. When there is no policy: no policy.' }
+        why: { type: string, description: 'One or two sentences.' }
+        asks:
+          type: array
+          description: 'When it is an ask: the one question you would put to the operator. Empty when auto.'
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              question: { type: string }
+              context: { type: string }
+              options:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    id: { type: string, description: 'kebab-case, one token, such as keep-the-flag. The answer names it.' }
+                    does: { type: string }
+                    cost: { type: string }
+                  required: [id, does, cost]
+              recommendation:
+                type: object
+                additionalProperties: false
+                properties:
+                  option: { type: string, description: 'The id of the option you would take. It is one of the options above.' }
+                  why: { type: string, description: 'Why that one. If you are not sure, say what would change your mind.' }
+                required: [option, why]
+            required: [question, context, options, recommendation]
+        sure: { type: string, enum: [high, medium, low] }
+      required: [admit, criterion, why, asks, sure]
+
+  # What admit would have done, as records for `archon metrics`: one per item, latest wins.
+  - id: admitted
+    display: { label: "Records the admit measurement" }
+    depends_on: [admit]
+    runtime: bun
+    mutates_checkout: false
+    with:
+      admit: $admit.output
+    script: |
+      import { emit, input, item } from 'archon:script';
+      let said = '';
+      try { said = JSON.parse(input('admit') || '{}').admit ?? ''; } catch {}
+      const subject = item()?.item.key ?? null;
+      const count = (name: string, value: number) => ({ name, unit: 'items', subject, kind: 'count', value });
+      emit({
+        would: said,
+        metrics: said ? [count('sf.admit_would_start', said === 'auto' ? 1 : 0), count('sf.admit_would_ask', said === 'ask' ? 1 : 0)] : [],
+      });
+    output_format: { type: object }
+
+# The words a person reads for this stage and its outcomes (spike-a).
+display:
+  label: "Triage"
+  short: "Is it worth building?"
+  blurb: "Judges whether an item is worth building, the way the project's maintainers would."
+  outcomes:
+    build:
+      story: "Triage judged it worth building"
+    narrow:
+      story: "Triage judged it worth building, in a narrower form"
+    split:
+      story: "Triage judged it is more than one change"
+    shape:
+      label: "Needs shaping"
+      story: "Triage judged it worth doing, once a maintainer settles its open questions"
+    recipe:
+      label: "Handled another way"
+      story: "Triage judged it is handled another way"
+    native:
+      label: "Handled another way"
+      story: "Triage judged it is handled another way"
+    fold:
+      label: "Folded into another item"
+      story: "Triage folded it into another item"
+    park:
+      label: "Parked by triage"
+      story: "Triage parked it for later"
+    deprecate:
+      label: "Closed by triage"
+      story: "Triage closed it"
+    decline:
+      label: "Closed by triage"
+      story: "Triage closed it"
+    close:
+      label: "Closed by triage"
+      story: "Triage closed it"

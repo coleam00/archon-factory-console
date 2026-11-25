@@ -22,11 +22,16 @@ import { isDeepStrictEqual } from 'node:util';
  * to the flattened child's declared return. The expander calls this same helper
  * on the final flat workflow, where every selected node is executable.
  */
-export function validateWorkflowResultContract(
-  workflow: Pick<WorkflowDefinition, 'name' | 'returns' | 'result'> & {
-    readonly nodes: readonly (DagNode | IncludeDirective)[];
-  }
-): string | null {
+type ContractWorkflow = Pick<WorkflowDefinition, 'name' | 'returns' | 'result' | 'display'> & {
+  readonly nodes: readonly (DagNode | IncludeDirective)[];
+};
+
+/** The result contract, then the words `display.outcomes` gives the outcomes it declares. */
+export function validateWorkflowResultContract(workflow: ContractWorkflow): string | null {
+  return resultContractError(workflow) ?? displayOutcomesError(workflow);
+}
+
+function resultContractError(workflow: ContractWorkflow): string | null {
   if (workflow.result?.options !== undefined && workflow.result.asks === undefined)
     return 'Workflow returns.options declares the options of asks; declare returns.asks too';
   const declared = declaredResultFields(workflow.result);
@@ -56,6 +61,26 @@ export function validateWorkflowResultContract(
     if (error !== null) return error;
   }
   return final === undefined ? null : finalOutcomesError(workflow, final);
+}
+
+/**
+ * Each `display.outcomes` key is a value the declared outcome can take, so a renamed or
+ * removed outcome fails the load instead of leaving words that name nothing. Deferred, like
+ * the contract, while the returns node is an include alias.
+ */
+function displayOutcomesError(workflow: ContractWorkflow): string | null {
+  const keys = Object.keys(workflow.display?.outcomes ?? {});
+  if (keys.length === 0) return null;
+  if (workflow.result?.outcome === undefined)
+    return 'Workflow declares display.outcomes but no returns.outcome; display.outcomes names outcomes, so it needs returns.outcome';
+  const selected = workflow.nodes.find(node => node.id === workflow.returns);
+  const outcome = declaredOutcome(workflow);
+  if (selected === undefined || isIncludeDirective(selected) || outcome === undefined) return null;
+  const values = outcomeValues(outcome.form);
+  const unknown = keys.find(key => !values.includes(key));
+  return unknown === undefined
+    ? null
+    : `Workflow display.outcomes names '${unknown}', which returns.outcome: '${outcome.field}' cannot take (it takes: ${values.join(', ')})`;
 }
 
 /**

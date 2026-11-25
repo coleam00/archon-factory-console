@@ -26,6 +26,7 @@ import {
   parseBetas,
   parseContainerPolicy,
   parseDeprecation,
+  parseDisplay,
   parseFallbackModel,
   parseWorkflowModel,
   inputEnvKeyCollision,
@@ -246,6 +247,7 @@ interface WorkflowFields {
   readonly returns: WorkflowDefinition['returns'];
   readonly result: WorkflowDefinition['result'];
   readonly deprecated: WorkflowDefinition['deprecated'];
+  readonly display: WorkflowDefinition['display'];
 }
 
 /**
@@ -307,6 +309,8 @@ function parseWorkflowFields(
   if ('error' in inputs) return inputs.error;
   const returns = parseReturns(raw.returns, dagNodes, filename);
   if ('error' in returns) return returns.error;
+  const display = parseDisplay(raw.display);
+  if ('error' in display) return display.error;
   const effort = resolveEffort(
     raw.effort,
     modelReasoningEffort,
@@ -341,6 +345,7 @@ function parseWorkflowFields(
     returns: returns.value?.node,
     result: returns.value?.result,
     deprecated: deprecated.value,
+    display: display.value,
   };
 }
 
@@ -389,6 +394,7 @@ function runPolicies(fields: WorkflowFields): Partial<WorkflowDefinition> {
     ...(fields.returns !== undefined ? { returns: fields.returns } : {}),
     ...(fields.result !== undefined ? { result: fields.result } : {}),
     ...(fields.deprecated !== undefined ? { deprecated: fields.deprecated } : {}),
+    ...(fields.display !== undefined ? { display: fields.display } : {}),
   };
 }
 

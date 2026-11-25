@@ -51,7 +51,8 @@ The factory building this repository runs Archon from another checkout, on the h
   `factory-view-how-it-works.ts`), read through the generic `pack-declarations.ts` reader from
   the copy of the pack the graph was read from (`packages/core/src/workflows/pack-view.ts`) and
   served by `GET /api/packs/{pack}/view`. It is presentation only: words, layout, drill-down
-  cards and story wording, and where a console finds an item's check rounds, returns and change
+  cards and story wording (on `spike-a`, the words a workflow can carry in its `display:` come
+  from the pack graph first, `factory/lib/graph-words.ts`, and the file holds the rest), and where a console finds an item's check rounds, returns and change
   in its runs' records (`retired`, `rounds`, `returns`, `approves`, `change`, in
   `factory-view-progress.ts`; operator ruling of 2026-11-25, declare-in-view). The engine reads
   none of those; the web counts rounds and returns from generic run records with them. It holds no step lists, outcome lists, arrows, ask flags, shadow flags,

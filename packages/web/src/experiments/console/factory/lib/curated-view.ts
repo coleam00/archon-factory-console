@@ -1,7 +1,9 @@
 /**
  * The curated map's model: the pack's factory view file (`FactoryView`) joined with its pack
  * graph, in the shape the map, its stage modal and their libs draw (ported from v1, where the
- * same shape was the view file itself). Pure, and the only place the two are joined.
+ * same shape was the view file itself), with the words the graph carries from the pack's
+ * workflow YAML laid over the file's (`graph-words.ts`). Pure, and the only place the two are
+ * joined for the map.
  *
  * - A map **stage** is one card of the file's `map.cards`, standing for one or more graph
  *   stages (`workflows`, by their `workflow` name). A card of one graph stage takes that
@@ -16,6 +18,7 @@
  */
 import type { PackGraph } from '../../skills/items';
 import type { FactoryView } from '../api';
+import { withGraphWords } from './graph-words';
 
 type Drilldown = NonNullable<FactoryView['stages'][string]['drilldown']>;
 type ViewDrilldownCard = Drilldown['phases'][number]['cards'][number];
@@ -130,7 +133,8 @@ function columnsFor(view: FactoryView, graph: PackGraph, stages: CuratedStage[])
   });
 }
 
-export function curatedView(view: FactoryView, graph: PackGraph): CuratedView {
+export function curatedView(file: FactoryView, graph: PackGraph): CuratedView {
+  const view = withGraphWords(file, graph.stages);
   const stages = view.map.cards.map(card => stageOf(view, card));
   const steps: Record<string, Record<string, string>> = {};
   for (const [workflow, stage] of Object.entries(view.stages))
@@ -143,7 +147,9 @@ export function curatedView(view: FactoryView, graph: PackGraph): CuratedView {
     landed: { stage: stages.at(-1)?.id ?? '' },
     steps,
     stageLabels: Object.fromEntries(
-      Object.entries(view.stages).map(([workflow, stage]) => [workflow, stage.label])
+      Object.entries(view.stages).flatMap(([workflow, stage]) =>
+        stage.label === undefined ? [] : [[workflow, stage.label]]
+      )
     ),
     outcomeLabels: Object.fromEntries(
       Object.entries(view.outcomes ?? {}).flatMap(([key, outcome]) =>
