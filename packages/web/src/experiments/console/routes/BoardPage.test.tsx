@@ -222,12 +222,14 @@ test('each open item is under the stage it stands at, in the order the pack grap
   ).toEqual(['order-9']);
   // Until every item is read, the order shows its open members and no merged count.
   expect(page.querySelector('[data-work-order-line]')?.textContent).toBe('1 open · 1 running');
-  // The project's asks are on the page, and the item that has one links to it.
-  const asked = page.querySelector('[data-ask-ref="ask:a1"]')?.closest('[id]');
-  expect(asked).not.toBeNull();
-  expect(
-    page.querySelector(`[data-item="issue-2"] a[href="#${asked?.getAttribute('id') ?? ''}"]`)
-  ).not.toBeNull();
+  // The project's asks are on the page, and the item that has one opens them over its card.
+  expect(page.querySelector('[data-needs-you] [data-ask-ref="ask:a1"]')).not.toBeNull();
+  const asks = page.querySelector('[data-item="issue-2"] [data-card-asks]');
+  expect(asks?.textContent).toContain('1 open ask');
+  // The ask declares no recommendation, which the card says without reading its text.
+  expect(asks?.querySelector('[data-card-no-recommendation]')?.textContent).toBe(
+    'No recommendation'
+  );
 });
 
 /** An active `part_of` link from an item to work order `key`. */

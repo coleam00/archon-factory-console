@@ -31,6 +31,14 @@ export const K = {
   boardOrders: (projectId: string): string => `board:${projectId}:orders`,
   boardDone: (projectId: string, pack: string): string =>
     `board:${projectId}:done:${encodeURIComponent(pack)}`,
+  /** The graphs and factory views of a project's packs, which board cards read their words from. */
+  packViews: (projectId: string, packs: readonly string[]): string =>
+    `pack-views:${projectId}:${packs.map(encodeURIComponent).join(',')}`,
+  /**
+   * The run records and forge answers a list of board cards reads, by the runs and issues
+   * asked; under `board:`, so run and attention events refetch the running step and rounds.
+   */
+  cardReads: (projectId: string, ask: string): string => `board:${projectId}:cards:${ask}`,
   packGraph: (projectId: string, pack: string): string =>
     `pack-graph:${projectId}:${encodeURIComponent(pack)}`,
   runs: (scope: Scope): string => `runs:${scopeKey(scope)}`,
