@@ -35,7 +35,7 @@ import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
 import { registerObservingRoute } from './api.observing';
 import { registerMetricViewsRoute, registerMetricsRoute } from './api.metrics';
-import { registerPackGraphRoute } from './api.packs';
+import { registerPackRoutes } from './api.packs';
 import { registerProviderKeyRoutes } from './api.provider-keys';
 import { registerProviderRoutes } from './api.providers';
 import { registerAttentionStreamRoute, registerRunAttentionRoutes } from './api.run-attention';
@@ -142,7 +142,7 @@ export function registerApiRoutes(
     loadConfig,
   });
   registerObservingRoute(app, { observing, lastPass: () => readWakeLastPass() });
-  registerPackGraphRoute(app, {
+  registerPackRoutes(app, {
     codebaseCwd: async id => (await codebaseDb.getCodebase(id))?.default_cwd ?? null,
     readPackGraph: (cwd, pack, workflowSource) =>
       readPackGraph(

@@ -21,6 +21,7 @@ import { itemReadSchema } from '@archon/workflows/item-read';
 import { itemWindowSchema } from '@archon/workflows/item-window';
 import { ITEM_STANDING_STATES } from '@archon/workflows/item-standing';
 import { packGraphSchema } from '@archon/workflows/pack-graph';
+import { factoryViewFileSchema } from '@archon/workflows/schemas/factory-view';
 import { itemRulingSchema } from '@archon/workflows/schemas/item-ruling';
 import {
   attentionWatchLevelSchema,
@@ -473,6 +474,24 @@ export const itemReadQuerySchema = z.object({
 
 /** GET /api/packs/{pack}/graph response: the pack's stages and run-ended arrows. */
 export const packGraphResponseSchema = packGraphSchema.meta({ id: 'PackGraph' });
+
+/**
+ * GET /api/packs/{pack}/view response: the pack's factory view file, or null when it ships none
+ * or the file does not read or validate, with its problems against the pack graph.
+ */
+export const packFactoryViewResponseSchema = z
+  .object({
+    view: factoryViewFileSchema.nullable(),
+    path: z.string().nullable(),
+    problems: z.array(
+      z.object({
+        severity: z.enum(['error', 'warning']),
+        path: z.array(z.union([z.string(), z.number()])),
+        message: z.string(),
+      })
+    ),
+  })
+  .meta({ id: 'PackFactoryView' });
 
 /** GET /api/items response: the item, its runs, open questions and answers. */
 export const itemReadResponseSchema = itemReadSchema.meta({ id: 'ItemRead' });

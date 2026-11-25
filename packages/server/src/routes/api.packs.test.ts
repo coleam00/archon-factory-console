@@ -6,8 +6,8 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { readPackGraph } from '@archon/core/workflows/pack-graph';
 import { trackTempRoots } from '@archon/paths/test-utils';
 import { providerRegistry } from '@archon/providers';
-import { registerPackGraphRoute } from './api.packs';
-import { packGraphResponseSchema } from './schemas/workflow.schemas';
+import { registerPackRoutes } from './api.packs';
+import { packFactoryViewResponseSchema, packGraphResponseSchema } from './schemas/workflow.schemas';
 
 const track = trackTempRoots();
 
@@ -32,7 +32,7 @@ async function graphApp(
   for (const [name, body] of Object.entries(triggers))
     await writeFile(join(triggersDirectory, name), body);
   const app = new OpenAPIHono();
-  registerPackGraphRoute(app, {
+  registerPackRoutes(app, {
     codebaseCwd: async id => (id === 'cb-1' ? project : null),
     readPackGraph: (cwd, pack) =>
       readPackGraph(cwd, pack, {
@@ -101,5 +101,93 @@ describe('GET /api/packs/{pack}/graph', () => {
     const app = await graphApp();
     expect((await app.request('/api/packs/chain/graph?codebaseId=missing')).status).toBe(404);
     expect((await app.request('/api/packs/nope/graph?codebaseId=cb-1')).status).toBe(404);
+  });
+});
+
+describe('GET /api/packs/{pack}/view', () => {
+  /** A view of the `chain` pack whose one card names `workflows`. */
+  const viewFile = (workflows: string[]): string =>
+    JSON.stringify({
+      version: 1,
+      title: 'Chain',
+      summary: 'One stage.',
+      stages: [{ id: 'a', label: 'A', blurb: 'Does a.', workflows }],
+      howItWorks: {
+        title: 'Chain',
+        caption: 'How the chain runs.',
+        root: 'top',
+        views: {
+          top: {
+            cards: [
+              {
+                id: 'in',
+                title: 'In',
+                text: 'Work comes in',
+                icon: 'inbox',
+                kind: 'input',
+                col: 1,
+                row: 1,
+              },
+              {
+                id: 'card-a',
+                title: 'A',
+                text: 'Does a',
+                icon: 'hammer',
+                kind: 'stage',
+                col: 2,
+                row: 1,
+                opens: 'a',
+              },
+            ],
+            edges: [
+              { from: 'in', to: 'card-a', kind: 'feeds' },
+              { from: 'card-a', to: 'in', kind: 'loops-back' },
+            ],
+          },
+          a: {
+            cards: [
+              {
+                id: 'a-work',
+                title: 'Work',
+                text: 'Works',
+                icon: 'hammer',
+                kind: 'stage',
+                col: 1,
+                row: 1,
+              },
+            ],
+            edges: [],
+          },
+        },
+      },
+    });
+  const read = async (file?: string) => {
+    const app = await graphApp({}, file === undefined ? {} : { '.shared/factory-view.json': file });
+    const response = await app.request('/api/packs/chain/view?codebaseId=cb-1');
+    expect(response.status).toBe(200);
+    return packFactoryViewResponseSchema.parse(await response.json());
+  };
+
+  test('a pack that ships no view file is null with no problems', async () => {
+    expect(await read()).toEqual({ view: null, path: null, problems: [] });
+  });
+
+  test("the pack's file is served from the copy the graph read, checked against the graph", async () => {
+    const good = await read(viewFile(['chain-a']));
+    expect([good.view?.title, good.path?.endsWith('factory-view.json'), good.problems]).toEqual([
+      'Chain',
+      true,
+      [],
+    ]);
+    const unknown = await read(viewFile(['chain-a', 'chain-z']));
+    expect(unknown.view?.title).toBe('Chain');
+    expect(unknown.problems.map(p => [p.severity, p.path])).toEqual([
+      ['error', ['stages', 0, 'workflows', 1]],
+    ]);
+  });
+
+  test('a file that is not JSON is null with an error', async () => {
+    const broken = await read('{ not json');
+    expect([broken.view, broken.problems.map(p => p.severity)]).toEqual([null, ['error']]);
   });
 });

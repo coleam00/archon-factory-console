@@ -38,6 +38,7 @@
     "./pack-graph": "./src/pack-graph.ts",
     "./pack-document": "./src/pack-document.ts",
     "./pack-settings": "./src/pack-settings.ts",
+    "./factory-view": "./src/factory-view.ts",
     "./workflow-notice": "./src/workflow-notice.ts",
     "./end-turn-request": "./src/end-turn-request.ts",
     "./run-attention-resolution": "./src/run-attention-resolution.ts",

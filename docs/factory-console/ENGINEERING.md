@@ -42,10 +42,14 @@ The factory building this repository runs Archon from another checkout, on the h
   file. No new pack-specific read model in `packages/workflows`, `packages/core` or
   `packages/server`: nothing there knows rounds, returns, shadows, parked items, discoveries,
   work orders, item stories or stage groups. The web composes those.
-- The view schema (`packages/workflows/src/schemas/factory-view.ts` and `factory-overview.ts`,
-  found through the generic `pack-declarations.ts` reader, today via `factory-pack-files.ts`) is
-  presentation only: words, grouping, order, layout. It holds
+- The view file ships in the pack as `<pack>/.shared/factory-view.json`. Its one schema
+  (`packages/workflows/src/schemas/factory-view.ts`, How it works in
+  `factory-view-how-it-works.ts`) is read through the generic `pack-declarations.ts` reader
+  (`factory-view.ts`) and is presentation only: words, grouping, order, layout. It holds
   no step lists, outcome lists, arrows, ask flags, shadow flags, settings or stage-group enum.
+  `checkFactoryView` holds it to the pack graph, at read time and in
+  `bun run check:factory-view <pack dir>`. The source copy for Wirasm/archon-software-factory is
+  `docs/factory-console/pack-view/factory-view.json`.
 - Factory web code stays under `packages/web/src/experiments/console/factory/` (components, pure
   `lib/`, the page routes), and nothing outside that folder imports from it, except the three
   files that mount it: `ConsoleApp.tsx` (its routes and `factory.css`), `ProjectRail.tsx` (the
@@ -53,8 +57,8 @@ The factory building this repository runs Archon from another checkout, on the h
   (`scripts/check-factory-imports.ts`). Every other file under `packages/web/src` (the answer
   panel, the ask card, the project tabs apart from that one tab, every generic page and
   component, `theme.css`) stays as it is on Archon dev.
-- Server code is `packages/server/src/routes/api.factory.ts`, kept to the view-file reads, and
-  two generic reads with no pack words that the web cannot get from older routes:
+- Server code is the view-file read, `GET /api/packs/{pack}/view` beside the graph route in
+  `packages/server/src/routes/api.packs.ts`, and two generic reads with no pack words that the web cannot get from older routes:
   `GET /api/workflows/runs/records` (`api.run-records.ts`, run records without events) and
   `GET /api/forge/subjects` (`api.forge.ts`, issue titles and change merge state). The server
   asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins
