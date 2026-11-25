@@ -482,9 +482,16 @@ test('the board filter finds a card by the issue title and the key the card prin
 });
 
 test("the stage columns' graph read goes alone: the cards share it, then read the view and the forge", async () => {
-  // An untitled issue-keyed item, whose card will ask the forge for its title.
+  // Untitled issue-keyed items, whose cards ask the forge for their titles: one in a column,
+  // which waits on the graph, and one in the decision strip, which draws at once.
   const reads = [untitled('issue-2', 'plan')];
   seedBoard(reads);
+  const failed = item('issue-3', 'check', 'failed');
+  set(K.boardDecide('web'), {
+    items: [{ ...failed, item: { ...failed.item, title: null } }],
+    next: null,
+    totals: { ...NONE, failed: 1 },
+  });
   const asked: string[] = [];
   let answerGraph: () => void = () => undefined;
   const json = (body: unknown): Response =>
@@ -510,7 +517,9 @@ test("the stage columns' graph read goes alone: the cards share it, then read th
       await new Promise(resolve => setTimeout(resolve, 10));
     });
     expect(board.container.querySelectorAll('[data-stage]').length).toBeGreaterThan(0);
-    expect(asked).toEqual(['/api/packs/flow/graph', '/api/packs/flow/view', '/api/forge/subjects']);
+    // Then the view, and the forge for each list's titles (the column's and the strip's).
+    expect(asked.slice(0, 2)).toEqual(['/api/packs/flow/graph', '/api/packs/flow/view']);
+    expect(asked.slice(2)).toEqual(['/api/forge/subjects', '/api/forge/subjects']);
   } finally {
     await board.unmount();
   }
