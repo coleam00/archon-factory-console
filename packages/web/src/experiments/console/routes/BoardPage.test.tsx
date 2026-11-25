@@ -362,3 +362,92 @@ test('only a project with an item on a pack stage gets the board tab', () => {
     '/console/p/docs/metrics',
   ]);
 });
+
+test('the board filter finds a card by the issue title and the key the card prints', async () => {
+  // A mounted page, so the filter can be typed into: happy-dom's globals for this test only.
+  const dom = new Window({ url: 'http://localhost' });
+  const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
+  const saved = new Map(
+    Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
+  );
+  for (const [key, value] of Object.entries(globals))
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+  const { createRoot } = await import('react-dom/client');
+  const { act } = await import('react');
+  const untitled = (key: string, stage: string): ItemRead => {
+    const read = item(key, stage, 'waiting');
+    return { ...read, item: { ...read.item, title: null } };
+  };
+  const issue = (number: number, title: string) => ({
+    number,
+    title,
+    state: 'open' as const,
+    url: null,
+    pending: false,
+  });
+  const reads = [untitled('issue-2', 'plan'), untitled('issue-3', 'check')];
+  set(K.projects, [project('web', ['flow'])]);
+  set(K.board('web'), reads);
+  set(K.boardOrders('web'), reads);
+  set(K.packGraph('web', 'flow'), graph);
+  set(K.packViews('web', ['flow']), new Map([['flow', { stages: graph.stages, view: null }]]));
+  set(K.boardDecide('web'), { items: [], next: null, totals: NONE });
+  set(K.boardDone('web', 'flow'), { items: [], next: null, totals: NONE });
+  set(K.runsAttention, {
+    runs: [],
+    ownerLost: [],
+    asks: [],
+    answerRefusals: {},
+    itemIds: new Set(),
+    degraded: [],
+  });
+  // The titles the board's filter reads, and those each column's cards read.
+  const titles = [issue(2, 'Asks show in full'), issue(3, 'Board furniture')];
+  set(K.forgeTitles('web', [2, 3]), { issues: titles, changes: [] });
+  set(K.forgeTitles('web', [2]), { issues: [titles[0]], changes: [] });
+  set(K.forgeTitles('web', [3]), { issues: [titles[1]], changes: [] });
+  const container = dom.document.createElement('div');
+  dom.document.body.append(container);
+  const root = createRoot(container as unknown as HTMLElement);
+  const shown = (): string[] =>
+    [...container.querySelectorAll('[data-stage] [data-item]')].map(
+      card => card.getAttribute('data-item') ?? ''
+    );
+  const type = async (text: string): Promise<void> => {
+    const input = container.querySelector('input[aria-label="Filter items"]');
+    if (input === null) throw new Error('Expected the filter');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(dom.HTMLInputElement.prototype, 'value')?.set?.call(
+        input,
+        text
+      );
+      input.dispatchEvent(new dom.Event('input', { bubbles: true }));
+    });
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <MemoryRouter initialEntries={['/console/p/web/board']}>
+          <Routes>
+            <Route path="/console/p/:projectId/*" element={<BoardPage />} />
+          </Routes>
+        </MemoryRouter>
+      )
+    );
+    expect(shown()).toEqual(['issue-2', 'issue-3']);
+    // The title the forge names, which the item's own title column does not hold.
+    await type('asks show');
+    expect(shown()).toEqual(['issue-2']);
+    // The key as the card prints it, which the raw key `issue-3` does not contain.
+    await type('#3');
+    expect(shown()).toEqual(['issue-3']);
+  } finally {
+    await act(async () => root.unmount());
+    await dom.happyDOM.close();
+    for (const [key, descriptor] of saved)
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    invalidate('forge-titles');
+    invalidate('pack-views');
+  }
+});

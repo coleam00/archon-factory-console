@@ -323,5 +323,8 @@ describe('the board filter finds what the card shows', () => {
     expect(itemMatches(read, issues, 'polish')).toBe(false);
     // With no forge answer, the title is not known and only the key finds it.
     expect(itemMatches(read, null, 'asks show')).toBe(false);
+    // The raw key, which the printed key does not contain: `issue-111` prints as `#111`.
+    const issueKeyed = { ...read, item: { ...read.item, key: 'issue-111' } };
+    expect(itemMatches(issueKeyed, issues, 'issue-111')).toBe(true);
   });
 });

@@ -26,6 +26,10 @@ The factory building this repository runs Archon from another checkout, on the h
   the newest wholly answered set of asks per item and workflow, so the board and item pages have
   real asks to look at. Use it only for looking: never confirm an answer on the copy, because settling an
   item's asks there can start a real agent run.
+- The installed pack ships no factory view file yet, so on the copy the board cards show titles,
+  asks and PR links but no check rounds, returns or running step. To see those, copy
+  `docs/factory-console/pack-view/factory-view.json` into the copy's installed pack,
+  `.console-home/plugins/packs/<owner>/<name>/<commit>/.shared/` (`pack-view/README.md`).
 - Pick a free port (not 3090, 3190 or 8864, which are in use); check it first.
 - Stop every server and browser you start before you finish. Kill by the PID you started, never by
   process name: other factories run on this machine.
