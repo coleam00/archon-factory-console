@@ -151,7 +151,8 @@ describe('the shipped map', () => {
 
   test('one lane under the row: one pill per target stage, the self hand-offs on it too', () => {
     expect(layout.feedback.pills.map(pill => [pill.stage, pill.text])).toEqual([
-      ['order', 'work_order, split, broken_here'],
+      // Outcomes read as their `display:` labels where the pack's YAML gives one.
+      ['order', 'Ordered as a work order, Split into pieces, broken_here'],
       ['link', 'asked'],
       ['split', 'answered'],
       ['plan', 'answered, replan'],
