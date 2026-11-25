@@ -4,6 +4,39 @@ Owner: Cole Medin. Status: proof of concept, started 2026-11-16. This page binds
 this repository. Where an issue and this page disagree, this page wins unless the issue says it
 changes this page.
 
+## SPIKE direction, 2026-11-25 (owner; binds every change on the `spike-a` and `spike-b` branches; wins over the COMBINED direction below where they disagree)
+
+These two branches are throwaway spikes cut from `combined` at 785254831. They answer one
+question for the owner before `combined` goes upstream to Archon: **where should the factory
+map's human words and meaning live, so that nothing has to be kept in sync by hand?** Archon's
+maintainer (Rasmus) accepts the console as built on his base, with one objection: the curated
+view file (`<pack>/.shared/factory-view.json`, source `docs/factory-console/pack-view/factory-view.json`)
+is a second, hand-synced surface next to the pack's workflows. Its words and semantics are keyed
+by stage, step and outcome names, so renaming a stage or adding an outcome in the pack means
+editing the file too; `check:factory-view` detects that drift but does not prevent it.
+
+- **spike-a, "words live in the pack":** an optional, generic `display:` block in workflow YAML
+  (a workflow's label, short line and blurb; a node's label; a returns outcome's label and
+  story), parsed and validated by the workflow loader where the names are local, and served by
+  the pack graph API (`GET /api/packs/{pack}/graph`) as optional fields. The console reads those
+  words from the graph.
+- **spike-b, "slim file, derived layout":** no engine change. The file keeps only words and
+  meaning; the Overview map lays itself out from the pack graph (its document `groups` and its
+  `arrows`) instead of hand-placed cards and edges.
+
+On these branches the COMBINED rule "the curated view JSON ships with the pack and draws the
+core map (non-negotiable)" and the "ONE check" rule are **suspended to the extent the spike's
+issue says**. Everything else in the COMBINED direction still binds: Rasmus's pages and engine
+reads keep working, the board, cards, Needs you tab and Overview behave as on `combined`, and no
+pack vocabulary (factory, triage, check round, ...) enters `packages/workflows`, `packages/core`
+or `packages/server`.
+
+A spike is judged by its **measurements**, not its polish: the same screens as `combined` at
+1440x900, a drift test (rename one stage, add one outcome, record everything else that had to
+change), and lines changed per package. Tests only for what the spike adds to the engine (a) or
+the layout derivation (b). A check that finds the screens match and the measurements are in the
+PR body has what it needs; cosmetic findings are for the winner's real implementation, not here.
+
 ## COMBINED direction, 2026-11-25 (owner; binds every change on the `combined` branch; wins over everything below, including the v2 direction)
 
 The branch `combined` starts from Archon maintainer Rasmus's Console stack (coleam00/Archon #6203
