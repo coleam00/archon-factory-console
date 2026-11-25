@@ -1,6 +1,6 @@
 /**
  * The map derived from the pack graph (DESIGN.md, COMBINED direction): the pack's columns, its
- * document groups then each flow stage no group holds, as a row of boxes, then Done. On a
+ * document groups then each flow stage no group holds, as a row of boxes, then Merged. On a
  * project's Overview each box carries the project's counts and opens its board; on How it works,
  * which is the pack's page and names no project (DESIGN.md, owner change 1 of 2026-11-23), the
  * boxes are the structure alone. Both draw it when the pack ships no curated view file, and as
@@ -8,8 +8,10 @@
  */
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { chipOf, columnsOf, standingRun, type StageGroup } from '../routes/BoardPage';
-import type { ItemRead } from '../skills/items';
+import { chipOf, columnsOf, type StageGroup } from '../routes/BoardPage';
+import { stageAt } from '../routes/board/standing';
+import type { ItemRead, PackGraph } from '../skills/items';
+import { MERGED_DAYS, type BoardNumbers } from './lib/board-numbers';
 import { GraphSkeleton } from './GraphSkeleton';
 import { usePackGraph } from './map-structure';
 import { ReadFailure } from './ReadFailure';
@@ -17,12 +19,11 @@ import { ReadFailure } from './ReadFailure';
 /** How many of a pack's items sit in each column, and how many of those wait on the operator. */
 export function flowCounts(
   columns: readonly StageGroup[],
-  items: readonly ItemRead[]
+  items: readonly ItemRead[],
+  stages: PackGraph['stages'] | undefined
 ): { name: string; stages: string[]; count: number; needYou: number }[] {
   return columns.map(column => {
-    const here = items.filter(read =>
-      column.stages.includes(standingRun(read)?.pack?.workflow ?? '')
-    );
+    const here = items.filter(read => column.stages.includes(stageAt(read, stages) ?? ''));
     return {
       ...column,
       count: here.length,
@@ -34,18 +35,19 @@ export function flowCounts(
 /** One column of the derived map, with the project's counts when it is drawn for one. */
 type FlowColumn = StageGroup & { count?: number; needYou?: number };
 
-/** What a project's derived map adds to the structure: its board and its Done. */
+/** What a project's derived map adds to the structure: its board and its numbers (`packBoard`). */
 interface FlowLive {
   board: string;
-  done: number;
-  /** How many merged today. */
-  landed: number;
+  /** Undefined while every item is read. */
+  numbers: BoardNumbers | undefined;
+  /** The every-item read failed: the number tiles say so, and the Merged box shows no count. */
+  failed: boolean;
 }
 
 const BOX = 'block min-w-36 rounded-console-12 border border-border px-4 py-3';
 
 /**
- * The pack's columns as a row of boxes, then Done. With `live` (a project's Overview), each
+ * The pack's columns as a row of boxes, then Merged. With `live` (a project's Overview), each
  * box shows its count and who it waits on and opens that column on the board; without it
  * (How it works), the boxes show the structure alone and link nowhere.
  */
@@ -103,19 +105,24 @@ export function DerivedFlow({
         ))}
         <li>
           {box(
-            'done',
+            'merged',
             live?.board,
             <>
-              <span className="text-console-12 font-medium text-text-secondary">Done</span>
+              <span className="text-console-12 font-medium text-text-secondary">Merged</span>
+              {live === undefined ? null : live.numbers === undefined ? (
+                live.failed ? null : (
+                  <span className="ml-2 inline-block h-3 w-6 rounded bg-surface-elevated motion-safe:animate-pulse" />
+                )
+              ) : (
+                <span data-count className="ml-2 text-base tabular-nums text-text-primary">
+                  {live.numbers.mergedRecent}
+                </span>
+              )}
               {live === undefined ? null : (
-                <>
-                  <span data-count className="ml-2 text-base tabular-nums text-text-primary">
-                    {live.done}
-                  </span>
-                  <span className="mt-1 block text-console-11 text-text-tertiary">
-                    {live.landed} landed today
-                  </span>
-                </>
+                <span className="mt-1 block text-console-12 text-text-tertiary">
+                  last {MERGED_DAYS} days
+                  {live.numbers === undefined ? '' : ` · ${String(live.numbers.mergedToday)} today`}
+                </span>
               )}
             </>
           )}

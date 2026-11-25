@@ -1,21 +1,21 @@
 /**
  * The map's live chips: which items sit on each map stage, how many a run works now, and which
  * need a person. An item sits where the engine's `standing` puts it, the placement the board
- * draws (`standingRun` and `chipOf` in `routes/BoardPage.tsx`): on the map stage listing its
- * standing run's workflow. So a stage's count is the board's count for the same stages, and
- * no second placement exists. The board's Done is on the map's landed stage (`curated-view.ts`):
- * its total counted there, and the newest done items the board shows listed there.
+ * draws (`stageAt` and `chipOf` in `routes/board/standing.ts`): on the map stage listing the
+ * stage it stands at. So a stage's count is the board's count for the same stages, and no
+ * second placement exists. The board's Merged column (`packBoard`) is on the map's landed stage
+ * (`curated-view.ts`): its count there, and its newest items listed there.
  */
-import { chipOf, standingRun } from '../../routes/BoardPage';
-import type { ItemRead } from '../../skills/items';
+import { chipOf, stageAt } from '../../routes/board/standing';
+import type { ItemRead, PackGraph } from '../../skills/items';
 import type { CuratedView } from './curated-view';
 
 interface StageLive {
   /** The items placed on this stage, in the order the items read returned them. */
   items: ItemRead[];
   /**
-   * How many sit here: the items, and on the landed stage every done item, of which `items`
-   * holds only the newest the Done read returned.
+   * How many sit here: the items, and on the landed stage every item the Merged column counts, of which `items`
+   * holds only the newest the Merged column lists.
    */
   total: number;
   /** How many of them a run works now. */
@@ -53,27 +53,29 @@ export interface MapLive {
   notOnMap: NotOnMap[];
 }
 
-/** The board's Done: how many items are done, and the newest of them its column shows. */
-export interface DoneRead {
+/** The board's Merged column: how many items it counts, and the newest of them it shows. */
+export interface MergedRead {
   total: number;
   items: readonly ItemRead[];
 }
 
 /**
- * The map for the pack's moving items and its Done. `moving` are the items the board draws on
+ * The map for the pack's moving items and its Merged column. `moving` are the items the board draws on
  * its stage columns.
  */
 export function stageLive(
   view: Pick<CuratedView, 'stages' | 'landed'>,
   moving: readonly ItemRead[],
-  done: DoneRead
+  merged: MergedRead,
+  /** The graph's stages, which place a run that recorded no workflow name (`stageAt`). */
+  graphStages: PackGraph['stages'] | undefined
 ): MapLive {
   const stages = new Map<string, StageLive>(
     view.stages.map(stage => [stage.id, { ...EMPTY_STAGE_LIVE, items: [], needYou: [] }])
   );
   const notOnMap: NotOnMap[] = [];
   for (const read of moving) {
-    const workflow = standingRun(read)?.pack?.workflow ?? null;
+    const workflow = stageAt(read, graphStages) ?? null;
     const stage =
       workflow === null ? undefined : view.stages.find(s => s.workflows.includes(workflow));
     const live = stage === undefined ? undefined : stages.get(stage.id);
@@ -88,8 +90,8 @@ export function stageLive(
   }
   const landed = stages.get(view.landed.stage);
   if (landed !== undefined) {
-    landed.items.push(...done.items);
-    landed.total += done.total;
+    landed.items.push(...merged.items);
+    landed.total += merged.total;
   }
   return { stages, notOnMap };
 }

@@ -7,7 +7,7 @@
 import { useMemo, type ReactElement, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import { columnsOf } from '../routes/BoardPage';
-import type { ItemRead, PackGraph } from '../skills/items';
+import type { PackGraph } from '../skills/items';
 import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { getPackViewRead, type FactoryView, type PackView } from './api';
@@ -16,7 +16,8 @@ import { FactoryCardsProvider } from './FactoryCards';
 import { GraphSkeleton } from './GraphSkeleton';
 import { curatedView } from './lib/curated-view';
 import { mapSource } from './lib/map-source';
-import { stageLive, type DoneRead, type MapLive, type Unread } from './lib/map-live';
+import type { PackBoardGroups } from './lib/board-numbers';
+import { stageLive, type MapLive, type Unread } from './lib/map-live';
 import { CuratedMap } from './map/CuratedMap';
 import { useMapStructure, usePackGraph } from './map-structure';
 import { ReadFailure } from './ReadFailure';
@@ -50,31 +51,26 @@ export function usePackView(projectId: string, pack: string): EntityView<PackVie
 interface PackMapProps {
   projectId: string;
   pack: string;
-  /** The pack's items on a stage, as the board reads them; undefined until read. */
-  moving: { data?: ItemRead[]; error?: Error };
-  /** The board's Done: its count and the newest done items. */
-  done: DoneRead;
-  /** How many changes merged today, for the derived map's Done box. */
-  landedToday: number;
+  /**
+   * The pack's board, as the Board and the Overview's tiles group it (`packBoard`): its moving
+   * items, its Merged column and its numbers. Undefined while every item is read.
+   */
+  board: PackBoardGroups | undefined;
+  /** The every-item read failed. */
+  itemsError: Error | undefined;
 }
 
 const HEADING = 'text-console-12 font-medium uppercase tracking-console-label text-text-tertiary';
 
-export function PackMap({
-  projectId,
-  pack,
-  moving,
-  done,
-  landedToday,
-}: PackMapProps): ReactElement {
+export function PackMap({ projectId, pack, board, itemsError }: PackMapProps): ReactElement {
   const source = mapSource(usePackView(projectId, pack));
   const graph = usePackGraph(projectId, pack);
   const [full, choose] = useFullWorkflow();
-  const board = `/console/p/${encodeURIComponent(projectId)}/board`;
+  const boardPath = `/console/p/${encodeURIComponent(projectId)}/board`;
   const derived = (
     <DerivedFlow
-      flow={flowCounts(columnsOf(graph.data), moving.data ?? [])}
-      live={{ board, done: done.total, landed: landedToday }}
+      flow={flowCounts(columnsOf(graph.data), board?.moving ?? [], graph.data?.stages)}
+      live={{ board: boardPath, numbers: board?.numbers, failed: itemsError !== undefined }}
     />
   );
   if (source.kind === 'loading')
@@ -117,9 +113,9 @@ export function PackMap({
           pack={pack}
           file={source.view}
           graph={graph}
-          moving={moving}
-          done={done}
           board={board}
+          itemsError={itemsError}
+          boardPath={boardPath}
         />
       )}
     </MapSection>
@@ -150,17 +146,17 @@ function Curated({
   pack,
   file,
   graph,
-  moving,
-  done,
   board,
+  itemsError,
+  boardPath,
 }: {
   projectId: string;
   pack: string;
   file: FactoryView;
   graph: EntityView<PackGraph>;
-  moving: PackMapProps['moving'];
-  done: DoneRead;
-  board: string;
+  board: PackBoardGroups | undefined;
+  itemsError: Error | undefined;
+  boardPath: string;
 }): ReactElement {
   const view = useMemo(
     () => (graph.data === undefined ? undefined : curatedView(file, graph.data)),
@@ -168,10 +164,12 @@ function Curated({
   );
   const structure = useMapStructure(graph, view);
   const live: MapLive | Unread = useMemo(() => {
-    if (view === undefined || moving.data === undefined)
-      return moving.error === undefined ? 'loading' : 'failed';
-    return stageLive(view, moving.data, done);
-  }, [view, moving.data, moving.error, done]);
+    if (view === undefined || board === undefined)
+      return itemsError === undefined ? 'loading' : 'failed';
+    // The Merged card is the Board's Merged column: its count and its newest items.
+    const merged = { total: board.numbers.mergedRecent, items: board.merged.recent };
+    return stageLive(view, board.moving, merged, graph.data?.stages);
+  }, [view, board, itemsError, graph.data]);
   if (view === undefined)
     return graph.error === undefined ? (
       <GraphSkeleton label="Loading the map" />
@@ -184,9 +182,9 @@ function Curated({
   // now come from the same place the Board's card takes them (`useCardList` in StageItems).
   return (
     <FactoryCardsProvider projectId={projectId} packs={[pack]} itemAsks={null}>
-      {moving.error === undefined ? null : (
+      {itemsError === undefined ? null : (
         <p role="alert" className="text-console-13 text-error">
-          The pack's items could not be read: {moving.error.message}
+          The pack's items could not be read: {itemsError.message}
         </p>
       )}
       <CuratedMap
@@ -194,7 +192,7 @@ function Curated({
         view={view}
         structure={structure}
         live={live}
-        board={board}
+        board={boardPath}
       />
     </FactoryCardsProvider>
   );

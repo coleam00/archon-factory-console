@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import { standingRun } from '../../routes/BoardPage';
+import { standingRun } from '../../routes/board/standing';
 import type { ItemRead } from '../../skills/items';
 import type { CuratedView } from '../lib/curated-view';
 import type { CardProgress } from '../lib/item-card';

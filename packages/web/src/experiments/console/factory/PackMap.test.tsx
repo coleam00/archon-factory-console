@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
 import type { PackView } from './api';
+import type { PackBoardGroups } from './lib/board-numbers';
 import { shippedFile, shippedGraph } from './curated.test-fixtures';
 import { itemOn, MOVING_ITEMS } from './items.test-fixtures';
 import { installDom } from './test-dom.test-helpers';
@@ -25,6 +26,26 @@ afterEach(async () => {
   for (const prefix of ['pack-view', 'pack-graph', 'board']) invalidate(prefix);
 });
 
+/**
+ * The pack's board as `packBoard` groups it: the moving items, and a Merged column counting 92
+ * of which the two newest are listed (the column lists more; the map shows only its count and
+ * what the stage modal is given).
+ */
+const BOARD: PackBoardGroups = {
+  moving: MOVING_ITEMS,
+  decide: [],
+  merged: { recent: DONE_ITEMS, earlier: [] },
+  onBoard: [...MOVING_ITEMS, ...DONE_ITEMS],
+  numbers: {
+    inFlight: MOVING_ITEMS.length,
+    mergedToday: 1,
+    mergedRecent: 92,
+    merged: 92,
+    total: MOVING_ITEMS.length + 92,
+    medianToMergedMs: null,
+  },
+};
+
 async function mount(view: PackView, search = ''): Promise<HTMLElement> {
   set(K.packView(PROJECT, PACK), view);
   set(K.packGraph(PROJECT, PACK), shippedGraph);
@@ -33,15 +54,7 @@ async function mount(view: PackView, search = ''): Promise<HTMLElement> {
       <Routes>
         <Route
           path="/console/p/:projectId/overview"
-          element={
-            <PackMap
-              projectId={PROJECT}
-              pack={PACK}
-              moving={{ data: MOVING_ITEMS }}
-              done={{ total: 92, items: DONE_ITEMS }}
-              landedToday={3}
-            />
-          }
+          element={<PackMap projectId={PROJECT} pack={PACK} board={BOARD} itemsError={undefined} />}
         />
       </Routes>
     </MemoryRouter>
