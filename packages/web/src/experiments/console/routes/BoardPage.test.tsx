@@ -524,3 +524,26 @@ test("the stage columns' graph read goes alone: the cards share it, then read th
     await board.unmount();
   }
 });
+
+test('while the project is still read, its packs are unknown and no card asks the forge', async () => {
+  const failed = item('issue-3', 'check', 'failed');
+  seedBoard([]);
+  invalidate('projects');
+  set(K.boardDecide('web'), {
+    items: [{ ...failed, item: { ...failed.item, title: null } }],
+    next: null,
+    totals: { ...NONE, failed: 1 },
+  });
+  const asked: string[] = [];
+  // Every read the board makes stays out, the project's included.
+  const board = await mountBoard(url => {
+    asked.push(url.replace(/\?.*$/, ''));
+    return new Promise<Response>(() => undefined);
+  });
+  try {
+    expect(board.container.querySelector('[data-item="issue-3"]')).not.toBeNull();
+    expect(asked.filter(url => url.includes('/forge/'))).toEqual([]);
+  } finally {
+    await board.unmount();
+  }
+});

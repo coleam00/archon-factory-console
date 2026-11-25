@@ -554,7 +554,12 @@ export function BoardPage(): ReactElement {
         </div>
         <ProjectViewTabs projectId={projectId} active="board" />
       </header>
-      <FactoryCardsProvider projectId={projectId} packs={packs} itemAsks={itemAsks}>
+      <FactoryCardsProvider
+        projectId={projectId}
+        // Until the project is read its packs are unknown, and an empty list would read as all read.
+        packs={project === undefined ? null : packs}
+        itemAsks={itemAsks}
+      >
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-4 md:px-6">
           <input
             type="search"

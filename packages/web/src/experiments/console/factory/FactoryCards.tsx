@@ -73,7 +73,8 @@ export function FactoryCardsProvider({
   children,
 }: {
   projectId: string;
-  packs: readonly string[];
+  /** The project's packs; null while the project is still being read. */
+  packs: readonly string[] | null;
   itemAsks: ItemAsks;
   children: ReactNode;
 }): ReactElement {
@@ -84,12 +85,12 @@ export function FactoryCardsProvider({
   const [open, setOpen] = useState<OpenAsks | null>(null);
   const readPacks = new Map<string, CardPack>();
   for (const [pack, result] of read)
-    if (result !== 'error' && packs.includes(pack)) readPacks.set(pack, result);
+    if (result !== 'error' && packs?.includes(pack) === true) readPacks.set(pack, result);
   const value: FactoryCards = {
     projectId,
     // Cards read records once every pack has answered, so a card is never read under a pack
     // whose stages are still unknown and then read again.
-    packs: packs.every(pack => read.has(pack)) ? readPacks : null,
+    packs: packs !== null && packs.every(pack => read.has(pack)) ? readPacks : null,
     packsError: [...read.values()].includes('error'),
     itemAsks,
     open,
@@ -97,7 +98,7 @@ export function FactoryCardsProvider({
   };
   return (
     <CardsContext.Provider value={value}>
-      {packs.map(pack => (
+      {(packs ?? []).map(pack => (
         <PackRead key={pack} projectId={projectId} pack={pack} onRead={onRead} />
       ))}
       {children}
