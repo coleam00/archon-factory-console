@@ -25,8 +25,13 @@ const stage = (name: string, nodes: string[]): Stage => ({
   })),
 });
 
-const arrow = (from: string, to: string, linked: Arrow['linked'] = null): Arrow => ({
-  from: { stage: `o/p:${from}`, outcome: 'done' },
+const arrow = (
+  from: string,
+  to: string,
+  linked: Arrow['linked'] = null,
+  outcome = 'done'
+): Arrow => ({
+  from: { stage: `o/p:${from}`, outcome },
   to: `o/p:${to}`,
   linked,
   active: false,
@@ -46,9 +51,11 @@ const graph = {
     stage('drain', ['drain']),
   ],
   arrows: [
-    arrow('triage', 'plan'),
+    arrow('triage', 'plan', null, 'whole'),
     arrow('triage', 'link'),
-    arrow('link', 'plan'),
+    arrow('triage', 'plan', null, 'small'),
+    arrow('triage', 'plan', null, 'whole'),
+    arrow('link', 'plan', null, 'placed'),
     arrow('plan', 'link', dependsOn),
     arrow('plan', 'drain'),
     arrow('link', 'link'),
@@ -64,12 +71,6 @@ const view: StructureView = {
     { id: 'plan', label: 'Plan', workflows: ['plan'] },
   ],
   runNames: { triage: 'o/p:triage', link: 'o/p:link', plan: 'o/p:plan' },
-  map: {
-    arrows: [
-      { from: 'link', to: 'plan', label: 'placed' },
-      { from: 'intake', to: 'plan', label: 'kept whole' },
-    ],
-  },
 };
 
 describe('the structure the pack graph gives', () => {
@@ -83,18 +84,13 @@ describe('the structure the pack graph gives', () => {
     ]);
   });
 
-  test("the map's arrows: the graph's between stages, labelled ones first, wake-ups and drains left out", () => {
+  test("the map's arrows: the graph's between stages in its order, each pair labelled with its values once, wake-ups and drains left out", () => {
     expect(mapArrows(view, graph)).toEqual([
+      { from: 'intake', to: 'plan', label: 'whole, small' },
+      { from: 'intake', to: 'link', label: 'done' },
       { from: 'link', to: 'plan', label: 'placed' },
-      { from: 'intake', to: 'plan', label: 'kept whole' },
-      { from: 'intake', to: 'link', label: undefined },
-      { from: 'link', to: 'link', label: undefined },
+      { from: 'link', to: 'link', label: 'done' },
     ]);
-  });
-
-  test('a label for a pair the graph does not connect draws nothing', () => {
-    const labelled = { ...view, map: { arrows: [{ from: 'plan', to: 'intake', label: 'back' }] } };
-    expect(mapArrows(labelled, graph).some(a => a.from === 'plan')).toBe(false);
   });
 
   test('where items go from a stage: its arrows into other stages, by label', () => {

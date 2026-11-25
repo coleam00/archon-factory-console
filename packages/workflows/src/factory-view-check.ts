@@ -1,9 +1,9 @@
 /**
  * Whether a pack's factory view (`schemas/factory-view.ts`) agrees with the pack graph. The view
  * is presentation only, so it may only name what the graph has: a stage, step, outcome, option
- * or group the graph lacks is an `error`, as is a map or How it works edge between stages the
- * graph does not connect. What the graph has and the view leaves out is a `warning`: an
- * in-flow stage no map card places or no words describe, and a group with no words. Read time
+ * or group the graph lacks is an `error`, as is a How it works edge between stages the graph
+ * does not connect. What the graph has and the view leaves out is a `warning`: an in-flow
+ * stage no words describe, and a group with no words. Read time
  * (`readPackView`) and `bun run check:factory-view` both run this.
  */
 import type { PackGraph } from './pack-graph';
@@ -182,23 +182,10 @@ function edgeError(
   ];
 }
 
-/** The map's card stages and the edges between its cards. */
-function mapErrors(view: FactoryView, index: GraphIndex): FactoryViewProblem[] {
-  const errors: FactoryViewProblem[] = [];
-  const stagesOf = new Map(view.map.cards.map(card => [card.id, card.stages]));
-  view.map.cards.forEach((card, c) => {
-    card.stages.forEach((stage, s) => {
-      if (!index.stages.has(stage))
-        errors.push(unknownStage(['map', 'cards', c, 'stages', s], stage, index.graph));
-    });
-  });
-  view.map.edges?.forEach((edge, e) => {
-    const from = stagesOf.get(edge.from);
-    const to = stagesOf.get(edge.to);
-    if (from !== undefined && to !== undefined)
-      errors.push(...edgeError(['map', 'edges', e], from, to, index));
-  });
-  return errors;
+/** The stage `merged` names, the one stage name outside `stages` and the progress keys. */
+function mergedErrors(view: FactoryView, index: GraphIndex): FactoryViewProblem[] {
+  if (view.merged === undefined || index.stages.has(view.merged)) return [];
+  return [unknownStage(['merged'], view.merged, index.graph)];
 }
 
 /**
@@ -236,15 +223,8 @@ function howItWorksErrors(view: FactoryView, index: GraphIndex): FactoryViewProb
 
 /** What the graph has that the view leaves out. Only in-flow stages: no item stands at the rest. */
 function warnings(view: FactoryView, graph: PackGraph): FactoryViewProblem[] {
-  const placed = new Set(view.map.cards.flatMap(card => card.stages));
   const warns: FactoryViewProblem[] = [];
   for (const stage of graph.stages.filter(entry => entry.inFlow)) {
-    if (!placed.has(stage.workflow))
-      warns.push({
-        severity: 'warning',
-        path: ['map', 'cards'],
-        message: `stage "${stage.workflow}" is on no map card`,
-      });
     if (view.stages[stage.workflow] === undefined)
       warns.push({
         severity: 'warning',
@@ -269,7 +249,7 @@ export function checkFactoryView(view: FactoryView, graph: PackGraph): FactoryVi
     ...stageErrors(view, index),
     ...keyErrors(view, index),
     ...groupErrors(view, graph),
-    ...mapErrors(view, index),
+    ...mergedErrors(view, index),
     ...howItWorksErrors(view, index),
     ...progressErrors(view, graph),
     ...warnings(view, graph),

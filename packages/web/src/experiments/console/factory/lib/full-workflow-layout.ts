@@ -13,6 +13,7 @@ import { rounded } from '../canvas-lines';
 import { PILL_LINE } from './map-sizes';
 import { PILL_H, pillWidth } from './overview-layout';
 import type { Box, Point } from './map-layout';
+import { wordsOf } from './graph-structure';
 
 export const FW_CARD_W = 208;
 export const FW_CARD_H = 92;
@@ -67,13 +68,6 @@ export interface FullLayout {
   cards: FullCard[];
   arrows: FullArrow[];
   bounds: Box;
-}
-
-/** What an arrow of the graph says: its outcome, or what settles the ask it follows. */
-function wordsOf(from: PackGraph['arrows'][number]['from']): string {
-  if ('outcome' in from) return from.outcome;
-  if (from.option !== undefined) return from.option;
-  return from.settled === 'any' ? 'asked' : from.settled;
 }
 
 /** The workflow each of the graph's stage names stands for. */

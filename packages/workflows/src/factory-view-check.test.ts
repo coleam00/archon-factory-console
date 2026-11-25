@@ -112,16 +112,7 @@ function view(): FactoryView {
       land: words,
     },
     outcomes: { 'make:done': { story: 'Made it' }, 'land:*': { story: 'Landed' } },
-    map: {
-      cards: [
-        { id: 'build', stages: ['make', 'check'] },
-        { id: 'ship', stages: ['land'] },
-      ],
-      edges: [
-        { from: 'build', to: 'build', label: 'built' },
-        { from: 'build', to: 'ship', label: 'passed' },
-      ],
-    },
+    merged: 'land',
     howItWorks: {
       title: 'x',
       caption: 'x',
@@ -154,11 +145,7 @@ describe('a name the graph lacks is an error', () => {
       v => void (v.stages.deploy = { label: 'x', blurb: 'x' }),
       'error stages.deploy',
     ],
-    [
-      'an unknown map stage',
-      v => void v.map.cards[1]?.stages.push('deploy'),
-      'error map.cards.1.stages.1',
-    ],
+    ['an unknown merged stage', v => void (v.merged = 'deploy'), 'error merged'],
     [
       'an unknown step',
       v => void (v.stages.make!.steps = { gone: 'x' }),
@@ -186,11 +173,6 @@ describe('a name the graph lacks is an error', () => {
     ],
     ['an unknown group', v => void (v.groups!.Other = { blurb: 'x' }), 'error groups.Other'],
     [
-      'a map edge between stages no arrow joins',
-      v => void v.map.edges?.push({ from: 'ship', to: 'build', label: 'back' }),
-      'error map.edges.2',
-    ],
-    [
       'a How it works edge between stages no arrow joins',
       v => void v.howItWorks.views.top!.edges.push({ from: 'b', to: 'a', kind: 'loops-back' }),
       'error howItWorks.views.top.edges.1',
@@ -207,14 +189,8 @@ test('a calls edge asks someone and is not compared with the arrows', () => {
 });
 
 describe('what the graph has and the view leaves out warns', () => {
-  test('an in-flow stage on no map card, or with no words', () => {
-    expect(
-      problems(v => {
-        v.map.cards.pop();
-        v.map.edges?.pop();
-        delete v.stages.land;
-      })
-    ).toEqual(['warning map.cards', 'warning stages']);
+  test('an in-flow stage with no words', () => {
+    expect(problems(v => void delete v.stages.land)).toEqual(['warning stages']);
   });
 
   test('a group with no words', () => {

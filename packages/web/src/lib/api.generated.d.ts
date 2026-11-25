@@ -12383,24 +12383,7 @@ export interface components {
               workflow: string;
               pointer: string;
             }[];
-        map: {
-          cards: {
-            id: string;
-            label?: string;
-            short?: string;
-            blurb?: string;
-            stages: string[];
-          }[];
-          edges?: {
-            from: string;
-            to: string;
-            label: string;
-          }[];
-          notes?: {
-            text: string;
-            near: string;
-          }[];
-        };
+        merged?: string;
         howItWorks: {
           title: string;
           caption: string;
