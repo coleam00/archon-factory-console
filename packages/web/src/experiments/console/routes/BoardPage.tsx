@@ -337,7 +337,7 @@ export function PackBoard({
           showEarlier={earlier}
         />
       ) : (
-        <div className="mt-3 flex flex-col gap-4 md:flex-row md:overflow-x-auto md:pb-2">
+        <div className="mt-3 flex flex-col gap-3 md:flex-row md:overflow-x-auto md:pb-2">
           {columns.map(column => (
             <Column
               key={column.name}
