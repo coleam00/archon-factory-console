@@ -7,6 +7,17 @@ export type PackGraph = components['schemas']['PackGraph'];
 
 export type ItemState = ItemRead['standing']['state'];
 
+// Every standing state, for a read that keeps them all; a new state fails the build.
+export const ITEM_STATES = Object.keys({
+  running: true,
+  waiting: true,
+  queued: true,
+  failed: true,
+  stopped: true,
+  done: true,
+  resting: true,
+} satisfies Record<ItemState, true>) as ItemState[];
+
 /** A page of items, the cursor of the next one (null on the last), and the window's totals. */
 export type ItemPage = Pick<components['schemas']['ItemWindow'], 'items' | 'next' | 'totals'>;
 

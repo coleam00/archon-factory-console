@@ -19,6 +19,7 @@ import { isItemAsk } from '../primitives/run';
 import * as skill from '../skills';
 import {
   getPackGraph,
+  ITEM_STATES,
   listItems,
   listItemsPage,
   type ItemPage,
@@ -482,12 +483,18 @@ export function PackBoard({
   );
 }
 
+interface WorkOrder {
+  item: ItemRead['item'];
+  members: ItemRead[];
+}
+
 /**
- * The work orders with a member open: each item that open items are `part_of`, with those
- * members. A member at rest is not in the open list, so only open members are counted.
+ * Every work order with a member: each item others are `part_of`, with those members, open
+ * ones first, then by their newest member. An order with no run of its own is listed from
+ * its members' links. `items` come most recently active first, as the item read pages them.
  */
-function workOrders(items: ItemRead[]): { item: ItemRead['item']; members: ItemRead[] }[] {
-  const orders = new Map<string, { item: ItemRead['item']; members: ItemRead[] }>();
+export function workOrders(items: readonly ItemRead[]): WorkOrder[] {
+  const orders = new Map<string, WorkOrder>();
   for (const read of items) {
     const item = orderOf(read);
     if (item === undefined) continue;
@@ -495,7 +502,58 @@ function workOrders(items: ItemRead[]): { item: ItemRead['item']; members: ItemR
     order.members.push(read);
     orders.set(item.id, order);
   }
-  return [...orders.values()];
+  const open = (order: WorkOrder): boolean => order.members.some(isMoving);
+  // Stable, so orders keep their newest member's order within open and the rest.
+  return [...orders.values()].sort((a, b) => Number(open(b)) - Number(open(a)));
+}
+
+const isMoving = (read: ItemRead): boolean =>
+  (MOVING as readonly string[]).includes(read.standing.state);
+
+/**
+ * The work orders, each with how many of its members merged and what its open members are
+ * doing. Choosing one with open members keeps the board to them.
+ */
+function WorkOrderStrip({
+  orders,
+  chosen,
+  choose,
+}: {
+  orders: WorkOrder[];
+  chosen: string | null;
+  choose: (order: string) => void;
+}): ReactElement | null {
+  if (orders.length === 0) return null;
+  return (
+    <section data-work-orders className="mb-6 flex flex-col gap-2">
+      {orders.map(({ item, members }) => {
+        const open = members.filter(isMoving);
+        const merged = members.filter(read => read.merged !== null).length;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            data-work-order={item.key}
+            aria-pressed={chosen === item.id}
+            disabled={open.length === 0}
+            onClick={() => {
+              choose(item.id);
+            }}
+            className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded border px-3 py-2 text-left ${chosen === item.id ? 'border-accent bg-surface-elevated' : 'border-border bg-surface hover:bg-surface-hover disabled:hover:bg-surface'}`}
+          >
+            <span className="font-mono text-console-11 text-text-tertiary">{item.key}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+              {item.title ?? 'Work order'}
+            </span>
+            <span data-work-order-line className="text-console-11 text-text-secondary">
+              {merged} of {members.length} merged
+              {open.length === 0 ? '' : ` · ${String(open.length)} open · ${stageLine(open)}`}
+            </span>
+          </button>
+        );
+      })}
+    </section>
+  );
 }
 
 export function BoardPage(): ReactElement {
@@ -511,8 +569,12 @@ export function BoardPage(): ReactElement {
   const [showOutside, setShowOutside] = useState(false);
   const [filter, setFilter] = useState('');
   const [order, setOrder] = useState<string | null>(null);
+  // Every item, so an order lists its merged members too; the open ones stand in until it reads.
+  const every = useEntity<ItemRead[]>(K.boardOrders(projectId), () =>
+    listItems(projectId, ITEM_STATES)
+  );
   const all = open.data ?? [];
-  const orders = workOrders(all);
+  const orders = workOrders(every.data ?? all);
   const wanted = filter.trim().toLowerCase();
   const items = all.filter(
     read =>
@@ -521,7 +583,7 @@ export function BoardPage(): ReactElement {
         read.item.key.toLowerCase().includes(wanted) ||
         (read.item.title ?? '').toLowerCase().includes(wanted))
   );
-  const packOf = (read: ItemRead): string | undefined => standingRun(read)?.pack?.key;
+  const packOf = (read: ItemRead): string | undefined => read.standing.pack ?? undefined;
   const moving = items;
   // Every pack with an item in the project, so a pack with nothing open still shows Done.
   const packs = [
@@ -557,30 +619,13 @@ export function BoardPage(): ReactElement {
           placeholder="Filter by key or title"
           className="mb-4 w-full rounded border border-border bg-surface px-3 py-1.5 text-console-12 text-text-primary md:w-80"
         />
-        {orders.length > 0 ? (
-          <section data-work-orders className="mb-6 flex flex-col gap-2">
-            {orders.map(({ item, members }) => (
-              <button
-                key={item.id}
-                type="button"
-                data-work-order={item.key}
-                aria-pressed={order === item.id}
-                onClick={() => {
-                  setOrder(current => (current === item.id ? null : item.id));
-                }}
-                className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded border px-3 py-2 text-left ${order === item.id ? 'border-accent bg-surface-elevated' : 'border-border bg-surface hover:bg-surface-hover'}`}
-              >
-                <span className="font-mono text-console-11 text-text-tertiary">{item.key}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
-                  {item.title ?? 'Work order'}
-                </span>
-                <span className="text-console-11 text-text-secondary">
-                  {members.length} open · {stageLine(members)}
-                </span>
-              </button>
-            ))}
-          </section>
-        ) : null}
+        <WorkOrderStrip
+          orders={orders}
+          chosen={order}
+          choose={id => {
+            setOrder(current => (current === id ? null : id));
+          }}
+        />
         {packs.map(pack => (
           <PackBoard
             key={pack}
