@@ -193,8 +193,9 @@ function useForgeRead(
 
 /**
  * The issue titles the forge names for `reads` whose title column is empty: what a card prints
- * as its title, and what the board's filter searches (`itemMatches`). Read apart from the run
- * records and the pack reads, so titles show as soon as the forge answers.
+ * as its title, and what the board's filter searches (`itemMatches`). `projectId` null reads
+ * nothing: a forge lookup holds the server (it asks the change host for each issue), so the
+ * cards ask only once the board's pack graph, which the stage columns wait on, has answered.
  */
 export function useForgeTitles(
   projectId: string | null,
@@ -262,7 +263,8 @@ export function useCardList(reads: readonly ItemRead[]): (read: ItemRead) => Car
   const cards = useFactoryCards();
   const projectId = cards?.projectId ?? null;
   const packs = cards?.packs ?? new Map<string, CardPack>();
-  const issues = useForgeTitles(projectId, reads);
+  // After the packs are read, so the forge never competes with the columns' graph read.
+  const issues = useForgeTitles(cards?.packs == null ? null : projectId, reads);
   const { records, asked } = useListRecords(
     cards?.packs == null ? null : projectId,
     recordsAsk(packs, reads)

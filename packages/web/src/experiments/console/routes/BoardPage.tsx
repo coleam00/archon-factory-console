@@ -520,8 +520,10 @@ export function BoardPage(): ReactElement {
   const all = open.data ?? [];
   const orders = workOrders(every.data ?? all);
   // The filter searches what each card shows: its issue title and its key as a person reads it.
-  const titles = useForgeTitles(projectId, all);
+  // The titles are read only once something is typed, so a cold board's first reads are the
+  // stage columns' own.
   const wanted = filter.trim().toLowerCase();
+  const titles = useForgeTitles(wanted === '' ? null : projectId, all);
   const items = all.filter(
     read =>
       (order === null || orderOf(read)?.id === order || read.item.id === order) &&

@@ -481,9 +481,9 @@ test('the board filter finds a card by the issue title and the key the card prin
   }
 });
 
-test("the cards share the columns' graph read, and read the view only once it has answered", async () => {
-  // Issue-keyed items with titles of their own: no forge read.
-  const reads = [item('issue-2', 'plan', 'waiting')];
+test("the stage columns' graph read goes alone: the cards share it, then read the view and the forge", async () => {
+  // An untitled issue-keyed item, whose card will ask the forge for its title.
+  const reads = [untitled('issue-2', 'plan')];
   seedBoard(reads);
   const asked: string[] = [];
   let answerGraph: () => void = () => undefined;
@@ -499,17 +499,18 @@ test("the cards share the columns' graph read, and read the view only once it ha
       });
     if (url.includes('/view'))
       return Promise.resolve(json({ path: null, view: null, problems: [] }));
+    if (url.includes('/forge/subjects')) return Promise.resolve(json({ issues: [], changes: [] }));
     return nothingFetched(url);
   });
   try {
-    // While the graph read is out, one request for it, and none for the view.
+    // While the graph read is out: one request for it, and none for the view or the forge.
     expect(asked).toEqual(['/api/packs/flow/graph']);
     await board.act(async () => {
       answerGraph();
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 10));
     });
     expect(board.container.querySelectorAll('[data-stage]').length).toBeGreaterThan(0);
-    expect(asked).toEqual(['/api/packs/flow/graph', '/api/packs/flow/view']);
+    expect(asked).toEqual(['/api/packs/flow/graph', '/api/packs/flow/view', '/api/forge/subjects']);
   } finally {
     await board.unmount();
   }
