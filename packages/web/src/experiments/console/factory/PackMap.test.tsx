@@ -196,9 +196,12 @@ describe('the stage modal', () => {
     ]);
     await openTab('Items here now');
     expect(texts('[data-item]', 'data-item')).toEqual(['b1', 'b2']);
-    // b1's line is the board card's: its stage and the step its run works, in the file's words.
+    // b1's line is the board card's: its stage and the step its run works, in the pack's words
+    // (the included build node's `display:`, served on the graph under its expanded id).
     const b1 = dialog().querySelector('[data-item="b1"] [data-state]')?.textContent ?? '';
-    expect(b1).toContain(shippedFile.stages['stage-build']?.steps?.build__build ?? 'missing');
+    const build = shippedGraph.stages.find(stage => stage.workflow === 'stage-build');
+    const step = build?.nodes.find(node => node.id === 'build__build')?.display?.label;
+    expect(b1).toContain(step ?? 'missing');
     await openTab('The real workflow');
     expect(texts('[data-workflow]', 'data-workflow')).toEqual(['stage-build']);
     expect(texts('[data-step]', 'data-step')).toEqual(

@@ -75,6 +75,7 @@ The same tree works under `~/.archon/workflows/` for home-scoped workflows. Exis
 | `inputs`, `returns` | The workflow's signature, including the outcome a run completes with (`returns: { node, outcome }`) and inputs filled from an earlier run's result (`result_of`). See [Workflow signature](#workflow-signature-inputs-returns-and-inputs). |
 | `tags` | Free-form labels carried on the parsed workflow. The engine gives them no meaning. |
 | `deprecated` | `{ message }` announces removal at every run start. See [Deprecating a workflow](#deprecating-a-workflow). |
+| `display` | Words a person reads for the workflow, served by the pack graph (`GET /api/packs/{pack}/graph`, `archon pack graph`) and never read by the executor: `label` (required, up to 80 characters), `short` (up to 24), `blurb` (up to 300) and `outcomes`, which gives each value of the declared outcome (`returns.outcome`) an optional `label` and `story` (one sentence, or `{ withChange, withoutChange }`). An unknown key, or an outcome the workflow cannot end with, fails the load. |
 
 Some fields are retired. Workflow-level `interactive:` loads with a warning and has no effect. `modelReasoningEffort:` is applied as `effort:` with a warning. The old sequential `steps:` format fails to load, and so does `thinking:` on a workflow, node, tier or alias, with an error pointing at `effort:`. Workflow-level `evidence_policy:` also fails to load: it only checked that a file named `evidence.json` existed, so use a `bash:` or `script:` node that exits non-zero when a check must fail the run.
 
@@ -106,6 +107,7 @@ A node without `depends_on` starts in the first layer. A node starts when every 
 |-------|------|---------|-------------|
 | `id` | string | required | Unique node identifier. Used in `depends_on`, `when:`, and `$id.output` substitution |
 | `depends_on` | string[] | `[]` | Node IDs that must complete before this node runs |
+| `display` | `{ label, text? }` | unset | The node's name for a person, and an optional longer line, served by the pack graph under the id the node runs as (`<include>__<id>` for an included node). Never read by the executor. Not allowed on an `include:` node without `fan_out`: put it on the included workflow's node. An unknown key fails the load |
 | `when` | string | unset | Condition expression. Node is skipped if false. See [Condition Syntax](#when-condition-syntax) |
 | `trigger_rule` | string | `all_success` | Join semantics when multiple upstreams exist. Distinct from a fan-out node's [`fan_out.join`](#the-four-fields), which reduces one node's N children and defaults to `all_done` |
 | `context` | `'fresh'` \| `'shared'` \| `'same'` \| `{ resume: node-id }` | unset | `fresh` = new session; `shared` = inherit the ambient prior session in a sequential layer; `same` = continue the session this node itself last had, in its previous loop round or an earlier run on the same item (see [Continuing a node's own session](#continuing-a-nodes-own-session)); `resume` = fork the exact completed upstream node's session. Parallel layers require named resume, `same`, or fresh context |

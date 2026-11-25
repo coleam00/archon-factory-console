@@ -3,7 +3,8 @@
  * is presentation only, so it may only name what the graph has: a stage, step, outcome, option
  * or group the graph lacks is an `error`, as is a map or How it works edge between stages the
  * graph does not connect. What the graph has and the view leaves out is a `warning`: an
- * in-flow stage no map card places or no words describe, and a group with no words. Read time
+ * in-flow stage no map card places or no words describe (here or in its workflow's
+ * `display:`), and a group with no words. Read time
  * (`readPackView`) and `bun run check:factory-view` both run this.
  */
 import type { PackGraph } from './pack-graph';
@@ -245,7 +246,8 @@ function warnings(view: FactoryView, graph: PackGraph): FactoryViewProblem[] {
         path: ['map', 'cards'],
         message: `stage "${stage.workflow}" is on no map card`,
       });
-    if (view.stages[stage.workflow] === undefined)
+    // Its workflow's `display:` words it as well as an entry here does.
+    if (view.stages[stage.workflow] === undefined && stage.display === undefined)
       warns.push({
         severity: 'warning',
         path: ['stages'],
