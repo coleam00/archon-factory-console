@@ -29,8 +29,9 @@ const MAP_SMALLEST_TEXT = 'text-console-12';
 export const MAP_SMALLEST_PX = tokenPx(MAP_SMALLEST_TEXT);
 export const TYPE_FLOOR_PX = 12;
 /**
- * The least scale fitting opens at, so the map's text never draws under the type floor: 1. A
- * frame too narrow for the whole map at this scale shows part of it and pans to the rest.
+ * The scale at which the map's text draws at the type floor: 1. It is only `fitCamera`'s and
+ * `fittedHeight`'s default floor; the live map opens down to `LIVE_MIN_K` instead (ruling
+ * 33a557aa), and How it works passes its own floor.
  */
 export const READABLE_K = TYPE_FLOOR_PX / MAP_SMALLEST_PX;
 /**
@@ -63,7 +64,7 @@ export function clampK(k: number): number {
 
 /**
  * The scale that fits `bounds` in `frame`, inside the padding, never under `minK` nor over
- * `maxK`; `maxK` for an empty map. `minK` is `READABLE_K` for the live map; the factory overview
+ * `maxK`; `maxK` for an empty map. `minK` is `LIVE_MIN_K` for the live map; the factory overview
  * passes its own floor, and a `maxK` over 1 so a small view fills a large frame.
  */
 function fitScale(bounds: Box, frame: Frame, fitPad: FitPad, minK: number, maxK: number): number {
