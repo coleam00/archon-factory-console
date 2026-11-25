@@ -72,10 +72,36 @@ test('accepts the valid view', () => {
   expect(issues(valid())).toEqual([]);
 });
 
+test('accepts where progress lives in a run: one rounds source or a list, returns, change', () => {
+  expect(
+    issues({
+      ...valid(),
+      retired: ['old'],
+      rounds: [
+        { workflow: 'old', loop: 'rounds' },
+        { workflow: 'make', round: '/round', allowance: '/allowance' },
+      ],
+      returns: [{ workflow: 'make', node: 'write', outcome: 'return' }],
+      approves: [{ workflow: 'make', node: 'write', outcome: 'approve' }],
+      change: { workflow: 'make', pointer: '/change' },
+    })
+  ).toEqual([]);
+});
+
+test('a rounds source missing a key is refused naming the key', () => {
+  const parsed = factoryViewSchema.safeParse({
+    ...valid(),
+    rounds: { workflow: 'make', round: '/round' },
+  });
+  expect(parsed.error?.issues.map(issue => [issue.path.join('.'), issue.message])).toEqual([
+    ['rounds', 'a stage-form rounds source { workflow, round, allowance } needs `allowance`'],
+  ]);
+});
+
 describe('factoryViewSchema rejects', () => {
   test.each<[string, (v: FactoryView) => unknown]>([
     ['placement, which the server computes', v => ({ ...v, placement: { 'make:done': 'make' } })],
-    ['rounds, which the web computes', v => ({ ...v, rounds: { workflow: 'make', loop: 'x' } })],
+    ['verdicts, which the web words from outcomes', v => ({ ...v, verdicts: {} })],
     ['map arrows, which the graph draws', v => ({ ...v, map: { ...v.map, arrows: [] } })],
   ])('a removed field: %s', (_name, edit) => {
     expect(
