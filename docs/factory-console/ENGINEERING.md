@@ -74,7 +74,8 @@ The factory building this repository runs Archon from another checkout, on the h
   `factory/lib/map-source.ts` is the one place that decides, and everything else draws the map
   derived from the pack graph.
 - Server code is the view-file read (`GET /api/packs/{pack}/view` in `api.packs.ts`, beside the
-  graph route), and two generic reads with no pack words that the web cannot get from older routes:
+  graph route; the two share one graph read while it runs, `shareWhileRunning`, and keep nothing
+  once it settles), and two generic reads with no pack words that the web cannot get from older routes:
   `GET /api/workflows/runs/records` (`api.run-records.ts`, run records without events) and
   `GET /api/forge/subjects` (`api.forge.ts`, issue titles and change merge state). The server
   asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins

@@ -14,7 +14,7 @@ import {
   fittedHeight,
   MAP_ROOM_Y,
   MIN_FRAME_HEIGHT,
-  READABLE_K,
+  LIVE_MIN_K,
   reveal,
   zoomAt,
   type Camera,
@@ -63,10 +63,13 @@ export interface Fitting {
   maxK: number;
   reserveBottom: number;
 }
-/** The live map: opens at its start sideways, with room above and below the drawing. */
+/**
+ * The live map: opens fitted to its frame down to `LIVE_MIN_K`, else at its start sideways,
+ * with room above and below the drawing.
+ */
 export const LIVE_FITTING: Fitting = {
   pad: { x: FIT_PAD, y: MAP_ROOM_Y },
-  minK: READABLE_K,
+  minK: LIVE_MIN_K,
   maxK: 1,
   reserveBottom: 0,
 };

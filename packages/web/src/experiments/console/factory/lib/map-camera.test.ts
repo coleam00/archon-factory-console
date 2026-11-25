@@ -1,5 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { fitCamera, fittedHeight, MIN_ZOOM, READABLE_K, reveal, zoomAt } from './map-camera';
+import {
+  FIT_PAD,
+  fitCamera,
+  LIVE_MIN_K,
+  MAP_ROOM_Y,
+  MIN_ZOOM,
+  READABLE_K,
+  reveal,
+  zoomAt,
+} from './map-camera';
 import { layoutMap } from './map-layout';
 import { shippedArrows, shippedView } from '../curated.test-fixtures';
 
@@ -21,11 +30,19 @@ describe('the map camera', () => {
     expect(camera.x).toBe(24);
   });
 
-  test('the shipped map opens at the readable scale at every frame width', () => {
+  test('the shipped map opens whole in a 1440 frame, and at its start on narrower ones', () => {
     const { bounds } = layoutMap(shippedView, shippedArrows);
-    for (const width of [320, 390, 768, 1100, 1280, 1600]) {
-      const camera = fitCamera(bounds, { width, height: fittedHeight(bounds, width) });
-      expect(camera.k).toBe(READABLE_K);
+    const pad = { x: FIT_PAD, y: MAP_ROOM_Y };
+    // The Overview's frame at 1440x900 is about 1110 px wide: every card shows, Merged included.
+    for (const width of [1110, 1280, 1600]) {
+      const camera = fitCamera(bounds, { width, height: 2000 }, pad, LIVE_MIN_K);
+      expect(bounds.w * camera.k).toBeLessThanOrEqual(width - 2 * FIT_PAD);
+    }
+    // A phone opens at the least live scale, at the row's start, and pans to the rest.
+    for (const width of [320, 390, 768]) {
+      const camera = fitCamera(bounds, { width, height: 2000 }, pad, LIVE_MIN_K);
+      expect(camera.k).toBe(LIVE_MIN_K);
+      expect(camera.x).toBe(FIT_PAD);
     }
   });
 

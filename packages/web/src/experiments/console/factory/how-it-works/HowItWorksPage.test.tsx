@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { act } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import type { Project } from '../../primitives/project';
-import type { ItemPage, ItemRead } from '../../skills/items';
 import { invalidate, set } from '../../store/cache';
 import { K } from '../../store/keys';
 import type { PackView } from '../api';
@@ -30,7 +30,7 @@ let unmount: (() => Promise<void>) | undefined;
 afterEach(async () => {
   await unmount?.();
   unmount = undefined;
-  for (const prefix of ['projects', 'pack-view', 'pack-graph', 'board']) invalidate(prefix);
+  for (const prefix of ['projects', 'pack-view', 'pack-graph']) invalidate(prefix);
 });
 
 /** Mounts the sidebar's Factory routes at `at`, the pack staged by the second project. */
@@ -38,12 +38,6 @@ async function mount(at: string, view: PackView): Promise<HTMLElement> {
   set(K.projects, [project('cb-0', []), project('cb-1', [PACK])]);
   set(K.packView('cb-1', PACK), view);
   set(K.packGraph('cb-1', PACK), shippedGraph);
-  set(K.board('cb-1'), [] satisfies ItemRead[]);
-  set(K.boardDone('cb-1', PACK), {
-    items: [],
-    next: null,
-    totals: { done: 0 },
-  } as unknown as ItemPage);
   const mounted = await mountTree(
     <MemoryRouter initialEntries={[at]}>
       <Routes>
@@ -64,10 +58,32 @@ const page = `/console/factory/${PACK}/how-it-works`;
 const cards = (within: ParentNode): string[] =>
   [...within.querySelectorAll('[data-card]')].map(card => card.getAttribute('data-card') ?? '');
 
+/**
+ * How it works is the pack's page and names no project (DESIGN.md, owner change 1 of
+ * 2026-11-23): its derived flow shows no project's counts and opens no project's board.
+ */
+function namesNoProject(within: ParentNode): void {
+  const flow = within.querySelector('div[data-flow]');
+  expect(flow?.querySelector('[data-count], [data-need-you]')).toBeNull();
+  expect(flow?.querySelector('a')).toBeNull();
+  expect(within.querySelector('a[href*="/console/p/"]')).toBeNull();
+}
+
 describe('How it works', () => {
   test("/console/factory opens the first staged pack's How it works", async () => {
     const opened = await mount('/console/factory', CURATED);
-    expect(opened.querySelector('h1')?.textContent).toBe(shippedFile.title);
+    expect(opened.querySelector('[data-card]')).not.toBeNull();
+  });
+
+  test('the header names the pack as a person reads it, with the raw key on hover, file or not', async () => {
+    for (const view of [CURATED, NO_FILE]) {
+      const opened = await mount(page, view);
+      const title = opened.querySelector('h1');
+      expect(title?.textContent).toBe('Archon software factory');
+      expect(title?.getAttribute('title')).toBe(PACK);
+      await unmount?.();
+      unmount = undefined;
+    }
   });
 
   test("with the file: the root view's cards and its caption, from the file", async () => {
@@ -92,6 +108,20 @@ describe('How it works', () => {
     expect(opened.querySelector('[data-document]')?.textContent).toContain('How the factory works');
     expect(opened.querySelector('div[data-flow]')).not.toBeNull();
     expect(cards(opened)).toEqual([]);
+    namesNoProject(opened);
+  });
+
+  test('Full workflow draws the derived structure, naming no project', async () => {
+    const opened = await mount(page, CURATED);
+    const full = [...opened.querySelectorAll('[aria-label="Which map"] button')].find(
+      button => button.textContent === 'Full workflow'
+    );
+    if (full === undefined) throw new Error('no Full workflow segment');
+    await act(async () => (full as HTMLElement).click());
+    await settle();
+    expect(opened.querySelector('div[data-flow]')).not.toBeNull();
+    expect(cards(opened)).toEqual([]);
+    namesNoProject(opened);
   });
 
   test('a pack no project stages says so and draws nothing else', async () => {

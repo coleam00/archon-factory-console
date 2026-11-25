@@ -73,10 +73,8 @@ export function PackMap({
   const board = `/console/p/${encodeURIComponent(projectId)}/board`;
   const derived = (
     <DerivedFlow
-      board={board}
       flow={flowCounts(columnsOf(graph.data), moving.data ?? [])}
-      done={done.total}
-      landed={landedToday}
+      live={{ board, done: done.total, landed: landedToday }}
     />
   );
   if (source.kind === 'loading')

@@ -1,23 +1,18 @@
 /**
  * The map derived from the pack graph (DESIGN.md, COMBINED direction): the pack's columns, its
- * document groups then each flow stage no group holds, as a row of boxes with their counts,
- * then the board's Done. The Overview draws it when the pack ships no curated view file, and
- * as the curated map's "Full workflow".
+ * document groups then each flow stage no group holds, as a row of boxes, then Done. On a
+ * project's Overview each box carries the project's counts and opens its board; on How it works,
+ * which is the pack's page and names no project (DESIGN.md, owner change 1 of 2026-11-23), the
+ * boxes are the structure alone. Both draw it when the pack ships no curated view file, and as
+ * the curated map's "Full workflow".
  */
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { Link } from 'react-router';
-import {
-  chipOf,
-  columnsOf,
-  MOVING,
-  newestDone,
-  standingRun,
-  type StageGroup,
-} from '../routes/BoardPage';
-import { listItems, type ItemPage, type ItemRead } from '../skills/items';
-import { useEntity } from '../store/cache';
-import { K } from '../store/keys';
+import { chipOf, columnsOf, standingRun, type StageGroup } from '../routes/BoardPage';
+import type { ItemRead } from '../skills/items';
+import { GraphSkeleton } from './GraphSkeleton';
 import { usePackGraph } from './map-structure';
+import { ReadFailure } from './ReadFailure';
 
 /** How many of a pack's items sit in each column, and how many of those wait on the operator. */
 export function flowCounts(
@@ -36,64 +31,94 @@ export function flowCounts(
   });
 }
 
-/** The pack's columns as a row of boxes with their counts, then the board's Done. */
-export function DerivedFlow({
-  board,
-  flow,
-  done,
-  landed,
-}: {
+/** One column of the derived map, with the project's counts when it is drawn for one. */
+type FlowColumn = StageGroup & { count?: number; needYou?: number };
+
+/** What a project's derived map adds to the structure: its board and its Done. */
+interface FlowLive {
   board: string;
-  flow: ReturnType<typeof flowCounts>;
   done: number;
-  /** How many merged today; the How it works page, which reads no day, leaves it out. */
-  landed?: number;
+  /** How many merged today. */
+  landed: number;
+}
+
+const BOX = 'block min-w-36 rounded-console-12 border border-border px-4 py-3';
+
+/**
+ * The pack's columns as a row of boxes, then Done. With `live` (a project's Overview), each
+ * box shows its count and who it waits on and opens that column on the board; without it
+ * (How it works), the boxes show the structure alone and link nowhere.
+ */
+export function DerivedFlow({
+  flow,
+  live,
+}: {
+  flow: readonly FlowColumn[];
+  live?: FlowLive;
 }): ReactElement {
+  const box = (name: string, to: string | undefined, children: ReactNode): ReactElement =>
+    to === undefined ? (
+      <div data-flow-group={name} className={BOX}>
+        {children}
+      </div>
+    ) : (
+      <Link data-flow-group={name} to={to} className={`${BOX} hover:border-border-bright`}>
+        {children}
+      </Link>
+    );
   return (
     <div data-flow>
       <h2 className="text-sm font-medium text-text-primary">The flow</h2>
       <ol className="mt-3 flex flex-col gap-2 md:flex-row md:flex-wrap md:items-stretch">
         {flow.map(column => (
           <li key={column.name} className="flex items-center gap-2">
-            <Link
-              data-flow-group={column.name}
-              to={`${board}?group=${encodeURIComponent(column.name)}`}
-              className="block min-w-36 rounded-console-12 border border-border px-4 py-3 hover:border-border-bright"
-            >
-              <span className="text-console-12 font-medium text-text-secondary">{column.name}</span>
-              <span data-count className="ml-2 text-base tabular-nums text-text-primary">
-                {column.count}
-              </span>
-              <span className="mt-1 block font-mono text-console-10 text-text-tertiary">
-                {column.stages.join(' · ')}
-              </span>
-              {column.needYou > 0 ? (
-                <span data-need-you className="mt-1 block text-console-11 text-warning">
-                  {column.needYou} need you
+            {box(
+              column.name,
+              live === undefined
+                ? undefined
+                : `${live.board}?group=${encodeURIComponent(column.name)}`,
+              <>
+                <span className="text-console-12 font-medium text-text-secondary">
+                  {column.name}
                 </span>
-              ) : null}
-            </Link>
+                {column.count === undefined ? null : (
+                  <span data-count className="ml-2 text-base tabular-nums text-text-primary">
+                    {column.count}
+                  </span>
+                )}
+                <span className="mt-1 block font-mono text-console-10 text-text-tertiary">
+                  {column.stages.join(' · ')}
+                </span>
+                {column.needYou === undefined || column.needYou === 0 ? null : (
+                  <span data-need-you className="mt-1 block text-console-11 text-warning">
+                    {column.needYou} need you
+                  </span>
+                )}
+              </>
+            )}
             <span aria-hidden className="text-text-tertiary">
               →
             </span>
           </li>
         ))}
         <li>
-          <Link
-            data-flow-group="done"
-            to={board}
-            className="block min-w-36 rounded-console-12 border border-border px-4 py-3 hover:border-border-bright"
-          >
-            <span className="text-console-12 font-medium text-text-secondary">Done</span>
-            <span data-count className="ml-2 text-base tabular-nums text-text-primary">
-              {done}
-            </span>
-            {landed === undefined ? null : (
-              <span className="mt-1 block text-console-11 text-text-tertiary">
-                {landed} landed today
-              </span>
-            )}
-          </Link>
+          {box(
+            'done',
+            live?.board,
+            <>
+              <span className="text-console-12 font-medium text-text-secondary">Done</span>
+              {live === undefined ? null : (
+                <>
+                  <span data-count className="ml-2 text-base tabular-nums text-text-primary">
+                    {live.done}
+                  </span>
+                  <span className="mt-1 block text-console-11 text-text-tertiary">
+                    {live.landed} landed today
+                  </span>
+                </>
+              )}
+            </>
+          )}
         </li>
       </ol>
     </div>
@@ -101,19 +126,25 @@ export function DerivedFlow({
 }
 
 /**
- * The derived map of a pack as a project stages it, read on its own, under the keys the board
- * and the Overview read with: How it works draws it outside any project's page.
+ * The pack's derived map as structure only, from its graph: How it works, the pack's page,
+ * draws it with no project's counts or board. The graph is read through the first project that
+ * stages the pack, as the server reads a pack as a project has it installed.
  */
-export function DerivedMap({ projectId, pack }: { projectId: string; pack: string }): ReactElement {
+export function DerivedStructure({
+  projectId,
+  pack,
+}: {
+  projectId: string;
+  pack: string;
+}): ReactElement {
   const graph = usePackGraph(projectId, pack);
-  const open = useEntity<ItemRead[]>(K.board(projectId), () => listItems(projectId, MOVING));
-  const done = useEntity<ItemPage>(K.boardDone(projectId, pack), () => newestDone(projectId, pack));
-  const moving = (open.data ?? []).filter(read => read.standing.pack === pack);
-  return (
-    <DerivedFlow
-      board={`/console/p/${encodeURIComponent(projectId)}/board`}
-      flow={flowCounts(columnsOf(graph.data), moving)}
-      done={done.data?.totals?.done ?? 0}
-    />
-  );
+  if (graph.data === undefined)
+    return graph.error === undefined ? (
+      <GraphSkeleton label="Loading the flow" />
+    ) : (
+      <ReadFailure retry={graph.refetch}>
+        The pack's graph could not be read: {graph.error.message}
+      </ReadFailure>
+    );
+  return <DerivedFlow flow={columnsOf(graph.data)} />;
 }

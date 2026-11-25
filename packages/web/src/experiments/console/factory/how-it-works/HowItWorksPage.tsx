@@ -16,7 +16,8 @@ import type { Project } from '../../primitives/project';
 import * as skill from '../../skills';
 import { useEntity } from '../../store/cache';
 import { K } from '../../store/keys';
-import { DerivedMap } from '../DerivedFlow';
+import { DerivedStructure } from '../DerivedFlow';
+import { packDisplayName, packIdOfKey } from '../lib/pack-name';
 import { GraphSkeleton } from '../GraphSkeleton';
 import { mapSource } from '../lib/map-source';
 import { factoryPackPath } from '../lib/views';
@@ -62,13 +63,22 @@ export function FactoryHome(): ReactElement {
   return <Navigate replace to={factoryPackPath(first.pack)} />;
 }
 
+/**
+ * The page's header: the pack's name as a person reads it ("Archon software factory"), the raw
+ * key on hover (DESIGN.md, Where it lives). The view file's own title heads the map, as the root
+ * of its breadcrumb.
+ */
+function heading(pack: string): { title: string; titleHint: string } {
+  return { title: packDisplayName(packIdOfKey(pack)), titleHint: pack };
+}
+
 /** `/console/factory/:pack/how-it-works`. */
 export function HowItWorksPage(): ReactElement {
   const { pack = '' } = useParams<{ pack: string }>();
   const projects = useProjects();
   if (projects.data === undefined)
     return (
-      <PackFrame title={pack}>
+      <PackFrame {...heading(pack)}>
         {projects.error === undefined ? (
           <GraphSkeleton label="Loading How it works" />
         ) : (
@@ -79,7 +89,7 @@ export function HowItWorksPage(): ReactElement {
   const staged = stagedPacks(projects.data).find(entry => entry.pack === pack);
   if (staged === undefined)
     return (
-      <PackFrame title={pack}>
+      <PackFrame {...heading(pack)}>
         <p data-unstaged className="text-console-14 text-text-secondary">
           No project stages the pack <span className="font-mono">{pack}</span>, so there is nothing
           to read it from.
@@ -95,23 +105,20 @@ function HowItWorks({ projectId, pack }: { projectId: string; pack: string }): R
   const [full, choose] = useFullWorkflow();
   if (source.kind === 'loading')
     return (
-      <PackFrame title={pack}>
+      <PackFrame {...heading(pack)}>
         <GraphSkeleton label="Loading How it works" />
       </PackFrame>
     );
   if (source.kind === 'derived') {
     const document = graph.data?.document;
     return (
-      <PackFrame title={pack}>
+      <PackFrame {...heading(pack)}>
         {source.note === null ? null : (
           <p data-map-note className="text-console-12 text-warning">
             {source.note}
           </p>
         )}
-        {graph.error === undefined ? null : (
-          <Failed>The pack's graph could not be read: {graph.error.message}</Failed>
-        )}
-        <DerivedMap projectId={projectId} pack={pack} />
+        <DerivedStructure projectId={projectId} pack={pack} />
         {document == null || document.text === '' ? null : (
           <div
             data-document
@@ -125,8 +132,7 @@ function HowItWorks({ projectId, pack }: { projectId: string; pack: string }): R
   }
   return (
     <PackFrame
-      title={source.view.title}
-      titleHint={pack}
+      {...heading(pack)}
       source={
         <>
           Read from the pack's factory view file{' '}
@@ -150,7 +156,7 @@ function HowItWorks({ projectId, pack }: { projectId: string; pack: string }): R
       }
     >
       {full ? (
-        <DerivedMap projectId={projectId} pack={pack} />
+        <DerivedStructure projectId={projectId} pack={pack} />
       ) : (
         <OverviewBody overview={source.view.howItWorks} />
       )}

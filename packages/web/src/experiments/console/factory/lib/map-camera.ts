@@ -33,6 +33,14 @@ export const TYPE_FLOOR_PX = 12;
  * frame too narrow for the whole map at this scale shows part of it and pans to the rest.
  */
 export const READABLE_K = TYPE_FLOOR_PX / MAP_SMALLEST_PX;
+/**
+ * The least scale the live map opens (and Fit returns) at. The owner's ruling of 2026-11-25
+ * (ruling 33a557aa) has the Overview map open fitted to its frame at 1440, the Merged card in
+ * view: the shipped map is about 1313 px wide and its frame there about 1110, so it opens near
+ * 0.82. Below this scale, on narrower frames, it opens at this scale at its start and pans, so
+ * a phone does not shrink it to nothing. A person may still zoom in to read closer.
+ */
+export const LIVE_MIN_K = 0.75;
 /** Space kept between the fitted map and the frame's edge. */
 export const FIT_PAD = 16;
 /**
