@@ -1,9 +1,9 @@
 /**
  * Whether a pack's factory view (`schemas/factory-view.ts`) agrees with the pack graph. The view
  * is presentation only, so it may only name what the graph has: a stage, step, outcome, option
- * or group the graph lacks is an `error`, as is a map or How it works edge between stages the
- * graph does not connect. What the graph has and the view leaves out is a `warning`: an
- * in-flow stage no map card places or no words describe, and a group with no words. Read time
+ * or group the graph lacks is an `error`, as is a How it works edge between stages the graph
+ * does not connect. What the graph has and the view leaves out is a `warning`: an in-flow
+ * stage no words describe, and a group with no words. Read time
  * (`readPackView`) and `bun run check:factory-view` both run this.
  */
 import type { PackGraph } from './pack-graph';
@@ -148,12 +148,23 @@ function keyErrors(view: FactoryView, index: GraphIndex): FactoryViewProblem[] {
   return errors;
 }
 
-/** Each `groups` key is a group the pack document declares. */
+/**
+ * Each `groups` key is a group the pack document declares. A pack that declares no groups at
+ * all (no document, or one without them) leaves the file's group words unused, which warns:
+ * the map then draws a card per stage, and the same file still serves a pack that has them.
+ */
 function groupErrors(view: FactoryView, graph: PackGraph): FactoryViewProblem[] {
   const known = new Set(graph.groups.map(group => group.name));
+  const unread = (graph.document?.problems.length ?? 0) > 0;
+  if (graph.groups.length === 0 && !unread)
+    return Object.keys(view.groups ?? {}).map(name => ({
+      severity: 'warning' as const,
+      path: ['groups', name],
+      message: `names group "${name}", but pack "${graph.pack}" declares no groups, so its words are unused`,
+    }));
   // The graph serves no groups while its document has a problem, so say that instead.
   const why =
-    graph.groups.length === 0 && (graph.document?.problems.length ?? 0) > 0
+    graph.groups.length === 0 && unread
       ? `; the pack document's groups do not read: ${graph.document?.problems.join('; ') ?? ''}`
       : '';
   return Object.keys(view.groups ?? {})
@@ -182,23 +193,10 @@ function edgeError(
   ];
 }
 
-/** The map's card stages and the edges between its cards. */
-function mapErrors(view: FactoryView, index: GraphIndex): FactoryViewProblem[] {
-  const errors: FactoryViewProblem[] = [];
-  const stagesOf = new Map(view.map.cards.map(card => [card.id, card.stages]));
-  view.map.cards.forEach((card, c) => {
-    card.stages.forEach((stage, s) => {
-      if (!index.stages.has(stage))
-        errors.push(unknownStage(['map', 'cards', c, 'stages', s], stage, index.graph));
-    });
-  });
-  view.map.edges?.forEach((edge, e) => {
-    const from = stagesOf.get(edge.from);
-    const to = stagesOf.get(edge.to);
-    if (from !== undefined && to !== undefined)
-      errors.push(...edgeError(['map', 'edges', e], from, to, index));
-  });
-  return errors;
+/** The stage `merged` names, the one stage name outside `stages` and the progress keys. */
+function mergedErrors(view: FactoryView, index: GraphIndex): FactoryViewProblem[] {
+  if (view.merged === undefined || index.stages.has(view.merged)) return [];
+  return [unknownStage(['merged'], view.merged, index.graph)];
 }
 
 /**
@@ -234,17 +232,20 @@ function howItWorksErrors(view: FactoryView, index: GraphIndex): FactoryViewProb
   return errors;
 }
 
-/** What the graph has that the view leaves out. Only in-flow stages: no item stands at the rest. */
+/**
+ * What the graph has that the view leaves out (only in-flow stages: no item stands at the rest),
+ * and a leftover `map` block, which nothing reads.
+ */
 function warnings(view: FactoryView, graph: PackGraph): FactoryViewProblem[] {
-  const placed = new Set(view.map.cards.flatMap(card => card.stages));
   const warns: FactoryViewProblem[] = [];
+  if (view.map !== undefined)
+    warns.push({
+      severity: 'warning',
+      path: ['map'],
+      message:
+        'is no longer read: the Overview map lays itself out from the pack graph, so the block can be deleted',
+    });
   for (const stage of graph.stages.filter(entry => entry.inFlow)) {
-    if (!placed.has(stage.workflow))
-      warns.push({
-        severity: 'warning',
-        path: ['map', 'cards'],
-        message: `stage "${stage.workflow}" is on no map card`,
-      });
     if (view.stages[stage.workflow] === undefined)
       warns.push({
         severity: 'warning',
@@ -269,7 +270,7 @@ export function checkFactoryView(view: FactoryView, graph: PackGraph): FactoryVi
     ...stageErrors(view, index),
     ...keyErrors(view, index),
     ...groupErrors(view, graph),
-    ...mapErrors(view, index),
+    ...mergedErrors(view, index),
     ...howItWorksErrors(view, index),
     ...progressErrors(view, graph),
     ...warnings(view, graph),

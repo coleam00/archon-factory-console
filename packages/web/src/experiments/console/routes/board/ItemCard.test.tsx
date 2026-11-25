@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-route
 import { NO_ITEM_ASKS } from '../../components/ItemAsksSection';
 import type { FactoryView, RunRecord } from '../../factory/api';
 import { CardsContext } from '../../factory/cards-context';
+import { shippedFile, shippedGraph } from '../../factory/curated.test-fixtures';
 import type { CardPack } from '../../factory/lib/item-card';
 import type { ItemAsk } from '../../primitives/run';
 import type { ItemRead } from '../../skills/items';
@@ -297,6 +298,47 @@ test('a card shows its rounds and returns from the run records its list read', a
     const returned = card?.querySelector('[data-card-returned]');
     expect(returned?.textContent).toBe('sent back 1x');
     expect(returned?.getAttribute('title')).toBe('Judged run-old');
+  } finally {
+    await view.unmount();
+    invalidate('board');
+  }
+});
+
+test("the shipped view file's own semantics give a stage-check card its rounds and returns", async () => {
+  // The repository's factory-view.json and its graph, as the board reads them: rounds, returns
+  // and words come from the file, not from a hand-written test view.
+  const pack: CardPack = {
+    stages: shippedGraph.stages.map(({ name, workflow }) => ({ name, workflow })),
+    view: shippedFile,
+  };
+  const checkRun = (id: string, at: string): ItemRead['runs'][number] => ({
+    ...run(id, at),
+    workflow: 'Wirasm/archon-software-factory:stage-check',
+    pack: { key: 'factory', workflow: 'stage-check' },
+  });
+  const verdict = (id: string, round: number, outcome: string): RunRecord => ({
+    ...record(id, round, outcome),
+    node_outcomes: {
+      run_id: id,
+      first_failed_node: null,
+      nodes: [{ node_id: 'verdict__verdict', state: 'completed', output: { outcome } }],
+    },
+  });
+  set(K.cardReads('web', ['run-2', 'run-old']), {
+    records: [verdict('run-old', 1, 'return'), verdict('run-2', 2, 'approve')],
+    missing: [],
+    unreadable: [],
+  });
+  const base = item('y', [
+    checkRun('run-old', '2026-11-19T10:00:00.000Z'),
+    checkRun('run-2', '2026-11-20T10:00:00.000Z'),
+  ]);
+  const read = { ...base, standing: { ...base.standing, pack: 'factory' } };
+  const view = await mount([read], new Map([['factory', pack]]));
+  try {
+    const card = view.container.querySelector('[data-item="y"]');
+    expect(card?.querySelector('[data-card-rounds]')?.textContent).toBe('2 of 3 check rounds');
+    expect(card?.querySelector('[data-card-returned]')?.textContent).toBe('sent back 1x');
   } finally {
     await view.unmount();
     invalidate('board');

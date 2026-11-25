@@ -15,21 +15,14 @@ const card = (id: string, col: number, row: number, extra: Partial<Card> = {}): 
   ...extra,
 });
 
-/** A map of two cards, and a How it works root of three cards with one drill-down. */
+/** Words for one stage, and a How it works root of three cards with one drill-down. */
 function valid(): FactoryView {
   return {
     version: 1,
     title: 'Factory',
     summary: 'Work comes in, gets built, lands.',
     stages: { make: { label: 'Make', blurb: 'Makes it.' } },
-    map: {
-      cards: [
-        { id: 'make', stages: ['make'] },
-        { id: 'ship', stages: ['check', 'land'] },
-      ],
-      edges: [{ from: 'make', to: 'ship', label: 'made' }],
-      notes: [{ text: 'You answer here', near: 'needs-you' }],
-    },
+    merged: 'land',
     howItWorks: {
       title: 'How it works',
       caption: 'Work comes in, gets built, lands.',
@@ -98,11 +91,19 @@ test('a rounds source missing a key is refused, and the refusal names the key', 
   expect(issues[0]?.message).toContain('allowance');
 });
 
+test('a file written for combined still reads: its hand-placed map is kept, not refused', () => {
+  const map = {
+    cards: [{ id: 'make', stages: ['make'] }],
+    edges: [{ from: 'make', to: 'make', label: 'again' }],
+    notes: [{ text: 'You answer asks here', near: 'needs-you' }],
+  };
+  expect(factoryViewSchema.safeParse(edited(v => ({ ...v, map }))).success).toBe(true);
+});
+
 describe('factoryViewSchema rejects', () => {
   test.each<[string, (v: FactoryView) => unknown]>([
     ['placement, which the server computes', v => ({ ...v, placement: { 'make:done': 'make' } })],
     ['verdicts, which the web words from outcomes', v => ({ ...v, verdicts: {} })],
-    ['map arrows, which the graph draws', v => ({ ...v, map: { ...v.map, arrows: [] } })],
   ])('a removed field: %s', (_name, edit) => {
     expect(
       factoryViewSchema.safeParse(edited(edit)).error?.issues.map(issue => issue.code)
@@ -112,16 +113,6 @@ describe('factoryViewSchema rejects', () => {
   // One row per rule: what is refused, the change to `valid()`, and its issues. A row marked
   // `some` checks only that its issue is among them: a broken layout often breaks more than one.
   test.each<[string, (v: FactoryView) => unknown, string[], 'some'?]>([
-    [
-      'a stage on two map cards',
-      v => void v.map.cards[1]?.stages.push('make'),
-      ['map.cards.1.stages.2 make make'],
-    ],
-    [
-      'a map edge naming no card',
-      v => void v.map.edges?.push({ from: 'make', to: 'gone', label: 'x' }),
-      ['map.edges.1.to gone'],
-    ],
     [
       'next on an outcome that does not await anyone',
       v => ({ ...v, outcomes: { 'make:done': { label: 'Done', next: 'Do it.' } } }),

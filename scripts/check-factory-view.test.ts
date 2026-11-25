@@ -29,7 +29,7 @@ const view = (stage: string) => ({
   title: 'Factory',
   summary: 'x',
   stages: { [stage]: { label: 'Make', blurb: 'x' } },
-  map: { cards: [{ id: 'make', stages: [stage] }] },
+  merged: stage,
   howItWorks: {
     title: 'x',
     caption: 'x',
@@ -60,10 +60,9 @@ describe('checkView', () => {
     expect(report.code).toBe(1);
     expect(report.lines.map(entry => entry.split(':')[0])).toEqual([
       'stages.deploy',
-      'map.cards.0.stages.0',
-      'map.cards',
+      'merged',
       'stages',
-      '2 errors, 2 warnings',
+      '2 errors, 1 warnings',
     ]);
   });
 
