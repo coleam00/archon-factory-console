@@ -3,6 +3,8 @@ import { Link } from 'react-router';
 import { standingRun } from '../../routes/BoardPage';
 import type { ItemRead } from '../../skills/items';
 import type { CuratedView } from '../lib/curated-view';
+import type { CardProgress } from '../lib/item-card';
+import { useCardList } from '../FactoryCards';
 import { itemStateLine, type StateTone } from '../lib/item-state';
 import type { StageRead } from '../lib/map-live';
 import { runLogPath } from '../lib/views';
@@ -59,6 +61,8 @@ export function ItemsHere({
   /** What it says when nothing is in the stage. */
   empty: ReactNode;
 }): ReactElement {
+  // The board card's reads for these items: their titles and the step a run works now.
+  const progressOf = useCardList(typeof live === 'string' ? [] : live.items);
   if (typeof live === 'string')
     return (
       <section className="flex flex-col gap-1.5">
@@ -82,7 +86,13 @@ export function ItemsHere({
       ) : (
         <ul className="flex flex-col gap-1">
           {live.items.map(read => (
-            <ItemRow key={read.item.id} projectId={projectId} view={view} read={read} />
+            <ItemRow
+              key={read.item.id}
+              projectId={projectId}
+              view={view}
+              read={read}
+              progress={progressOf(read)}
+            />
           ))}
         </ul>
       )}
@@ -95,29 +105,34 @@ export function ItemsHere({
   );
 }
 
-/** One item: its key and title, then where it stands, in plain words (`itemStateLine`). */
+/**
+ * One item, as the board card names it (its key and title from `cardProgress`), then where it
+ * stands (`itemStateLine`).
+ */
 function ItemRow({
   projectId,
   view,
   read,
+  progress,
 }: {
   projectId: string;
   view: Pick<CuratedView, 'stageLabels' | 'outcomeLabels'>;
   read: ItemRead;
+  progress: CardProgress;
 }): ReactElement {
   const run = standingRun(read);
-  const state = itemStateLine(view, read);
+  const state = itemStateLine(view, read, progress.running);
   const body = (
     <>
       <span className="flex min-w-0 items-baseline gap-1.5">
         <span
-          className={`shrink-0 font-mono text-console-12 ${read.item.title == null ? 'text-text-primary' : 'text-text-tertiary'}`}
+          className={`shrink-0 font-mono text-console-12 ${progress.titleIsKey ? 'text-text-primary' : 'text-text-tertiary'}`}
         >
-          {read.item.key}
+          {progress.keyText}
         </span>
-        {read.item.title == null ? null : (
+        {progress.titleIsKey ? null : (
           <span className="min-w-0 truncate text-console-12 text-text-primary">
-            {read.item.title}
+            {progress.title}
           </span>
         )}
       </span>

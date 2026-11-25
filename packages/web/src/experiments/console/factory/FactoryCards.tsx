@@ -76,7 +76,8 @@ export function FactoryCardsProvider({
   projectId: string;
   /** The project's packs; null while the project is still being read. */
   packs: readonly string[] | null;
-  itemAsks: ItemAsks;
+  /** The project's asks for the cards' ask lines; null where none are shown (the map). */
+  itemAsks: ItemAsks | null;
   children: ReactNode;
 }): ReactElement {
   const [read, setRead] = useState<ReadonlyMap<string, PackReadResult>>(new Map());

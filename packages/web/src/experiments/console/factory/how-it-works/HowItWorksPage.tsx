@@ -11,7 +11,7 @@
  */
 import type { ReactElement, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Navigate, useParams, useSearchParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import type { Project } from '../../primitives/project';
 import * as skill from '../../skills';
 import { useEntity } from '../../store/cache';
@@ -22,12 +22,9 @@ import { mapSource } from '../lib/map-source';
 import { factoryPackPath } from '../lib/views';
 import { usePackGraph } from '../map-structure';
 import { OverviewBody } from '../overview/OverviewPage';
-import { usePackView } from '../PackMap';
+import { useFullWorkflow, usePackView } from '../PackMap';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { PackFrame } from './PackFrame';
-
-const MAP_PARAM = 'map';
-const FULL = 'full';
 
 /** Every pack some project stages, in the projects read's order, each with that first project. */
 export function stagedPacks(projects: readonly Project[]): { pack: string; project: Project }[] {
@@ -95,7 +92,7 @@ export function HowItWorksPage(): ReactElement {
 function HowItWorks({ projectId, pack }: { projectId: string; pack: string }): ReactElement {
   const source = mapSource(usePackView(projectId, pack));
   const graph = usePackGraph(projectId, pack);
-  const [params, setParams] = useSearchParams();
+  const [full, choose] = useFullWorkflow();
   if (source.kind === 'loading')
     return (
       <PackFrame title={pack}>
@@ -126,14 +123,6 @@ function HowItWorks({ projectId, pack }: { projectId: string; pack: string }): R
       </PackFrame>
     );
   }
-  const full = params.get(MAP_PARAM) === FULL;
-  const choose = (next: boolean) => (): void =>
-    setParams(current => {
-      const kept = new URLSearchParams(current);
-      if (next) kept.set(MAP_PARAM, FULL);
-      else kept.delete(MAP_PARAM);
-      return kept;
-    });
   return (
     <PackFrame
       title={source.view.title}

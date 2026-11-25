@@ -12,6 +12,7 @@ import { useEntity, type EntityView } from '../store/cache';
 import { K } from '../store/keys';
 import { getPackViewRead, type FactoryView, type PackView } from './api';
 import { DerivedFlow, flowCounts } from './DerivedFlow';
+import { FactoryCardsProvider } from './FactoryCards';
 import { GraphSkeleton } from './GraphSkeleton';
 import { curatedView } from './lib/curated-view';
 import { mapSource } from './lib/map-source';
@@ -24,6 +25,22 @@ import { SegmentedControl } from './ui/SegmentedControl';
 /** The search param that shows the derived map in place of the curated one. */
 const MAP_PARAM = 'map';
 const FULL = 'full';
+
+/**
+ * Whether the page shows the derived map as "Full workflow" (`?map=full`), and the handler a
+ * segment calls to choose it or the curated map. The Overview and How it works share it.
+ */
+export function useFullWorkflow(): [boolean, (next: boolean) => () => void] {
+  const [params, setParams] = useSearchParams();
+  const choose = (next: boolean) => (): void =>
+    setParams(current => {
+      const kept = new URLSearchParams(current);
+      if (next) kept.set(MAP_PARAM, FULL);
+      else kept.delete(MAP_PARAM);
+      return kept;
+    });
+  return [params.get(MAP_PARAM) === FULL, choose];
+}
 
 /** The view read of a pack, under its one cache key. */
 export function usePackView(projectId: string, pack: string): EntityView<PackView> {
@@ -52,7 +69,7 @@ export function PackMap({
 }: PackMapProps): ReactElement {
   const source = mapSource(usePackView(projectId, pack));
   const graph = usePackGraph(projectId, pack);
-  const [params, setParams] = useSearchParams();
+  const [full, choose] = useFullWorkflow();
   const board = `/console/p/${encodeURIComponent(projectId)}/board`;
   const derived = (
     <DerivedFlow
@@ -81,14 +98,6 @@ export function PackMap({
         {derived}
       </div>
     );
-  const full = params.get(MAP_PARAM) === FULL;
-  const choose = (next: boolean) => (): void =>
-    setParams(current => {
-      const kept = new URLSearchParams(current);
-      if (next) kept.set(MAP_PARAM, FULL);
-      else kept.delete(MAP_PARAM);
-      return kept;
-    });
   return (
     <MapSection
       control={
@@ -107,6 +116,7 @@ export function PackMap({
       ) : (
         <Curated
           projectId={projectId}
+          pack={pack}
           file={source.view}
           graph={graph}
           moving={moving}
@@ -139,6 +149,7 @@ function MapSection({
 /** The curated map, once the graph its columns and arrows come from is read. */
 function Curated({
   projectId,
+  pack,
   file,
   graph,
   moving,
@@ -146,6 +157,7 @@ function Curated({
   board,
 }: {
   projectId: string;
+  pack: string;
   file: FactoryView;
   graph: EntityView<PackGraph>;
   moving: PackMapProps['moving'];
@@ -170,8 +182,10 @@ function Curated({
         The map could not read the pack's graph: {graph.error.message}
       </ReadFailure>
     );
+  // The board cards' reads, under the board's keys: an item's title and the step its run works
+  // now come from the same place the Board's card takes them (`useCardList` in StageItems).
   return (
-    <>
+    <FactoryCardsProvider projectId={projectId} packs={[pack]} itemAsks={null}>
       {moving.error === undefined ? null : (
         <p role="alert" className="text-console-13 text-error">
           The pack's items could not be read: {moving.error.message}
@@ -184,6 +198,6 @@ function Curated({
         live={live}
         board={board}
       />
-    </>
+    </FactoryCardsProvider>
   );
 }

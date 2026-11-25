@@ -22,7 +22,7 @@ let unmount: (() => Promise<void>) | undefined;
 afterEach(async () => {
   await unmount?.();
   unmount = undefined;
-  for (const prefix of ['pack-view', 'pack-graph']) invalidate(prefix);
+  for (const prefix of ['pack-view', 'pack-graph', 'board']) invalidate(prefix);
 });
 
 async function mount(view: PackView, search = ''): Promise<HTMLElement> {
@@ -150,6 +150,21 @@ const texts = (selector: string, attribute?: string): string[] =>
 
 describe('the stage modal', () => {
   test("clicking build on the map opens it: what it does from the file, the items standing on it, and its graph stage's steps", async () => {
+    // The run records the board card reads for Build's items: b1's run works build__build now.
+    const running = (id: string, steps: string[]) => ({
+      id,
+      status: 'running',
+      completed_at: null,
+      returns: { availability: 'unavailable' },
+      node_outcomes: { run_id: id, first_failed_node: null, nodes: [] },
+      loop_iterations: [],
+      running: steps,
+    });
+    set(K.cardReads(PROJECT, ['run-b1', 'run-b2']), {
+      records: [running('run-b1', ['build__build']), running('run-b2', [])],
+      missing: [],
+      unreadable: [],
+    });
     const page = await mount(CURATED);
     await click(page.querySelector('[data-stage="build"]'));
     expect(dialog().querySelector('h3')?.textContent).toBe('Build');
@@ -160,6 +175,9 @@ describe('the stage modal', () => {
     ]);
     await openTab('Items here now');
     expect(texts('[data-item]', 'data-item')).toEqual(['b1', 'b2']);
+    // b1's line is the board card's: its stage and the step its run works, in the file's words.
+    const b1 = dialog().querySelector('[data-item="b1"] [data-state]')?.textContent ?? '';
+    expect(b1).toContain(shippedFile.stages['stage-build']?.steps?.build__build ?? 'missing');
     await openTab('The real workflow');
     expect(texts('[data-workflow]', 'data-workflow')).toEqual(['stage-build']);
     expect(texts('[data-step]', 'data-step')).toEqual(

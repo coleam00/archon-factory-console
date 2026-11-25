@@ -1,13 +1,15 @@
 /**
- * Where an item stands, in a person's words (DESIGN.md, Visual standard rule 8: plain words,
- * never raw enum values, and "Merged" everywhere a person reads, never "Landed"). It reads the
- * board's own facts (`standingRun`, `chipOf`) and words them with the view file's labels: the
- * stage's label for the workflow the item stands at, and the outcome's label for an item at
- * rest. The item read carries no running step, so a running item reads as its stage running.
+ * Where an item stands, as "Items here now" says it (DESIGN.md, The map: "the run line of the
+ * run working it, or the board's ... label"). It takes the Board's own words: a running item's
+ * line is the board card's (`cardProgress`'s running stage and step, in the view's words), and
+ * every other state is the board chip's label (`CHIP`, `chipOf`). A merged item reads "Merged",
+ * as the Board's Done column says it. The view file only adds where: the label of the stage the
+ * item stands at, or, for an item at rest, its outcome's label.
  */
-import { chipOf, standingRun } from '../../routes/BoardPage';
+import { CHIP, chipOf, standingRun } from '../../routes/board/standing';
 import type { ItemRead } from '../../skills/items';
 import type { CuratedView } from './curated-view';
+import type { CardProgress } from './item-card';
 
 /** The colour a state line takes: the state colours of the Visual standard. */
 export type StateTone = 'needs-you' | 'running' | 'failed' | 'merged' | 'quiet';
@@ -27,30 +29,43 @@ function outcomeLabel(view: Words, workflow: string, outcome: string | null): st
   );
 }
 
-export function itemStateLine(view: Words, read: ItemRead): StateLine {
+/**
+ * The line for `read`. `running` is the board card's running stage and step, null until the
+ * card's run records answer (or when no run is running), when a running item reads by the
+ * chip's label and its stage.
+ */
+export function itemStateLine(
+  view: Words,
+  read: ItemRead,
+  running: CardProgress['running']
+): StateLine {
   if (read.merged !== null) return { tone: 'merged', text: 'Merged' };
+  const chip = chipOf(read);
   const run = standingRun(read);
   const workflow = run?.pack?.workflow;
   const stage = workflow === undefined ? undefined : view.stageLabels[workflow];
-  const at = stage ?? 'its stage';
+  const at = (label: string): string => (stage === undefined ? label : `${label} · ${stage}`);
   const ended =
     workflow === undefined ? undefined : outcomeLabel(view, workflow, run?.outcome ?? null);
-  switch (chipOf(read)) {
-    case 'needs_you':
-      return { tone: 'needs-you', text: `Needs you at ${at}` };
+  switch (chip) {
     case 'running':
-      return { tone: 'running', text: `${stage ?? 'A run'} is running` };
-    case 'queued':
-      return { tone: 'quiet', text: `Queued for ${at}` };
-    case 'waiting':
-      return { tone: 'quiet', text: ended ?? `Waiting at ${at}` };
+      return {
+        tone: 'running',
+        text:
+          running === null
+            ? at(CHIP.running.label)
+            : `${running.stage} · ${running.step ?? 'between steps'}`,
+      };
+    case 'needs_you':
+      return { tone: 'needs-you', text: at(CHIP.needs_you.label) };
     case 'failed':
-      return { tone: 'failed', text: `${stage ?? 'Its run'} failed` };
     case 'stopped':
-      return { tone: 'failed', text: `${stage ?? 'Its run'} was stopped` };
+      return { tone: 'failed', text: at(CHIP[chip].label) };
     case 'done':
-      return { tone: 'quiet', text: ended ?? 'Ended without a change' };
     case 'resting':
-      return { tone: 'quiet', text: ended ?? `At rest after ${at}` };
+      return { tone: 'quiet', text: ended ?? at(CHIP[chip].label) };
+    case 'waiting':
+    case 'queued':
+      return { tone: 'quiet', text: at(CHIP[chip].label) };
   }
 }
