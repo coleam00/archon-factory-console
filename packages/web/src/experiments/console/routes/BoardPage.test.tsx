@@ -220,6 +220,8 @@ test('each open item is under the stage it stands at, in the order the pack grap
       strip.getAttribute('data-work-order')
     )
   ).toEqual(['order-9']);
+  // Until every item is read, the order shows its open members and no merged count.
+  expect(page.querySelector('[data-work-order-line]')?.textContent).toBe('1 open · 1 running');
   // The project's asks are on the page, and the item that has one links to it.
   const asked = page.querySelector('[data-ask-ref="ask:a1"]')?.closest('[id]');
   expect(asked).not.toBeNull();

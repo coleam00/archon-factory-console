@@ -54,6 +54,7 @@ describe('where an item stands', () => {
   });
 
   test('a failed run that a later run superseded does not fail the item', () => {
+    // The stamp is what a superseding run carries; standing reads only that a newer run follows.
     const rerun = run('r2', 'completed', { metadata: { continuation: { mode: 'supersede' } } });
     expect(standing([run('r1', 'failed'), rerun]).state).toBe('resting');
   });

@@ -512,20 +512,30 @@ const isMoving = (read: ItemRead): boolean =>
 
 /**
  * The work orders, each with how many of its members merged and what its open members are
- * doing. Choosing one with open members keeps the board to them.
+ * doing. Choosing one with open members keeps the board to them. Until every item is read
+ * (`counted`), the orders come from the open items alone, so no merged count is shown.
  */
 function WorkOrderStrip({
   orders,
+  counted,
+  error,
   chosen,
   choose,
 }: {
   orders: WorkOrder[];
+  counted: boolean;
+  error: Error | undefined;
   chosen: string | null;
   choose: (order: string) => void;
 }): ReactElement | null {
-  if (orders.length === 0) return null;
+  if (orders.length === 0 && error === undefined) return null;
   return (
     <section data-work-orders className="mb-6 flex flex-col gap-2">
+      {error === undefined ? null : (
+        <p className="text-console-12 text-error">
+          The work orders could not be read in full: {error.message}
+        </p>
+      )}
       {orders.map(({ item, members }) => {
         const open = members.filter(isMoving);
         const merged = members.filter(read => read.merged !== null).length;
@@ -546,8 +556,10 @@ function WorkOrderStrip({
               {item.title ?? 'Work order'}
             </span>
             <span data-work-order-line className="text-console-11 text-text-secondary">
-              {merged} of {members.length} merged
-              {open.length === 0 ? '' : ` · ${String(open.length)} open · ${stageLine(open)}`}
+              {[
+                ...(counted ? [`${String(merged)} of ${String(members.length)} merged`] : []),
+                ...(open.length === 0 ? [] : [`${String(open.length)} open`, stageLine(open)]),
+              ].join(' · ')}
             </span>
           </button>
         );
@@ -621,6 +633,8 @@ export function BoardPage(): ReactElement {
         />
         <WorkOrderStrip
           orders={orders}
+          counted={every.data !== undefined}
+          error={every.error}
           chosen={order}
           choose={id => {
             setOrder(current => (current === id ? null : id));
