@@ -57,7 +57,7 @@ The factory building this repository runs Archon from another checkout, on the h
   none of those; the web counts rounds and returns from generic run records with them. It holds no step lists, outcome lists, arrows, ask flags, shadow flags,
   settings or stage-group enum; it names the graph's stages, steps, outcomes and groups, and
   `checkFactoryView` (`factory-view-check.ts`) fails a name the graph lacks and warns on an
-  in-flow stage it gives no words and on group words a pack without groups leaves unused, when the file is read and in
+  in-flow stage it gives no words, on group words a pack without groups leaves unused and on a leftover `map` block (accepted so an older file still reads, but no longer read), when the file is read and in
   `bun run check:factory-view <pack dir>`. The progress declarations are checked too: a
   workflow is a graph stage or one the file lists as `retired`, a step or loop is one the stage
   has, and a stage's `returns` agree with its outcomes that read `returned`. The Wirasm pack's file is kept at

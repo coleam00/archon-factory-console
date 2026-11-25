@@ -17,7 +17,8 @@ bun run check:factory-view <pack dir> --view docs/factory-console/pack-view/fact
 ```
 
 A name the pack graph lacks is an error; an in-flow stage with no words is a warning, and so
-are group words when the pack declares no groups (its map then draws one card per stage).
+are group words when the pack declares no groups (its map then draws one card per stage). A file
+written for `combined` still reads: its `map` block is ignored, with a warning that it can go.
 
 The file also says where a board card finds an item's progress in its runs' records: `retired`
 (workflows the pack no longer has whose runs still count, here `deliver`), `rounds` (the

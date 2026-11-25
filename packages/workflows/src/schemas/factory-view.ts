@@ -154,6 +154,13 @@ export const factoryViewSchema = z.strictObject({
    * last in-flow stage is.
    */
   merged: stageNameSchema.optional(),
+  /**
+   * The hand-placed map a file written for an older console carries. Nothing reads it: the
+   * Overview map lays itself out from the graph. It is accepted, not refused, because a refused
+   * file reads as no view at all, and the board's cards then lose every round, return and pull
+   * request number the file's semantics give them. `checkFactoryView` warns that it can go.
+   */
+  map: z.unknown().optional(),
   howItWorks: howItWorksSchema,
 });
 export type FactoryView = z.infer<typeof factoryViewSchema>;

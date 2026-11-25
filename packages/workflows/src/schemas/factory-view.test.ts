@@ -91,11 +91,19 @@ test('a rounds source missing a key is refused, and the refusal names the key', 
   expect(issues[0]?.message).toContain('allowance');
 });
 
+test('a file written for combined still reads: its hand-placed map is kept, not refused', () => {
+  const map = {
+    cards: [{ id: 'make', stages: ['make'] }],
+    edges: [{ from: 'make', to: 'make', label: 'again' }],
+    notes: [{ text: 'You answer asks here', near: 'needs-you' }],
+  };
+  expect(factoryViewSchema.safeParse(edited(v => ({ ...v, map }))).success).toBe(true);
+});
+
 describe('factoryViewSchema rejects', () => {
   test.each<[string, (v: FactoryView) => unknown]>([
     ['placement, which the server computes', v => ({ ...v, placement: { 'make:done': 'make' } })],
     ['verdicts, which the web words from outcomes', v => ({ ...v, verdicts: {} })],
-    ['the map, which the graph lays out', v => ({ ...v, map: { cards: [] } })],
   ])('a removed field: %s', (_name, edit) => {
     expect(
       factoryViewSchema.safeParse(edited(edit)).error?.issues.map(issue => issue.code)

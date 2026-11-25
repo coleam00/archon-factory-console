@@ -189,6 +189,10 @@ test('a calls edge asks someone and is not compared with the arrows', () => {
 });
 
 describe('what the graph has and the view leaves out warns', () => {
+  test('a leftover map block, which nothing reads any more', () => {
+    expect(problems(v => void Object.assign(v, { map: { cards: [] } }))).toEqual(['warning map']);
+  });
+
   test('an in-flow stage with no words', () => {
     expect(problems(v => void delete v.stages.land)).toEqual(['warning stages']);
   });

@@ -232,9 +232,19 @@ function howItWorksErrors(view: FactoryView, index: GraphIndex): FactoryViewProb
   return errors;
 }
 
-/** What the graph has that the view leaves out. Only in-flow stages: no item stands at the rest. */
+/**
+ * What the graph has that the view leaves out (only in-flow stages: no item stands at the rest),
+ * and a leftover `map` block, which nothing reads.
+ */
 function warnings(view: FactoryView, graph: PackGraph): FactoryViewProblem[] {
   const warns: FactoryViewProblem[] = [];
+  if (view.map !== undefined)
+    warns.push({
+      severity: 'warning',
+      path: ['map'],
+      message:
+        'is no longer read: the Overview map lays itself out from the pack graph, so the block can be deleted',
+    });
   for (const stage of graph.stages.filter(entry => entry.inFlow)) {
     if (view.stages[stage.workflow] === undefined)
       warns.push({

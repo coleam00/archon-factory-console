@@ -12384,6 +12384,7 @@ export interface components {
               pointer: string;
             }[];
         merged?: string;
+        map?: unknown;
         howItWorks: {
           title: string;
           caption: string;
