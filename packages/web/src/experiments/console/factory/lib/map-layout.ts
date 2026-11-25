@@ -4,8 +4,9 @@
  * holding its map stages in the column's order. They sit in one row, left to right, always:
  * where the row does not fit its frame, the map pans (`map-camera.ts`).
  *
- * The arrows are the pack graph's, projected onto the view's stages (`mapArrows`) with the view
- * file's words, drawn between cards:
+ * The arrows are the pack graph's, projected onto the map's stages (`mapArrows`) and labelled
+ * with the outcome and answer values they carry, drawn between cards. With columns and rows both
+ * in flow order, card order is flow order wherever each group is a run of neighbouring stages:
  *
  * - An arrow between two cards takes its direction from card order: into an earlier card, it
  *   is a send-back; into a later one, a forward hand-off. Stages order does not decide it,

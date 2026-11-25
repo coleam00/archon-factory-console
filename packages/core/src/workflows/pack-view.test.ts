@@ -41,7 +41,7 @@ const view = (stage: string) => ({
   title: 'Chain',
   summary: 'One stage.',
   stages: { [stage]: { label: 'A', blurb: 'Does a.' } },
-  map: { cards: [{ id: 'a', stages: [stage] }] },
+  merged: stage,
   howItWorks: {
     title: 'How it works',
     caption: 'One stage.',
@@ -75,7 +75,7 @@ describe('readPackView', () => {
     const unknown = await read(await packProject(JSON.stringify(view('chain-z'))));
     expect(unknown.problems.map(problem => [problem.severity, problem.path.join('.')])).toEqual([
       ['error', 'stages.chain-z'],
-      ['error', 'map.cards.0.stages.0'],
+      ['error', 'merged'],
     ]);
   });
 });

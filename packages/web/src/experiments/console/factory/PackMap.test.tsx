@@ -84,16 +84,20 @@ const stageLinks = (page: ParentNode): string[] =>
 describe('the one check where the map is drawn', () => {
   test('a pack shipping a clean view file draws the curated map, not the derived one', async () => {
     const page = await mount(CURATED);
-    expect(cards(page)).toEqual(['intake', 'plan-and-build', 'checks', 'ready', 'landed']);
+    expect(cards(page)).toEqual(['intake', 'plan-and-build', 'checks', 'landing', 'landed']);
     expect(stageLinks(page)).toEqual([
       'order',
       'triage',
       'link',
+      'split',
       'plan',
-      'build',
-      'checks',
-      'host',
-      'ready',
+      'stage-build',
+      'stage-check',
+      'stage-host',
+      'landgate',
+      'land',
+      'discoveries',
+      'close',
       'landed',
     ]);
     expect(page.querySelector('div[data-flow]')).toBeNull();
@@ -106,9 +110,11 @@ describe('the one check where the map is drawn', () => {
     const numbers = (stage: string): string[] => chip(stage).match(/\d+/g) ?? [];
     // Build: 2 here, 1 of them worked, 1 needing you. Landed: the Board's Merged column, the
     // two merged in its days, not the three merged in all.
-    expect(numbers('build')).toEqual(['2', '1', '1']);
+    expect(numbers('stage-build')).toEqual(['2', '1', '1']);
     expect(numbers('landed')).toEqual(['2']);
-    expect(page.querySelector('[aria-label="Not on the map"]')?.textContent).toContain('d1');
+    // Every in-flow stage has a row, so discoveries' item is counted there, not listed apart.
+    expect(numbers('discoveries')).toEqual(['1', '1']);
+    expect(page.querySelector('[aria-label="Not on the map"]')).toBeNull();
   });
 
   test('a pack shipping no file draws the derived map and no card', async () => {
@@ -187,7 +193,7 @@ describe('the stage modal', () => {
       unreadable: [],
     });
     const page = await mount(CURATED);
-    await click(page.querySelector('[data-stage="build"]'));
+    await click(page.querySelector('[data-stage="stage-build"]'));
     expect(dialog().querySelector('h3')?.textContent).toBe('Build');
     expect(texts('[data-drilldown-card]', 'data-drilldown-card')).toEqual([
       'Write or fix the change',
@@ -208,21 +214,6 @@ describe('the stage modal', () => {
       shippedGraph.stages.find(stage => stage.workflow === 'stage-build')?.nodes.map(n => n.id) ??
         []
     );
-  });
-
-  test('ready, a card of three stages: their phases, items and steps, each stage in turn', async () => {
-    await mount(CURATED, '?stage=ready');
-    expect(dialog().querySelector('h3')?.textContent).toBe('Ready to merge');
-    expect(texts('[data-phase] h4')).toEqual(['1Gate', '2Merge', '3Drop or reshape']);
-    await openTab('Items here now');
-    expect(texts('[data-item]', 'data-item')).toEqual(['g1']);
-    await openTab('The real workflow');
-    expect(texts('[data-workflow]', 'data-workflow')).toEqual(['landgate', 'land', 'close']);
-    const steps = ['landgate', 'land', 'close'].flatMap(
-      workflow =>
-        shippedGraph.stages.find(stage => stage.workflow === workflow)?.nodes.map(n => n.id) ?? []
-    );
-    expect(texts('[data-step]', 'data-step')).toEqual(steps);
   });
 
   test("the landed stage lists and counts the board's Merged column", async () => {
