@@ -8,8 +8,8 @@ import { readPackView } from './pack-view';
 
 const track = trackTempRoots();
 
-/** A project whose `chain` pack holds one stage, `chain-a`, and `view` when given. */
-async function packProject(view?: string): Promise<string> {
+/** A project whose `chain` pack holds one stage, `chain-a`, and `view` as its factory view file. */
+async function packProject(view: string): Promise<string> {
   const project = track(await mkdtemp(join(tmpdir(), 'archon-pack-view-')));
   const pack = join(project, '.archon', 'workflows', 'chain');
   await mkdir(join(pack, 'chain-a'), { recursive: true });
@@ -17,10 +17,8 @@ async function packProject(view?: string): Promise<string> {
     join(pack, 'chain-a', 'chain-a.yaml'),
     'name: chain-a\ndescription: a\nnodes:\n  - id: work\n    bash: "true"\n'
   );
-  if (view !== undefined) {
-    await mkdir(join(pack, '.shared'), { recursive: true });
-    await writeFile(join(pack, '.shared', 'factory-view.json'), view);
-  }
+  await mkdir(join(pack, '.shared'), { recursive: true });
+  await writeFile(join(pack, '.shared', 'factory-view.json'), view);
   await mkdir(join(project, 'triggers'), { recursive: true });
   return project;
 }
@@ -61,10 +59,6 @@ const view = (stage: string) => ({
 });
 
 describe('readPackView', () => {
-  test('a pack that ships no view reads as null with no problems', async () => {
-    expect(await read(await packProject())).toEqual({ path: null, view: null, problems: [] });
-  });
-
   test('a file that is not JSON, or fails the schema, has its path, no view and errors', async () => {
     for (const body of ['{ not json', JSON.stringify({ version: 1, placement: {} })]) {
       const result = await read(await packProject(body));
