@@ -14,6 +14,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { ItemAsksSection, itemAsksAnchor, useItemAsks } from '../components/ItemAsksSection';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
 import { relativeTime } from '../lib/format';
+import { displayItemKey } from '../lib/item-key';
 import type { Project } from '../primitives/project';
 import { isItemAsk } from '../primitives/run';
 import * as skill from '../skills';
@@ -66,8 +67,8 @@ export function standingRun(read: ItemRead): ItemRead['runs'][number] | undefine
 }
 
 /**
- * A failed or stopped item stays so until a newer run starts on it, its change merges or its
- * last part is done, so an operator has to decide.
+ * A failed or stopped item stays so until a newer run starts on it or its change merges, so an
+ * operator has to decide.
  */
 const needsDecision = (read: ItemRead): boolean =>
   read.standing.state === 'failed' || read.standing.state === 'stopped';
@@ -400,8 +401,7 @@ function DecisionStrip({ projectId }: { projectId: string }): ReactElement | nul
         </span>
       </h2>
       <p className="mt-1 text-console-12 text-text-tertiary">
-        Nothing moves these until a new run starts on them, their change merges, or their last part
-        is done.
+        Nothing moves these until a new run starts on them or their change merges.
       </p>
       <ul className="mt-3 grid gap-2 md:grid-cols-3">
         {list.shown.map(read => (
@@ -610,7 +610,9 @@ function WorkOrderStrip({
             }}
             className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded border px-3 py-2 text-left ${chosen === item.id ? 'border-accent bg-surface-elevated' : 'border-border bg-surface hover:bg-surface-hover disabled:hover:bg-surface'}`}
           >
-            <span className="font-mono text-console-11 text-text-tertiary">{item.key}</span>
+            <span data-work-order-key className="font-mono text-console-11 text-text-tertiary">
+              {displayItemKey(item.key)}
+            </span>
             <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
               {item.title ?? 'Work order'}
             </span>

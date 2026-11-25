@@ -29,7 +29,12 @@ const dispatch = (pack: string, workflow?: string): Record<string, unknown> => (
 
 function standing(
   runs: Run[],
-  facts: { merged?: boolean; parts?: { done: boolean }[]; stopped?: boolean } = {}
+  facts: {
+    merged?: boolean;
+    parts?: { done: boolean }[];
+    dependsOn?: { done: boolean }[];
+    stopped?: boolean;
+  } = {}
 ) {
   return itemStanding({
     runs,
@@ -39,6 +44,7 @@ function standing(
     questions: facts.stopped === true ? [{ kind: 'stopped' }] : [],
     merged: facts.merged ?? false,
     parts: facts.parts ?? [],
+    dependsOn: facts.dependsOn ?? [],
   });
 }
 
@@ -70,15 +76,24 @@ describe('where an item stands', () => {
     expect(standing(split).state).toBe('stopped');
   });
 
-  test('parts not all done leave the item where its own runs put it', () => {
+  test('an item that split into parts never needs a decision of its own while they go on', () => {
     const parts = [{ done: true }, { done: false }];
-    // A refused or failed start on an item with parts still needs a decision.
-    expect(standing([run('r1', 'completed', { outcome: 'refused' })], { parts }).state).toBe(
-      'stopped'
-    );
-    expect(standing([run('r1', 'completed')], { parts }).state).toBe('resting');
-    expect(standing([run('r1', 'failed')], { parts }).state).toBe('failed');
+    // Live 199: its split ended 'split' and nothing followed; its work goes on in its parts.
+    const split = [run('r1', 'completed', { outcome: 'split' })];
+    expect(standing(split, { parts }).state).toBe('resting');
+    expect(standing(split, { parts, stopped: true }).state).toBe('resting');
+    expect(standing([run('r1', 'failed')], { parts }).state).toBe('resting');
     expect(standing([run('r1', 'running')], { parts }).state).toBe('running');
+  });
+
+  test('an item that waits on an item it depends on is waiting, not in need of a decision', () => {
+    // Live 198: its link stage ended 'waiting' because 196, which it depends on, is open.
+    const linked = [run('r1', 'completed', { outcome: 'waiting' })];
+    expect(standing(linked, { dependsOn: [{ done: false }] }).state).toBe('waiting');
+    expect(standing(linked, { dependsOn: [{ done: false }], stopped: true }).state).toBe('waiting');
+    // Once what it depends on is done, nothing moves it but a decision; a failure stays one.
+    expect(standing(linked, { dependsOn: [{ done: true }] }).state).toBe('stopped');
+    expect(standing([run('r1', 'failed')], { dependsOn: [{ done: false }] }).state).toBe('failed');
   });
 
   test('the pack is the key its standing run recorded, even without the workflow name', () => {

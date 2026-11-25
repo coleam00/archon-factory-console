@@ -257,7 +257,7 @@ describe('reading items over a window', () => {
     expect(page.totals?.done).toBe(1);
   });
 
-  test('an item stands done when every part linked to it is done, through active part_of links only', async () => {
+  test('an item stands by the items linked to it: done by its parts, waiting on what it depends on', async () => {
     const wide = { since: '2026-10-01T00:00:00Z', until: '2027-01-01T00:00:00Z' };
     type Link = [from: string, to: string, kind?: 'part_of' | 'depends_on' | 'ended'];
     const states = async (
@@ -305,9 +305,9 @@ describe('reading items over a window', () => {
       ['x', 'queued'],
       ['y', 'done'],
     ]);
-    // y is not merged, so p is not done, and its own stop still needs a decision.
+    // y is not merged, so p is not done; its work goes on in y, so it needs no decision.
     expect(await states(['p', 'x', 'y'], split, ['x'])).toEqual([
-      ['p', 'stopped'],
+      ['p', 'resting'],
       ['x', 'done'],
       ['y', 'stopped'],
     ]);
@@ -336,6 +336,15 @@ describe('reading items over a window', () => {
       ['p', 'stopped'],
       ['x', 'done'],
     ]);
+    // x depends on p: while p is not done x waits for it, and once p merged x's stop is its own.
+    expect(await states(['p', 'x'], [['x', 'p', 'depends_on']], [])).toEqual([
+      ['p', 'stopped'],
+      ['x', 'waiting'],
+    ]);
+    expect(await states(['p', 'x'], [['x', 'p', 'depends_on']], ['p'])).toEqual([
+      ['p', 'done'],
+      ['x', 'stopped'],
+    ]);
     // A part split again is done by its own parts, and so is the item it is part of.
     expect(
       await states(
@@ -351,7 +360,7 @@ describe('reading items over a window', () => {
       ['x', 'done'],
       ['z', 'done'],
     ]);
-    // Two items part of each other: the read ends, and neither is done.
+    // Two items part of each other: the read ends, neither is done, and both rest.
     expect(
       await states(
         ['a', 'b'],
@@ -362,8 +371,8 @@ describe('reading items over a window', () => {
         []
       )
     ).toEqual([
-      ['a', 'stopped'],
-      ['b', 'stopped'],
+      ['a', 'resting'],
+      ['b', 'resting'],
     ]);
   });
 

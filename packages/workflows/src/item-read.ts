@@ -79,7 +79,7 @@ import { readCompletedRunResult, resultCommitOf } from './run-result';
 import { getTerminalRecord } from './terminal-record';
 import { runPack, runPackSchema } from './run-pack';
 import { startLimitStandingSchema } from './start-limit';
-import { readParts } from './item-parts';
+import { readLinked } from './item-parts';
 import { itemStanding, itemStandingSchema, type ItemStanding } from './item-standing';
 import { askAnswers, itemAnswer } from './item-answers';
 
@@ -696,8 +696,8 @@ export async function placeItem(
   }));
   const merge = await source.store.getItemMerge(found.item.id);
   const linkReads = await source.store.listItemLinks(found.item.id);
-  const parts = await readParts(source.store, found.item, linkReads, visiting, (part, inside) =>
-    placeItem(source, part, install, inside).then(place => place?.standing.state === 'done')
+  const linked = await readLinked(source.store, found.item, linkReads, visiting, (other, inside) =>
+    placeItem(source, other, install, inside).then(place => place?.standing.state === 'done')
   );
   const standing = itemStanding({
     runs: own.values,
@@ -707,7 +707,7 @@ export async function placeItem(
     questions,
     // A merge row that does not read still says the change merged.
     merged: merge !== null,
-    parts,
+    ...linked,
   });
   const read = async (): Promise<ItemRead> => {
     const events =

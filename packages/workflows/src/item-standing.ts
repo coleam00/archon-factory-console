@@ -18,7 +18,8 @@ import { displayedRunOutcome, type WorkflowRun } from './schemas/workflow-run';
  * Read from what runs recorded, never from a run's public name (`run-pack.ts`). Null when no
  * run of the item recorded one.
  *
- * Its parts are the items joined to it by an active `part_of` link pointing at it.
+ * Its parts are the items joined to it by an active `part_of` link pointing at it. What it
+ * depends on are the items its own active `depends_on` links point at.
  *
  * `state`, the first that holds:
  * - `running`: a run of the item is running.
@@ -28,17 +29,18 @@ import { displayedRunOutcome, type WorkflowRun } from './schemas/workflow-run';
  * - `done`: its change merged, whatever its last run did, or the run `runId` names completed
  *   with an outcome its workflow declares final (`returns.final`), or it has parts and every
  *   one of them is done.
+ * - `resting`, when it has parts: its work goes on in them, so it never needs a decision of
+ *   its own, whatever its last run did.
  * - `failed`: that run failed.
+ * - `waiting`, when an item it depends on is not done: it waits for that item.
  * - `stopped`: that run completed with an outcome and nothing followed: the engine recorded
  *   the stop (the attention queue's `stopped` item), or the run is from before stops and
- *   final outcomes were recorded, or its next start was refused or never prepared. Parts not
- *   all done do not change this: a refused start on an item with parts still needs a decision.
+ *   final outcomes were recorded, or its next start was refused or never prepared.
  * - `resting`: nothing runs, is queued or waits, and none of the above: its last run was
  *   cancelled or declared no outcome, or it has no run.
  *
- * A `failed` or `stopped` item needs a decision: it stays so until a newer run starts on it,
- * its change merges, or, for an item with parts, its last part is done. An item reads `done`
- * only when the engine knows it is.
+ * A `failed` or `stopped` item needs a decision: it stays so until a newer run starts on it
+ * or its change merges. An item reads `done` only when the engine knows it is.
  */
 export const ITEM_STANDING_STATES = [
   'running',
@@ -69,6 +71,8 @@ export function itemStanding(facts: {
   merged: boolean;
   /** The item's parts, each with whether it is done (merged, or standing `done`). */
   parts: readonly { done: boolean }[];
+  /** What the item depends on, each with whether it is done, as for `parts`. */
+  dependsOn: readonly { done: boolean }[];
 }): ItemStanding {
   const { runs, parts } = facts;
   const status = (wanted: WorkflowRun['status']): boolean =>
@@ -85,7 +89,9 @@ export function itemStanding(facts: {
     if (status('pending') || facts.queued.length > 0 || facts.held.length > 0) return 'queued';
     if (facts.merged || (at !== undefined && readItemFinal(at.metadata)) || partsDone)
       return 'done';
+    if (parts.length > 0) return 'resting';
     if (at?.status === 'failed') return 'failed';
+    if (facts.dependsOn.some(other => !other.done)) return 'waiting';
     // A completed run with an outcome that nothing followed, recorded as a stop or not.
     const ended = at?.status === 'completed' && displayedRunOutcome(at) !== null;
     return stopped || ended ? 'stopped' : 'resting';

@@ -306,6 +306,8 @@ test('a work order with no run of its own is listed from its members, open or me
   ]);
   // An order with a read of its own goes by its own title.
   expect(strips[1]?.textContent).toContain('Split the board');
+  // Its key reads as a person reads an issue key: #48.
+  expect(strips[1]?.querySelector('[data-work-order-key]')?.textContent).toBe('#48');
   expect(strips[1]?.hasAttribute('disabled')).toBe(true);
   // The item counts for the pack its run recorded, and its run's name finds its stage.
   const pack = page.querySelector('[data-pack="flow"]');
