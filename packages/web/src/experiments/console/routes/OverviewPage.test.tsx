@@ -40,10 +40,10 @@ function seedPack(): void {
   set(K.packView('p1', 'flow'), { path: null, view: null, problems: [] });
 }
 
-const ask = (ref: string, message: string): ItemAsk => ({
+const ask = (ref: string, message: string, project = 'p1'): ItemAsk => ({
   kind: 'attention',
   ref,
-  project: { key: 'acme/p', codebaseId: 'p1', name: 'p' },
+  project: { key: `acme/${project}`, codebaseId: project, name: project },
   item: { id: `item-${ref}`, projectKey: 'acme/p', key: `issue-${ref}` },
   revision: 1,
   labels: {},
@@ -93,7 +93,12 @@ test('the Overview shows its asks as the one count link, never as ask rows', () 
   set(K.runsAttention, {
     runs: [],
     ownerLost: [],
-    asks: [ask('ask:a1', 'Ship the widget?'), ask('ask:a2', 'Rename the column?')],
+    asks: [
+      ask('ask:a1', 'Ship the widget?'),
+      ask('ask:a2', 'Rename the column?'),
+      // Another project's ask: the line counts this project's asks only.
+      ask('ask:b1', 'Elsewhere?', 'p2'),
+    ],
     answerRefusals: {},
     itemIds: new Set<string>(),
     degraded: [],
@@ -105,8 +110,12 @@ test('the Overview shows its asks as the one count link, never as ask rows', () 
       </Routes>
     </MemoryRouter>
   );
-  expect(html).toContain('href="/console/p/p1/needs-you"');
-  expect(html).toContain('>2 need you</a>');
+  // The tab bar links to the Needs you tab too, so the line is read on its own.
+  const start = html.indexOf('<p data-needs-you');
+  expect(start).toBeGreaterThan(-1);
+  const line = html.slice(start, html.indexOf('</p>', start));
+  expect(line).toContain('href="/console/p/p1/needs-you"');
+  expect(line).toContain('>2 need you</a>');
   expect(html).not.toContain('Ship the widget?');
   expect(html).not.toContain('Rename the column?');
   expect(html).not.toContain('data-ask-ref');
