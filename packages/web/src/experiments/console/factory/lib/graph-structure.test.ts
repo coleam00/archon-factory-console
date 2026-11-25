@@ -71,6 +71,7 @@ const view: StructureView = {
     { id: 'plan', label: 'Plan', workflows: ['plan'] },
   ],
   runNames: { triage: 'o/p:triage', link: 'o/p:link', plan: 'o/p:plan' },
+  outcomeLabels: {},
 };
 
 describe('the structure the pack graph gives', () => {
@@ -90,6 +91,20 @@ describe('the structure the pack graph gives', () => {
       { from: 'intake', to: 'link', label: 'done' },
       { from: 'link', to: 'plan', label: 'placed' },
       { from: 'link', to: 'link', label: 'done' },
+    ]);
+  });
+
+  test("an arrow reads its outcome's label where the view has one, an exact key only", () => {
+    const worded = { ...view, outcomeLabels: { 'triage:whole': 'Whole', 'link:*': 'Linked' } };
+    expect(mapArrows(worded, graph).map(arrow => arrow.label)).toEqual([
+      'Whole, small',
+      'done',
+      'placed',
+      'done',
+    ]);
+    expect(stageHandOffs(worded, mapArrows(worded, graph), 'intake')).toEqual([
+      { label: 'Whole, small', to: 'plan', toLabel: 'Plan' },
+      { label: 'done', to: 'link', toLabel: 'Link' },
     ]);
   });
 

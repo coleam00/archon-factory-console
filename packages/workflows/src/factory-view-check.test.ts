@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { checkFactoryView } from './factory-view-check';
+import { checkFactoryView, reconcileFactoryView } from './factory-view-check';
 import type { PackGraph, PackGraphArrow } from './pack-graph';
 import type { FactoryView } from './schemas/factory-view';
 
@@ -138,47 +138,157 @@ test('a view naming only what the graph has passes clean', () => {
   expect(problems()).toEqual([]);
 });
 
-describe('a name the graph lacks is an error', () => {
-  test.each<[string, (v: FactoryView) => void, string]>([
+describe('a name the graph lacks drops that entry with a warning', () => {
+  test.each<[string, (v: FactoryView) => void, string, (v: FactoryView) => unknown]>([
     [
       'an unknown stage',
       v => void (v.stages.deploy = { label: 'x', blurb: 'x' }),
-      'error stages.deploy',
+      'warning stages.deploy',
+      v => v.stages.deploy,
     ],
-    ['an unknown merged stage', v => void (v.merged = 'deploy'), 'error merged'],
+    ['an unknown merged stage', v => void (v.merged = 'deploy'), 'warning merged', v => v.merged],
     [
       'an unknown step',
-      v => void (v.stages.make!.steps = { gone: 'x' }),
-      'error stages.make.steps.gone',
-    ],
-    [
-      'an unknown covered step',
-      v => void (v.stages.check!.drilldown!.phases[0]!.cards[0]!.covers = ['gone']),
-      'error stages.check.drilldown.phases.0.cards.0.covers.0',
+      v => void (v.stages.make!.steps = { gone: 'x', write: 'Writes' }),
+      'warning stages.make.steps.gone',
+      v => v.stages.make?.steps?.gone,
     ],
     [
       'an unknown outcome',
       v => void (v.outcomes!['make:gone'] = { label: 'x' }),
-      'error outcomes.make:gone',
+      'warning outcomes.make:gone',
+      v => v.outcomes?.['make:gone'],
     ],
     [
       'an exact outcome of a stage that declares none',
       v => void (v.outcomes!['land:x'] = {}),
-      'error outcomes.land:x',
+      'warning outcomes.land:x',
+      v => v.outcomes?.['land:x'],
     ],
     [
       'an option no asks arrow leaves on',
       v => void (v.answers = { 'make:drop': { starts: 'x' } }),
-      'error answers.make:drop',
+      'warning answers.make:drop',
+      v => v.answers?.['make:drop'],
     ],
-    ['an unknown group', v => void (v.groups!.Other = { blurb: 'x' }), 'error groups.Other'],
+    [
+      'an unknown group',
+      v => void (v.groups!.Other = { blurb: 'x' }),
+      'warning groups.Other',
+      v => v.groups?.Other,
+    ],
     [
       'a How it works edge between stages no arrow joins',
       v => void v.howItWorks.views.top!.edges.push({ from: 'b', to: 'a', kind: 'loops-back' }),
-      'error howItWorks.views.top.edges.1',
+      'warning howItWorks.views.top.edges.1',
+      v => v.howItWorks.views.top?.edges[1],
     ],
-  ])('%s', (_name, edit, expected) => {
-    expect(problems(edit)).toEqual([expected]);
+  ])('%s', (_name, edit, expected, entry) => {
+    const v = view();
+    edit(v);
+    const reconciled = reconcileFactoryView(v, graph());
+    expect(reconciled.problems.map(p => `${p.severity} ${p.path.join('.')}`)).toEqual([expected]);
+    expect(reconciled.problems[0]?.message).toStartWith('dropped: ');
+    expect(entry(reconciled.view)).toBeUndefined();
+    expect(entry(v)).toBeDefined();
+  });
+
+  test('a drill-down keeps the cards that still cover a step; what is left empty goes', () => {
+    const v = view();
+    const phases = v.stages.check!.drilldown!.phases;
+    const kept = phases[0]!.cards[0]!;
+    phases[0]!.cards.push({ ...kept, title: 'gone', covers: ['gone'] });
+    phases.push({ label: 'Gone', cards: [{ ...kept, covers: ['gone'] }] });
+    const reconciled = reconcileFactoryView(v, graph());
+    expect(reconciled.problems.map(p => p.path.join('.'))).toEqual([
+      'stages.check.drilldown.phases.0.cards.1.covers.0',
+      'stages.check.drilldown.phases.0.cards.1',
+      'stages.check.drilldown.phases.1.cards.0.covers.0',
+      'stages.check.drilldown.phases.1.cards.0',
+      'stages.check.drilldown.phases.1',
+    ]);
+    expect(reconciled.view.stages.check?.drilldown?.phases.map(p => p.cards.length)).toEqual([1]);
+  });
+
+  test('a step two cards cover is still an error: drift does not cause it', () => {
+    expect(
+      problems(v => {
+        const cards = v.stages.check!.drilldown!.phases[0]!.cards;
+        cards.push({ ...cards[0]!, title: 'again' });
+      })
+    ).toEqual(['error stages.check.drilldown.phases.0.cards.1.covers.0']);
+  });
+});
+
+describe('a renamed stage costs only the entries naming it', () => {
+  /** `check` renamed `review`, with the same steps, outcomes, arrows and group. */
+  function renamed(): PackGraph {
+    const g = graph();
+    for (const s of g.stages)
+      if (s.workflow === 'check') Object.assign(s, { workflow: 'review', name: `${PACK}:review` });
+    for (const a of g.arrows) {
+      if (a.from.stage === `${PACK}:check`) a.from = { ...a.from, stage: `${PACK}:review` };
+      if (a.to === `${PACK}:check`) a.to = `${PACK}:review`;
+    }
+    g.groups = [
+      { name: 'Build', stages: ['make', 'review'] },
+      { name: 'Ship', stages: ['land'] },
+    ];
+    return g;
+  }
+
+  test('its entries and the How it works card binding drop; the rest is served', () => {
+    const v = view();
+    v.outcomes!['check:fail'] = { label: 'Failed', reads: 'returned' };
+    v.returns = [{ workflow: 'check', node: 'read', outcome: 'fail' }];
+    v.approves = [{ workflow: 'check', node: 'read', outcome: 'pass' }];
+    v.rounds = { workflow: 'check', round: '/round', allowance: '/allowance' };
+    v.change = [
+      { workflow: 'make', pointer: '/change' },
+      { workflow: 'check', pointer: '/change' },
+    ];
+    const reconciled = reconcileFactoryView(v, renamed());
+    expect(reconciled.problems.map(p => `${p.severity} ${p.path.join('.')}`)).toEqual([
+      'warning stages.check',
+      'warning outcomes.check:fail',
+      'warning howItWorks.views.top.cards.1.stages.0',
+      'warning returns.0.workflow',
+      'warning approves.0.workflow',
+      'warning rounds.workflow',
+      'warning change.1.workflow',
+      // `review` is in flow with neither a label here nor a `display:`.
+      'warning stages',
+    ]);
+    const served = reconciled.view;
+    expect(Object.keys(served.stages)).toEqual(['make', 'land']);
+    expect(served.howItWorks.views.top?.cards[1]?.stages).toBeUndefined();
+    expect(served.howItWorks.views.top?.edges).toHaveLength(1);
+    expect(served.returns).toBeUndefined();
+    expect(served.approves).toBeUndefined();
+    expect(served.rounds).toBeUndefined();
+    expect(served.change).toEqual([{ workflow: 'make', pointer: '/change' }]);
+    expect(served.groups).toEqual(v.groups);
+    expect(served.merged).toBe('land');
+  });
+
+  test('a drop that leaves one half of "returned" alone drops the other half', () => {
+    const v = view();
+    v.outcomes!['make:done'] = { story: 'Made it', reads: 'returned' };
+    v.returns = [
+      { workflow: 'make', node: 'write', outcome: 'done' },
+      { workflow: 'make', node: 'gone', outcome: 'done' },
+    ];
+    // Only the second point names a step the graph lacks: the first still counts.
+    expect(reconcileFactoryView(v, graph()).problems.map(p => p.path.join('.'))).toEqual([
+      'returns.1.node',
+    ]);
+    v.returns = [{ workflow: 'make', node: 'gone', outcome: 'done' }];
+    const orphaned = reconcileFactoryView(v, graph());
+    expect(orphaned.problems.map(p => `${p.severity} ${p.path.join('.')}`)).toEqual([
+      'warning returns.0.node',
+      'warning outcomes.make:done.reads',
+    ]);
+    expect(orphaned.view.outcomes?.['make:done']).toEqual({ story: 'Made it' });
   });
 });
 
@@ -208,7 +318,8 @@ describe('what the graph has and the view leaves out warns', () => {
     expect(problems(v => void delete v.groups!.Ship)).toEqual(['warning groups']);
   });
 
-  test("a pack that declares no groups leaves the file's group words unused", () => {
+  test("a pack that declares no groups drops the file's group words", () => {
+    expect(reconcileFactoryView(view(), { ...graph(), groups: [] }).view.groups).toEqual({});
     expect(problems(undefined, { ...graph(), groups: [] })).toEqual([
       'warning groups.Build',
       'warning groups.Ship',
@@ -222,7 +333,7 @@ describe('what the graph has and the view leaves out warns', () => {
   });
 });
 
-describe('progress declarations are checked against the graph', () => {
+describe('progress declarations are reconciled with the graph', () => {
   /** `check` with a loop group `rounds` holding `rounds.judge`. */
   function loopGraph(): PackGraph {
     const g = graph();
@@ -266,20 +377,25 @@ describe('progress declarations are checked against the graph', () => {
     [
       'an unknown workflow',
       v => void v.approves?.push({ workflow: 'ship', node: 'x', outcome: 'y' }),
-      ['error approves.1.workflow'],
+      ['warning approves.1.workflow'],
     ],
-    ['a retired workflow the graph has', v => void v.retired?.push('land'), ['error retired.1']],
-    ['a workflow retired twice', v => void v.retired?.push('deliver'), ['error retired.1']],
     [
       'an unknown step',
       v => void (v.approves = [{ workflow: 'check', node: 'judge', outcome: 'pass' }]),
-      ['error approves.0.node'],
+      ['warning approves.0.node'],
     ],
     [
       'an unknown loop',
       v => void (v.rounds = { workflow: 'check', loop: 'laps' }),
-      ['error rounds.loop'],
+      ['warning rounds.loop'],
     ],
+  ])('%s is dropped', (_name, edit, expected) => {
+    expect(checked(edit)).toEqual(expected);
+  });
+
+  test.each<[string, (v: FactoryView) => void, string[]]>([
+    ['a retired workflow the graph has', v => void v.retired?.push('land'), ['error retired.1']],
+    ['a workflow retired twice', v => void v.retired?.push('deliver'), ['error retired.1']],
     [
       'a source naming one workflow twice',
       v =>
@@ -299,7 +415,7 @@ describe('progress declarations are checked against the graph', () => {
       v => void delete v.outcomes!['check:fail'],
       ['error returns.0.workflow'],
     ],
-  ])('%s is an error', (_name, edit, expected) => {
+  ])('%s is an error: the file says it as written', (_name, edit, expected) => {
     expect(checked(edit)).toEqual(expected);
   });
 });

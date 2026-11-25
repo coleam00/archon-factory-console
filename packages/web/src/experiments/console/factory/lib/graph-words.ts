@@ -10,6 +10,7 @@ import type { PackGraph } from '../../skills/items';
 import type { FactoryView } from '../api';
 
 type Stage = FactoryView['stages'][string];
+type GraphStage = PackGraph['stages'][number];
 type Outcome = NonNullable<FactoryView['outcomes']>[string];
 
 function stageWords(
@@ -44,4 +45,12 @@ export function withGraphWords(view: FactoryView, stages: PackGraph['stages']): 
     stages: words,
     ...(Object.keys(outcomes).length === 0 ? {} : { outcomes }),
   };
+}
+
+/**
+ * What an outcome value reads as where no view file words it: the label its stage's
+ * `display:` gives it, else the value itself. The derived map labels its arrows with this.
+ */
+export function outcomeWord(stage: GraphStage | undefined, value: string): string {
+  return stage?.outcome?.values.find(entry => entry.value === value)?.display?.label ?? value;
 }

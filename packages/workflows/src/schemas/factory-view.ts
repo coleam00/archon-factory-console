@@ -10,8 +10,9 @@
  * Structure is never stated here. Which stages exist, their order, their groups, steps,
  * outcomes and the arrows between them come from the pack graph
  * (`GET /api/packs/{pack}/graph`); this file only names them, by a stage's `workflow` name.
- * Whether every name is one the graph has is `checkFactoryView` (`factory-view-check.ts`),
- * run when the file is read and by `bun run check:factory-view`.
+ * An entry naming what the graph lacks is left out of the view served, with a warning
+ * (`reconcileFactoryView`, `factory-view-check.ts`), run when the file is read and by
+ * `bun run check:factory-view`.
  */
 import { z } from 'zod';
 import { outcomeStorySchema } from './display';

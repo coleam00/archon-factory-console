@@ -25,8 +25,14 @@ Check it against a pack tree (an installed one at `plugins/packs/<owner>/<name>/
 bun run check:factory-view <pack dir> --view docs/factory-console/pack-view/factory-view.json
 ```
 
-A name the pack graph lacks is an error; an in-flow stage with no words is a warning, and so
-are group words when the pack declares no groups (its map then draws one card per stage).
+An entry naming something the pack graph lacks (a stage, step, outcome, option, group, progress
+workflow or loop, or a How it works edge the graph no longer connects) is dropped: the console
+draws the rest of the file, and the check and the view route list it as a `dropped:` warning. A
+pack that declares no groups drops the file's group words, and its map draws one card per stage.
+What drift cannot cause is still an error, and the console refuses the file on it: a step two
+drill-down cards cover, a workflow `rounds` or `change` names twice, a `retired` entry the graph
+has or that is listed twice, and "returned" said by an outcome or a `returns` point but not the
+other. An in-flow stage with no words is a warning.
 
 The file also says where a board card finds an item's progress in its runs' records: `retired`
 (workflows the pack no longer has whose runs still count, here `deliver`), `rounds` (the

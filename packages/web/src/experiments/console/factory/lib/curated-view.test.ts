@@ -54,6 +54,23 @@ describe('the slim file over the b62ec7b graph', () => {
     ]);
   });
 
+  test('a stage renamed in the pack reads its display: label, though the file has no entry for it', () => {
+    const graph = structuredClone(shippedGraph);
+    for (const entry of graph.stages)
+      if (entry.workflow === 'stage-check')
+        Object.assign(entry, {
+          workflow: 'stage-review',
+          display: { label: 'Checks', short: 'Review, tests, product' },
+        });
+    const { 'stage-check': _gone, ...stages } = shippedFile.stages;
+    const view = curatedView({ ...shippedFile, stages }, graph);
+    expect(view.stages.find(entry => entry.id === 'stage-review')).toMatchObject({
+      label: 'Checks',
+      short: 'Review, tests, product',
+    });
+    expect(view.stageLabels['stage-review']).toBe('Checks');
+  });
+
   test('a file that names no merged stage leaves the last in-flow stage there', () => {
     const { merged: _named, ...file } = shippedFile;
     const view = curatedView(file, shippedGraph);

@@ -53,3 +53,21 @@ describe("the shipped pack's full workflow", () => {
     expect((bounds.y + bounds.h) * camera.k + camera.y).toBeLessThanOrEqual(frame.height);
   });
 });
+
+test("an arrow's outcome reads as the label its stage's display: gives it", () => {
+  const graph = structuredClone(shippedGraph);
+  const arrow = graph.arrows.find(
+    entry => 'outcome' in entry.from && entry.from.stage !== entry.to
+  );
+  if (arrow === undefined || !('outcome' in arrow.from)) throw new Error('no outcome arrow');
+  const { stage: name, outcome } = arrow.from;
+  const value = graph.stages
+    .find(stage => stage.name === name)
+    ?.outcome?.values.find(entry => entry.value === outcome);
+  if (value === undefined) throw new Error(`no value ${outcome}`);
+  const labels = (g: typeof graph) =>
+    fullWorkflowLayout(g, columnsOf(g)).arrows.flatMap(entry => entry.labels);
+  expect(labels(graph)).toContain(outcome);
+  value.display = { label: 'Worded' };
+  expect(labels(graph)).toContain('Worded');
+});

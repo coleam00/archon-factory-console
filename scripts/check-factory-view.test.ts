@@ -55,15 +55,20 @@ describe('checkView', () => {
     expect(checkView(view('make'), graph)).toEqual({ code: 0, lines: ['0 errors, 0 warnings'] });
   });
 
-  test('exits 1 on an unknown stage and still prints the warnings', () => {
+  test('exits 0 on an unknown stage, printing each dropped entry with the other warnings', () => {
     const report = checkView(view('deploy'), graph);
-    expect(report.code).toBe(1);
-    expect(report.lines.map(entry => entry.split(':')[0])).toEqual([
-      'stages.deploy',
-      'merged',
-      'stages',
-      '2 errors, 1 warnings',
+    expect(report.code).toBe(0);
+    expect(report.lines).toEqual([
+      'stages.deploy: [warning] dropped: names stage "deploy", which pack "acme.factory" does not have',
+      'merged: [warning] dropped: names stage "deploy", which pack "acme.factory" does not have',
+      'stages: [warning] stage "make" has no words',
+      '0 errors, 3 warnings',
     ]);
+  });
+
+  test('exits 1 on a fault drift cannot cause', () => {
+    const twice = { ...view('make'), retired: ['old', 'old'] };
+    expect(checkView(twice, graph).code).toBe(1);
   });
 
   test('exits 1 on a file the schema refuses, before comparing names', () => {

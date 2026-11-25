@@ -69,13 +69,15 @@ describe('readPackView', () => {
     }
   });
 
-  test("a valid file is checked against the pack's graph when it is read", async () => {
+  test("a valid file is reconciled with the pack's graph when it is read", async () => {
     const good = await read(await packProject(JSON.stringify(view('chain-a'))));
     expect([good.view?.title, good.problems]).toEqual(['Chain', []]);
     const unknown = await read(await packProject(JSON.stringify(view('chain-z'))));
     expect(unknown.problems.map(problem => [problem.severity, problem.path.join('.')])).toEqual([
-      ['error', 'stages.chain-z'],
-      ['error', 'merged'],
+      ['warning', 'stages.chain-z'],
+      ['warning', 'merged'],
     ]);
+    // The view served is the one a console draws: the entries naming chain-z are gone.
+    expect([unknown.view?.stages, unknown.view?.merged]).toEqual([{}, undefined]);
   });
 });
