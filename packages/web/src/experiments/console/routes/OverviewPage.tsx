@@ -155,7 +155,7 @@ function Flow({
                 {numbers.mergedRecent}
               </span>
             )}
-            <span className="mt-1 block text-console-11 text-text-tertiary">
+            <span className="mt-1 block text-console-12 text-text-tertiary">
               last {MERGED_DAYS} days
               {numbers === undefined ? '' : ` · ${String(numbers.mergedToday)} today`}
             </span>

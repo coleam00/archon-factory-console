@@ -119,8 +119,8 @@ interface Newest {
 }
 
 /**
- * The newest few items of a list and more of them a page at a time: what Done and the
- * needs-a-decision strip show. `newest` is the cached first page; `read` fetches the page
+ * The newest few items of a list and more of them a page at a time: what the needs-a-decision
+ * strip shows. `newest` is the cached first page; `read` fetches the page
  * after a cursor.
  */
 function useMore(
@@ -422,7 +422,8 @@ export function BoardPage(): ReactElement {
   // Every item, which every group and count reads; the open ones stand in until it answers.
   const every = useBoardItems(projectId);
   const all = every.data ?? open.data ?? [];
-  const orders = workOrders(all);
+  // Only from every item: the open ones alone would give a wrong total (the strip waits).
+  const orders = workOrders(every.data ?? []);
   const lit = orders.find(entry => entry.item.id === order);
   const litIds = lit === undefined ? null : new Set(lit.members.map(member => member.item.id));
   // The filter searches what each card shows: its issue title and its key as a person reads it.

@@ -1,6 +1,6 @@
-import { expect, test } from 'bun:test';
+import { afterEach, expect, test } from 'bun:test';
 import type { ItemRead } from '../../skills/items';
-import { orderSummary, workOrders } from './work-orders';
+import { listOrderItems, orderSummary, workOrders } from './work-orders';
 
 const ref = (key: string) => ({ id: key, projectKey: 'p', key, title: null });
 
@@ -23,6 +23,11 @@ function read(
   } as unknown as ItemRead;
 }
 
+const originalFetch = globalThis.fetch;
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 test('a split parent whose pieces all merged reads N of N merged and resolved', () => {
   // #171's shape: the order has no merge of its own and stands done through its parts.
   const [order] = workOrders([
@@ -34,18 +39,36 @@ test('a split parent whose pieces all merged reads N of N merged and resolved', 
     merged: 2,
     total: 2,
     unstarted: 0,
-    open: 0,
     resolved: true,
   });
 });
 
-test('a work order with no run of its own is listed, with its members not yet started', () => {
-  // #48's shape: the order has no run; its read names a member the window does not list.
-  const orders = workOrders([
+test('every item is read with the own read of each work order the window does not list', async () => {
+  // #48's shape: the window lists members with runs; order 48 has none, order 64 is listed.
+  const window = [
     read('49', 'done', { merged: true, links: [link('48', 'outgoing')] }),
-    read('48', 'resting', { links: [link('49', 'incoming'), link('50', 'incoming')] }),
-  ]);
-  expect(orders.map(order => [order.item.key, orderSummary(order)])).toEqual([
-    ['48', { merged: 1, total: 2, unstarted: 1, open: 0, resolved: false }],
-  ]);
+    read('65', 'done', { merged: true, links: [link('64', 'outgoing')] }),
+    read('64', 'done', { links: [link('65', 'incoming')] }),
+  ];
+  const order48 = read('48', 'done', { links: [link('49', 'incoming'), link('50', 'incoming')] });
+  const asked: string[] = [];
+  globalThis.fetch = ((url: RequestInfo | URL) => {
+    const path = String(url);
+    asked.push(path.replace(/\?.*$/, ''));
+    const body = path.includes('/api/items/window') ? { items: window, next: null } : order48;
+    return Promise.resolve(
+      new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
+    );
+  }) as typeof fetch;
+  const items = await listOrderItems('web');
+  // One window read and one item read, for 48 alone.
+  expect(asked).toEqual(['/api/items/window', '/api/items']);
+  const order = workOrders(items).find(entry => entry.item.key === '48');
+  // Its own read names member 50, which has no run, and gives it its standing.
+  expect(order === undefined ? null : orderSummary(order)).toEqual({
+    merged: 1,
+    total: 2,
+    unstarted: 1,
+    resolved: true,
+  });
 });

@@ -34,8 +34,9 @@ export function WorkOrdersStrip({
   lit,
   onLight,
 }: {
+  /** The project's work orders, from every item; empty until that read answers. */
   orders: readonly WorkOrder[];
-  /** Every item is read: the merged counts are known. */
+  /** Every item is read. Until then no total is known, so the strip shows a skeleton. */
   counted: boolean;
   error: Error | undefined;
   /** The id of the order whose members are lit; null when none. */
@@ -55,7 +56,22 @@ export function WorkOrdersStrip({
     cards?.packs == null ? null : cards.projectId,
     orders.flatMap(order => order.read ?? [])
   );
-  if (orders.length === 0 && error === undefined) return null;
+  if (error !== undefined && !counted)
+    return (
+      <p role="alert" className="mb-6 text-console-13 text-error">
+        The work orders could not be read: {error.message}
+      </p>
+    );
+  // Rule 6: while the items are read, the strip's shape and no total that may be wrong.
+  if (!counted)
+    return (
+      <div data-work-orders-loading title="Reading" className="mb-6 flex flex-col gap-2">
+        <span className="h-5 w-48 rounded bg-surface-elevated motion-safe:animate-pulse" />
+        <span className="h-9 rounded-console-12 bg-surface-elevated motion-safe:animate-pulse" />
+        <span className="sr-only">Reading the work orders</span>
+      </div>
+    );
+  if (orders.length === 0) return null;
   const pending = orders.filter(order => !orderSummary(order).resolved).length;
   const noun =
     orders.length === 1 ? (words?.workOrder ?? 'work order') : (words?.workOrders ?? 'work orders');
@@ -63,7 +79,7 @@ export function WorkOrdersStrip({
     <section data-work-orders aria-label="Work orders" className="mb-6 flex flex-col gap-2">
       {error === undefined ? null : (
         <p role="alert" className="text-console-13 text-error">
-          The work orders could not be read in full: {error.message}
+          The work orders could not be read again: {error.message}
         </p>
       )}
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
@@ -76,7 +92,7 @@ export function WorkOrdersStrip({
           }}
           className="-ml-2 flex items-center gap-2 whitespace-nowrap rounded px-2 py-1 text-console-14 font-semibold text-text-primary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out hover:bg-surface-hover"
         >
-          {`${String(orders.length)} ${noun}${counted ? ` · ${String(pending)} open` : ''}`}
+          {`${String(orders.length)} ${noun} · ${String(pending)} open`}
           <ChevronDown
             aria-hidden="true"
             className={`h-4 w-4 text-text-secondary motion-safe:transition-transform motion-safe:duration-150 ${open ? 'rotate-180' : ''}`}
@@ -91,7 +107,6 @@ export function WorkOrdersStrip({
             <WorkOrderRow
               key={order.item.id}
               order={order}
-              counted={counted}
               title={orderTitle(order, titles)}
               lit={lit === order.item.id}
               onLight={onLight}
@@ -112,13 +127,11 @@ function orderTitle(order: WorkOrder, titles: Parameters<typeof itemTitle>[1]): 
 
 function WorkOrderRow({
   order,
-  counted,
   title,
   lit,
   onLight,
 }: {
   order: WorkOrder;
-  counted: boolean;
   title: string | null;
   lit: boolean;
   onLight: (order: string | null) => void;
@@ -145,27 +158,24 @@ function WorkOrderRow({
           {title ?? 'Work order'}
         </span>
       </span>
-      {counted ? (
+      <span className="flex shrink-0 items-center gap-2 whitespace-nowrap text-text-secondary">
+        <span data-work-order-line>{mergedWords}</span>
         <span
-          data-work-order-line
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap text-text-secondary"
+          role="img"
+          aria-label={mergedWords}
+          className="relative h-1.5 w-16 overflow-hidden rounded-full bg-surface-hover"
         >
-          {mergedWords}
           <span
-            role="img"
-            aria-label={mergedWords}
-            className="relative h-1.5 w-16 overflow-hidden rounded-full bg-surface-hover"
-          >
-            <span
-              className="absolute inset-y-0 left-0 rounded-full bg-success"
-              style={{
-                width: `${summary.total === 0 ? 0 : (summary.merged / summary.total) * 100}%`,
-              }}
-            />
-          </span>
-          {summary.unstarted > 0 ? <span>{`${String(summary.unstarted)} not started`}</span> : null}
+            className="absolute inset-y-0 left-0 rounded-full bg-success"
+            style={{
+              width: `${summary.total === 0 ? 0 : (summary.merged / summary.total) * 100}%`,
+            }}
+          />
         </span>
-      ) : null}
+        {summary.unstarted > 0 ? (
+          <span data-work-order-unstarted>{`${String(summary.unstarted)} not started`}</span>
+        ) : null}
+      </span>
       {summary.resolved ? (
         <span
           data-work-order-resolved

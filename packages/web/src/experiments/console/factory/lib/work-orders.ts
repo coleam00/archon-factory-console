@@ -30,7 +30,7 @@ export interface WorkOrder {
 const activePartOf = (link: ItemRead['links'][number]): boolean =>
   link.kind === 'part_of' && link.ended === null;
 
-export const isOpenMember = (member: Member): boolean =>
+const isOpenMember = (member: Member): boolean =>
   member.read !== undefined && isMoving(member.read);
 
 /**
@@ -73,8 +73,6 @@ export interface OrderSummary {
   total: number;
   /** Members with no run, so no read. */
   unstarted: number;
-  /** Members on a stage now. */
-  open: number;
   /** The order's own read stands `done`: every part is done. */
   resolved: boolean;
 }
@@ -85,7 +83,6 @@ export function orderSummary(order: WorkOrder): OrderSummary {
     merged: members.filter(({ read }) => read != null && read.merged !== null).length,
     total: members.length,
     unstarted: members.filter(({ read }) => read === undefined).length,
-    open: members.filter(isOpenMember).length,
     resolved: order.read?.standing.state === 'done',
   };
 }
