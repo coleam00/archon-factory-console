@@ -197,6 +197,13 @@ describe('what the graph has and the view leaves out warns', () => {
     expect(problems(v => void delete v.groups!.Ship)).toEqual(['warning groups']);
   });
 
+  test("a pack that declares no groups leaves the file's group words unused", () => {
+    expect(problems(undefined, { ...graph(), groups: [] })).toEqual([
+      'warning groups.Build',
+      'warning groups.Ship',
+    ]);
+  });
+
   test('a stage that is not in flow is not warned on', () => {
     const g = graph();
     expect(g.stages.some(s => s.workflow === 'helper' && !s.inFlow)).toBe(true);

@@ -16,7 +16,8 @@ Check it against a pack tree (an installed one at `plugins/packs/<owner>/<name>/
 bun run check:factory-view <pack dir> --view docs/factory-console/pack-view/factory-view.json
 ```
 
-A name the pack graph lacks is an error; an in-flow stage with no words is a warning.
+A name the pack graph lacks is an error; an in-flow stage with no words is a warning, and so
+are group words when the pack declares no groups (its map then draws one card per stage).
 
 The file also says where a board card finds an item's progress in its runs' records: `retired`
 (workflows the pack no longer has whose runs still count, here `deliver`), `rounds` (the

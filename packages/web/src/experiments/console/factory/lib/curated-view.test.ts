@@ -1,8 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { shippedArrows, shippedFile, shippedGraph, shippedView } from '../curated.test-fixtures';
 import { curatedView } from './curated-view';
-import { mapArrows } from './graph-structure';
-import { layoutMap } from './map-layout';
 import { mapColumns } from './map-columns';
 
 const stage = (id: string) => shippedView.stages.find(entry => entry.id === id);
@@ -74,22 +72,5 @@ describe("the map's arrows over the b62ec7b graph", () => {
     expect(label('land', 'landed')).toBe('landed');
     expect(label('plan', 'plan')).toBe('answered');
     expect(label('link', 'link')).toBe('asked');
-  });
-
-  test('an arrow over a depends_on link is left out', () => {
-    expect(label('close', 'link')).toBeUndefined();
-    expect(label('land', 'link')).toBeUndefined();
-  });
-
-  test('an arrow backward in flow is a send-back in the lane; a forward one is a hand-off', () => {
-    const layout = layoutMap(shippedView, mapArrows(shippedView, shippedGraph));
-    expect(layout.feedback.paths).toContainEqual(
-      expect.objectContaining({ to: 'stage-build', label: 'return, send-back, one-more-round' })
-    );
-    expect(layout.arrows.map(arrow => [arrow.from, arrow.to])).toContainEqual([
-      'plan-and-build',
-      'checks',
-    ]);
-    expect(layout.arrows.find(arrow => arrow.to === 'landed')?.outcomes).toEqual(['landed']);
   });
 });

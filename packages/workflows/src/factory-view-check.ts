@@ -148,12 +148,23 @@ function keyErrors(view: FactoryView, index: GraphIndex): FactoryViewProblem[] {
   return errors;
 }
 
-/** Each `groups` key is a group the pack document declares. */
+/**
+ * Each `groups` key is a group the pack document declares. A pack that declares no groups at
+ * all (no document, or one without them) leaves the file's group words unused, which warns:
+ * the map then draws a card per stage, and the same file still serves a pack that has them.
+ */
 function groupErrors(view: FactoryView, graph: PackGraph): FactoryViewProblem[] {
   const known = new Set(graph.groups.map(group => group.name));
+  const unread = (graph.document?.problems.length ?? 0) > 0;
+  if (graph.groups.length === 0 && !unread)
+    return Object.keys(view.groups ?? {}).map(name => ({
+      severity: 'warning' as const,
+      path: ['groups', name],
+      message: `names group "${name}", but pack "${graph.pack}" declares no groups, so its words are unused`,
+    }));
   // The graph serves no groups while its document has a problem, so say that instead.
   const why =
-    graph.groups.length === 0 && (graph.document?.problems.length ?? 0) > 0
+    graph.groups.length === 0 && unread
       ? `; the pack document's groups do not read: ${graph.document?.problems.join('; ') ?? ''}`
       : '';
   return Object.keys(view.groups ?? {})
