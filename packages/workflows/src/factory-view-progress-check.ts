@@ -65,39 +65,52 @@ function reconcilePoints(r: Reconciling, key: 'returns' | 'approves'): void {
   else delete r.view[key];
 }
 
+/**
+ * The sources of `rounds` or `change` whose workflow (and loop) the graph has, in the form they
+ * were declared in (one source or a list); undefined when none is left.
+ */
+function keptSources<T extends { workflow: string; loop?: string }>(
+  r: Reconciling,
+  key: 'rounds' | 'change',
+  declared: T | T[] | undefined
+): T | T[] | undefined {
+  const single = declared !== undefined && !Array.isArray(declared);
+  const pathOf = (index: number): ProblemPath => (single ? [key] : [key, index]);
+  const sources = sourcesOf(declared);
+  const workflows = sources.map(source => source.workflow);
+  const kept = sources.filter((source, index) => {
+    if (workflows.indexOf(source.workflow) !== index)
+      r.error(pathOf(index), `names workflow "${source.workflow}" twice`);
+    const stage = stageOrRetired(r, source.workflow);
+    if (typeof stage === 'string' && stage !== 'retired') {
+      r.drop([...pathOf(index), 'workflow'], stage);
+      return false;
+    }
+    if (
+      source.loop !== undefined &&
+      typeof stage === 'object' &&
+      !stage.nodes.some(node => node.loopGroup === source.loop)
+    ) {
+      r.drop(
+        [...pathOf(index), 'loop'],
+        `names loop "${source.loop}", which stage "${source.workflow}" does not have`
+      );
+      return false;
+    }
+    return true;
+  });
+  if (kept.length === 0) return undefined;
+  return single ? declared : kept;
+}
+
 /** The `rounds` and `change` sources whose workflow (and loop) the graph has. */
 function reconcileSources(r: Reconciling): void {
-  for (const key of ['rounds', 'change'] as const) {
-    const declared = r.view[key];
-    const single = declared !== undefined && !Array.isArray(declared);
-    const pathOf = (index: number): ProblemPath => (single ? [key] : [key, index]);
-    const sources = sourcesOf<{ workflow: string; loop?: string }>(declared);
-    const workflows = sources.map(source => source.workflow);
-    const kept = sources.filter((source, index) => {
-      if (workflows.indexOf(source.workflow) !== index)
-        r.error(pathOf(index), `names workflow "${source.workflow}" twice`);
-      const stage = stageOrRetired(r, source.workflow);
-      if (typeof stage === 'string' && stage !== 'retired') {
-        r.drop([...pathOf(index), 'workflow'], stage);
-        return false;
-      }
-      if (
-        source.loop !== undefined &&
-        typeof stage === 'object' &&
-        !stage.nodes.some(node => node.loopGroup === source.loop)
-      ) {
-        r.drop(
-          [...pathOf(index), 'loop'],
-          `names loop "${source.loop}", which stage "${source.workflow}" does not have`
-        );
-        return false;
-      }
-      return true;
-    });
-    // The kept sources are the declared ones, so each keeps its own form.
-    if (kept.length === 0) delete r.view[key];
-    else if (!single) (r.view as Record<typeof key, unknown>)[key] = kept;
-  }
+  const rounds = keptSources(r, 'rounds', r.view.rounds);
+  if (rounds === undefined) delete r.view.rounds;
+  else r.view.rounds = rounds;
+  const change = keptSources(r, 'change', r.view.change);
+  if (change === undefined) delete r.view.change;
+  else r.view.change = change;
 }
 
 /** Where `view`'s two owners of "returned" disagree: outcome keys and `returns` workflows. */

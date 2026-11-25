@@ -1,0 +1,5 @@
+groups.Intake: [warning] dropped: names group "Intake", which pack "Wirasm.archon-software-factory" does not declare
+groups.Plan and build: [warning] dropped: names group "Plan and build", which pack "Wirasm.archon-software-factory" does not declare
+groups.Checks: [warning] dropped: names group "Checks", which pack "Wirasm.archon-software-factory" does not declare
+groups.Landing: [warning] dropped: names group "Landing", which pack "Wirasm.archon-software-factory" does not declare
+0 errors, 4 warnings

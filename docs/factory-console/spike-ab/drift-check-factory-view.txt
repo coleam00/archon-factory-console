@@ -1,0 +1,9 @@
+stages.stage-check: [warning] dropped: names stage "stage-check", which pack "Wirasm.archon-software-factory" does not have
+outcomes.stage-check:return: [warning] dropped: names stage "stage-check", which pack "Wirasm.archon-software-factory" does not have
+howItWorks.views.factory.cards.7.stages.0: [warning] dropped: names stage "stage-check", which pack "Wirasm.archon-software-factory" does not have
+howItWorks.views.checks.cards.4.stages.0: [warning] dropped: names stage "stage-check", which pack "Wirasm.archon-software-factory" does not have
+returns.2.workflow: [warning] dropped: names workflow "stage-check", which pack "Wirasm.archon-software-factory" does not have and the view does not retire
+approves.1.workflow: [warning] dropped: names workflow "stage-check", which pack "Wirasm.archon-software-factory" does not have and the view does not retire
+rounds.1.workflow: [warning] dropped: names workflow "stage-check", which pack "Wirasm.archon-software-factory" does not have and the view does not retire
+change.2.workflow: [warning] dropped: names workflow "stage-check", which pack "Wirasm.archon-software-factory" does not have and the view does not retire
+0 errors, 8 warnings
