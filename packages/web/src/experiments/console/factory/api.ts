@@ -97,15 +97,16 @@ export interface ForgeQuery {
   changes: readonly { run: string; url: string }[];
 }
 
-const isPending = (subjects: ForgeSubjects): boolean =>
+/**
+ * Whether the forge left anything pending: a first lookup the server could not finish in time
+ * answers `pending` for that read only, so the caller reads again (`FactoryCards.tsx`).
+ */
+export const forgePending = (subjects: ForgeSubjects): boolean =>
   subjects.issues.some(issue => issue.pending) ||
   subjects.changes.some(change => change.merged === 'pending');
 
-/** How often, and how long apart, a read the forge answered `pending` is read again. */
-const PENDING_READS = 5;
-const PENDING_WAIT_MS = 1500;
-
-async function readForge(opts: ForgeQuery): Promise<ForgeSubjects> {
+/** What the project's forge says of some issues and changes, `READ_MAX` asks per request. */
+export async function getForgeSubjects(opts: ForgeQuery): Promise<ForgeSubjects> {
   type Ask = { issue: number } | { run: string; url: string };
   const asks: Ask[] = [
     ...opts.issues.map(issue => ({ issue })),
@@ -127,21 +128,4 @@ async function readForge(opts: ForgeQuery): Promise<ForgeSubjects> {
     issues: parts.flatMap(part => part.issues),
     changes: parts.flatMap(part => part.changes),
   };
-}
-
-/**
- * What the project's forge says of some issues and changes. A first lookup the server could
- * not finish in time answers `pending` for that read only, so it is read again a few times;
- * what is still pending after that stays pending, and the card shows the key instead.
- */
-export async function getForgeSubjects(
-  opts: ForgeQuery,
-  wait: (ms: number) => Promise<void> = ms => new Promise(done => setTimeout(done, ms))
-): Promise<ForgeSubjects> {
-  let read = await readForge(opts);
-  for (let again = 1; again < PENDING_READS && isPending(read); again++) {
-    await wait(PENDING_WAIT_MS);
-    read = await readForge(opts);
-  }
-  return read;
 }

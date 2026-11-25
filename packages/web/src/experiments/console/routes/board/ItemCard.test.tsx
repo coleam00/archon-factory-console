@@ -329,3 +329,45 @@ test("a running run shows its stage and step in the view's words", async () => {
     invalidate('board');
   }
 });
+
+test('a title the forge first answers pending fills in when it is read again', async () => {
+  // An item keyed by its bare issue number, as the deliver era keyed them.
+  const title = 'A delivery ask shows what the stage offered, above the four answers';
+  const answer = (pending: boolean) => ({
+    issues: [{ number: 111, title: pending ? null : title, state: 'closed', url: null, pending }],
+    changes: [],
+  });
+  set(K.forgeTitles('web', [111]), answer(true));
+  const asked: string[] = [];
+  const saved = Object.getOwnPropertyDescriptor(globalThis, 'fetch');
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true,
+    writable: true,
+    value: (url: string) => {
+      asked.push(String(url));
+      return Promise.resolve(
+        new Response(JSON.stringify(answer(false)), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    },
+  });
+  const read = { ...READS[0]!, item: { ...READS[0]!.item, key: '111', title: null } };
+  const view = await mount([read]);
+  try {
+    const card = (): Element | null => view.container.querySelector('[data-item="111"]');
+    expect(card()?.querySelector('[data-item-title]')).toBeNull();
+    expect(card()?.querySelector('[data-item-key]')?.textContent).toBe('#111');
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 2300));
+    });
+    expect(
+      asked.some(url => url.includes('/api/forge/subjects') && url.includes('issue=111'))
+    ).toBe(true);
+    expect(card()?.querySelector('[data-item-title]')?.textContent).toBe(title);
+  } finally {
+    await view.unmount();
+    if (saved) Object.defineProperty(globalThis, 'fetch', saved);
+    invalidate('forge-titles');
+  }
+});

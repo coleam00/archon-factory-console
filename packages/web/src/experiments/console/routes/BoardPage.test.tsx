@@ -363,34 +363,16 @@ test('only a project with an item on a pack stage gets the board tab', () => {
   ]);
 });
 
-test('the board filter finds a card by the issue title and the key the card prints', async () => {
-  // A mounted page, so the filter can be typed into: happy-dom's globals for this test only.
-  const dom = new Window({ url: 'http://localhost' });
-  const globals = { window: dom, document: dom.document, IS_REACT_ACT_ENVIRONMENT: true };
-  const saved = new Map(
-    Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
-  );
-  for (const [key, value] of Object.entries(globals))
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-  const { createRoot } = await import('react-dom/client');
-  const { act } = await import('react');
-  const untitled = (key: string, stage: string): ItemRead => {
-    const read = item(key, stage, 'waiting');
-    return { ...read, item: { ...read.item, title: null } };
-  };
-  const issue = (number: number, title: string) => ({
-    number,
-    title,
-    state: 'open' as const,
-    url: null,
-    pending: false,
-  });
-  const reads = [untitled('issue-2', 'plan'), untitled('issue-3', 'check')];
+const untitled = (key: string, stage: string): ItemRead => {
+  const read = item(key, stage, 'waiting');
+  return { ...read, item: { ...read.item, title: null } };
+};
+
+/** What a mounted board reads apart from its pack graph and view, seeded so nothing is fetched. */
+function seedBoard(reads: ItemRead[]): void {
   set(K.projects, [project('web', ['flow'])]);
   set(K.board('web'), reads);
   set(K.boardOrders('web'), reads);
-  set(K.packGraph('web', 'flow'), graph);
-  set(K.packViews('web', ['flow']), new Map([['flow', { stages: graph.stages, view: null }]]));
   set(K.boardDecide('web'), { items: [], next: null, totals: NONE });
   set(K.boardDone('web', 'flow'), { items: [], next: null, totals: NONE });
   set(K.runsAttention, {
@@ -401,14 +383,76 @@ test('the board filter finds a card by the issue title and the key the card prin
     itemIds: new Set(),
     degraded: [],
   });
+}
+
+/**
+ * The board mounted in happy-dom, with its globals installed for this test only and `fetch`
+ * answered by `answer`. `unmount` restores both.
+ */
+async function mountBoard(answer: (url: string) => Promise<Response>) {
+  const dom = new Window({ url: 'http://localhost' });
+  const globals = {
+    window: dom,
+    document: dom.document,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    fetch: (url: string) => answer(String(url)),
+  };
+  const saved = new Map(
+    Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)])
+  );
+  for (const [key, value] of Object.entries(globals))
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+  const { createRoot } = await import('react-dom/client');
+  const { act } = await import('react');
+  const container = dom.document.createElement('div');
+  dom.document.body.append(container);
+  const root = createRoot(container as unknown as HTMLElement);
+  await act(async () =>
+    root.render(
+      <MemoryRouter initialEntries={['/console/p/web/board']}>
+        <Routes>
+          <Route path="/console/p/:projectId/*" element={<BoardPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+  );
+  return {
+    dom,
+    container,
+    act,
+    unmount: async (): Promise<void> => {
+      await act(async () => root.unmount());
+      await dom.happyDOM.close();
+      for (const [key, descriptor] of saved)
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      for (const prefix of ['forge-titles', 'pack-view']) invalidate(prefix);
+    },
+  };
+}
+
+const nothingFetched = (url: string): Promise<Response> =>
+  Promise.reject(new Error(`unexpected fetch ${url}`));
+
+test('the board filter finds a card by the issue title and the key the card prints', async () => {
+  const issue = (number: number, title: string) => ({
+    number,
+    title,
+    state: 'open' as const,
+    url: null,
+    pending: false,
+  });
+  const reads = [untitled('issue-2', 'plan'), untitled('issue-3', 'check')];
+  seedBoard(reads);
+  set(K.packGraph('web', 'flow'), graph);
+  set(K.packView('web', 'flow'), null);
   // The titles the board's filter reads, and those each column's cards read.
   const titles = [issue(2, 'Asks show in full'), issue(3, 'Board furniture')];
   set(K.forgeTitles('web', [2, 3]), { issues: titles, changes: [] });
   set(K.forgeTitles('web', [2]), { issues: [titles[0]], changes: [] });
   set(K.forgeTitles('web', [3]), { issues: [titles[1]], changes: [] });
-  const container = dom.document.createElement('div');
-  dom.document.body.append(container);
-  const root = createRoot(container as unknown as HTMLElement);
+  const board = await mountBoard(nothingFetched);
+  const { container, dom, act } = board;
   const shown = (): string[] =>
     [...container.querySelectorAll('[data-stage] [data-item]')].map(
       card => card.getAttribute('data-item') ?? ''
@@ -425,15 +469,6 @@ test('the board filter finds a card by the issue title and the key the card prin
     });
   };
   try {
-    await act(async () =>
-      root.render(
-        <MemoryRouter initialEntries={['/console/p/web/board']}>
-          <Routes>
-            <Route path="/console/p/:projectId/*" element={<BoardPage />} />
-          </Routes>
-        </MemoryRouter>
-      )
-    );
     expect(shown()).toEqual(['issue-2', 'issue-3']);
     // The title the forge names, which the item's own title column does not hold.
     await type('asks show');
@@ -442,12 +477,40 @@ test('the board filter finds a card by the issue title and the key the card prin
     await type('#3');
     expect(shown()).toEqual(['issue-3']);
   } finally {
-    await act(async () => root.unmount());
-    await dom.happyDOM.close();
-    for (const [key, descriptor] of saved)
-      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
-      else Reflect.deleteProperty(globalThis, key);
-    invalidate('forge-titles');
-    invalidate('pack-views');
+    await board.unmount();
+  }
+});
+
+test("the cards share the columns' graph read, and read the view only once it has answered", async () => {
+  // Issue-keyed items with titles of their own: no forge read.
+  const reads = [item('issue-2', 'plan', 'waiting')];
+  seedBoard(reads);
+  const asked: string[] = [];
+  let answerGraph: () => void = () => undefined;
+  const json = (body: unknown): Response =>
+    new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+  const board = await mountBoard(url => {
+    asked.push(url.replace(/\?.*$/, ''));
+    if (url.includes('/graph'))
+      return new Promise(resolve => {
+        answerGraph = () => {
+          resolve(json(graph));
+        };
+      });
+    if (url.includes('/view'))
+      return Promise.resolve(json({ path: null, view: null, problems: [] }));
+    return nothingFetched(url);
+  });
+  try {
+    // While the graph read is out, one request for it, and none for the view.
+    expect(asked).toEqual(['/api/packs/flow/graph']);
+    await board.act(async () => {
+      answerGraph();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(board.container.querySelectorAll('[data-stage]').length).toBeGreaterThan(0);
+    expect(asked).toEqual(['/api/packs/flow/graph', '/api/packs/flow/view']);
+  } finally {
+    await board.unmount();
   }
 });

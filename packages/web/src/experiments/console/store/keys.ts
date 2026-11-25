@@ -31,9 +31,9 @@ export const K = {
   boardOrders: (projectId: string): string => `board:${projectId}:orders`,
   boardDone: (projectId: string, pack: string): string =>
     `board:${projectId}:done:${encodeURIComponent(pack)}`,
-  /** The graphs and factory views of a project's packs, which board cards read their words from. */
-  packViews: (projectId: string, packs: readonly string[]): string =>
-    `pack-views:${projectId}:${packs.map(encodeURIComponent).join(',')}`,
+  /** The factory view a pack ships, which board cards read their words and declarations from. */
+  packView: (projectId: string, pack: string): string =>
+    `pack-view:${projectId}:${encodeURIComponent(pack)}`,
   /**
    * The run records a list of board cards reads, by the runs asked; under `board:`, so run and
    * attention events refetch the running step and rounds.

@@ -318,11 +318,15 @@ function readRuns(read: ItemRead, pack: CardPack | null, reads: CardReads): Read
   });
 }
 
-/** The newest running run's stage and step, in the view's words when it has them. */
-function runningField(view: FactoryView | null, runs: readonly ReadRun[]): CardProgress['running'] {
+/**
+ * The newest running run's stage and step in the view's words. Only a pack with a view reads
+ * records, so with none there is no running line. A stage or step the view gives no words
+ * reads as its workflow name or its cleaned step id.
+ */
+function runningField(view: FactoryView, runs: readonly ReadRun[]): CardProgress['running'] {
   const running = [...runs].reverse().find(entry => entry.run.status === 'running');
   if (running === undefined) return null;
-  const words = running.workflow === null ? undefined : view?.stages[running.workflow];
+  const words = running.workflow === null ? undefined : view.stages[running.workflow];
   const step = running.facts.active;
   return {
     stage: words?.label ?? running.workflow ?? running.run.workflow,
@@ -356,7 +360,7 @@ export function cardProgress(
   const counted = view !== null && !unread;
   return {
     ...itemTitle(read, reads.forge?.issues),
-    running: runningField(view, runs),
+    running: view === null ? null : runningField(view, runs),
     round: counted
       ? roundField(view, itemRound(view, progressRuns), newRoundRunning(view, progressRuns))
       : null,
