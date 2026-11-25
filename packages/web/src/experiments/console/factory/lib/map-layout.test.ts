@@ -158,6 +158,13 @@ describe('the shipped map', () => {
       ['stage-build', 'return, send-back, one-more-round, returned'],
       ['land', 'land'],
     ]);
+    // Checks holds stage-check and stage-host, which both send back to stage-build and to plan:
+    // one route each, not two drawn on top of each other.
+    const routes = layout.feedback.paths.map(path => `${path.from}>${path.to}`);
+    expect(routes).toEqual([...new Set(routes)]);
+    expect(
+      layout.feedback.paths.find(p => p.from === 'landing' && p.to === 'stage-build')?.label
+    ).toBe('send-back, returned');
     const bottom = Math.max(...layout.cards.map(card => card.box.y + card.box.h));
     for (const path of layout.feedback.paths)
       expect(Math.max(...segments(path.d).map(seg => seg.y2))).toBeGreaterThan(bottom);
@@ -208,9 +215,9 @@ describe('the rules for arrows between card groups', () => {
     expect(layout.arrows.some(arrow => arrow.from === 'b' && arrow.to === 'd')).toBe(false);
   });
 
-  test('send-backs go by card order; one inside a card into its own stage too', () => {
+  test('send-backs go by card order, one route per card and target; one inside a card into its own stage too', () => {
+    // s4 and s5, both on card c, return to s3: one route.
     expect(layout.feedback.paths.map(path => [path.from, path.to])).toEqual([
-      ['c', 's3'],
       ['c', 's3'],
       ['c', 's1'],
       ['c', 's2'],
