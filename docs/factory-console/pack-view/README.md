@@ -11,7 +11,8 @@ pack graph before this file (`packages/web/src/experiments/console/factory/lib/g
 The pack at b62ec7b carries no `display:` yet: `../pack-spike/` holds its changed workflow files
 at their pack-relative paths. Copy that folder over the installed pack directory, then this file
 into its `.shared/`, to get the spiked pack. Without the overlay the console still draws, with
-step ids and stage names where the words were.
+step ids and stage names where the words were, and `check:factory-view` warns that each stage
+has no words.
 
 A pack ships this file as `<pack>/.shared/factory-view.json`. This copy is the source: copy it into
 `<installed pack>/.shared/` for the demo until the owner's own copy of the pack ships it.
