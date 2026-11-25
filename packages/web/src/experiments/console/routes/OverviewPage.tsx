@@ -21,7 +21,8 @@ import { getPackGraph, listItems, type ItemRead, type PackGraph } from '../skill
 import type { MetricsReport } from '../skills/metrics';
 import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
-import { MOVING, chipOf, columnsOf, standingRun, type StageGroup } from './BoardPage';
+import { MOVING, chipOf, columnsOf, type StageGroup } from './BoardPage';
+import { stageAt } from './board/standing';
 import { MetricCards } from './metrics/MetricsOverview';
 import { metricsRequests } from './metrics/model';
 
@@ -32,12 +33,11 @@ const TOP_ASKS = 3;
 /** How many of a pack's items sit in each column, and how many of those wait on the operator. */
 export function flowCounts(
   columns: readonly StageGroup[],
-  items: readonly ItemRead[]
+  items: readonly ItemRead[],
+  stages: PackGraph['stages'] | undefined
 ): { name: string; stages: string[]; count: number; needYou: number }[] {
   return columns.map(column => {
-    const here = items.filter(read =>
-      column.stages.includes(standingRun(read)?.pack?.workflow ?? '')
-    );
+    const here = items.filter(read => column.stages.includes(stageAt(read, stages) ?? ''));
     return {
       ...column,
       count: here.length,
@@ -207,7 +207,7 @@ function PackOverview({
       <FactoryNumbers numbers={board?.numbers} needYou={needYou} error={itemsError} />
       <Flow
         board={`/console/p/${projectId}/board`}
-        flow={flowCounts(columns, board?.moving ?? [])}
+        flow={flowCounts(columns, board?.moving ?? [], graph?.stages)}
         numbers={board?.numbers}
       />
       {graph?.metricViews == null ? null : (

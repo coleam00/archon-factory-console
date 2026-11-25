@@ -38,9 +38,9 @@ import {
 import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
 import { CardList } from './board/ItemCard';
-import { CHIP, chipOf, isMoving, MOVING, standingRun, type Chip } from './board/standing';
+import { CHIP, chipOf, isMoving, MOVING, stageAt, type Chip } from './board/standing';
 
-export { chipOf, MOVING, standingRun } from './board/standing';
+export { chipOf, MOVING } from './board/standing';
 
 /** What the items of a stage are doing, as counts: `1 needs you · 2 running`. */
 function stageLine(items: ItemRead[]): string {
@@ -304,13 +304,7 @@ export function PackBoard({
   const { data: graph, error } = useEntity<PackGraph>(K.packGraph(projectId, pack), () =>
     getPackGraph(projectId, pack)
   );
-  // A run from an older build recorded no workflow name in its pack: its published name is
-  // the graph stage's own name, so the stage is found from that.
-  const stageOf = (read: ItemRead): string | undefined => {
-    const run = standingRun(read);
-    if (run === undefined) return undefined;
-    return run.pack?.workflow ?? graph?.stages.find(stage => stage.name === run.workflow)?.workflow;
-  };
+  const stageOf = (read: ItemRead): string | undefined => stageAt(read, graph?.stages);
   const columns = columnsOf(graph);
   const stages = columns.flatMap(column => column.stages);
   const focus = useSearchParams()[0].get('group');

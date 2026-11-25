@@ -42,6 +42,20 @@ export function standingRun(read: ItemRead): ItemRead['runs'][number] | undefine
   return read.runs.find(run => run.id === read.standing.runId);
 }
 
+/**
+ * The stage an item stands at: the workflow its run recorded in its pack, else the graph stage
+ * whose published name the run carries (a run from an older build recorded no workflow name).
+ * The board's columns and the overview's flow both place by it.
+ */
+export function stageAt(
+  read: ItemRead,
+  stages: readonly { name: string; workflow: string }[] | undefined
+): string | undefined {
+  const run = standingRun(read);
+  if (run === undefined) return undefined;
+  return run.pack?.workflow ?? stages?.find(stage => stage.name === run.workflow)?.workflow;
+}
+
 /** The run a card or a row opens: the one the item stands at, else its newest. */
 export function runToOpen(read: ItemRead): ItemRead['runs'][number] | undefined {
   return (

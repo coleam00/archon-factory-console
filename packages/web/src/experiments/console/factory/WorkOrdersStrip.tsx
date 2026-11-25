@@ -11,6 +11,8 @@ import { ChevronDown } from 'lucide-react';
 import { displayItemKey } from '../lib/item-key';
 import { CHIP, chipOf, type Chip } from '../routes/board/standing';
 import { useFactoryCards } from './cards-context';
+import { useForgeTitles } from './FactoryCards';
+import { itemTitle } from './lib/item-card';
 import { orderSummary, type WorkOrder } from './lib/work-orders';
 
 /** A member's state as a dot, in its chip's colour. */
@@ -44,9 +46,15 @@ export function WorkOrdersStrip({
   const list = useId();
   // What a pack's view calls a work order; the orders are the project's, so the first view
   // that words them does.
-  const words = [...(useFactoryCards()?.packs?.values() ?? [])].find(
+  const cards = useFactoryCards();
+  const words = [...(cards?.packs?.values() ?? [])].find(
     pack => pack.view?.words?.workOrder !== undefined
   )?.view?.words;
+  // An order's title is its issue's when its own title column is empty, as on a card.
+  const titles = useForgeTitles(
+    cards?.packs == null ? null : cards.projectId,
+    orders.flatMap(order => order.read ?? [])
+  );
   if (orders.length === 0 && error === undefined) return null;
   const pending = orders.filter(order => !orderSummary(order).resolved).length;
   const noun =
@@ -84,6 +92,7 @@ export function WorkOrdersStrip({
               key={order.item.id}
               order={order}
               counted={counted}
+              title={orderTitle(order, titles)}
               lit={lit === order.item.id}
               onLight={onLight}
             />
@@ -94,14 +103,23 @@ export function WorkOrdersStrip({
   );
 }
 
+/** The order's title: its own, else its issue's; null when neither is known. */
+function orderTitle(order: WorkOrder, titles: Parameters<typeof itemTitle>[1]): string | null {
+  if (order.read === undefined) return order.item.title ?? null;
+  const read = itemTitle(order.read, titles);
+  return read.titleIsKey ? null : read.title;
+}
+
 function WorkOrderRow({
   order,
   counted,
+  title,
   lit,
   onLight,
 }: {
   order: WorkOrder;
   counted: boolean;
+  title: string | null;
   lit: boolean;
   onLight: (order: string | null) => void;
 }): ReactElement {
@@ -124,7 +142,7 @@ function WorkOrderRow({
           {displayItemKey(order.item.key)}
         </span>
         <span className="min-w-0 truncate text-console-14 font-medium text-text-primary">
-          {order.item.title ?? 'Work order'}
+          {title ?? 'Work order'}
         </span>
       </span>
       {counted ? (
