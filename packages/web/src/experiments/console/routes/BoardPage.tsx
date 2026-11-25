@@ -18,6 +18,7 @@ import type { Project } from '../primitives/project';
 import { isItemAsk } from '../primitives/run';
 import * as skill from '../skills';
 import {
+  getItem,
   getPackGraph,
   ITEM_STATES,
   listItems,
@@ -64,7 +65,10 @@ export function standingRun(read: ItemRead): ItemRead['runs'][number] | undefine
   return read.runs.find(run => run.id === read.standing.runId);
 }
 
-/** Nothing moves a failed or stopped item but a newer run, so an operator has to decide. */
+/**
+ * A failed or stopped item stays so until a newer run starts on it, its change merges or its
+ * last part is done, so an operator has to decide.
+ */
 const needsDecision = (read: ItemRead): boolean =>
   read.standing.state === 'failed' || read.standing.state === 'stopped';
 
@@ -396,7 +400,8 @@ function DecisionStrip({ projectId }: { projectId: string }): ReactElement | nul
         </span>
       </h2>
       <p className="mt-1 text-console-12 text-text-tertiary">
-        Nothing moves these until a new run starts on them.
+        Nothing moves these until a new run starts on them, their change merges, or their last part
+        is done.
       </p>
       <ul className="mt-3 grid gap-2 md:grid-cols-3">
         {list.shown.map(read => (
@@ -428,7 +433,13 @@ export function PackBoard({
   const newest = useEntity<ItemPage>(K.boardDone(projectId, pack), () =>
     newestDone(projectId, pack)
   );
-  const stageOf = (read: ItemRead): string | undefined => standingRun(read)?.pack?.workflow;
+  // A run from an older build recorded no workflow name in its pack: its published name is
+  // the graph stage's own name, so the stage is found from that.
+  const stageOf = (read: ItemRead): string | undefined => {
+    const run = standingRun(read);
+    if (run === undefined) return undefined;
+    return run.pack?.workflow ?? graph?.stages.find(stage => stage.name === run.workflow)?.workflow;
+  };
   const columns = columnsOf(graph);
   const stages = columns.flatMap(column => column.stages);
   const focus = useSearchParams()[0].get('group');
@@ -483,28 +494,73 @@ export function PackBoard({
   );
 }
 
+/** A member of a work order, with its read when it has a run (the window lists only those). */
+interface Member {
+  item: ItemRead['item'];
+  read: ItemRead | undefined;
+}
+
 interface WorkOrder {
   item: ItemRead['item'];
-  members: ItemRead[];
+  members: Member[];
 }
+
+/** Whether a link joins a member to its work order, now. */
+const activePartOf = (link: ItemRead['links'][number]): boolean =>
+  link.kind === 'part_of' && link.ended === null;
 
 /**
  * Every work order with a member: each item others are `part_of`, with those members, open
- * ones first, then by their newest member. An order with no run of its own is listed from
- * its members' links. `items` come most recently active first, as the item read pages them.
+ * ones first, then by their newest member. Membership is read from both ends of each link:
+ * a member's own read, and the order's read, which also names members with no run yet. An
+ * order's title is its own read's when that is among `items`. `items` come most recently
+ * active first, as the item read pages them.
  */
 export function workOrders(items: readonly ItemRead[]): WorkOrder[] {
-  const orders = new Map<string, WorkOrder>();
+  const reads = new Map(items.map(read => [read.item.id, read]));
+  const orders = new Map<string, { item: ItemRead['item']; members: Map<string, Member> }>();
+  const join = (order: ItemRead['item'], member: ItemRead['item']): void => {
+    const entry = orders.get(order.id) ?? {
+      item: reads.get(order.id)?.item ?? order,
+      members: new Map<string, Member>(),
+    };
+    entry.members.set(member.id, { item: member, read: reads.get(member.id) });
+    orders.set(order.id, entry);
+  };
   for (const read of items) {
-    const item = orderOf(read);
-    if (item === undefined) continue;
-    const order = orders.get(item.id) ?? { item, members: [] };
-    order.members.push(read);
-    orders.set(item.id, order);
+    const order = orderOf(read);
+    if (order !== undefined) join(order, read.item);
   }
-  const open = (order: WorkOrder): boolean => order.members.some(isMoving);
+  for (const read of items)
+    for (const link of read.links)
+      if (activePartOf(link) && link.direction === 'incoming') join(read.item, link.other);
+  const listed = [...orders.values()].map(({ item, members }) => ({
+    item,
+    members: [...members.values()],
+  }));
+  const open = (order: WorkOrder): boolean => order.members.some(isOpenMember);
   // Stable, so orders keep their newest member's order within open and the rest.
-  return [...orders.values()].sort((a, b) => Number(open(b)) - Number(open(a)));
+  return listed.sort((a, b) => Number(open(b)) - Number(open(a)));
+}
+
+const isOpenMember = (member: Member): boolean =>
+  member.read !== undefined && isMoving(member.read);
+
+/**
+ * Every item of a project, and the read of each work order among their links that has no
+ * run of its own, so the window does not list it: its links name the members with no run.
+ */
+async function listOrderItems(projectId: string): Promise<ItemRead[]> {
+  const items = await listItems(projectId, ITEM_STATES);
+  const read = new Set(items.map(item => item.item.id));
+  const missing = new Map(
+    items.flatMap(item => {
+      const order = orderOf(item);
+      return order === undefined || read.has(order.id) ? [] : [[order.id, order.key] as const];
+    })
+  );
+  const orders = await Promise.all([...missing.values()].map(key => getItem(projectId, key)));
+  return [...items, ...orders];
 }
 
 const isMoving = (read: ItemRead): boolean =>
@@ -537,8 +593,11 @@ function WorkOrderStrip({
         </p>
       )}
       {orders.map(({ item, members }) => {
-        const open = members.filter(isMoving);
-        const merged = members.filter(read => read.merged !== null).length;
+        const open = members.flatMap(({ read }) =>
+          read !== undefined && isMoving(read) ? [read] : []
+        );
+        const merged = members.filter(({ read }) => read != null && read.merged !== null).length;
+        const unstarted = members.filter(({ read }) => read === undefined).length;
         return (
           <button
             key={item.id}
@@ -558,6 +617,7 @@ function WorkOrderStrip({
             <span data-work-order-line className="text-console-11 text-text-secondary">
               {[
                 ...(counted ? [`${String(merged)} of ${String(members.length)} merged`] : []),
+                ...(counted && unstarted > 0 ? [`${String(unstarted)} not started`] : []),
                 ...(open.length === 0 ? [] : [`${String(open.length)} open`, stageLine(open)]),
               ].join(' · ')}
             </span>
@@ -582,9 +642,7 @@ export function BoardPage(): ReactElement {
   const [filter, setFilter] = useState('');
   const [order, setOrder] = useState<string | null>(null);
   // Every item, so an order lists its merged members too; the open ones stand in until it reads.
-  const every = useEntity<ItemRead[]>(K.boardOrders(projectId), () =>
-    listItems(projectId, ITEM_STATES)
-  );
+  const every = useEntity<ItemRead[]>(K.boardOrders(projectId), () => listOrderItems(projectId));
   const all = open.data ?? [];
   const orders = workOrders(every.data ?? all);
   const wanted = filter.trim().toLowerCase();

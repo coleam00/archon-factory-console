@@ -244,34 +244,35 @@ describe('reading items over a window', () => {
     expect([ofPack.items, ofPack.totals?.done]).toEqual([[], 0]);
   });
 
-  test('an item counts for the pack its runs recorded, though its standing run names none or only the key', async () => {
+  test('the pack filter keeps an item whose standing run recorded the pack key alone', async () => {
     const wide = { since: '2026-10-01T00:00:00Z', until: '2027-01-01T00:00:00Z' };
-    // a stands at a2, which an older build dispatched with the pack key alone. c stands at
-    // c2, which recorded no dispatch; its earlier run c1 did. b's run recorded no pack.
+    // a stands at a2, which an older build dispatched with the pack key alone. b and c
+    // recorded no pack. (The fallback to an item's other runs is itemStanding's own test.)
     const world: World = {
       mergedIds: ['item-a', 'item-c'],
-      metadata: {
-        a2: { dispatch: { base_branch: 'dev', pack: 'flow' } },
-        c1: { dispatch: { base_branch: 'dev', pack: 'flow', pack_workflow: 'build' } },
-      },
+      metadata: { a2: { dispatch: { base_branch: 'dev', pack: 'flow' } } },
     };
     const page = await readItemWindow(source(world), PROJECT, { ...wide, pack: 'flow' });
-    expect(page.items.map(read => [read.item.key, read.standing.pack])).toEqual([
-      ['c', 'flow'],
-      ['a', 'flow'],
-    ]);
-    expect(page.totals?.done).toBe(2);
+    expect(page.items.map(read => [read.item.key, read.standing.pack])).toEqual([['a', 'flow']]);
+    expect(page.totals?.done).toBe(1);
   });
 
-  test('an item stands done when every part linked to it is done, through active links only', async () => {
+  test('an item stands done when every part linked to it is done, through active part_of links only', async () => {
     const wide = { since: '2026-10-01T00:00:00Z', until: '2027-01-01T00:00:00Z' };
-    const world = (keys: string[], links: [string, string, boolean][], merged: string[]) => {
+    type Link = [from: string, to: string, kind?: 'part_of' | 'depends_on' | 'ended'];
+    const states = async (
+      keys: string[],
+      links: Link[],
+      merged: string[],
+      queuedOn: string[] = []
+    ): Promise<[string, string][]> => {
       const items = keys.map(key => ({ id: `item-${key}`, projectKey: PROJECT, key }));
       const byKey = (key: string): WorkflowItem =>
         items.find(item => item.key === key) as WorkflowItem;
-      return source({
+      const act = { at: '2026-11-01T00:00:00.000Z', via: 'cli', by: null, fromRun: null };
+      const read = source({
         items,
-        // Each item's one run ended with an outcome and nothing followed.
+        // Each item's one run ended with an outcome and nothing followed: it is stopped.
         runsByItem: new Map(
           items.map(item => [
             item.id,
@@ -279,88 +280,90 @@ describe('reading items over a window', () => {
           ])
         ),
         mergedIds: merged.map(key => `item-${key}`),
-        links: links.map(([from, to, ended], index) => ({
+        queuedOn: queuedOn.map(key => `item-${key}`),
+        links: links.map(([from, to, kind = 'part_of'], index) => ({
           id: `link-${String(index)}`,
-          kind: 'part_of',
+          kind: kind === 'ended' ? 'part_of' : kind,
           from: byKey(from),
           to: byKey(to),
-          at: '2026-11-01T00:00:00.000Z',
-          via: 'cli',
-          by: null,
-          fromRun: null,
-          ended: ended
-            ? { at: '2026-11-02T00:00:00.000Z', via: 'cli', by: null, fromRun: null }
-            : null,
+          ...act,
+          ended: kind === 'ended' ? act : null,
         })),
       });
-    };
-    const states = async (read: ItemWindowSource): Promise<[string, string][]> =>
-      (await readItemWindow(read, PROJECT, wide)).items.map(item => [
+      return (await readItemWindow(read, PROJECT, wide)).items.map(item => [
         item.item.key,
         item.standing.state,
       ]);
-    // p was split into x and y, both merged.
+    };
+    const split: Link[] = [
+      ['x', 'p'],
+      ['y', 'p'],
+    ];
+    // p was split into x and y, both merged; x has a later start queued, and is still merged.
+    expect(await states(['p', 'x', 'y'], split, ['x', 'y'], ['x'])).toEqual([
+      ['p', 'done'],
+      ['x', 'queued'],
+      ['y', 'done'],
+    ]);
+    // y is not merged, so p is not done, and its own stop still needs a decision.
+    expect(await states(['p', 'x', 'y'], split, ['x'])).toEqual([
+      ['p', 'stopped'],
+      ['x', 'done'],
+      ['y', 'stopped'],
+    ]);
+    // An ended link joins no part: y's no longer counts against p.
     expect(
       await states(
-        world(
-          ['p', 'x', 'y'],
-          [
-            ['x', 'p', false],
-            ['y', 'p', false],
-          ],
-          ['x', 'y']
-        )
+        ['p', 'x', 'y'],
+        [
+          ['x', 'p'],
+          ['y', 'p', 'ended'],
+        ],
+        ['x']
       )
     ).toEqual([
       ['p', 'done'],
       ['x', 'done'],
-      ['y', 'done'],
+      ['y', 'stopped'],
     ]);
-    // y is not merged: p's work goes on in y, so p rests and does not need a decision.
+    // A part is not done by its merged parent, and an item is not done by an item that
+    // depends on it.
+    expect(await states(['p', 'x'], [['x', 'p']], ['p'])).toEqual([
+      ['p', 'done'],
+      ['x', 'stopped'],
+    ]);
+    expect(await states(['p', 'x'], [['x', 'p', 'depends_on']], ['x'])).toEqual([
+      ['p', 'stopped'],
+      ['x', 'done'],
+    ]);
+    // A part split again is done by its own parts, and so is the item it is part of.
     expect(
-      (
-        await states(
-          world(
-            ['p', 'x', 'y'],
-            [
-              ['x', 'p', false],
-              ['y', 'p', false],
-            ],
-            ['x']
-          )
-        )
-      )[0]
-    ).toEqual(['p', 'resting']);
-    // An ended link joins no part: y's no longer counts against p.
-    expect(
-      (
-        await states(
-          world(
-            ['p', 'x', 'y'],
-            [
-              ['x', 'p', false],
-              ['y', 'p', true],
-            ],
-            ['x']
-          )
-        )
-      )[0]
-    ).toEqual(['p', 'done']);
+      await states(
+        ['p', 'x', 'z'],
+        [
+          ['z', 'x'],
+          ['x', 'p'],
+        ],
+        ['z']
+      )
+    ).toEqual([
+      ['p', 'done'],
+      ['x', 'done'],
+      ['z', 'done'],
+    ]);
     // Two items part of each other: the read ends, and neither is done.
     expect(
       await states(
-        world(
+        ['a', 'b'],
+        [
           ['a', 'b'],
-          [
-            ['a', 'b', false],
-            ['b', 'a', false],
-          ],
-          []
-        )
+          ['b', 'a'],
+        ],
+        []
       )
     ).toEqual([
-      ['a', 'resting'],
-      ['b', 'resting'],
+      ['a', 'stopped'],
+      ['b', 'stopped'],
     ]);
   });
 

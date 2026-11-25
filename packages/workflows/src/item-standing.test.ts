@@ -54,8 +54,8 @@ describe('where an item stands', () => {
   });
 
   test('a failed run that a later run superseded does not fail the item', () => {
-    // The stamp is what a superseding run carries; standing reads only that a newer run follows.
-    const rerun = run('r2', 'completed', { metadata: { continuation: { mode: 'supersede' } } });
+    // Standing reads only that a newer run follows; a superseding run is such a run.
+    const rerun = run('r2', 'completed');
     expect(standing([run('r1', 'failed'), rerun]).state).toBe('resting');
   });
 
@@ -70,11 +70,13 @@ describe('where an item stands', () => {
     expect(standing(split).state).toBe('stopped');
   });
 
-  test('an item whose parts are not all done rests, unless its own work needs a decision', () => {
-    const split = [run('r1', 'completed', { outcome: 'split' })];
+  test('parts not all done leave the item where its own runs put it', () => {
     const parts = [{ done: true }, { done: false }];
-    expect(standing(split, { parts }).state).toBe('resting');
-    expect(standing(split, { parts, stopped: true }).state).toBe('stopped');
+    // A refused or failed start on an item with parts still needs a decision.
+    expect(standing([run('r1', 'completed', { outcome: 'refused' })], { parts }).state).toBe(
+      'stopped'
+    );
+    expect(standing([run('r1', 'completed')], { parts }).state).toBe('resting');
     expect(standing([run('r1', 'failed')], { parts }).state).toBe('failed');
     expect(standing([run('r1', 'running')], { parts }).state).toBe('running');
   });

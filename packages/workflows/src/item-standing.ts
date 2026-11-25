@@ -31,13 +31,14 @@ import { displayedRunOutcome, type WorkflowRun } from './schemas/workflow-run';
  * - `failed`: that run failed.
  * - `stopped`: that run completed with an outcome and nothing followed: the engine recorded
  *   the stop (the attention queue's `stopped` item), or the run is from before stops and
- *   final outcomes were recorded, or its next start was refused or never prepared. An item
- *   with parts not all done is not stopped by an unrecorded stop: its work goes on in them.
+ *   final outcomes were recorded, or its next start was refused or never prepared. Parts not
+ *   all done do not change this: a refused start on an item with parts still needs a decision.
  * - `resting`: nothing runs, is queued or waits, and none of the above: its last run was
- *   cancelled or declared no outcome, its work goes on in its parts, or it has no run.
+ *   cancelled or declared no outcome, or it has no run.
  *
- * A `failed` or `stopped` item needs a decision: nothing moves it but a newer run. An item
- * reads `done` only when the engine knows it is.
+ * A `failed` or `stopped` item needs a decision: it stays so until a newer run starts on it,
+ * its change merges, or, for an item with parts, its last part is done. An item reads `done`
+ * only when the engine knows it is.
  */
 export const ITEM_STANDING_STATES = [
   'running',
@@ -85,10 +86,9 @@ export function itemStanding(facts: {
     if (facts.merged || (at !== undefined && readItemFinal(at.metadata)) || partsDone)
       return 'done';
     if (at?.status === 'failed') return 'failed';
-    // A completed run with an outcome that nothing followed, recorded as a stop or not. One
-    // not recorded does not stop an item whose parts still carry its work.
+    // A completed run with an outcome that nothing followed, recorded as a stop or not.
     const ended = at?.status === 'completed' && displayedRunOutcome(at) !== null;
-    return stopped || (ended && parts.length === 0) ? 'stopped' : 'resting';
+    return stopped || ended ? 'stopped' : 'resting';
   })();
   const keys = runs.map(runPackKey).filter(key => key !== null);
   const pack = (at === undefined ? null : runPackKey(at)) ?? keys.at(-1) ?? null;

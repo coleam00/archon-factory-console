@@ -247,9 +247,15 @@ function partOf(key: string, title: string | null): ItemRead['links'][number] {
 
 test('a work order with no run of its own is listed from its members, open or merged', () => {
   set(K.projects, [project('web', ['flow'])]);
-  // An item whose standing run recorded its pack's key without the workflow's name.
+  // An item whose standing run recorded its pack's key without the workflow's name; the run
+  // carries the stage's published name.
   const older = item('issue-7', 'build', 'running');
-  set(K.board('web'), [{ ...older, runs: older.runs.map(run => ({ ...run, pack: null })) }]);
+  set(K.board('web'), [
+    {
+      ...older,
+      runs: older.runs.map(run => ({ ...run, workflow: 'acme/flow:build', pack: null })),
+    },
+  ]);
   set(K.packGraph('web', 'flow'), graph);
   set(K.boardDone('web', 'flow'), { items: [], next: null, totals: NONE });
   set(K.boardDecide('web'), { items: [], next: null, totals: NONE });
@@ -265,10 +271,26 @@ test('a work order with no run of its own is listed from its members, open or me
       fromRun: null,
     },
   });
+  // Order 48 has no run of its own; its read names a third member, 9, that has not started.
+  const incoming = (key: string): ItemRead['links'][number] => ({
+    ...partOf(key, null),
+    id: `link-in-${key}`,
+    direction: 'incoming',
+  });
+  const order48: ItemRead = {
+    ...item('48', null, 'resting'),
+    item: { id: 'id-48', projectKey: 'acme/web', key: '48', title: 'Split the board' },
+    standing: { runId: null, state: 'resting', pack: null },
+    runs: [],
+    links: [incoming('issue-1'), incoming('issue-2'), incoming('9')],
+  };
+  // Newest first: the merged members are newer than the open one, so only the sort puts
+  // the open order first.
   set(K.boardOrders('web'), [
-    { ...item('issue-8', 'plan', 'running'), links: [partOf('order-5', 'Open order')] },
     merged('issue-1', '48'),
     merged('issue-2', '48'),
+    { ...item('issue-8', 'plan', 'running'), links: [partOf('order-5', 'Open order')] },
+    order48,
   ]);
   const page = render('/console/p/web/board', <BoardPage />);
   const strips = [...page.querySelectorAll('[data-work-order]')];
@@ -280,13 +302,17 @@ test('a work order with no run of its own is listed from its members, open or me
     ])
   ).toEqual([
     ['order-5', '0 of 1 merged · 1 open · 1 running'],
-    ['48', '2 of 2 merged'],
+    ['48', '2 of 3 merged · 1 not started'],
   ]);
-  expect(strips[1]?.textContent).toContain('Work order');
+  // An order with a read of its own goes by its own title.
+  expect(strips[1]?.textContent).toContain('Split the board');
   expect(strips[1]?.hasAttribute('disabled')).toBe(true);
-  // The item counts for the pack its run recorded, so it is on the pack's board.
+  // The item counts for the pack its run recorded, and its run's name finds its stage.
   const pack = page.querySelector('[data-pack="flow"]');
-  expect(pack === null ? [] : keysIn(pack)).toEqual(['issue-7']);
+  expect(pack?.querySelector('[data-stage="build"]')?.getAttribute('data-empty')).toBeNull();
+  expect(keysIn(pack?.querySelector('[data-stage="build"]') ?? page.createElement('div'))).toEqual([
+    'issue-7',
+  ]);
   expect(page.querySelector('[data-outside-pack]')).toBeNull();
 });
 

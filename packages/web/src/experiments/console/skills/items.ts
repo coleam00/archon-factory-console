@@ -59,6 +59,11 @@ export async function listItems(
   }
 }
 
+/** One item of a project, read whole, whether or not it has a run. */
+export async function getItem(projectId: string, key: string): Promise<ItemRead> {
+  return requestJson('/api/items', 'get', { query: { project: projectId, key } });
+}
+
 /** A pack's stages, in the order work flows through them, as the project has it installed. */
 export async function getPackGraph(projectId: string, pack: string): Promise<PackGraph> {
   return requestJson('/api/packs/{pack}/graph', 'get', {
