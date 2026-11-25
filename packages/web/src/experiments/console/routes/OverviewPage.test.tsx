@@ -1,11 +1,14 @@
-import { expect, test } from 'bun:test';
-import type { ItemRead } from '../skills/items';
-import { flowCounts, todayCounts } from './OverviewPage';
+import { afterEach, expect, test } from 'bun:test';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router';
+import type { ItemPage, ItemRead, PackGraph } from '../skills/items';
+import { invalidate, set } from '../store/cache';
+import { K } from '../store/keys';
+import { PackOverview, startOfToday, todayCounts } from './OverviewPage';
 
-const columns = [
-  { name: 'Make', stages: ['plan', 'build'] },
-  { name: 'Check', stages: ['check'] },
-];
+afterEach(() => {
+  for (const prefix of ['board', 'pack-graph', 'pack-view']) invalidate(prefix);
+});
 
 /** An item standing at a run of `workflow`, as far as the overview reads one. */
 function item(
@@ -26,14 +29,6 @@ function item(
   } as unknown as ItemRead;
 }
 
-test('each column counts the items standing at its stages and the ones that wait on the operator', () => {
-  const counts = flowCounts(columns, [item('plan'), item('build', { asked: true }), item('check')]);
-  expect(counts.map(column => [column.name, column.count, column.needYou])).toEqual([
-    ['Make', 2, 1],
-    ['Check', 1, 0],
-  ]);
-});
-
 test('today counts the items first started today and the ones whose change merged today', () => {
   const since = '2026-11-24T00:00:00Z';
   const counts = todayCounts(
@@ -47,4 +42,38 @@ test('today counts the items first started today and the ones whose change merge
     since
   );
   expect(counts).toEqual({ entered: 1, landed: 1 });
+});
+
+test('the open asks come under the tiles and before the map', () => {
+  const page: ItemPage = { items: [], next: null, totals: { done: 3 } } as unknown as ItemPage;
+  set(K.packGraph('p1', 'flow'), {
+    stages: [],
+    groups: [],
+    arrows: [],
+    document: null,
+    metricViews: null,
+  } as unknown as PackGraph);
+  set(K.boardDone('p1', 'flow'), page);
+  set(K.boardSince('p1', 'flow', startOfToday()), page);
+  set(K.packView('p1', 'flow'), { path: null, view: null, problems: [] });
+  const html = renderToStaticMarkup(
+    <MemoryRouter>
+      <PackOverview
+        projectId="p1"
+        pack="flow"
+        moving={[]}
+        loaded
+        movingError={undefined}
+        asks={{ count: 1, oldest: undefined }}
+      >
+        <section data-needs-you />
+      </PackOverview>
+    </MemoryRouter>
+  );
+  const tiles = html.indexOf('data-numbers');
+  const asks = html.indexOf('data-needs-you');
+  const map = html.indexOf('data-pack-map');
+  expect(tiles).toBeGreaterThan(-1);
+  expect(asks).toBeGreaterThan(tiles);
+  expect(map).toBeGreaterThan(asks);
 });

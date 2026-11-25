@@ -445,7 +445,7 @@ test('the board filter finds a card by the issue title and the key the card prin
   const reads = [untitled('issue-2', 'plan'), untitled('issue-3', 'check')];
   seedBoard(reads);
   set(K.packGraph('web', 'flow'), graph);
-  set(K.packView('web', 'flow'), null);
+  set(K.packView('web', 'flow'), { path: null, view: null, problems: [] });
   // The titles the board's filter reads, and those each column's cards read.
   const titles = [issue(2, 'Asks show in full'), issue(3, 'Board furniture')];
   set(K.forgeTitles('web', [2, 3]), { issues: titles, changes: [] });

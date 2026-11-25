@@ -63,14 +63,16 @@ The factory building this repository runs Archon from another checkout, on the h
   has, and a stage's `returns` agree with its outcomes that read `returned`. The Wirasm pack's file is kept at
   `docs/factory-console/pack-view/` until the owner's pack ships it.
 - Factory web code stays under `packages/web/src/experiments/console/factory/` (components, pure
-  `lib/`, the page routes), and nothing outside that folder imports from it, except the three
-  files that mount it: `ConsoleApp.tsx` (its routes and `factory.css`), `ProjectRail.tsx` (the
-  sidebar entry) and `ProjectViewTabs.tsx` (the Factory tab). `bun run lint` enforces it
-  (`scripts/check-factory-imports.ts`). On `combined` that script is not ported and the factory
-  folder holds only the board card's layer; its one importer outside it is Rasmus's board
-  (`routes/BoardPage.tsx` and `routes/board/ItemCard.tsx`, which draw the card). Every other file under `packages/web/src` (the answer
-  panel, the ask card, the project tabs apart from that one tab, every generic page and
-  component, `theme.css`) stays as it is on Archon dev.
+  `lib/`, the page routes). On `combined` it is mounted from Rasmus's pages, and only these
+  files outside the folder import from it, tests included: `ConsoleApp.tsx` (the How it works
+  routes and `factory.css`), `routes/OverviewPage.tsx` (the map, through
+  `factory/PackMap.tsx`), and Rasmus's board, `routes/BoardPage.tsx`,
+  `routes/board/ItemCard.tsx` and its test (the board card's layer). `ProjectRail.tsx` carries
+  the sidebar Factory entry without importing the folder. No lint checks this on `combined`;
+  keep the list true when a change adds a mount point. The curated map, How it works and the
+  stage modal are drawn only when the pack ships a view file the server read without an error;
+  `factory/lib/map-source.ts` is the one place that decides, and everything else draws the map
+  derived from the pack graph.
 - Server code is the view-file read (`GET /api/packs/{pack}/view` in `api.packs.ts`, beside the
   graph route), and two generic reads with no pack words that the web cannot get from older routes:
   `GET /api/workflows/runs/records` (`api.run-records.ts`, run records without events) and

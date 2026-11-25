@@ -4,7 +4,9 @@
  *
  * The page decides nothing and names no pack. The pack's name, document, groups, arrows and
  * metric cards come from the pack graph read; where an item is comes from the item read's
- * `standing`, the same placement the board draws; the asks are the attention list's.
+ * `standing`, the same placement the board draws; the asks are the attention list's. The map is
+ * `factory/PackMap.tsx`'s: the pack's curated map when it ships a view file, else the flow
+ * derived from the graph.
  */
 import type { ReactElement, ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -26,7 +28,8 @@ import {
 import type { MetricsReport } from '../skills/metrics';
 import { useEntity } from '../store/cache';
 import { K } from '../store/keys';
-import { MOVING, chipOf, columnsOf, newestDone, standingRun, type StageGroup } from './BoardPage';
+import { PackMap } from '../factory/PackMap';
+import { MOVING, newestDone } from './BoardPage';
 import { MetricCards } from './metrics/MetricsOverview';
 import { metricsRequests } from './metrics/model';
 
@@ -38,23 +41,6 @@ const TODAY_LIMIT = 100;
 /** The start of the operator's day, as the instant the item window reads from. */
 export function startOfToday(now = new Date()): string {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-}
-
-/** How many of a pack's items sit in each column, and how many of those wait on the operator. */
-export function flowCounts(
-  columns: readonly StageGroup[],
-  items: readonly ItemRead[]
-): { name: string; stages: string[]; count: number; needYou: number }[] {
-  return columns.map(column => {
-    const here = items.filter(read =>
-      column.stages.includes(standingRun(read)?.pack?.workflow ?? '')
-    );
-    return {
-      ...column,
-      count: here.length,
-      needYou: here.filter(read => chipOf(read) === 'needs_you').length,
-    };
-  });
 }
 
 /** What today's read says: items first started today, and items whose change merged today. */
@@ -144,79 +130,23 @@ function Headline({
   );
 }
 
-/** The pack's columns as a row of boxes with their counts, then the board's Done. */
-function Flow({
-  board,
-  flow,
-  done,
-  landed,
-}: {
-  board: string;
-  flow: ReturnType<typeof flowCounts>;
-  done: number;
-  landed: number;
-}): ReactElement {
-  return (
-    <div data-flow>
-      <h2 className="text-sm font-medium text-text-primary">The flow</h2>
-      <ol className="mt-3 flex flex-col gap-2 md:flex-row md:flex-wrap md:items-stretch">
-        {flow.map(column => (
-          <li key={column.name} className="flex items-center gap-2">
-            <Link
-              data-flow-group={column.name}
-              to={`${board}?group=${encodeURIComponent(column.name)}`}
-              className="block min-w-36 rounded-console-12 border border-border px-4 py-3 hover:border-border-bright"
-            >
-              <span className="text-console-12 font-medium text-text-secondary">{column.name}</span>
-              <span data-count className="ml-2 text-base tabular-nums text-text-primary">
-                {column.count}
-              </span>
-              <span className="mt-1 block font-mono text-console-10 text-text-tertiary">
-                {column.stages.join(' · ')}
-              </span>
-              {column.needYou > 0 ? (
-                <span data-need-you className="mt-1 block text-console-11 text-warning">
-                  {column.needYou} need you
-                </span>
-              ) : null}
-            </Link>
-            <span aria-hidden className="text-text-tertiary">
-              →
-            </span>
-          </li>
-        ))}
-        <li>
-          <Link
-            data-flow-group="done"
-            to={board}
-            className="block min-w-36 rounded-console-12 border border-border px-4 py-3 hover:border-border-bright"
-          >
-            <span className="text-console-12 font-medium text-text-secondary">Done</span>
-            <span data-count className="ml-2 text-base tabular-nums text-text-primary">
-              {done}
-            </span>
-            <span className="mt-1 block text-console-11 text-text-tertiary">
-              {landed} landed today
-            </span>
-          </Link>
-        </li>
-      </ol>
-    </div>
-  );
-}
-
-function PackOverview({
+export function PackOverview({
   projectId,
   pack,
   moving,
+  loaded,
+  movingError,
   asks,
   children,
 }: {
   projectId: string;
   pack: string;
   moving: ItemRead[];
+  /** Whether the items read has answered; `moving` is empty until it has. */
+  loaded: boolean;
+  movingError: Error | undefined;
   asks: { count: number; oldest: string | undefined };
-  /** The top asks, drawn under the flow and the pack's numbers. */
+  /** The top asks, drawn under the tiles and above the map (DESIGN.md, Overview page). */
   children?: ReactNode;
 }): ReactElement {
   const { data: graph, error } = useEntity<PackGraph>(K.packGraph(projectId, pack), () =>
@@ -227,7 +157,6 @@ function PackOverview({
   const today = useEntity<ItemPage>(K.boardSince(projectId, pack, since), () =>
     listItemsPage(projectId, ITEM_STATES, { pack, since, limit: TODAY_LIMIT })
   );
-  const columns = columnsOf(graph);
   const counts = todayCounts(today.data, since);
   const running = moving.filter(read => read.standing.state === 'running').length;
   const queued = moving.filter(read => read.standing.state === 'queued').length;
@@ -264,16 +193,17 @@ function PackOverview({
             : `${String(counts.entered)} entered today${today.data?.next != null ? ', of the first read' : ''}`}
         </Tile>
       </div>
-      <Flow
-        board={`/console/p/${projectId}/board`}
-        flow={flowCounts(columns, moving)}
-        done={done.data?.totals?.done ?? 0}
-        landed={counts.landed}
+      {children}
+      <PackMap
+        projectId={projectId}
+        pack={pack}
+        moving={{ data: loaded ? moving : undefined, error: movingError }}
+        done={{ total: done.data?.totals?.done ?? 0, items: done.data?.items ?? [] }}
+        landedToday={counts.landed}
       />
       {graph?.metricViews == null ? null : (
         <Headline projectId={projectId} views={graph.metricViews} />
       )}
-      {children}
     </section>
   );
 }
@@ -338,6 +268,8 @@ export function OverviewPage(): ReactElement {
             projectId={projectId}
             pack={pack}
             moving={(open.data ?? []).filter(read => read.standing.pack === pack)}
+            loaded={open.data !== undefined}
+            movingError={open.error}
             asks={asks}
           >
             {index === 0 ? topAsks : null}
