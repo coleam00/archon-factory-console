@@ -392,7 +392,7 @@ function GraphNode({
       onClick={onClick}
       aria-pressed={selected}
       data-step={node.id}
-      title={`${node.id} · ${node.kind}${plain ? '' : ` · ${node.status}`}`}
+      title={`${label} · ${node.kind}${plain ? '' : ` · ${node.status}`}`}
       className={`absolute flex items-center gap-2.5 overflow-hidden rounded-lg border px-3.5 text-left transition-colors hover:brightness-110 ${
         running && live ? 'animate-pulse' : ''
       } ${dimmed && !selected ? 'opacity-60' : ''} ${selected ? 'ring-2 ring-accent-bright ring-offset-2 ring-offset-surface' : ''}`}

@@ -68,7 +68,7 @@ function roomOf(frame: HTMLElement): Size {
 
 /**
  * The scale a graph `natural` big opens at, fitted to its frame's width and to the height its
- * scroller leaves it (`roomOf`), refitted as the frame or window resizes. 1 when `enabled` is
+ * scroller leaves it (`roomOf`), refitted as the frame, its section or the window resizes. 1 when `enabled` is
  * false, and where there is no ResizeObserver (happy-dom). Measured before paint, so the graph
  * never shows at full size first.
  */
@@ -85,8 +85,12 @@ export function useGraphFit(
     if (!enabled || frame === null || typeof ResizeObserver === 'undefined') return;
     const measure = (): void => setK(graphFitScale({ width, height }, roomOf(frame), pad));
     measure();
+    // The frame's own size, and its section's: a line appearing above the graph (an item
+    // running now) moves the frame without resizing it.
     const observer = new ResizeObserver(measure);
     observer.observe(frame);
+    const section = frame.closest('section');
+    if (section !== null) observer.observe(section);
     window.addEventListener('resize', measure);
     return () => {
       observer.disconnect();
