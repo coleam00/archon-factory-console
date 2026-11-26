@@ -12,8 +12,9 @@ A pack ships this file as `<pack>/.shared/factory-view.json`. This copy is the s
 `<installed pack>/.shared/` for the demo until the owner's own copy of the pack ships it.
 
 Check it against any pack tree: an installed one at `plugins/packs/<owner>/<name>/<commit>`, or
-any other folder holding `archon-plugin.json` with `--repo <owner/name>` (its commit is the
-folder's own git HEAD, or reported unknown):
+any other folder holding `archon-plugin.json` with `--repo <owner/name>`, where `name` is the
+manifest's own `name` and any owner works (its commit is the folder's own git HEAD, or reported
+unknown):
 
 ```
 bun run check:factory-view <pack dir> --view docs/factory-console/pack-view/factory-view.json

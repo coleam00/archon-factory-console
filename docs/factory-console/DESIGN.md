@@ -821,7 +821,18 @@ stages the graph connects (FAIL), and a view stage that no card opens WARNS. It 
 repo and commit are pinned once, in `<pack key>.pack-pin.json` beside the view. Where a home is
 named it reads the pack installed there and fails when that is at another commit than the pin;
 in CI it fetches the pinned commit into a throwaway home. A `retired` workflow is not required
-of the pack.
+of the pack. *Superseded on `combined` by the COMBINED direction (#237): there is no `map` and no
+warning. `check:factory-view <pack dir>` reads the file entry by entry and reconciles it with the
+pack graph through the same path the view route serves (`servedFactoryView`), prints each
+problem as `path: [kind] message`, and exits 1 on any. The kinds are `unreadable` (the file does
+not read), `invalid` (an entry fails its schema), `unknown` (a key the schema does not know),
+`dropped` (an entry names a stage, step, outcome, option or group stage the graph lacks, or a
+How it works edge joins stages no arrow connects), `retired` (a `rounds`, `returns`, `approves`
+or `change` entry names a workflow the graph lacks; it is kept as retired), `unworded` (an
+in-flow stage, step or outcome value with no words) and `ungrouped` (an in-flow stage the
+file's groups leave out). Uncovered drill-down steps and unlabelled arrows are not reported. No
+pin file exists: the check reads an installed pack at its install path, or any pack folder with
+`--repo <owner/name>`, at the folder's own git HEAD or an unknown commit, which it says.*
 
 ## Data
 

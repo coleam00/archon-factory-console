@@ -10,6 +10,7 @@ import {
   UNKNOWN_COMMIT,
   checkView,
   commitWords,
+  packFolderProblem,
   graphOfTree,
   packIdentity,
   parseArgs,
@@ -131,6 +132,32 @@ describe('checkView', () => {
 
   test('exits 1 on a file whose envelope does not read', () => {
     expect(checkView({ ...view('make'), version: 2 }, graph).code).toBe(1);
+  });
+});
+
+describe('packFolderProblem', () => {
+  const folder = (manifest: object | null): string => {
+    const dir = track(mkdtempSync(join(tmpdir(), 'factory-view-folder-')));
+    if (manifest !== null) writeFileSync(join(dir, 'archon-plugin.json'), JSON.stringify(manifest));
+    return dir;
+  };
+
+  test("accepts a folder whose manifest name is --repo's name half, under any owner", () => {
+    const dir = folder({ name: 'factory' });
+    expect(packFolderProblem(dir, 'acme/factory')).toBeUndefined();
+    expect(packFolderProblem(dir, 'someone-else/factory')).toBeUndefined();
+  });
+
+  test('refuses, naming the folder and the name that would work, a --repo of another name', () => {
+    const dir = folder({ name: 'factory' });
+    const problem = packFolderProblem(dir, 'acme/nope') ?? '';
+    expect(problem).toContain(dir);
+    expect(problem).toContain('factory');
+  });
+
+  test('refuses a folder that does not exist or holds no manifest', () => {
+    expect(packFolderProblem(join(tmpdir(), 'factory-view-no-such-folder'), 'a/b')).toBeDefined();
+    expect(packFolderProblem(folder(null), 'a/b')).toBeDefined();
   });
 });
 

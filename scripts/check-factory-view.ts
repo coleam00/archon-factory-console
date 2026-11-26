@@ -14,7 +14,15 @@
  * `archon pack graph <owner.name> --json` there (core `readPackGraph`, the read the graph route
  * answers from). The tree itself is only read, and no live home is touched.
  */
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { getPluginsPath } from '@archon/paths';
@@ -73,6 +81,26 @@ export function packIdentity(dir: string, repo?: string): PackIdentity | { error
   return head === undefined
     ? { repo, commit: UNKNOWN_COMMIT, from: 'unknown' }
     : { repo, commit: head, from: 'checkout' };
+}
+
+/**
+ * Why `dir` is not the pack `repo` names, before its graph is read: the folder is missing, holds
+ * no `archon-plugin.json`, or that manifest's `name` is not `repo`'s name half (a pack is found by
+ * that name, so any owner works but the name must match). Undefined when it is the pack.
+ */
+export function packFolderProblem(dir: string, repo: string): string | undefined {
+  if (!existsSync(dir)) return `${dir} does not exist`;
+  const manifestPath = join(dir, 'archon-plugin.json');
+  if (!existsSync(manifestPath)) return `${dir} holds no archon-plugin.json, so it is not a pack`;
+  let name: unknown;
+  try {
+    name = (JSON.parse(readFileSync(manifestPath, 'utf8')) as { name?: unknown }).name;
+  } catch (error) {
+    return `${manifestPath}: ${(error as Error).message}`;
+  }
+  const wanted = repo.slice(repo.indexOf('/') + 1);
+  if (name === wanted) return undefined;
+  return `${dir} is the pack "${String(name)}" (its archon-plugin.json name), not "${wanted}": name it with --repo <owner>/${String(name)}`;
 }
 
 /** How the check names the commit it read: the reader must know when it is a stand-in. */
@@ -208,6 +236,11 @@ function main(): number {
   const pack = packIdentity(args.dir, args.repo);
   if ('error' in pack) {
     console.error(pack.error);
+    return 2;
+  }
+  const notThePack = packFolderProblem(args.dir, pack.repo);
+  if (notThePack !== undefined) {
+    console.error(notThePack);
     return 2;
   }
   const viewPath = args.view === undefined ? join(args.dir, FACTORY_VIEW_PATH) : resolve(args.view);
