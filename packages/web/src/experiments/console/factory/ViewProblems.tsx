@@ -1,8 +1,9 @@
 /**
- * What is wrong with a pack's view file, and with its document, on the Overview and How it works
- * (DESIGN.md, COMBINED direction: every dropped entry and every in-flow stage, step or outcome
- * without words is a visible warning). One compact line that opens to the list, each view file
- * entry as `path: message`. Nothing when there is no problem.
+ * What is wrong with a pack's view file (its How it works explainer), and with its document, on
+ * the Overview and How it works: every key the file does not have and every stage or edge its
+ * picture names that the graph lacks is a visible warning. A stage, step or outcome without
+ * words is `archon validate`'s warning, not the file's. One compact line that opens to the
+ * list, each view file entry as `path: message`. Nothing when there is no problem.
  */
 import type { ReactElement } from 'react';
 import type { PackGraph } from '../skills/items';

@@ -112,9 +112,9 @@ const DRIFTED: PackView = {
       message: 'names stage "stage-check", which pack "p" does not have',
     },
     {
-      kind: 'unworded',
-      path: ['stages', 'stage-review'],
-      message: 'stage "stage-review" has no words',
+      kind: 'unknown',
+      path: ['stages'],
+      message: 'is not a key a view file has',
     },
   ],
 };
@@ -185,7 +185,7 @@ describe('the one check where the map is drawn', () => {
       [...(line?.querySelectorAll('li') ?? [])].map(entry =>
         entry.getAttribute('data-view-problem')
       )
-    ).toEqual(['dropped', 'unworded']);
+    ).toEqual(['dropped', 'unknown']);
   });
 
   test('a clean file shows no problem line', async () => {
@@ -307,9 +307,9 @@ describe('the stage modal', () => {
     ]);
     await openTab('Items here now');
     expect(texts('[data-item]', 'data-item')).toEqual(['b1', 'b2']);
-    // b1's line is the board card's: its stage and the step its run works, in the file's words.
+    // b1's line is the board card's: its stage and the step its run works, in the pack's words.
     const b1 = dialog().querySelector('[data-item="b1"] [data-state]')?.textContent ?? '';
-    expect(b1).toContain(shippedFile.stages['stage-build']?.steps?.build__build ?? 'missing');
+    expect(b1).toContain('Writes or fixes the change');
     await openTab('The real workflow');
     expect(texts('[data-workflow]', 'data-workflow')).toEqual(['stage-build']);
     expect(texts('[data-step]', 'data-step')).toEqual(
