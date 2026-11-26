@@ -109,6 +109,38 @@ describe('readPackGraph', () => {
     expect(graph.arrows.map(arrow => arrow.installed?.sourceInstanceId)).toEqual(['here']);
   });
 
+  test("the document's groups lose only a stale stage, and an ungrouped in-flow stage is a problem", async () => {
+    const { project, pack, write, deps } = await fixture('project');
+    await write('here', trigger('here', project));
+    // No `document` key: the pack's `how-it-works.md` is read.
+    await writeFile(
+      join(pack, 'archon-plugin.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        kind: 'workflow-pack',
+        name: 'chain',
+        description: 'A pack.',
+        entrypoints: { 'chain-a': 'chain-a/chain-a.yaml', 'chain-b': 'chain-b/chain-b.yaml' },
+      })
+    );
+    await writeFile(
+      join(pack, 'how-it-works.md'),
+      '---\ngroups:\n  - name: Start\n    kind: intake\n    stages: [chain-a, ghost]\n---\n# Chain\n'
+    );
+
+    const graph = await readPackGraph(project, 'chain', deps);
+
+    expect(graph.document).toEqual({
+      path: 'how-it-works.md',
+      problems: [
+        "group 'Start' names 'ghost', which is not a stage of the pack's flow",
+        "stage 'chain-b' is in no group",
+      ],
+      text: '# Chain\n',
+    });
+    expect(graph.groups).toEqual([{ name: 'Start', kind: 'intake', stages: ['chain-a'] }]);
+  });
+
   test('a setting naming a missing file is a settings problem, and the other values still show', async () => {
     const { project, pack, deps } = await fixture('project');
     await writeFile(
