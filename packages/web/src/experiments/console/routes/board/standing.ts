@@ -109,7 +109,7 @@ export const needsDecision = (read: ItemRead): boolean =>
 
 /**
  * A run's outcome in words (`runOutcomeWords` in `factory/lib/item-card.ts`, by
- * `factory/lib/outcome-words.ts`). It arrives as a callback, as `stageOf` does, because
+ * `outcomeWords` in `factory/lib/graph-structure.ts`). It arrives as a callback, as `stageOf` does, because
  * `item-card.ts` imports this file.
  */
 export type OutcomeWords = (

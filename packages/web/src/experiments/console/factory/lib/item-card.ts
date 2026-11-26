@@ -12,7 +12,8 @@ import type { ItemAsk } from '../../primitives/run';
 import type { FactoryView, ForgeSubjects, RunRecord } from '../api';
 import { displayItemKey, issueNumber } from '../../lib/item-key';
 import { retiredRun, type OutcomeWords, type Retired } from '../../routes/board/standing';
-import { outcomeLabelsOf, outcomeWords } from './outcome-words';
+import { arrowLabels } from './curated-view';
+import { outcomeWords } from './graph-structure';
 import { stageLabel, stageWords } from './stage-words';
 import { listOf, runFacts, type RoundVerdict, type RunFacts, type RunRounds } from './run-facts';
 
@@ -97,7 +98,7 @@ export function runOutcomeWords(
   outcome: string
 ): string {
   const workflow = pack === null ? (run.pack?.workflow ?? null) : viewWorkflow(pack, run);
-  return outcomeWords(outcomeLabelsOf(pack?.view), workflow, outcome);
+  return outcomeWords(arrowLabels(pack?.view ?? null), workflow, outcome);
 }
 
 /**
