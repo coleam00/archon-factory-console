@@ -16,9 +16,10 @@ groups leave out `complexity`, `attend` and `catchup`, which are in flow, so `ar
 fails on it. Until the pack's own PR fixes that, `../pack-spike/` is an overlay for that tree: its
 `archon-plugin.json` (the pack's, with `"document": "how-it-works.md"`) and `how-it-works.md` (the
 pack's text under the four groups, with their blurbs and kinds). Copy both over the installed
-pack's folder (`<home>/plugins/packs/Wirasm/archon-software-factory/<commit>/`);
-`fc-runtime/gate_combined.sh` does. Keep the overlay to those two files: the gate copies the
-whole folder over the pack.
+pack's folder (`<home>/plugins/packs/Wirasm/archon-software-factory/<commit>/`) once that
+folder holds the af6d0b4a tree; `fc-runtime/gate_combined.sh` (the owner's gate script, outside
+this repository) does both. Keep the overlay to those two files: the gate copies the whole
+folder over the pack.
 
 A pack ships this file as `<pack>/.shared/factory-view.json`. This copy is the source: copy it into
 `<installed pack>/.shared/` for the demo until the owner's own copy of the pack ships it. The pack's

@@ -357,7 +357,9 @@ async function packDocumentResults(
 ): Promise<WorkflowValidationResult[]> {
   const read = await loadPackDocument(packDir);
   if (read.document === null) return [];
-  const hint = `Fix ${read.document} or the manifest's document path.`;
+  const hint = read.fallback
+    ? `Fix ${read.document}, or name the pack's document in the manifest's \`document\`.`
+    : `Fix ${read.document} or the manifest's document path.`;
   const stages = await packStages(packDir, entries);
   const errors = [
     ...read.problems,
@@ -378,7 +380,7 @@ async function packDocumentResults(
         level: 'warning',
         field: 'pack_document',
         message,
-        hint: 'Check the spelling. A key a newer Archon reads is ignored by this one.',
+        hint: `Remove the key from ${read.document}, or check its spelling: a key a newer Archon reads is ignored by this one.`,
       })
     ),
   ];

@@ -338,26 +338,33 @@ describe('validateWorkflowsCommand', () => {
       const results = JSON.parse(String(write.mock.calls[0]?.[0]))
         .results as validator.WorkflowValidationResult[];
       const issues = results.find(r => r.workflowName === 'archon-plugin.json')?.issues ?? [];
-      return { code, issues: issues.map(issue => [issue.level, issue.message]) };
+      return { code, issues };
     };
     try {
+      // The manifest names no document: the warning says which file was read, and why.
       await document('colour: blue\ngroups:\n  - name: Make\n    stages: [review, build]\n');
-      expect(await run()).toEqual({
-        code: 0,
-        issues: [['warning', "unknown key 'colour' is ignored"]],
-      });
+      const warned = await run();
+      expect(warned.code).toBe(0);
+      expect(warned.issues).toHaveLength(1);
+      expect(warned.issues[0]).toMatchObject({ level: 'warning', field: 'pack_document' });
+      expect(warned.issues[0]?.message).toContain("'colour'");
+      expect(warned.issues[0]?.message).toContain('how-it-works.md');
+      expect(warned.issues[0]?.message).toContain('the manifest names no document');
+      expect(warned.issues[0]?.hint).toContain('how-it-works.md');
 
       await document('groups:\n  - name: Make\n    stages: [review, build, ghost]\n');
-      expect(await run()).toEqual({
-        code: 1,
-        issues: [['error', "group 'Make' names 'ghost', which is not a stage of the pack's flow"]],
-      });
+      const stale = await run();
+      expect(stale.code).toBe(1);
+      expect(stale.issues.map(issue => issue.level)).toEqual(['error']);
+      expect(stale.issues[0]?.message).toContain("'ghost'");
+      // The hint names the file and how to name a document, not a manifest key that is absent.
+      expect(stale.issues[0]?.hint).toContain("manifest's `document`");
 
       await document('groups:\n  - name: Make\n    stages: [review]\n');
-      expect(await run()).toEqual({
-        code: 1,
-        issues: [['error', "stage 'build' is in no group"]],
-      });
+      const ungrouped = await run();
+      expect(ungrouped.code).toBe(1);
+      expect(ungrouped.issues.map(issue => issue.level)).toEqual(['error']);
+      expect(ungrouped.issues[0]?.message).toContain("'build'");
     } finally {
       write.mockRestore();
     }

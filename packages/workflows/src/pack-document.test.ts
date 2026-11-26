@@ -48,6 +48,7 @@ describe("a pack's document", () => {
       ],
       problems: [],
       warnings: [],
+      fallback: false,
     });
   });
 
@@ -58,8 +59,9 @@ describe("a pack's document", () => {
       'how-it-works.md'
     );
     const read = await loadPackDocument(dir);
-    expect([read.document, read.groups, read.problems]).toEqual([
+    expect([read.document, read.fallback, read.groups, read.problems]).toEqual([
       'how-it-works.md',
+      true,
       [{ name: 'Make', stages: ['plan'] }],
       [],
     ]);
@@ -72,6 +74,7 @@ describe("a pack's document", () => {
       groups: [],
       problems: [],
       warnings: [],
+      fallback: false,
     });
     expect((await loadPackDocument(await pack('docs/how.md', '# How it works\n'))).groups).toEqual(
       []
@@ -96,10 +99,26 @@ describe("a pack's document", () => {
     );
     expect(read.groups).toEqual([{ name: 'Make', stages: ['plan'] }]);
     expect(read.problems).toEqual([]);
-    expect(read.warnings).toEqual([
-      "unknown key 'colour' is ignored",
-      "unknown key 'groups[0].colour' is ignored",
+    // Each warning names the document and the key.
+    expect(read.warnings).toHaveLength(2);
+    expect(read.warnings.every(warning => warning.startsWith('docs/how.md:'))).toBe(true);
+    expect(read.warnings.map(warning => warning.match(/'([^']+)'/)?.[1])).toEqual([
+      'colour',
+      'groups[0].colour',
     ]);
+  });
+});
+
+describe('a document read by the fallback', () => {
+  test('says in each warning that the manifest names no document', async () => {
+    const read = await loadPackDocument(
+      await pack(undefined, '---\ntitle: How it works\n---\n', 'how-it-works.md')
+    );
+    expect(read.warnings).toHaveLength(1);
+    expect(read.warnings[0]).toStartWith(
+      'how-it-works.md (read because the manifest names no document):'
+    );
+    expect(read.warnings[0]).toContain("'title'");
   });
 });
 

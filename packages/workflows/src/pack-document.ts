@@ -91,7 +91,7 @@ export function documentGroups(
     return { problem: `its frontmatter 'groups' is invalid: ${z.prettifyError(parsed.error)}` };
   return {
     groups: parsed.data.groups ?? [],
-    warnings: unknownKeys(raw).map(key => `unknown key '${key}' is ignored`),
+    warnings: unknownKeys(raw).map(key => `unknown front-matter key '${key}' is ignored`),
   };
 }
 
@@ -146,6 +146,8 @@ interface PackDocumentRead {
   problems: string[];
   /** Keys the frontmatter has that this Archon does not read. */
   warnings: string[];
+  /** Whether the manifest names no document and `how-it-works.md` was read in its place. */
+  fallback: boolean;
 }
 
 const NO_DOCUMENT: PackDocumentRead = {
@@ -154,6 +156,7 @@ const NO_DOCUMENT: PackDocumentRead = {
   groups: [],
   problems: [],
   warnings: [],
+  fallback: false,
 };
 
 /**
@@ -174,22 +177,32 @@ export async function loadPackDocument(packDir: string): Promise<PackDocumentRea
     return NO_DOCUMENT;
   }
   const document = manifest.document ?? DEFAULT_PACK_DOCUMENT;
+  const fallback = manifest.document === undefined;
+  // Every message names the file, and says why a file the manifest never named was read.
+  const where = fallback ? `${document} (read because the manifest names no document)` : document;
   let text: string;
   try {
     text = await readFile(join(packDir, document), 'utf-8');
   } catch (error) {
     // Only the fallback may be absent: a pack that never had the file has no document.
-    if (manifest.document === undefined && (error as NodeJS.ErrnoException).code === 'ENOENT')
-      return NO_DOCUMENT;
+    if (fallback && (error as NodeJS.ErrnoException).code === 'ENOENT') return NO_DOCUMENT;
     return {
       ...NO_DOCUMENT,
       document,
-      problems: [`${document} could not be read: ${(error as Error).message}`],
+      fallback,
+      problems: [`${where} could not be read: ${(error as Error).message}`],
     };
   }
   const read = documentGroups(text);
   const body = documentBody(text);
   return 'problem' in read
-    ? { ...NO_DOCUMENT, document, text: body, problems: [`${document}: ${read.problem}`] }
-    : { document, text: body, groups: read.groups, problems: [], warnings: read.warnings };
+    ? { ...NO_DOCUMENT, document, fallback, text: body, problems: [`${where}: ${read.problem}`] }
+    : {
+        document,
+        fallback,
+        text: body,
+        groups: read.groups,
+        problems: [],
+        warnings: read.warnings.map(warning => `${where}: ${warning}`),
+      };
 }

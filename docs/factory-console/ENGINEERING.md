@@ -40,8 +40,12 @@ The factory building this repository runs Archon from another checkout, on the h
 - The installed pack ships no factory view file yet, so on the copy the board cards show titles,
   asks and PR links but no check rounds, returns or running step. To see those, copy
   `docs/factory-console/pack-view/factory-view.json` into the copy's installed pack,
-  `.console-home/plugins/packs/<owner>/<name>/<commit>/.shared/`, and the files of
-  `docs/factory-console/pack-spike/` over that pack folder for its groups (`pack-view/README.md`).
+  `.console-home/plugins/packs/<owner>/<name>/<commit>/.shared/`. Both the view file and the
+  overlay `docs/factory-console/pack-spike/` (the groups) are written for the pack's dev tree at
+  af6d0b4a, not the older commit the live home installs: replace that pack folder with the
+  af6d0b4a tree, then copy the overlay's files over it, as `fc-runtime/gate_combined.sh` does
+  (`pack-view/README.md`). On the older tree the Overview lists document problems for the
+  stages it lacks.
 - Pick a free port (not 3090, 3190 or 8864, which are in use); check it first.
 - Stop every server and browser you start before you finish. Kill by the PID you started, never by
   process name: other factories run on this machine.
