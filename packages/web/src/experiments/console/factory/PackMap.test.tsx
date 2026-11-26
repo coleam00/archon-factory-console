@@ -6,7 +6,7 @@ import { K } from '../store/keys';
 import type { PackView } from './api';
 import type { PackBoardGroups } from './lib/board-numbers';
 import { shippedFile, shippedGraph } from './curated.test-fixtures';
-import { itemOn, MOVING_ITEMS } from './items.test-fixtures';
+import { asksOn, itemOn, MOVING_ITEMS } from './items.test-fixtures';
 import { installDom } from './test-dom.test-helpers';
 
 const { mount: mountTree, settle } = await installDom();
@@ -49,6 +49,9 @@ const BOARD: PackBoardGroups = {
   },
 };
 
+/** Open asks on the two items the map counts as needing you (b2 on build, g1 at the land gate). */
+const ASKS = asksOn(MOVING_ITEMS.filter(read => ['b2', 'g1'].includes(read.item.key)));
+
 async function mount(view: PackView, search = ''): Promise<HTMLElement> {
   set(K.packView(PROJECT, PACK), view);
   set(K.packGraph(PROJECT, PACK), shippedGraph);
@@ -57,7 +60,15 @@ async function mount(view: PackView, search = ''): Promise<HTMLElement> {
       <Routes>
         <Route
           path="/console/p/:projectId/overview"
-          element={<PackMap projectId={PROJECT} pack={PACK} board={BOARD} itemsError={undefined} />}
+          element={
+            <PackMap
+              projectId={PROJECT}
+              pack={PACK}
+              board={BOARD}
+              itemsError={undefined}
+              asks={ASKS}
+            />
+          }
         />
       </Routes>
     </MemoryRouter>
