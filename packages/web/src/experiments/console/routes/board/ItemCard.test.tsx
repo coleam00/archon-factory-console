@@ -408,9 +408,10 @@ test('a card shows its rounds and returns from the run records its list read', a
 
 /**
  * A pack that renamed `stage-check` to `stage-review` (#232): the view the server serves for it
- * (`reconcileFactoryView`, whose test in `packages/workflows` pins this shape) drops the file's
- * words for `stage-check` and keeps its `rounds`, `returns`, `approves` and `change` entries,
- * with `stage-check` retired, because the item's old runs still carry that name.
+ * (`servedFactoryView`; `scripts/check-factory-view.test.ts` pins this shape for the shipped
+ * file against the same rename) drops the file's words for `stage-check` and keeps its
+ * `rounds`, `returns`, `approves` and `change` entries, with `stage-check` retired, because the
+ * item's old runs still carry that name.
  */
 function renamedCheckPack(keepMeaning: boolean): CardPack {
   const graph = JSON.parse(

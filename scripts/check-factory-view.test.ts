@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { trackTempRoots } from '../packages/paths/src/test-utils';
+import { servedFactoryView } from '../packages/workflows/src/factory-view-read';
 import type { PackGraph } from '../packages/workflows/src/pack-graph';
+import type { FactoryView } from '../packages/workflows/src/schemas/factory-view';
 import {
   UNKNOWN_COMMIT,
   checkView,
@@ -71,6 +73,25 @@ test('the committed docs copy reads clean against the pack graph it is written f
   expect(checkView(readDocsCopy(), shippedGraph)).toEqual({ code: 0, lines: ['0 problems'] });
 });
 
+test("a renamed stage costs the shipped view only that stage's words, and keeps its round meaning (#232)", () => {
+  const renamed = JSON.parse(
+    JSON.stringify(shippedGraph).replaceAll('stage-check', 'stage-review')
+  ) as PackGraph;
+  const file = readDocsCopy() as FactoryView;
+  const { view, problems } = servedFactoryView(file, renamed);
+  expect(view?.stages['stage-check']).toBeUndefined();
+  expect(Object.keys(view?.stages ?? {})).toHaveLength(Object.keys(file.stages).length - 1);
+  // The board's cards read rounds, returns, approvals and the change from these: all kept.
+  const onCheck = (entries: unknown): unknown[] =>
+    (Array.isArray(entries) ? entries : [entries]).filter(
+      entry => (entry as { workflow?: string }).workflow === 'stage-check'
+    );
+  for (const key of ['rounds', 'returns', 'approves', 'change'] as const)
+    expect(onCheck(view?.[key])).toEqual(onCheck(file[key]));
+  expect(view?.retired).toEqual([...(file.retired ?? []), 'stage-check']);
+  expect(problems.filter(problem => problem.kind === 'retired')).toHaveLength(4);
+});
+
 describe('checkView', () => {
   test('passes a view naming and wording only what the graph has, with a summary line', () => {
     expect(checkView(view('make'), graph)).toEqual({ code: 0, lines: ['0 problems'] });
@@ -126,6 +147,29 @@ describe('packIdentity', () => {
   });
 
   test("takes a checkout's own HEAD, never that of a repository the tree sits inside", () => {
+    const tree = track(mkdtempSync(join(tmpdir(), 'factory-view-checkout-')));
+    writeFileSync(join(tree, 'archon-plugin.json'), '{}');
+    const git = (...args: string[]): string => {
+      const run = Bun.spawnSync(['git', '-C', tree, ...args], {
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 'test',
+          GIT_AUTHOR_EMAIL: 'test@example.com',
+          GIT_COMMITTER_NAME: 'test',
+          GIT_COMMITTER_EMAIL: 'test@example.com',
+        },
+      });
+      if (run.exitCode !== 0) throw new Error(run.stderr.toString());
+      return run.stdout.toString().trim();
+    };
+    git('init', '-q');
+    git('add', '.');
+    git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'pack');
+    expect(packIdentity(tree, 'acme/factory')).toEqual({
+      repo: 'acme/factory',
+      commit: git('rev-parse', 'HEAD'),
+      from: 'checkout',
+    });
     // This file's own checkout: a folder inside it is not a checkout of its own.
     const inside = packIdentity(resolve(import.meta.dir, '../docs'), 'acme/factory');
     expect(inside).toMatchObject({ commit: UNKNOWN_COMMIT, from: 'unknown' });
