@@ -20,12 +20,12 @@ import { readdir, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import * as archonPaths from '@archon/paths';
 import { PLUGIN_MANIFEST_FILE } from '@archon/plugin-manifest';
-import type { ProviderRegistry } from '@archon/providers';
 import type { WorkflowLoadResult } from '@archon/workflows/schemas/workflow';
 import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
 import { liveSourceRoots } from '@archon/workflows/workflow-source';
 
 type LoadConfig = Parameters<typeof discoverWorkflowsWithConfig>[1];
+type Providers = Parameters<typeof discoverWorkflowsWithConfig>[2];
 
 /** What a link under a stamped path adds to the stamp: a stamp holding it is never kept. */
 const LINK = 'link';
@@ -90,7 +90,7 @@ async function discoveryStamp(root: string, loadConfig: LoadConfig): Promise<str
 /** `discoverWorkflowsWithConfig(root)`, kept per root while its stamp is unchanged. */
 export function createDiscoveryCache(
   loadConfig: LoadConfig,
-  providers: ProviderRegistry
+  providers: Providers
 ): (root: string) => Promise<WorkflowLoadResult> {
   const kept = new Map<string, { stamp: string; result: Promise<WorkflowLoadResult> }>();
   const discover = (root: string): Promise<WorkflowLoadResult> =>
