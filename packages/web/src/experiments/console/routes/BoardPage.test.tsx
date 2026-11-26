@@ -5,6 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { BoardPage, PackBoard } from './BoardPage';
 import { ColumnHeader } from '../factory/ColumnHeader';
 import { CardsContext } from '../factory/cards-context';
+import type { AskRead } from '../factory/lib/item-asks';
+import { NO_ITEM_ASKS } from '../components/ItemAsksSection';
 import { OverviewPage } from './OverviewPage';
 import { packBoard } from '../factory/lib/board-numbers';
 import { ProjectViewTabs } from '../components/ProjectViewTabs';
@@ -289,7 +291,7 @@ test("a column header's chips count its cards: needs you by their buttons, the r
 
 test('a column header waits for the asks: a skeleton while they are read, no needs-you chip if they failed', () => {
   const reads = [item('issue-a', 'build', 'waiting'), item('issue-c', 'build', 'running')];
-  const header = (itemAsks: 'reading' | 'failed' | null): Document => {
+  const header = (itemAsks: AskRead | null): Document => {
     const html = renderToStaticMarkup(
       itemAsks === null ? (
         <ColumnHeader label="Build" subtitle="build" items={reads} />
@@ -321,6 +323,21 @@ test('a column header waits for the asks: a skeleton while they are read, no nee
   const alone = header(null);
   expect(alone.querySelector('[data-chip-reading]')).toBeNull();
   expect(chips(alone)).toEqual(['running', 'waiting']);
+  // Asks read, none open on the column: no "needs you 0" (rule 9: only counts above 0).
+  const none = header(NO_ITEM_ASKS);
+  expect(none.querySelector('[data-chip-reading]')).toBeNull();
+  expect(chips(none)).toEqual(['running', 'waiting']);
+});
+
+test('the board page hands its headers the asks as unread until the attention list answers', () => {
+  seedBoard([item('issue-a', 'build', 'waiting')]);
+  set(K.packGraph('web', 'flow'), graph);
+  // The attention list has not answered: the header waits rather than guessing 0.
+  invalidate(K.runsAttention);
+  const page = render('/console/p/web/board', <BoardPage />);
+  const column = page.querySelector('[data-pack="flow"] [data-stage="build"]');
+  expect(column?.querySelector('[data-chip-reading]')).not.toBeNull();
+  expect(column?.querySelector('[data-header-chip="needs_you"]')).toBeNull();
 });
 
 /** An active `part_of` link from an item to work order `key`. */

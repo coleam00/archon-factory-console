@@ -9,6 +9,7 @@
 import type { ItemAsks } from '../../components/ItemAsksSection';
 import { openAsksOf } from '../../lib/item-key';
 import type { ItemAsk, RunsAttention } from '../../primitives/run';
+import type { Chip } from '../../routes/board/standing';
 import type { ItemRead } from '../../skills/items';
 
 /**
@@ -45,4 +46,15 @@ export function askedCount(asks: AskRead | null, items: readonly ItemRead[]): nu
   return asks === null || typeof asks === 'string'
     ? null
     : items.filter(read => itemAsksOf(asks, read).length > 0).length;
+}
+
+/**
+ * The one state a surface that names a single state shows for an item (a stage's "Items here
+ * now" line, a work-order dot, the Table's State sort): Needs you when it has open asks, whatever
+ * its run is doing, else its standing state. The map counts the same items in a stage's "N need
+ * you", so a stage's chip and its lines agree. A board card is the exception: it shows both, its
+ * state as its label and its asks as its button.
+ */
+export function shownChip(read: ItemRead, asked: boolean): Chip {
+  return asked ? 'needs_you' : read.standing.state;
 }

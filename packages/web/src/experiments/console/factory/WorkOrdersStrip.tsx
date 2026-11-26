@@ -11,7 +11,7 @@ import { ChevronDown } from 'lucide-react';
 import { displayItemKey } from '../lib/item-key';
 import { CHIP, type Chip } from '../routes/board/standing';
 import { useFactoryCards } from './cards-context';
-import { askedOf } from './lib/item-asks';
+import { askedOf, shownChip } from './lib/item-asks';
 import { useForgeTitles } from './FactoryCards';
 import { itemTitle } from './lib/item-card';
 import { orderSummary, type WorkOrder } from './lib/work-orders';
@@ -192,9 +192,7 @@ function WorkOrderRow({
           const chip: Chip | undefined =
             member.read === undefined
               ? undefined
-              : askedOf(asks, member.read) === true
-                ? 'needs_you'
-                : member.read.standing.state;
+              : shownChip(member.read, askedOf(asks, member.read) === true);
           const state = chip === undefined ? 'not started' : CHIP[chip].label;
           const label = `${displayItemKey(member.item.key, order.item.key)}: ${state}`;
           return (

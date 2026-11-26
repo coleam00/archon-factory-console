@@ -59,10 +59,15 @@ describe("an item's state line", () => {
     expect(line.text).toContain(CHIP.waiting.label);
   });
 
-  test('a running item with open asks keeps its run line, as its card keeps its Running label', () => {
-    const line = itemStateLine(shippedView, itemOn('b', 'stage-build', 'running'), null, true);
-    expect(line.tone).toBe('running');
-    expect(line.text).toContain(CHIP.running.label);
+  test('a running item with open asks needs you, as its stage counts it in "N need you"', () => {
+    const line = itemStateLine(
+      shippedView,
+      itemOn('b', 'stage-build', 'running'),
+      { stage: 'Build', step: 'Writes or fixes the change' },
+      true
+    );
+    expect(line.tone).toBe('needs-you');
+    expect(line.text).toContain(CHIP.needs_you.label);
   });
 
   test("an item at rest reads its outcome in the file's words", () => {
