@@ -10,8 +10,9 @@
  * costs only a slower first read. So a missing file is an empty cache, and a file that cannot be
  * read or parsed is an empty cache plus one warning naming it; an entry of a shape this server
  * does not know is skipped, and keys it does not know are ignored, so another binary's file
- * never breaks this one. Only answers are kept: an issue the forge could not read, or a change
- * whose state is unknown, is asked again by the next server.
+ * never breaks this one. A failed lookup (an issue the forge could not read, a change whose state
+ * is unknown) is kept too, with its time: a restarted server shows it at once and asks again in
+ * the background once its shorter life is over, instead of holding a read for a first lookup.
  */
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
@@ -26,21 +27,25 @@ export interface Kept<T> {
 }
 
 const issueEntry = z.object({
-  value: z.object({
-    number: z.number().int().positive(),
-    title: z.string(),
-    state: z.enum(['open', 'closed']),
-    url: z.string(),
-  }),
+  value: z.union([
+    z.object({
+      number: z.number().int().positive(),
+      title: z.string(),
+      state: z.enum(['open', 'closed']),
+      url: z.string(),
+    }),
+    z.object({ number: z.number().int().positive(), unknown: z.string() }),
+  ]),
   at: z.number(),
 });
 
 const changeEntry = z.object({
   value: z.object({
     url: z.string().nullable(),
-    merged: z.boolean(),
+    merged: z.union([z.boolean(), z.literal('unknown')]),
     mergedAt: z.string().nullable(),
     number: z.number().int().positive().nullable(),
+    reason: z.string().optional(),
   }),
   at: z.number(),
 });
@@ -111,12 +116,10 @@ export function forgeAnswerFile(where: () => string): ForgeAnswerFile {
   };
 
   const write = async (): Promise<void> => {
-    const kept = <T>(map: Map<string, Kept<T>>, keep: (value: T) => boolean) =>
-      Object.fromEntries([...map].filter(([, entry]) => keep(entry.value)));
     const body = JSON.stringify({
       version: 1,
-      issues: kept(issues, value => !('unknown' in value)),
-      changes: kept(changes, value => value.merged !== 'unknown'),
+      issues: Object.fromEntries(issues),
+      changes: Object.fromEntries(changes),
     });
     const path = at();
     const temp = `${path}.${String(process.pid)}.tmp`;

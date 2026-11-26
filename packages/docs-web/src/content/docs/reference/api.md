@@ -644,7 +644,8 @@ keeps them: a change that has not merged for 60 seconds, a merge for good, an is
 a stale answer served while it refreshes. A first lookup still running after 4 seconds answers
 `merged: "pending"` (a change) or `pending: true` (an issue) for that read only, so read again
 shortly; a lookup that failed answers `unknown` (a change, cached 60 seconds) or null fields (an
-issue, cached 10 minutes), and the file keeps neither. A `changeRun` without its `changeUrl`, or a
+issue, cached 10 minutes); the file keeps them with their time, so a restarted server shows them
+at once and asks again in the background. A `changeRun` without its `changeUrl`, or a
 number that is not a positive whole number, returns **400**; an unknown `codebaseId` returns
 **404**.
 

@@ -305,6 +305,32 @@ describe('GET /api/forge/subjects with an answer file', () => {
     expect(after.asked.issues).toBe(0);
   });
 
+  test('a kept failure is shown at once after a restart and asked again behind it', async () => {
+    const answerFile = await fileWith({
+      version: 1,
+      issues: {
+        [`${REMOTE}#5`]: { value: issue5, at: NOW },
+        [`${REMOTE}#9`]: { value: { number: 9, unknown: 'gh: not found' }, at: NOW - 11 * 60_000 },
+      },
+    });
+    // A forge slower than the read's wait: a first lookup would answer `pending`.
+    const { read, asked } = appWith({
+      runs: {},
+      now: () => NOW,
+      answerFile,
+      title: async n => {
+        await Bun.sleep(100);
+        return `Issue ${String(n)}`;
+      },
+    });
+    const { body } = await read('issue=5&issue=9');
+    expect(body.issues.map(entry => [entry.title, entry.pending])).toEqual([
+      ['Kept title', false],
+      [null, false],
+    ]);
+    expect(asked.issues).toBe(1);
+  });
+
   test('a file that does not parse is an empty cache', async () => {
     const answerFile = await fileWith('{ not json');
     const { read, asked } = appWith({ runs: {}, answerFile });
@@ -329,7 +355,7 @@ describe('GET /api/forge/subjects with an answer file', () => {
 });
 
 describe('forgeAnswerFile', () => {
-  test('writes what it learned, without failures, for the next server to load', async () => {
+  test('writes what it learned, failures with their time too, for the next server to load', async () => {
     const dir = track(await mkdtemp(join(tmpdir(), 'forge-answers-')));
     const path = join(dir, 'cache', 'forge-subjects.json');
     const first = forgeAnswerFile(() => path);
@@ -354,9 +380,17 @@ describe('forgeAnswerFile', () => {
     await next.load();
     expect([...next.issues]).toEqual([
       ['r#1', { value: { number: 1, title: 'One', state: 'open', url: 'u1' }, at: 7 }],
+      ['r#2', { value: { number: 2, unknown: 'not found' }, at: 7 }],
     ]);
     expect([...next.changes]).toEqual([
       [PR, { value: { url: PR, merged: false, mergedAt: null, number: 112 }, at: 8 }],
+      [
+        'run:x',
+        {
+          value: { url: null, merged: 'unknown', mergedAt: null, number: null, reason: 'down' },
+          at: 8,
+        },
+      ],
     ]);
   });
 });
