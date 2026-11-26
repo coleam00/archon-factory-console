@@ -96,10 +96,18 @@ The factory building this repository runs Archon from another checkout, on the h
   the one place that decides, and a pack with no file, or one that does not read, draws the map
   derived from the pack graph.
 - Server code is the view-file read (`GET /api/packs/{pack}/view` in `api.packs.ts`, beside the
-  graph route; the two share one graph read while it runs, `shareWhileRunning`, and keep nothing
-  once it settles), and two generic reads with no pack words that the web cannot get from older routes:
+  graph route; the two share one graph read while it runs, `shareWhileRunning`), and two generic reads with no pack words that the web cannot get from older routes:
   `GET /api/workflows/runs/records` (`api.run-records.ts`, run records without events) and
-  `GET /api/forge/subjects` (`api.forge.ts`, issue titles and change merge state). The server
+  `GET /api/forge/subjects` (`api.forge.ts`, issue titles and change merge state).
+  Speed is a requirement (DESIGN.md, COMBINED direction), so two things are kept between
+  requests. The graph's workflow discovery, nearly all of its cost, is kept while the files it
+  reads are unchanged (`packages/core/src/workflows/discovery-cache.ts`, keyed by a stamp of
+  every file under the roots discovery reads); the rest of the graph read runs every request.
+  The forge subjects route keeps its answers in a display cache file under the server's home,
+  `<home>/cache/forge-subjects.json` (`forge-answer-file.ts`), so a restarted server does not
+  ask the forge once per card. That file is a cache, not engine state: "new server code only
+  reads" still holds for engine data. The page timings are measured with
+  `bun scripts/measure-board.ts` (its header says how). The server
   asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins
   through `@archon/forge/host-plugins` as the CLI's `archon forge` does. Everything a pack's
   words name (rounds, returns, parked, stories, placement) is computed in

@@ -5,6 +5,7 @@
  *
  *   bun scripts/measure-board.ts --base http://127.0.0.1:3241 --project <codebaseId>
  *     [--pages board,overview,needs-you] [--runs 1] [--settle 6000] [--wait-ready]
+ *     [--screenshots <dir>]
  *
  * Each run opens the page in a new `agent-browser` session (an empty browser cache). An init
  * script, registered before the first navigation, samples the page every 50 ms from
@@ -65,6 +66,8 @@ if (base === undefined || project === undefined) {
 const pages = (arg('pages') ?? 'board,overview,needs-you').split(',');
 const runs = Number(arg('runs') ?? '1');
 const settleMs = Number(arg('settle') ?? '6000');
+/** A directory to save each run's screenshot in, once the page is complete. */
+const screenshots = arg('screenshots');
 const timeoutMs = 240_000;
 
 // The sampler the browser runs before any page script. It wraps `fetch` to count reads in
@@ -175,6 +178,8 @@ async function measure(page: string, run: number): Promise<Result> {
       if (tail !== undefined && ready && tail.inflight === 0 && now - tail.t >= settleMs) break;
     }
     const resources = evalJson<Resource[]>(session, 'window.__measure.resources()');
+    if (screenshots !== undefined)
+      browser(session, 'screenshot', join(screenshots, `${page}-${run.toString()}.png`));
     const settled = log.at(-1);
     const done = settled !== undefined && settled.inflight === 0;
     // The last change to what a person sees; a sample that only moved the in-flight count
@@ -220,6 +225,14 @@ for (const r of results) {
     `| ${r.page} | ${r.run} | ${r.complete === null ? 'timed out' : fmt(r.complete)} | ${fmt(r.last.columns)} | ${titles} | ${fmt(r.last.rounds)} | ${fmt(r.last.tiles)} | ${fmt(r.last.map)} | ${fmt(r.last.rows)} | ${r.resources.length} | ${fmt(lastEnd)} | ${slowest === undefined ? '-' : `${slowest.path.split('?')[0]} ${fmt(slowest.end - slowest.start)}`} |`
   );
 }
+console.log('\nWhat each page drew when complete (the same data must draw the same counts):\n');
+console.log('| page | run | columns | cards | titled | with rounds | tiles | map cards | rows |');
+console.log('|---|---|---|---|---|---|---|---|---|');
+for (const { page, run, final: f } of results)
+  if (f !== null)
+    console.log(
+      `| ${page} | ${run} | ${f.columns} | ${f.cards} | ${f.titled} | ${f.rounds} | ${f.tiles} | ${f.map} | ${f.rows} |`
+    );
 for (const r of results) {
   console.log(`\n<details><summary>${r.page} #${r.run}: /api/ waterfall (ms)</summary>\n`);
   console.log('```');
