@@ -5,9 +5,9 @@
  * The page decides nothing and names no pack. The pack's name, document, groups and arrows come
  * from the pack graph read; where an item is comes from the item read's `standing` and
  * `placeFor`, the same placement the board draws. Its numbers are `packBoard`'s over the board's
- * own every-item read, so they match the board. Of the asks it shows only their count, as one link to the project's
- * Needs you tab: Needs you is drawn on that tab and on Archon's platform-wide Needs you page,
- * nowhere else (#218).
+ * own every-item read, so they match the board. Of the asks it shows only their count, as one
+ * link to the project's Needs you tab: Needs you is drawn on that tab and on Archon's
+ * platform-wide Needs you page, nowhere else (#218).
  *
  * The map is `factory/PackMap.tsx`'s: the pack's curated map when it ships a view file, else the
  * flow derived from the graph.
