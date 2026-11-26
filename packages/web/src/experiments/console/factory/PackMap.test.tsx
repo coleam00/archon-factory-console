@@ -195,6 +195,23 @@ describe('the one check where the map is drawn', () => {
     expect(cards(page)).toEqual([]);
   });
 
+  test("the Full workflow heads an ungrouped stage's column by its label, a group's by its name (#261)", async () => {
+    // The shipped file with `stage-host` in no group, so it heads a column alone.
+    const view = {
+      ...shippedFile,
+      groups: (shippedFile.groups ?? []).map(group => ({
+        ...group,
+        stages: group.stages.filter(stage => stage !== 'stage-host'),
+      })),
+    };
+    const page = await mount({ ...CURATED, view }, '?map=full');
+    const heading = (group: string): string | null | undefined =>
+      page.querySelector(`[data-flow-group="${group}"] [data-flow-heading]`)?.textContent;
+    expect(heading('stage-host')).toBe('CI and review');
+    expect(heading('Plan and build')).toBe('Plan and build');
+    expect(heading('merged')).toBe('Merged');
+  });
+
   test("the Full workflow's Merged heading counts the Board's Merged column, not every merge", async () => {
     const page = await mount(CURATED, '?map=full');
     expect(page.querySelector('[data-flow-group="merged"] [data-count]')?.textContent).toBe('2');

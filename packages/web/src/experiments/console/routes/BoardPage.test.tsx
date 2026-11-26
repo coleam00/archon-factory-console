@@ -461,7 +461,10 @@ test('stages a pack groups share a column, and each card there says its own stag
     ['Make', ['issue-1', 'issue-2']],
     ['check', []],
   ]);
-  expect(page.querySelector('[data-item="issue-2"]')?.textContent).toContain('plan');
+  // No view file: the stage reads as its id in words, as the column header names it.
+  expect(page.querySelector('[data-item="issue-2"] [data-card-meta]')?.textContent).toMatch(
+    /^Plan · /
+  );
 });
 
 /** A pack board drawn with the pack's view file, as the board's cards read it. */
@@ -497,6 +500,17 @@ test("a column header names its stages in the view file's words, and an ungroupe
   const host = page.querySelector('[data-stage="stage-host"] h3');
   expect(host?.textContent).toBe('CI and review');
   expect(host?.getAttribute('title')).toBe('stage-host');
+});
+
+test("a card in a column of several stages names its stage by the view file's label, not its id (#261)", () => {
+  const page = renderWithView({ ...shippedGraph, pack: 'flow' }, shippedFile, [
+    item('issue-1', 'stage-build', 'running'),
+  ]);
+  const column = page.querySelector('[data-stage="Plan and build"]');
+  const meta = column?.querySelector('[data-item="issue-1"] [data-card-meta]')?.textContent;
+  // The label is display only: the column keeps its key, and the meta line's status follows.
+  expect(meta).toMatch(/^Build · running · /);
+  expect(meta).not.toContain('stage-build');
 });
 
 test("with no view file, a stage's column is headed by its id in words", () => {

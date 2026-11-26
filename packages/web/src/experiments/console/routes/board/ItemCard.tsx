@@ -50,7 +50,7 @@ export function ItemCard({
   accent?: string;
   read: ItemRead;
   projectId: string;
-  /** The exact stage, shown when the card's column holds more than one. */
+  /** The exact stage's label (`stageLabel`), shown when the card's column holds more than one. */
   stage?: string;
   progress: CardProgress;
   /** The ids of a highlighted work order's members; null or absent when none is. */
@@ -104,7 +104,9 @@ export function ItemCard({
         </p>
       )}
       {meta.length === 0 ? null : (
-        <p className="text-console-13 text-text-tertiary">{meta.join(' · ')}</p>
+        <p data-card-meta className="text-console-13 text-text-tertiary">
+          {meta.join(' · ')}
+        </p>
       )}
       <BoardCardProgress progress={progress} />
       {reason === undefined ? null : (
@@ -171,7 +173,7 @@ export function StateLabel({ read }: { read: ItemRead }): ReactElement {
 export function CardList({
   reads,
   projectId,
-  stageOf,
+  stageNameOf,
   className,
   lit,
   accent,
@@ -179,7 +181,8 @@ export function CardList({
   accent?: string;
   reads: ItemRead[];
   projectId: string;
-  stageOf?: (read: ItemRead) => string | undefined;
+  /** The card's exact stage by its label (`stageLabel`), given when its column holds several. */
+  stageNameOf?: (read: ItemRead) => string | undefined;
   className: string;
   lit?: ReadonlySet<string> | null;
 }): ReactElement {
@@ -191,7 +194,7 @@ export function CardList({
           key={read.item.id}
           read={read}
           projectId={projectId}
-          stage={stageOf?.(read)}
+          stage={stageNameOf?.(read)}
           progress={progressOf(read)}
           lit={lit}
           accent={accent}
