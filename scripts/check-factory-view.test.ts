@@ -149,10 +149,10 @@ describe('packFolderProblem', () => {
   });
 
   test('refuses, naming the folder and the name that would work, a --repo of another name', () => {
-    const dir = folder({ name: 'factory' });
+    const dir = folder({ name: 'gizmo' });
     const problem = packFolderProblem(dir, 'acme/nope') ?? '';
     expect(problem).toContain(dir);
-    expect(problem).toContain('factory');
+    expect(problem).toContain('--repo <owner>/gizmo');
   });
 
   test('refuses a folder that does not exist or holds no manifest', () => {
