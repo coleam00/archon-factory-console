@@ -336,6 +336,8 @@ test("a card words its run's outcome by the view file's label in its meta, Done 
     ended('issue-10', 'done', 'ask'),
     ended('issue-11', 'stopped', 'ask'),
     ended('issue-12', 'stopped', 'ask', stoppedIn('ask')),
+    // Merged with a worded outcome: the merge wins over the outcome's words.
+    { ...ended('issue-13', 'done', 'ask'), merged: READS[0]!.merged },
   ];
   const view = await mount(reads, worded({ 'check:ask': { label: 'asked you' } }));
   try {
@@ -349,6 +351,7 @@ test("a card words its run's outcome by the view file's label in its meta, Done 
     const chip = card('issue-10')?.querySelector('[data-chip]');
     expect(chip?.textContent).toBe('asked you');
     expect(chip?.getAttribute('data-chip')).toBe('done');
+    expect(card('issue-13')?.querySelector('[data-chip]')?.textContent).toBe('Merged');
     expect(card('issue-11')?.querySelector('[data-item-reason]')?.textContent).toBe(
       'Checks ended (asked you) and nothing followed'
     );
