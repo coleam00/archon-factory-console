@@ -431,7 +431,10 @@ function renamedCheckPack(keepMeaning: boolean): CardPack {
     approves: byOldName(shippedFile.approves),
     change: byOldName(shippedFile.change),
   };
-  return { stages: graph.stages.map(({ name, workflow }) => ({ name, workflow })), view };
+  return {
+    stages: graph.stages.map(({ name, workflow, inFlow }) => ({ name, workflow, inFlow })),
+    view,
+  };
 }
 
 test('a renamed check stage keeps its round progress on the cards of items its old runs worked (#232)', async () => {
