@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { OpenAPIHono } from '@hono/zod-openapi';
+import { trackTempRoots } from '@archon/paths/test-utils';
 import type { ChangeLookup, ChangeMergeState } from '@archon/adapters/forge-host';
 import {
   forgeSubjectsResponseSchema,
@@ -7,6 +11,9 @@ import {
   type DeliveredRun,
   type ForgeRouteDeps,
 } from './api.forge';
+import { forgeAnswerFile } from './forge-answer-file';
+
+const track = trackTempRoots();
 
 const PR = 'https://github.com/coleam00/archon-factory-console/pull/112';
 const REMOTE = 'https://github.com/coleam00/archon-factory-console.git';
@@ -16,6 +23,7 @@ function appWith(opts: {
   state?: (lookup: ChangeLookup) => Promise<ChangeMergeState>;
   title?: (n: number) => Promise<string>;
   now?: () => number;
+  answerFile?: string;
 }) {
   const asked = { changes: 0, issues: 0 };
   const deps: ForgeRouteDeps = {
@@ -35,6 +43,7 @@ function appWith(opts: {
     },
     waitMs: 20,
     now: opts.now,
+    answerFile: opts.answerFile,
   };
   const app = new OpenAPIHono();
   registerForgeRoutes(app, deps);
@@ -148,5 +157,103 @@ describe('GET /api/forge/subjects', () => {
   test('refuses a changeRun without its changeUrl', async () => {
     const { read } = appWith({ runs: {} });
     expect((await read('changeRun=r1')).status).toBe(400);
+  });
+});
+
+describe('GET /api/forge/subjects with an answer file', () => {
+  const NOW = Date.parse('2026-11-25T12:00:00.000Z');
+  const issue5 = { number: 5, title: 'Kept title', state: 'open', url: `${REMOTE}/issues/5` };
+  async function fileWith(body: unknown): Promise<string> {
+    const dir = track(await mkdtemp(join(tmpdir(), 'forge-answers-')));
+    const path = join(dir, 'cache', 'forge-subjects.json');
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, typeof body === 'string' ? body : JSON.stringify(body));
+    return path;
+  }
+
+  test('a restarted server answers from the file without asking the forge', async () => {
+    const answerFile = await fileWith({
+      version: 1,
+      issues: { [`${REMOTE}#5`]: { value: issue5, at: NOW } },
+      changes: {
+        [PR]: { value: { url: PR, merged: true, mergedAt: MERGED_AT, number: 112 }, at: NOW },
+      },
+    });
+    const { read, asked } = appWith({
+      runs: { r1: delivered(null) },
+      now: () => NOW + 1000,
+      answerFile,
+    });
+    const { body } = await read(`issue=5&${url}`);
+    expect(body.issues[0]?.title).toBe('Kept title');
+    expect(body.changes[0]).toMatchObject({ merged: true, mergedAt: MERGED_AT, number: 112 });
+    expect(asked).toEqual({ changes: 0, issues: 0 });
+  });
+
+  test('an old answer is served while it is asked again', async () => {
+    const answerFile = await fileWith({
+      version: 1,
+      issues: { [`${REMOTE}#5`]: { value: issue5, at: NOW - 11 * 60_000 } },
+    });
+    const { read, asked } = appWith({ runs: {}, now: () => NOW, answerFile });
+    expect((await read('issue=5')).body.issues[0]?.title).toBe('Kept title');
+    expect(asked.issues).toBe(1);
+    await Bun.sleep(10);
+    expect((await read('issue=5')).body.issues[0]?.title).toBe('Issue 5');
+  });
+
+  test('a file that does not parse is an empty cache', async () => {
+    const answerFile = await fileWith('{ not json');
+    const { read, asked } = appWith({ runs: {}, answerFile });
+    expect((await read('issue=5')).body.issues[0]?.title).toBe('Issue 5');
+    expect(asked.issues).toBe(1);
+  });
+
+  test('keys and entries this server does not know are ignored, the rest kept', async () => {
+    const answerFile = await fileWith({
+      version: 1,
+      written: 'by a newer server',
+      issues: {
+        [`${REMOTE}#5`]: { value: { ...issue5, labels: ['x'] }, at: NOW, source: 'gh' },
+        [`${REMOTE}#6`]: { value: { number: 6, shape: 'unknown' }, at: NOW },
+      },
+    });
+    const { read, asked } = appWith({ runs: {}, now: () => NOW, answerFile });
+    const { body } = await read('issue=5&issue=6');
+    expect(body.issues.map(entry => entry.title)).toEqual(['Kept title', 'Issue 6']);
+    expect(asked.issues).toBe(1);
+  });
+});
+
+describe('forgeAnswerFile', () => {
+  test('writes what it learned, without failures, for the next server to load', async () => {
+    const dir = track(await mkdtemp(join(tmpdir(), 'forge-answers-')));
+    const path = join(dir, 'cache', 'forge-subjects.json');
+    const first = forgeAnswerFile(path);
+    await first.load();
+    first.issues.set('r#1', {
+      value: { number: 1, title: 'One', state: 'open', url: 'u1' },
+      at: 7,
+    });
+    first.issues.set('r#2', { value: { number: 2, unknown: 'not found' }, at: 7 });
+    first.changes.set(PR, {
+      value: { url: PR, merged: false, mergedAt: null, number: 112 },
+      at: 8,
+    });
+    first.changes.set('run:x', {
+      value: { url: null, merged: 'unknown', mergedAt: null, number: null, reason: 'down' },
+      at: 8,
+    });
+    first.changed();
+    await first.flush();
+
+    const next = forgeAnswerFile(path);
+    await next.load();
+    expect([...next.issues]).toEqual([
+      ['r#1', { value: { number: 1, title: 'One', state: 'open', url: 'u1' }, at: 7 }],
+    ]);
+    expect([...next.changes]).toEqual([
+      [PR, { value: { url: PR, merged: false, mergedAt: null, number: 112 }, at: 8 }],
+    ]);
   });
 });

@@ -2,7 +2,9 @@
  * `GET /api/forge/subjects`: what the project's forge says of its issues and of the changes runs
  * delivered, through Archon's forge seam (`@archon/adapters/forge-host`). An item has no title
  * column and a merge on the forge is no run event, so a reader that shows an issue's title or
- * whether a change merged asks here. The browser never calls the forge. Read-only.
+ * whether a change merged asks here. The browser never calls the forge. It changes nothing on
+ * the forge or in the engine; its answers are also kept in a display cache file under the
+ * server's home (`forge-answer-file.ts`), so a restarted server does not ask again per card.
  */
 import { type OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import {
@@ -21,6 +23,7 @@ import {
   jsonError,
   openApiRouteRegistrar,
 } from './api-route-kit';
+import { forgeAnswerFile, type ForgeAnswerFile, type Kept } from './forge-answer-file';
 
 /** The most issues, and the most changes, one request asks about. */
 const SUBJECTS_MAX = 100;
@@ -81,7 +84,7 @@ const getForgeSubjectsRoute = createRoute({
   tags: ['Workflows'],
   summary: "What the project's forge says of some issues and delivered changes",
   description:
-    "Each issue's title, state and URL, and for each change a run delivered: its URL, pull request number and whether it merged. A change whose item recorded a merge (a land run, or `archon workflow merged`) is merged at the recorded time without asking the forge. Otherwise answers are cached on the server (a change that has not merged for 60 s, an issue for 10 min, a stale answer served while it refreshes); a first lookup slower than a few seconds answers `pending` (a change) or `pending: true` (an issue) for that read only, so read again shortly.",
+    "Each issue's title, state and URL, and for each change a run delivered: its URL, pull request number and whether it merged. A change whose item recorded a merge (a land run, or `archon workflow merged`) is merged at the recorded time without asking the forge. Otherwise answers are cached on the server, in memory and in a file under its home so a restarted server keeps them (a change that has not merged for 60 s, an issue for 10 min, a stale answer served while it refreshes); a first lookup slower than a few seconds answers `pending` (a change) or `pending: true` (an issue) for that read only, so read again shortly.",
   request: { query: forgeSubjectsQuerySchema },
   responses: {
     200: {
@@ -123,6 +126,17 @@ export interface ForgeRouteDeps {
   /** How long one read waits on a lookup no request has made yet; tests shorten it. */
   waitMs?: number;
   now?: () => number;
+  /**
+   * Where the answers are kept across restarts (`forge-answer-file.ts`); without it they live
+   * only as long as the process.
+   */
+  answerFile?: string;
+}
+
+/** Where a cache keeps its answers, and who hears of a new one. */
+interface Keeping<T> {
+  kept?: Map<string, Kept<T>>;
+  onKept?: () => void;
 }
 
 /**
@@ -131,12 +145,12 @@ export interface ForgeRouteDeps {
  */
 function keyedOnce<T, A extends unknown[]>(
   load: (key: string, ...args: A) => Promise<T>,
-  now: () => number
+  now: () => number,
+  { kept = new Map<string, Kept<T>>(), onKept }: Keeping<T> = {}
 ): {
   known: (key: string) => { value: T; at: number } | undefined;
   refresh: (key: string, ...args: A) => Promise<T>;
 } {
-  const kept = new Map<string, { value: T; at: number }>();
   const running = new Map<string, Promise<T>>();
   return {
     known: key => kept.get(key),
@@ -146,6 +160,7 @@ function keyedOnce<T, A extends unknown[]>(
       const started = load(key, ...args)
         .then(value => {
           kept.set(key, { value, at: now() });
+          onKept?.();
           return value;
         })
         .finally(() => running.delete(key));
@@ -202,7 +217,8 @@ type ShownAnswer = Omit<ChangeAnswer, 'run'>;
  * number is the forge's, else the one the run's own audit rows name.
  */
 export function changeStateCache(
-  deps: Pick<ForgeRouteDeps, 'changeMergeState' | 'waitMs' | 'now'>
+  deps: Pick<ForgeRouteDeps, 'changeMergeState' | 'waitMs' | 'now'>,
+  keeping: Keeping<ChangeMergeState> = {}
 ): (
   change: Change,
   branches: () => Promise<readonly string[]>,
@@ -238,7 +254,8 @@ export function changeStateCache(
           return answer;
         });
     },
-    now
+    now,
+    keeping
   );
   const lookup = (
     change: Change,
@@ -299,7 +316,8 @@ type IssueAnswer = z.infer<typeof forgeSubjectsResponseSchema>['issues'][number]
  * slower than the wait answers `pending` for that request only.
  */
 function issueCache(
-  deps: Pick<ForgeRouteDeps, 'viewWorkItem' | 'waitMs' | 'now'>
+  deps: Pick<ForgeRouteDeps, 'viewWorkItem' | 'waitMs' | 'now'>,
+  keeping: Keeping<WorkItemAnswer> = {}
 ): (number: number, remote: string | null) => Promise<IssueAnswer> {
   const now = deps.now ?? Date.now;
   const waitMs = deps.waitMs ?? WAIT_MS;
@@ -322,7 +340,8 @@ function issueCache(
           getLog().warn({ issue: key, reason: answer.unknown }, 'forge_issue_unknown');
         return answer;
       }),
-    now
+    now,
+    keeping
   );
   const shown = (answer: WorkItemAnswer): IssueAnswer =>
     'unknown' in answer
@@ -380,8 +399,13 @@ const listOf = (value: string | string[] | undefined): string[] =>
 
 export function registerForgeRoutes(app: OpenAPIHono, deps: ForgeRouteDeps): void {
   const register = openApiRouteRegistrar(app);
-  const changeStates = changeStateCache(deps);
-  const issues = issueCache(deps);
+  const file: ForgeAnswerFile | null =
+    deps.answerFile === undefined ? null : forgeAnswerFile(deps.answerFile);
+  const changeStates = changeStateCache(
+    deps,
+    file === null ? {} : { kept: file.changes, onKept: file.changed }
+  );
+  const issues = issueCache(deps, file === null ? {} : { kept: file.issues, onKept: file.changed });
 
   /** The answer for one delivered change; null when its run is gone, or it has no change. */
   const answerFor = async (
@@ -419,6 +443,8 @@ export function registerForgeRoutes(app: OpenAPIHono, deps: ForgeRouteDeps): voi
     if (changeRuns.length !== changeUrls.length)
       return apiError(c, 400, 'Every changeRun needs the changeUrl at the same position');
     try {
+      // Read once, on the first request: registering the route reads nothing.
+      await file?.load();
       const remote = await deps.remote(query.codebaseId);
       if (remote === undefined) return apiError(c, 404, 'Codebase not found');
       const [issueAnswers, changes] = await Promise.all([

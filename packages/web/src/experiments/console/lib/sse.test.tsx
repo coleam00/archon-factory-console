@@ -88,7 +88,7 @@ test('unlock refetches the persisted reply and updates the subscribed chat view'
   expect(TestEventSource.instances.at(-1)?.close).toHaveBeenCalledTimes(1);
 });
 
-test('the attention stream refetches the attention list, and reopens on a bad cursor', async () => {
+test('the attention stream refetches on changes after its replay, and reopens on a bad cursor', async () => {
   const loadAttention = mock(async () => 'list');
   function Banner(): ReactElement {
     useAttentionStreamSSE();
@@ -105,7 +105,24 @@ test('the attention stream refetches the attention list, and reopens on a bad cu
     expect(loadAttention).toHaveBeenCalledTimes(1);
     const stream = TestEventSource.instances.at(-1);
     if (!stream) throw new Error('Attention stream was not opened');
-    expect(stream.url).toBe('/api/runs/attention/stream?level=quiet');
+    expect(stream.url).toBe('/api/runs/attention/stream?level=protocol');
+
+    // The open set the page's first read already holds, then `ready`: nothing to refetch.
+    await act(async () => {
+      stream.send({ type: 'attention', needs: 'answer', item: { kind: 'attention' } });
+      stream.send({ type: 'attention', needs: 'look', item: { kind: 'stopped' } });
+      stream.send({ type: 'ready', cursor: 'c1' });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(1);
+
+    // A line that needs no one changes nothing the list shows.
+    await act(async () => {
+      stream.send({ type: 'attention', needs: 'nothing', item: { kind: 'usage_limit' } });
+      stream.send({ type: 'terminal', needs: 'nothing' });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       stream.send({ type: 'resolved', ref: 'ask:a1' });
@@ -114,12 +131,33 @@ test('the attention stream refetches the attention list, and reopens on a bad cu
     expect(loadAttention).toHaveBeenCalledTimes(2);
 
     await act(async () => {
+      stream.send({ type: 'attention', needs: 'answer', item: { kind: 'attention' } });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
       stream.send({ type: 'error', error: 'cursor_invalid' });
       await settle();
     });
     expect(stream.close).toHaveBeenCalledTimes(1);
-    expect(TestEventSource.instances.at(-1)).not.toBe(stream);
-    expect(loadAttention).toHaveBeenCalledTimes(3);
+    const reopened = TestEventSource.instances.at(-1);
+    expect(reopened).not.toBe(stream);
+    expect(loadAttention).toHaveBeenCalledTimes(4);
+
+    // The reopened stream's replay refetches nothing more; its changes do.
+    if (!reopened) throw new Error('Attention stream was not reopened');
+    await act(async () => {
+      reopened.send({ type: 'attention', needs: 'answer', item: { kind: 'attention' } });
+      reopened.send({ type: 'ready', cursor: 'c2' });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(4);
+    await act(async () => {
+      reopened.send({ type: 'resolved', ref: 'ask:a2' });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(5);
   } finally {
     await act(async () => root.unmount());
     container.remove();

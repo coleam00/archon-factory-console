@@ -1,5 +1,6 @@
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
+import { join } from 'node:path';
 import { loadConfig, type CloneOptions, type ConversationLockManager } from '@archon/core';
 import { webPushPayloadSchema } from '@archon/core/schemas/web-push';
 import {
@@ -17,6 +18,7 @@ import {
   registeredProjectForPath,
   registeredProjectKeyForPath,
 } from '@archon/core/services/codebase-checkout-resolver';
+import { createDiscoveryCache } from '@archon/core/workflows/discovery-cache';
 import { readPackGraph } from '@archon/core/workflows/pack-graph';
 import { packViewOf } from '@archon/core/workflows/pack-view';
 import { getTriggersPath, launchProjectKey } from '@archon/core/workflows/run-ended';
@@ -167,6 +169,7 @@ export function registerApiRoutes(
     deliveredRun: deliveredRunFrom(createWorkflowStore(), run => queueSource.branchOf(run)),
     changeMergeState: (lookup, branches) => changeMergeState(lookup, branches, forgeOptions),
     viewWorkItem: (number, remote) => viewWorkItem(number, remote, forgeOptions),
+    answerFile: join(getArchonHome(), 'cache', 'forge-subjects.json'),
   });
   const packCodebaseCwd = async (id: string): Promise<string | null> =>
     (await codebaseDb.getCodebase(id))?.default_cwd ?? null;
@@ -177,10 +180,13 @@ export function registerApiRoutes(
     slotOccupancy: listSlotOccupancy,
     projectKeyOf: launchProjectKey(path => registeredProjectKeyForPath(path, codebaseDb)),
     projectOf: (path: string) => registeredProjectForPath(path, codebaseDb),
+    // Discovery is kept while the files it reads are unchanged (discovery-cache.ts).
+    discover: createDiscoveryCache(loadConfig, providerRegistry),
   };
   const packSource = (workflowSource?: string) =>
     workflowSource === undefined ? {} : { workflowSource };
-  // One graph read for a page that asks for the graph and the view together (api.packs.ts).
+  // One graph read for a page that asks for the graph and the view together (api.packs.ts);
+  // its discovery is the cached one above, so each read after the first is cheap.
   const packGraphRead = shareWhileRunning((cwd: string, pack: string, workflowSource?: string) =>
     readPackGraph(cwd, pack, packGraphDeps, packSource(workflowSource))
   );

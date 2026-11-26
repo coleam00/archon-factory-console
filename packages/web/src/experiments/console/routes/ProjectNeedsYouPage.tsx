@@ -394,9 +394,13 @@ export function ProjectNeedsYouPage(): ReactElement {
   const every = useBoardItems(projectId);
   const boardReads = every.data ?? [];
   const reads = new Map(boardReads.map(read => [read.item.id, read]));
-  const titles = useForgeTitles(projectId === '' ? null : projectId, boardReads);
   const readOf = (ask: ItemAsk): ItemRead | undefined =>
     ask.item === undefined ? undefined : reads.get(ask.item.id);
+  // Only the items with open asks print a title here; asking the forge for every board item
+  // costs a lookup per titleless issue on a cold server.
+  const titles = useForgeTitles(projectId === '' ? null : projectId, [
+    ...new Set(itemAsks.asks.flatMap(ask => readOf(ask) ?? [])),
+  ]);
 
   const wanted = itemFilter(params);
   const shown = (ask: ItemAsk): boolean =>
