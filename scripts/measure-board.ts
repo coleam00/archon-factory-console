@@ -83,12 +83,12 @@ const INIT = `(() => {
   const sample = () => {
     const cards = [...document.querySelectorAll('li[data-item]')];
     const s = {
-      columns: count('[data-stage]'),
+      columns: [...document.querySelectorAll('[data-stage]')].filter(e => !e.closest('[data-card]')).length,
       cards: cards.length,
       titled: cards.filter(c => c.querySelector('[data-item-title]')).length,
       rounds: count('[data-card-rounds]'),
       tiles: count('[data-number]'),
-      map: count('[data-flow-stage]'),
+      map: count('[data-flow-stage], [data-card]'),
       rows: count('[data-needs-row]'),
       text: (document.querySelector('main') || document.body || { innerText: '' }).innerText.length,
       inflight,
