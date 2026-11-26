@@ -84,7 +84,7 @@ const getForgeSubjectsRoute = createRoute({
   tags: ['Workflows'],
   summary: "What the project's forge says of some issues and delivered changes",
   description:
-    "Each issue's title, state and URL, and for each change a run delivered: its URL, pull request number and whether it merged. A change whose item recorded a merge (a land run, or `archon workflow merged`) is merged at the recorded time without asking the forge. Otherwise answers are cached on the server, in memory and in a file under its home so a restarted server keeps them (a change that has not merged for 60 s, an issue for 10 min, a stale answer served while it refreshes); a first lookup slower than a few seconds answers `pending` (a change) or `pending: true` (an issue) for that read only, so read again shortly.",
+    "Each issue's title, state and URL, and for each change a run delivered: its URL, pull request number and whether it merged. A change whose item recorded a merge (a land run, or `archon workflow merged`) is merged at the recorded time without asking the forge. Otherwise answers are cached on the server, in memory and in a file under its home so a restarted server keeps them (a change that has not merged for 60 s, an issue for 6 h, a stale answer served while it refreshes); a first lookup slower than a few seconds answers `pending` (a change) or `pending: true` (an issue) for that read only, so read again shortly.",
   request: { query: forgeSubjectsQuerySchema },
   responses: {
     200: {
@@ -188,8 +188,13 @@ async function within<T, P>(promise: Promise<T>, waitMs: number, pending: P): Pr
 
 /** How long a change that has not merged keeps its answer. A merge does not come undone. */
 const CHANGE_TTL_MS = 60_000;
-/** How long an issue's answer is kept before a read refreshes it. */
-const ISSUE_TTL_MS = 10 * 60_000;
+/**
+ * How long an issue's answer is kept before a read refreshes it. Cards show only an issue's
+ * title, which rarely changes, and refreshing means one forge plugin process per issue: with
+ * a ten-minute TTL, a page load after a pause refreshed every titleless card and slowed the server
+ * for about a minute.
+ */
+const ISSUE_TTL_MS = 6 * 3600_000;
 /**
  * A forge read retries temporary failures for about 7 s; a read answers before that and
  * the lookup finishes into the cache for the next one.

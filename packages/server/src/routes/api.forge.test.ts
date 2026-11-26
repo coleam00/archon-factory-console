@@ -194,7 +194,7 @@ describe('GET /api/forge/subjects with an answer file', () => {
   test('an old answer is served while it is asked again', async () => {
     const answerFile = await fileWith({
       version: 1,
-      issues: { [`${REMOTE}#5`]: { value: issue5, at: NOW - 11 * 60_000 } },
+      issues: { [`${REMOTE}#5`]: { value: issue5, at: NOW - 7 * 3600_000 } },
     });
     const { read, asked } = appWith({ runs: {}, now: () => NOW, answerFile });
     expect((await read('issue=5')).body.issues[0]?.title).toBe('Kept title');
@@ -207,7 +207,7 @@ describe('GET /api/forge/subjects with an answer file', () => {
     const stale = Object.fromEntries(
       [1, 2, 3, 4, 5].map(n => [
         `${REMOTE}#${String(n)}`,
-        { value: { ...issue5, number: n, title: `Kept ${String(n)}` }, at: NOW - 11 * 60_000 },
+        { value: { ...issue5, number: n, title: `Kept ${String(n)}` }, at: NOW - 7 * 3600_000 },
       ])
     );
     const answerFile = await fileWith({ version: 1, issues: stale });
