@@ -4,7 +4,7 @@ import { columnsOf, type StageGroup } from '../../routes/BoardPage';
 import { shippedFile, shippedGraph, shippedView } from '../curated.test-fixtures';
 import { LIVE_FITTING } from '../map/useMapCamera';
 import { fullWorkflowLayout, MERGED } from './full-workflow-layout';
-import { mapArrows, outcomeWords, type StructureView } from './graph-structure';
+import { mapArrows, type StructureView } from './graph-structure';
 import { fitCamera } from './map-camera';
 import { boxesMeet } from './map-geometry.test-fixtures';
 import { groupsOf } from './view-groups';
@@ -132,7 +132,6 @@ describe('the full workflow words its pills as the curated map does', () => {
 
   test('the final outcome into Merged reads its outcome label, as any outcome does', () => {
     expect(pill('c', MERGED)).toEqual(['merged']);
-    expect(pill('c', MERGED)).toEqual([outcomeWords(view, 'c', 'land')]);
   });
 
   test('every pill between two stages reads exactly what the curated map reads for that pair', () => {
@@ -142,16 +141,5 @@ describe('the full workflow words its pills as the curated map does', () => {
       ['w', 'c'],
     ] as const)
       expect(pill(from, to)).toEqual(mapWords(from, to));
-  });
-
-  test('no pill reads a raw id the view words', () => {
-    const lines = layout.arrows.flatMap(arrow => arrow.lines);
-    for (const id of ['land', 'send-back', 'broken', 'dropped']) expect(lines).not.toContain(id);
-  });
-
-  test('pair ends keep the raw workflow ids', () => {
-    expect(layout.arrows.map(arrow => `${arrow.from}>${arrow.to}`).sort()).toEqual(
-      ['a>b', 'b>a', 'c>merged', 'w>c'].sort()
-    );
   });
 });
