@@ -295,9 +295,9 @@ mock.module('./adapters/web/pg-notify-listener', () => ({
 }));
 mock.module('./static-cache', () => ({ serveWebUi: (): void => undefined }));
 mock.module('./routes/openapi-defaults', () => ({ validationErrorHook: (): void => undefined }));
-const mockRegisterApiRoutes = mock<typeof import('./routes/api').registerApiRoutes>(
-  () => undefined
-);
+const mockRegisterApiRoutes = mock<typeof import('./routes/api').registerApiRoutes>(() => ({
+  warmPackDiscovery: async () => undefined,
+}));
 mock.module('./routes/api', () => ({ registerApiRoutes: mockRegisterApiRoutes }));
 mock.module('./routes/webhooks', () => ({
   registerGiteaWebhookRoute: (): void => undefined,

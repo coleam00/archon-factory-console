@@ -40,6 +40,7 @@ import { registerConversationRoutes } from './api.conversations';
 import { registerConversationProcessingRoute } from './api.conversation-processing';
 import { deliveredRunFrom, registerForgeRoutes } from './api.forge';
 import { forgeAnswerFile } from './forge-answer-file';
+import { getLog } from './api-route-kit';
 import { registerHealthRoutes } from './api.health';
 import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
@@ -68,6 +69,16 @@ import { RUN_ATTENTION_SCHEMA_NAME, runAttentionSchema } from './schemas/workflo
  * generated web client types, so `check:api-types` fails on any reorder. Each module
  * keeps its own Hono match-order constraints beside the routes they order.
  */
+/** What the server does with its API routes once it is listening. */
+export interface ApiRoutes {
+  /**
+   * Discovers each registered project's workflows once, one project at a time, so the first
+   * board after a start does not pay for discovery (DESIGN.md, "Speed is a requirement").
+   * Never throws.
+   */
+  warmPackDiscovery: () => Promise<void>;
+}
+
 export function registerApiRoutes(
   app: OpenAPIHono,
   webAdapter: WebAdapter,
@@ -81,7 +92,7 @@ export function registerApiRoutes(
   registration: Pick<CloneOptions, 'githubAppAuth'> = {},
   commit?: AppCommit,
   observing: readonly ObservingSource[] = []
-): void {
+): ApiRoutes {
   const operations = createSqlWorkflowOperations();
   const dispatchToOrchestrator = createOrchestratorDispatch(webAdapter, lockManager);
 
@@ -173,6 +184,9 @@ export function registerApiRoutes(
     viewWorkItem: (number, remote) => viewWorkItem(number, remote, forgeOptions),
     answerFile: forgeAnswerFile(() => join(getArchonHome(), 'cache', 'forge-subjects.json')),
   });
+  const packDiscovery = createDiscoveryCache(loadConfig, root =>
+    discoverWorkflowsWithConfig(root, loadConfig, providerRegistry)
+  );
   const packCodebaseCwd = async (id: string): Promise<string | null> =>
     (await codebaseDb.getCodebase(id))?.default_cwd ?? null;
   const packGraphDeps = {
@@ -183,9 +197,7 @@ export function registerApiRoutes(
     projectKeyOf: launchProjectKey(path => registeredProjectKeyForPath(path, codebaseDb)),
     projectOf: (path: string) => registeredProjectForPath(path, codebaseDb),
     // Discovery is kept while the files it reads are unchanged (discovery-cache.ts).
-    discover: createDiscoveryCache(loadConfig, root =>
-      discoverWorkflowsWithConfig(root, loadConfig, providerRegistry)
-    ),
+    discover: packDiscovery,
   };
   const packSource = (workflowSource?: string) =>
     workflowSource === undefined ? {} : { workflowSource };
@@ -207,4 +219,17 @@ export function registerApiRoutes(
   registerCodebaseEnvironmentRoute(app);
   registerWebPushRoutes(app, attention);
   registerHealthRoutes(app, { lockManager, activePlatforms, attention, commit });
+  return {
+    warmPackDiscovery: async () => {
+      for (const codebase of await codebaseDb.listCodebases()) {
+        if (!codebase.default_cwd) continue;
+        try {
+          await packDiscovery(codebase.default_cwd);
+        } catch (error) {
+          // The graph route discovers again on its first read and reports the error there.
+          getLog().warn({ err: error, codebaseId: codebase.id }, 'api.pack_discovery_warm_failed');
+        }
+      }
+    },
+  };
 }
