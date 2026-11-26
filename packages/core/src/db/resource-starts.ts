@@ -625,10 +625,7 @@ export async function listQueuedItemStarts(itemId: string): Promise<QueuedItemSt
     queue_position: number | string;
     ahead: number | string;
   }>(queuedItemStartsSql, [itemId]);
-  // Most items have nothing queued; the unreadable heads are a read of the whole queue, which
-  // an item read placing every item of a project would otherwise make once per item.
-  if (result.rows.length === 0) return [];
-  const unreadable = await unreadableQueued();
+  const unreadable = result.rows.length === 0 ? [] : await unreadableQueued();
   return result.rows.map(row => ({
     requestId: row.id,
     workflow: storedWorkflowName(row.launch),
