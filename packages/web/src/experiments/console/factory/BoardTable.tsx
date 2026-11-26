@@ -49,7 +49,8 @@ export function BoardTable({
     setSort(current => ({ by, descending: current.by === by ? !current.descending : false }));
   };
   return (
-    <div data-board-table className="mt-3">
+    // In the board area's fixed height the Table scrolls on its own, as each column does.
+    <div data-board-table className="mt-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-console-13">
           <thead>
