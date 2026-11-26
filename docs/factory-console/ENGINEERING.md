@@ -102,10 +102,15 @@ The factory building this repository runs Archon from another checkout, on the h
   Speed is a requirement (DESIGN.md, COMBINED direction), so two things are kept between
   requests. The graph's workflow discovery, nearly all of its cost, is kept while the files it
   reads are unchanged (`packages/core/src/workflows/discovery-cache.ts`, keyed by a stamp of
-  every file under the roots discovery reads); the rest of the graph read runs every request.
+  every file under the roots discovery reads). That is how DESIGN's "the pack graph is read
+  once per pack copy and cached" is met: the rest of the graph read (bindings, trigger checks,
+  settings, capacity) reads git and database state a file stamp cannot see, costs tens of
+  milliseconds, and runs every request. On an install with trigger files, each file's check
+  still discovers its binding's workflows uncached.
   The forge subjects route keeps its answers in a display cache file under the server's home,
   `<home>/cache/forge-subjects.json` (`forge-answer-file.ts`), so a restarted server does not
-  ask the forge once per card. That file is a cache, not engine state: "new server code only
+  ask the forge once per card. A home that has never served (every fresh `dev:console` copy)
+  has no file, and its first load still asks the forge once per titleless issue. That file is a cache, not engine state: "new server code only
   reads" still holds for engine data. The page timings are measured with
   `bun scripts/measure-board.ts` (its header says how). The server
   asks the change host through `packages/adapters/src/forge-host.ts`, which finds plugins

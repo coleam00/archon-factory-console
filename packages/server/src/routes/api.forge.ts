@@ -23,7 +23,7 @@ import {
   jsonError,
   openApiRouteRegistrar,
 } from './api-route-kit';
-import { forgeAnswerFile, type ForgeAnswerFile, type Kept } from './forge-answer-file';
+import type { ForgeAnswerFile, Kept } from './forge-answer-file';
 
 /** The most issues, and the most changes, one request asks about. */
 const SUBJECTS_MAX = 100;
@@ -127,10 +127,10 @@ export interface ForgeRouteDeps {
   waitMs?: number;
   now?: () => number;
   /**
-   * Where the answers are kept across restarts (`forge-answer-file.ts`); without it they live
-   * only as long as the process.
+   * The file the answers are kept in across restarts (`forgeAnswerFile`); without it they
+   * live only as long as the process.
    */
-  answerFile?: string;
+  answerFile?: ForgeAnswerFile;
 }
 
 /** Where a cache keeps its answers, and who hears of a new one. */
@@ -412,8 +412,7 @@ const listOf = (value: string | string[] | undefined): string[] =>
 
 export function registerForgeRoutes(app: OpenAPIHono, deps: ForgeRouteDeps): void {
   const register = openApiRouteRegistrar(app);
-  const file: ForgeAnswerFile | null =
-    deps.answerFile === undefined ? null : forgeAnswerFile(deps.answerFile);
+  const file = deps.answerFile ?? null;
   const changeStates = changeStateCache(
     deps,
     file === null ? {} : { kept: file.changes, onKept: file.changed }

@@ -220,11 +220,21 @@ for (const r of results) {
   const slowest = [...r.resources].sort((a, b) => b.end - b.start - (a.end - a.start))[0];
   const f = r.final;
   const titles = f === null ? '-' : `${fmt(r.last.titled)} (${f.titled}/${f.cards})`;
+  // A board where no card drew round progress has no round time to give: say so, rather than
+  // leave a blank beside a complete time.
+  const rounds =
+    r.page === 'board' && f !== null && f.cards > 0 && f.rounds === 0
+      ? 'not seen'
+      : fmt(r.last.rounds);
   const lastEnd = Math.max(0, ...r.resources.map(x => x.end));
   console.log(
-    `| ${r.page} | ${r.run} | ${r.complete === null ? 'timed out' : fmt(r.complete)} | ${fmt(r.last.columns)} | ${titles} | ${fmt(r.last.rounds)} | ${fmt(r.last.tiles)} | ${fmt(r.last.map)} | ${fmt(r.last.rows)} | ${r.resources.length} | ${fmt(lastEnd)} | ${slowest === undefined ? '-' : `${slowest.path.split('?')[0]} ${fmt(slowest.end - slowest.start)}`} |`
+    `| ${r.page} | ${r.run} | ${r.complete === null ? 'timed out' : fmt(r.complete)} | ${fmt(r.last.columns)} | ${titles} | ${rounds} | ${fmt(r.last.tiles)} | ${fmt(r.last.map)} | ${fmt(r.last.rows)} | ${r.resources.length} | ${fmt(lastEnd)} | ${slowest === undefined ? '-' : `${slowest.path.split('?')[0]} ${fmt(slowest.end - slowest.start)}`} |`
   );
 }
+if (results.some(r => r.page === 'board' && r.final !== null && r.final.rounds === 0))
+  console.log(
+    "\nRounds 'not seen': no card drew round progress, so its time was not measured. Cards read rounds from the pack's factory view; for a pack that ships none, copy docs/factory-console/pack-view/factory-view.json into the installed pack first (ENGINEERING.md)."
+  );
 console.log('\nWhat each page drew when complete (the same data must draw the same counts):\n');
 console.log('| page | run | columns | cards | titled | with rounds | tiles | map cards | rows |');
 console.log('|---|---|---|---|---|---|---|---|---|');

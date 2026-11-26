@@ -122,8 +122,9 @@ export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
  * reads already show, so it refetches nothing: refetching it reread the attention list and
  * every board window once more on each page load. A change landing between a page's first
  * read and the stream's open set is the one thing this misses, until the next line.
- * After `ready`, an item that opens and needs someone, or closes, refetches. EventSource's own
- * reconnect resumes from its last id, so what it sends is change, not replay.
+ * After `ready`, an item that opens and needs someone, or closes, refetches. The server sends
+ * the open set and `ready` on every connect, EventSource's own reconnects included, so each
+ * connect starts a replay again; changes past the resumed cursor come after its `ready`.
  *
  * On `cursor_invalid` the server ends the stream, and a plain reconnect would resend the
  * same `Last-Event-ID`, so the stream is opened afresh instead, with one refetch for what was
@@ -147,6 +148,9 @@ export function useAttentionStreamSSE(): void {
     const open = (): void => {
       es = new EventSource(`${SSE_BASE_URL}${ATTENTION_SSE_PATH}`);
       let replaying = true;
+      es.onopen = (): void => {
+        replaying = true;
+      };
       es.onmessage = (e: MessageEvent<string>): void => {
         const line = parse(e.data);
         if (line?.type === 'ready') replaying = false;

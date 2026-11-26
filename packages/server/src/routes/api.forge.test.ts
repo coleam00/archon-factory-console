@@ -43,7 +43,7 @@ function appWith(opts: {
     },
     waitMs: 20,
     now: opts.now,
-    answerFile: opts.answerFile,
+    answerFile: opts.answerFile === undefined ? undefined : forgeAnswerFile(opts.answerFile),
   };
   const app = new OpenAPIHono();
   registerForgeRoutes(app, deps);
@@ -234,6 +234,38 @@ describe('GET /api/forge/subjects with an answer file', () => {
     ]);
     await Bun.sleep(60);
     expect(most).toBe(2);
+  });
+
+  test('what the route learns is written, and a restarted server answers from it', async () => {
+    const dir = track(await mkdtemp(join(tmpdir(), 'forge-answers-')));
+    const path = join(dir, 'cache', 'forge-subjects.json');
+    const ask = (file: ReturnType<typeof forgeAnswerFile>) => {
+      const asked = { issues: 0 };
+      const app = new OpenAPIHono();
+      registerForgeRoutes(app, {
+        remote: async () => REMOTE,
+        deliveredRun: async () => null,
+        changeMergeState: async () => ({ url: PR, merged: false, mergedAt: null, number: 112 }),
+        viewWorkItem: async number => {
+          asked.issues++;
+          return { number, title: 'Learned', state: 'open', url: `${REMOTE}/issues/7` };
+        },
+        waitMs: 20,
+        answerFile: file,
+      });
+      return { app, asked };
+    };
+    const first = forgeAnswerFile(path);
+    const before = ask(first);
+    await before.app.request('/api/forge/subjects?codebaseId=p&issue=7');
+    expect(before.asked.issues).toBe(1);
+    await first.flush();
+
+    const after = ask(forgeAnswerFile(path));
+    const res = await after.app.request('/api/forge/subjects?codebaseId=p&issue=7');
+    const body = forgeSubjectsResponseSchema.parse(await res.json());
+    expect(body.issues[0]?.title).toBe('Learned');
+    expect(after.asked.issues).toBe(0);
   });
 
   test('a file that does not parse is an empty cache', async () => {

@@ -7,6 +7,9 @@ import { useAttentionStreamSSE, useConversationSSE } from './sse';
 
 class TestEventSource {
   static instances: TestEventSource[] = [];
+  static readonly CLOSED = 2;
+  readyState = 1;
+  onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: (() => void) | null = null;
   close = mock(() => {});
@@ -17,6 +20,14 @@ class TestEventSource {
 
   lock(locked: boolean): void {
     this.send({ type: 'conversation_lock', locked });
+  }
+
+  /** A dropped connection the browser reopens by itself, on the same EventSource. */
+  reconnect(): void {
+    this.readyState = 0;
+    this.onerror?.();
+    this.readyState = 1;
+    this.onopen?.();
   }
 
   send(line: object): void {
@@ -158,6 +169,20 @@ test('the attention stream refetches on changes after its replay, and reopens on
       await settle();
     });
     expect(loadAttention).toHaveBeenCalledTimes(5);
+
+    // The browser's own reconnect gets the open set and `ready` again: a replay, not news.
+    await act(async () => {
+      reopened.reconnect();
+      reopened.send({ type: 'attention', needs: 'answer', item: { kind: 'attention' } });
+      reopened.send({ type: 'ready', cursor: 'c3' });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(5);
+    await act(async () => {
+      reopened.send({ type: 'resolved', ref: 'ask:a3' });
+      await settle();
+    });
+    expect(loadAttention).toHaveBeenCalledTimes(6);
   } finally {
     await act(async () => root.unmount());
     container.remove();

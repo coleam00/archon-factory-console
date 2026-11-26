@@ -61,7 +61,7 @@ export interface ForgeAnswerFile {
   load: () => Promise<void>;
   /** A map gained an answer: write the file soon. */
   changed: () => void;
-  /** Write now what is pending; for tests and shutdown. */
+  /** Write now what is pending. Only tests call it: the server lets the timer write. */
   flush: () => Promise<void>;
 }
 

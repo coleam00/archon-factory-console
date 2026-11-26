@@ -25,7 +25,6 @@ import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discover
 import { liveSourceRoots } from '@archon/workflows/workflow-source';
 
 type LoadConfig = Parameters<typeof discoverWorkflowsWithConfig>[1];
-type Providers = Parameters<typeof discoverWorkflowsWithConfig>[2];
 
 /** What a link under a stamped path adds to the stamp: a stamp holding it is never kept. */
 const LINK = 'link';
@@ -87,14 +86,15 @@ async function discoveryStamp(root: string, loadConfig: LoadConfig): Promise<str
   return out.includes(LINK) ? null : out.join('\n');
 }
 
-/** `discoverWorkflowsWithConfig(root)`, kept per root while its stamp is unchanged. */
+/**
+ * `discover(root)`, kept per root while its stamp is unchanged. `discover` is live discovery
+ * with the same `loadConfig` (`discoverWorkflowsWithConfig`); the stamp reads that config too.
+ */
 export function createDiscoveryCache(
   loadConfig: LoadConfig,
-  providers: Providers
+  discover: (root: string) => Promise<WorkflowLoadResult>
 ): (root: string) => Promise<WorkflowLoadResult> {
   const kept = new Map<string, { stamp: string; result: Promise<WorkflowLoadResult> }>();
-  const discover = (root: string): Promise<WorkflowLoadResult> =>
-    discoverWorkflowsWithConfig(root, loadConfig, providers);
   return async root => {
     if (await exists(join(root, PLUGIN_MANIFEST_FILE))) return discover(root);
     const stamp = await discoveryStamp(root, loadConfig);

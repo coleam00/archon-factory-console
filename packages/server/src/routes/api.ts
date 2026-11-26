@@ -20,6 +20,7 @@ import {
 } from '@archon/core/services/codebase-checkout-resolver';
 import { createDiscoveryCache } from '@archon/core/workflows/discovery-cache';
 import { readPackGraph } from '@archon/core/workflows/pack-graph';
+import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discovery';
 import { packViewOf } from '@archon/core/workflows/pack-view';
 import { getTriggersPath, launchProjectKey } from '@archon/core/workflows/run-ended';
 import { providerRegistry } from '@archon/providers';
@@ -38,6 +39,7 @@ import { registerConfigRoutes } from './api.config';
 import { registerConversationRoutes } from './api.conversations';
 import { registerConversationProcessingRoute } from './api.conversation-processing';
 import { deliveredRunFrom, registerForgeRoutes } from './api.forge';
+import { forgeAnswerFile } from './forge-answer-file';
 import { registerHealthRoutes } from './api.health';
 import { registerItemRoutes } from './api.items';
 import { registerMessageRoutes } from './api.messages';
@@ -169,7 +171,7 @@ export function registerApiRoutes(
     deliveredRun: deliveredRunFrom(createWorkflowStore(), run => queueSource.branchOf(run)),
     changeMergeState: (lookup, branches) => changeMergeState(lookup, branches, forgeOptions),
     viewWorkItem: (number, remote) => viewWorkItem(number, remote, forgeOptions),
-    answerFile: join(getArchonHome(), 'cache', 'forge-subjects.json'),
+    answerFile: forgeAnswerFile(join(getArchonHome(), 'cache', 'forge-subjects.json')),
   });
   const packCodebaseCwd = async (id: string): Promise<string | null> =>
     (await codebaseDb.getCodebase(id))?.default_cwd ?? null;
@@ -181,7 +183,9 @@ export function registerApiRoutes(
     projectKeyOf: launchProjectKey(path => registeredProjectKeyForPath(path, codebaseDb)),
     projectOf: (path: string) => registeredProjectForPath(path, codebaseDb),
     // Discovery is kept while the files it reads are unchanged (discovery-cache.ts).
-    discover: createDiscoveryCache(loadConfig, providerRegistry),
+    discover: createDiscoveryCache(loadConfig, root =>
+      discoverWorkflowsWithConfig(root, loadConfig, providerRegistry)
+    ),
   };
   const packSource = (workflowSource?: string) =>
     workflowSource === undefined ? {} : { workflowSource };
