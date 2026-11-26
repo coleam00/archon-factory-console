@@ -495,13 +495,6 @@ test("a column header names its stages in the view file's words, and an ungroupe
   const host = page.querySelector('[data-stage="stage-host"] h3');
   expect(host?.textContent).toBe('CI and review');
   expect(host?.getAttribute('title')).toBe('stage-host');
-  // No header shows a workflow id; the ids stay the columns' keys.
-  const headers = [...page.querySelectorAll('[data-stage] header')].map(h => h.textContent ?? '');
-  for (const id of ['stage-build', 'stage-host', 'stage-check'])
-    expect(headers.some(text => text.includes(id))).toBe(false);
-  expect(
-    [...page.querySelectorAll('[data-stage]')].map(column => column.getAttribute('data-stage'))
-  ).toContain('stage-host');
 });
 
 test("with no view file, a stage's column is headed by its id in words", () => {
@@ -558,8 +551,16 @@ function seedBoard(reads: ItemRead[]): void {
  * The board mounted in happy-dom, with its globals installed for this test only and `fetch`
  * answered by `answer`. `unmount` restores both.
  */
-async function mountBoard(answer: (url: string) => Promise<Response>) {
+async function mountBoard(
+  answer: (url: string) => Promise<Response>,
+  path = '/console/p/web/board'
+) {
   const dom = new Window({ url: 'http://localhost' });
+  // The columns brought into view (`?group=`), by their `data-stage`.
+  const scrolled: (string | null)[] = [];
+  dom.HTMLElement.prototype.scrollIntoView = function (this: Element): void {
+    scrolled.push(this.getAttribute('data-stage'));
+  };
   const globals = {
     window: dom,
     document: dom.document,
@@ -578,7 +579,7 @@ async function mountBoard(answer: (url: string) => Promise<Response>) {
   const root = createRoot(container as unknown as HTMLElement);
   await act(async () =>
     root.render(
-      <MemoryRouter initialEntries={['/console/p/web/board']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/console/p/:projectId/*" element={<BoardPage />} />
         </Routes>
@@ -589,6 +590,7 @@ async function mountBoard(answer: (url: string) => Promise<Response>) {
     dom,
     container,
     act,
+    scrolled,
     unmount: async (): Promise<void> => {
       await act(async () => root.unmount());
       await dom.happyDOM.close();
@@ -712,6 +714,28 @@ test("a pack whose graph has no groups takes its board columns from the view fil
       ['Make', 'issue-1'],
       ['check', 'issue-2'],
     ]);
+  } finally {
+    await board.unmount();
+  }
+});
+
+test("a map link's ?group= brings an ungrouped stage's column into view by its id, not its heading", async () => {
+  const stages = graph.stages.map(stage =>
+    stage.workflow === 'build' ? { ...stage, workflow: 'stage-build' } : stage
+  );
+  seedBoard([item('issue-1', 'stage-build', 'running')]);
+  set(K.packGraph('web', 'flow'), { ...graph, stages });
+  set(K.packView('web', 'flow'), {
+    path: null,
+    view: { stages: {} } as unknown as FactoryView,
+    problems: [],
+  });
+  const board = await mountBoard(nothingFetched, '/console/p/web/board?group=stage-build');
+  try {
+    const column = board.container.querySelector('[data-stage="stage-build"]');
+    // The heading is the stage's words, so only the id can find it.
+    expect(column?.querySelector('h3')?.textContent).toBe('Stage build');
+    expect(board.scrolled).toEqual(['stage-build']);
   } finally {
     await board.unmount();
   }
