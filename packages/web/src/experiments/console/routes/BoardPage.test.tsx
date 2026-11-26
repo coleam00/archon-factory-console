@@ -472,13 +472,13 @@ async function mountPlaced(reads: ItemRead[], retired: unknown[]) {
   const columns = (): string[][] =>
     [...board.container.querySelectorAll('[data-pack="flow"] [data-stage]')].map(stage => [
       stage.getAttribute('data-stage') ?? '',
-      ...keysIn(stage),
+      ...keysIn(stage as unknown as ParentNode),
     ]);
   const setAside = async (): Promise<string[][]> => {
     const toggle = board.container.querySelector('[data-set-aside] button');
     if (toggle !== null && toggle.getAttribute('aria-expanded') !== 'true')
       await board.act(async () => {
-        (toggle as HTMLElement).click();
+        (toggle as unknown as HTMLElement).click();
       });
     return [...board.container.querySelectorAll('[data-set-aside] [data-item]')].map(row => [
       row.getAttribute('data-item') ?? '',

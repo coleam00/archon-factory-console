@@ -185,7 +185,7 @@ test('a card with an open ask has one Needs you button at its bottom, beside its
     // The card's actions are its last row: the PR button, then the Needs you button beside it.
     const actions = card?.querySelector('[data-card-actions]');
     expect(actions).toBe(card?.lastElementChild ?? null);
-    expect(links[0]?.parentElement).toBe(actions ?? null);
+    expect(links[0]?.parentElement === actions).toBe(true);
     expect(actions?.querySelector('[data-card-pr]')?.nextElementSibling).toBe(links[0] ?? null);
     // The top-right chip is the state as a label: a span, no link, no Needs you.
     const chips = card?.querySelectorAll('[data-chip]') ?? [];
