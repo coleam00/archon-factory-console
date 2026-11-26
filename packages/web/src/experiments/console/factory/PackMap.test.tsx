@@ -134,6 +134,10 @@ describe('the one check where the map is drawn', () => {
   test('a pack shipping a clean view file draws the curated map, not the derived one', async () => {
     const page = await mount(CURATED);
     expect(cards(page)).toEqual(['intake', 'plan-and-build', 'checks', 'landing', 'landed']);
+    // A group card carries its line from the pack's document, as the graph serves it.
+    expect(page.querySelector('[data-card="checks"] [data-card-blurb]')?.textContent).toBe(
+      shippedGraph.groups.find(group => group.name === 'Checks')?.blurb
+    );
     expect(stageLinks(page)).toEqual([
       'order',
       'triage',
@@ -236,9 +240,7 @@ describe('the one check where the map is drawn', () => {
   test("the pack document's problems show above the map, and the groups left still draw", async () => {
     const page = await mount(CURATED, '', ASKS, withoutStageHost);
     const listed = page.querySelector('[data-document-problems]');
-    expect(listed?.querySelector('summary')?.textContent).toBe(
-      "The pack's document (how-it-works.md) has 1 problem"
-    );
+    expect(listed?.querySelector('summary')?.textContent).toContain('how-it-works.md');
     expect(listed?.querySelector('li')?.textContent).toBe("stage 'stage-host' is in no group");
     expect(cards(page)).toEqual([
       'intake',

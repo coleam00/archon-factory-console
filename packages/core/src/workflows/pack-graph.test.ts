@@ -112,6 +112,9 @@ describe('readPackGraph', () => {
   test("the document's groups lose only a stale stage, and an ungrouped in-flow stage is a problem", async () => {
     const { project, pack, write, deps } = await fixture('project');
     await write('here', trigger('here', project));
+    // `chain-c` is a workflow of the pack that nothing starts: not in flow, so no group needs it.
+    await mkdir(join(pack, 'chain-c'), { recursive: true });
+    await writeFile(join(pack, 'chain-c', 'chain-c.yaml'), stage('chain-c'));
     // No `document` key: the pack's `how-it-works.md` is read.
     await writeFile(
       join(pack, 'archon-plugin.json'),
@@ -125,19 +128,21 @@ describe('readPackGraph', () => {
     );
     await writeFile(
       join(pack, 'how-it-works.md'),
-      '---\ngroups:\n  - name: Start\n    kind: intake\n    stages: [chain-a, ghost]\n---\n# Chain\n'
+      '---\ncolour: blue\ngroups:\n  - name: Start\n    kind: intake\n    stages: [chain-a, ghost]\n---\n# Chain\n'
     );
 
     const graph = await readPackGraph(project, 'chain', deps);
 
-    expect(graph.document).toEqual({
-      path: 'how-it-works.md',
-      problems: [
-        "group 'Start' names 'ghost', which is not a stage of the pack's flow",
-        "stage 'chain-b' is in no group",
-      ],
-      text: '# Chain\n',
-    });
+    expect(graph.stages.find(s => s.workflow === 'chain-c')?.inFlow).toBe(false);
+    expect(graph.document?.path).toBe('how-it-works.md');
+    expect(graph.document?.text).toBe('# Chain\n');
+    // One problem each: the stale name, the in-flow stage left out, and the unknown key.
+    const problems = graph.document?.problems ?? [];
+    expect(problems).toHaveLength(3);
+    expect(problems.filter(problem => problem.includes("'ghost'"))).toHaveLength(1);
+    expect(problems.filter(problem => problem.includes("'chain-b'"))).toHaveLength(1);
+    expect(problems.filter(problem => problem.includes("'colour'"))).toHaveLength(1);
+    expect(problems.some(problem => problem.includes('chain-c'))).toBe(false);
     expect(graph.groups).toEqual([{ name: 'Start', kind: 'intake', stages: ['chain-a'] }]);
   });
 

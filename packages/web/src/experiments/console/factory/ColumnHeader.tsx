@@ -1,6 +1,6 @@
 /**
  * One board column's header (Visual standard, rule 9; v1's `ColumnHeader.tsx`): its label, a
- * one-line subtitle, its count, and a soft chip per state its cards are in. The Merged column
+ * one-line subtitle, a group's blurb from the pack's document, its count, and a soft chip per state its cards are in. The Merged column
  * carries its colour as a 3 px top bar. A stage column has none: on `combined` no column colour
  * is declared anywhere (v1 took it from its own column file, which the pack graph's groups
  * replace). An empty column is a compact header, so a pack's many stages keep their order on
@@ -37,6 +37,7 @@ export function ColumnHeader({
   labelHover = label,
   subtitle,
   subtitleHover = subtitle,
+  blurb,
   items,
   count = items.length,
   bar,
@@ -48,6 +49,8 @@ export function ColumnHeader({
   subtitle: string;
   /** The subtitle's hover title, where it names ids the subtitle puts in words; else the subtitle. */
   subtitleHover?: string;
+  /** A group column's line from the pack's document, under the subtitle. */
+  blurb?: string;
   items: readonly ItemRead[];
   /**
    * Null while it is read: a skeleton bar stands in (rule 6). `unknown` when the read failed,
@@ -82,6 +85,15 @@ export function ColumnHeader({
           {empty ? null : (
             <p title={subtitleHover} className="truncate text-console-12 text-text-tertiary">
               {subtitle}
+            </p>
+          )}
+          {blurb === undefined || blurb === '' ? null : (
+            <p
+              data-column-blurb
+              title={blurb}
+              className="truncate text-console-12 text-text-secondary"
+            >
+              {blurb}
             </p>
           )}
         </div>

@@ -107,6 +107,13 @@ export function MapCard({
               >
                 {card.label}
               </span>
+              <span
+                data-card-blurb
+                title={card.blurb}
+                className="h-4 shrink-0 truncate text-console-12 leading-4 text-text-secondary"
+              >
+                {card.blurb}
+              </span>
               {stages.map(stage => (
                 <MapStageRow
                   key={stage.id}
