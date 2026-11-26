@@ -12,6 +12,7 @@ import { CHIP, standingRun } from '../../routes/board/standing';
 import type { ItemRead } from '../../skills/items';
 import type { CuratedView } from './curated-view';
 import { shownChip } from './item-asks';
+import { outcomeLabel } from './outcome-words';
 import type { CardProgress } from './item-card';
 
 /** The colour a state line takes: the state colours of the Visual standard. */
@@ -23,14 +24,6 @@ export interface StateLine {
 }
 
 type Words = Pick<CuratedView, 'stageLabels' | 'outcomeLabels'>;
-
-/** The outcome's label, by `stage:outcome` and then `stage:*`, or undefined when the file gives none. */
-function outcomeLabel(view: Words, workflow: string, outcome: string | null): string | undefined {
-  return (
-    (outcome === null ? undefined : view.outcomeLabels[`${workflow}:${outcome}`]) ??
-    view.outcomeLabels[`${workflow}:*`]
-  );
-}
 
 /**
  * The line for `read`. `running` is the board card's running stage and step, null until the
@@ -51,7 +44,9 @@ export function itemStateLine(
   const stage = workflow === undefined ? undefined : view.stageLabels[workflow];
   const at = (label: string): string => (stage === undefined ? label : `${label} · ${stage}`);
   const ended =
-    workflow === undefined ? undefined : outcomeLabel(view, workflow, run?.outcome ?? null);
+    workflow === undefined
+      ? undefined
+      : outcomeLabel(view.outcomeLabels, workflow, run?.outcome ?? null);
   switch (chip) {
     case 'running':
       return {
