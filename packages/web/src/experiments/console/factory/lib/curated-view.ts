@@ -5,7 +5,8 @@
  * graph.
  *
  * - A map **stage** is one in-flow stage of the graph, in the graph's order (its flow order),
- *   with its words from the file's `stages` (its label by `stageLabel`). Its id is the stage's `workflow` name.
+ *   with its words from the file's `stages` (its label by `stageLabel`). Its id is the
+ *   stage's `workflow` name.
  * - A **column** is a group (`groupsOf`: the file's groups, else the pack document's), holding
  *   its in-flow stages in flow order. A stage no group holds is a column of its own. Columns
  *   come in the order their first stage comes in flow, which is the group order while each
