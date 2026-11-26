@@ -13332,6 +13332,8 @@ export interface components {
           name: string;
           blurb: string;
           stages: string[];
+          /** @enum {string} */
+          kind?: 'intake' | 'build' | 'check' | 'merge' | 'neutral';
         }[];
         stages: {
           [key: string]: {

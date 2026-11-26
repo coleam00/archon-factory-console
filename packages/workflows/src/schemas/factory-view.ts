@@ -131,11 +131,16 @@ export const wordsSchema = z.strictObject({
   workOrders: labelSchema.optional(),
 });
 
-/** One group of the factory: its name, one plain line, and its stages in flow order. */
+/**
+ * One group of the factory: its name, one plain line, its stages in flow order, and its kind:
+ * which of the console's group colours and kind labels its card and board column take. A group
+ * without a kind, or `neutral`, takes the neutral one; a console never infers it from position.
+ */
 export const groupSchema = z.strictObject({
   name: labelSchema,
   blurb: z.string().min(1).max(160),
   stages: z.array(stageNameSchema).min(1),
+  kind: z.enum(['intake', 'build', 'check', 'merge', 'neutral']).optional(),
 });
 
 /** What choosing one option of an ask starts, in one plain sentence. */

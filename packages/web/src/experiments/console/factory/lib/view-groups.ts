@@ -8,12 +8,17 @@
 import type { PackGraph } from '../../skills/items';
 import type { FactoryView } from '../api';
 
+/** Which of the console's group colours and kind labels a group takes (`map-columns.ts`). */
+export type GroupKind = NonNullable<NonNullable<FactoryView['groups']>[number]['kind']>;
+
 export interface ViewGroup {
   name: string;
   /** The file's line for the group; a document group has none. */
   blurb?: string;
   /** Its stages by `workflow` name, in flow order. */
   stages: string[];
+  /** The file's kind for the group; a document group has none, so it reads neutral. */
+  kind?: GroupKind;
 }
 
 export function groupsOf(
@@ -26,6 +31,7 @@ export function groupsOf(
       name: group.name,
       blurb: group.blurb,
       stages: [...group.stages],
+      ...(group.kind === undefined ? {} : { kind: group.kind }),
     }));
   return (graph?.groups ?? []).map(group => ({ name: group.name, stages: [...group.stages] }));
 }

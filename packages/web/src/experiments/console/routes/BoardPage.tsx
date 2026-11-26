@@ -19,7 +19,8 @@ import { BoardTable } from '../factory/BoardTable';
 import { BoardToolbar, useBoardView, type BoardView } from '../factory/BoardToolbar';
 import { ColumnHeader } from '../factory/ColumnHeader';
 import { TONES } from '../factory/tones';
-import type { ColumnTone } from '../factory/lib/map-columns';
+import { toneOfKind } from '../factory/lib/map-columns';
+import { groupsOf, type GroupKind } from '../factory/lib/view-groups';
 import { useFactoryCards } from '../factory/cards-context';
 import { FactoryCardsProvider, useForgeTitles } from '../factory/FactoryCards';
 import { MergedColumn } from '../factory/MergedColumn';
@@ -58,11 +59,11 @@ export { chipOf, MOVING } from './board/standing';
 // console-token-exception md:min-h-[34rem] -- the board area's floor in a short window: the toolbar, the work orders and room for a card or two.
 const BOARD_AREA = 'flex flex-col md:h-full md:min-h-[34rem] md:shrink-0';
 
-/** The columns' colours by position (taking work in, building, checking, merging), as v1's. */
-const STAGE_TONES: readonly ColumnTone[] = ['intake', 'build', 'check', 'land'];
-
-/** A column: a group the pack declares, or one stage, with its stages by their names in the pack. */
-export type StageGroup = PackGraph['groups'][number];
+/**
+ * A column: a group, or one stage, with its stages by their names in the pack, and the kind the
+ * pack's view file gives the group (its colour; none reads neutral, never a colour by position).
+ */
+export type StageGroup = PackGraph['groups'][number] & { kind?: GroupKind };
 
 /**
  * A pack's columns: each group its document declares (or each of `groups`, a factory map's own),
@@ -320,7 +321,9 @@ export function PackBoard({
     getPackGraph(projectId, pack)
   );
   const stageOf = place ?? ((read: ItemRead): string | undefined => stageAt(read, graph?.stages));
-  const columns = columnsOf(graph);
+  // The same groups the map draws: the view file's, else the pack document's.
+  const packView = useFactoryCards()?.packs?.get(pack)?.view ?? null;
+  const columns = columnsOf(graph, groupsOf(packView, graph));
   const focus = useSearchParams()[0].get('group');
   const items = board.moving;
   // A pack with nothing on its board has nothing to show.
@@ -358,7 +361,7 @@ export function PackBoard({
           data-board-columns
           className="mt-3 flex flex-col gap-3 md:min-h-0 md:flex-1 md:flex-row md:overflow-x-auto md:overflow-y-hidden"
         >
-          {columns.map((column, position) => (
+          {columns.map(column => (
             <Column
               key={column.name}
               name={column.name}
@@ -368,7 +371,7 @@ export function PackBoard({
               stageOf={column.stages.length > 1 ? stageOf : undefined}
               focus={focus === column.name}
               lit={lit}
-              accent={TONES[STAGE_TONES[position] ?? 'other'].color}
+              accent={TONES[toneOfKind(column.kind)].color}
             />
           ))}
           <MergedColumn

@@ -66,7 +66,8 @@ The factory building this repository runs Archon from another checkout, on the h
   name places them at none, so they are set aside). The engine reads none of those; the web
   counts rounds and returns, and places those items, from generic run records with them. It holds no step lists, outcome lists, arrows, ask flags, shadow flags,
   settings or stage-group enum; it names the graph's stages, steps and outcomes, and declares
-  its groups. One path reads it, `servedFactoryView` (`factory-view-read.ts`), when the file is
+  its groups, each with the `kind` its colour comes from (`lib/view-groups.ts` `groupsOf` is the
+  one place the map, Full workflow and the board take their groups from). One path reads it, `servedFactoryView` (`factory-view-read.ts`), when the file is
   read and in `bun run check:factory-view <pack dir>`: each entry is read alone with its own
   schema, then `reconcileFactoryView` (`factory-view-check.ts`) drops each entry naming what the
   graph lacks, keeps a `rounds`, `returns`, `approves` or `change` entry for a missing workflow as

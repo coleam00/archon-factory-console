@@ -53,6 +53,27 @@ describe('the slim file over the b62ec7b graph', () => {
     );
   });
 
+  test("a group's colour is its declared kind, so dropping a group moves no other's", () => {
+    const groups = (shippedFile.groups ?? []).filter(group => group.name !== 'Plan and build');
+    const tones = mapColumns(curatedView({ ...shippedFile, groups }, shippedGraph)).map(column => [
+      column.label,
+      column.tone,
+    ]);
+    expect(tones).toContainEqual(['Checks', 'check']);
+    expect(tones).toContainEqual(['Landing', 'land']);
+  });
+
+  test('a group that declares no kind reads neutral', () => {
+    const groups = (shippedFile.groups ?? []).map(({ kind: _kind, ...group }) => group);
+    const columns = mapColumns(curatedView({ ...shippedFile, groups }, shippedGraph));
+    expect(columns.filter(column => column.tone !== 'merged').map(column => column.tone)).toEqual([
+      'other',
+      'other',
+      'other',
+      'other',
+    ]);
+  });
+
   test("where the graph and the file both group, the file's groups win", () => {
     const graph = { ...shippedGraph, groups: [{ name: 'Everything', stages: [...FLOW] }] };
     expect(curatedView(shippedFile, graph).columns.map(column => column.label)).toEqual([

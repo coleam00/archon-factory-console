@@ -11,7 +11,8 @@
         "triage",
         "split",
         "link"
-      ]
+      ],
+      "kind": "intake"
     },
     {
       "name": "Plan and build",
@@ -19,7 +20,8 @@
       "stages": [
         "plan",
         "stage-build"
-      ]
+      ],
+      "kind": "build"
     },
     {
       "name": "Checks",
@@ -27,7 +29,8 @@
       "stages": [
         "stage-check",
         "stage-host"
-      ]
+      ],
+      "kind": "check"
     },
     {
       "name": "Landing",
@@ -38,7 +41,8 @@
         "landed",
         "discoveries",
         "close"
-      ]
+      ],
+      "kind": "merge"
     }
   ],
   "stages": {

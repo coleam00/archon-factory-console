@@ -18,7 +18,7 @@
  */
 import type { PackGraph } from '../../skills/items';
 import type { FactoryView } from '../api';
-import { groupsOf, type ViewGroup } from './view-groups';
+import { groupsOf, type GroupKind, type ViewGroup } from './view-groups';
 
 type Drilldown = NonNullable<FactoryView['stages'][string]['drilldown']>;
 type ViewDrilldownCard = Drilldown['phases'][number]['cards'][number];
@@ -45,8 +45,8 @@ export interface CuratedColumn {
   blurb: string;
   /** Its map stages, by id, in flow order. */
   stages: string[];
-  /** Whether it is a group's column, which takes a group colour, or a lone stage's. */
-  grouped: boolean;
+  /** Its group's kind, which gives its colour and kind label; none for a lone stage. */
+  kind?: GroupKind;
 }
 
 /** A map stage's drill-down. */
@@ -126,7 +126,6 @@ function columnsFor(
         label: only.label,
         blurb: only.short ?? only.blurb,
         stages: [only.id],
-        grouped: false,
       };
     const name = group?.name ?? '';
     return {
@@ -134,7 +133,7 @@ function columnsFor(
       label: name,
       blurb: group?.blurb ?? '',
       stages: held.map(stage => stage.id),
-      grouped: true,
+      ...(group?.kind === undefined ? {} : { kind: group.kind }),
     };
   });
 }

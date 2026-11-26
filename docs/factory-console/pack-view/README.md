@@ -2,7 +2,8 @@
 
 `factory-view.json` is the curated factory view for the pack `Wirasm/archon-software-factory` at
 commit `b62ec7b20830c1675e1946d3003dcc3085ac3b0f`: the words for its stages, steps and outcomes,
-its groups, the stage items leave the map by (`merged`), the How it works picture, the
+its groups (each with the `kind` that gives its card and board column their colour and kind
+label), the stage items leave the map by (`merged`), the How it works picture, the
 drill-down cards and the story wording the console draws the factory with. Its shape is
 `packages/workflows/src/schemas/factory-view.ts`. The Overview map lays itself out from the pack
 graph: the file places no card and draws no arrow. An arrow reads as its outcome's `label`.

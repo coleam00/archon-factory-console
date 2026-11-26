@@ -27,7 +27,7 @@ import { GraphSkeleton } from './GraphSkeleton';
 import { MERGED_DAYS, type BoardNumbers } from './lib/board-numbers';
 import type { FactoryView } from './api';
 import { fullWorkflowLayout, MERGED, type FullLayout } from './lib/full-workflow-layout';
-import type { ColumnTone } from './lib/map-columns';
+import { toneOfKind, type ColumnTone } from './lib/map-columns';
 import { MapLegend } from './map/MapLegend';
 import { LIVE_FITTING, useMapCamera, type Fitting } from './map/useMapCamera';
 import { usePackGraph } from './map-structure';
@@ -100,13 +100,12 @@ const CONTROL =
  */
 const FULL_FITTING: Fitting = { ...LIVE_FITTING, minK: 0.4, maxFrameVh: 0.8 };
 const COUNT = 'text-console-13 tabular-nums text-text-primary';
-const STAGE_TONES: readonly ColumnTone[] = ['intake', 'build', 'check', 'land'];
 
 /**
- * The pack's whole workflow as a graph, from its graph and its document's groups: a card per
- * flow stage in a column per group, the hand-offs between them as arrows, and the send-backs
- * (an arrow into the same or an earlier column) in the lanes under, each labelled with its
- * outcome. It pans and zooms like the curated map. With `live` (a project's Overview) each
+ * The pack's whole workflow as a graph, from its graph and `flow`'s groups: a card per flow
+ * stage in a column per group, coloured by the group's kind, the hand-offs between them as
+ * arrows, and the send-backs (an arrow into the same or an earlier column) in the lanes under,
+ * each labelled with its outcome. It pans and zooms like the curated map. With `live` (a project's Overview) each
  * card shows its count and who it waits on and opens that group on the board; without it (How
  * it works) it is the structure alone and links nowhere.
  */
@@ -131,7 +130,7 @@ export function DerivedFlow({
   const { k, x, y } = camera.camera;
   const last = layout.columns.length - 1;
   const toneOf = (column: number): ColumnTone =>
-    column === last ? 'merged' : (STAGE_TONES[column] ?? 'other');
+    column === last ? 'merged' : toneOfKind(flow[column]?.kind);
   const hrefOf = (column: number): string | undefined => {
     if (live === undefined) return undefined;
     if (column === last) return live.board;

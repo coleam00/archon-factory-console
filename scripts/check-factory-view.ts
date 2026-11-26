@@ -24,7 +24,6 @@ import { FACTORY_VIEW_PATH } from '../packages/workflows/src/factory-view-check'
 import { servedFactoryView } from '../packages/workflows/src/factory-view-read';
 import { type PackGraph, packGraphSchema } from '../packages/workflows/src/pack-graph';
 import type { FactoryViewProblem } from '../packages/workflows/src/schemas/factory-view';
-import { ZodError } from 'zod';
 
 const root = resolve(import.meta.dir, '..');
 const USAGE = 'Usage: bun run check:factory-view <pack dir> [--view <file>] [--repo <owner/name>]';
@@ -99,29 +98,31 @@ function cliError(stdout: string, exitCode: number): string {
   return stdout.trim() || `exited ${String(exitCode)} with no output`;
 }
 
+/** A schema refusal as one sentence naming its first issue's path, never a JSON dump. */
+function firstIssue(issues: readonly { path: readonly PropertyKey[]; message: string }[]): string {
+  const [first] = issues;
+  const at = first === undefined ? '' : first.path.map(String).join('.');
+  return `${at === '' ? 'the input' : at}: ${first?.message ?? 'does not read'}`;
+}
+
 /** Copies `tree` into `plugins` where an install puts it, with a receipt naming its commit. */
 function installCopy(plugins: string, tree: string, pack: PackIdentity): void {
   const target = packTreePath(plugins, pack.repo, pack.commit);
   mkdirSync(target, { recursive: true });
   cpSync(tree, target, { recursive: true });
-  const receipt = workflowPackReceiptSchema.parse({
+  const read = workflowPackReceiptSchema.safeParse({
     schemaVersion: 1,
     id: pack.repo,
     manifest: JSON.parse(readFileSync(join(tree, 'archon-plugin.json'), 'utf8')),
     commit: pack.commit,
     installedAt: new Date().toISOString(),
   });
+  if (!read.success)
+    throw new Error(`the pack cannot be installed: ${firstIssue(read.error.issues)}`);
+  const receipt = read.data;
   const path = receiptPath(plugins, pack.repo);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(receipt, null, 2)}\n`);
-}
-
-/** A failure as one sentence: a schema refusal names its first issue's path, never a JSON dump. */
-function oneSentence(error: unknown): string {
-  if (!(error instanceof ZodError)) return (error as Error).message;
-  const [first] = error.issues;
-  const at = first === undefined ? '' : first.path.map(String).join('.');
-  return `${at === '' ? 'the input' : at}: ${first?.message ?? 'does not read'}`;
 }
 
 /** The graph of the pack `tree` holds, read on a throwaway home that has only that pack. */
@@ -144,9 +145,12 @@ export function graphOfTree(
     );
     const stdout = read.stdout.toString();
     if (read.exitCode !== 0) return { error: cliError(stdout, read.exitCode) };
-    return { graph: packGraphSchema.parse(JSON.parse(stdout)) };
+    const graph = packGraphSchema.safeParse(JSON.parse(stdout));
+    if (!graph.success)
+      return { error: `the pack graph does not read: ${firstIssue(graph.error.issues)}` };
+    return { graph: graph.data };
   } catch (error) {
-    return { error: oneSentence(error) };
+    return { error: error instanceof Error ? error.message : String(error) };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

@@ -29,8 +29,7 @@ function declaration(
   return {
     ...shippedView,
     stages: stages.map(id => ({ id, label: id, blurb: id, workflows: [id] })),
-    columns:
-      columns ?? stages.map(id => ({ id, label: id, blurb: id, stages: [id], grouped: true })),
+    columns: columns ?? stages.map(id => ({ id, label: id, blurb: id, stages: [id] })),
     landed: { stage: stages.at(-1) ?? '' },
     arrows,
   };
@@ -41,7 +40,6 @@ const column = (id: string, stages: string[]): Columns[number] => ({
   label: id.toUpperCase(),
   blurb: id,
   stages,
-  grouped: true,
 });
 
 /**

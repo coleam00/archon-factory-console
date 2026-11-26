@@ -96,6 +96,17 @@ describe('an entry that fails its schema drops alone', () => {
     });
   });
 
+  test('a group naming a kind the console does not have drops alone', () => {
+    const r = read(f => {
+      f.groups = [
+        { name: 'Build', blurb: 'x', stages: ['make'], kind: 'build' },
+        { name: 'Ship', blurb: 'x', stages: ['land'], kind: 'shipping' },
+      ];
+    });
+    expect(listed(r)).toEqual(['invalid groups.1.kind']);
+    expect(r.view?.groups?.map(group => [group.name, group.kind])).toEqual([['Build', 'build']]);
+  });
+
   test("combined's record-shaped groups drop as one entry, and the stages still read", () => {
     const r = read(f => void (f.groups = { Build: { blurb: 'x' } }));
     expect(listed(r)).toEqual(['invalid groups']);
