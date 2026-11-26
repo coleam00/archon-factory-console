@@ -143,6 +143,13 @@ export function DerivedFlow({
     if (column === last) return live.board;
     return `${live.board}?group=${encodeURIComponent(layout.columns[column]?.name ?? '')}`;
   };
+  // A card's eyebrow names its group. A lone stage's column is named by its id, which is a key,
+  // not words, so its card shows its tone's kind instead.
+  const groupOf = (column: number): string | undefined => {
+    if (column === last) return 'Merged';
+    const at = flow[column];
+    return at?.grouped === true ? at.heading : undefined;
+  };
   const stageOf = (workflow: string): PackGraph['stages'][number] | undefined =>
     graph.stages.find(stage => stage.workflow === workflow);
   return (
@@ -238,7 +245,7 @@ export function DerivedFlow({
               key={card.id}
               card={card}
               tone={TONES[toneOf(card.column)]}
-              group={layout.columns[card.column]?.name}
+              group={groupOf(card.column)}
               stage={stageOf(card.id)}
               name={stageLabel(view, card.id)}
               at={counts?.get(card.id)}

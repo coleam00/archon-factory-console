@@ -64,6 +64,8 @@ export type StageGroup = PackGraph['groups'][number] & { kind?: GroupKind };
 export type BoardColumn = StageGroup & {
   /** What the column is called on screen: its group's name, or its lone stage's `stageLabel`. */
   heading: string;
+  /** A group heads the column; false for a lone stage no group holds, whose `name` is its id. */
+  grouped: boolean;
 };
 
 /**
@@ -83,10 +85,16 @@ export function columnsOf(
       ...group,
       stages: group.stages.filter(s => stages.includes(s)),
       heading: group.name,
+      grouped: true,
     })),
     ...stages
       .filter(stage => !grouped.has(stage))
-      .map(stage => ({ name: stage, stages: [stage], heading: stageLabel(view, stage) })),
+      .map(stage => ({
+        name: stage,
+        stages: [stage],
+        heading: stageLabel(view, stage),
+        grouped: false,
+      })),
   ].filter(column => column.stages.length > 0);
 }
 

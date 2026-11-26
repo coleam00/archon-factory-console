@@ -210,6 +210,13 @@ describe('the one check where the map is drawn', () => {
     expect(heading('stage-host')).toBe('CI and review');
     expect(heading('Plan and build')).toBe('Plan and build');
     expect(heading('merged')).toBe('Merged');
+    // Its card names it once, by label: the eyebrow is its kind, never the workflow id.
+    const card = page.querySelector('[data-flow-stage="stage-host"]')?.textContent ?? '';
+    expect(card).toContain('CI and review');
+    expect(card).not.toContain('stage-host');
+    // No card on the map prints its own stage id.
+    for (const node of page.querySelectorAll('[data-flow-stage]'))
+      expect(node.textContent).not.toContain(node.getAttribute('data-flow-stage') ?? '');
   });
 
   test("the Full workflow's Merged heading counts the Board's Merged column, not every merge", async () => {
