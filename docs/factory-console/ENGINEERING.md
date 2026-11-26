@@ -106,7 +106,13 @@ The factory building this repository runs Archon from another checkout, on the h
   once per pack copy and cached" is met: the rest of the graph read (bindings, trigger checks,
   settings, capacity) reads git and database state a file stamp cannot see, costs tens of
   milliseconds, and runs every request. On an install with trigger files, each file's check
-  still discovers its binding's workflows uncached.
+  still discovers its binding's workflows uncached. A server discovers each registered
+  project's workflows once just after it starts (`warmPackDiscovery`), so the first board after
+  a restart reads a kept discovery.
+  The board, Overview and Needs you read a project's items once, through the every-item read
+  (`useBoardItems`, `K.boardOrders`): the board's columns and decision strip and the
+  Overview's count filter it rather than asking `GET /api/items/window` again, because each
+  window read places every item of the project on the server.
   The forge subjects route keeps its answers in a display cache file under the server's home,
   `<home>/cache/forge-subjects.json` (`forge-answer-file.ts`), so a restarted server does not
   ask the forge once per card. A home that has never served (every fresh `dev:console` copy)
