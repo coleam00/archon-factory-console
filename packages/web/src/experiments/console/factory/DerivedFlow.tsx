@@ -105,9 +105,9 @@ const COUNT = 'text-console-13 tabular-nums text-text-primary';
  * The pack's whole workflow as a graph, from its graph and `flow`'s groups: a card per flow
  * stage in a column per group, coloured by the group's kind, the hand-offs between them as
  * arrows, and the send-backs (an arrow into the same or an earlier column) in the lanes under,
- * each labelled with its outcome. It pans and zooms like the curated map. With `live` (a project's Overview) each
- * card shows its count and who it waits on and opens that group on the board; without it (How
- * it works) it is the structure alone and links nowhere.
+ * each labelled with its outcome. It pans and zooms like the curated map. With `live` (a
+ * project's Overview) each card shows its count and who it waits on and opens that group on the
+ * board; without it (How it works) it is the structure alone and links nowhere.
  */
 export function DerivedFlow({
   flow,
