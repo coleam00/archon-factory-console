@@ -209,7 +209,8 @@ test('each open item is under the stage it stands at, in the order the pack grap
   expect(hrefs.filter(href => /\/(setup|settings)$/.test(href))).toEqual([]);
   const decide = page.querySelector('[data-needs-decision]');
   expect(decide === null ? [] : keysIn(decide)).toEqual(['issue-3']);
-  expect(decide?.querySelector('[data-item-reason]')?.textContent).toContain('check');
+  // The reason names the stage in words (`stageLabel`), never its workflow id (#261).
+  expect(decide?.querySelector('[data-item-reason]')?.textContent).toMatch(/^Check /);
   expect(keysIn(page)).not.toContain('issue-5');
 
   // An item shows its title, links to its run, and says how it stands.

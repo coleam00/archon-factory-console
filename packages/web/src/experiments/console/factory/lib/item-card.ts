@@ -78,6 +78,18 @@ export function viewWorkflow(
 }
 
 /**
+ * A run's stage as a person reads it: the view workflow it is, by `stageLabel` in its pack's
+ * words. A run no pack places is of no stage, so it names its workflow.
+ */
+export function runStageName(
+  pack: CardPack | null,
+  run: Pick<ItemRun, 'workflow' | 'pack'>
+): string {
+  const workflow = pack === null ? (run.pack?.workflow ?? null) : viewWorkflow(pack, run);
+  return workflow === null ? run.workflow : stageLabel(pack?.view, workflow);
+}
+
+/**
  * The view's `retired` entries in one shape: a bare name places nowhere, `{ workflow, stage }`
  * at that stage. Every reader of `retired` goes through this.
  */

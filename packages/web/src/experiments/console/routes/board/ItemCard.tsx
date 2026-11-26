@@ -11,7 +11,8 @@ import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import { BoardCardProgress, CARD_BUTTON, CardPrButton } from '../../factory/BoardCardProgress';
 import { useCardList } from '../../factory/FactoryCards';
-import type { CardProgress } from '../../factory/lib/item-card';
+import { useFactoryCards } from '../../factory/cards-context';
+import { packOf, runStageName, type CardProgress } from '../../factory/lib/item-card';
 import { NeedsYouLink } from '../../factory/NeedsYouLink';
 import { relativeTime } from '../../lib/format';
 import type { ItemRead } from '../../skills/items';
@@ -59,7 +60,10 @@ export function ItemCard({
   const run = standingRun(read);
   const open = runToOpen(read);
   const shade = litShade(lit, read.item.id);
-  const reason = needsDecision(read) ? decisionReason(read) : undefined;
+  const packs = useFactoryCards()?.packs ?? null;
+  const reason = needsDecision(read)
+    ? decisionReason(read, at => runStageName(packs === null ? null : packOf(packs, read), at))
+    : undefined;
   const meta = [
     stage,
     run === undefined
