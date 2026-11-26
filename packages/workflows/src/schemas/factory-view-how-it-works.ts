@@ -11,7 +11,8 @@
  * work back several ways. The schema rejects a picture whose lines would run through a card,
  * cross a group it does not belong to, or cross another line (`factory-overview-geometry.ts`,
  * `factory-overview-lanes.ts`). Whether a card's `stages` and the edges between such cards
- * agree with the pack only the pack graph can say (`factory-view-check.ts`).
+ * agree with the pack only the pack graph can say (`factory-view-check.ts`, which drops a
+ * stage or an edge they do not agree on).
  */
 import { z } from 'zod';
 import { geometryIssues, type Issue } from './factory-overview-geometry';

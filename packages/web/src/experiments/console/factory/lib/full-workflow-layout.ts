@@ -13,6 +13,8 @@ import { rounded } from '../canvas-lines';
 import { PILL_LINE } from './map-sizes';
 import { PILL_H, pillWidth } from './overview-layout';
 import type { Box, Point } from './map-layout';
+import { wordsOf } from './graph-structure';
+import { outcomeWord } from './graph-words';
 
 export const FW_CARD_W = 208;
 export const FW_CARD_H = 92;
@@ -67,13 +69,6 @@ export interface FullLayout {
   cards: FullCard[];
   arrows: FullArrow[];
   bounds: Box;
-}
-
-/** What an arrow of the graph says: its outcome, or what settles the ask it follows. */
-function wordsOf(from: PackGraph['arrows'][number]['from']): string {
-  if ('outcome' in from) return from.outcome;
-  if (from.option !== undefined) return from.option;
-  return from.settled === 'any' ? 'asked' : from.settled;
 }
 
 /** The workflow each of the graph's stage names stands for. */
@@ -163,16 +158,22 @@ export function fullWorkflowLayout(graph: PackGraph, groups: readonly StageGroup
     if (!entry.labels.includes(label)) entry.labels.push(label);
     pairs.set(key, entry);
   };
+  // An outcome reads as its `display:` label where the pack's YAML gives one.
+  const byName = new Map(graph.stages.map(stage => [stage.name, stage]));
   for (const arrow of graph.arrows) {
     if (arrow.linked?.kind === 'depends_on') continue;
     const from = workflows.get(arrow.from.stage);
     const to = workflows.get(arrow.to);
-    if (from !== undefined && to !== undefined) add(from, to, wordsOf(arrow.from));
+    const word =
+      'outcome' in arrow.from
+        ? outcomeWord(byName.get(arrow.from.stage), arrow.from.outcome)
+        : wordsOf(arrow.from);
+    if (from !== undefined && to !== undefined) add(from, to, word);
   }
   for (const stage of graph.stages) {
     if (!stage.inFlow) continue;
     for (const value of stage.outcome?.values ?? [])
-      if (value.final) add(stage.workflow, MERGED, value.value);
+      if (value.final) add(stage.workflow, MERGED, outcomeWord(stage, value.value));
   }
 
   const forwardOf = (from: FullCard, to: FullCard): boolean =>

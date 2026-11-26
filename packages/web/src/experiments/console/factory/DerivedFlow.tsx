@@ -242,7 +242,7 @@ export function DerivedFlow({
                   </span>
                 </span>
                 <span className="line-clamp-2 text-console-15 font-semibold leading-5 text-text-primary">
-                  {merged ? 'Merged' : stageWords(card.id)}
+                  {merged ? 'Merged' : (stage?.display?.label ?? stageWords(card.id))}
                 </span>
                 <span className="mt-auto flex items-center gap-1.5 overflow-hidden text-console-12 text-text-tertiary">
                   {merged ? (

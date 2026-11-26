@@ -27,17 +27,28 @@
           {
             "value": "ready",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Order took the work order and made it an item"
+            }
           },
           {
             "value": "work_order",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Ordered as a work order",
+              "story": "Order took the work order and ordered its pieces"
+            }
           },
           {
             "value": "refused",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Refused at intake",
+              "story": "Order refused the work order"
+            }
           }
         ]
       },
@@ -52,7 +63,12 @@
           "blocks": [],
           "fanOut": null
         }
-      ]
+      ],
+      "display": {
+        "label": "Order",
+        "short": "Orders, labelled issues",
+        "blurb": "Takes a work order, or an issue someone added the factory label to, and makes it one item the factory can read."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:triage",
@@ -73,57 +89,98 @@
           {
             "value": "build",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Triage judged it worth building"
+            }
           },
           {
             "value": "narrow",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Triage judged it worth building, in a narrower form"
+            }
           },
           {
             "value": "split",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Triage judged it is more than one change"
+            }
           },
           {
             "value": "shape",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Needs shaping",
+              "story": "Triage judged it worth doing, once a maintainer settles its open questions"
+            }
           },
           {
             "value": "recipe",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Handled another way",
+              "story": "Triage judged it is handled another way"
+            }
           },
           {
             "value": "native",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Handled another way",
+              "story": "Triage judged it is handled another way"
+            }
           },
           {
             "value": "fold",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Folded into another item",
+              "story": "Triage folded it into another item"
+            }
           },
           {
             "value": "park",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Parked by triage",
+              "story": "Triage parked it for later"
+            }
           },
           {
             "value": "deprecate",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Closed by triage",
+              "story": "Triage closed it"
+            }
           },
           {
             "value": "decline",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Closed by triage",
+              "story": "Triage closed it"
+            }
           },
           {
             "value": "close",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Closed by triage",
+              "story": "Triage closed it"
+            }
           }
         ]
       },
@@ -136,7 +193,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Decides whether to build"
+          }
         },
         {
           "id": "admit",
@@ -144,7 +204,10 @@
           "dependsOn": ["judge__judge"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Would it start on its own"
+          }
         },
         {
           "id": "admitted",
@@ -152,9 +215,17 @@
           "dependsOn": ["admit"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Records the admit measurement"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Triage",
+        "short": "Is it worth building?",
+        "blurb": "Judges whether an item is worth building, the way the project's maintainers would."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:link",
@@ -175,27 +246,44 @@
           {
             "value": "place",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Link found what it relates to and sent it on to planning"
+            }
           },
           {
             "value": "waiting",
             "startsNothing": true,
-            "final": true
+            "final": true,
+            "display": {
+              "story": "Link is holding it until what it depends on has landed"
+            }
           },
           {
             "value": "fold",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Folded into another item",
+              "story": "Link folded it into another item"
+            }
           },
           {
             "value": "dropped",
             "startsNothing": true,
-            "final": true
+            "final": true,
+            "display": {
+              "label": "Dropped by link",
+              "story": "Link dropped it"
+            }
           },
           {
             "value": "none",
             "startsNothing": true,
-            "final": true
+            "final": true,
+            "display": {
+              "story": "Link found it was not waiting, and changed nothing"
+            }
           }
         ]
       },
@@ -208,7 +296,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Reads the order"
+          }
         },
         {
           "id": "link",
@@ -216,7 +307,10 @@
           "dependsOn": ["given"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Links related items"
+          }
         },
         {
           "id": "end",
@@ -224,9 +318,17 @@
           "dependsOn": ["link"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Hands the item on"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Link",
+        "short": "What does it wait on?",
+        "blurb": "Finds how the item relates to the project's other work, and holds it until what it depends on has landed."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:split",
@@ -247,17 +349,27 @@
           {
             "value": "whole",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Split kept it as one change"
+            }
           },
           {
             "value": "split",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Split into pieces",
+              "story": "Split cut it into pieces"
+            }
           },
           {
             "value": "waiting",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Split is waiting before it can cut it"
+            }
           }
         ]
       },
@@ -270,7 +382,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Decides how to split it"
+          }
         },
         {
           "id": "members",
@@ -278,9 +393,17 @@
           "dependsOn": ["cut"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Starts the pieces"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Split",
+        "short": "Cuts it into pieces",
+        "blurb": "Cuts an item triage judged to be more than one change into pieces, and starts each piece as a work order."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:plan",
@@ -301,17 +424,27 @@
           {
             "value": "planned",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Plan wrote the approach"
+            }
           },
           {
             "value": "ask",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Plan asked you before writing the approach"
+            }
           },
           {
             "value": "stop",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Stopped at planning",
+              "story": "Plan stopped it"
+            }
           }
         ]
       },
@@ -324,9 +457,17 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes the plan"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Plan",
+        "short": "Plans how to build it",
+        "blurb": "Works out how to build the item and writes the plan down."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:stage-build",
@@ -347,22 +488,34 @@
           {
             "value": "built",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Build wrote the change"
+            }
           },
           {
             "value": "built_for_host",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Build fixed what CI and the reviews raised"
+            }
           },
           {
             "value": "replan",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Build sent it back to planning"
+            }
           },
           {
             "value": "ask",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Build asked you"
+            }
           }
         ]
       },
@@ -375,7 +528,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes or fixes the change"
+          }
         },
         {
           "id": "limit",
@@ -383,7 +539,10 @@
           "dependsOn": ["build__build"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Counts the round"
+          }
         },
         {
           "id": "end",
@@ -391,9 +550,17 @@
           "dependsOn": ["limit"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Hands the change on"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Build",
+        "short": "Writes the change and PR",
+        "blurb": "Writes the change and opens a draft pull request, then fixes what comes back."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:stage-check",
@@ -434,22 +601,34 @@
           {
             "value": "approve",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The checks approved it"
+            }
           },
           {
             "value": "return",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The checks sent it back"
+            }
           },
           {
             "value": "replan",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The checks sent it back to planning"
+            }
           },
           {
             "value": "ask",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The checks asked you"
+            }
           }
         ]
       },
@@ -462,7 +641,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Reads the base commit"
+          }
         },
         {
           "id": "review__review",
@@ -475,7 +657,10 @@
               "workflow": "Wirasm/archon-software-factory:review"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Code review"
+          }
         },
         {
           "id": "tests__tests",
@@ -488,7 +673,10 @@
               "workflow": "Wirasm/archon-software-factory:tests"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Test check"
+          }
         },
         {
           "id": "product__product",
@@ -501,7 +689,10 @@
               "workflow": "Wirasm/archon-software-factory:product"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Product check"
+          }
         },
         {
           "id": "verdict__verdict",
@@ -514,7 +705,10 @@
               "workflow": "Wirasm/archon-software-factory:verdict"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Verdict"
+          }
         },
         {
           "id": "limit",
@@ -522,7 +716,10 @@
           "dependsOn": ["verdict__verdict"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Counts the round"
+          }
         },
         {
           "id": "exhausted",
@@ -530,7 +727,10 @@
           "dependsOn": ["limit"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Rounds ran out"
+          }
         },
         {
           "id": "end",
@@ -538,7 +738,10 @@
           "dependsOn": ["limit", "exhausted"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Hands the change on"
+          }
         },
         {
           "id": "report__report",
@@ -551,9 +754,17 @@
               "workflow": "Wirasm/archon-software-factory:report"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes the report"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Checks",
+        "short": "Review, tests, product",
+        "blurb": "A review, a test check and a product check read the change and approve it or send it back."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:stage-host",
@@ -582,22 +793,34 @@
           {
             "value": "ready",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "CI and the reviews passed"
+            }
           },
           {
             "value": "return",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "CI or a review sent it back"
+            }
           },
           {
             "value": "waiting",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Waiting on CI"
+            }
           },
           {
             "value": "ask",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "CI and review asked you"
+            }
           }
         ]
       },
@@ -610,7 +833,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Reads CI and PR reviews"
+          }
         },
         {
           "id": "limit",
@@ -618,7 +844,10 @@
           "dependsOn": ["rounds__host"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Counts the round"
+          }
         },
         {
           "id": "exhausted",
@@ -626,7 +855,10 @@
           "dependsOn": ["limit"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Rounds ran out"
+          }
         },
         {
           "id": "end",
@@ -634,7 +866,10 @@
           "dependsOn": ["limit", "exhausted"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Hands the change on"
+          }
         },
         {
           "id": "report__report",
@@ -647,9 +882,17 @@
               "workflow": "Wirasm/archon-software-factory:report"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes the report"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "CI and review",
+        "short": "Reads CI and PR reviews",
+        "blurb": "Reads CI and the reviews on the pull request and sends back what they raise."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:landgate",
@@ -670,12 +913,18 @@
           {
             "value": "land",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The merge gate said land"
+            }
           },
           {
             "value": "ask",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The merge gate asked you"
+            }
           }
         ]
       },
@@ -688,7 +937,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Decides whether it may merge"
+          }
         },
         {
           "id": "end",
@@ -696,9 +948,17 @@
           "dependsOn": ["gate"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Hands on the gate's answer"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Merge gate",
+        "short": "May it merge?",
+        "blurb": "Decides whether an approved change merges without asking you, or asks you first."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:land",
@@ -719,22 +979,35 @@
           {
             "value": "landed",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The factory merged it"
+            }
           },
           {
             "value": "returned",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Merging sent it back to the builder"
+            }
           },
           {
             "value": "stop",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Stopped before merging",
+              "story": "Merging stopped it"
+            }
           },
           {
             "value": "ask",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Merging asked you"
+            }
           }
         ]
       },
@@ -747,7 +1020,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Merges the change"
+          }
         },
         {
           "id": "end",
@@ -755,9 +1031,17 @@
           "dependsOn": ["land"],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Hands on the merge's answer"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Land",
+        "short": "Merges the change",
+        "blurb": "Merges the change once the gate says land, or sends it back to the builder."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:landed",
@@ -778,37 +1062,58 @@
           {
             "value": "clear",
             "startsNothing": true,
-            "final": true
+            "final": true,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           },
           {
             "value": "broken_here",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           },
           {
             "value": "broken_before",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           },
           {
             "value": "unclear",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           },
           {
             "value": "waiting",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           },
           {
             "value": "not_landed",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           },
           {
             "value": "none",
             "startsNothing": true,
-            "final": true
+            "final": true,
+            "display": {
+              "story": "The factory checked the branch after the merge"
+            }
           }
         ]
       },
@@ -821,9 +1126,17 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Checks the branch after the merge"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Merged",
+        "short": "The change is merged",
+        "blurb": "The change is merged."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:discoveries",
@@ -857,7 +1170,12 @@
           "blocks": [],
           "fanOut": null
         }
-      ]
+      ],
+      "display": {
+        "label": "Discoveries",
+        "short": "Files what was noticed",
+        "blurb": "After a merge, files what agents noticed outside their own task as new work, or holds or drops it."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:close",
@@ -873,22 +1191,43 @@
           {
             "value": "dropped",
             "startsNothing": true,
-            "final": true
+            "final": true,
+            "display": {
+              "label": "Dropped by you",
+              "story": {
+                "withChange": "You dropped it; the factory closed the PR without merging",
+                "withoutChange": "You dropped it before a change was proposed"
+              }
+            }
           },
           {
             "value": "reshape",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "Needs shaping",
+              "story": {
+                "withChange": "You sent it back to shaping; the PR stays open as a draft",
+                "withoutChange": "You sent it back to shaping before a change was proposed"
+              }
+            }
           },
           {
             "value": "not_closed",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "label": "The forge would not close the PR: close or draft it by hand",
+              "story": "The factory could not carry out your drop or reshape on the change; do it by hand"
+            }
           },
           {
             "value": "none",
             "startsNothing": true,
-            "final": false
+            "final": false,
+            "display": {
+              "story": "Drop or reshape found no drop or reshape answer and did nothing"
+            }
           }
         ]
       },
@@ -901,9 +1240,17 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Carries out drop or reshape"
+          }
         }
-      ]
+      ],
+      "display": {
+        "label": "Drop or reshape",
+        "short": "Carries out your answer",
+        "blurb": "Closes the pull request without merging when you drop it, or leaves it as a draft when you send it back to shaping."
+      }
     },
     {
       "name": "Wirasm/archon-software-factory:build",
@@ -947,7 +1294,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes or fixes the change"
+          }
         }
       ]
     },
@@ -1003,7 +1353,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Reads CI and PR reviews"
+          }
         }
       ]
     },
@@ -1087,7 +1440,10 @@
               "workflow": "Wirasm/archon-software-factory:review"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Code review"
+          }
         },
         {
           "id": "tests__tests",
@@ -1100,7 +1456,10 @@
               "workflow": "Wirasm/archon-software-factory:tests"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Test check"
+          }
         },
         {
           "id": "verdict__verdict",
@@ -1113,7 +1472,10 @@
               "workflow": "Wirasm/archon-software-factory:verdict"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Verdict"
+          }
         },
         {
           "id": "report__report",
@@ -1126,7 +1488,10 @@
               "workflow": "Wirasm/archon-software-factory:report"
             }
           ],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes the report"
+          }
         }
       ]
     },
@@ -1152,7 +1517,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Decides whether to build"
+          }
         }
       ]
     },
@@ -1198,7 +1566,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Product check"
+          }
         }
       ]
     },
@@ -1224,7 +1595,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Writes the report"
+          }
         }
       ]
     },
@@ -1275,7 +1649,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Code review"
+          }
         }
       ]
     },
@@ -1321,7 +1698,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Test check"
+          }
         }
       ]
     },
@@ -1372,7 +1752,10 @@
           "dependsOn": [],
           "loopGroup": null,
           "blocks": [],
-          "fanOut": null
+          "fanOut": null,
+          "display": {
+            "label": "Verdict"
+          }
         }
       ]
     }

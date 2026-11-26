@@ -6402,6 +6402,22 @@ export interface components {
       deprecated?: {
         message: string;
       };
+      display?: {
+        label: string;
+        short?: string;
+        blurb?: string;
+        outcomes?: {
+          [key: string]: {
+            label?: string;
+            story?:
+              | string
+              | {
+                  withChange: string;
+                  withoutChange: string;
+                };
+          };
+        };
+      };
       nodes: components['schemas']['DagNode'][];
       result?: {
         outcome?: string;
@@ -6422,6 +6438,10 @@ export interface components {
     DagNode: {
       id: string;
       description?: string;
+      display?: {
+        label: string;
+        text?: string;
+      };
       depends_on?: string[];
       when?: string;
       /** @enum {string} */
@@ -12078,6 +12098,15 @@ export interface components {
             value: string;
             startsNothing: boolean;
             final: boolean;
+            display?: {
+              label?: string;
+              story?:
+                | string
+                | {
+                    withChange: string;
+                    withoutChange: string;
+                  };
+            };
           }[];
         } | null;
         asks: boolean;
@@ -12094,7 +12123,16 @@ export interface components {
           fanOut: {
             workflow: string;
           } | null;
+          display?: {
+            label: string;
+            text?: string;
+          };
         }[];
+        display?: {
+          label: string;
+          short?: string;
+          blurb?: string;
+        };
       }[];
       entries: {
         binding: string;
@@ -12250,6 +12288,10 @@ export interface components {
           fanOut: {
             workflow: string;
           } | null;
+          display?: {
+            label: string;
+            text?: string;
+          };
         }[];
       }[];
       discoveryErrors: {
@@ -12272,9 +12314,9 @@ export interface components {
         };
         stages: {
           [key: string]: {
-            label: string;
+            label?: string;
             short?: string;
-            blurb: string;
+            blurb?: string;
             steps?: {
               [key: string]: string;
             };
@@ -12383,24 +12425,7 @@ export interface components {
               workflow: string;
               pointer: string;
             }[];
-        map: {
-          cards: {
-            id: string;
-            label?: string;
-            short?: string;
-            blurb?: string;
-            stages: string[];
-          }[];
-          edges?: {
-            from: string;
-            to: string;
-            label: string;
-          }[];
-          notes?: {
-            text: string;
-            near: string;
-          }[];
-        };
+        merged?: string;
         howItWorks: {
           title: string;
           caption: string;

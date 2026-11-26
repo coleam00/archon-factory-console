@@ -2,7 +2,9 @@
  * The one place a factory surface decides which map it draws (DESIGN.md, COMBINED direction:
  * "ONE check where the map is drawn"). A pack that ships a curated view file the server read
  * and checked without an error draws the curated map; every other answer draws the map derived
- * from the pack graph and its document groups. The two are never merged, stage by stage or
+ * from the pack graph and its document groups. An entry naming what the graph lacks is no
+ * error: the server serves the view without it and lists it as a warning, so only a file that
+ * does not read, validate or agree with itself is refused here. The two are never merged, stage by stage or
  * otherwise. The Overview's map and How it works both call this.
  */
 import type { FactoryView, PackView } from '../api';

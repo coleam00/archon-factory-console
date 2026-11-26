@@ -29,6 +29,7 @@ import {
   type CardPack,
   type CardProgress,
 } from './lib/item-card';
+import { withGraphWords } from './lib/graph-words';
 
 /** What one pack's reads gave: its graph's stages and its view, or that a read failed. */
 type PackReadResult = CardPack | 'error';
@@ -60,7 +61,8 @@ function PackRead({
   const viewData = view.data?.view ?? null;
   useEffect(() => {
     if (failed) onRead(pack, 'error');
-    else if (stages !== undefined && viewRead) onRead(pack, { stages, view: viewData ?? null });
+    else if (stages !== undefined && viewRead)
+      onRead(pack, { stages, view: viewData === null ? null : withGraphWords(viewData, stages) });
   }, [failed, onRead, pack, stages, viewData, viewRead]);
   return null;
 }

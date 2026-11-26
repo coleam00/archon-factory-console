@@ -29,7 +29,7 @@ const view = (stage: string) => ({
   title: 'Factory',
   summary: 'x',
   stages: { [stage]: { label: 'Make', blurb: 'x' } },
-  map: { cards: [{ id: 'make', stages: [stage] }] },
+  merged: stage,
   howItWorks: {
     title: 'x',
     caption: 'x',
@@ -55,16 +55,22 @@ describe('checkView', () => {
     expect(checkView(view('make'), graph)).toEqual({ code: 0, lines: ['0 errors, 0 warnings'] });
   });
 
-  test('exits 1 on an unknown stage and still prints the warnings', () => {
+  test('exits 0 on an unknown stage, printing each dropped entry with the other warnings', () => {
     const report = checkView(view('deploy'), graph);
-    expect(report.code).toBe(1);
-    expect(report.lines.map(entry => entry.split(':')[0])).toEqual([
+    expect(report.code).toBe(0);
+    // Each line is `path: [severity] message`; which entries drop, and why, is the reconcile's.
+    expect(report.lines.map(entry => entry.split(': [')[0])).toEqual([
       'stages.deploy',
-      'map.cards.0.stages.0',
-      'map.cards',
+      'merged',
       'stages',
-      '2 errors, 2 warnings',
+      '0 errors, 3 warnings',
     ]);
+    expect(report.lines.slice(0, -1).every(entry => entry.includes(': [warning] '))).toBe(true);
+  });
+
+  test('exits 1 on a fault drift cannot cause', () => {
+    const twice = { ...view('make'), retired: ['old', 'old'] };
+    expect(checkView(twice, graph).code).toBe(1);
   });
 
   test('exits 1 on a file the schema refuses, before comparing names', () => {

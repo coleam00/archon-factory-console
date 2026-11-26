@@ -1,29 +1,29 @@
 /**
  * A pack's factory view: how a console presents the pack as a software factory. The pack's
  * author ships it as `<pack>/.shared/factory-view.json`, hand-curated, and it is presentation
- * only: words for the pack's groups, stages, steps and outcomes, the Overview map's cards, the
- * How it works picture (`factory-view-how-it-works.ts`), drill-down cards and story wording,
- * and where a console finds an item's rounds, returns and change in its runs' records
- * (`factory-view-progress.ts`).
+ * only: words for the pack's groups, stages, steps and outcomes, the How it works picture
+ * (`factory-view-how-it-works.ts`), drill-down cards and story wording, which stage items
+ * leave the map by (`merged`), and where a console finds an item's rounds, returns and change
+ * in its runs' records (`factory-view-progress.ts`). The Overview map lays itself out from the
+ * graph; nothing here places or labels its cards or arrows.
  *
  * Structure is never stated here. Which stages exist, their order, their groups, steps,
  * outcomes and the arrows between them come from the pack graph
  * (`GET /api/packs/{pack}/graph`); this file only names them, by a stage's `workflow` name.
- * Whether every name is one the graph has is `checkFactoryView` (`factory-view-check.ts`),
- * run when the file is read and by `bun run check:factory-view`.
+ * An entry naming what the graph lacks is left out of the view served, with a warning
+ * (`reconcileFactoryView`, `factory-view-check.ts`), run when the file is read and by
+ * `bun run check:factory-view`.
  */
 import { z } from 'zod';
+import { outcomeStorySchema } from './display';
 import { howItWorksSchema } from './factory-view-how-it-works';
 import { progressDeclarations } from './factory-view-progress';
 
 export const FACTORY_VIEW_FILE = 'factory-view.json';
-/** A map note may sit by the Needs-you list instead of a card. */
-const NEAR_NEEDS_YOU = 'needs-you';
 
 const labelSchema = z.string().min(1).max(80);
 /** One plain sentence a person reads: no placeholders, no markup. */
 const sentenceSchema = z.string().trim().min(1).max(160);
-const cardIdSchema = z.string().regex(/^[a-z][a-z0-9-]*$/, 'a lowercase slug such as "plan"');
 /** A pack graph stage's `workflow` name: its authored `name:`. */
 const stageNameSchema = z.string().regex(/^[A-Za-z0-9_.-]+$/, 'a stage workflow name');
 /**
@@ -84,12 +84,15 @@ const drilldownSchema = z.strictObject({
     .min(1),
 });
 
+// A stage's words live in its workflow's `display:` and reach the console through the pack
+// graph; an entry here is the fallback for a pack whose YAML carries none, and the home of
+// what YAML has no construct for (the drill-down's phases).
 const stageSchema = z.strictObject({
-  label: labelSchema,
+  label: labelSchema.optional(),
   /** At most 24 characters: what one row of a map card holding several stages shows whole. */
   short: z.string().min(1).max(24).optional(),
   /** One plain-words line: what this stage does to an item. */
-  blurb: z.string().min(1).max(300),
+  blurb: z.string().min(1).max(300).optional(),
   /** Display names for the stage's steps, by step id. A step with none reads as its id. */
   steps: z.record(stepIdSchema, labelSchema).optional(),
   /** What the stage does, step by step, in plain words, for the stage modal. */
@@ -106,12 +109,7 @@ const stageSchema = z.strictObject({
 const outcomeSchema = z
   .strictObject({
     label: labelSchema.optional(),
-    story: z
-      .union([
-        sentenceSchema,
-        z.strictObject({ withChange: sentenceSchema, withoutChange: sentenceSchema }),
-      ])
-      .optional(),
+    story: outcomeStorySchema.optional(),
     reads: z.enum(['ended', 'parked', 'awaits', 'returned']).optional(),
     next: sentenceSchema.optional(),
   })
@@ -128,74 +126,6 @@ const wordsSchema = z.strictObject({
   parked: labelSchema.optional(),
   workOrder: labelSchema.optional(),
   workOrders: labelSchema.optional(),
-});
-
-/**
- * The Overview map: its cards in drawing order, each standing for one or more graph stages,
- * which it names in order. A card holding one stage takes that stage's words; `label`,
- * `short` and `blurb` word a card holding several.
- */
-const mapCardSchema = z.strictObject({
-  id: cardIdSchema,
-  label: labelSchema.optional(),
-  short: z.string().min(1).max(24).optional(),
-  blurb: z.string().min(1).max(300).optional(),
-  stages: z.array(stageNameSchema).min(1),
-});
-
-const mapShape = z.strictObject({
-  cards: z.array(mapCardSchema).min(1),
-  /**
-   * Words for the map's arrows, not the arrows: the map draws what the pack graph connects
-   * between two cards' stages, and an entry here labels the arrow from card `from` to card `to`.
-   */
-  edges: z
-    .array(z.strictObject({ from: cardIdSchema, to: cardIdSchema, label: labelSchema }))
-    .optional(),
-  /** A short line drawn by a card, or by the Needs-you list (`near: "needs-you"`). */
-  notes: z
-    .array(z.strictObject({ text: z.string().min(1).max(160), near: z.string().min(1) }))
-    .optional(),
-});
-
-type Issue = { path: (string | number)[]; message: string };
-
-/** Card ids are unique, a stage sits on one card, and edges and notes name cards the map has. */
-function mapIssues(map: z.infer<typeof mapShape>): Issue[] {
-  const issues: Issue[] = [];
-  const ids = new Set<string>();
-  const holder = new Map<string, string>();
-  map.cards.forEach((card, c) => {
-    if (ids.has(card.id))
-      issues.push({ path: ['cards', c, 'id'], message: `card "${card.id}" is declared twice` });
-    ids.add(card.id);
-    card.stages.forEach((stage, s) => {
-      const already = holder.get(stage);
-      if (already !== undefined)
-        issues.push({
-          path: ['cards', c, 'stages', s],
-          message: `stage "${stage}" is on card "${already}" already`,
-        });
-      else holder.set(stage, card.id);
-    });
-  });
-  const refer = (path: Issue['path'], id: string, allowed?: string): void => {
-    if (!ids.has(id) && id !== allowed)
-      issues.push({ path, message: `names card "${id}", which the map does not have` });
-  };
-  map.edges?.forEach((edge, e) => {
-    refer(['edges', e, 'from'], edge.from);
-    refer(['edges', e, 'to'], edge.to);
-  });
-  map.notes?.forEach((note, n) => {
-    refer(['notes', n, 'near'], note.near, NEAR_NEEDS_YOU);
-  });
-  return issues;
-}
-
-const mapSchema = mapShape.superRefine((map, ctx) => {
-  for (const issue of mapIssues(map))
-    ctx.addIssue({ code: 'custom', path: issue.path, message: issue.message });
 });
 
 export const factoryViewSchema = z.strictObject({
@@ -218,7 +148,12 @@ export const factoryViewSchema = z.strictObject({
   answers: z.record(answerKeySchema, z.strictObject({ starts: sentenceSchema })).optional(),
   words: wordsSchema.optional(),
   ...progressDeclarations,
-  map: mapSchema,
+  /**
+   * The stage items leave the map by: the Overview draws it last, on its own, and counts the
+   * board's Merged column on it. The graph does not say which stage that is. Without it, the
+   * last in-flow stage is.
+   */
+  merged: stageNameSchema.optional(),
   howItWorks: howItWorksSchema,
 });
 export type FactoryView = z.infer<typeof factoryViewSchema>;

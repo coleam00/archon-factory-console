@@ -2,7 +2,8 @@
  * `bun run check:factory-view <pack dir> [--view <file>] [--repo <owner/name>]`: checks a pack's
  * factory view (`<pack dir>/.shared/factory-view.json`, or `--view`) against the pack's graph,
  * with `checkFactoryView`, the check `GET /api/packs/{pack}/view` runs when it reads the file.
- * It prints each problem as `path: [error|warning] message` and exits 1 on any error.
+ * It prints each problem as `path: [error|warning] message` and exits 1 on any error; an entry
+ * naming what the graph lacks is a `dropped:` warning, as the route leaves it out of the view.
  *
  * `<pack dir>` is a pack tree holding `archon-plugin.json`, such as an installed one at
  * `<home>/plugins/packs/<owner>/<name>/<commit>`; the pack's `owner/name` and commit are read

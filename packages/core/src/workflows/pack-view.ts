@@ -1,10 +1,11 @@
 /**
  * The factory view a pack ships (`<pack>/.shared/factory-view.json`, `schemas/factory-view.ts`)
- * for the project at `cwd`, checked against the pack's graph (`checkFactoryView`). It is read
+ * for the project at `cwd`, reconciled with the pack's graph (`reconcileFactoryView`): an entry
+ * naming what the graph lacks is left out of the view served, with a warning. It is read
  * through `readPackDeclarations` from the same copy of the pack the graph was read from.
  * `GET /api/packs/{pack}/view` serves it.
  */
-import { checkFactoryView, FACTORY_VIEW_PATH } from '@archon/workflows/factory-view-check';
+import { FACTORY_VIEW_PATH, reconcileFactoryView } from '@archon/workflows/factory-view-check';
 import { readPackDeclarations } from '@archon/workflows/pack-declarations';
 import {
   factoryViewSchema,
@@ -18,7 +19,10 @@ import { readPackGraph } from './pack-graph';
 export interface PackViewRead {
   /** The file read, or null when the pack ships none. */
   path: string | null;
-  /** The view, or null when there is no file or it does not read or validate. */
+  /**
+   * The view with every entry naming what the graph lacks left out, or null when there is no
+   * file or it does not read or validate.
+   */
   view: FactoryView | null;
   problems: FactoryViewProblem[];
 }
@@ -89,5 +93,6 @@ export async function packViewOf(
         message: issue.message,
       })),
     };
-  return { path: read.path, view: parsed.data, problems: checkFactoryView(parsed.data, graph) };
+  const reconciled = reconcileFactoryView(parsed.data, graph);
+  return { path: read.path, view: reconciled.view, problems: reconciled.problems };
 }
