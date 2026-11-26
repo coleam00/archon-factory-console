@@ -820,11 +820,11 @@
     },
     "catchup:changed": {
       "label": "changed",
-      "story": "Catch-up found the change differs from what was approved, or its CI is not green, and sent it to CI and the reviews"
+      "story": "Catch up found the change differs from what was approved, or its CI is not green, and sent it to CI and the reviews"
     },
     "catchup:ready": {
       "label": "unchanged and green",
-      "story": "Catch-up found the change unchanged and CI green, and sent it back to land"
+      "story": "Catch up found the change unchanged and CI green, and sent it back to land"
     },
     "close:dropped": {
       "label": "Dropped by you",
@@ -857,7 +857,7 @@
       "story": "Complexity recorded no judgment"
     },
     "complexity:recorded": {
-      "label": "recorded",
+      "label": "complexity recorded",
       "story": "Complexity recorded how hard it is to get right"
     },
     "discoveries:*": {
