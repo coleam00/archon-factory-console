@@ -26,6 +26,7 @@ function appWith(opts: {
   answerFile?: string;
 }) {
   const asked = { changes: 0, issues: 0 };
+  const answerFileAt = opts.answerFile;
   const deps: ForgeRouteDeps = {
     remote: async id => (id === 'p' ? REMOTE : undefined),
     deliveredRun: async run => opts.runs[run] ?? null,
@@ -43,7 +44,7 @@ function appWith(opts: {
     },
     waitMs: 20,
     now: opts.now,
-    answerFile: opts.answerFile === undefined ? undefined : forgeAnswerFile(opts.answerFile),
+    answerFile: answerFileAt === undefined ? undefined : forgeAnswerFile(() => answerFileAt),
   };
   const app = new OpenAPIHono();
   registerForgeRoutes(app, deps);
@@ -255,13 +256,13 @@ describe('GET /api/forge/subjects with an answer file', () => {
       });
       return { app, asked };
     };
-    const first = forgeAnswerFile(path);
+    const first = forgeAnswerFile(() => path);
     const before = ask(first);
     await before.app.request('/api/forge/subjects?codebaseId=p&issue=7');
     expect(before.asked.issues).toBe(1);
     await first.flush();
 
-    const after = ask(forgeAnswerFile(path));
+    const after = ask(forgeAnswerFile(() => path));
     const res = await after.app.request('/api/forge/subjects?codebaseId=p&issue=7');
     const body = forgeSubjectsResponseSchema.parse(await res.json());
     expect(body.issues[0]?.title).toBe('Learned');
@@ -295,7 +296,7 @@ describe('forgeAnswerFile', () => {
   test('writes what it learned, without failures, for the next server to load', async () => {
     const dir = track(await mkdtemp(join(tmpdir(), 'forge-answers-')));
     const path = join(dir, 'cache', 'forge-subjects.json');
-    const first = forgeAnswerFile(path);
+    const first = forgeAnswerFile(() => path);
     await first.load();
     first.issues.set('r#1', {
       value: { number: 1, title: 'One', state: 'open', url: 'u1' },
@@ -313,7 +314,7 @@ describe('forgeAnswerFile', () => {
     first.changed();
     await first.flush();
 
-    const next = forgeAnswerFile(path);
+    const next = forgeAnswerFile(() => path);
     await next.load();
     expect([...next.issues]).toEqual([
       ['r#1', { value: { number: 1, title: 'One', state: 'open', url: 'u1' }, at: 7 }],

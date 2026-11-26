@@ -171,7 +171,7 @@ export function registerApiRoutes(
     deliveredRun: deliveredRunFrom(createWorkflowStore(), run => queueSource.branchOf(run)),
     changeMergeState: (lookup, branches) => changeMergeState(lookup, branches, forgeOptions),
     viewWorkItem: (number, remote) => viewWorkItem(number, remote, forgeOptions),
-    answerFile: forgeAnswerFile(join(getArchonHome(), 'cache', 'forge-subjects.json')),
+    answerFile: forgeAnswerFile(() => join(getArchonHome(), 'cache', 'forge-subjects.json')),
   });
   const packCodebaseCwd = async (id: string): Promise<string | null> =>
     (await codebaseDb.getCodebase(id))?.default_cwd ?? null;

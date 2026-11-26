@@ -72,7 +72,13 @@ function entries<T>(raw: Record<string, unknown>, schema: z.ZodType<Kept<T>>): [
   });
 }
 
-export function forgeAnswerFile(path: string): ForgeAnswerFile {
+/**
+ * The answer file at `where()`, asked for on first use: a server builds this while it registers
+ * its routes, and registering reads nothing, not even where the home is.
+ */
+export function forgeAnswerFile(where: () => string): ForgeAnswerFile {
+  let resolved: string | undefined;
+  const at = (): string => (resolved ??= where());
   const issues = new Map<string, Kept<WorkItemAnswer>>();
   const changes = new Map<string, Kept<ChangeMergeState>>();
   let loading: Promise<void> | undefined;
@@ -80,6 +86,7 @@ export function forgeAnswerFile(path: string): ForgeAnswerFile {
   let writing: Promise<void> = Promise.resolve();
 
   const read = async (): Promise<void> => {
+    const path = at();
     let text: string;
     try {
       text = await readFile(path, 'utf8');
@@ -111,6 +118,7 @@ export function forgeAnswerFile(path: string): ForgeAnswerFile {
       issues: kept(issues, value => !('unknown' in value)),
       changes: kept(changes, value => value.merged !== 'unknown'),
     });
+    const path = at();
     const temp = `${path}.${String(process.pid)}.tmp`;
     try {
       await mkdir(dirname(path), { recursive: true });
