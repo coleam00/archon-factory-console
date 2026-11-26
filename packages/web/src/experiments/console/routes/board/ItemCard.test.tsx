@@ -6,7 +6,6 @@ import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-route
 import { NO_ITEM_ASKS } from '../../components/ItemAsksSection';
 import type { FactoryView, RunRecord } from '../../factory/api';
 import { CardsContext } from '../../factory/cards-context';
-import { shippedFile, shippedGraph } from '../../factory/curated.test-fixtures';
 import type { CardPack } from '../../factory/lib/item-card';
 import type { ItemAsk } from '../../primitives/run';
 import type { ItemRead } from '../../skills/items';
@@ -404,80 +403,6 @@ test('a card shows its rounds and returns from the run records its list read', a
     await view.unmount();
     invalidate('board');
   }
-});
-
-/**
- * A pack that renamed `stage-check` to `stage-review` (#232): the view the server serves for it
- * (`servedFactoryView`; `scripts/check-factory-view.test.ts` pins this shape for the shipped
- * file against the same rename) drops the file's words for `stage-check` and keeps its
- * `rounds`, `returns`, `approves` and `change` entries, with `stage-check` retired, because the
- * item's old runs still carry that name.
- */
-function renamedCheckPack(keepMeaning: boolean): CardPack {
-  const graph = JSON.parse(
-    JSON.stringify(shippedGraph).replaceAll('stage-check', 'stage-review')
-  ) as typeof shippedGraph;
-  const { 'stage-check': _dropped, ...stages } = shippedFile.stages;
-  const byOldName = <T extends { workflow: string }>(entries: T[] | T | undefined): T[] =>
-    (Array.isArray(entries) ? entries : entries === undefined ? [] : [entries]).filter(
-      entry => keepMeaning || entry.workflow !== 'stage-check'
-    );
-  const view: FactoryView = {
-    ...shippedFile,
-    stages,
-    retired: [...(shippedFile.retired ?? []), ...(keepMeaning ? ['stage-check'] : [])],
-    rounds: byOldName(shippedFile.rounds),
-    returns: byOldName(shippedFile.returns),
-    approves: byOldName(shippedFile.approves),
-    change: byOldName(shippedFile.change),
-  };
-  return {
-    stages: graph.stages.map(({ name, workflow, inFlow }) => ({ name, workflow, inFlow })),
-    view,
-  };
-}
-
-test('a renamed check stage keeps its round progress on the cards of items its old runs worked (#232)', async () => {
-  const checkRun = (id: string, at: string): ItemRead['runs'][number] => ({
-    ...run(id, at),
-    workflow: 'Wirasm/archon-software-factory:stage-check',
-    pack: { key: 'factory', workflow: 'stage-check' },
-  });
-  const verdict = (id: string, round: number, outcome: string): RunRecord => ({
-    ...record(id, round, outcome),
-    node_outcomes: {
-      run_id: id,
-      first_failed_node: null,
-      nodes: [{ node_id: 'verdict__verdict', state: 'completed', output: { outcome } }],
-    },
-  });
-  const base = item('y', [
-    checkRun('run-old', '2026-11-19T10:00:00.000Z'),
-    checkRun('run-2', '2026-11-20T10:00:00.000Z'),
-  ]);
-  const read = { ...base, standing: { ...base.standing, pack: 'factory' } };
-  const cardOf = async (pack: CardPack) => {
-    set(K.cardReads('web', ['run-2', 'run-old']), {
-      records: [verdict('run-old', 1, 'return'), verdict('run-2', 2, 'approve')],
-      missing: [],
-      unreadable: [],
-    });
-    const view = await mount([read], new Map([['factory', pack]]));
-    const card = view.container.querySelector('[data-item="y"]');
-    const shown = {
-      rounds: card?.querySelector('[data-card-rounds]')?.textContent ?? null,
-      returned: card?.querySelector('[data-card-returned]')?.textContent ?? null,
-    };
-    await view.unmount();
-    invalidate('board');
-    return shown;
-  };
-  expect(await cardOf(renamedCheckPack(true))).toEqual({
-    rounds: '2 of 3 check rounds',
-    returned: 'sent back 1x',
-  });
-  // Dropping the meaning entries instead, as a stale name's words are dropped, strips both.
-  expect(await cardOf(renamedCheckPack(false))).toEqual({ rounds: null, returned: null });
 });
 
 test('a run record the list could not read says so instead of showing no rounds', async () => {

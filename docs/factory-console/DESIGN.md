@@ -113,6 +113,9 @@ Visual standard below still bind everything a person sees):
 outcomes, asks and arrows. The view JSON names workflows, steps and outcomes only to give them
 words, a group and a position; it never lists or adds structure. A check fails when the view
 names something the graph lacks and warns when the graph has something the view leaves out.
+*Superseded on `combined` by the COMBINED direction (#237): the view gives no positions, a name
+the graph lacks drops only its entry, and every problem, including an in-flow stage, step or
+outcome without words, is a check error and is listed on the Overview and How it works.*
 
 **One of each.** One items-in-a-stage list (board column, map card, stage modal), one ask
 (Archon's own ask card), one item history (the item page), one graph renderer (Archon's existing
@@ -641,7 +644,9 @@ The section has **two separate things**, each with its own file:
    grows to carry, per stage, a curated drill-down (numbered phase columns of a few plain cards, each
    card `covers` the real step ids it stands for) and display names for steps. The check (The factory
    view declaration) fails on a step a card names that the pack graph lacks and warns on a real step
-   no card covers. The live map
+   no card covers. *Superseded on `combined` by the COMBINED direction (#237): a covered step the
+   graph lacks drops only that card's entry, and a step without a display name is a check error.*
+   The live map
    is one row of stages with one feedback lane underneath; clicking a stage opens it.
 
 **Step names, everywhere a person reads:** never a raw engine id such as `build__build` or

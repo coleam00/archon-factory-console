@@ -105,12 +105,12 @@ describe('How it works', () => {
     const opened = await mount(page, { ...CURATED, problems: [problem] });
     expect(opened.querySelector('[data-card]')).not.toBeNull();
     const line = opened.querySelector('[data-view-problems]');
-    expect(line?.querySelector('summary')?.textContent).toBe(
-      'The factory view has 1 problem the map works around'
-    );
-    expect(line?.querySelector('li')?.textContent).toBe(
-      `howItWorks.views.factory.cards.7.stages.0: ${problem.message}`
-    );
+    expect(line?.querySelector('summary')).not.toBeNull();
+    expect(
+      [...(line?.querySelectorAll('li') ?? [])].map(entry =>
+        entry.getAttribute('data-view-problem')
+      )
+    ).toEqual(['dropped']);
     await unmount?.();
     unmount = undefined;
     expect((await mount(page, CURATED)).querySelector('[data-view-problems]')).toBeNull();

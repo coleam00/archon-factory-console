@@ -358,7 +358,3 @@ export function reconcileFactoryView(
   ungrouped(r);
   return { view: r.view, problems };
 }
-
-/** The problems of `view` against `graph`, for a caller that does not draw the view. */
-export const checkFactoryView = (view: FactoryView, graph: PackGraph): FactoryViewProblem[] =>
-  reconcileFactoryView(view, graph).problems;

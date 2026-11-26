@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { checkFactoryView, reconcileFactoryView } from './factory-view-check';
+import { reconcileFactoryView } from './factory-view-check';
 import type { PackGraph, PackGraphArrow } from './pack-graph';
 import type { FactoryView } from './schemas/factory-view';
 
@@ -144,7 +144,7 @@ const edited = (edit: (v: FactoryView) => void): FactoryView => {
 
 /** Each problem as `kind path`. */
 const problems = (edit: (v: FactoryView) => void = () => undefined, g: PackGraph = graph()) =>
-  checkFactoryView(edited(edit), g).map(p => `${p.kind} ${p.path.join('.')}`);
+  reconcileFactoryView(edited(edit), g).problems.map(p => `${p.kind} ${p.path.join('.')}`);
 
 /** `view()` after `edit`, as a console is served it against `g`. */
 const served = (edit: (v: FactoryView) => void, g: PackGraph = graph()): FactoryView =>

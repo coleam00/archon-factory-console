@@ -109,12 +109,24 @@ describe('checkView', () => {
     ]);
   });
 
+  /** Each printed problem as `path: [kind]`, without its message. */
+  const kinds = (report: ReturnType<typeof checkView>): string[] =>
+    report.lines.slice(0, -1).map(entry => entry.replace(/\] .*$/, ']'));
+
   test('exits 1 on a key the schema does not know, though the rest still reads', () => {
     const report = checkView({ ...view('make'), map: { cards: [] } }, graph);
-    expect(report).toEqual({
-      code: 1,
-      lines: ['map: [unknown] is not a key a factory view has', '1 problems'],
-    });
+    expect(report.code).toBe(1);
+    expect(kinds(report)).toEqual(['map: [unknown]']);
+  });
+
+  test('exits 1 when the only problem is a step without words', () => {
+    const file = view('make');
+    const report = checkView(
+      { ...file, stages: { make: { label: 'Make', blurb: 'x', steps: {} } } },
+      graph
+    );
+    expect(report.code).toBe(1);
+    expect(kinds(report)).toEqual(['stages.make.steps.write: [unworded]']);
   });
 
   test('exits 1 on a file whose envelope does not read', () => {

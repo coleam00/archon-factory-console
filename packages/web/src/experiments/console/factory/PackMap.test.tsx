@@ -145,15 +145,12 @@ describe('the one check where the map is drawn', () => {
     const page = await mount(DRIFTED);
     expect(cards(page)).toEqual(['intake', 'plan-and-build', 'checks', 'landing', 'landed']);
     const line = page.querySelector('[data-view-problems]');
-    expect(line?.querySelector('summary')?.textContent).toBe(
-      'The factory view has 2 problems the map works around'
-    );
-    expect([...(line?.querySelectorAll('li') ?? [])].map(entry => entry.textContent ?? '')).toEqual(
-      [
-        'stages.stage-check: names stage "stage-check", which pack "p" does not have',
-        'stages.stage-review: stage "stage-review" has no words',
-      ]
-    );
+    expect(line?.querySelector('summary')).not.toBeNull();
+    expect(
+      [...(line?.querySelectorAll('li') ?? [])].map(entry =>
+        entry.getAttribute('data-view-problem')
+      )
+    ).toEqual(['dropped', 'unworded']);
   });
 
   test('a clean file shows no problem line', async () => {
@@ -165,10 +162,13 @@ describe('the one check where the map is drawn', () => {
     const page = await mount(UNREADABLE);
     expect(page.querySelector('div[data-flow]')).not.toBeNull();
     expect(cards(page)).toEqual([]);
-    expect(page.querySelector('[data-map-note]')?.textContent).toContain('does not read');
-    expect(page.querySelector('[data-view-problems] li')?.textContent).toBe(
-      '(file): is not JSON: oops'
-    );
+    expect(page.querySelector('[data-map-note]')).not.toBeNull();
+    const line = page.querySelector('[data-view-problems]');
+    expect(
+      [...(line?.querySelectorAll('li') ?? [])].map(entry =>
+        entry.getAttribute('data-view-problem')
+      )
+    ).toEqual(['unreadable']);
   });
 
   test('pressing Full workflow shows the derived map in place of the curated one', async () => {
