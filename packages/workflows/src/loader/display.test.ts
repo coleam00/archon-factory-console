@@ -285,4 +285,45 @@ nodes:
     // Absent, never null, so a pack without display: serves the same JSON as before.
     expect(only?.nodes.find(n => n.id === 'rounds')).not.toHaveProperty('display');
   });
+
+  it('checks covered and marked steps of an including workflow by their expanded ids', async () => {
+    const check = `name: check
+description: an included check
+nodes:
+  - id: verdict
+    bash: 'true'
+`;
+    const stage = (covers: string) => `name: stage
+description: includes the check at the top and in a loop body
+display:
+  label: Checks
+  phases:
+    - label: Check
+      cards:
+        - { title: Verdict, text: Each verdict, icon: gavel, kind: check, covers: [${covers}] }
+nodes:
+  - id: rounds
+    loop_group:
+      until_bash: 'true'
+      max_iterations: 2
+      nodes:
+        - id: verdict
+          include: check
+  - id: final
+    include: check
+    depends_on: [rounds]
+`;
+    const good = await discoverFiles(root(), {
+      'check.yaml': check,
+      'stage.yaml': stage('rounds.verdict__verdict, final__verdict'),
+    });
+    expect(good.errors).toEqual([]);
+    const bad = await discoverFiles(root(), {
+      'check.yaml': check,
+      'stage.yaml': stage('final__gone'),
+    });
+    expect(bad.errors.map(error => error.error).join('\n')).toContain(
+      "names step 'final__gone', which it does not have"
+    );
+  });
 });

@@ -850,6 +850,7 @@ step or outcome value with no words). Groups are the pack document's, checked by
 validate` (#276). Uncovered drill-down steps and unlabelled arrows are not reported. No
 pin file exists: the check reads an installed pack at its install path, or any pack folder with
 `--repo <owner/name>`, at the folder's own git HEAD or an unknown commit, which it says.*
+*Superseded again on `combined` (#277): the file is the How it works explainer only (`version`, `summary`, `howItWorks`). Words, drill-downs, story wording, answers, `retired`, `rounds`, `returns`, `approves`, `change` and `merged` moved into the pack's YAML (each workflow's `display:` block and the document's `words` and `exit`), served by the graph. The check's kinds are `unreadable`, `unknown` (a key the file does not have, an older file's `stages` among them) and `dropped` (a stage or edge the picture names that the graph lacks); words a stage lacks are `archon validate` warnings.*
 
 ## Data
 
@@ -1067,8 +1068,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   Retry; a failed refresh says this stage shows the last items read, and why, with a Retry, so
   no tab passes old items off as here now and none glows a step from them; a slow read says it
   is trying again. No tab draws a notice of its own:
-  - **What this stage does** (first when the view file gives the stage a drill-down), with the
-    line "The factory's summary of this stage, from its view file.": numbered phase columns of
+  - **What this stage does** (first when the stage's workflow gives it a drill-down,
+    `display.phases`; #277), with the line "The factory's summary of this stage, from its
+    workflow.": numbered phase columns of
     plain cards, the loop as one labelled frame around the phases it repeats, a card glowing
     and naming the items on a step it covers now. A card is plain text: it links nowhere (there
     is no step page, and Archon's builder does not show pack workflows).

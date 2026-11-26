@@ -377,7 +377,7 @@ describe('validateWorkflowsCommand', () => {
     }
   });
 
-  test('warns for each in-flow stage, step, outcome and settled option without display words, and refuses a replaces naming a stage the pack has', async () => {
+  test('warns for each in-flow stage, step and outcome without display words, and refuses a replaces naming a stage the pack has', async () => {
     const bindings = {
       'build-after-review': packRunEndedBindingSchema.parse({
         workflow: 'build',
