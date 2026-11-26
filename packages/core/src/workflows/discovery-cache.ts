@@ -9,11 +9,12 @@
  * bundled workflows and the installed packs), plus the home's config and env files and the
  * project's configured command folder: path, modification time and size of each. Each call
  * stamps again (a few hundred `stat`s) and discovers again when anything was edited, added or
- * removed. A directory reached through a symlink is stamped, not walked into.
+ * removed.
  *
- * Not kept: a project that is itself a pack folder (`archon-plugin.json` at its root), whose
- * whole tree discovery reads; it is discovered on every call. A discovery that rejects is not
- * kept either.
+ * Not kept, so discovered on every call: a project that is itself a pack folder
+ * (`archon-plugin.json` at its root), whose whole tree discovery reads, and a root with a link
+ * (a symlink or junction) anywhere under the stamped paths, since an edit behind a link does not
+ * show in the stamp. A discovery that rejects is not kept either.
  */
 import { readdir, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -25,6 +26,9 @@ import { discoverWorkflowsWithConfig } from '@archon/workflows/workflow-discover
 import { liveSourceRoots } from '@archon/workflows/workflow-source';
 
 type LoadConfig = Parameters<typeof discoverWorkflowsWithConfig>[1];
+
+/** What a link under a stamped path adds to the stamp: a stamp holding it is never kept. */
+const LINK = 'link';
 
 /** `path` and everything under it, one line per entry, into `out`. */
 async function stampTree(path: string, out: string[]): Promise<void> {
@@ -44,7 +48,8 @@ async function stampTree(path: string, out: string[]): Promise<void> {
     entries.map(async entry => {
       const child: string[] = [];
       const at = join(path, entry.name);
-      if (entry.isDirectory()) await stampTree(at, child);
+      if (entry.isSymbolicLink()) child.push(LINK);
+      else if (entry.isDirectory()) await stampTree(at, child);
       else {
         const s = await stat(at).catch(() => null);
         child.push(s === null ? `- ${at}` : `f ${at} ${String(s.mtimeMs)} ${String(s.size)}`);
@@ -62,8 +67,8 @@ async function exists(path: string): Promise<boolean> {
   );
 }
 
-/** The stamp of what live discovery from `root` reads. */
-async function discoveryStamp(root: string, loadConfig: LoadConfig): Promise<string> {
+/** The stamp of what live discovery from `root` reads; null when a link makes it blind. */
+async function discoveryStamp(root: string, loadConfig: LoadConfig): Promise<string | null> {
   const roots = liveSourceRoots(root);
   const folder = (await loadConfig(root)).commands?.folder;
   const out: string[] = [];
@@ -79,7 +84,7 @@ async function discoveryStamp(root: string, loadConfig: LoadConfig): Promise<str
     archonPaths.getArchonEnvPath(),
   ])
     await stampTree(path, out);
-  return out.join('\n');
+  return out.includes(LINK) ? null : out.join('\n');
 }
 
 /** `discoverWorkflowsWithConfig(root)`, kept per root while its stamp is unchanged. */
@@ -93,6 +98,7 @@ export function createDiscoveryCache(
   return async root => {
     if (await exists(join(root, PLUGIN_MANIFEST_FILE))) return discover(root);
     const stamp = await discoveryStamp(root, loadConfig);
+    if (stamp === null) return discover(root);
     const entry = kept.get(root);
     if (entry?.stamp === stamp) return entry.result;
     const result = discover(root);

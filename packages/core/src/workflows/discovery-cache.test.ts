@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { trackTempRoots } from '@archon/paths/test-utils';
@@ -60,6 +60,17 @@ describe('createDiscoveryCache', () => {
   test('keeps nothing for a project that is itself a pack folder', async () => {
     const root = await project();
     await writeFile(join(root, 'archon-plugin.json'), '{"kind":"provider"}');
+    const discover = createDiscoveryCache(async () => ({}), providerRegistry);
+    const first = await discover(root);
+    expect(await discover(root)).not.toBe(first);
+  });
+
+  test('keeps nothing for a root with a link, whose edits the stamp cannot see', async () => {
+    const root = await project();
+    const elsewhere = track(await mkdtemp(join(tmpdir(), 'discovery-cache-linked-')));
+    await writeFile(join(elsewhere, 'two.yaml'), workflow('two'));
+    // A junction needs no privilege on Windows and is a plain directory link elsewhere.
+    await symlink(elsewhere, join(root, '.archon', 'workflows', 'linked'), 'junction');
     const discover = createDiscoveryCache(async () => ({}), providerRegistry);
     const first = await discover(root);
     expect(await discover(root)).not.toBe(first);
