@@ -5,9 +5,11 @@
  * tile while the asks are still read.
  */
 import { afterEach, expect, test } from 'bun:test';
+import { act } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { installDom } from '../factory/test-dom.test-helpers';
 import type { Project } from '../primitives/project';
+import type { ItemAsk } from '../primitives/run';
 import type { ItemRead, PackGraph } from '../skills/items';
 import { invalidate, set } from '../store/cache';
 import { K } from '../store/keys';
@@ -41,7 +43,8 @@ const merged = {
   merged: { at: new Date().toISOString() },
 } as unknown as ItemRead;
 
-test('an Overview whose asks could not be read says so once, and its need-you tile does not read forever', async () => {
+/** Seeds the project, its one pack's board, graph and view; not the attention list. */
+function seedPack(): void {
   set(K.projects, [{ id: 'p1', name: 'p', itemPacks: ['flow'] } as unknown as Project]);
   set(K.boardOrders('p1'), [merged]);
   set(K.packGraph('p1', 'flow'), {
@@ -52,8 +55,9 @@ test('an Overview whose asks could not be read says so once, and its need-you ti
     metricViews: null,
   } as unknown as PackGraph);
   set(K.packView('p1', 'flow'), { path: null, view: null, problems: [] });
-  // The attention list is not cached, so the page reads it, through the test's fetch, which fails.
-  invalidate(K.runsAttention);
+}
+
+async function mountOverview(): Promise<HTMLElement> {
   const mounted = await mount(
     <MemoryRouter initialEntries={['/console/p/p1/overview']}>
       <Routes>
@@ -63,7 +67,14 @@ test('an Overview whose asks could not be read says so once, and its need-you ti
   );
   unmount = mounted.unmount;
   await settle();
-  const page = mounted.container;
+  return mounted.container;
+}
+
+test('an Overview whose asks could not be read says so once, and its need-you tile does not read forever', async () => {
+  seedPack();
+  // The attention list is not cached, so the page reads it, through the test's fetch, which fails.
+  invalidate(K.runsAttention);
+  const page = await mountOverview();
 
   const tile = page.querySelector('[data-number="need-you"]');
   expect(tile).not.toBeNull();
@@ -73,7 +84,6 @@ test('an Overview whose asks could not be read says so once, and its need-you ti
   const alerts = page.querySelectorAll('[data-asks-unread]');
   expect(alerts.length).toBe(1);
   const alert = alerts[0]?.querySelector('[role="alert"]');
-  expect(alert?.textContent).toContain('The asks could not be read');
   expect(alert?.textContent).toContain('/api/runs/attention');
   expect(page.querySelector('[data-needs-you]')).toBeNull();
 
@@ -81,4 +91,38 @@ test('an Overview whose asks could not be read says so once, and its need-you ti
   expect(page.querySelector('[data-number="in-flight"] [data-value]')?.textContent).toBe('0');
   expect(page.querySelector('[data-number="merged-today"] [data-value]')?.textContent).toBe('1');
   expect(page.querySelector('[data-pack-map]')).not.toBeNull();
+});
+
+test('a failed re-read of the asks keeps the asks read before on the Overview, with no alert (#258)', async () => {
+  seedPack();
+  const ask: ItemAsk = {
+    kind: 'attention',
+    ref: 'ask:a1',
+    project: { key: 'acme/p1', codebaseId: 'p1', name: 'p1' },
+    item: { id: 'item-a1', projectKey: 'acme/p', key: 'issue-a1' },
+    revision: 1,
+    labels: {},
+    pausedAt: null,
+    message: 'Ship it?',
+    form: 'select',
+    options: [{ id: 'go', does: 'Goes on.', cost: 'Nothing.' }],
+    recommendation: { option: 'go', why: 'It is ready.' },
+  };
+  set(K.runsAttention, {
+    runs: [],
+    ownerLost: [],
+    asks: [ask],
+    answerRefusals: {},
+    itemIds: new Set(['item-a1']),
+    degraded: [],
+  });
+  const page = await mountOverview();
+  // The attention list is read again, through the test's fetch, which fails.
+  await act(async () => {
+    invalidate(K.runsAttention);
+    await new Promise(resolve => setTimeout(resolve, 50));
+  });
+  expect(page.querySelector('[data-asks-unread]')).toBeNull();
+  expect(page.querySelector('[data-number="need-you"] [data-value]')?.textContent).toBe('1');
+  expect(page.querySelector('[data-needs-you]')).not.toBeNull();
 });

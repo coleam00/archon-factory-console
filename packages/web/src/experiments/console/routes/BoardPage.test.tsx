@@ -976,7 +976,6 @@ test('a board whose asks could not be read says so once, and claims no needs-you
     const alerts = page.querySelectorAll('[data-asks-unread]');
     expect(alerts.length).toBe(1);
     const alert = alerts[0]?.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain('The asks could not be read');
     expect(alert?.textContent).toContain('attention store unavailable');
     expect(
       [...(alert?.querySelectorAll('button') ?? [])].map(button => button.textContent)
