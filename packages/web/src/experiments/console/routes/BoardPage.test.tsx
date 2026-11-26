@@ -249,7 +249,8 @@ test("a column header's chips count its cards: needs you by their buttons, the r
   set(K.runsAttention, {
     runs: [],
     ownerLost: [],
-    asks: [askOn('issue-a'), askOn('issue-c')],
+    // issue-a holds two asks: the header counts cards with a button (2), not asks (3).
+    asks: [askOn('issue-a'), { ...askOn('issue-a'), ref: 'ask:issue-a-2' }, askOn('issue-c')],
     answerRefusals: {},
     itemIds: new Set(['id-issue-a', 'id-issue-c']),
     degraded: [],
