@@ -1,6 +1,7 @@
 /**
  * One board column's header (Visual standard, rule 9; v1's `ColumnHeader.tsx`): its label, a
- * one-line subtitle, a group's blurb from the pack's document, its count, and a soft chip per state its cards are in. The Merged column
+ * one-line subtitle, a group's blurb from the pack's document, its count, and a soft chip per
+ * state its cards are in. The Merged column
  * carries its colour as a 3 px top bar. A stage column has none: on `combined` no column colour
  * is declared anywhere (v1 took it from its own column file, which the pack graph's groups
  * replace). An empty column is a compact header, so a pack's many stages keep their order on
