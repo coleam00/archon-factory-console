@@ -134,10 +134,6 @@ describe('the one check where the map is drawn', () => {
   test('a pack shipping a clean view file draws the curated map, not the derived one', async () => {
     const page = await mount(CURATED);
     expect(cards(page)).toEqual(['intake', 'plan-and-build', 'checks', 'landing', 'landed']);
-    // A group card carries its line from the pack's document, as the graph serves it.
-    expect(page.querySelector('[data-card="checks"] [data-card-blurb]')?.textContent).toBe(
-      shippedGraph.groups.find(group => group.name === 'Checks')?.blurb
-    );
     expect(stageLinks(page)).toEqual([
       'order',
       'triage',

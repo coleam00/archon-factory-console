@@ -754,11 +754,6 @@ test("the board's columns are the groups the pack's document declares, through t
       ['Make', 'issue-1'],
       ['check', 'issue-2'],
     ]);
-    // A group's column shows its document line; a lone stage's column has none.
-    const blurbs = [...board.container.querySelectorAll('[data-pack="flow"] [data-stage]')].map(
-      stage => stage.querySelector('[data-column-blurb]')?.textContent ?? null
-    );
-    expect(blurbs).toEqual(['x', null]);
   } finally {
     await board.unmount();
   }

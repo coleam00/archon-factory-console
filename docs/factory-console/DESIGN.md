@@ -586,8 +586,6 @@ text. The factory's own surfaces that point at an ask follow the rules above:
 - Subtitle: `--text-console-12`, `--text-tertiary`, one line, truncated, naming the column's stages
   by their labels, as the map names them ("Order, Triage"; the ids only as its hover title).
   The Merged column's subtitle is "last 7 days".
-- Blurb (a group's column only): its line from the pack's document, `--text-console-12`,
-  `--text-secondary`, one line, truncated, under the subtitle (#276).
 - Count: `--text-console-22`, `tabular-nums`; a skeleton bar while it is not known (rule 6).
 - State chips: `--text-console-12`, `rounded-full`, `px-2 py-0.5`, the state's soft background
   with the state's colour as text ("running 2", "needs you 1"). Only a state with a count above 0
@@ -999,14 +997,13 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   does not fit even at 0.75, the map opens at that scale at the row's start and pans sideways,
   so the flow reads left to right from Intake (owner ruling on #71).
 - **Cards in the card language** (rule 2), 184 px wide and at least 168 tall, the height set
-  by the card holding the most stages (336 for the shipped file, whose Intake holds five
-  stages), every card one size so the lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
+  by the card holding the most stages (216 for the shipped file, whose Intake holds Order,
+  Triage and Link), every card one size so the lane under them is straight: a 3 px top bar in the group colour, the group's icon and kind
   label ("Intake", "Build", "Check", "Merge", "Merged"), then:
   - a card of one stage: the stage label (Card title role, two lines at most), its one short
     line (the stage's `short`, at most 24 characters; without one, its blurb clamped to two lines),
     and its chips on the bottom row. The whole card opens the stage.
-  - a card of several stages: the column's label, its group's blurb from the pack's document
-    on one line (#276), then one row per stage, each opening its
+  - a card of several stages: the column's label, then one row per stage, each opening its
     stage: the stage label with its "here" chip, and under it its short line (or blurb,
     one line), which the stage's needs-you chip takes the place of while one waits there.
 - **Live chips** are rule 9's pills at `--text-console-12`: "2 here" (running colour with a

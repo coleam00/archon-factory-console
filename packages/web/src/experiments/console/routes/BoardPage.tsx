@@ -106,7 +106,6 @@ export function columnsOf(
 function Column({
   name,
   label,
-  blurb,
   stages,
   labelOf,
   items,
@@ -120,8 +119,6 @@ function Column({
   name: string;
   /** The column's heading: its group's name, or its lone stage's label. */
   label: string;
-  /** Its group's line from the pack's document; none for a lone stage. */
-  blurb?: string;
   /** The column's colour, as the bar on its header and on each card (Visual standard, rule 2). */
   accent?: string;
   /** The column's stages, by workflow id. */
@@ -153,7 +150,6 @@ function Column({
         labelHover={label === name ? undefined : name}
         subtitle={stages.map(labelOf).join(', ')}
         subtitleHover={stages.join(', ')}
-        blurb={blurb}
         items={items}
         bar={accent}
       />
@@ -401,7 +397,6 @@ export function PackBoard({
               key={column.name}
               name={column.name}
               label={column.heading}
-              blurb={column.grouped ? column.blurb : undefined}
               stages={column.stages}
               labelOf={labelOf}
               items={items.filter(read => column.stages.includes(stageOf(read) ?? ''))}

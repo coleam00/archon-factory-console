@@ -54,8 +54,6 @@ interface MapCardDecl {
   /** The column's id. */
   id: string;
   label: string;
-  /** Its group's line from the pack's document; a lone stage's card shows its own words. */
-  blurb: string;
   tone: ColumnTone;
   /** Its stages with a map card, in the column's order; never empty. */
   stages: string[];
@@ -101,7 +99,6 @@ export function mapCards(view: Declaration): MapCardDecl[] {
   return mapColumns(view).map(column => ({
     id: column.id,
     label: column.label,
-    blurb: column.blurb,
     tone: column.tone,
     stages: column.stages,
   }));
