@@ -365,6 +365,110 @@ describe('validateWorkflowsCommand', () => {
       expect(ungrouped.code).toBe(1);
       expect(ungrouped.issues.map(issue => issue.level)).toEqual(['error']);
       expect(ungrouped.issues[0]?.message).toContain("'build'");
+
+      await document('groups:\n  - name: Make\n    stages: [review, build]\nexit: ghost\n');
+      const exit = await run();
+      expect(exit.code).toBe(1);
+      expect(exit.issues.map(issue => issue.message)).toEqual([
+        "exit 'ghost' is not a stage of the pack's flow",
+      ]);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  test('warns for each in-flow stage, step, outcome and settled option without display words, and refuses a replaces naming a stage the pack has', async () => {
+    const bindings = {
+      'build-after-review': packRunEndedBindingSchema.parse({
+        workflow: 'build',
+        resource: 'build',
+        overlap: 'queue',
+        run_ended: { workflow: 'review', outcome: 'ready' },
+      }),
+    };
+    const reviewWith = (worded: boolean) => {
+      const entry = makeTestWorkflowWithSource({
+        name: 'review',
+        nodes: [
+          {
+            id: 'decide',
+            bash: 'true',
+            ...(worded ? { display: { label: 'Decides' } } : {}),
+            output_format: {
+              type: 'object',
+              properties: { outcome: { type: 'string', enum: ['ready', 'close'] } },
+              required: ['outcome'],
+            },
+          },
+        ],
+        returns: 'decide',
+        result: { outcome: 'outcome', ends: ['close'] },
+      });
+      entry.workflow.pack = { key: 'factory', workflow: 'review', source: 'project', bindings };
+      if (worded)
+        entry.workflow.display = {
+          label: 'Review',
+          outcomes: { ready: { label: 'ready' }, close: { label: 'closed' } },
+          replaces: [{ workflow: 'build' }],
+        };
+      return entry;
+    };
+    const build = makeTestWorkflowWithSource({
+      name: 'build',
+      nodes: [{ id: 'run', bash: 'true', display: { label: 'Builds it' } }],
+    });
+    build.workflow.pack = { key: 'factory', workflow: 'build', source: 'project', bindings };
+    build.workflow.display = { label: 'Build' };
+    mockDiscoverWorkflowsWithConfig.mockResolvedValue({
+      workflows: [reviewWith(false), build],
+      errors: [],
+    });
+    await writeFile(
+      join(validationCwd, 'archon-plugin.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        kind: 'workflow-pack',
+        name: 'factory',
+        description: 'Factory workflows',
+        entrypoints: { review: 'review/review.yaml', build: 'build/build.yaml' },
+      })
+    );
+    const write = spyOn(stdout, 'writeStdout').mockResolvedValue(undefined);
+    const run = async () => {
+      write.mockClear();
+      const code = await validateWorkflowsCommand(validationCwd, undefined, true);
+      const results = JSON.parse(String(write.mock.calls[0]?.[0]))
+        .results as validator.WorkflowValidationResult[];
+      const display = (workflow: string) =>
+        (results.find(r => r.workflowName === workflow)?.issues ?? []).filter(
+          issue => issue.field === 'display'
+        );
+      return { code, display };
+    };
+    try {
+      const bare = await run();
+      expect(bare.code).toBe(0);
+      expect(bare.display('review').map(issue => [issue.level, issue.message])).toEqual([
+        ['warning', "stage 'review' has no display.label"],
+        ['warning', "step 'decide' of stage 'review' has no display.label"],
+        ['warning', "outcome 'ready' of stage 'review' has no display.outcomes label"],
+        ['warning', "outcome 'close' of stage 'review' has no display.outcomes label"],
+      ]);
+      // Every word given: nothing to say.
+      expect(bare.display('build')).toEqual([]);
+
+      mockDiscoverWorkflowsWithConfig.mockResolvedValue({
+        workflows: [reviewWith(true), build],
+        errors: [],
+      });
+      const replaced = await run();
+      expect(replaced.code).toBe(1);
+      expect(replaced.display('review').map(issue => [issue.level, issue.message])).toEqual([
+        [
+          'error',
+          "stage 'review' display.replaces names 'build', which the pack still has as a stage",
+        ],
+      ]);
     } finally {
       write.mockRestore();
     }

@@ -6494,6 +6494,65 @@ export interface components {
       deprecated?: {
         message: string;
       };
+      display?: {
+        label: string;
+        short?: string;
+        blurb?: string;
+        story?:
+          | string
+          | {
+              withChange: string;
+              withoutChange: string;
+            };
+        outcomes?: {
+          [key: string]: {
+            label?: string;
+            story?:
+              | string
+              | {
+                  withChange: string;
+                  withoutChange: string;
+                };
+          };
+        };
+        answers?: {
+          [key: string]: {
+            label: string;
+          };
+        };
+        phases?: {
+          label: string;
+          cards: {
+            title: string;
+            text: string;
+            icon: string;
+            kind: string;
+            covers: string[];
+          }[];
+        }[];
+        marks?: {
+          node: string;
+          outcome: string;
+          means: string;
+        }[];
+        results?: {
+          [key: string]: string;
+        };
+        replaces?: {
+          workflow: string;
+          loops?: {
+            [key: string]: string;
+          };
+          marks?: {
+            node: string;
+            outcome: string;
+            means: string;
+          }[];
+          results?: {
+            [key: string]: string;
+          };
+        }[];
+      };
       nodes: components['schemas']['DagNode'][];
       result?: {
         outcome?: string;
@@ -6514,6 +6573,10 @@ export interface components {
     DagNode: {
       id: string;
       description?: string;
+      display?: {
+        label: string;
+        text?: string;
+      };
       depends_on?: string[];
       when?: string;
       /** @enum {string} */
@@ -13166,6 +13229,15 @@ export interface components {
             startsNothing: boolean;
             ends: boolean;
             stops: boolean;
+            display?: {
+              label?: string;
+              story?:
+                | string
+                | {
+                    withChange: string;
+                    withoutChange: string;
+                  };
+            };
           }[];
         } | null;
         observes: boolean;
@@ -13183,7 +13255,59 @@ export interface components {
           fanOut: {
             workflow: string;
           } | null;
+          display?: {
+            label: string;
+            text?: string;
+          };
         }[];
+        display?: {
+          label: string;
+          short?: string;
+          blurb?: string;
+          story?:
+            | string
+            | {
+                withChange: string;
+                withoutChange: string;
+              };
+          answers?: {
+            [key: string]: {
+              label: string;
+            };
+          };
+          phases?: {
+            label: string;
+            cards: {
+              title: string;
+              text: string;
+              icon: string;
+              kind: string;
+              covers: string[];
+            }[];
+          }[];
+          marks?: {
+            node: string;
+            outcome: string;
+            means: string;
+          }[];
+          results?: {
+            [key: string]: string;
+          };
+          replaces?: {
+            workflow: string;
+            loops?: {
+              [key: string]: string;
+            };
+            marks?: {
+              node: string;
+              outcome: string;
+              means: string;
+            }[];
+            results?: {
+              [key: string]: string;
+            };
+          }[];
+        };
       }[];
       entries: {
         binding: string;
@@ -13195,6 +13319,10 @@ export interface components {
         path: string;
         problems: string[];
         text: string;
+        words?: {
+          [key: string]: string;
+        };
+        exit?: string;
       } | null;
       metricViews: {
         names: {
@@ -13341,6 +13469,10 @@ export interface components {
           fanOut: {
             workflow: string;
           } | null;
+          display?: {
+            label: string;
+            text?: string;
+          };
         }[];
       }[];
       discoveryErrors: {
