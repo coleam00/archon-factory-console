@@ -325,7 +325,10 @@ async function packStages(
   const own = entries.filter(entry => entry.workflow.pack?.key === key);
   const declared = nearestPackBindings(own);
   if (own.length === 0 || declared === undefined) {
-    const names = (own.length === 0 ? entries : own).map(entry => entry.workflow.name);
+    // A document names a stage as its pack authored it, as an installed catalog's name need not.
+    const names = (own.length === 0 ? entries : own).map(
+      ({ workflow }) => workflow.pack?.workflow ?? workflow.name
+    );
     return { allowed: names, required: [] };
   }
   const inFlow = buildPackGraph({

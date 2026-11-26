@@ -1,8 +1,9 @@
 /**
- * A pack's own document: one markdown file the pack's manifest names (`document`), which
- * explains the pack to an operator. Its frontmatter may declare `groups`, how the pack's
- * stages group into a few columns for display. The engine reads the groups and checks them
- * against the pack's stages; it gives the document's text no meaning and serves it as written.
+ * A pack's own document: one markdown file the pack's manifest names (`document`), else its
+ * `how-it-works.md`, which explains the pack to an operator. Its frontmatter may declare
+ * `groups`, how the pack's stages group into a few columns for display. The engine reads the
+ * groups and checks them against the pack's flow; it gives the document's text and a group's
+ * `kind` no meaning and serves them as written.
  */
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

@@ -244,11 +244,8 @@ export const packGraphSchema = z.object({
     z.object({ binding: z.string(), kind: z.enum(['timer', 'event', 'fire']), stage: z.string() })
   ),
   /**
-   * The document the pack's manifest names (`document`), else its `how-it-works.md`, as a
-   * path within the pack, with what is wrong with it: the document or its frontmatter does
-   * not read, a group names a stage that is not in flow or one another group holds, an
-   * in-flow stage is in no group, or the frontmatter has a key this Archon does not read.
-   * Null for a pack with neither. See `pack-document.ts`.
+   * The pack's document (manifest `document`, else `how-it-works.md`), with what is wrong
+   * with it and its groups; null for a pack with neither. See `pack-document.ts`.
    */
   document: z
     .object({
@@ -271,11 +268,9 @@ export const packGraphSchema = z.object({
     })
     .nullable(),
   /**
-   * How the pack groups its stages for display, from its document's frontmatter: each a
-   * name, an optional `blurb` and opaque `kind`, and stages by their `workflow` name, in
-   * order. A stage that is not `inFlow`, or that an earlier group holds, is left out of its
-   * group, and a group left with none is dropped; `document.problems` lists each. Empty when
-   * the pack declares none or its document does not read.
+   * The document's groups for display: name, optional `blurb` and opaque `kind`, stages by
+   * `workflow` name in order, each stage not `inFlow` or already grouped left out (see
+   * `document.problems`). Empty when none is declared or the document does not read.
    */
   groups: z.array(packGroupSchema),
   /**
