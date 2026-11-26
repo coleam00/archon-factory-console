@@ -155,6 +155,42 @@ describe('GET /api/forge/subjects', () => {
     expect(asked.issues).toBe(1);
   });
 
+  test('a failed issue lookup is asked again after ten minutes, an answer is kept six hours', async () => {
+    let at = Date.parse('2026-11-26T12:00:00.000Z');
+    const asked: number[] = [];
+    let failing = true;
+    const app = new OpenAPIHono();
+    registerForgeRoutes(app, {
+      remote: async () => REMOTE,
+      deliveredRun: async () => null,
+      changeMergeState: async () => ({ url: PR, merged: false, mergedAt: null, number: 112 }),
+      viewWorkItem: async number => {
+        asked.push(number);
+        if (failing && number === 7) return { number, unknown: 'gh: rate limited' };
+        return {
+          number,
+          title: `Issue ${String(number)}`,
+          state: 'open',
+          url: `${REMOTE}/issues/1`,
+        };
+      },
+      waitMs: 20,
+      now: () => at,
+    });
+    const titles = async (): Promise<(string | null)[]> => {
+      const res = await app.request('/api/forge/subjects?codebaseId=p&issue=7&issue=8');
+      return forgeSubjectsResponseSchema.parse(await res.json()).issues.map(i => i.title);
+    };
+    expect(await titles()).toEqual([null, 'Issue 8']);
+    failing = false;
+    at += 11 * 60_000;
+    // The failure is past its life and is asked again behind the stale answer; the answer is not.
+    expect(await titles()).toEqual([null, 'Issue 8']);
+    await Bun.sleep(10);
+    expect(await titles()).toEqual(['Issue 7', 'Issue 8']);
+    expect(asked).toEqual([7, 8, 7]);
+  });
+
   test('refuses a changeRun without its changeUrl', async () => {
     const { read } = appWith({ runs: {} });
     expect((await read('changeRun=r1')).status).toBe(400);

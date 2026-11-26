@@ -221,7 +221,15 @@ export function registerApiRoutes(
   registerHealthRoutes(app, { lockManager, activePlatforms, attention, commit });
   return {
     warmPackDiscovery: async () => {
-      for (const codebase of await codebaseDb.listCodebases()) {
+      let codebases: Awaited<ReturnType<typeof codebaseDb.listCodebases>>;
+      try {
+        codebases = await codebaseDb.listCodebases();
+      } catch (error) {
+        // Nothing is warmed; each graph route discovers on its first read as it would anyway.
+        getLog().warn({ err: error }, 'api.pack_discovery_warm_failed');
+        return;
+      }
+      for (const codebase of codebases) {
         if (!codebase.default_cwd) continue;
         try {
           await packDiscovery(codebase.default_cwd);

@@ -47,7 +47,7 @@ import { K } from '../store/keys';
 import { CardList } from './board/ItemCard';
 import { isMoving, stageAt } from './board/standing';
 
-export { chipOf, MOVING } from './board/standing';
+export { chipOf } from './board/standing';
 
 // console-token-exception md:min-h-[34rem] -- the board area's floor in a short window: the toolbar, the work orders and room for a card or two.
 const BOARD_AREA = 'flex flex-col md:h-full md:min-h-[34rem] md:shrink-0';
@@ -504,8 +504,7 @@ export function BoardPage(): ReactElement {
   // server to place its items once (DESIGN.md, "Speed is a requirement").
   const every = useBoardItems(projectId);
   const all = every.data ?? [];
-  // Only from every item: the open ones alone would give a wrong total (the strip waits).
-  const orders = workOrders(every.data ?? []);
+  const orders = workOrders(all);
   const lit = orders.find(entry => entry.item.id === order);
   const litIds = lit === undefined ? null : new Set(lit.members.map(member => member.item.id));
   // The filter searches what each card shows: its issue title and its key as a person reads it.

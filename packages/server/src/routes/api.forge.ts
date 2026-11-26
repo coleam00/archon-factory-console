@@ -84,7 +84,7 @@ const getForgeSubjectsRoute = createRoute({
   tags: ['Workflows'],
   summary: "What the project's forge says of some issues and delivered changes",
   description:
-    "Each issue's title, state and URL, and for each change a run delivered: its URL, pull request number and whether it merged. A change whose item recorded a merge (a land run, or `archon workflow merged`) is merged at the recorded time without asking the forge. Otherwise answers are cached on the server, in memory and in a file under its home so a restarted server keeps them (a change that has not merged for 60 s, an issue for 6 h, a stale answer served while it refreshes); a first lookup slower than a few seconds answers `pending` (a change) or `pending: true` (an issue) for that read only, so read again shortly.",
+    "Each issue's title, state and URL, and for each change a run delivered: its URL, pull request number and whether it merged. A change whose item recorded a merge (a land run, or `archon workflow merged`) is merged at the recorded time without asking the forge. Otherwise answers are cached on the server, in memory and in a file under its home so a restarted server keeps them (a change that has not merged for 60 s, an issue for 6 h and an issue the forge could not read for 10 min, a stale answer served while it refreshes); a first lookup slower than a few seconds answers `pending` (a change) or `pending: true` (an issue) for that read only, so read again shortly.",
   request: { query: forgeSubjectsQuerySchema },
   responses: {
     200: {
@@ -195,6 +195,12 @@ const CHANGE_TTL_MS = 60_000;
  * for about a minute.
  */
 const ISSUE_TTL_MS = 6 * 3600_000;
+/**
+ * How long a failed issue lookup is kept: long enough that a read does not ask again on every
+ * page load, short enough that a forge blip (an auth lapse, a rate limit) does not leave a card
+ * titleless for `ISSUE_TTL_MS`.
+ */
+const ISSUE_FAILURE_TTL_MS = 10 * 60_000;
 /**
  * A forge read retries temporary failures for about 7 s; a read answers before that and
  * the lookup finishes into the cache for the next one.
@@ -338,8 +344,8 @@ type IssueAnswer = z.infer<typeof forgeSubjectsResponseSchema>['issues'][number]
 
 /**
  * The forge's answer for each issue, shared by every request: kept `ISSUE_TTL_MS` and served
- * stale while it refreshes, a failure kept like an answer (an issue that cannot be read is
- * not asked again on every read). At most `ISSUE_LOOKUPS` first lookups and `ISSUE_REFRESHES`
+ * stale while it refreshes. A failure is kept `ISSUE_FAILURE_TTL_MS`, so an issue that cannot
+ * be read is not asked again on every read but is asked again soon. At most `ISSUE_LOOKUPS` first lookups and `ISSUE_REFRESHES`
  * refreshes run at once. A cold lookup slower than the wait answers `pending` for that request
  * only.
  */
@@ -369,7 +375,8 @@ function issueCache(
     const key = `${remote ?? ''}#${String(number)}`;
     const known = answers.known(key);
     if (known !== undefined) {
-      if (now() - known.at >= ISSUE_TTL_MS) void answers.refresh(key, number, remote, true);
+      const life = 'unknown' in known.value ? ISSUE_FAILURE_TTL_MS : ISSUE_TTL_MS;
+      if (now() - known.at >= life) void answers.refresh(key, number, remote, true);
       return shown(known.value);
     }
     const pending = { number, title: null, state: null, url: null, pending: true } as const;

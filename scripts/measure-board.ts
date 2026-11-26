@@ -60,7 +60,10 @@ function arg(name: string): string | undefined {
 const base = arg('base');
 const project = arg('project');
 if (base === undefined || project === undefined) {
-  console.error('usage: bun scripts/measure-board.ts --base <url> --project <codebaseId> [...]');
+  console.error(
+    'usage: bun scripts/measure-board.ts --base <url> --project <codebaseId> [...]\n' +
+      "  <codebaseId> is the project's `id` in GET <url>/api/codebases, as in /console/p/<id>/board"
+  );
   process.exit(2);
 }
 const pages = (arg('pages') ?? 'board,overview,needs-you').split(',');

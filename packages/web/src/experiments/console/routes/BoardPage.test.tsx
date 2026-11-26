@@ -744,6 +744,10 @@ test('the Overview tiles and the Board count the same items: in flight, merged a
   const mergedShown = board.querySelector('[data-merged] [data-count]')?.textContent;
   expect(tile('in-flight')).toBe(String(onStages));
   expect(onStages).toBe(2);
+  // Both pages say how many are on a stage from the one every-item read: the moving items only,
+  // not the merged or dropped ones beside them.
+  expect(overview.querySelector('[role="status"]')?.textContent).toBe('2 on a stage');
+  expect(board.querySelector('[role="status"]')?.textContent).toBe('2 on a stage');
   expect(overview.querySelector('[data-flow-group="merged"] [data-count]')?.textContent).toBe(
     mergedShown
   );
