@@ -606,9 +606,9 @@ test('the board filter finds a card by the issue title and the key the card prin
   }
 });
 
-test("the stage columns' graph read goes alone: the cards share it, then read the view and the forge", async () => {
+test('the graph, the view and the titles are asked for at once; the columns draw when the graph answers', async () => {
   // Untitled issue-keyed items, whose cards ask the forge for their titles: one in a column,
-  // which waits on the graph, and one in the decision strip, which draws at once.
+  // and one in the decision strip.
   const reads = [untitled('issue-2', 'plan')];
   seedBoard(reads);
   const failed = item('issue-3', 'check', 'failed');
@@ -635,22 +635,27 @@ test("the stage columns' graph read goes alone: the cards share it, then read th
     return nothingFetched(url);
   });
   try {
-    // While the graph read is out: one request for it, and none for the view or the forge.
-    expect(asked).toEqual(['/api/packs/flow/graph']);
+    // While the graph read is out, nothing waits on it: the server answers the view from the
+    // same graph read, and the strip's card asks for its title, which needs only its item read.
+    expect([...asked].sort()).toEqual([
+      '/api/forge/subjects',
+      '/api/packs/flow/graph',
+      '/api/packs/flow/view',
+    ]);
+    expect(board.container.querySelectorAll('[data-stage]').length).toBe(0);
     await board.act(async () => {
       answerGraph();
       await new Promise(resolve => setTimeout(resolve, 10));
     });
+    // The columns draw, and the column's card asks for its title.
     expect(board.container.querySelectorAll('[data-stage]').length).toBeGreaterThan(0);
-    // Then the view, and the forge for each list's titles (the column's and the strip's).
-    expect(asked.slice(0, 2)).toEqual(['/api/packs/flow/graph', '/api/packs/flow/view']);
-    expect(asked.slice(2)).toEqual(['/api/forge/subjects', '/api/forge/subjects']);
+    expect(asked.slice(3)).toEqual(['/api/forge/subjects']);
   } finally {
     await board.unmount();
   }
 });
 
-test('while the project is still read, its packs are unknown and no card asks the forge', async () => {
+test('while the project is still read, cards ask the forge for titles but read no run records', async () => {
   const failed = item('issue-3', 'check', 'failed');
   seedBoard([]);
   invalidate('projects');
@@ -667,7 +672,9 @@ test('while the project is still read, its packs are unknown and no card asks th
   });
   try {
     expect(board.container.querySelector('[data-item="issue-3"]')).not.toBeNull();
-    expect(asked.filter(url => url.includes('/forge/'))).toEqual([]);
+    expect(asked.filter(url => url.includes('/forge/'))).not.toEqual([]);
+    // Which runs a card reads comes from its pack, which is unknown until the project is read.
+    expect(asked.filter(url => url.includes('/runs/records'))).toEqual([]);
   } finally {
     await board.unmount();
   }
