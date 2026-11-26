@@ -419,8 +419,14 @@ describe('validateWorkflowsCommand', () => {
     });
     build.workflow.pack = { key: 'factory', workflow: 'build', source: 'project', bindings };
     build.workflow.display = { label: 'Build' };
+    // A workflow of the pack that no binding puts in flow, with no words at all: no item stands at it.
+    const helper = makeTestWorkflowWithSource({
+      name: 'helper',
+      nodes: [{ id: 'help', bash: 'true' }],
+    });
+    helper.workflow.pack = { key: 'factory', workflow: 'helper', source: 'project', bindings };
     mockDiscoverWorkflowsWithConfig.mockResolvedValue({
-      workflows: [reviewWith(false), build],
+      workflows: [reviewWith(false), build, helper],
       errors: [],
     });
     await writeFile(
@@ -456,9 +462,11 @@ describe('validateWorkflowsCommand', () => {
       ]);
       // Every word given: nothing to say.
       expect(bare.display('build')).toEqual([]);
+      // Out of flow: no warning, however wordless.
+      expect(bare.display('helper')).toEqual([]);
 
       mockDiscoverWorkflowsWithConfig.mockResolvedValue({
-        workflows: [reviewWith(true), build],
+        workflows: [reviewWith(true), build, helper],
         errors: [],
       });
       const replaced = await run();

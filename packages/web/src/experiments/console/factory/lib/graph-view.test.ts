@@ -75,6 +75,7 @@ test("a mark whose means is not the console's, and a replaces naming a live stag
   }));
   const words = graphWords(graph);
   expect(words.returns.filter(point => point.workflow === 'stage-host')).toEqual([]);
+  expect(words.approves.filter(point => point.workflow === 'stage-host')).toEqual([]);
   expect(words.retired).toEqual([{ workflow: 'deliver', stage: 'stage-build' }]);
 });
 
