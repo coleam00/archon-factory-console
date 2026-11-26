@@ -132,6 +132,25 @@ function stageWordsOf(stage: GraphStage, display: StageDisplay): StageWords {
   };
 }
 
+/** One stage's words and declarations, and those of the retired workflows it replaces. */
+function addStage(stage: GraphStage, live: ReadonlySet<string>, into: FactoryWords): void {
+  const { workflow, display } = stage;
+  for (const value of stage.outcome?.values ?? [])
+    if (value.display !== undefined) into.outcomes[`${workflow}:${value.value}`] = value.display;
+  if (display === undefined) return;
+  into.stages[workflow] = stageWordsOf(stage, display);
+  if (display.story !== undefined) into.outcomes[`${workflow}:*`] = { story: display.story };
+  for (const [option, answer] of Object.entries(display.answers ?? {}))
+    into.answers[`${workflow}:${option}`] = answer;
+  meaningOf(workflow, display, into);
+  // A replaces entry naming a live stage is left alone: `archon validate` refuses it.
+  for (const replaced of display.replaces ?? [])
+    if (!live.has(replaced.workflow)) {
+      into.retired.push({ workflow: replaced.workflow, stage: workflow });
+      meaningOf(replaced.workflow, replaced, into);
+    }
+}
+
 function wordsOf(graph: PackGraph): FactoryWords {
   const live = new Set(graph.stages.map(stage => stage.workflow));
   const into: FactoryWords = {
@@ -146,22 +165,7 @@ function wordsOf(graph: PackGraph): FactoryWords {
     change: [],
     ...(graph.document?.exit === undefined ? {} : { merged: graph.document.exit }),
   };
-  for (const stage of graph.stages) {
-    const { workflow, display } = stage;
-    for (const value of stage.outcome?.values ?? [])
-      if (value.display !== undefined) into.outcomes[`${workflow}:${value.value}`] = value.display;
-    if (display === undefined) continue;
-    into.stages[workflow] = stageWordsOf(stage, display);
-    if (display.story !== undefined) into.outcomes[`${workflow}:*`] = { story: display.story };
-    for (const [option, answer] of Object.entries(display.answers ?? {}))
-      into.answers[`${workflow}:${option}`] = answer;
-    meaningOf(workflow, display, into);
-    for (const replaced of display.replaces ?? []) {
-      if (live.has(replaced.workflow)) continue;
-      into.retired.push({ workflow: replaced.workflow, stage: workflow });
-      meaningOf(replaced.workflow, replaced, into);
-    }
-  }
+  for (const stage of graph.stages) addStage(stage, live, into);
   return into;
 }
 
