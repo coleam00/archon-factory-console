@@ -769,6 +769,9 @@ What it carries, and nothing else:
 - per board column and map stage: label, blurb, short name, which workflows (and, by name,
   which steps) it groups, its colour group, and its order (`stages`, `columns`, `map.cards`);
 - map and How it works layout: positions, lanes, captions, edge labels, notes (`map.notes`);
+  *Superseded on `combined` by the COMBINED direction (#237): the file has no `map`; it declares
+  `groups` (name, blurb, stages) and `merged`, and the map's cards and edges come from the graph,
+  its edges worded by the outcomes' `label`.*
 - story wording: how each outcome reads (`story.outcomes`, `story.steps`, `story.said`), what
   choosing an ask's option starts (`answers`), and the words for a check round, a return, a
   parked item and a work order;
@@ -945,7 +948,9 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
 
 - **One card per board column** (owner change 4): the view file's `columns`, in order, each
   card holding the stages of its column that `map.cards` lists, in the column's order; a
-  column left with none is not drawn. Without `columns`, one card per stage, as the board. For
+  column left with none is not drawn. *Superseded on `combined` by the COMBINED direction
+  (#237): one card per group (the file's groups, else the pack document's), its in-flow stages
+  in flow order, and the `merged` stage on its own last.* Without `columns`, one card per stage, as the board. For
   the shipped file: Intake, Plan & build, Checks & review, Ready to merge, Merged. `col` and
   `row` on a card are accepted, so an older view file still loads, and ignored.
 - **Always one row**, left to right. It opens (and Fit returns) fitted to its frame, down to a

@@ -65,12 +65,15 @@ const STAGE_TONES: readonly ColumnTone[] = ['intake', 'build', 'check', 'land'];
 export type StageGroup = PackGraph['groups'][number];
 
 /**
- * A pack's columns: each group its document declares, then each stage of its flow that no
- * group holds, in the graph's order. A workflow only other workflows call is not a stage.
+ * A pack's columns: each group its document declares (or each of `groups`, a factory map's own),
+ * then each stage of its flow that no group holds, in the graph's order. A workflow only other
+ * workflows call is not a stage.
  */
-export function columnsOf(graph: PackGraph | undefined): StageGroup[] {
+export function columnsOf(
+  graph: PackGraph | undefined,
+  groups: readonly StageGroup[] = graph?.groups ?? []
+): StageGroup[] {
   const stages = (graph?.stages ?? []).filter(stage => stage.inFlow).map(stage => stage.workflow);
-  const groups: readonly StageGroup[] = graph?.groups ?? [];
   const grouped = new Set(groups.flatMap(group => group.stages));
   return [
     ...groups.map(group => ({ ...group, stages: group.stages.filter(s => stages.includes(s)) })),
