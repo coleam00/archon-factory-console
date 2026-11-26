@@ -197,6 +197,28 @@ const ISSUE_TTL_MS = 10 * 60_000;
 const WAIT_MS = 4_000;
 /** The most issue lookups in flight at once, so a cold read of every item does not flood the forge. */
 const ISSUE_LOOKUPS = 8;
+/**
+ * The most refreshes of a stale issue in flight at once. A stale answer is already shown, and
+ * a restarted server finds every answer its file kept stale: each lookup runs a forge plugin
+ * process, and eight at a time slowed every other read of the first page load.
+ */
+const ISSUE_REFRESHES = 2;
+
+/** `work`, with at most `most` of the works given to one limiter running at once. */
+function limiter(most: number): <T>(work: () => Promise<T>) => Promise<T> {
+  let running = 0;
+  const queue: (() => void)[] = [];
+  return async work => {
+    if (running >= most) await new Promise<void>(resolve => queue.push(resolve));
+    running++;
+    try {
+      return await work();
+    } finally {
+      running--;
+      queue.shift()?.();
+    }
+  };
+}
 
 /** A change to ask about: a URL with its run's audit rows, or the pull request on a run's item's branches. */
 type Change =
@@ -312,8 +334,9 @@ type IssueAnswer = z.infer<typeof forgeSubjectsResponseSchema>['issues'][number]
 /**
  * The forge's answer for each issue, shared by every request: kept `ISSUE_TTL_MS` and served
  * stale while it refreshes, a failure kept like an answer (an issue that cannot be read is
- * not asked again on every read). At most `ISSUE_LOOKUPS` lookups run at once. A cold lookup
- * slower than the wait answers `pending` for that request only.
+ * not asked again on every read). At most `ISSUE_LOOKUPS` first lookups and `ISSUE_REFRESHES`
+ * refreshes run at once. A cold lookup slower than the wait answers `pending` for that request
+ * only.
  */
 function issueCache(
   deps: Pick<ForgeRouteDeps, 'viewWorkItem' | 'waitMs' | 'now'>,
@@ -321,21 +344,11 @@ function issueCache(
 ): (number: number, remote: string | null) => Promise<IssueAnswer> {
   const now = deps.now ?? Date.now;
   const waitMs = deps.waitMs ?? WAIT_MS;
-  let running = 0;
-  const queue: (() => void)[] = [];
-  const limited = async <T>(work: () => Promise<T>): Promise<T> => {
-    if (running >= ISSUE_LOOKUPS) await new Promise<void>(resolve => queue.push(resolve));
-    running++;
-    try {
-      return await work();
-    } finally {
-      running--;
-      queue.shift()?.();
-    }
-  };
+  const lookups = limiter(ISSUE_LOOKUPS);
+  const refreshes = limiter(ISSUE_REFRESHES);
   const answers = keyedOnce(
-    (key: string, number: number, remote: string | null): Promise<WorkItemAnswer> =>
-      limited(() => deps.viewWorkItem(number, remote)).then(answer => {
+    (key: string, number: number, remote: string | null, stale: boolean): Promise<WorkItemAnswer> =>
+      (stale ? refreshes : lookups)(() => deps.viewWorkItem(number, remote)).then(answer => {
         if ('unknown' in answer)
           getLog().warn({ issue: key, reason: answer.unknown }, 'forge_issue_unknown');
         return answer;
@@ -351,11 +364,11 @@ function issueCache(
     const key = `${remote ?? ''}#${String(number)}`;
     const known = answers.known(key);
     if (known !== undefined) {
-      if (now() - known.at >= ISSUE_TTL_MS) void answers.refresh(key, number, remote);
+      if (now() - known.at >= ISSUE_TTL_MS) void answers.refresh(key, number, remote, true);
       return shown(known.value);
     }
     const pending = { number, title: null, state: null, url: null, pending: true } as const;
-    const answer = await within(answers.refresh(key, number, remote), waitMs, pending);
+    const answer = await within(answers.refresh(key, number, remote, false), waitMs, pending);
     return 'pending' in answer ? answer : shown(answer);
   };
 }

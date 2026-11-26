@@ -202,6 +202,40 @@ describe('GET /api/forge/subjects with an answer file', () => {
     expect((await read('issue=5')).body.issues[0]?.title).toBe('Issue 5');
   });
 
+  test('stale answers refresh two at a time, behind the answers already shown', async () => {
+    const stale = Object.fromEntries(
+      [1, 2, 3, 4, 5].map(n => [
+        `${REMOTE}#${String(n)}`,
+        { value: { ...issue5, number: n, title: `Kept ${String(n)}` }, at: NOW - 11 * 60_000 },
+      ])
+    );
+    const answerFile = await fileWith({ version: 1, issues: stale });
+    let inFlight = 0;
+    let most = 0;
+    const { read } = appWith({
+      runs: {},
+      now: () => NOW,
+      answerFile,
+      title: async n => {
+        inFlight++;
+        most = Math.max(most, inFlight);
+        await Bun.sleep(5);
+        inFlight--;
+        return `Issue ${String(n)}`;
+      },
+    });
+    const { body } = await read('issue=1&issue=2&issue=3&issue=4&issue=5');
+    expect(body.issues.map(entry => entry.title)).toEqual([
+      'Kept 1',
+      'Kept 2',
+      'Kept 3',
+      'Kept 4',
+      'Kept 5',
+    ]);
+    await Bun.sleep(60);
+    expect(most).toBe(2);
+  });
+
   test('a file that does not parse is an empty cache', async () => {
     const answerFile = await fileWith('{ not json');
     const { read, asked } = appWith({ runs: {}, answerFile });
