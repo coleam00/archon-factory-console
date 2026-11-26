@@ -428,20 +428,10 @@ async function packDisplayIssues(
   const add = (stage: string, issue: ValidationIssue): void => {
     byStage.set(stage, [...(byStage.get(stage) ?? []), issue]);
   };
-  for (const { stage, message } of unlabelled(graph))
-    add(stage, {
-      level: 'warning',
-      field: 'display',
-      message,
-      hint: "Give it words in the workflow's display: block; a reader shows the id until then.",
-    });
-  for (const { stage, message } of replacedStillPresent(graph))
-    add(stage, {
-      level: 'error',
-      field: 'display',
-      message,
-      hint: 'Name only a workflow the pack no longer has in display.replaces.',
-    });
+  for (const { stage, message, hint } of unlabelled(graph))
+    add(stage, { level: 'warning', field: 'display', message, hint });
+  for (const { stage, message, hint } of replacedStillPresent(graph))
+    add(stage, { level: 'error', field: 'display', message, hint });
   return byStage;
 }
 

@@ -44,6 +44,17 @@ function withoutKeys(value: unknown, issues: readonly Issue[]): unknown {
   return copy;
 }
 
+/**
+ * Where an older view file's top-level key now lives, so the message names the place to move it
+ * to: the pack-wide words and exit stage are the pack document's front matter, everything else
+ * the workflows' `display:` blocks.
+ */
+function movedTo(key: string): string {
+  if (key === 'words') return "the pack document's front matter (`words`)";
+  if (key === 'merged') return "the pack document's front matter (`exit`)";
+  return "the workflows' display: blocks";
+}
+
 const unreadable = (issue: Issue | undefined): FactoryViewRead => ({
   view: null,
   problems: [
@@ -76,7 +87,7 @@ export function readFactoryView(json: unknown): FactoryViewRead {
               path: [...issuePath(issue), key],
               message:
                 issue.path.length === 0
-                  ? "is not a key a view file has: a pack's words and declarations are in its workflows' display: blocks"
+                  ? `is not a key a view file has: it now lives in ${movedTo(key)}`
                   : 'is not a key a view file has',
             })
           )

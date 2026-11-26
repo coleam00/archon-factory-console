@@ -50,6 +50,18 @@ describe('a key the schema does not know is dropped, and the rest reads', () => 
     expect(Object.keys(r.view ?? {})).toEqual(['version', 'summary', 'howItWorks']);
   });
 
+  test("each moved key's message names where it lives now", () => {
+    const r = read(f => {
+      f.stages = {};
+      f.words = { round: 'check round' };
+      f.merged = 'land';
+    });
+    const said = Object.fromEntries(r.problems.map(p => [String(p.path[0]), p.message]));
+    expect(said.stages).toContain("the workflows' display: blocks");
+    expect(said.words).toContain("the pack document's front matter (`words`)");
+    expect(said.merged).toContain("the pack document's front matter (`exit`)");
+  });
+
   test('a misspelt key inside the picture keeps the picture', () => {
     const r = read(f => {
       (f.howItWorks as Record<string, unknown>).captoin = 'Typo';

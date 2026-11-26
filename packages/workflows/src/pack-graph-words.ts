@@ -22,40 +22,68 @@ function settledOptions(graph: Pick<PackGraph, 'arrows'>, stage: GraphStage): st
 }
 
 /**
+ * One thing a stage of the graph lacks or gets wrong, the stage by `workflow` name, and where the
+ * author fixes it.
+ */
+export interface StageFinding {
+  stage: string;
+  message: string;
+  hint: string;
+}
+
+type GraphNode = GraphStage['nodes'][number];
+
+const WORKFLOW_HINT =
+  "Give it words in the workflow's display: block; a reader shows the id until then.";
+
+/**
+ * Where a step's label is authored: on the node itself, or, for a node an include expanded, on
+ * that node in the included workflow (the innermost include boundary names it).
+ */
+function stepHint(node: GraphNode): string {
+  const included = node.blocks.at(-1);
+  const inner = node.id.split('__').at(-1) ?? node.id;
+  return included === undefined
+    ? `Give the node a display: { label } in this workflow; a reader shows the id until then.`
+    : `Give node '${inner}' a display: { label } in the included workflow '${included.workflow}', where it is authored; a reader shows the id until then.`;
+}
+
+/**
  * Each in-flow stage with no `display.label`, each of its steps (an included node by its
  * expanded id) with none, each value of its declared outcome with no `display.outcomes` label,
  * and each ask option an asks-settled arrow leaves it on (the reserved `other` among them) with
  * no `display.answers` label. Only in-flow stages: no item stands at the rest.
  */
-/** One thing a stage of the graph lacks or gets wrong, and the stage, by `workflow` name. */
-export interface StageFinding {
-  stage: string;
-  message: string;
-}
-
 export function unlabelled(graph: Pick<PackGraph, 'stages' | 'arrows'>): StageFinding[] {
   return graph.stages
     .filter(stage => stage.inFlow)
     .flatMap(stage => {
       const { workflow, display } = stage;
-      const messages = [
-        ...(display === undefined ? [`stage '${workflow}' has no display.label`] : []),
+      const finding = (message: string, hint = WORKFLOW_HINT): StageFinding => ({
+        stage: workflow,
+        message,
+        hint,
+      });
+      return [
+        ...(display === undefined ? [finding(`stage '${workflow}' has no display.label`)] : []),
         ...stage.nodes
           .filter(node => node.display === undefined)
-          .map(node => `step '${node.id}' of stage '${workflow}' has no display.label`),
+          .map(node =>
+            finding(`step '${node.id}' of stage '${workflow}' has no display.label`, stepHint(node))
+          ),
         ...(stage.outcome?.values ?? [])
           .filter(value => value.display?.label === undefined)
-          .map(
-            ({ value }) => `outcome '${value}' of stage '${workflow}' has no display.outcomes label`
+          .map(({ value }) =>
+            finding(`outcome '${value}' of stage '${workflow}' has no display.outcomes label`)
           ),
         ...settledOptions(graph, stage)
           .filter(option => display?.answers?.[option] === undefined)
-          .map(
-            option =>
+          .map(option =>
+            finding(
               `option '${option}' of stage '${workflow}' has no display.answers label${option === OTHER_ATTENTION_OPTION.id ? ' (every ask offers it)' : ''}`
+            )
           ),
       ];
-      return messages.map(message => ({ stage: workflow, message }));
     });
 }
 
@@ -71,6 +99,7 @@ export function replacedStillPresent(graph: Pick<PackGraph, 'stages'>): StageFin
       .map(entry => ({
         stage: stage.workflow,
         message: `stage '${stage.workflow}' display.replaces names '${entry.workflow}', which the pack still has as a stage`,
+        hint: 'Name only a workflow the pack no longer has in display.replaces.',
       }))
   );
 }
