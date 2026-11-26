@@ -59,9 +59,6 @@ export function ItemCard({
   const run = standingRun(read);
   const open = runToOpen(read);
   const shade = litShade(lit, read.item.id);
-  const [heldByRun] = read.questions.flatMap(question =>
-    'run' in question && question.run !== undefined ? [question.run] : []
-  );
   const reason = needsDecision(read) ? decisionReason(read) : undefined;
   const meta = [
     stage,
@@ -115,27 +112,42 @@ export function ItemCard({
           {reason}
         </p>
       )}
-      {/* Keyed on the asks, not the state: an item can wait with an open ask its standing
-          names no question for. Each button sits above the card-wide link on its own, so the
-          row's gaps still open the run log. */}
-      {progress.pr === null && progress.asks === null && heldByRun === undefined ? null : (
-        <div data-card-actions className="mt-1 flex flex-wrap items-center gap-2">
-          <CardPrButton pr={progress.pr} />
-          {progress.asks === null ? null : (
-            <NeedsYouLink
-              projectId={projectId}
-              itemKey={read.item.key}
-              count={progress.asks.count}
-            />
-          )}
-          {heldByRun === undefined ? null : (
-            <Link to={runPath(projectId, heldByRun.id)} className={CARD_BUTTON}>
-              Its run waits for an answer
-            </Link>
-          )}
-        </div>
-      )}
+      <CardActions read={read} projectId={projectId} progress={progress} />
     </li>
+  );
+}
+
+/**
+ * The card's actions, a row of buttons at its bottom: the PR, "Needs you · N" for open asks,
+ * and a run that waits for an answer. Nothing when it has none. Keyed on the asks, not the
+ * state: an item can wait with an open ask its standing names no question for. Each button
+ * sits above the card-wide link on its own, so the row's gaps still open the run log.
+ */
+function CardActions({
+  read,
+  projectId,
+  progress,
+}: {
+  read: ItemRead;
+  projectId: string;
+  progress: CardProgress;
+}): ReactElement | null {
+  const [heldByRun] = read.questions.flatMap(question =>
+    'run' in question && question.run !== undefined ? [question.run] : []
+  );
+  if (progress.pr === null && progress.asks === null && heldByRun === undefined) return null;
+  return (
+    <div data-card-actions className="mt-1 flex flex-wrap items-center gap-2">
+      <CardPrButton pr={progress.pr} />
+      {progress.asks === null ? null : (
+        <NeedsYouLink projectId={projectId} itemKey={read.item.key} count={progress.asks.count} />
+      )}
+      {heldByRun === undefined ? null : (
+        <Link to={runPath(projectId, heldByRun.id)} className={CARD_BUTTON}>
+          Its run waits for an answer
+        </Link>
+      )}
+    </div>
   );
 }
 
