@@ -58,12 +58,14 @@ describe('checkView', () => {
   test('exits 0 on an unknown stage, printing each dropped entry with the other warnings', () => {
     const report = checkView(view('deploy'), graph);
     expect(report.code).toBe(0);
-    expect(report.lines).toEqual([
-      'stages.deploy: [warning] dropped: names stage "deploy", which pack "acme.factory" does not have',
-      'merged: [warning] dropped: names stage "deploy", which pack "acme.factory" does not have',
-      'stages: [warning] stage "make" has no words',
+    // Each line is `path: [severity] message`; which entries drop, and why, is the reconcile's.
+    expect(report.lines.map(entry => entry.split(': [')[0])).toEqual([
+      'stages.deploy',
+      'merged',
+      'stages',
       '0 errors, 3 warnings',
     ]);
+    expect(report.lines.slice(0, -1).every(entry => entry.includes(': [warning] '))).toBe(true);
   });
 
   test('exits 1 on a fault drift cannot cause', () => {

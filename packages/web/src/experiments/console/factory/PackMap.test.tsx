@@ -195,6 +195,15 @@ describe('the stage modal', () => {
     const page = await mount(CURATED);
     await click(page.querySelector('[data-stage="stage-build"]'));
     expect(dialog().querySelector('h3')?.textContent).toBe('Build');
+    // How a run here ends: every outcome the graph declares, with the story its display: gives.
+    const outcomes = shippedGraph.stages.find(stage => stage.workflow === 'stage-build')?.outcome;
+    const story = outcomes?.values.find(value => typeof value.display?.story === 'string');
+    expect(texts('[data-outcome]', 'data-outcome')).toEqual(
+      outcomes?.values.map(value => value.value) ?? []
+    );
+    expect(dialog().querySelector(`[data-outcome="${story?.value}"]`)?.textContent).toContain(
+      String(story?.display?.story)
+    );
     expect(texts('[data-drilldown-card]', 'data-drilldown-card')).toEqual([
       'Write or fix the change',
       'Count the round',

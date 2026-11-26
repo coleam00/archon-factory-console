@@ -7,11 +7,13 @@ drill-down cards and the story wording the console draws the factory with. Its s
 graph (its document groups and arrows); the file says only which stage items leave it by
 (`merged`).
 
-On `spike-a`, a stage's label, short line and blurb, its steps' labels and its outcomes' labels
+On `spike-a` and `spike-ab`, a stage's label, short line and blurb, its steps' labels and its outcomes' labels
 and stories live in the pack's workflow YAML (`display:`), and the console reads them from the
 pack graph before this file (`packages/web/src/experiments/console/factory/lib/graph-words.ts`).
 The pack at b62ec7b carries no `display:` yet: `../pack-spike/` holds its changed workflow files
-at their pack-relative paths. Copy that folder over the installed pack directory, then this file
+at their pack-relative paths. A step inside an `include:` takes its words in the included
+workflow's YAML, not on the include node (the loader refuses `display:` there), so Build's step
+word lives in `build/build.yaml`. Copy that folder over the installed pack directory, then this file
 into its `.shared/`, to get the spiked pack. Without the overlay the console still draws, with
 step ids and stage names where the words were, and `check:factory-view` warns that each stage
 has no words.

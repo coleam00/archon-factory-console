@@ -52,7 +52,7 @@ The factory building this repository runs Archon from another checkout, on the h
   the copy of the pack the graph was read from (`packages/core/src/workflows/pack-view.ts`) and
   served by `GET /api/packs/{pack}/view`. It is presentation only: words, drill-down cards,
   story wording, the How it works picture, which stage items leave the map by (`merged`) (on
-  `spike-a`, the words a workflow can carry in its `display:` come from the pack graph first,
+  `spike-a` and `spike-ab`, the words a workflow can carry in its `display:` come from the pack graph first,
   `factory/lib/graph-words.ts`, and the file holds the rest), and where a console finds an item's check rounds, returns and change
   in its runs' records (`retired`, `rounds`, `returns`, `approves`, `change`, in
   `factory-view-progress.ts`; operator ruling of 2026-11-25, declare-in-view). The engine reads

@@ -36,7 +36,6 @@ export interface Reconciling {
   graph: PackGraph;
   /** Graph stages by `workflow` name, the name the view uses. */
   stages: ReadonlyMap<string, GraphStage>;
-  problems: FactoryViewProblem[];
   /** Records that the entry at `path` left the served view, and why. */
   drop(path: ProblemPath, message: string): void;
   /** Records a fault drift cannot cause: a console refuses the file on it. */
@@ -271,7 +270,6 @@ export function reconcileFactoryView(
     view: structuredClone(view),
     graph,
     stages: new Map(graph.stages.map(stage => [stage.workflow, stage])),
-    problems,
     drop: (path, message) =>
       problems.push({ severity: 'warning', path, message: `dropped: ${message}` }),
     error: (path, message) => problems.push({ severity: 'error', path, message }),
