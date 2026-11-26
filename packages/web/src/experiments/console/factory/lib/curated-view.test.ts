@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { shippedArrows, shippedFile, shippedGraph, shippedView } from '../curated.test-fixtures';
 import { curatedView } from './curated-view';
 import { mapColumns } from './map-columns';
+import { documentProblems } from './view-groups';
 
 const stage = (id: string) => shippedView.stages.find(entry => entry.id === id);
 const FLOW = [
@@ -47,6 +48,10 @@ describe('the slim file over the af6d0b4a graph', () => {
       ['Merged', ['landed'], 'merged'],
     ]);
     expect(shippedView.landed.stage).toBe('landed');
+    // Each group's line is the document's, served by the graph.
+    expect(shippedView.columns.map(column => column.blurb).slice(0, 4)).toEqual(
+      shippedGraph.groups.map(group => group.blurb ?? '')
+    );
   });
 
   test("a group's colour is its document kind, so dropping a group moves no other's", () => {
@@ -69,6 +74,10 @@ describe('the slim file over the af6d0b4a graph', () => {
       'other',
       'other',
       'other',
+    ]);
+    // Only the kind this console does not draw is a problem; none, or `neutral`, is not.
+    expect(documentProblems({ document: null, groups })).toEqual([
+      "group 'Intake' has kind 'intake-ish', which this console does not draw; it reads neutral",
     ]);
   });
 
