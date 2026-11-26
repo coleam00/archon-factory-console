@@ -90,7 +90,7 @@ nodes:
     output_format: { type: object }
 
   - id: link
-    display: { label: Links related items }
+    display: { label: Links related items }
     depends_on: [given]
     command: link
     mutates_checkout: false

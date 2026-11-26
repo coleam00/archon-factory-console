@@ -84,7 +84,7 @@ nodes:
       required: [checks, head, merges, summary]
 
   - id: end
-    display: { label: Hands the change on }
+    display: { label: Hands the change on }
     depends_on: [same, checks]
     trigger_rule: none_failed_min_one_success
     runtime: bun

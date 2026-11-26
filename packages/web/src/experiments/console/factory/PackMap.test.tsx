@@ -180,7 +180,10 @@ describe('the one check where the map is drawn', () => {
     const page = await mount(DRIFTED);
     expect(cards(page)).toEqual(['intake', 'plan-and-build', 'checks', 'landing', 'landed']);
     const line = page.querySelector('[data-view-problems]');
-    expect(line?.querySelector('summary')).not.toBeNull();
+    // The problems are the explainer's to fix; the map is drawn from the graph.
+    expect(line?.querySelector('summary')?.textContent).toBe(
+      "The How it works explainer in the pack's view file has 2 problems to fix"
+    );
     expect(
       [...(line?.querySelectorAll('li') ?? [])].map(entry =>
         entry.getAttribute('data-view-problem')

@@ -16,7 +16,7 @@ export type ViewProblem = PackView['problems'][number];
 export type MapSource =
   /** The view read has not answered: draw the map's loading shape, never the derived map first. */
   | { kind: 'loading' }
-  /** The pack's view file at `path`, as served; `problems` are what the map works around. */
+  /** The pack's view file at `path`, as served; `problems` are its explainer's, drawn around. */
   | { kind: 'curated'; path: string; view: ViewFile; problems: ViewProblem[] }
   /**
    * The map derived from the pack graph. `note` is null when the pack ships no view file, and

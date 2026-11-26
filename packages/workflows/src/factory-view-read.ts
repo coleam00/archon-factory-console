@@ -45,14 +45,36 @@ function withoutKeys(value: unknown, issues: readonly Issue[]): unknown {
 }
 
 /**
- * Where an older view file's top-level key now lives, so the message names the place to move it
- * to: the pack-wide words and exit stage are the pack document's front matter, everything else
- * the workflows' `display:` blocks.
+ * The fate of every top-level key an older view file had: the one place that says where each
+ * moved, or that it was removed, so a message never points a reader somewhere that refuses it.
+ * Words and declarations moved into the pack's YAML (each workflow's `display:` block, its
+ * nodes' `display.label`, and the pack document's front matter); the rest were dropped.
  */
-function movedTo(key: string): string {
-  if (key === 'words') return "the pack document's front matter (`words`)";
-  if (key === 'merged') return "the pack document's front matter (`exit`)";
-  return "the workflows' display: blocks";
+const OLD_KEYS: Readonly<Record<string, string>> = {
+  stages:
+    "moved: a stage's label, short line and blurb are its workflow's display: block, its drill-down is display.phases, and each step's name is its node's display.label",
+  outcomes:
+    "moved: an outcome's label and story are display.outcomes in its workflow, and a stage's `*` story is display.story",
+  answers: "moved: an ask option's label is display.answers in its workflow",
+  rounds:
+    'moved: display.results (round, allowance) in the stage, or display.replaces loops for a retired workflow',
+  returns: 'moved: display.marks with means: returns in the stage',
+  approves: 'moved: display.marks with means: approves in the stage',
+  change: 'moved: display.results (change) in the stage',
+  retired: 'moved: display.replaces in the stage that replaced the workflow',
+  words: "moved: the pack document's front matter (`words`)",
+  merged: "moved: the pack document's front matter (`exit`)",
+  groups: "moved: the pack document's front matter (`groups`)",
+  title: 'removed: nothing reads it; delete it',
+  map: 'removed: the map is drawn from the pack graph; delete it',
+};
+
+/** What a top-level key the file does not have is told: its fate, when an older file had it. */
+function unknownRootKey(key: string): string {
+  const fate = OLD_KEYS[key];
+  return fate === undefined
+    ? 'is not a key a view file has'
+    : `is not a key a view file has any more: ${fate}`;
 }
 
 const unreadable = (issue: Issue | undefined): FactoryViewRead => ({
@@ -86,9 +108,7 @@ export function readFactoryView(json: unknown): FactoryViewRead {
               kind: 'unknown',
               path: [...issuePath(issue), key],
               message:
-                issue.path.length === 0
-                  ? `is not a key a view file has: it now lives in ${movedTo(key)}`
-                  : 'is not a key a view file has',
+                issue.path.length === 0 ? unknownRootKey(key) : 'is not a key a view file has',
             })
           )
         : []

@@ -154,7 +154,7 @@ nodes:
       required: [asks, same_kind]
 
   - id: end
-    display: { label: Hands the change on }
+    display: { label: Hands the change on }
     depends_on: [limit, exhausted]
     trigger_rule: all_done
     runtime: bun

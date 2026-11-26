@@ -18,7 +18,10 @@ export function ViewProblems({
   drawn,
 }: {
   problems: readonly ViewProblem[];
-  /** Whether the map is drawn from the file (so it works around the problems). */
+  /**
+   * Whether the file read, so its How it works explainer draws without the entries listed.
+   * Either way the problems are the explainer's to fix: the map is drawn from the pack graph.
+   */
   drawn: boolean;
 }): ReactElement | null {
   if (problems.length === 0) return null;
@@ -27,8 +30,8 @@ export function ViewProblems({
     <details data-view-problems className="text-console-12 text-warning">
       <summary className="cursor-pointer select-none">
         {drawn
-          ? `The factory view has ${count} the map works around`
-          : `The factory view has ${count}`}
+          ? `The How it works explainer in the pack's view file has ${count} to fix`
+          : `The pack's view file has ${count}`}
       </summary>
       <ul className="mt-1 flex flex-col gap-0.5 pl-4 text-text-secondary">
         {problems.map((problem, index) => (

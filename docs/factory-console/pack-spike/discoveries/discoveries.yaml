@@ -43,7 +43,7 @@ nodes:
       console.log(JSON.stringify({ entries }));
 
   - id: drain
-    display: { label: "File it as new work, or hold or drop it" }
+    display: { label: "File it as new work, or hold or drop it" }
     depends_on: [intake]
     when: "$intake.output.entries > 0"
     command: discoveries

@@ -56,7 +56,7 @@ nodes:
       emit({ asks: Array.isArray(asks) ? asks.length : 0 });
 
   - id: attend
-    display: { label: Advises on each ask }
+    display: { label: Advises on each ask }
     depends_on: [given]
     when: "$given.output.asks > 0"
     command: attend
