@@ -32,9 +32,13 @@ export function pillOf(
   return { lines, ...pillSize(lines) };
 }
 
-/** Outcomes on one line: all of them while they fit in `PILL_MAX_LINES`, else the first and how many more. */
-export function oneLineOf(parts: readonly string[]): string {
-  return parts.length > PILL_MAX_LINES ? moreOf(parts) : parts.join(', ');
+/**
+ * Outcomes on one line: all of them while they fit in `PILL_MAX_LINES`, else the first and how
+ * many more, and whether it left some out (the map then offers the full list, `MapPillTips`).
+ */
+export function oneLineOf(parts: readonly string[]): { line: string; shortened: boolean } {
+  const shortened = parts.length > PILL_MAX_LINES;
+  return { line: shortened ? moreOf(parts) : parts.join(', '), shortened };
 }
 
 const moreOf = (parts: readonly string[]): string =>

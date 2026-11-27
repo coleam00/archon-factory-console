@@ -450,6 +450,30 @@ describe("the map's send-backs and flow", () => {
     expect(routes(page)).toEqual([]);
   });
 
+  test('on touch, a second press on the badge hides the routes though the tap left the card hovered', async () => {
+    const page = await mount(CURATED);
+    const badge = card(page, 'checks').querySelector('[data-send-back-badge]') as Element;
+    // A tap sends an emulated mouseover before its click.
+    await pointer(badge, 'mouseover');
+    await click(badge);
+    expect(routes(page)).toEqual(CHECKS_ROUTES);
+    await pointer(badge, 'mouseover');
+    await click(badge);
+    expect(badge.getAttribute('aria-pressed')).toBe('false');
+    expect(routes(page)).toEqual([]);
+  });
+
+  test('the Full workflow legend names no hover, badge or moving dot: that view has none', async () => {
+    const full = await mount(CURATED, '?map=full');
+    const legend = full.querySelector('[aria-label="Lines"]')?.textContent ?? '';
+    expect(legend).toContain('Sends it back, labelled where it returns to');
+    expect(legend).not.toContain('↺');
+    expect(legend).not.toContain('dot');
+    await unmount?.();
+    const curated = await mount(CURATED);
+    expect(curated.querySelector('[aria-label="Lines"]')?.textContent).toContain('↺');
+  });
+
   test('with motion allowed, a dot follows the forward flow and one leaves along each shown route', async () => {
     const page = await mount(CURATED);
     // The fixture has a run working on build: its running dot is drawn.

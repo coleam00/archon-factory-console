@@ -1,7 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { layoutMap, type Box, type MapLayout } from './map-layout';
 import { testArrows, testView } from '../curated.test-fixtures';
-import { boxesMeet, crosses, enters, segments, type Segment } from './map-geometry.test-fixtures';
+import {
+  boxesMeet,
+  crosses,
+  enters,
+  overlaps,
+  segments,
+  type Segment,
+} from './map-geometry.test-fixtures';
 import type { CuratedView } from './curated-view';
 import type { MapArrow } from './graph-structure';
 
@@ -94,7 +101,13 @@ function expectClean(layout: MapLayout): void {
   for (const shown of [undefined, ...layout.sendBacks.keys()]) {
     const all = lines(layout, shown);
     for (const s of all) for (const box of boxes) expect(enters(box, s)).toBe(false);
-    for (const p of all) for (const q of all) expect(crosses(p, q)).toBe(false);
+    all.forEach((p, i) =>
+      all.forEach((q, j) => {
+        expect(crosses(p, q)).toBe(false);
+        // No two lines drawn on top of each other: each send-back on its own line.
+        if (i !== j) expect(overlaps(p, q)).toBe(false);
+      })
+    );
     const placed = pills(layout, shown);
     placed.forEach((pill, i) => {
       for (const box of boxes) expect(boxesMeet(pill, box)).toBe(false);

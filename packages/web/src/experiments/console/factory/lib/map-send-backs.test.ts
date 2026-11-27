@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { sendBackRoutes, type RouteCard, type SendBackArrow } from './map-send-backs';
-import { boxesMeet, crosses, enters, segments } from './map-geometry.test-fixtures';
+import { boxesMeet, crosses, enters, overlaps, segments } from './map-geometry.test-fixtures';
 
 /** Four cards in a row; the second and third hold two stages each. */
 const [CARD_W, CARD_H] = [184, 168];
@@ -62,7 +62,7 @@ describe("each card's send-backs", () => {
     }
   });
 
-  test("no route enters a card, and a card's routes never cross each other or share a leg", () => {
+  test("no route enters a card, and a card's routes never cross, run along each other or share a leg", () => {
     for (const [, { routes: mine }] of routes) {
       const lines = mine.map(route => segments(route.d));
       for (const s of lines.flat())
@@ -70,7 +70,12 @@ describe("each card's send-backs", () => {
       lines.forEach((p, i) =>
         lines.forEach((q, j) => {
           if (i === j) return;
-          for (const s of p) for (const t of q) expect(crosses(s, t)).toBe(false);
+          for (const s of p)
+            for (const t of q) {
+              expect(crosses(s, t)).toBe(false);
+              // Each route on its own line: none runs along another's.
+              expect(overlaps(s, t)).toBe(false);
+            }
         })
       );
       const legs = mine.flatMap(route => [route.points[0]?.x, route.points.at(-1)?.x]);

@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import type { Box, MapLayout } from '../lib/map-layout';
-import { PILL_MAX_LINES } from '../lib/map-pill';
 import { tipShift } from '../lib/tip-shift';
 
 /** A pill on the map that shows fewer outcomes than its line carries ("built +2"). */
@@ -38,7 +37,7 @@ export function shortPills(
   );
   const routes = pinned === null ? [] : (layout.sendBacks.get(pinned)?.routes ?? []);
   const back = routes.flatMap(route =>
-    route.pill === undefined || route.words.length <= PILL_MAX_LINES
+    route.pill === undefined || !route.pill.shortened
       ? []
       : [
           {

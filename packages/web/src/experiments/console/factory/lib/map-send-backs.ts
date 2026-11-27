@@ -56,6 +56,8 @@ export interface SendBackArrow {
 interface RoutePill {
   box: Box;
   lines: string[];
+  /** Whether its words line leaves some words out (`oneLineOf`). */
+  shortened: boolean;
 }
 
 export interface SendBackRoute extends SendBackArrow {
@@ -95,11 +97,12 @@ function pillLines(
   arrow: SendBackArrow,
   stageCount: (stage: string) => number,
   stageLabel: (stage: string) => string
-): string[] {
-  const lines = arrow.words.length > 0 ? [oneLineOf(arrow.words)] : [];
+): { lines: string[]; shortened: boolean } {
+  const words = arrow.words.length > 0 ? oneLineOf(arrow.words) : undefined;
+  const lines = words === undefined ? [] : [words.line];
   if (stageCount(arrow.from) > 1 || stageCount(arrow.to) > 1)
     lines.push(`${stageLabel(arrow.from)} → ${stageLabel(arrow.to)}`);
-  return lines;
+  return { lines, shortened: words?.shortened ?? false };
 }
 
 /** One card's routes, laid out as the header says; `arrows` all leave `source`. */
@@ -153,13 +156,13 @@ function cardRoutes(
  * pills in their legs' order.
  */
 function placePills(
-  wanted: readonly { lines: string[]; x: number }[],
+  wanted: readonly { lines: string[]; shortened: boolean; x: number }[],
   y: number,
   row: { lo: number; hi: number }
 ): (RoutePill | undefined)[] {
   /** Where each band's next pill may start. */
   const free: number[] = [];
-  return wanted.map(({ lines, x }) => {
+  return wanted.map(({ lines, shortened, x }) => {
     if (lines.length === 0) return undefined;
     const { w, h } = pillSize(lines);
     const centred = Math.max(row.lo, Math.min(row.hi - w, x - w / 2));
@@ -170,7 +173,7 @@ function placePills(
     const left = leftOn(band);
     free[band] = left + w + PILL_CLEAR;
     const box = { x: left, y: y + PILL_OFFSET + band * (PILL_H + PILL_LINE + BAND_GAP), w, h };
-    return { box, lines };
+    return { box, lines, shortened };
   });
 }
 
@@ -216,7 +219,7 @@ export function sendBackRoutes(
     const deepest = Math.max(...laid.map(({ points }) => (points[1] as Point).y));
     const pills = placePills(
       laid.map(({ arrow, points }) => ({
-        lines: pillLines(arrow, stageCount, stageLabel),
+        ...pillLines(arrow, stageCount, stageLabel),
         x: (points[3] as Point).x,
       })),
       deepest,

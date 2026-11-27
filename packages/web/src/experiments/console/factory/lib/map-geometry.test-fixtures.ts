@@ -50,6 +50,22 @@ export function crosses(p: Segment, q: Segment): boolean {
   return strictlyBetween(v.x1, h.x1, h.x2) && strictlyBetween(h.y1, v.y1, v.y2);
 }
 
+/**
+ * Whether two segments on one line share more than a point: two routes drawn on top of each
+ * other along a run, which `crosses` does not count.
+ */
+export function overlaps(p: Segment, q: Segment): boolean {
+  const [ph, qh] = [horizontal(p), horizontal(q)];
+  if (ph !== qh) return false;
+  if (ph ? p.y1 !== q.y1 : p.x1 !== q.x1) return false;
+  const span = (s: Segment): [number, number] =>
+    ph
+      ? [Math.min(s.x1, s.x2), Math.max(s.x1, s.x2)]
+      : [Math.min(s.y1, s.y2), Math.max(s.y1, s.y2)];
+  const [[a, b], [c, d]] = [span(p), span(q)];
+  return Math.min(b, d) - Math.max(a, c) > 0;
+}
+
 /** Whether two boxes overlap, edges touching not counted. */
 export const boxesMeet = (a: Box, b: Box): boolean =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;

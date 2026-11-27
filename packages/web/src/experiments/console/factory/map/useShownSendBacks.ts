@@ -9,7 +9,7 @@ export interface ShownSendBacks {
   hover: (card: string | null) => void;
   /** Keyboard focus moved into a card, or out of every card. */
   focus: (card: string | null) => void;
-  /** A press on a card's ↺ badge: pin its send-backs, or unpin them. */
+  /** A press on a card's ↺ badge: pin its send-backs, or unpin and hide them. */
   toggle: (card: string) => void;
 }
 
@@ -50,6 +50,16 @@ export function useShownSendBacks(): ShownSendBacks {
     pinned,
     hover,
     focus,
-    toggle: card => setPinned(current => (current === card ? null : card)),
+    toggle: card => {
+      if (pinned !== card) {
+        setPinned(card);
+        return;
+      }
+      // Unpinning hides the routes even with the pointer or focus still on the card: a touch
+      // tap leaves the card hovered (its emulated mouseover), so the press would do nothing.
+      setPinned(null);
+      hover(current => (current === card ? null : current));
+      focus(current => (current === card ? null : current));
+    },
   };
 }

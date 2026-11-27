@@ -1051,8 +1051,10 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   says what it is. Hovering the card, or keyboard focus anywhere in it, draws that card's
   send-backs and no other's; leaving it hides them (focus a click leaves behind does not
   count, so the routes go when the pointer does). The badge is the touch control: a press pins
-  them, Escape, a press on the badge again or a click elsewhere unpins (a drag of the map or a
-  press on its zoom controls does not), and hovering another card shows that card's meanwhile.
+  them; Escape, a click elsewhere or a press on the badge again unpins (the last also hides
+  the routes while the card is still hovered, as a touch tap leaves it); a drag of the map or
+  a press on its zoom controls does not; and hovering another card shows that card's
+  meanwhile.
   Each send-back is its own route, one per pair of stages (two stages of a card returning to
   one stage are two lines), dashed `6 4` in `--node-approval` (rule 4): down from its own leg
   on the source card's bottom edge (spread over the card's right part), along its own track
@@ -1128,7 +1130,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   "Sends it back: hover or focus a card, or press its ↺, to see its ways back"; the faint dot,
   "A faint dot follows the flow from the first card to the last"; the running dot, "A bright
   dot runs into a card while a run works an item there". The two dots are not listed under
-  reduced motion.
+  reduced motion. The Full workflow's legend, which draws every send-back and moves no dot,
+  keeps "Sends it back, labelled where it returns to" and lists no dot (#289).
 
 ## The board
 

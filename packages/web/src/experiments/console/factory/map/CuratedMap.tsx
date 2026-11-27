@@ -178,7 +178,7 @@ function MapCanvas({
           />
         )}
       </div>
-      <MapLegend tones={cards.map(card => card.tone)} />
+      <MapLegend tones={cards.map(card => card.tone)} map="curated" />
       <MapNotOnMap projectId={projectId} entries={typeof live === 'string' ? [] : live.notOnMap} />
     </div>
   );
