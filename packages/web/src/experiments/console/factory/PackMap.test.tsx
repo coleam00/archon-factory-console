@@ -367,7 +367,7 @@ describe("the map's send-backs and flow", () => {
       target.dispatchEvent(
         new dom.MouseEvent(kind, {
           bubbles: true,
-          relatedTarget: dom.document.body as unknown as EventTarget,
+          relatedTarget: dom.document.body,
         }) as unknown as Event
       );
     });
