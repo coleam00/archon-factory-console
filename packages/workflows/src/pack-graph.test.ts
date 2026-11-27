@@ -254,6 +254,17 @@ describe('a pack graph', () => {
       ['c', true, false],
       ['report', true, true],
     ]);
+    // Once the item's own stages are placed, linked arrows still order the rest: a stage only
+    // a linked arrow reaches comes before the stages its own item flows on to.
+    const crossing = graphOf(stages(stage('d', ['done']), report, stage('a', ['done'])), {
+      declared: {
+        enter,
+        'report-after-a': linked('a', 'done'),
+        'd-after-report': runEnded('d', 'report', 'reported'),
+      },
+      installed: [],
+    });
+    expect(crossing.stages.map(s => s.workflow)).toEqual(['a', 'report', 'd']);
   });
 
   test('a stage lists the roles its nodes name, each with the tier it falls back to', () => {
