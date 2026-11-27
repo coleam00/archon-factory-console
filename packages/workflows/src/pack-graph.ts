@@ -757,11 +757,10 @@ function entryStages(input: GraphInput): string[] {
 
 /**
  * The stages in the order work flows through them, which the pack declares nowhere else:
- * breadth-first along the outcome arrows that start work on the ended run's own item (a
- * linked arrow starts it on other items), from the stages the pack's timer, event and fire
- * bindings start, then from each stage no arrow leads to, then from each one only an answer
- * leads to, then from any stage still unplaced. Arrows keep the order the pack declares its
- * bindings in, so the order changes only when the pack does.
+ * breadth-first along the outcome arrows that start work on the ended run's own item (not
+ * a linked arrow, which starts it on other items), from the stages the pack's timer, event
+ * and fire bindings start, then from each stage no arrow leads to, then from each one only an
+ * answer leads to, then from any stage still unplaced. Arrows keep the pack's binding order.
  */
 function inFlowOrder(input: GraphInput, arrows: readonly PackGraphArrow[]): Stage[] {
   const names = input.stages.map(stage => stage.name);
@@ -773,9 +772,7 @@ function inFlowOrder(input: GraphInput, arrows: readonly PackGraphArrow[]): Stag
     return names.filter(name => !to.includes(name));
   };
   const next = (stage: string): string[] =>
-    arrows
-      .filter(({ from, linked }) => from.stage === stage && 'outcome' in from && linked === null)
-      .map(arrow => arrow.to);
+    arrows.filter(a => a.from.stage === stage && 'outcome' in a.from && !a.linked).map(a => a.to);
   const ordered = new Set<string>();
   for (const root of [...entries, ...led(false), ...led(true), ...names]) {
     const pending = [root];
