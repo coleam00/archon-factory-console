@@ -14,9 +14,11 @@ import { MapDetails } from './MapDetails';
 import { MapFlow } from './MapFlow';
 import { MapLegend } from './MapLegend';
 import { MapNotOnMap } from './MapNotOnMap';
-import { MapPillTips } from './MapPillTips';
+import { MapPillTips, shortPills } from './MapPillTips';
+import { MapSendBacks } from './MapSendBacks';
 import { StageModal } from './StageModal';
 import { useMapCamera } from './useMapCamera';
+import { useShownSendBacks } from './useShownSendBacks';
 
 interface CuratedMapProps {
   projectId: string;
@@ -93,6 +95,8 @@ function MapCanvas({
   const [selected, setSelected] = useState<string | null>(null);
   const selectedCard = cards.find(card => card.id === selected);
   const camera = useMapCamera(bounds, selectedCard?.box ?? null);
+  const show = useShownSendBacks();
+  const shownRoutes = show.shown === null ? undefined : layout.sendBacks.get(show.shown);
 
   useEffect(() => {
     if (selected === null) return;
@@ -135,17 +139,29 @@ function MapCanvas({
                 selected={card.id === selected}
                 stageLink={stage => stageModalLink(projectId, stage)}
                 onDetails={id => setSelected(current => (current === id ? null : id))}
+                sendBacks={layout.sendBacks.get(card.id)?.routes.length ?? 0}
+                show={show}
               />
             ))}
+            {shownRoutes === undefined ? null : (
+              <MapSendBacks key={show.shown} bounds={bounds} card={shownRoutes} />
+            )}
             <MapFlow
               cards={cards}
               arrows={layout.arrows}
+              bounds={bounds}
               working={card =>
                 typeof live !== 'string' &&
                 card.stages.some(stage => (live.stages.get(stage)?.working ?? 0) > 0)
               }
             />
-            <MapPillTips cards={cards} arrows={layout.arrows} />
+            <MapPillTips
+              pills={shortPills(
+                layout,
+                show.shown === show.pinned ? show.pinned : null,
+                id => view.stages.find(stage => stage.id === id)?.label ?? id
+              )}
+            />
           </div>
           <MapControls zoomIn={camera.zoomIn} zoomOut={camera.zoomOut} fit={camera.fit} />
         </div>

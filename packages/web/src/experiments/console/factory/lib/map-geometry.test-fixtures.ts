@@ -27,10 +27,7 @@ export function segments(d: string): Segment[] {
   return out;
 }
 
-export const horizontal = (s: Segment): boolean => s.y1 === s.y2;
-
-export const inside = (box: Box, p: { x: number; y: number }): boolean =>
-  p.x > box.x && p.x < box.x + box.w && p.y > box.y && p.y < box.y + box.h;
+const horizontal = (s: Segment): boolean => s.y1 === s.y2;
 
 /** Whether an axis-aligned segment enters the box's interior, shrunk by half a pixel. */
 export function enters(box: Box, s: Segment): boolean {
@@ -51,14 +48,6 @@ export function crosses(p: Segment, q: Segment): boolean {
   if (horizontal(p) === horizontal(q)) return false;
   const [h, v] = horizontal(p) ? [p, q] : [q, p];
   return strictlyBetween(v.x1, h.x1, h.x2) && strictlyBetween(h.y1, v.y1, v.y2);
-}
-
-/** A polyline of axis-aligned points as its straight segments. */
-export function pointSegments(points: readonly { x: number; y: number }[]): Segment[] {
-  return points.slice(1).map((p, i) => {
-    const q = points[i] as { x: number; y: number };
-    return { x1: q.x, y1: q.y, x2: p.x, y2: p.y };
-  });
 }
 
 /** Whether two boxes overlap, edges touching not counted. */

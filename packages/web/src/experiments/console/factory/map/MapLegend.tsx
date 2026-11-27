@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { BACK, BACK_DASH, BACK_OPACITY, LINE_TO, MAIN_STROKE, STROKE } from '../canvas-lines';
+import { BACK, BACK_DASH, BACK_OPACITY, LINE, LINE_TO, MAIN_STROKE, STROKE } from '../canvas-lines';
 import type { ColumnTone } from '../lib/map-columns';
 import { TONES } from '../tones';
 
@@ -46,15 +46,23 @@ export function MapLegend({ tones }: { tones: readonly ColumnTone[] }): ReactEle
               strokeOpacity={BACK_OPACITY}
             />
           </svg>
-          Sends it back, labelled where it returns to
+          Sends it back: hover or focus a card, or press its ↺, to see its ways back
         </li>
         {/* No dot moves under reduced motion, so the legend does not say one does. */}
         <li className={`${ITEM} motion-reduce:hidden`}>
           <span
             aria-hidden="true"
+            className="inline-block size-1.5 rounded-full"
+            style={{ background: LINE }}
+          />
+          A faint dot follows the flow from the first card to the last
+        </li>
+        <li className={`${ITEM} motion-reduce:hidden`}>
+          <span
+            aria-hidden="true"
             className="map-flow-swatch inline-block size-2.5 rounded-full bg-[color:var(--running)]"
           />
-          A dot moves along a line while a run works an item there
+          A bright dot runs into a card while a run works an item there
         </li>
       </ul>
     </div>

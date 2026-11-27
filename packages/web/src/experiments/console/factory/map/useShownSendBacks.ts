@@ -1,0 +1,53 @@
+import { useEffect, useState } from 'react';
+
+export interface ShownSendBacks {
+  /** The card whose send-backs the map draws now; null for none. */
+  shown: string | null;
+  /** The card pinned by its ↺ badge; null for none. */
+  pinned: string | null;
+  /** The pointer entered or left a card. */
+  hover: (card: string | null) => void;
+  /** Focus moved into a card, or out of every card. */
+  focus: (card: string | null) => void;
+  /** A press on a card's ↺ badge: pin its send-backs, or unpin them. */
+  toggle: (card: string) => void;
+}
+
+/**
+ * Which card's send-backs the map shows: the card under the pointer, else the one holding
+ * focus, else the one pinned by its ↺ badge, the touch and keyboard control (a click on a card
+ * already opens its stage). A pin holds while the map is dragged: the frame's pan starts on
+ * a press, so only a real click elsewhere unpins, and the click a drag ends in never arrives
+ * (`useMapCamera` swallows it). A click on a pill's tip (`MapPillTips`, whose route pills
+ * exist only while their card shows) keeps it too. Escape unpins.
+ */
+export function useShownSendBacks(): ShownSendBacks {
+  const [hovered, hover] = useState<string | null>(null);
+  const [focused, focus] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (pinned === null) return;
+    const onClick = (event: MouseEvent): void => {
+      const target = event.target as Partial<Element> | null;
+      if (target?.closest?.('[data-send-back-badge], [data-pill-tip]') == null) setPinned(null);
+    };
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setPinned(null);
+    };
+    document.addEventListener('click', onClick);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('click', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [pinned]);
+
+  return {
+    shown: hovered ?? focused ?? pinned,
+    pinned,
+    hover,
+    focus,
+    toggle: card => setPinned(current => (current === card ? null : card)),
+  };
+}
