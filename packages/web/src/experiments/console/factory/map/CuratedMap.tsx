@@ -17,7 +17,7 @@ import { MapNotOnMap } from './MapNotOnMap';
 import { MapPillTips, shortPills } from './MapPillTips';
 import { MapSendBacks } from './MapSendBacks';
 import { StageModal } from './StageModal';
-import { useMapCamera } from './useMapCamera';
+import { LIVE_FITTING, useMapCamera } from './useMapCamera';
 import { useShownSendBacks } from './useShownSendBacks';
 
 interface CuratedMapProps {
@@ -94,9 +94,15 @@ function MapCanvas({
   const { cards, bounds } = layout;
   const [selected, setSelected] = useState<string | null>(null);
   const selectedCard = cards.find(card => card.id === selected);
-  const camera = useMapCamera(bounds, selectedCard?.box ?? null);
-  const show = useShownSendBacks();
+  // While the details panel is open, Escape closes it and keeps a pin.
+  const show = useShownSendBacks(selected !== null);
   const shownRoutes = show.shown === null ? undefined : layout.sendBacks.get(show.shown);
+  // The frame hugs the cards and grows under them while a card's send-backs show.
+  const below =
+    shownRoutes === undefined
+      ? 0
+      : shownRoutes.extent.y + shownRoutes.extent.h - (bounds.y + bounds.h);
+  const camera = useMapCamera(bounds, selectedCard?.box ?? null, LIVE_FITTING, below);
 
   useEffect(() => {
     if (selected === null) return;

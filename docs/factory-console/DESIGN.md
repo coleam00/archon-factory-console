@@ -1054,7 +1054,8 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   them; Escape, a click elsewhere or a press on the badge again unpins (the last also hides
   the routes while the card is still hovered, as a touch tap leaves it); a drag of the map or
   a press on its zoom controls does not; and hovering another card shows that card's
-  meanwhile.
+  meanwhile. Escape that closes the stage modal or the details panel only closes that: the
+  pin holds (owner ruling on #289).
   Each send-back is its own route, one per pair of stages (two stages of a card returning to
   one stage are two lines), dashed `6 4` in `--node-approval` (rule 4): down from its own leg
   on the source card's bottom edge (spread over the card's right part), along its own track
@@ -1064,13 +1065,15 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   (an asked plan answered) is a short U on that card. Each route has its own pill, under the
   deepest track: its outcomes' and options' words on one line ("returned +3" past two), and,
   where the source or target card holds several stages, the stages it joins ("Checks →
-  Build"). Pills keep their routes' order, each as near its target leg as the pills before it
-  allow, within the row's span, a band down only when the band is full. A pinned card's
-  shortened pill is a button opening the full list, as a forward pill's is; a hovered card's
-  is not, since its routes go as the pointer leaves the card. Every card's routes are laid out
-  up front and the map's bounds hold the deepest, so showing them never refits the map; the
-  cost is an empty band under the row by default. Nothing crosses: no line crosses a card, a
-  pill or another line.
+  Build"). Each pill sits near its own target leg (owner ruling on #289): centred on it where
+  that is free, else at the nearest free place on its band no more than 120 px from there,
+  else a band down, always within the row's span. A pinned card's shortened pill is a button
+  opening the full list, as a forward pill's is; a hovered card's is not, since its routes go
+  as the pointer leaves the card. The frame hugs the cards and forward pills by default (no
+  empty band under the row) and grows under the cards while a card shows its send-backs, just
+  enough to hold its routes and pills; the cards stay where they are (owner ruling on #289:
+  at 1440x900 a hovered card's pills all show inside the frame). Nothing crosses: no line
+  crosses a card, a pill or another line.
 - **Flow** (the map's addition to rule 7), none of it drawn under reduced motion:
   - a faint dot (6 px, `--text-secondary`, a faint halo) travels every forward hand-off in turn,
     from the first card to the last, a beat on each card between, on one SVG timeline timed

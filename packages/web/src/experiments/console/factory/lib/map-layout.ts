@@ -23,8 +23,9 @@
  * - Every send-back is its own route, one per pair of stages (`mapArrows` gives one arrow per
  *   pair), laid out under the row card by card (`map-send-backs.ts`): two stages of a card that
  *   return to the same stage are two routes. The map draws a card's routes only while the card
- *   is hovered, focused or pinned (`MapSendBacks`), but every card's are laid out here and the
- *   bounds hold the deepest, so showing them never refits the map.
+ *   is hovered, focused or pinned (`MapSendBacks`). The bounds hug the cards and forward pills
+ *   (the owner's ruling on #289): a card's routes lie under them, within the row's span, and
+ *   the frame grows under the cards to hold them while they show (`useMapCamera`'s `below`).
  *
  * Nothing crosses: forward lines run between cards at mid-height, a card's send-backs nest
  * under the cards, and every pill sits in a gap or under the routes, clear of cards, lines and
@@ -230,7 +231,6 @@ export function layoutMap(view: Declaration, drawn: readonly MapArrow[]): MapLay
     bounds: boundsOf([
       ...cards.map(card => card.box),
       ...arrows.flatMap(arrow => (arrow.pill === undefined ? [] : [arrow.pill])),
-      ...[...routes.values()].map(card => card.extent),
     ]),
   };
 }

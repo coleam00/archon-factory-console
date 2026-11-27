@@ -101,6 +101,17 @@ describe("each card's send-backs", () => {
     }
   });
 
+  test('each pill sits near its own leg: never more than a short slide from it', () => {
+    for (const route of all) {
+      const pill = route.pill?.box;
+      const leg = route.points.at(-1)?.x;
+      if (pill === undefined || leg === undefined) continue;
+      // The gap between the leg and the nearer edge of its pill.
+      const gap = Math.max(0, pill.x - leg, leg - (pill.x + pill.w));
+      expect(gap).toBeLessThanOrEqual(120);
+    }
+  });
+
   test('a pill names its words, and which stages it joins where a card holds several', () => {
     const pill = (id: string): string[] | undefined =>
       all.find(route => route.id === id)?.pill?.lines;

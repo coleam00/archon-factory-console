@@ -120,14 +120,26 @@ function expectClean(layout: MapLayout): void {
     for (const box of [...boxes, ...placed]) {
       expect(box.x).toBeGreaterThanOrEqual(bounds.x);
       expect(box.x + box.w).toBeLessThanOrEqual(bounds.x + bounds.w);
-      expect(box.y + box.h).toBeLessThanOrEqual(bounds.y + bounds.h);
     }
   }
-  // Every card's send-backs fit the bounds, so showing them never refits the map.
-  for (const { extent } of layout.sendBacks.values()) {
+  // The bounds hug the cards and forward pills; every card's send-backs lie under them, within
+  // the row's span, where the frame grows to hold them while they show.
+  const bottom = Math.max(...layout.cards.map(card => card.box.y + card.box.h));
+  const pillsAbove = layout.arrows.flatMap(arrow => (arrow.pill === undefined ? [] : [arrow.pill]));
+  expect(layout.bounds.y + layout.bounds.h).toBe(
+    Math.max(bottom, ...pillsAbove.map(pill => pill.y + pill.h))
+  );
+  for (const { extent, routes } of layout.sendBacks.values()) {
+    // Each pill near its own leg (the owner's ruling on #289), not slid along the row.
+    for (const route of routes) {
+      const pill = route.pill?.box;
+      const leg = route.points.at(-1)?.x ?? Number.NaN;
+      if (pill !== undefined)
+        expect(Math.max(0, pill.x - leg, leg - (pill.x + pill.w))).toBeLessThanOrEqual(120);
+    }
+    expect(extent.y).toBeGreaterThanOrEqual(bottom);
     expect(extent.x).toBeGreaterThanOrEqual(layout.bounds.x);
     expect(extent.x + extent.w).toBeLessThanOrEqual(layout.bounds.x + layout.bounds.w);
-    expect(extent.y + extent.h).toBeLessThanOrEqual(layout.bounds.y + layout.bounds.h);
   }
 }
 

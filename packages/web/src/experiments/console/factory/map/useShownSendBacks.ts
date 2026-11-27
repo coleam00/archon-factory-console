@@ -20,9 +20,11 @@ export interface ShownSendBacks {
  * a press, so only a real click elsewhere unpins, and the click a drag ends in never arrives
  * (`useMapCamera` swallows it). A click on a pill's tip (`MapPillTips`, whose route pills
  * exist only while their card shows) keeps it too, as does one on the zoom controls. Escape
- * unpins.
+ * unpins, unless something else takes it: then Escape only closes that (the owner's ruling on
+ * #289). The stage modal takes it while it is open; `escapeTaken` says the map's own details
+ * panel does. The listener runs in the capture phase, before the modal's own handler closes it.
  */
-export function useShownSendBacks(): ShownSendBacks {
+export function useShownSendBacks(escapeTaken: boolean): ShownSendBacks {
   const [hovered, hover] = useState<string | null>(null);
   const [focused, focus] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
@@ -35,15 +37,17 @@ export function useShownSendBacks(): ShownSendBacks {
         setPinned(null);
     };
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setPinned(null);
+      if (event.key !== 'Escape' || escapeTaken) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]') !== null) return;
+      setPinned(null);
     };
     document.addEventListener('click', onClick);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     return () => {
       document.removeEventListener('click', onClick);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
     };
-  }, [pinned]);
+  }, [pinned, escapeTaken]);
 
   return {
     shown: hovered ?? focused ?? pinned,

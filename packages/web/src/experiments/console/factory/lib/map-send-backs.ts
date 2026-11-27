@@ -15,9 +15,8 @@
  * every leg starts on a card's own bottom edge and every track runs under the row.
  *
  * The pills sit under the deepest track, where nothing is drawn (rule 4: a label never sits
- * on a line), in their routes' order, each as near its target leg as the pills before it
- * allow, and within the row's span, so a long label on the first card's leg does not hang off
- * the row's start (where the map opens) (`placePills`).
+ * on a line), in their routes' order, each as near its target leg as it fits, a band down
+ * rather than far off (`placePills`).
  */
 import type { Box, Point } from './map-layout';
 import { oneLineOf, pillSize } from './map-pill';
@@ -33,6 +32,8 @@ const SOURCE_TO = 0.9;
 const PILL_OFFSET = 8;
 const BAND_GAP = 4;
 const PILL_CLEAR = 8;
+/** How far a pill may slide sideways from its leg before it drops a band. */
+const MAX_SLIDE = 120;
 
 export interface RouteCard {
   box: Box;
@@ -149,32 +150,57 @@ function cardRoutes(
 
 /**
  * The pills under the deepest track at `y`, in their routes' order (by target leg, left to
- * right), each as near its target leg as it can be within the row's span `row`: centred on it
- * where that is free, else just right of the pills before it on that band, and a band down
- * only where the band has no room left. Sliding along a band rather than stacking keeps the
- * band under the row shallow when many routes return to one card (Intake's), and keeps the
- * pills in their legs' order.
+ * right), each as near its target leg as it fits: centred on it where that is free, else at
+ * the nearest free place on that band no further than `MAX_SLIDE` from centred, else a band
+ * down. All within the row's span `row`, so a long label on the first card's leg does not
+ * hang off the row's start (where the map opens). Keeping each pill near its leg (the owner's
+ * ruling on #289) costs a band now and then; the frame grows to hold them while they show.
  */
 function placePills(
   wanted: readonly { lines: string[]; shortened: boolean; x: number }[],
   y: number,
   row: { lo: number; hi: number }
 ): (RoutePill | undefined)[] {
-  /** Where each band's next pill may start. */
-  const free: number[] = [];
+  /** What each band holds so far, as spans along the row. */
+  const bands: { lo: number; hi: number }[][] = [];
   return wanted.map(({ lines, shortened, x }) => {
     if (lines.length === 0) return undefined;
     const { w, h } = pillSize(lines);
     const centred = Math.max(row.lo, Math.min(row.hi - w, x - w / 2));
-    const leftOn = (band: number): number => Math.max(centred, free[band] ?? row.lo);
-    // A band nothing is on yet always takes it, even a pill wider than the row.
     let band = 0;
-    while (free[band] !== undefined && leftOn(band) + w > row.hi) band += 1;
-    const left = leftOn(band);
-    free[band] = left + w + PILL_CLEAR;
+    let left = nearestFree(bands[band] ?? [], centred, w, row);
+    while (left === undefined) {
+      band += 1;
+      left = nearestFree(bands[band] ?? [], centred, w, row);
+    }
+    bands[band] = [...(bands[band] ?? []), { lo: left, hi: left + w }];
     const box = { x: left, y: y + PILL_OFFSET + band * (PILL_H + PILL_LINE + BAND_GAP), w, h };
     return { box, lines, shortened };
   });
+}
+
+/**
+ * The left edge nearest `want` where a pill `w` wide meets none of `taken` (kept `PILL_CLEAR`
+ * apart) and stays within `row`, no further than `MAX_SLIDE` from `want`; undefined when there
+ * is none. A band nothing is on yet always takes the pill, even one wider than the row.
+ */
+function nearestFree(
+  taken: readonly { lo: number; hi: number }[],
+  want: number,
+  w: number,
+  row: { lo: number; hi: number }
+): number | undefined {
+  if (taken.length === 0) return want;
+  const free = (at: number): boolean =>
+    at >= row.lo &&
+    at + w <= row.hi &&
+    taken.every(span => at + w + PILL_CLEAR <= span.lo || at >= span.hi + PILL_CLEAR);
+  const candidates = [
+    want,
+    ...taken.flatMap(span => [span.hi + PILL_CLEAR, span.lo - PILL_CLEAR - w]),
+  ].filter(at => free(at) && Math.abs(at - want) <= MAX_SLIDE);
+  candidates.sort((p, q) => Math.abs(p - want) - Math.abs(q - want));
+  return candidates[0];
 }
 
 function extentOf(routes: readonly SendBackRoute[]): Box {

@@ -431,18 +431,21 @@ describe("the map's send-backs and flow", () => {
     expect(badge.getAttribute('aria-pressed')).toBe('true');
     expect(routes(page)).toEqual(CHECKS_ROUTES);
     // A press on the frame starts a pan; the pin holds.
-    const frame = page.querySelector('[role="group"]') as Element;
+    const frame = page.querySelector('.factory-canvas') as Element;
     await act(async () => {
       frame.dispatchEvent(
         new dom.PointerEvent('pointerdown', { bubbles: true }) as unknown as Event
       );
     });
     expect(routes(page)).toEqual(CHECKS_ROUTES);
-    // The pinned card's shortened pill ("returned +3") gets its tip.
-    const tip = [...page.querySelectorAll('[data-pill-tip]')].find(button =>
-      button.getAttribute('aria-label')?.startsWith('Checks back to Build')
+    // Only the pinned card's shortened pill ("returned +3") gets a tip: no other route pill.
+    const routeTips = [...page.querySelectorAll('[data-pill-tip]')].filter(button =>
+      button.getAttribute('aria-label')?.includes(' back to ')
     );
-    expect(tip).toBeDefined();
+    expect(routeTips.map(button => button.getAttribute('aria-label')?.split(':')[0])).toEqual([
+      'Checks back to Build',
+    ]);
+    const tip = routeTips[0];
     // A click on the tip keeps the pin.
     await click(tip as Element);
     expect(routes(page)).toEqual(CHECKS_ROUTES);
@@ -463,10 +466,53 @@ describe("the map's send-backs and flow", () => {
     expect(routes(page)).toEqual([]);
   });
 
+  test('pressing a focused badge twice, as the keyboard does, hides the routes too', async () => {
+    const page = await mount(CURATED);
+    const badge = card(page, 'checks').querySelector('[data-send-back-badge]') as HTMLElement;
+    // Script focus is focus-visible in happy-dom, as Tab is in a browser.
+    await act(async () => badge.focus());
+    expect(routes(page)).toEqual(CHECKS_ROUTES);
+    await click(badge);
+    await click(badge);
+    expect(routes(page)).toEqual([]);
+  });
+
+  test('Escape that closes the stage modal keeps the pin; with nothing else open it unpins', async () => {
+    const page = await mount(CURATED, '?stage=stage-check');
+    const badge = card(page, 'checks').querySelector('[data-send-back-badge]') as Element;
+    await click(badge);
+    expect(routes(page)).toEqual(CHECKS_ROUTES);
+    const escape = async (): Promise<void> => {
+      await act(async () => {
+        window.dispatchEvent(
+          new dom.KeyboardEvent('keydown', { key: 'Escape' }) as unknown as Event
+        );
+      });
+      await settle();
+    };
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+    await escape();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(routes(page)).toEqual(CHECKS_ROUTES);
+    await escape();
+    expect(routes(page)).toEqual([]);
+  });
+
+  test('the frame hugs the cards and grows under them while a card shows its send-backs', async () => {
+    const page = await mount(CURATED);
+    const frame = page.querySelector('.factory-canvas') as HTMLElement;
+    const hugged = Number.parseFloat(frame.style.height);
+    await pointer(card(page, 'checks'), 'mouseover');
+    expect(Number.parseFloat(frame.style.height)).toBeGreaterThan(hugged);
+    await pointer(card(page, 'checks'), 'mouseout');
+    expect(Number.parseFloat(frame.style.height)).toBe(hugged);
+  });
+
   test('the Full workflow legend names no hover, badge or moving dot: that view has none', async () => {
     const full = await mount(CURATED, '?map=full');
-    const legend = full.querySelector('[aria-label="Lines"]')?.textContent ?? '';
-    expect(legend).toContain('Sends it back, labelled where it returns to');
+    const lines = full.querySelector('[aria-label="Lines"]');
+    expect(lines).not.toBeNull();
+    const legend = lines?.textContent ?? '';
     expect(legend).not.toContain('↺');
     expect(legend).not.toContain('dot');
     await unmount?.();
