@@ -21,6 +21,7 @@ import { existsSync } from 'node:fs';
 import { projectKeyForCodebase } from '@archon/paths/archon-paths';
 import type {
   HeldItemStart,
+  HeldStart,
   PreparingStart,
   RefusedStart,
 } from '@archon/workflows/resource-start-store';
@@ -77,6 +78,7 @@ import {
 } from './asks-settled';
 import { createEndedCheckout } from './ended-checkout';
 import {
+  CheckoutCodebaseAmbiguousError,
   registeredProjectForPath,
   registeredProjectKeyForPath,
 } from '../services/codebase-checkout-resolver';
@@ -160,35 +162,58 @@ const launchProjectKeyOf = launchProjectKey(cwd => registeredProjectKeyForPath(c
 const launchProjectOf = (cwd: string) => registeredProjectForPath(cwd, codebaseDb);
 
 /**
- * The held binding starts whose item key `keyMatches`, each with the item it names. A binding
- * is resolved to a project only when it is prepared, so its checkout decides the project here
- * the way it will then; only a start whose key matches is resolved.
+ * The held binding starts in `starts` whose item key `keyMatches`, each with the item it
+ * names. A binding is resolved to a project only when it is prepared, so its checkout decides
+ * the project here the way it will then; only a start whose key matches is resolved. With
+ * `skipAmbiguous`, a start whose checkout matches more than one registered codebase is logged
+ * and left out, so one such checkout cannot fail a read of every item; any other failure
+ * still throws (#286).
  */
-async function heldItemStartsNaming(
-  keyMatches: (itemKey: string) => boolean
+export async function heldItemStartsNaming(
+  starts: readonly HeldStart[],
+  keyMatches: (itemKey: string) => boolean,
+  projectKeyOf: (cwd: string) => Promise<string | null>,
+  skipAmbiguous: boolean
 ): ReturnType<IWorkflowStore['listAllHeldItemStarts']> {
   const held: Awaited<ReturnType<IWorkflowStore['listAllHeldItemStarts']>> = [];
-  for (const start of await installHold.listHeldStarts()) {
+  for (const start of starts) {
     if (start.kind !== 'trigger' || start.itemKey === null || start.cwd === null) continue;
     if (!keyMatches(start.itemKey)) continue;
-    const { receiptId, bindingId, hostId, workflow, receivedAt, itemKey } = start;
-    const projectKey = await launchProjectKeyOf(start.cwd);
+    const { receiptId, bindingId, hostId, workflow, receivedAt, itemKey, cwd } = start;
+    let projectKey: string | null;
+    try {
+      projectKey = await projectKeyOf(cwd);
+    } catch (error) {
+      if (!skipAmbiguous || !(error instanceof CheckoutCodebaseAmbiguousError)) throw error;
+      getLog().warn({ err: error, receiptId, cwd }, 'held_start_project_ambiguous');
+      continue;
+    }
     if (projectKey !== null)
       held.push({ receiptId, bindingId, hostId, workflow, receivedAt, itemKey, projectKey });
   }
   return held;
 }
 
-/** The held binding starts that name an item, across the install, so a read of many items lists them once. */
-function listAllHeldItemStarts(): ReturnType<IWorkflowStore['listAllHeldItemStarts']> {
-  return heldItemStartsNaming(() => true);
+/**
+ * The held binding starts that name an item, across the install, so a read of many items lists
+ * them once. A start whose checkout is ambiguous is left out here only: the read of one item's
+ * starts, and the end and stop rule, still fail on it.
+ */
+async function listAllHeldItemStarts(): ReturnType<IWorkflowStore['listAllHeldItemStarts']> {
+  return heldItemStartsNaming(
+    await installHold.listHeldStarts(),
+    () => true,
+    launchProjectKeyOf,
+    true
+  );
 }
 
 /** The held binding starts on item `itemId`: those naming its key whose checkout is in its project. */
 async function listHeldItemStarts(itemId: string): Promise<HeldItemStart[]> {
   const item = await itemsDb.getItem(itemId);
   if (!item) return [];
-  return (await heldItemStartsNaming(key => key === item.key))
+  const starts = await installHold.listHeldStarts();
+  return (await heldItemStartsNaming(starts, key => key === item.key, launchProjectKeyOf, false))
     .filter(start => start.projectKey === item.projectKey)
     .map(({ projectKey: _project, itemKey: _key, ...start }) => start);
 }
