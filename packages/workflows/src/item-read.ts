@@ -608,6 +608,13 @@ export async function readInstallFacts(source: ItemReadSource) {
     runLimit: await source.store.getRunLimit(),
     // The one queue reader, so a question here reads as `workflow attention` lists it.
     queue: splitAttentionRead(await listAttentionQueue({ ...source, ownerLost: undefined })),
+    /**
+     * Whether a linked item stands `done`, by its id, for every placement that shares these
+     * facts: a read of many items meets the same linked items again and again, and converging
+     * links would otherwise place one item once per path to it (#286). Only an answer no cycle
+     * cut is kept, since that one is the same whichever path reaches the item.
+     */
+    linkedDone: new Map<string, boolean>(),
   };
 }
 type InstallFacts = Awaited<ReturnType<typeof readInstallFacts>>;
@@ -685,15 +692,29 @@ async function readItemFacts(
 export async function placeItem(
   source: ItemReadSource,
   item: WorkflowItem,
-  install: InstallFacts,
-  /** The items whose parts are being placed, so a `part_of` cycle ends. */
-  visiting: ReadonlySet<string> = new Set()
-): Promise<{
+  install: InstallFacts
+): Promise<Placed | null> {
+  return (await placeWithin(source, item, install, null)).placed;
+}
+
+interface Placed {
   standing: ItemStanding;
   /** The run `standing.runId` names, for a reader that orders or filters items by it. */
   run: WorkflowRun | undefined;
   read: () => Promise<ItemRead>;
-} | null> {
+}
+
+/**
+ * `placeItem`, for the item itself (`visiting` null) or for an item linked to it, placed only
+ * to ask whether it stands `done`: `visiting` holds the items whose links are being placed,
+ * so a cycle of links ends, and `cut` says one did.
+ */
+async function placeWithin(
+  source: ItemReadSource,
+  item: WorkflowItem,
+  install: InstallFacts,
+  visiting: ReadonlySet<string> | null
+): Promise<{ placed: Placed | null; cut: boolean }> {
   const { hold, runLimit } = install;
   const held = install.held
     .filter(start => start.projectKey === item.projectKey && start.itemKey === item.key)
@@ -708,7 +729,7 @@ export async function placeItem(
   // listed once as a run.
   const waiting = await source.store.listQueuedItemStarts(item.id);
   const found = await readItemRuns(source.store, item.projectKey, item.key);
-  if (found === null) return null;
+  if (found === null) return { placed: null, cut: false };
   const own = { values: found.runs, degraded: found.degraded };
   const tree = new Set([
     ...own.values.map(run => run.id),
@@ -738,8 +759,20 @@ export async function placeItem(
   // The one rule for whether an end holds. It lists the item's starts only when an end is
   // recorded, so the batch read stays free of per-item start listing for items never ended.
   const end = await readHoldingItemEnd(source.store, found.item.id);
-  const linked = await readLinked(source.store, found.item, linkReads, visiting, (other, inside) =>
-    placeItem(source, other, install, inside).then(place => place?.standing.state === 'done')
+  const { cut, ...linked } = await readLinked(
+    source.store,
+    found.item,
+    linkReads,
+    visiting ?? new Set(),
+    async (other, inside) => {
+      const known = install.linkedDone.get(other.id);
+      if (known !== undefined) return { done: known, cut: false };
+      const nested = await placeWithin(source, other, install, inside);
+      const done = nested.placed?.standing.state === 'done';
+      if (!nested.cut) install.linkedDone.set(other.id, done);
+      return { done, cut: nested.cut };
+    },
+    { dependsOn: visiting === null }
   );
   const standing = itemStanding({
     runs: own.values,
@@ -827,7 +860,10 @@ export async function placeItem(
       ],
     };
   };
-  return { standing, run: own.values.find(run => run.id === standing.runId), read };
+  return {
+    placed: { standing, run: own.values.find(run => run.id === standing.runId), read },
+    cut,
+  };
 }
 
 /**
