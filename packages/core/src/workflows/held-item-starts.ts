@@ -3,7 +3,8 @@
  * module so a test reaches it without the adapter's database and provider imports.
  */
 import { createLogger } from '@archon/paths';
-import type { HeldStart, ItemNamingHeldStart } from '@archon/workflows/resource-start-store';
+import type { HeldStart } from '@archon/workflows/resource-start-store';
+import type { ItemNamingHeldStart } from '@archon/workflows/schemas/item-held-start';
 import { CheckoutCodebaseAmbiguousError } from '../services/codebase-checkout-resolver';
 
 let cachedLog: ReturnType<typeof createLogger> | undefined;

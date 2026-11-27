@@ -15,9 +15,9 @@ export interface DisplayDeclarationFinding {
 
 const MEANINGS: readonly string[] = DISPLAY_MARK_MEANINGS;
 
-type JsonSchema = Readonly<Record<string, unknown>>;
+type SchemaNode = Readonly<Record<string, unknown>>;
 
-function isSchema(value: unknown): value is JsonSchema {
+function isSchema(value: unknown): value is SchemaNode {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 

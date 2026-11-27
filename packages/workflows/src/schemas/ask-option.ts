@@ -70,3 +70,27 @@ export const declaredAskOptionsSchema = z
   .array(declaredAskOptionSchema)
   .min(2)
   .superRefine((options, ctx) => refineOptionIds(options, ctx, []));
+
+/**
+ * The options every ask of a stage offers, as the pack graph serves them: its declared
+ * `returns.options` in order, each with its `label` when it declares one, then the reserved
+ * `other`, labelled by the engine. Null when the stage declares none (its asks write their
+ * own options).
+ */
+export const stageAskOptionsSchema = z
+  .array(
+    z.object({
+      id: z.string(),
+      label: z.string().optional(),
+      does: z.string().optional(),
+      cost: z.string().optional(),
+    })
+  )
+  .nullable();
+
+export function stageAskOptions(
+  declared: readonly DeclaredAskOption[] | undefined
+): z.infer<typeof stageAskOptionsSchema> {
+  if (declared === undefined) return null;
+  return [...declared.map(option => ({ ...option })), { ...OTHER_ATTENTION_OPTION }];
+}

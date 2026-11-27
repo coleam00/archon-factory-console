@@ -51,7 +51,7 @@ import {
   replacedTwice,
   unlabelled,
 } from '@archon/workflows/pack-graph-words';
-import { displayDeclarationFindings } from '@archon/workflows/display-declarations';
+import { displayDeclarationIssues, withDisplayIssues } from './validate-display';
 import {
   PLUGIN_MANIFEST_FILE,
   unknownManifestKeys,
@@ -270,9 +270,6 @@ async function collectWorkflowResults(
       issues.push(...packForgeIssues(workflow.pack, await forgePlugins));
     }
 
-    for (const { message, hint } of displayDeclarationFindings(workflow))
-      issues.push({ level: 'error', field: 'display', message, hint });
-
     if (parseWarnings && parseWarnings.length > 0) {
       for (const warning of parseWarnings) {
         issues.push({ level: 'warning', field: 'parse_warning', message: warning });
@@ -448,14 +445,14 @@ async function packDocumentResults(
  * the id instead), and a `display.replaces` naming a stage the pack still has or a retired
  * workflow named twice, as errors (`pack-graph-words.ts`), by the stage's workflow name. A
  * mark's `means` and a `results` pointer are checked per workflow
- * (`display-declarations.ts`). A folder with no pack manifest, or a
- * pack with no flow, has nothing to check.
+ * (`displayDeclarationIssues`). Beyond those, a folder with no pack manifest, or a pack with
+ * no flow, has nothing to check.
  */
 async function packDisplayIssues(
   packDir: string,
   entries: readonly WorkflowWithSource[]
 ): Promise<Map<string, ValidationIssue[]>> {
-  const byStage = new Map<string, ValidationIssue[]>();
+  const byStage = displayDeclarationIssues(entries);
   try {
     await access(join(packDir, PLUGIN_MANIFEST_FILE));
   } catch {
@@ -477,30 +474,6 @@ async function packDisplayIssues(
   for (const { stage, message, hint } of [...replacedStillPresent(graph), ...replacedTwice(graph)])
     add(stage, { level: 'error', field: 'display', message, hint });
   return byStage;
-}
-
-/**
- * `results` with each stage's display issues added to its workflow's own result, so a stage
- * reads as one entry. A stage with no result of its own gets one, unless `name` filters it out.
- */
-function withDisplayIssues(
-  results: WorkflowValidationResult[],
-  byStage: ReadonlyMap<string, ValidationIssue[]>,
-  name: string | undefined
-): WorkflowValidationResult[] {
-  const merged = results.map(result => {
-    const issues = byStage.get(result.workflowName);
-    return issues === undefined
-      ? result
-      : makeWorkflowResult(result.workflowName, [...result.issues, ...issues], result.filename);
-  });
-  for (const [stage, issues] of byStage)
-    if (
-      !results.some(result => result.workflowName === stage) &&
-      (name === undefined || name === stage)
-    )
-      merged.push(makeWorkflowResult(stage, issues));
-  return merged;
 }
 
 /**

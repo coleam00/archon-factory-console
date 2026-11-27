@@ -8,7 +8,6 @@ import { describeRunLimit, fullRunLimit } from '@archon/workflows/schemas/run-li
 import type {
   ItemAnswer,
   ItemHeldBehind,
-  ItemHeldStart,
   ItemQueuedStart,
   ItemRead,
   ItemReadLink,
@@ -16,6 +15,7 @@ import type {
   ItemSkippedStart,
 } from '@archon/workflows/item-read';
 import { describeOperatorPause } from '@archon/workflows/schemas/operator-pause';
+import type { ItemHeldStart } from '@archon/workflows/schemas/item-held-start';
 import { landingSourceText } from '@archon/workflows/item-landing';
 import { prioritySourceText } from './workflow-priority';
 import { answererText, attentionItemLines } from './workflow-attention-text';

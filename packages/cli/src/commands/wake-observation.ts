@@ -60,6 +60,35 @@ async function observingSources(host: WorkflowHost): Promise<readonly ObservingS
 }
 
 /**
+ * A registered wake watcher with the last pass it recorded. The job discards the watcher's
+ * output, so its last pass is the one sign of a watcher that runs but fails every pass, for
+ * example on a binding's unknown run-as user; a record that does not read is a problem too,
+ * never read as no pass.
+ */
+async function registeredWatcher(
+  target: ReturnType<typeof workflowWakeScheduleTarget>,
+  watcher: { installed: boolean; registered: boolean }
+) {
+  const path = wakeLastPassPath(target);
+  const recorded = await readWakeLastPass(path);
+  if (recorded.kind === 'unreadable')
+    return {
+      watcher,
+      problem: `The wake watcher runs, but its last-pass record ${path} could not be read: ${recorded.reason}`,
+    };
+  if (recorded.kind === 'none') return { watcher };
+  const lastPass = recorded.pass;
+  return {
+    watcher: { ...watcher, lastPass },
+    ...(!lastPass.ok || lastPass.lastFailure
+      ? {
+          problem: `The wake watcher runs, but ${describeWakeLastPass(lastPass).replace(/^Its/, 'its')}`,
+        }
+      : {}),
+  };
+}
+
+/**
  * The sources that observe (event bindings on an install with no webhooks) and whether this
  * host's scheduler runs the wake watcher that reads them; `undefined` when none observes.
  * A report, not a problem: a server started with ARCHON_WEBHOOK_SOURCES observes too, and
@@ -80,27 +109,12 @@ export async function observingReport(host: WorkflowHost, schedules: NativeSched
     const job = await inspectNativeSchedule(target, schedules);
     const watcher = { installed: job !== undefined, registered: job?.registered ?? false };
     if (watcher.registered) {
-      // The job discards the watcher's output; its last pass is the one sign of a watcher
-      // that runs but fails every pass, for example on a binding's unknown run-as user.
-      const path = wakeLastPassPath(target);
-      const recorded = await readWakeLastPass(path);
-      if (recorded.kind === 'unreadable')
-        return {
-          sources,
-          watcher,
-          unwatched: false,
-          problem: `The wake watcher runs, but its last-pass record ${path} could not be read: ${recorded.reason}`,
-        };
-      const lastPass = recorded.kind === 'read' ? recorded.pass : undefined;
+      const seen = await registeredWatcher(target, watcher);
       return {
         sources,
-        watcher: { ...watcher, ...(lastPass ? { lastPass } : {}) },
+        watcher: seen.watcher,
         unwatched: false,
-        ...(lastPass && (!lastPass.ok || lastPass.lastFailure)
-          ? {
-              problem: `The wake watcher runs, but ${describeWakeLastPass(lastPass).replace(/^Its/, 'its')}`,
-            }
-          : {}),
+        ...(seen.problem === undefined ? {} : { problem: seen.problem }),
       };
     }
     return {

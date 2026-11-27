@@ -24,6 +24,11 @@ import {
   type IdentifiedAttentionDegraded,
 } from './schemas/attention-degraded';
 import { itemActFields } from './schemas/item-act';
+import {
+  heldStartUnplacedSchema,
+  itemHeldStartSchema,
+  unplacedHeldStarts,
+} from './schemas/item-held-start';
 import { operatorPause, operatorPauseSchema } from './schemas/operator-pause';
 import { itemLinkDegradedSchema, itemLinkKindSchema, type ItemLink } from './schemas/item-link';
 import { itemRulingDegradedSchema, itemRulingSchema } from './schemas/item-ruling';
@@ -192,35 +197,6 @@ export const itemSkippedStartSchema = z.object({
   heldBehind: itemHeldBehindSchema.nullable(),
 });
 export type ItemSkippedStart = z.infer<typeof itemSkippedStartSchema>;
-
-/**
- * A start on the item from a trigger's binding that is not yet prepared, so it has no
- * request or run. Under the install hold it waits for the lift; otherwise for the next
- * drain of its host (`hostId`), which prepares it and admits, queues or skips it by its
- * binding's `overlap`. `workflow` is null when the stored binding does not read.
- */
-export const itemHeldStartSchema = z.object({
-  receiptId: z.string(),
-  bindingId: z.string(),
-  hostId: z.string().nullable(),
-  workflow: z.string().nullable(),
-  receivedAt: z.string(),
-});
-export type ItemHeldStart = z.infer<typeof itemHeldStartSchema>;
-
-/**
- * A held start naming the item's key whose checkout matches more than one registered project,
- * so it could not be placed in any (`ItemNamingHeldStart`). It is not in `held` and does not
- * count toward `standing`; every item with its key reports it, since its project is unknown.
- * `message` says why.
- */
-export const heldStartUnplacedSchema = z.object({
-  type: z.literal('degraded'),
-  reason: z.literal('held_start_unplaced'),
-  receiptId: z.string(),
-  workflow: z.string().nullable(),
-  message: z.string(),
-});
 
 /**
  * Where an answer was recorded. A field the event row does not carry is null, so an older
@@ -727,19 +703,7 @@ export async function placeItem(
       workflow,
       receivedAt,
     }));
-  const unplacedHeld = install.held.flatMap(start =>
-    start.projectKey === null && start.itemKey === item.key
-      ? [
-          {
-            type: 'degraded' as const,
-            reason: 'held_start_unplaced' as const,
-            receiptId: start.receiptId,
-            workflow: start.workflow,
-            message: start.unplaced,
-          },
-        ]
-      : []
-  );
+  const unplacedHeld = unplacedHeldStarts(install.held, item.key);
   // An admitted start shows in both queued and runs (its run id is its request id) and is
   // listed once as a run.
   const waiting = await source.store.listQueuedItemStarts(item.id);
