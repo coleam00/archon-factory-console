@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { BACK, BACK_DASH, BACK_OPACITY, LINE, LINE_TO, MAIN_STROKE, STROKE } from '../canvas-lines';
+import { BACK, BACK_DASH, BACK_OPACITY, LINE_TO, MAIN_STROKE, STROKE } from '../canvas-lines';
 import type { ColumnTone } from '../lib/map-columns';
 import { TONES } from '../tones';
 
@@ -53,7 +53,7 @@ export function MapLegend({ tones }: { tones: readonly ColumnTone[] }): ReactEle
           <span
             aria-hidden="true"
             className="inline-block size-1.5 rounded-full"
-            style={{ background: LINE }}
+            style={{ background: LINE_TO }}
           />
           A faint dot follows the flow from the first card to the last
         </li>

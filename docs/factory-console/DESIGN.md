@@ -368,7 +368,7 @@ miss on a projector. Intake on the map was purple.
 - **Flow dot.** How it works: a dot 10 px across with a halo 20 px across at 0.28 opacity (a second circle in
   the same moving group, not a blur), in the kind colour of the card it travels to. The glow round the card it rests on reaches 6 px out with a 12% fill. The
   map's working dot is 10 px across in `--running` with a soft halo (`.map-flow-dot`; the legend's swatch,
-  `.map-flow-swatch`, wears the same). The map's forward-flow dot is 6 px in `--text-tertiary`
+  `.map-flow-swatch`, wears the same). The map's forward-flow dot is 6 px in `--text-secondary`
   and its send-back branch dots 5 px in `--node-approval`, each with a halo twice across, so
   the working dot stays the brightest (#289). *Presence on a projector (the #93 operator note), still
   only position and opacity animate.*
@@ -1069,7 +1069,7 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   cost is an empty band under the row by default. Nothing crosses: no line crosses a card, a
   pill or another line.
 - **Flow** (the map's addition to rule 7), none of it drawn under reduced motion:
-  - a faint dot (6 px, `--text-tertiary`, a faint halo) travels every forward hand-off in turn,
+  - a faint dot (6 px, `--text-secondary`, a faint halo) travels every forward hand-off in turn,
     from the first card to the last, a beat on each card between, on one SVG timeline timed
     as How it works' flow (`lib/map-flow.ts`), so the map reads as one flow end to end;
   - while a run works an item on a card, a 10 px dot in the running colour, with a soft halo,

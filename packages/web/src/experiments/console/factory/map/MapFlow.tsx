@@ -1,5 +1,5 @@
 import { memo, useMemo, type ReactElement } from 'react';
-import { LINE } from '../canvas-lines';
+import { LINE_TO } from '../canvas-lines';
 import { mapFlow } from '../lib/map-flow';
 import type { ArrowPath, Box, PlacedCard } from '../lib/map-layout';
 import { FlowDot } from '../overview/OverviewFlow';
@@ -8,7 +8,7 @@ import { useReducedMotion } from '../overview/useReducedMotion';
 /** The forward flow's dot: quieter than the running dot (10 px) and How it works' own. */
 const AMBIENT_R = 3;
 const AMBIENT_HALO_R = 6;
-const AMBIENT_PEAK = 0.8;
+const AMBIENT_PEAK = 0.9;
 
 /**
  * The map's flow, none of it drawn under reduced motion (a CSS class cannot stop SMIL):
@@ -87,7 +87,7 @@ const ForwardFlow = memo(function ForwardFlow({
           move={move}
           period={flow.period}
           dur={dur}
-          colour={LINE}
+          colour={LINE_TO}
           r={AMBIENT_R}
           haloR={AMBIENT_HALO_R}
           peak={AMBIENT_PEAK}
