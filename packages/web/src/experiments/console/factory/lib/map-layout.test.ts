@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { layoutMap, type Box, type MapLayout } from './map-layout';
+import type { SendBackRoute } from './map-send-backs';
 import { testArrows, testView } from '../curated.test-fixtures';
 import {
   boxesMeet,
@@ -96,51 +97,62 @@ const pills = (layout: MapLayout, shown?: string): Box[] => [
  * by default and with each card's send-backs shown in turn.
  */
 function expectClean(layout: MapLayout): void {
+  for (const box of layout.cards.map(card => card.box)) expect(box.y).toBe(0);
+  for (const shown of [undefined, ...layout.sendBacks.keys()]) expectCleanShowing(layout, shown);
+  expectSendBacksUnderRow(layout);
+}
+
+/** Nothing crosses or meets anything else with `shown`'s send-backs drawn (none by default). */
+function expectCleanShowing(layout: MapLayout, shown: string | undefined): void {
   const boxes = layout.cards.map(card => card.box);
-  for (const box of boxes) expect(box.y).toBe(0);
-  for (const shown of [undefined, ...layout.sendBacks.keys()]) {
-    const all = lines(layout, shown);
-    for (const s of all) for (const box of boxes) expect(enters(box, s)).toBe(false);
-    all.forEach((p, i) =>
-      all.forEach((q, j) => {
-        expect(crosses(p, q)).toBe(false);
-        // No two lines drawn on top of each other: each send-back on its own line.
-        if (i !== j) expect(overlaps(p, q)).toBe(false);
-      })
-    );
-    const placed = pills(layout, shown);
-    placed.forEach((pill, i) => {
-      for (const box of boxes) expect(boxesMeet(pill, box)).toBe(false);
-      for (const s of all) expect(enters(pill, s)).toBe(false);
-      placed.forEach((other, j) => {
-        if (i !== j) expect(boxesMeet(pill, other)).toBe(false);
-      });
+  const all = lines(layout, shown);
+  for (const s of all) for (const box of boxes) expect(enters(box, s)).toBe(false);
+  all.forEach((p, i) =>
+    all.forEach((q, j) => {
+      expect(crosses(p, q)).toBe(false);
+      // No two lines drawn on top of each other: each send-back on its own line.
+      if (i !== j) expect(overlaps(p, q)).toBe(false);
+    })
+  );
+  const placed = pills(layout, shown);
+  placed.forEach((pill, i) => {
+    for (const box of boxes) expect(boxesMeet(pill, box)).toBe(false);
+    for (const s of all) expect(enters(pill, s)).toBe(false);
+    placed.forEach((other, j) => {
+      if (i !== j) expect(boxesMeet(pill, other)).toBe(false);
     });
-    const { bounds } = layout;
-    for (const box of [...boxes, ...placed]) {
-      expect(box.x).toBeGreaterThanOrEqual(bounds.x);
-      expect(box.x + box.w).toBeLessThanOrEqual(bounds.x + bounds.w);
-    }
+  });
+  const { bounds } = layout;
+  for (const box of [...boxes, ...placed]) {
+    expect(box.x).toBeGreaterThanOrEqual(bounds.x);
+    expect(box.x + box.w).toBeLessThanOrEqual(bounds.x + bounds.w);
   }
-  // The bounds hug the cards and forward pills; every card's send-backs lie under them, within
-  // the row's span, where the frame grows to hold them while they show.
+}
+
+/**
+ * The bounds hug the cards and forward pills; every card's send-backs lie under them, within
+ * the row's span, where the frame grows to hold them while they show, each pill near its own
+ * leg (the owner's ruling on #289), not slid along the row.
+ */
+function expectSendBacksUnderRow(layout: MapLayout): void {
   const bottom = Math.max(...layout.cards.map(card => card.box.y + card.box.h));
   const pillsAbove = layout.arrows.flatMap(arrow => (arrow.pill === undefined ? [] : [arrow.pill]));
   expect(layout.bounds.y + layout.bounds.h).toBe(
     Math.max(bottom, ...pillsAbove.map(pill => pill.y + pill.h))
   );
   for (const { extent, routes } of layout.sendBacks.values()) {
-    // Each pill near its own leg (the owner's ruling on #289), not slid along the row.
-    for (const route of routes) {
-      const pill = route.pill?.box;
-      const leg = route.points.at(-1)?.x ?? Number.NaN;
-      if (pill !== undefined)
-        expect(Math.max(0, pill.x - leg, leg - (pill.x + pill.w))).toBeLessThanOrEqual(120);
-    }
+    for (const route of routes) expect(legGap(route)).toBeLessThanOrEqual(120);
     expect(extent.y).toBeGreaterThanOrEqual(bottom);
     expect(extent.x).toBeGreaterThanOrEqual(layout.bounds.x);
     expect(extent.x + extent.w).toBeLessThanOrEqual(layout.bounds.x + layout.bounds.w);
   }
+}
+
+/** How far a route's pill sits from its target leg, sideways; 0 for no pill or one over it. */
+function legGap(route: SendBackRoute): number {
+  const pill = route.pill?.box;
+  const leg = route.points.at(-1)?.x ?? Number.NaN;
+  return pill === undefined ? 0 : Math.max(0, pill.x - leg, leg - (pill.x + pill.w));
 }
 
 /** The layout of a test declaration, its `arrows` standing for the arrows the graph draws. */
