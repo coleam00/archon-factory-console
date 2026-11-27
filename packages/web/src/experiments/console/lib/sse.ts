@@ -125,9 +125,9 @@ export function useDashboardSSE(onRunChanged: (runId: string) => void): void {
  * reads already show, so it refetches nothing: refetching it reread the attention list and
  * every board window once more on each page load. The one exception is an item that opened
  * between the list's read and the stream's open set: at `ready`, a replayed item that needs
- * someone and that the loaded list does not hold refetches once (#286). While the list is
- * still loading, its read is newer than the replay and nothing is compared. An item that
- * closed in that gap still waits for the next line.
+ * someone and that the loaded list does not hold refetches once (#286). A list still loading
+ * at `ready` is not compared, so an item that opened just before the stream's open set can
+ * still wait for the next line, and so does an item that closed in that gap.
  * After `ready`, an item that opens and needs someone, or closes, refetches. The server sends
  * the open set and `ready` on every connect, EventSource's own reconnects included, so each
  * connect starts a replay again; changes past the resumed cursor come after its `ready`.
