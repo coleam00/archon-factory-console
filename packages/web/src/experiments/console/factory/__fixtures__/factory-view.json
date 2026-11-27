@@ -53,9 +53,7 @@
             "col": 2,
             "row": 2,
             "opens": "triage",
-            "stages": [
-              "triage"
-            ]
+            "stages": ["triage"]
           },
           {
             "id": "link",
@@ -66,9 +64,7 @@
             "col": 3,
             "row": 2,
             "opens": "link",
-            "stages": [
-              "link"
-            ]
+            "stages": ["link"]
           },
           {
             "id": "plan",
@@ -79,9 +75,7 @@
             "col": 4,
             "row": 2,
             "opens": "plan",
-            "stages": [
-              "plan"
-            ]
+            "stages": ["plan"]
           },
           {
             "id": "build",
@@ -92,9 +86,7 @@
             "col": 5,
             "row": 2,
             "opens": "build",
-            "stages": [
-              "stage-build"
-            ]
+            "stages": ["stage-build"]
           },
           {
             "id": "checks",
@@ -105,9 +97,7 @@
             "col": 6,
             "row": 2,
             "opens": "checks",
-            "stages": [
-              "stage-check"
-            ]
+            "stages": ["stage-check"]
           },
           {
             "id": "ci",
@@ -117,9 +107,7 @@
             "kind": "check",
             "col": 7,
             "row": 2,
-            "stages": [
-              "stage-host"
-            ]
+            "stages": ["stage-host"]
           },
           {
             "id": "ready",
@@ -129,11 +117,7 @@
             "kind": "outcome",
             "col": 8,
             "row": 2,
-            "stages": [
-              "landgate",
-              "land",
-              "catchup"
-            ]
+            "stages": ["landgate", "land", "catchup"]
           },
           {
             "id": "landed",
@@ -143,9 +127,7 @@
             "kind": "outcome",
             "col": 9,
             "row": 2,
-            "stages": [
-              "landed"
-            ]
+            "stages": ["landed"]
           },
           {
             "id": "you",
@@ -164,9 +146,7 @@
             "kind": "gate",
             "col": 8,
             "row": 1,
-            "stages": [
-              "landgate"
-            ]
+            "stages": ["landgate"]
           }
         ],
         "edges": [
@@ -468,9 +448,7 @@
             "kind": "input",
             "col": 1,
             "row": 1,
-            "stages": [
-              "plan"
-            ]
+            "stages": ["plan"]
           },
           {
             "id": "build-build",
@@ -480,9 +458,7 @@
             "kind": "stage",
             "col": 2,
             "row": 1,
-            "stages": [
-              "stage-build"
-            ]
+            "stages": ["stage-build"]
           },
           {
             "id": "build-pr",
@@ -589,9 +565,7 @@
             "kind": "gate",
             "col": 3,
             "row": 2,
-            "stages": [
-              "stage-check"
-            ]
+            "stages": ["stage-check"]
           },
           {
             "id": "checks-approved",
@@ -610,9 +584,7 @@
             "kind": "stage",
             "col": 1,
             "row": 3,
-            "stages": [
-              "stage-build"
-            ]
+            "stages": ["stage-build"]
           },
           {
             "id": "checks-plan",
@@ -622,9 +594,7 @@
             "kind": "stage",
             "col": 4,
             "row": 3,
-            "stages": [
-              "plan"
-            ]
+            "stages": ["plan"]
           }
         ],
         "edges": [
