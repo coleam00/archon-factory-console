@@ -234,16 +234,17 @@ describe('when the forge cannot say, or no audit row names the change', () => {
     expect(forge.asked[0]).toMatchObject({ op: 'resolve', remote: URL10, web: true });
   });
 
-  test('a URL the forge resolves to an issue is unknown, with why', async () => {
+  test('a URL the forge resolves to an issue is unknown, and no pull request is asked for', async () => {
     const issue = structuredClone(resolved) as unknown as {
       result: { value: { subject: { kind: string } } };
     };
     issue.result.value.subject.kind = 'issue';
-    const { dispatch } = answering(issue as unknown as Dispatched['response']);
+    const { dispatch, asked } = answering(issue as unknown as Dispatched['response']);
     expect(await changeMergeState(byUrl([]), noBranches, via(dispatch))).toMatchObject({
       merged: 'unknown',
-      reason: 'the URL names an issue, not a pull request',
     });
+    // The issue's number is never sent to `pr.view` as if it were a pull request's.
+    expect(asked.map(request => request.op)).toEqual(['resolve']);
   });
 
   test('a run that named no URL walks its branches newest first, past those with none', async () => {
