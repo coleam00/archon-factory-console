@@ -43,6 +43,7 @@
     "./start-limit": "./src/start-limit.ts",
     "./pack-graph": "./src/pack-graph.ts",
     "./pack-graph-words": "./src/pack-graph-words.ts",
+    "./display-declarations": "./src/display-declarations.ts",
     "./pack-declarations": "./src/pack-declarations.ts",
     "./factory-view-check": "./src/factory-view-check.ts",
     "./factory-view-read": "./src/factory-view-read.ts",

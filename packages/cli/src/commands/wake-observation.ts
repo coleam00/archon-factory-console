@@ -52,8 +52,10 @@ async function loadObservingSources(
  * read: install passes the installing shell's file to the job with `--sources`.
  */
 async function observingSources(host: WorkflowHost): Promise<readonly ObservingSource[]> {
+  const recorded = await readWakeLastPass(wakeLastPassPath());
   const configPath =
-    process.env.ARCHON_WEBHOOK_SOURCES || (await readWakeLastPass(wakeLastPassPath()))?.sources;
+    process.env.ARCHON_WEBHOOK_SOURCES ||
+    (recorded.kind === 'read' ? recorded.pass.sources : undefined);
   return (await loadObservingSources(host, configPath))?.observing ?? [];
 }
 
@@ -80,7 +82,16 @@ export async function observingReport(host: WorkflowHost, schedules: NativeSched
     if (watcher.registered) {
       // The job discards the watcher's output; its last pass is the one sign of a watcher
       // that runs but fails every pass, for example on a binding's unknown run-as user.
-      const lastPass = await readWakeLastPass(wakeLastPassPath(target));
+      const path = wakeLastPassPath(target);
+      const recorded = await readWakeLastPass(path);
+      if (recorded.kind === 'unreadable')
+        return {
+          sources,
+          watcher,
+          unwatched: false,
+          problem: `The wake watcher runs, but its last-pass record ${path} could not be read: ${recorded.reason}`,
+        };
+      const lastPass = recorded.kind === 'read' ? recorded.pass : undefined;
       return {
         sources,
         watcher: { ...watcher, ...(lastPass ? { lastPass } : {}) },

@@ -46,7 +46,12 @@ import {
   loadPackDocument,
   ungroupedStages,
 } from '@archon/workflows/pack-document';
-import { replacedStillPresent, unlabelled } from '@archon/workflows/pack-graph-words';
+import {
+  replacedStillPresent,
+  replacedTwice,
+  unlabelled,
+} from '@archon/workflows/pack-graph-words';
+import { displayDeclarationFindings } from '@archon/workflows/display-declarations';
 import {
   PLUGIN_MANIFEST_FILE,
   unknownManifestKeys,
@@ -265,6 +270,9 @@ async function collectWorkflowResults(
       issues.push(...packForgeIssues(workflow.pack, await forgePlugins));
     }
 
+    for (const { message, hint } of displayDeclarationFindings(workflow))
+      issues.push({ level: 'error', field: 'display', message, hint });
+
     if (parseWarnings && parseWarnings.length > 0) {
       for (const warning of parseWarnings) {
         issues.push({ level: 'warning', field: 'parse_warning', message: warning });
@@ -437,8 +445,10 @@ async function packDocumentResults(
 
 /**
  * What the pack's in-flow stages leave a reader without words for, as warnings (a reader shows
- * the id instead), and a `display.replaces` naming a stage the pack still has, as an error
- * (`pack-graph-words.ts`), by the stage's workflow name. A folder with no pack manifest, or a
+ * the id instead), and a `display.replaces` naming a stage the pack still has or a retired
+ * workflow named twice, as errors (`pack-graph-words.ts`), by the stage's workflow name. A
+ * mark's `means` and a `results` pointer are checked per workflow
+ * (`display-declarations.ts`). A folder with no pack manifest, or a
  * pack with no flow, has nothing to check.
  */
 async function packDisplayIssues(
@@ -464,7 +474,7 @@ async function packDisplayIssues(
   };
   for (const { stage, message, hint } of unlabelled(graph))
     add(stage, { level: 'warning', field: 'display', message, hint });
-  for (const { stage, message, hint } of replacedStillPresent(graph))
+  for (const { stage, message, hint } of [...replacedStillPresent(graph), ...replacedTwice(graph)])
     add(stage, { level: 'error', field: 'display', message, hint });
   return byStage;
 }

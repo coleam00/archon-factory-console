@@ -35,6 +35,7 @@ const stage = (
   observes: false,
   asks: false,
   waits: false,
+  options: null,
   nodes: steps.map(id => ({
     id,
     kind: 'bash',

@@ -226,7 +226,15 @@ function startSectionLines(read: ItemRead, served: ReadonlySet<string>): string[
     );
   const held = read.hold !== null;
   for (const start of read.held) lines.push(...heldLines(start, served, held));
-  if (read.queued.length === 0 && read.held.length === 0) lines.push('  none');
+  const unplaced = read.degraded.flatMap(report =>
+    report.reason === 'held_start_unplaced' ? [report] : []
+  );
+  for (const start of unplaced)
+    lines.push(
+      `  ${start.workflow ?? 'A trigger start'} (receipt ${start.receiptId}) names this item's key, but its project is unknown: ${start.message}`
+    );
+  if (read.queued.length === 0 && read.held.length === 0 && unplaced.length === 0)
+    lines.push('  none');
   for (const start of read.queued) lines.push(...queuedLines(start, read.runLimit, served, held));
   if (read.skipped.length > 0) {
     lines.push('', 'Refused starts:');

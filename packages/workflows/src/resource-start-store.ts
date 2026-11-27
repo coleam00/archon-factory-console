@@ -263,6 +263,17 @@ export type HeldItemStart = Pick<
   'receiptId' | 'bindingId' | 'hostId' | 'workflow' | 'receivedAt'
 >;
 
+/**
+ * A held start that names an item, as the read of many items lists it: with the project its
+ * checkout is in, or, when that checkout matches more than one registered project, with
+ * `unplaced`, the reason it could not be placed. An unplaced start belongs to no item's
+ * standing; every item with its key reports it as degraded.
+ */
+export type ItemNamingHeldStart = HeldItemStart & { itemKey: string } & (
+    | { projectKey: string }
+    | { projectKey: null; unplaced: string }
+  );
+
 /** A binding preparation the install hold turned back: the binding is pending again. */
 export interface HeldPreparation {
   status: 'held';
@@ -680,9 +691,11 @@ export interface IResourceStartStore {
   listHeldItemStarts(itemId: string): Promise<HeldItemStart[]>;
   /**
    * The unprepared binding starts that name an item, across the install, each with the item it
-   * names, so a read of many items reads them once. A store without items returns none.
+   * names, so a read of many items reads them once. A start whose checkout matches more than
+   * one project is listed unplaced (`ItemNamingHeldStart`), never left out. A store without
+   * items returns none.
    */
-  listAllHeldItemStarts(): Promise<(HeldItemStart & { projectKey: string; itemKey: string })[]>;
+  listAllHeldItemStarts(): Promise<ItemNamingHeldStart[]>;
   /** Every start on item `itemId` with no run yet (`ItemStart`). Itemless stores: none. */
   listItemStarts(itemId: string): Promise<ItemStart[]>;
   /** Every binding a process is preparing now. A store that records no preparer returns none. */

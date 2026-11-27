@@ -209,6 +209,20 @@ export const itemHeldStartSchema = z.object({
 export type ItemHeldStart = z.infer<typeof itemHeldStartSchema>;
 
 /**
+ * A held start naming the item's key whose checkout matches more than one registered project,
+ * so it could not be placed in any (`ItemNamingHeldStart`). It is not in `held` and does not
+ * count toward `standing`; every item with its key reports it, since its project is unknown.
+ * `message` says why.
+ */
+export const heldStartUnplacedSchema = z.object({
+  type: z.literal('degraded'),
+  reason: z.literal('held_start_unplaced'),
+  receiptId: z.string(),
+  workflow: z.string().nullable(),
+  message: z.string(),
+});
+
+/**
  * Where an answer was recorded. A field the event row does not carry is null, so an older
  * row still reads as an answer with its run, node and time.
  */
@@ -323,7 +337,8 @@ export type ItemReadLink = z.infer<typeof itemReadLinkSchema>;
  * `degraded` names each part that could not be read: one of the item's own runs, a paused
  * run the queue could not read (`run_unreadable`, by `runId`), a ruling
  * (`ruling_unreadable`, by `rulingId`), a link (`link_unreadable`, by `linkId`), or the
- * merge (`merge_unreadable`), or where the item lands (`landing_unresolved`). The rest
+ * merge (`merge_unreadable`), or where the item lands (`landing_unresolved`), or a held
+ * start naming its key that could not be placed in a project (`held_start_unplaced`). The rest
  * still reads. `merged` is the merge the forge reported for the item's change, recorded
  * once; null while none is recorded or when its row could not be read. `landing` is the
  * branch a fresh run on the item is cut from and proposes against, and where it came from:
@@ -373,6 +388,7 @@ export const itemReadSchema = z.object({
       itemLandingUnresolvedSchema,
       itemEndDegradedSchema,
       workOrderMemberUnreadableSchema,
+      heldStartUnplacedSchema,
     ])
   ),
 });
@@ -711,6 +727,19 @@ export async function placeItem(
       workflow,
       receivedAt,
     }));
+  const unplacedHeld = install.held.flatMap(start =>
+    start.projectKey === null && start.itemKey === item.key
+      ? [
+          {
+            type: 'degraded' as const,
+            reason: 'held_start_unplaced' as const,
+            receiptId: start.receiptId,
+            workflow: start.workflow,
+            message: start.unplaced,
+          },
+        ]
+      : []
+  );
   // An admitted start shows in both queued and runs (its run id is its request id) and is
   // listed once as a run.
   const waiting = await source.store.listQueuedItemStarts(item.id);
@@ -840,6 +869,7 @@ export async function placeItem(
           ...asks.degraded,
         ]),
         ...factsDegraded,
+        ...unplacedHeld,
       ],
     };
   };

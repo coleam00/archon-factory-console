@@ -12,6 +12,7 @@
  * started the next.
  */
 import { observesItem } from './schemas/item-role';
+import { OTHER_ATTENTION_OPTION } from './schemas/wait-node';
 import { z } from 'zod';
 import { declaredItemFate, declaredOutcome, outcomeValues } from './completed-outcome';
 import type { PackBinding } from './schemas/pack-bindings';
@@ -127,6 +128,21 @@ const packGraphStageSchema = z.object({
   asks: z.boolean(),
   /** The stage declares `result.waits`, so a run can end leaving its item waiting on an event. */
   waits: z.boolean(),
+  /**
+   * The options every ask of the stage offers: its declared `returns.options` in order, each
+   * with its `label` when it declares one, then the reserved `other`. Null when the stage
+   * declares none (its asks write their own options).
+   */
+  options: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string().optional(),
+        does: z.string().optional(),
+        cost: z.string().optional(),
+      })
+    )
+    .nullable(),
   nodes: z.array(packGraphNodeSchema),
   /** The stage's `display:` without its outcomes'. Each `display` is absent, never null, when unset. */
   display: stageDisplaySchema.optional(),
@@ -747,6 +763,10 @@ function graphStage(
     observes: observesItem(stage),
     asks: stage.result?.asks !== undefined,
     waits: stage.result?.waits !== undefined,
+    options:
+      stage.result?.options === undefined
+        ? null
+        : [...stage.result.options.map(option => ({ ...option })), { ...OTHER_ATTENTION_OPTION }],
     nodes: stageNodes(stage),
     ...stageDisplay(stage.display),
   };
