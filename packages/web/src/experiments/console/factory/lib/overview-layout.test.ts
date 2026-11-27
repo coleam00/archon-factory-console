@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { shippedFile } from '../curated.test-fixtures';
+import { testFile } from '../curated.test-fixtures';
 import { fitCamera, fittedHeight, type Frame } from './map-camera';
 import {
   layoutOverview,
@@ -14,8 +14,8 @@ import {
 import { drawingFaults, fanFaults } from './overview-layout.test-fixtures';
 import type { OverviewDeclaration, OverviewView } from './overview-nav';
 
-/** The How it works picture the Wirasm pack's curated view file carries. */
-const shipped: OverviewDeclaration = shippedFile.howItWorks;
+/** The tests' How it works picture. */
+const picture: OverviewDeclaration = testFile.howItWorks;
 
 /*
  * The map frame on the page at 1440x900, measured in a browser on `bun run dev:console`:
@@ -23,8 +23,8 @@ const shipped: OverviewDeclaration = shippedFile.howItWorks;
  */
 const PAGE_WIDTH = 892;
 
-const views = Object.entries(shipped.views);
-const root = shipped.views[shipped.root] as OverviewView;
+const views = Object.entries(picture.views);
+const root = picture.views[picture.root] as OverviewView;
 
 function fittedK(view: OverviewView, frame: Frame, pad: number): number {
   return fitCamera(layoutOverview(view).bounds, frame, pad, OVERVIEW_MIN_K, OVERVIEW_MAX_K).k;
@@ -43,7 +43,7 @@ function pageFrame(view: OverviewView): Frame {
 const laneLines = (edges: OverviewEdgePath[]): OverviewEdgePath[] =>
   edges.filter(edge => edge.kind === 'loops-back' && edge.points.length === 4);
 
-describe('the shipped overview, drawn', () => {
+describe("a view file's overview, drawn", () => {
   test.each(views)(
     'view %s: no line, label, stub or bar runs through a card, a foreign group or another line',
     (_, view) => {
@@ -60,7 +60,7 @@ describe('the shipped overview, drawn', () => {
       'ci->build',
       'ci->found',
     ]);
-    const checks = layoutOverview(shipped.views.checks as OverviewView).edges;
+    const checks = layoutOverview(picture.views.checks as OverviewView).edges;
     expect(laneLines(checks).map(edge => [edge.from, edge.to, edge.label])).toEqual([
       ['checks-verdict', 'checks-build', 'sent back to fix'],
       ['checks-verdict', 'checks-plan', 'replan'],
@@ -81,12 +81,12 @@ const fannedGroups = (view: OverviewView): string[] => [
 ];
 
 describe('a group drawn as parallel work fans its line out to each member', () => {
-  test('the shipped file fans two: the root inputs and the three checks', () => {
+  test('the file fans two: the root inputs and the three checks', () => {
     expect(views.flatMap(([, view]) => fannedGroups(view)).sort()).toEqual([
       'checks-three',
       'inputs',
     ]);
-    const checks = layoutOverview(shipped.views.checks as OverviewView);
+    const checks = layoutOverview(picture.views.checks as OverviewView);
     expect(checks.fans.map(f => [f.group, f.side, f.into, f.stubs.length])).toEqual([
       ['checks-three', 'left', true, 3],
       ['checks-three', 'right', false, 3],

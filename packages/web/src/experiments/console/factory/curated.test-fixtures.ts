@@ -1,27 +1,16 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { PackGraph } from '../skills/items';
 import type { ViewFile } from './api';
 import { curatedView, type CuratedView } from './lib/curated-view';
 import { mapArrows, type MapArrow } from './lib/graph-structure';
+import { smallGraph } from './__fixtures__/small-pack';
+import { smallViewFile } from './__fixtures__/small-view';
 
-/** The Wirasm pack's view file (its How it works explainer), as this repository keeps it until the pack ships it. */
-export const shippedFile = JSON.parse(
-  readFileSync(
-    join(import.meta.dir, '../../../../../../docs/factory-console/pack-view/factory-view.json'),
-    'utf8'
-  )
-) as ViewFile;
+/** The tests' view file: a small How it works picture drawn over `testGraph`. */
+export const testFile: ViewFile = smallViewFile;
 
-/**
- * The pack graph of the commit that file is written for, dd30226, with the overlay
- * `docs/factory-console/pack-spike/` applied (its words and declarations), as the checker's
- * graph read gives it.
- */
-export const shippedGraph = JSON.parse(
-  readFileSync(join(import.meta.dir, '__fixtures__', 'pack-graph-dd30226.json'), 'utf8')
-) as PackGraph;
+/** The tests' pack graph: the Wirasm factory's shape in a few stages, written by hand. */
+export const testGraph: PackGraph = smallGraph;
 
-export const shippedView: CuratedView = curatedView(shippedFile, shippedGraph);
+export const testView: CuratedView = curatedView(testFile, testGraph);
 
-export const shippedArrows: MapArrow[] = mapArrows(shippedView, shippedGraph);
+export const testArrows: MapArrow[] = mapArrows(testView, testGraph);

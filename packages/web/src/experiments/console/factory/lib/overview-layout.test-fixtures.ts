@@ -1,7 +1,7 @@
 /**
  * What is wrong with a view as `layoutOverview` draws it, in world px: an edge it could not
  * route, a line touching a card other than its ends or a group holding neither end, two lines
- * touching, or a label pill touching anything (`pillFaults`). The shipped file's test and the
+ * touching, or a label pill touching anything (`pillFaults`). The view file's layout test and the
  * schema conformance test (`scripts/overview-geometry-parity.test.ts`) both judge a drawing by
  * this one check; the conformance test's views carry no labels, so pills, which only the web
  * draws, never enter its verdict.
