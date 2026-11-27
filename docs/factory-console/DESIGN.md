@@ -1048,10 +1048,11 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   the row, whose merged line and row of pills could not say which stage each way back left
   from). By default the map draws the forward flow only. A card something leaves backward wears
   a small badge beside its details button, "↺ n", n its distinct send-back routes; its title
-  says what it is. Hovering the card, or focus anywhere in it, draws that card's send-backs and
-  no other's; leaving it hides them. The badge is the touch and keyboard control: a press pins
-  them, Escape, a press on the badge again or a click elsewhere unpins (a drag of the map does
-  not), and hovering another card shows that card's meanwhile.
+  says what it is. Hovering the card, or keyboard focus anywhere in it, draws that card's
+  send-backs and no other's; leaving it hides them (focus a click leaves behind does not
+  count, so the routes go when the pointer does). The badge is the touch control: a press pins
+  them, Escape, a press on the badge again or a click elsewhere unpins (a drag of the map or a
+  press on its zoom controls does not), and hovering another card shows that card's meanwhile.
   Each send-back is its own route, one per pair of stages (two stages of a card returning to
   one stage are two lines), dashed `6 4` in `--node-approval` (rule 4): down from its own leg
   on the source card's bottom edge (spread over the card's right part), along its own track

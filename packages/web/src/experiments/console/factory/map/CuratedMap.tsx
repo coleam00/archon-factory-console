@@ -198,7 +198,9 @@ function MapControls({
 }): ReactElement {
   return (
     <div
-      // A press on the controls must not start a pan of the map under them.
+      // A press on the controls must not start a pan of the map under them, nor unpin a card's
+      // send-backs (`useShownSendBacks`).
+      data-map-controls=""
       onPointerDown={event => event.stopPropagation()}
       className="absolute bottom-2 right-2 flex items-center gap-0.5 rounded-console-12 border border-border bg-surface px-1 py-0.5"
     >

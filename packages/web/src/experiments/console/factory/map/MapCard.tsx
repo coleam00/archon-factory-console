@@ -89,10 +89,12 @@ export function MapCard({
       data-card={card.id}
       className="absolute"
       style={{ left: card.box.x, top: card.box.y, width: card.box.w, height: card.box.h }}
-      // Hovering the card, or focus anywhere in it, shows its send-backs (`MapSendBacks`).
+      // Hovering the card, or keyboard focus anywhere in it, shows its send-backs
+      // (`MapSendBacks`). Not focus a click leaves on a link or the badge, nor focus the stage
+      // modal hands back on closing: that would keep the routes on after the pointer left.
       onMouseEnter={() => show.hover(card.id)}
       onMouseLeave={() => show.hover(null)}
-      onFocus={() => show.focus(card.id)}
+      onFocus={event => show.focus(event.target.matches(':focus-visible') ? card.id : null)}
       onBlur={() => show.focus(null)}
     >
       {stages.length === 1 && only !== undefined ? (

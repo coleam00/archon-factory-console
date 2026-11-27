@@ -424,7 +424,7 @@ describe("the map's send-backs and flow", () => {
     expect(routes(page)).toEqual(CHECKS_ROUTES);
   });
 
-  test('the badge pins them; a drag keeps the pin, a click elsewhere drops it', async () => {
+  test('the badge pins them; a press that starts a pan keeps the pin, a click elsewhere drops it', async () => {
     const page = await mount(CURATED);
     const badge = card(page, 'checks').querySelector('[data-send-back-badge]') as Element;
     await click(badge);
@@ -452,6 +452,8 @@ describe("the map's send-backs and flow", () => {
 
   test('with motion allowed, a dot follows the forward flow and one leaves along each shown route', async () => {
     const page = await mount(CURATED);
+    // The fixture has a run working on build: its running dot is drawn.
+    expect(page.querySelector('.map-flow-dot')).not.toBeNull();
     expect(page.querySelectorAll('[data-map-flow] [data-map-flow-move]')).toHaveLength(
       page.querySelectorAll('[data-arrow]').length
     );
