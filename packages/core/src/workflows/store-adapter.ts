@@ -76,7 +76,7 @@ import {
   createAsksSettledStarts,
 } from './asks-settled';
 import { createEndedCheckout } from './ended-checkout';
-import { heldItemStartsNaming } from './held-item-starts';
+import { heldStartReads } from './held-item-starts';
 import {
   registeredProjectForPath,
   registeredProjectKeyForPath,
@@ -160,26 +160,17 @@ function collectOAuthCredentialValues(
 const launchProjectKeyOf = launchProjectKey(cwd => registeredProjectKeyForPath(cwd, codebaseDb));
 const launchProjectOf = (cwd: string) => registeredProjectForPath(cwd, codebaseDb);
 
-/**
- * The held binding starts that name an item, across the install, so a read of many items lists
- * them once. A start whose checkout is ambiguous is left out here only: the read of one item's
- * starts, and the end and stop rule, still fail on it.
- */
-async function listAllHeldItemStarts(): ReturnType<IWorkflowStore['listAllHeldItemStarts']> {
-  return heldItemStartsNaming(
-    await installHold.listHeldStarts(),
-    () => true,
-    launchProjectKeyOf,
-    true
-  );
-}
+// Every held-start read, so the bulk one and one item's agree on the project (`heldStartReads`).
+const heldStarts = heldStartReads({
+  listHeldStarts: () => installHold.listHeldStarts(),
+  projectKeyOf: launchProjectKeyOf,
+});
 
 /** The held binding starts on item `itemId`: those naming its key whose checkout is in its project. */
 async function listHeldItemStarts(itemId: string): Promise<HeldItemStart[]> {
   const item = await itemsDb.getItem(itemId);
   if (!item) return [];
-  const starts = await installHold.listHeldStarts();
-  return (await heldItemStartsNaming(starts, key => key === item.key, launchProjectKeyOf, false))
+  return (await heldStarts.naming(item.key))
     .filter(start => start.projectKey === item.projectKey)
     .map(({ projectKey: _project, itemKey: _key, ...start }) => start);
 }
@@ -312,7 +303,7 @@ export function createWorkflowStore(): IWorkflowStore {
     liftInstallHold: installHold.liftInstallHold,
     listHeldStarts: installHold.listHeldStarts,
     listHeldItemStarts,
-    listAllHeldItemStarts,
+    listAllHeldItemStarts: heldStarts.all,
     listItemStarts,
     listPreparingStarts,
     listRefusedStarts,
