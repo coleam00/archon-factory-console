@@ -147,7 +147,8 @@ describe('a pack map', () => {
         'built +3',
         ['built', 'fixed for CI', 'dropped by you → Landing', 'needs shaping → Landing'],
       ],
-      ['checks', 'landing', 'ready', ['ready']],
+      // Checks and CI and review both send a drop answer to close: it is listed once.
+      ['checks', 'landing', 'ready, dropped by you', ['ready', 'dropped by you']],
       ['landing', 'landed', 'merged', ['merged']],
     ]);
     for (const arrow of layout.arrows) {
@@ -175,6 +176,10 @@ describe('a pack map', () => {
     // not two drawn on top of each other.
     const routes = layout.feedback.paths.map(path => `${path.from}>${path.to}`);
     expect(routes).toEqual([...new Set(routes)]);
+    // Both send 'returned' to stage-build: the route's label names it once.
+    expect(
+      layout.feedback.paths.find(p => p.from === 'checks' && p.to === 'stage-build')?.label
+    ).toBe('returned, sent back, one more round, something else');
     expect(
       layout.feedback.paths.find(p => p.from === 'landing' && p.to === 'stage-build')?.label
     ).toBe('sent back, behind its branch');

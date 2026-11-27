@@ -328,6 +328,9 @@ const ARROWS: Arrow[] = [
   answered('stage-check', 'other', 'stage-build'),
   on('stage-host', 'ready', 'landgate'),
   on('stage-host', 'return', 'stage-build'),
+  // Two stages of one column hand the same word forward: the pill names it once.
+  answered('stage-check', 'drop', 'close'),
+  answered('stage-host', 'drop', 'close'),
   on('landgate', 'land', 'land'),
   answered('landgate', 'land', 'land'),
   answered('landgate', 'send-back', 'stage-build'),

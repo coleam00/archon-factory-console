@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { testFile } from '../curated.test-fixtures';
+import { shippedFile } from '../curated.test-fixtures';
 import { type OverviewFlow, overviewFlow } from './overview-flow';
 import { layoutOverview } from './overview-layout';
 import type { OverviewCard, OverviewDeclaration, OverviewView } from './overview-nav';
 
-/** The tests' How it works picture. */
-const picture: OverviewDeclaration = testFile.howItWorks;
-const root = picture.views[picture.root] as OverviewView;
+/** The How it works picture the Wirasm pack's curated view file carries. */
+const shipped: OverviewDeclaration = shippedFile.howItWorks;
+const root = shipped.views[shipped.root] as OverviewView;
 
 const flowOf = (view: OverviewView): OverviewFlow | undefined =>
   overviewFlow(view, layoutOverview(view));
@@ -17,7 +17,7 @@ const order = (flow: OverviewFlow): string[] =>
     .sort((a, b) => a.start - b.start || a.from.localeCompare(b.from))
     .map(move => `${move.from}->${move.to}`);
 
-describe('the How it works flow on a root view', () => {
+describe('the How it works flow on the shipped root view', () => {
   const flow = flowOf(root) as OverviewFlow;
 
   test('three inputs into Triage, on through Link and the stages, split at CI', () => {

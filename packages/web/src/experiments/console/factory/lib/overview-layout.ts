@@ -8,14 +8,14 @@
  * box, runs along its own track, and rises into a port on its target's bottom. A file the
  * server lists has passed those rules, so no edge drawn here crosses. Each label is a pill set
  * off its line. The rules do not measure labels, so a long label on a short line can meet a card
- * or a line; `overview-layout.test-fixtures.ts` checks the pills of the files the tests draw only.
+ * or a line; `overview-layout.test-fixtures.ts` checks the pills of the shipped file only.
  *
  * A parallel group (`parallelGroups`) also gets a fan on each side an edge meets it: a bar
  * along the frame and a stub to each member, drawn inside the group's pad, which no forward
- * line names a member to enter; `overview-layout.test.ts` checks the fans of a view file.
+ * line names a member to enter; `overview-layout.test.ts` checks the fans of the shipped file.
  * The two copies of the rules cannot share a module (the web does not import
  * `@archon/workflows`); `scripts/overview-geometry-parity.test.ts` holds them in step on
- * seeded views, and `overview-layout.test.ts` checks this drawing of a view file.
+ * seeded views, and `overview-layout.test.ts` checks this drawing of the shipped file.
  */
 import { TYPE_FLOOR_PX } from './map-camera';
 import type { Box, Point } from './map-layout';
