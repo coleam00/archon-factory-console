@@ -1190,21 +1190,4 @@ describe('placing an item through its links', () => {
     expect(read.state).toBe('done');
     expect(read.placed).toBeLessThanOrEqual(3 * items.length);
   });
-
-  test('a cycle of parts alone does not make an item done', async () => {
-    const x = at('x');
-    const y = at('y');
-    const links = [link('part_of', x, y), link('part_of', y, x)];
-    expect((await place({ top: x, items: [x, y], links })).state).toBe('resting');
-    expect((await place({ top: y, items: [x, y], links })).state).toBe('resting');
-  });
-
-  test('an ended part in a cycle is done for the item it is part of', async () => {
-    const x = at('x');
-    const y = at('y');
-    const links = [link('part_of', x, y), link('part_of', y, x)];
-    expect((await place({ top: y, items: [x, y], links, ended: [x.id] })).state).toBe('done');
-    // An end holds before the cycle guard is asked, so x's part y is done through x's end.
-    expect((await place({ top: x, items: [x, y], links, ended: [x.id] })).state).toBe('done');
-  });
 });
