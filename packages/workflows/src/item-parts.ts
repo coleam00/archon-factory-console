@@ -32,7 +32,10 @@ export interface PlacedDone {
  * With `dependsOn: false` the item's own `depends_on` links are not read. A linked item is
  * placed only to ask whether it stands `done`, which its parts, merge and end decide before
  * what it depends on is looked at (`itemStanding`), so following them there could only
- * multiply the reads (#286).
+ * multiply the reads (#286). `known` holds, by id, whether a linked item stands `done`, shared
+ * by every placement of one read, so converging links place a linked item once rather than
+ * once per path to it. Only an answer no cycle cut is kept: that one is the same whichever
+ * path reaches the item, while a cut one depends on the items above it.
  */
 export async function readLinked(
   store: ItemEndStore & Pick<IWorkflowStore, 'getItemMerge'>,
@@ -40,7 +43,7 @@ export async function readLinked(
   links: readonly ItemLinkRead[],
   visiting: ReadonlySet<string>,
   placedDone: (other: WorkflowItem, inside: ReadonlySet<string>) => Promise<PlacedDone>,
-  options: { dependsOn: boolean }
+  options: { dependsOn: boolean; known: Map<string, boolean> }
 ): Promise<{ parts: { done: boolean }[]; dependsOn: { done: boolean }[]; cut: boolean }> {
   const inside = new Set([...visiting, item.id]);
   let cut = false;
@@ -58,8 +61,11 @@ export async function readLinked(
       cut = true;
       return false;
     }
+    const known = options.known.get(other.id);
+    if (known !== undefined) return known;
     const placed = await placedDone(other, new Set([...inside, other.id]));
     if (placed.cut) cut = true;
+    else options.known.set(other.id, placed.done);
     return placed.done;
   };
   const parts: { done: boolean }[] = [];

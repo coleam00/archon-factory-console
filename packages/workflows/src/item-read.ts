@@ -608,12 +608,7 @@ export async function readInstallFacts(source: ItemReadSource) {
     runLimit: await source.store.getRunLimit(),
     // The one queue reader, so a question here reads as `workflow attention` lists it.
     queue: splitAttentionRead(await listAttentionQueue({ ...source, ownerLost: undefined })),
-    /**
-     * Whether a linked item stands `done`, by its id, for every placement that shares these
-     * facts: a read of many items meets the same linked items again and again, and converging
-     * links would otherwise place one item once per path to it (#286). Only an answer no cycle
-     * cut is kept, since that one is the same whichever path reaches the item.
-     */
+    // Shared by every placement of this read, so a linked item is placed once (`readLinked`).
     linkedDone: new Map<string, boolean>(),
   };
 }
@@ -692,29 +687,20 @@ async function readItemFacts(
 export async function placeItem(
   source: ItemReadSource,
   item: WorkflowItem,
-  install: InstallFacts
-): Promise<Placed | null> {
-  return (await placeWithin(source, item, install, null)).placed;
-}
-
-interface Placed {
+  install: InstallFacts,
+  /**
+   * Null for the item itself. For an item linked to it, placed only to ask whether it stands
+   * `done`: the items whose links are being placed, so a cycle of links ends.
+   */
+  visiting: ReadonlySet<string> | null = null
+): Promise<{
   standing: ItemStanding;
   /** The run `standing.runId` names, for a reader that orders or filters items by it. */
   run: WorkflowRun | undefined;
   read: () => Promise<ItemRead>;
-}
-
-/**
- * `placeItem`, for the item itself (`visiting` null) or for an item linked to it, placed only
- * to ask whether it stands `done`: `visiting` holds the items whose links are being placed,
- * so a cycle of links ends, and `cut` says one did.
- */
-async function placeWithin(
-  source: ItemReadSource,
-  item: WorkflowItem,
-  install: InstallFacts,
-  visiting: ReadonlySet<string> | null
-): Promise<{ placed: Placed | null; cut: boolean }> {
+  /** A cycle of links was cut short in placing it (`readLinked`). */
+  cut: boolean;
+} | null> {
   const { hold, runLimit } = install;
   const held = install.held
     .filter(start => start.projectKey === item.projectKey && start.itemKey === item.key)
@@ -729,7 +715,7 @@ async function placeWithin(
   // listed once as a run.
   const waiting = await source.store.listQueuedItemStarts(item.id);
   const found = await readItemRuns(source.store, item.projectKey, item.key);
-  if (found === null) return { placed: null, cut: false };
+  if (found === null) return null;
   const own = { values: found.runs, degraded: found.degraded };
   const tree = new Set([
     ...own.values.map(run => run.id),
@@ -764,15 +750,12 @@ async function placeWithin(
     found.item,
     linkReads,
     visiting ?? new Set(),
-    async (other, inside) => {
-      const known = install.linkedDone.get(other.id);
-      if (known !== undefined) return { done: known, cut: false };
-      const nested = await placeWithin(source, other, install, inside);
-      const done = nested.placed?.standing.state === 'done';
-      if (!nested.cut) install.linkedDone.set(other.id, done);
-      return { done, cut: nested.cut };
-    },
-    { dependsOn: visiting === null }
+    (other, inside) =>
+      placeItem(source, other, install, inside).then(place => ({
+        done: place?.standing.state === 'done',
+        cut: place?.cut ?? false,
+      })),
+    { dependsOn: visiting === null, known: install.linkedDone }
   );
   const standing = itemStanding({
     runs: own.values,
@@ -860,10 +843,7 @@ async function placeWithin(
       ],
     };
   };
-  return {
-    placed: { standing, run: own.values.find(run => run.id === standing.runId), read },
-    cut,
-  };
+  return { standing, run: own.values.find(run => run.id === standing.runId), read, cut };
 }
 
 /**
