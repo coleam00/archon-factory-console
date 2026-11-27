@@ -1071,8 +1071,10 @@ Changed by #68 (owner audit of 2026-11-18): the board's columns, always one row,
   opening the full list, as a forward pill's is; a hovered card's is not, since its routes go
   as the pointer leaves the card. The frame hugs the cards and forward pills by default (no
   empty band under the row) and grows under the cards while a card shows its send-backs, just
-  enough to hold its routes and pills; the cards stay where they are (owner ruling on #289:
-  at 1440x900 a hovered card's pills all show inside the frame). Nothing crosses: no line
+  enough to hold its routes and pills; the cards stay where they are. Owner ruling on #289:
+  at 1440x900, once the map is in view, a hovered card's pills all show inside the frame and
+  the whole grown frame fits the 900 px window; the page does not scroll itself to show them
+  (with the page at its top, a deep card's pills can sit below the fold). Nothing crosses: no line
   crosses a card, a pill or another line.
 - **Flow** (the map's addition to rule 7), none of it drawn under reduced motion:
   - a faint dot (6 px, `--text-secondary`, a faint halo) travels every forward hand-off in turn,
