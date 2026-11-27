@@ -45,8 +45,6 @@
     "./pack-graph-words": "./src/pack-graph-words.ts",
     "./display-declarations": "./src/display-declarations.ts",
     "./pack-declarations": "./src/pack-declarations.ts",
-    "./factory-view-check": "./src/factory-view-check.ts",
-    "./factory-view-read": "./src/factory-view-read.ts",
     "./pack-document": "./src/pack-document.ts",
     "./pack-binding-rule": "./src/pack-binding-rule.ts",
     "./workflow-notice": "./src/workflow-notice.ts",
